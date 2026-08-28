@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useMemo, useEffect, useRef, type FormEvent, type ChangeEvent } from 'react';
+import * as XLSX from 'xlsx';
 import { getStoredUser } from '@/lib/auth-session';
 import { useLocation } from 'react-router-dom';
 import { createTicket } from '@/services/tickets';
@@ -13,6 +14,7 @@ import {
   Search, ChevronDown, X, Eye, ShieldCheck,
   CheckCircle2, Wrench, Box, ArrowRightLeft, MapPin, Building2,FileSpreadsheet,FileDown,
   Filter, Plus, Monitor, Server, Cloud, Briefcase, User, Package, Pencil, AlertTriangle, Loader2, ImageIcon, FileText,
+  UploadCloud, Info,
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
 import { statusPillClass } from '../../lib/status-pill';
@@ -80,6 +82,7 @@ interface Asset {
   warrantyMonths?: number | null;
   assetImage?: { url?: string; id?: string } | string | null;
   warrantyDocument?: { url?: string; id?: string } | string | null;
+  unitPrice?: string;
   value?: string;
   notes?: string;
   transferReason?: string;
@@ -112,7 +115,7 @@ interface AssetForm {
   location: string;
   floor: string;
   wing: string;
-  value: string;
+  unitPrice: string;
   notes: string;
 }
 
@@ -267,6 +270,71 @@ function getAssetFileUrl(file?: { url?: string; id?: string } | string | null): 
   return typeof file === 'string' ? file : file.url || '';
 }
 
+// ---------------------------------------------------------------------------
+// Bulk Upload – template & row helpers
+// ---------------------------------------------------------------------------
+const ASSET_BULK_SHEET_NAME = 'Assets';
+const ASSET_BULK_HEADERS = [
+  'Asset Name', 'Department', 'Category', 'Sub Category', 'Vendor', 'Brand / Model',
+  'Serial Number', 'Purchase Date', 'Quantity', 'Price per Unit', 'Ownership Type',
+  'Rent Duration (Months)', 'Warranty (Months)', 'Status', 'Location', 'Notes',
+];
+
+function buildAssetBulkTemplateWorkbook() {
+  const workbook = XLSX.utils.book_new();
+  const uploadSheet = XLSX.utils.aoa_to_sheet([
+    ASSET_BULK_HEADERS,
+    ['MacBook Pro M3', 'IT', 'Laptops', 'BIZNest Laptop', 'Dell India', 'MacBook Pro 14"', '', '2026-01-15', 5, 120000, 'Owned', '', 12, 'Active', 'Floor 3, Wing A', 'Bulk purchase for new hires'],
+  ]);
+  XLSX.utils.book_append_sheet(workbook, uploadSheet, ASSET_BULK_SHEET_NAME);
+
+  const instructionsSheet = XLSX.utils.aoa_to_sheet([
+    ['Field', 'Notes'],
+    ['Asset Name', 'Required.'],
+    ['Department', 'Must match an existing department you have access to. Required.'],
+    ['Category', 'Existing category name for the department, or a new name to auto-create it. Required.'],
+    ['Sub Category', 'Existing sub category under the category, or a new name to auto-create it. Required.'],
+    ['Vendor', 'Optional. Free text.'],
+    ['Brand / Model', 'Optional.'],
+    ['Serial Number', 'Optional. Only used when Quantity is 1 — add serial numbers for multi-unit batches individually after import.'],
+    ['Purchase Date', 'Optional. Format YYYY-MM-DD.'],
+    ['Quantity', 'Number of identical units to create in this row. Defaults to 1. Each unit gets its own unique Asset ID.'],
+    ['Price per Unit', 'Numeric price for a single unit. Total Price is calculated automatically as Price per Unit x Quantity.'],
+    ['Ownership Type', '"Owned" or "Rented". Defaults to Owned.'],
+    ['Rent Duration (Months)', 'Required only when Ownership Type is Rented.'],
+    ['Warranty (Months)', 'Optional.'],
+    ['Status', '"Active", "Inactive", "Disposed" or "Repair". Defaults to Active.'],
+    ['Location', 'Optional free text, e.g. "Floor 3, Wing A".'],
+    ['Notes', 'Optional.'],
+  ]);
+  XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instructions');
+
+  return workbook;
+}
+
+function readBulkAssetCell(row: Record<string, any>, ...keys: string[]): string {
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
+      return String(row[key]).trim();
+    }
+  }
+  return '';
+}
+
+function normalizeBulkAssetDate(raw: any): string {
+  if (!raw) return '';
+  if (raw instanceof Date && !Number.isNaN(raw.getTime())) {
+    return `${raw.getFullYear()}-${String(raw.getMonth() + 1).padStart(2, '0')}-${String(raw.getDate()).padStart(2, '0')}`;
+  }
+  const str = String(raw).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
+  const parsed = new Date(str);
+  if (!Number.isNaN(parsed.getTime())) {
+    return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
+  }
+  return '';
+}
+
 function normalizeAsset(a: any): Asset {
   return {
     ...a,
@@ -293,6 +361,7 @@ function normalizeAsset(a: any): Asset {
     expiryDate: a.expiryDate || '',
     warrantyExpiry: a.warrantyExpiry || '',
     location: a.location || 'Unassigned',
+    unitPrice: a.unitPrice || '-',
     value: a.value || '-',
   };
 }
@@ -320,7 +389,7 @@ const INITIAL_ASSET_FORM: AssetForm = {
   location: '',
   floor: '',
   wing: '',
-  value: '',
+  unitPrice: '',
   notes: '',
 };
 
@@ -404,6 +473,14 @@ export function AssetsPage() {
   const [categoryForm, setCategoryForm] = useState({ name: '', requiresSerialNumber: false });
   const [subCategoryForm, setSubCategoryForm] = useState({ name: '' });
   const [isSavingCategory, setIsSavingCategory] = useState(false);
+
+  const [bulkAssetModal, setBulkAssetModal] = useState(false);
+  const [bulkAssetFileName, setBulkAssetFileName] = useState('');
+  const [bulkAssetRows, setBulkAssetRows] = useState<Record<string, any>[]>([]);
+  const [bulkAssetImporting, setBulkAssetImporting] = useState(false);
+  const [bulkAssetSummary, setBulkAssetSummary] = useState<{ created: number; skipped: number; issues: string[] } | null>(null);
+  const [bulkAssetError, setBulkAssetError] = useState('');
+  const bulkAssetFileInputRef = useRef<HTMLInputElement>(null);
 
   const [assets, setAssets] = useState<Asset[]>([]);
   const [issueAsset, setIssueAsset] = useState<Asset | null>(null);
@@ -596,6 +673,12 @@ export function AssetsPage() {
     [assetForm.purchaseDate, assetForm.warrantyMonths],
   );
 
+  const totalPricePreview = useMemo(() => {
+    const unitPriceNum = Number(String(assetForm.unitPrice || '').replace(/[^0-9.-]/g, '')) || 0;
+    const qty = Math.max(1, parseInt(String(assetForm.quantity || '').trim(), 10) || 1);
+    return unitPriceNum * qty;
+  }, [assetForm.unitPrice, assetForm.quantity]);
+
   const selectedDepartmentRecord = useMemo(
     () => departmentRecords.find((department) => normalizeDepartmentName(department.name) === normalizeDepartmentName(assetForm.department)) || null,
     [assetForm.department, departmentRecords],
@@ -669,7 +752,7 @@ export function AssetsPage() {
       location: asset.location || '',
       floor,
       wing,
-      value: asset.value === '-' ? '' : asset.value || '',
+      unitPrice: asset.unitPrice === '-' ? '' : asset.unitPrice || '',
       notes: asset.notes || '',
     });
     setFloorMode(floor && !resourceFloors.includes(floor) ? 'custom' : 'select');
@@ -733,6 +816,151 @@ export function AssetsPage() {
     }
   }
 
+  function openBulkAssetModal() {
+    setBulkAssetModal(true);
+    setBulkAssetFileName('');
+    setBulkAssetRows([]);
+    setBulkAssetSummary(null);
+    setBulkAssetError('');
+  }
+
+  function closeBulkAssetModal() {
+    if (bulkAssetImporting) return;
+    setBulkAssetModal(false);
+    setBulkAssetFileName('');
+    setBulkAssetRows([]);
+    setBulkAssetSummary(null);
+    setBulkAssetError('');
+  }
+
+  function handleBulkAssetDownloadTemplate() {
+    const workbook = buildAssetBulkTemplateWorkbook();
+    XLSX.writeFile(workbook, 'asset-bulk-upload-template.xlsx');
+  }
+
+  function handleBulkAssetFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setBulkAssetFileName(file.name);
+    setBulkAssetSummary(null);
+    setBulkAssetError('');
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+        const sheetName = workbook.SheetNames.includes(ASSET_BULK_SHEET_NAME) ? ASSET_BULK_SHEET_NAME : workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, any>[];
+        setBulkAssetRows(rows);
+        if (rows.length === 0) setBulkAssetError('No rows found in the spreadsheet.');
+      } catch {
+        setBulkAssetError('Failed to parse spreadsheet. Please check the file format.');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  async function handleBulkAssetImport() {
+    if (bulkAssetRows.length === 0) return;
+    setBulkAssetImporting(true);
+    let created = 0;
+    let skipped = 0;
+    const issues: string[] = [];
+    // Local working copies so a category/sub-category auto-created for an earlier row in
+    // this same import is immediately visible to later rows, without waiting on React state.
+    let workingCategories = [...assetCategories];
+    let workingSubCategories = [...assetSubCategories];
+
+    for (let i = 0; i < bulkAssetRows.length; i++) {
+      const row = bulkAssetRows[i];
+      const rowNum = i + 2;
+      try {
+        const name = readBulkAssetCell(row, 'Asset Name', 'name', 'Name');
+        if (!name) { skipped++; issues.push(`Row ${rowNum}: Asset Name is required.`); continue; }
+
+        const departmentName = readBulkAssetCell(row, 'Department', 'department');
+        const deptRecord = departmentRecords.find((d) => normalizeDepartmentName(d.name) === normalizeDepartmentName(departmentName));
+        if (!deptRecord) { skipped++; issues.push(`Row ${rowNum}: Department "${departmentName || '—'}" was not found.`); continue; }
+        if (!isFounderScope && !managedDepartmentKeys.has(normalizeDepartmentName(deptRecord.name))) {
+          skipped++; issues.push(`Row ${rowNum}: You do not have permission to add assets to "${deptRecord.name}".`); continue;
+        }
+
+        const categoryName = readBulkAssetCell(row, 'Category', 'category');
+        if (!categoryName) { skipped++; issues.push(`Row ${rowNum}: Category is required.`); continue; }
+        let categoryObj = workingCategories.find((c) =>
+          c.categoryName.trim().toLowerCase() === categoryName.toLowerCase() &&
+          normalizeDepartmentName(c.department?.name || '') === normalizeDepartmentName(deptRecord.name));
+        if (!categoryObj) {
+          const response = await createAssetCategory({ assetCategoryName: categoryName, departmentId: deptRecord.id, requiresSerialNumber: false });
+          const createdCategory = response?.data || response?.category || response;
+          if (!createdCategory?._id) throw new Error('Unable to create category.');
+          categoryObj = { _id: createdCategory._id, categoryName, requiresSerialNumber: false, department: { _id: deptRecord.id, name: deptRecord.name } };
+          workingCategories = [...workingCategories, categoryObj];
+        }
+
+        const subCategoryName = readBulkAssetCell(row, 'Sub Category', 'subCategory', 'Sub-Category');
+        if (!subCategoryName) { skipped++; issues.push(`Row ${rowNum}: Sub Category is required.`); continue; }
+        let subCategoryObj = workingSubCategories.find((s) =>
+          s.category?._id === categoryObj!._id && s.subCategoryName.trim().toLowerCase() === subCategoryName.toLowerCase());
+        if (!subCategoryObj) {
+          const response = await createAssetSubCategory({ assetCategoryId: categoryObj._id, assetSubCategoryName: subCategoryName });
+          const createdSub = response?.data || response?.subCategory || response;
+          if (!createdSub?._id) throw new Error('Unable to create sub category.');
+          subCategoryObj = { _id: createdSub._id, subCategoryName, category: { _id: categoryObj._id, categoryName: categoryObj.categoryName } };
+          workingSubCategories = [...workingSubCategories, subCategoryObj];
+        }
+
+        const quantity = Math.max(1, parseInt(readBulkAssetCell(row, 'Quantity', 'quantity') || '1', 10) || 1);
+        const unitPriceNum = Number(readBulkAssetCell(row, 'Price per Unit', 'unitPrice', 'Price').replace(/[^0-9.-]/g, '')) || 0;
+        const ownershipRaw = readBulkAssetCell(row, 'Ownership Type', 'ownershipType');
+        const ownershipType = ownershipRaw === 'Rented' ? 'Rented' : 'Owned';
+        const statusRaw = readBulkAssetCell(row, 'Status', 'status');
+        const status = ['Active', 'Inactive', 'Disposed', 'Repair'].includes(statusRaw) ? statusRaw : 'Active';
+        const purchaseDate = normalizeBulkAssetDate(row['Purchase Date'] ?? row['purchaseDate']);
+        const serialNumber = readBulkAssetCell(row, 'Serial Number', 'serialNumber');
+
+        const payload = new FormData();
+        payload.append('name', name);
+        payload.append('categoryId', categoryObj._id);
+        payload.append('subCategoryId', subCategoryObj._id);
+        payload.append('departmentId', deptRecord.id);
+        payload.append('department', deptRecord.name);
+        payload.append('assignedTo', deptRecord.name);
+        payload.append('quantity', String(quantity));
+        payload.append('unitPrice', String(unitPriceNum));
+        payload.append('ownershipType', ownershipType);
+        payload.append('status', status);
+        if (purchaseDate) payload.append('purchaseDate', purchaseDate);
+        const vendorName = readBulkAssetCell(row, 'Vendor', 'vendor');
+        if (vendorName) payload.append('vendor', vendorName);
+        const brandModel = readBulkAssetCell(row, 'Brand / Model', 'brandModel', 'Brand/Model');
+        if (brandModel) payload.append('brandModel', brandModel);
+        if (serialNumber && quantity === 1) payload.append('serialNumber', serialNumber);
+        const rentMonths = readBulkAssetCell(row, 'Rent Duration (Months)', 'rentDurationMonths');
+        if (ownershipType === 'Rented' && rentMonths) payload.append('rentDurationMonths', rentMonths);
+        const warrantyMonths = readBulkAssetCell(row, 'Warranty (Months)', 'warrantyMonths');
+        if (warrantyMonths) payload.append('warrantyMonths', warrantyMonths);
+        const location = readBulkAssetCell(row, 'Location', 'location');
+        if (location) payload.append('location', location);
+        const notes = readBulkAssetCell(row, 'Notes', 'notes');
+        if (notes) payload.append('notes', notes);
+
+        const response = await createAsset(payload);
+        const savedAsset = response?.data?.asset || response?.asset;
+        if (savedAsset) setAssets((prev) => [normalizeAsset(savedAsset), ...prev]);
+        created++;
+      } catch (err: any) {
+        skipped++;
+        issues.push(`Row ${rowNum}: ${err?.response?.data?.message || err?.message || 'Failed to create asset.'}`);
+      }
+    }
+
+    await loadAssetTaxonomy();
+    setBulkAssetImporting(false);
+    setBulkAssetSummary({ created, skipped, issues });
+  }
+
   async function handleSaveAsset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage('');
@@ -742,7 +970,7 @@ export function AssetsPage() {
         ? assetDepartmentEmployees.find((m) => m.value === assetForm.assignedToUserId)
         : null;
       if (!selectedDepartmentRecord?.id) throw new Error('Select a valid department before saving the asset.');
-      const numericValue = assetForm.value ? Number(String(assetForm.value).replace(/[^0-9.-]/g, '')) : 0;
+      const numericUnitPrice = assetForm.unitPrice ? Number(String(assetForm.unitPrice).replace(/[^0-9.-]/g, '')) : 0;
       const payload = new FormData();
       const appendPayload = (key: string, value: any) => {
         if (value === undefined || value === null || value === '') return;
@@ -766,7 +994,7 @@ export function AssetsPage() {
       appendPayload('rentDurationMonths', assetForm.ownershipType === 'Rented' ? assetForm.rentDurationMonths : null);
       appendPayload('warrantyMonths', assetForm.warrantyMonths);
       appendPayload('location', getLocationLabel(assetForm.floor, assetForm.wing) || assetForm.location);
-      appendPayload('value', Number.isFinite(numericValue) ? numericValue : 0);
+      appendPayload('unitPrice', Number.isFinite(numericUnitPrice) ? numericUnitPrice : 0);
       appendPayload('expiryDate', expiryPreview || null);
       appendPayload('warrantyExpiry', warrantyExpiryPreview || null);
       appendPayload('notes', assetForm.notes);
@@ -936,6 +1164,24 @@ export function AssetsPage() {
     });
   }, [scopedAssets, searchQuery, selectedDeptFilter, statusFilter]);
 
+  // Each asset "line" can cover several identical physical units (units[]); the table
+  // shows one row per unit (same specs, distinct unit code) instead of one row per line,
+  // per the "5 laptops = 5 rows with different IDs" requirement. Row-level actions still
+  // target the parent line item since allocation/transfer operate on the whole batch.
+  const displayUnitRows = useMemo(() => {
+    return displayedAssets.flatMap((asset) => {
+      if (Array.isArray(asset.units) && asset.units.length > 0) {
+        return asset.units.map((unit, index) => ({
+          asset,
+          rowKey: `${asset.recordId || asset.id}-${unit.unitCode || index}`,
+          unitCode: unit.unitCode || asset.id || '',
+          unitSerial: unit.serialNumber || '',
+        }));
+      }
+      return [{ asset, rowKey: String(asset.recordId || asset.id), unitCode: asset.id || '', unitSerial: asset.serialNumber || '' }];
+    });
+  }, [displayedAssets]);
+
   const ASSET_EXPORT_COLUMNS: ExportColumn[] = [
     { header: 'Asset', key: 'name', width: 2 },
     { header: 'Code', key: 'id' },
@@ -945,6 +1191,8 @@ export function AssetsPage() {
     { header: 'Quantity', key: 'quantity' },
     { header: 'Allocated', key: 'allocatedQuantity' },
     { header: 'Available', key: 'availableQuantity' },
+    { header: 'Unit Price', key: 'unitPrice' },
+    { header: 'Total Price', key: 'value' },
     { header: 'Assigned To', key: 'assignedTo', width: 1.5 },
     { header: 'Location', key: 'location', width: 1.5 },
   ];
@@ -1048,6 +1296,15 @@ function AssetsSkeleton() {
                 </p>
               </div>
                 <div className="flex items-center gap-2 flex-wrap">
+                              {canAddAssets && (
+                                <button
+                                  type="button"
+                                  onClick={openBulkAssetModal}
+                                  className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-blue-50 hover:border-blue-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+                                  <UploadCloud size={16} className="text-blue-500"/>
+                                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-[#2563EB] text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => handleExportAssets('PDF')}
@@ -1164,21 +1421,23 @@ function AssetsSkeleton() {
                       <th className="px-5 py-4">Asset Identity</th>
                       <th className="px-5 py-4">Owning Dept</th>
                       <th className="px-5 py-4">Assigned Dept</th>
-                      <th className="px-5 py-4 text-center">Quantity</th>
+                      <th className="px-5 py-4 text-center">Batch Qty</th>
+                      <th className="px-5 py-4 text-right">Unit Price</th>
                       <th className="px-5 py-4">Location</th>
                       <th className="px-5 py-4">Status</th>
                       <th className="px-5 py-4 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
-                    {displayedAssets.map((asset) => (
-                      <tr key={asset.id || asset.recordId} className="hover:bg-slate-50/50 transition-all group">
+                    {displayUnitRows.map(({ asset, rowKey, unitCode, unitSerial }) => (
+                      <tr key={rowKey} className="hover:bg-slate-50/50 transition-all group">
                         <td className="px-5 py-4 align-top max-w-[250px] xl:max-w-[350px]">
-                          <span className="text-[10px] font-pmedium text-slate-600 mb-1.5 inline-block">{asset.id || asset.recordId}</span>
+                          <span className="text-[10px] font-pmedium text-slate-600 mb-1.5 inline-block">{unitCode}</span>
                           <div className="font-pmedium text-[#0F172A] text-[13px] sm:text-[14px]" title={asset.name}>{asset.name}</div>
                           <div className="text-[11px] sm:text-[12px] text-slate-500 mt-1 flex items-center gap-1.5">
                             {getCategoryIcon(asset.category)} {asset.category}
                           </div>
+                          {unitSerial ? <div className="text-[10px] text-slate-400 mt-0.5">SN: {unitSerial}</div> : null}
                         </td>
                         <td className="px-5 py-4 align-top">
                           <span className="inline-flex items-center gap-1.5 text-[12px] sm:text-[13px] font-pmedium text-[#0F172A]">
@@ -1199,6 +1458,9 @@ function AssetsSkeleton() {
                             <span className="text-[12px] font-pmedium text-slate-900">{asset.quantity} total</span>
                             <span className="text-[10px] text-emerald-600">{asset.availableQuantity} available</span>
                           </div>
+                        </td>
+                        <td className="px-5 py-4 align-top text-right">
+                          <span className="text-[12px] font-pmedium text-slate-700">{asset.unitPrice && asset.unitPrice !== '-' ? formatCurrency(asset.unitPrice) : '--'}</span>
                         </td>
                         <td className="px-5 py-4 align-top">
                           <span className="inline-flex items-center gap-1 text-[12px] font-pmedium text-slate-700 bg-slate-50 border border-slate-100 px-2 py-1.5 rounded-lg shadow-sm">
@@ -1242,13 +1504,14 @@ function AssetsSkeleton() {
 
                 {/* Mobile Cards */}
                 <div data-tour="assets-table" className="flex flex-col gap-3 lg:hidden p-3 sm:p-4 bg-slate-50/30">
-                  {displayedAssets.map((asset) => (
-                    <div key={asset.id || asset.recordId} className={`bg-white border p-4 sm:p-5 rounded-[20px] shadow-sm flex flex-col gap-3 transition-all ${asset.status === 'Maintenance' ? 'border-amber-200 bg-amber-50/10' : 'border-slate-200/60'}`}>
+                  {displayUnitRows.map(({ asset, rowKey, unitCode, unitSerial }) => (
+                    <div key={rowKey} className={`bg-white border p-4 sm:p-5 rounded-[20px] shadow-sm flex flex-col gap-3 transition-all ${asset.status === 'Maintenance' ? 'border-amber-200 bg-amber-50/10' : 'border-slate-200/60'}`}>
                       <div className="flex justify-between items-start gap-3">
                         <div className="flex-1 flex flex-col gap-1.5">
-                          <span className="text-[10px] font-pmedium text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded w-max border border-blue-100">{asset.id || asset.recordId}</span>
+                          <span className="text-[10px] font-pmedium text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded w-max border border-blue-100">{unitCode}</span>
                           <h3 className="font-pmedium text-[#0F172A] text-[13px] sm:text-[14px]">{asset.name}</h3>
                           <p className="text-[12px] text-slate-500 font-pmedium flex items-center gap-1.5">{getCategoryIcon(asset.category)} {asset.category}</p>
+                          {unitSerial ? <p className="text-[10px] text-slate-400">SN: {unitSerial}</p> : null}
                         </div>
                         <div className="flex flex-col items-end gap-1 shrink-0">{getStatusBadge(asset.status)}</div>
                       </div>
@@ -1262,10 +1525,11 @@ function AssetsSkeleton() {
                           <span className="text-[11px] font-pmedium text-[#2563EB] flex items-start gap-1"><Building2 size={10} className="mt-0.5 text-blue-400 shrink-0" /><span>{asset.allocations[0]?.department || 'Not allocated'}{asset.allocations[0]?.user ? <small className="block text-[9px] text-slate-500">{asset.allocations[0].user}</small> : null}</span></span>
                         </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-2 rounded-xl border border-slate-100 bg-white p-2 text-center">
+                      <div className="grid grid-cols-4 gap-2 rounded-xl border border-slate-100 bg-white p-2 text-center">
                         <div><span className="block text-[9px] uppercase text-slate-400">Total</span><span className="text-[12px] font-pmedium">{asset.quantity}</span></div>
                         <div><span className="block text-[9px] uppercase text-slate-400">Allocated</span><span className="text-[12px] font-pmedium text-blue-600">{asset.allocatedQuantity}</span></div>
                         <div><span className="block text-[9px] uppercase text-slate-400">Available</span><span className="text-[12px] font-pmedium text-emerald-600">{asset.availableQuantity}</span></div>
+                        <div><span className="block text-[9px] uppercase text-slate-400">Unit Price</span><span className="text-[12px] font-pmedium">{asset.unitPrice && asset.unitPrice !== '-' ? formatCurrency(asset.unitPrice) : '--'}</span></div>
                       </div>
                       <div className="flex items-center gap-1.5 bg-white p-2 rounded-lg border border-slate-100 shadow-sm">
                         <MapPin size={12} className="text-slate-400 shrink-0" />
@@ -1313,6 +1577,73 @@ function AssetsSkeleton() {
           </div>
         )}
       </PageFrame>
+
+      {bulkAssetModal && (
+        <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-md h-auto rounded-t-[32px] sm:rounded-[32px] shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <h3 className="text-sm font-pmedium text-slate-900 flex items-center gap-2"><UploadCloud size={16} /> Bulk Upload Assets</h3>
+              <button onClick={closeBulkAssetModal}
+                className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all"><X size={16} /></button>
+            </div>
+            <div className="p-5 space-y-4 overflow-y-auto">
+              {!bulkAssetFileName ? (
+                <>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={handleBulkAssetDownloadTemplate}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 hover:border-[#2563EB] hover:text-[#2563EB] transition-all">
+                      <FileSpreadsheet size={13} /> Download Template
+                    </button>
+                  </div>
+                  <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
+                    <Info size={13} className="text-blue-500 mt-0.5 shrink-0" />
+                    <p className="text-[10px] font-pmedium text-blue-700 leading-relaxed">Fill in Asset Name, Department, Category, Sub Category, Quantity and Price per Unit per row. A row with Quantity 5 creates 5 identical units, each with its own unique Asset ID. Unknown categories/sub categories are created automatically.</p>
+                  </div>
+                  <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:border-[#2563EB] transition-colors cursor-pointer" onClick={() => bulkAssetFileInputRef.current?.click()}>
+                    <UploadCloud size={28} className="mx-auto text-slate-300 mb-3" />
+                    <p className="text-[12px] font-pmedium text-slate-600 mb-1">Click to upload spreadsheet</p>
+                    <p className="text-[10px] text-slate-400">Supports .xlsx, .xls, .csv — use the template above for the required columns.</p>
+                  </div>
+                  <input ref={bulkAssetFileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleBulkAssetFileChange} />
+                </>
+              ) : bulkAssetSummary ? (
+                <div className="space-y-3">
+                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100">
+                    <p className="text-[12px] font-pmedium text-emerald-800">Import Complete</p>
+                    <p className="text-[11px] text-emerald-600 mt-1">{bulkAssetSummary.created} row(s) created, {bulkAssetSummary.skipped} skipped</p>
+                  </div>
+                  {bulkAssetSummary.issues.length > 0 && (
+                    <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 max-h-40 overflow-y-auto space-y-1">
+                      {bulkAssetSummary.issues.map((issue, i) => (
+                        <p key={i} className="text-[10px] font-pmedium text-amber-700">{issue}</p>
+                      ))}
+                    </div>
+                  )}
+                  <button onClick={closeBulkAssetModal}
+                    className="w-full py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-[#2563EB]/90 transition-all">Done</button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                    <span className="text-[12px] font-pmedium text-slate-700 truncate">{bulkAssetFileName}</span>
+                    <span className="text-[10px] font-pmedium text-slate-400 shrink-0">{bulkAssetRows.length} rows</span>
+                  </div>
+                  {bulkAssetError && <p className="text-[11px] font-pmedium text-red-500">{bulkAssetError}</p>}
+                  <div className="flex gap-2">
+                    <button onClick={() => { setBulkAssetFileName(''); setBulkAssetRows([]); setBulkAssetError(''); }}
+                      className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">Change File</button>
+                    <button onClick={handleBulkAssetImport} disabled={bulkAssetImporting || bulkAssetRows.length === 0}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-[#2563EB]/90 disabled:opacity-50 transition-all">
+                      {bulkAssetImporting ? <Loader2 size={13} className="animate-spin" /> : <UploadCloud size={13} />}
+                      {bulkAssetImporting ? 'Importing...' : `Import ${bulkAssetRows.length} Rows`}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {isAddModalOpen && (
         <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
@@ -1418,8 +1749,12 @@ function AssetsSkeleton() {
                     <input type="number" min={1} value={assetForm.quantity} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, quantity: e.target.value === '' || /^\d+$/.test(e.target.value) ? e.target.value : prev.quantity }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" required />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Asset Value ({workspacePreferences.currency})</label>
-                    <input type="number" min={0} step="0.01" value={assetForm.value} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, value: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" placeholder="e.g. 3499" />
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price per Unit ({workspacePreferences.currency})</label>
+                    <input type="number" min={0} step="0.01" value={assetForm.unitPrice} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, unitPrice: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" placeholder="e.g. 3499" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Total Price ({workspacePreferences.currency})</label>
+                    <input type="text" readOnly value={formatCurrency(totalPricePreview)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-500 outline-none cursor-not-allowed" />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Warranty (Months)</label>
@@ -1718,7 +2053,11 @@ function AssetsSkeleton() {
                     <span className="text-[12px] font-pmedium text-slate-700 block">{viewingAsset.location}</span>
                   </div>
                   <div>
-                    <span className="text-[9px] font-pmedium text-slate-400 uppercase tracking-wider block mb-0.5">Asset Value</span>
+                    <span className="text-[9px] font-pmedium text-slate-400 uppercase tracking-wider block mb-0.5">Price per Unit</span>
+                    <span className="text-[12px] font-pmedium text-slate-700 block">{viewingAsset.unitPrice && viewingAsset.unitPrice !== '-' ? formatCurrency(viewingAsset.unitPrice) : '--'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-pmedium text-slate-400 uppercase tracking-wider block mb-0.5">Total Price</span>
                     <span className="text-[12px] font-pmedium text-slate-700 block">{viewingAsset.value && viewingAsset.value !== '-' ? formatCurrency(viewingAsset.value) : '--'}</span>
                   </div>
                   <div className="col-span-2">
@@ -1727,6 +2066,20 @@ function AssetsSkeleton() {
                   </div>
                 </div>
               </div>
+
+              {Array.isArray(viewingAsset.units) && viewingAsset.units.length > 0 ? (
+                <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-2">
+                  <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em] block border-b border-slate-200/80 pb-2">Unit Asset IDs ({viewingAsset.units.length})</span>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                    {viewingAsset.units.map((unit, index) => (
+                      <div key={unit.unitCode || index} className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5">
+                        <p className="text-[11px] font-pmedium text-slate-800 truncate">{unit.unitCode}</p>
+                        {unit.serialNumber ? <p className="text-[9px] text-slate-400 truncate">SN: {unit.serialNumber}</p> : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-3">
                 <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">

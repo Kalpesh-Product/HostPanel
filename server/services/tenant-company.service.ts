@@ -27,6 +27,37 @@ function normalizeText(value = "") {
   return String(value || "").trim();
 }
 
+function escapeRegex(value = "") {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function combineFilters(...filters) {
+  const valid = filters.filter(Boolean);
+  if (valid.length === 0) return {};
+  if (valid.length === 1) return valid[0];
+  return { $and: valid };
+}
+
+// Mirrors deriveTenantStatus()'s day-boundary logic as a query condition, so
+// server-side status filtering/counting stays consistent with the status the
+// API actually returns (which is always derived fresh from contractEnd, not
+// read off the possibly-stale stored `status` field).
+function buildTenantStatusFilter(status, now = new Date()) {
+  const soon = new Date(now.getTime() + 30 * 86400000);
+  switch (status) {
+    case "Active":
+      return { contractEnd: { $gt: soon } };
+    case "Expiring Soon":
+      return { contractEnd: { $gte: now, $lte: soon } };
+    case "Expired":
+      return { contractEnd: { $lt: now } };
+    case "Pending Space Assignment":
+      return { $or: [{ contractEnd: null }, { contractEnd: { $exists: false } }] };
+    default:
+      return null;
+  }
+}
+
 function roundNumber(value = 0) {
   const num = Number(value);
   return Number.isFinite(num) ? Math.round(num) : 0;
@@ -658,21 +689,47 @@ export async function listTenantCompaniesForCurrentUser(userId, query = {}) {
   const access = await resolveWorkspaceAccess(userId);
   const { workspaceId } = access;
 
-  const filter = { workspaceId };
+  // baseFilter scopes the workspace (+ optional fiscal year window) and is what
+  // the dashboard summary counts are computed against — those stay global
+  // regardless of the current search/status/package filter. listFilter layers
+  // the page's active filters on top, for the paginated rows only.
+  const baseFilter = { workspaceId };
   const fiscalYearRange = parseFiscalYearRange(query.fiscalYear);
   if (fiscalYearRange) {
     // A tenant belongs to a fiscal year if its contract overlaps that FY's date range.
     // No contractEnd yet (still active) counts as open-ended, so only contractStart needs to be before the FY's end.
-    filter.contractStart = { $lte: fiscalYearRange.end };
-    filter.$or = [{ contractEnd: null }, { contractEnd: { $exists: false } }, { contractEnd: { $gte: fiscalYearRange.start } }];
+    baseFilter.contractStart = { $lte: fiscalYearRange.end };
+    baseFilter.$or = [{ contractEnd: null }, { contractEnd: { $exists: false } }, { contractEnd: { $gte: fiscalYearRange.start } }];
   }
+
+  const now = new Date();
+  const search = normalizeText(query.search || "");
+  const statusValue = normalizeText(query.status || "");
+  const packageValue = normalizeText(query.packageFilter || "");
+
+  const searchCond = search
+    ? {
+        $or: [
+          { companyName: new RegExp(escapeRegex(search), "i") },
+          { contactName: new RegExp(escapeRegex(search), "i") },
+          { tenantCode: new RegExp(escapeRegex(search), "i") },
+        ],
+      }
+    : null;
+  const statusCond = statusValue && statusValue !== "All Status" ? buildTenantStatusFilter(statusValue, now) : null;
+  const packageCond = packageValue && packageValue !== "All Packages"
+    ? { $or: [{ "packageDetails.packageName": packageValue }, { planType: packageValue }] }
+    : null;
+
+  const listFilter = combineFilters(baseFilter, searchCond, statusCond, packageCond);
+
   const page = Math.max(1, parseInt(query.page) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(query.limit) || 50));
   const skip = (page - 1) * limit;
 
-  const [total, companies, packages] = await Promise.all([
-    TenantCompany.countDocuments(filter),
-    TenantCompany.find(filter)
+  const [total, companies, packages, totalTenants, activeContracts, expiringSoon, expired] = await Promise.all([
+    TenantCompany.countDocuments(listFilter),
+    TenantCompany.find(listFilter)
       .sort({ createdAt: -1, tenantNumber: -1 })
       .skip(skip)
       .limit(limit)
@@ -680,6 +737,10 @@ export async function listTenantCompaniesForCurrentUser(userId, query = {}) {
     PlansPricing.find({ workspaceId: new mongoose.Types.ObjectId(workspaceId), category: "Tenant" })
       .sort({ sortOrder: 1, name: 1 })
       .lean(),
+    TenantCompany.countDocuments(baseFilter),
+    TenantCompany.countDocuments(combineFilters(baseFilter, buildTenantStatusFilter("Active", now))),
+    TenantCompany.countDocuments(combineFilters(baseFilter, buildTenantStatusFilter("Expiring Soon", now))),
+    TenantCompany.countDocuments(combineFilters(baseFilter, buildTenantStatusFilter("Expired", now))),
   ]);
 
   const companyIds = companies.map((c) => c._id);
@@ -747,10 +808,10 @@ export async function listTenantCompaniesForCurrentUser(userId, query = {}) {
     limit,
     totalPages: Math.ceil(total / limit),
     summary: {
-      totalTenants: total,
-      activeContracts: companies.filter((c) => deriveTenantStatus(c.contractEnd) === "Active").length,
-      expiringSoon: companies.filter((c) => deriveTenantStatus(c.contractEnd) === "Expiring Soon").length,
-      expired: companies.filter((c) => deriveTenantStatus(c.contractEnd) === "Expired").length,
+      totalTenants,
+      activeContracts,
+      expiringSoon,
+      expired,
     },
   };
 }
@@ -1067,7 +1128,6 @@ export async function addTenantCompanyEmployeeForCurrentUser(userId, tenantCompa
   const phone = normalizeText(input.phone || "");
   const designation = normalizeText(input.designation || "");
   const role = normalizeTenantCompanyEmployeeRole(input.role || "Employee");
-  const now = new Date();
 
   const existingEmployee = email
     ? await TenantEmployee.findOne({ tenantCompanyId: company._id, email }).lean().exec()
@@ -1106,34 +1166,21 @@ export async function addTenantCompanyEmployeeForCurrentUser(userId, tenantCompa
     designation,
     role,
     status: "Active",
-    inviteStatus: "Invited",
-    invitedAt: now,
-    inviteSentAt: now,
-    inviteAcceptedAt: null,
-    registeredAt: null,
-    lastLoginAt: null,
+    inviteStatus: existingEmployee?.inviteStatus || "Pending",
+    invitedAt: existingEmployee?.invitedAt || null,
+    inviteSentAt: existingEmployee?.inviteSentAt || null,
+    inviteAcceptedAt: existingEmployee?.inviteAcceptedAt || null,
+    registeredAt: existingEmployee?.registeredAt || null,
+    lastLoginAt: existingEmployee?.lastLoginAt || null,
+    inviteToken: existingEmployee?.inviteToken || null,
+    inviteTokenExpiresAt: existingEmployee?.inviteTokenExpiresAt || null,
     tenantRole: getTenantRoleKey(role),
     tenantCompanyName: company.companyName,
-    userId: null,
-    inviteId: null,
+    userId: existingEmployee?.userId || null,
+    inviteId: existingEmployee?.inviteId || null,
   };
 
-  const rawToken = email ? crypto.randomBytes(32).toString("hex") : null;
-  if (rawToken) {
-    employeeData.inviteToken = rawToken;
-    employeeData.inviteTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  }
-
-  let inviteSent = false;
-  if (email && rawToken) {
-    const frontendBase = String(process.env.FRONTEND_PROD_LINK || process.env.CLIENT_URL || "http://localhost:3006")
-      .trim()
-      .replace(/\/$/, "");
-    const inviteUrl = `${frontendBase}/register?inviteToken=${rawToken}&email=${encodeURIComponent(email)}&fullName=${encodeURIComponent(name)}`;
-
-    await sendEmployeeInviteEmail(email, name, access.user?.name || "Administration", role, company.companyName, inviteUrl);
-    inviteSent = true;
-  }
+  const inviteSent = false;
 
   let employeeDoc;
   if (existingEmployee) {
@@ -1159,6 +1206,62 @@ export async function addTenantCompanyEmployeeForCurrentUser(userId, tenantCompa
     employee: employeeDoc,
     inviteSent,
     message: "Tenant employee added successfully.",
+  };
+}
+
+const TENANT_EMPLOYEE_INVITE_BLOCKED_STATUSES = new Set(["registered", "logged in"]);
+
+export async function sendTenantCompanyEmployeeInviteForCurrentUser(userId, tenantCompanyId, employeeId) {
+  const access = await resolveWorkspaceAccess(userId);
+  if (!access.isAdmin && !access.hasSalesAccess && !access.hasAdminAccess) {
+    const err = new Error("You do not have permission to send invites.");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const company = await TenantCompany.findById(tenantCompanyId);
+  ensureTenantCompanyExists(company, access.workspaceId);
+
+  const employee = await TenantEmployee.findOne({ tenantCompanyId: company._id, id: employeeId });
+  if (!employee) {
+    const err = new Error("Tenant employee not found.");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (TENANT_EMPLOYEE_INVITE_BLOCKED_STATUSES.has(String(employee.inviteStatus || "").toLowerCase())) {
+    const err = new Error("This employee has already registered and no longer needs an invite.");
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const email = normalizeText(employee.email || "").toLowerCase();
+  if (!email) {
+    const err = new Error("Employee has no email on file to send the invite to.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const now = new Date();
+  const frontendBase = String(process.env.FRONTEND_PROD_LINK || process.env.CLIENT_URL || "http://localhost:3006")
+    .trim()
+    .replace(/\/$/, "");
+  const inviteUrl = `${frontendBase}/register?inviteToken=${rawToken}&email=${encodeURIComponent(email)}&fullName=${encodeURIComponent(employee.name)}`;
+
+  await sendEmployeeInviteEmail(email, employee.name, access.user?.name || "Administration", employee.role, company.companyName, inviteUrl);
+
+  employee.inviteToken = rawToken;
+  employee.inviteTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  employee.inviteStatus = "Invited";
+  employee.invitedAt = employee.invitedAt || now;
+  employee.inviteSentAt = now;
+  await employee.save();
+
+  return {
+    tenant: await formatTenantCompany(company),
+    employee,
+    message: "Invite sent successfully.",
   };
 }
 

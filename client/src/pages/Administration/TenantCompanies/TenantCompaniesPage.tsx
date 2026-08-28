@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { AppShell } from '@/components/layout/AppShell';
@@ -7,7 +7,9 @@ import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { toast } from 'sonner';
 import { createReport } from '@/services/reports';
 import {
+  getAllTenantCompanies,
   getTenantCompanies,
+  getTenantCompany,
   getTenantCompanySectors,
   renewTenantCompany,
   uploadTenantCompanyAgreementDocuments,
@@ -34,6 +36,7 @@ import {
   FileText,
   FileDown,
   FileSpreadsheet,
+  Loader2,
 } from 'lucide-react';
 import { downloadReportFile } from '@/utils/report-download';
 
@@ -845,8 +848,16 @@ export default function AdministrationTenantCompaniesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingReport, setIsExportingReport] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [packageFilter, setPackageFilter] = useState('All Packages');
+  const [companiesPage, setCompaniesPage] = useState(1);
+  const [companiesTotalPages, setCompaniesTotalPages] = useState(1);
+  const [isLoadingMoreCompanies, setIsLoadingMoreCompanies] = useState(false);
+  const [isFilteringCompanies, setIsFilteringCompanies] = useState(false);
+  const [companiesSummary, setCompaniesSummary] = useState({ totalTenants: 0, activeContracts: 0, expiringSoon: 0, expired: 0 });
+  const companiesRequestIdRef = useRef(0);
+  const loadMoreSentinelRef = useRef<HTMLTableCellElement | null>(null);
   const [companies, setCompanies] = useState<TenantCompany[]>([]);
   const [tenantPackages, setTenantPackages] = useState<Array<Record<string, unknown>>>([]);
   const [editingCompany, setEditingCompany] = useState<TenantCompany | null>(null);
@@ -872,19 +883,18 @@ export default function AdministrationTenantCompaniesPage() {
   }, [availableSectors]);
 
   // ── Data Loading ──
-  async function loadTenantCompanies({ silent = false } = {}) {
-    if (!silent) setIsLoading(true);
+  // Pricing-package lookup rarely changes mid-session, so it's fetched once and
+  // reused (via this ref) to normalize every page of companies, instead of
+  // re-fetching packages on every paginated request.
+  const packageLookupRef = useRef<Map<string, Record<string, unknown>>>(new Map());
+
+  const loadPricingPackagesLookup = useCallback(async () => {
     try {
-      const [tenantResponse, packageResponse] = await Promise.allSettled([getTenantCompanies(), getPricingPackages()]);
-      const tenantPayload = tenantResponse.status === 'fulfilled' ? (tenantResponse.value?.data || {}) : {};
-      const packagePayload = packageResponse.status === 'fulfilled' ? (packageResponse.value?.data || {}) : {};
-      const nextAvailablePackages = Array.isArray(packagePayload.packages)
-        ? packagePayload.packages
-        : Array.isArray(tenantPayload.packages)
-          ? tenantPayload.packages
-          : [];
+      const packageResponse = await getPricingPackages();
+      const packagePayload = packageResponse?.data || {};
+      const nextAvailablePackages = Array.isArray(packagePayload.packages) ? packagePayload.packages : [];
       const nextTenantPackages = nextAvailablePackages.filter((item) => item.category === 'Tenant');
-      const nextPackageLookup = new Map<string, Record<string, unknown>>(
+      packageLookupRef.current = new Map<string, Record<string, unknown>>(
         nextTenantPackages
           .flatMap((item) => {
             const keys = [item._id, item.recordId, item.id, item.packageCode]
@@ -894,54 +904,176 @@ export default function AdministrationTenantCompaniesPage() {
           }),
       );
       setTenantPackages(nextTenantPackages);
-      const nextCompanies = Array.isArray(tenantPayload.tenants)
-        ? tenantPayload.tenants.map((company) => normalizeTenantCompany(company, nextPackageLookup))
+    } catch {
+      // fall back to whatever the tenant list response includes below
+    }
+  }, []);
+
+  // Loads one page of the companies list (25 at a time) applying the current
+  // search/status/package filters server-side. `replace: true` swaps the list
+  // (a fresh search/filter, or the initial load); otherwise the page is
+  // appended for infinite scroll. A request-id guard drops stale responses if
+  // filters change again before an in-flight request resolves.
+  const loadCompaniesPage = useCallback(async (pageNum: number, { replace = false }: { replace?: boolean } = {}) => {
+    const requestId = ++companiesRequestIdRef.current;
+    if (replace) setIsFilteringCompanies(true); else setIsLoadingMoreCompanies(true);
+    try {
+      const response = await getTenantCompanies({
+        page: pageNum,
+        limit: 25,
+        ...(debouncedSearchQuery ? { search: debouncedSearchQuery } : {}),
+        ...(statusFilter !== 'All Status' ? { status: statusFilter } : {}),
+        ...(packageFilter !== 'All Packages' ? { packageFilter } : {}),
+      });
+      if (companiesRequestIdRef.current !== requestId) return;
+      const payload = response?.data || {};
+      if (packageLookupRef.current.size === 0 && Array.isArray(payload.packages) && payload.packages.length) {
+        const fallbackTenantPackages = payload.packages.filter((item: Record<string, unknown>) => item.category === 'Tenant');
+        packageLookupRef.current = new Map<string, Record<string, unknown>>(
+          fallbackTenantPackages.flatMap((item: Record<string, unknown>) => {
+            const keys = [item._id, item.recordId, item.id, item.packageCode]
+              .map((value) => String(value || '').trim())
+              .filter(Boolean);
+            return keys.map((key) => [key, item] as [string, Record<string, unknown>]);
+          }),
+        );
+        setTenantPackages(fallbackTenantPackages as Array<Record<string, unknown>>);
+      }
+      const nextCompanies = Array.isArray(payload.tenants)
+        ? payload.tenants.map((company: Record<string, unknown>) => normalizeTenantCompany(company, packageLookupRef.current))
         : [];
-      setCompanies(nextCompanies);
-      return nextCompanies;
+      setCompanies((current) => (replace ? nextCompanies : [...current, ...nextCompanies]));
+      setCompaniesPage(Number(payload.page) || pageNum);
+      setCompaniesTotalPages(Math.max(1, Number(payload.totalPages) || 1));
+      if (payload.summary) setCompaniesSummary(payload.summary);
     } catch (error: unknown) {
-      toast.error((error as Error).message || 'Failed to load tenant companies.');
-      setCompanies([]);
-      return [];
+      if (companiesRequestIdRef.current === requestId) {
+        toast.error((error as Error).message || 'Failed to load tenant companies.');
+        if (replace) setCompanies([]);
+      }
     } finally {
-      if (!silent) setIsLoading(false);
+      if (companiesRequestIdRef.current === requestId) {
+        if (replace) setIsFilteringCompanies(false); else setIsLoadingMoreCompanies(false);
+      }
+    }
+  }, [debouncedSearchQuery, statusFilter, packageFilter]);
+
+  // Fetches just the one company that changed after an edit/renew/upload,
+  // patching it into the loaded list in place — far cheaper than reloading the
+  // whole (now paginated) list, and doesn't disturb scroll position.
+  async function refreshSingleCompany(companyId: string): Promise<TenantCompany | null> {
+    try {
+      const response = await getTenantCompany(companyId);
+      const tenant = response?.data?.tenant;
+      if (!tenant) return null;
+      const normalized = normalizeTenantCompany(tenant, packageLookupRef.current);
+      setCompanies((current) => current.map((c) => ((c.recordId || c.id) === (normalized.recordId || normalized.id) ? normalized : c)));
+      return normalized;
+    } catch (error: unknown) {
+      toast.error((error as Error).message || 'Failed to refresh tenant company.');
+      return null;
     }
   }
 
-  useEffect(() => { loadTenantCompanies(); }, []);
-
   useEffect(() => {
-    const handleFocus = () => { loadTenantCompanies({ silent: true }); };
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    let isMounted = true;
+    async function loadInitial() {
+      setIsLoading(true);
+      await loadPricingPackagesLookup();
+      if (isMounted) await loadCompaniesPage(1, { replace: true });
+      if (isMounted) setIsLoading(false);
+    }
+    loadInitial();
+    return () => { isMounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const filteredCompanies = useMemo(() => {
-    const query = searchQuery.toLowerCase();
-    return companies.filter((company) => (
-      (statusFilter === 'All Status' || company.status === statusFilter) &&
-      (packageFilter === 'All Packages' || company.packageName === packageFilter || company.planType === packageFilter) &&
-      (company.name.toLowerCase().includes(query) || company.contactPerson.toLowerCase().includes(query) || company.id.toLowerCase().includes(query))
-    ));
-  }, [companies, searchQuery, statusFilter, packageFilter]);
+  // Search box updates on every keystroke; debounce it before it drives a server request.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Re-run the search from page 1 whenever the debounced search text or the
+  // status/package filter changes — skip the very first run since the mount
+  // effect above already loaded page 1.
+  const didMountFiltersRef = useRef(false);
+  useEffect(() => {
+    if (!didMountFiltersRef.current) {
+      didMountFiltersRef.current = true;
+      return;
+    }
+    loadCompaniesPage(1, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearchQuery, statusFilter, packageFilter]);
+
+  // Infinite scroll: observe a sentinel row at the bottom of the table and load
+  // the next page once it scrolls into view.
+  useEffect(() => {
+    if (companiesPage >= companiesTotalPages) return undefined;
+    const node = loadMoreSentinelRef.current;
+    if (!node) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !isLoadingMoreCompanies) {
+          loadCompaniesPage(companiesPage + 1, { replace: false });
+        }
+      },
+      { rootMargin: '300px' },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [companiesPage, companiesTotalPages, isLoadingMoreCompanies, loadCompaniesPage]);
+
+  // Catches changes made in another tab — a lightweight summary-only refresh
+  // (not a full list reload) so scroll position and loaded rows stay put.
+  const refreshCompaniesSummary = useCallback(async () => {
+    try {
+      const response = await getTenantCompanies({ page: 1, limit: 1 });
+      const payload = response?.data || {};
+      if (payload.summary) setCompaniesSummary(payload.summary);
+    } catch {
+      // best-effort background refresh; ignore failures
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('focus', refreshCompaniesSummary);
+    return () => window.removeEventListener('focus', refreshCompaniesSummary);
+  }, [refreshCompaniesSummary]);
+
+  const filteredCompanies = companies;
 
   const stats = useMemo(() => ({
-    totalTenants: companies.length,
-    activeContracts: companies.filter((company) => company.status === 'Active').length,
-    expiringSoon: companies.filter((company) => company.status === 'Expiring Soon').length,
-    expiredContracts: companies.filter((company) => company.status === 'Expired').length,
-  }), [companies]);
+    totalTenants: companiesSummary.totalTenants,
+    activeContracts: companiesSummary.activeContracts,
+    expiringSoon: companiesSummary.expiringSoon,
+    expiredContracts: companiesSummary.expired,
+  }), [companiesSummary]);
 
   // ── Handlers (commented out backend calls) ──
 
+  // The list now loads 25-at-a-time via infinite scroll (server-side
+  // search/status/package filtering), so `companies` only holds what's been
+  // scrolled into view — export needs the complete matching set regardless.
   const handleExportCompaniesReport = async (format: string = 'PDF') => {
     const reportFormat = String(format).toLowerCase() === 'excel' ? 'Excel' : 'PDF';
-    if (filteredCompanies.length === 0) {
-      toast.error('There are no tenant companies to export.');
-      return;
-    }
     setIsExportingReport(reportFormat);
     try {
+      const exportResponse = await getAllTenantCompanies({
+        ...(debouncedSearchQuery ? { search: debouncedSearchQuery } : {}),
+        ...(statusFilter !== 'All Status' ? { status: statusFilter } : {}),
+        ...(packageFilter !== 'All Packages' ? { packageFilter } : {}),
+      });
+      const rawExportTenants = Array.isArray(exportResponse?.data?.tenants) ? exportResponse.data.tenants : [];
+      const exportCompanies = rawExportTenants.map((company: Record<string, unknown>) => normalizeTenantCompany(company, packageLookupRef.current));
+
+      if (exportCompanies.length === 0) {
+        toast.error('There are no tenant companies to export.');
+        return;
+      }
+
       const response = await createReport({
         title: 'Administration Tenant Companies',
         department: 'Administration',
@@ -954,7 +1086,7 @@ export default function AdministrationTenantCompaniesPage() {
         description: 'Administration tenant companies listing and contract summary.',
         sourceType: 'department-roster',
         sourceRef: 'administration-tenant-companies',
-        reportRows: filteredCompanies.map((company, index) => ({
+        reportRows: exportCompanies.map((company, index) => ({
           label: `${index + 1}. ${company.name || 'Tenant Company'}`,
           value: [
             company.status ? `Status: ${company.status}` : '',
@@ -1041,7 +1173,7 @@ export default function AdministrationTenantCompaniesPage() {
     setIsSaving(true);
     try {
       await updateTenantCompany(editingCompany.recordId || editingCompany.id, editForm);
-      await loadTenantCompanies({ silent: true });
+      await refreshSingleCompany(editingCompany.recordId || editingCompany.id);
       toast.success('Tenant company updated successfully.');
       closeEditModal();
     } catch (error) {
@@ -1061,7 +1193,7 @@ export default function AdministrationTenantCompaniesPage() {
         creditsAllocated: Number(renewForm.addCredits) || 0,
       };
       await renewTenantCompany(renewingContract.recordId || renewingContract.id, renewPayload);
-      await loadTenantCompanies({ silent: true });
+      await refreshSingleCompany(renewingContract.recordId || renewingContract.id);
       toast.success('Contract renewed successfully.');
       closeRenewModal();
     } catch (error) {
@@ -1082,8 +1214,7 @@ export default function AdministrationTenantCompaniesPage() {
       await uploadTenantCompanyAgreementDocuments(editingCompany.recordId || editingCompany.id, agreementFiles);
       toast.success('Agreement documents uploaded successfully.');
       setAgreementFiles([]);
-      const refreshed = await loadTenantCompanies({ silent: true });
-      const updated = refreshed.find((company) => (company.recordId || company.id) === (editingCompany.recordId || editingCompany.id));
+      const updated = await refreshSingleCompany(editingCompany.recordId || editingCompany.id);
       if (updated) setEditingCompany(updated);
     } catch (error) {
       toast.error((error as Error).message || 'Unable to upload agreement documents.');
@@ -1199,8 +1330,8 @@ export default function AdministrationTenantCompaniesPage() {
               <table data-tour="admin-tenant-table" className="w-full min-w-[1120px] text-left font-pmedium">
                 <thead className="border-b border-slate-100/60 bg-slate-50/50 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
                   <tr>
-                    <th className="px-5 py-4">Company Info</th>
-                    <th className="px-5 py-4">Contact Details</th>
+                    <th className="px-5 py-4 min-w-[240px]">Company Info</th>
+                    <th className="px-5 py-4 min-w-[200px]">Contact Details</th>
                     <th className="px-5 py-4">Contract Period</th>
                     <th className="px-5 py-4">Package & Credits</th>
                     <th className="px-5 py-4 text-center">Status</th>
@@ -1216,14 +1347,14 @@ export default function AdministrationTenantCompaniesPage() {
                             {company.initials}
                           </div>
                           <div>
-                            <p className="font-pmedium text-primary text-sm max-w-[150px] truncate" title={company.name}>{company.name}</p>
+                            <p className="font-pmedium text-primary text-sm break-words" title={company.name}>{company.name}</p>
                             <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mt-0.5">{company.id}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-5 py-4 space-y-1">
-                        <p className="font-pmedium text-slate-800 text-xs">{company.contactPerson}</p>
-                        <p className="text-[10px] font-pmedium text-slate-500 flex items-center gap-1.5"><Mail size={10} /> {company.email}</p>
+                        <p className="font-pmedium text-slate-800 text-xs break-words">{company.contactPerson}</p>
+                        <p className="text-[10px] font-pmedium text-slate-500 flex items-center gap-1.5"><Mail size={10} /> <span className="break-all">{company.email}</span></p>
                         <p className="text-[10px] font-pmedium text-slate-500 flex items-center gap-1.5"><Phone size={10} /> {company.phone}</p>
                       </td>
                       <td className="px-5 py-4">
@@ -1262,8 +1393,22 @@ export default function AdministrationTenantCompaniesPage() {
                       </td>
                     </tr>
                   ))}
-                  {filteredCompanies.length === 0 && (
+                  {filteredCompanies.length === 0 && !isFilteringCompanies && (
                     <tr><td colSpan={6} className="py-16 text-center font-pmedium text-slate-400">No tenant companies found matching your filters.</td></tr>
+                  )}
+                  {isFilteringCompanies && (
+                    <tr><td colSpan={6} className="py-16 text-center font-pmedium text-slate-400">
+                      <span className="inline-flex items-center gap-1.5"><Loader2 size={14} className="animate-spin" /> Searching...</span>
+                    </td></tr>
+                  )}
+                  {filteredCompanies.length > 0 && companiesPage < companiesTotalPages && (
+                    <tr>
+                      <td colSpan={6} ref={loadMoreSentinelRef} className="py-6 text-center text-[11px] font-pmedium text-slate-400">
+                        {isLoadingMoreCompanies && (
+                          <span className="inline-flex items-center gap-1.5"><Loader2 size={14} className="animate-spin" /> Loading more...</span>
+                        )}
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>

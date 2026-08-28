@@ -11,6 +11,7 @@ import {
   renewTenantCompanyForCurrentUser,
   assignTenantCompanySpaceForCurrentUser,
   addTenantCompanyEmployeeForCurrentUser,
+  sendTenantCompanyEmployeeInviteForCurrentUser,
   updateTenantCompanyEmployeeForCurrentUser,
   updateTenantCompanyEmployeeStatusForCurrentUser,
   deleteTenantCompanyEmployeeForCurrentUser,
@@ -110,6 +111,16 @@ export const addTenantCompanyEmployee = async (req: Request, res: Response, next
   try {
     const userId = req.user?.id || req.user?._id || req.user;
     const result = await addTenantCompanyEmployeeForCurrentUser(userId, req.params.id, req.body);
+    return res.status(200).json(result);
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+export const sendTenantCompanyEmployeeInvite = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id || req.user?._id || req.user;
+    const result = await sendTenantCompanyEmployeeInviteForCurrentUser(userId, req.params.id, req.params.employeeId);
     return res.status(200).json(result);
   } catch (error: any) {
     next(error);

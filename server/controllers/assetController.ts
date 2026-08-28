@@ -307,7 +307,7 @@ export const createAsset = async (req, res, next) => {
 
         const {
             department, assignedTo, assignedToUserId, assignedToDepartment,
-            expiryDate, warrantyExpiry, value, price,
+            expiryDate, warrantyExpiry, value, price, unitPrice,
             categoryId, subCategoryId, vendorId,
             quantity: rawQuantity, warrantyMonths: rawWarrantyMonths,
             serialNumber, serialNumbers: rawSerialNumbers,
@@ -363,6 +363,10 @@ export const createAsset = async (req, res, next) => {
         }
 
         const quantity = Math.max(1, Number(rawQuantity) || 1);
+
+        const unitPriceNum = unitPrice !== undefined
+            ? normalizeMoneyValue(unitPrice)
+            : normalizeMoneyValue(value ?? price) / quantity;
 
         let serialNumbers = [];
         if (rawSerialNumbers) {
@@ -446,7 +450,8 @@ export const createAsset = async (req, res, next) => {
             allocations: [],
             expiryDate: resolvedExpiry,
             warrantyExpiry: resolvedWarrantyExpiry,
-            value: normalizeMoneyValue(value ?? price),
+            unitPrice: unitPriceNum,
+            value: unitPriceNum * quantity,
             ...(assetImage ? { assetImage } : {}),
             ...(warrantyDocument ? { warrantyDocument } : {}),
         });
@@ -659,7 +664,7 @@ export const updateAsset = async (req, res, next) => {
             });
         }
 
-        const existingAsset = await Asset.findOne({ _id: assetId, workspaceId }).select("departmentId assignedToDepartmentId allocations quantity categoryId").lean().exec();
+        const existingAsset = await Asset.findOne({ _id: assetId, workspaceId }).select("departmentId assignedToDepartmentId allocations quantity categoryId unitPrice").lean().exec();
         if (!existingAsset) {
             return res.status(404).json({
                 message: "Asset not found",
@@ -670,7 +675,7 @@ export const updateAsset = async (req, res, next) => {
         delete req.body.createdBy;
         delete req.body.assetNumber;
 
-        const { department, assignedTo, assignedToUserId, assignedToDepartmentId, transferReason, transferDate, expiryDate, warrantyExpiry, value, ...updateBody } = req.body;
+        const { department, assignedTo, assignedToUserId, assignedToDepartmentId, transferReason, transferDate, expiryDate, warrantyExpiry, value, unitPrice, ...updateBody } = req.body;
 
         if (department) {
             updateBody.departmentId = await resolveDepartmentId(workspaceId, department);
@@ -728,8 +733,17 @@ export const updateAsset = async (req, res, next) => {
         }
         if (expiryDate !== undefined) updateBody.expiryDate = expiryDate ? new Date(expiryDate) : null;
         if (warrantyExpiry !== undefined) updateBody.warrantyExpiry = warrantyExpiry ? new Date(warrantyExpiry) : null;
-        if (value !== undefined || updateBody.price !== undefined) {
+        const targetQuantity = updateBody.quantity !== undefined
+            ? Number(updateBody.quantity)
+            : Math.max(1, Number(existingAsset.quantity) || 1);
+        if (unitPrice !== undefined) {
+            updateBody.unitPrice = normalizeMoneyValue(unitPrice);
+            updateBody.value = updateBody.unitPrice * targetQuantity;
+        } else if (value !== undefined || updateBody.price !== undefined) {
             updateBody.value = normalizeMoneyValue(value ?? updateBody.price);
+            updateBody.unitPrice = updateBody.value / targetQuantity;
+        } else if (updateBody.quantity !== undefined) {
+            updateBody.value = Number(existingAsset.unitPrice || 0) * targetQuantity;
         }
         delete updateBody.price;
 

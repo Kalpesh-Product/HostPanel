@@ -6,9 +6,9 @@ import {
   Mail, Phone, MapPin, CheckCircle2, AlertTriangle, Clock, Eye,
   ChevronDown, UserCog, ToggleLeft, ToggleRight, Building2, FileText, DollarSign,
   LayoutGrid, Loader2,
-  Banknote, UploadCloud, FileSpreadsheet, Info
+  Banknote, UploadCloud, FileSpreadsheet, Info, Send
 } from 'lucide-react';
-import { getTenantCompany, addTenantCompanyEmployee, updateTenantCompanyEmployee, updateTenantCompanyEmployeeStatus, deleteTenantCompanyEmployee, updateTenantCompanyManager } from '../../../services/tenant-companies';
+import { getTenantCompany, addTenantCompanyEmployee, sendTenantCompanyEmployeeInvite, updateTenantCompanyEmployee, updateTenantCompanyEmployeeStatus, deleteTenantCompanyEmployee, updateTenantCompanyManager } from '../../../services/tenant-companies';
 import { getBookingsByTenantCompany } from '../../../services/meeting-room-bookings';
 import PageFrame from '../../../components/Pages/PageFrame';
 import { toast } from 'sonner';
@@ -104,7 +104,14 @@ function empStatusMeta(e = {}) {
   if (a.includes('logged in')) return { label: 'Logged In', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
   if (a.includes('registered')) return { label: 'Registered', cls: 'bg-blue-50 text-blue-700 border-blue-200' };
   if (a.includes('invited')) return { label: 'Invited', cls: 'bg-violet-50 text-violet-700 border-violet-200' };
-  return { label: e.status || 'Pending', cls: 'bg-slate-50 text-slate-600 border-slate-200' };
+  return { label: 'Pending', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
+}
+
+function canSendInvite(e = {}) {
+  if (String(e.status || '').toLowerCase() === 'inactive') return false;
+  const a = String(e.accountStatus || e.inviteStatus || '').toLowerCase();
+  if (a.includes('logged in') || a.includes('registered')) return false;
+  return Boolean(e.email);
 }
 
 function statusBadge(s) {
@@ -208,6 +215,7 @@ export default function TenantCompanyDetailPage() {
   const [editEmp, setEditEmp] = useState(null);
   const [addF, setAddF] = useState({ name: '', email: '', phone: '', designation: '', role: '' });
   const [editF, setEditF] = useState({ name: '', phone: '', designation: '', role: 'Employee' });
+  const [sendingInviteId, setSendingInviteId] = useState('');
 
   // Bulk upload
   const [bulkModal, setBulkModal] = useState(false);
@@ -329,6 +337,19 @@ export default function TenantCompanyDetailPage() {
   const hToggle = async emp => { if (!tenant || isSaving) return; setIsSaving(true); try { const ns = emp.status === 'Inactive' ? 'Active' : 'Inactive'; await updateTenantCompanyEmployeeStatus(tenant.recordId || tenant.id, emp.id, { status: ns }); toast.success(ns === 'Active' ? 'Activated.' : 'Deactivated.'); refresh(); } catch (err) { toast.error(err?.message || 'Failed'); } finally { setIsSaving(false); } };
   const hDel = async eid => { if (!tenant || isSaving) return; setIsSaving(true); try { await deleteTenantCompanyEmployee(tenant.recordId || tenant.id, eid); toast.success('Removed.'); setViewEmp(null); refresh(); } catch (err) { toast.error(err?.message || 'Failed'); } finally { setIsSaving(false); } };
   const hSetMgr = async eid => { if (!tenant || isSaving) return; setIsSaving(true); try { await updateTenantCompanyManager(tenant.recordId || tenant.id, { employeeId: eid }); toast.success('Manager updated.'); setMgrModal(false); refresh(); } catch (err) { toast.error(err?.message || 'Failed'); } finally { setIsSaving(false); } };
+  const hSendInvite = async emp => {
+    if (!tenant || sendingInviteId) return;
+    setSendingInviteId(emp.id);
+    try {
+      await sendTenantCompanyEmployeeInvite(tenant.recordId || tenant.id, emp.id);
+      toast.success(`Invite sent to ${empName(emp)}.`);
+      refresh();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to send invite');
+    } finally {
+      setSendingInviteId('');
+    }
+  };
 
   // ---------- Bulk Upload Handlers ----------
   const openBulkModal = () => { setBulkModal(true); setBulkFileName(''); setBulkRows([]); setBulkSummary(null); setBulkError(''); };
@@ -663,6 +684,13 @@ export default function TenantCompanyDetailPage() {
                               <td className="px-5 py-4"><span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[9px] font-pmedium uppercase tracking-wider ${meta.cls}`}>{meta.label}</span></td>
                               <td className="px-5 py-4 text-right">
                                 <div className="flex items-center justify-end gap-1.5">
+                                  {canSendInvite(emp) && (
+                                    <button onClick={() => hSendInvite(emp)} disabled={sendingInviteId === emp.id}
+                                      className="p-1.5 bg-slate-100 text-slate-600 hover:bg-violet-100 hover:text-violet-700 rounded-lg transition-all disabled:opacity-50"
+                                      title={meta.label === 'Invited' ? 'Resend Invite' : 'Send Invite'}>
+                                      {sendingInviteId === emp.id ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} strokeWidth={2.5} />}
+                                    </button>
+                                  )}
                                   <button onClick={() => setViewEmp(emp)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all" title="View Profile"><Eye size={15} strokeWidth={2.5} /></button>
                                   <button onClick={() => hToggle(emp)} className={`p-1.5 rounded-lg transition-all ${emp.status === 'Inactive' ? 'bg-red-50 text-red-500 hover:bg-red-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`} title={emp.status === 'Inactive' ? 'Activate' : 'Deactivate'}>
                                     {emp.status === 'Inactive' ? <ToggleLeft size={15} /> : <ToggleRight size={15} />}
@@ -1139,6 +1167,13 @@ export default function TenantCompanyDetailPage() {
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Tenant</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{tenant?.companyName || 'Tenant Company'}</p></div>
             </div>
             <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-white p-5">
+              {canSendInvite(viewEmp) && (
+                <button onClick={() => hSendInvite(viewEmp)} disabled={sendingInviteId === viewEmp.id}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-violet-50 border border-violet-200 rounded-xl text-[10px] font-pmedium uppercase tracking-widest text-violet-600 hover:bg-violet-100 transition-all disabled:opacity-50">
+                  {sendingInviteId === viewEmp.id ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                  {empStatusMeta(viewEmp).label === 'Invited' ? 'Resend Invite' : 'Send Invite'}
+                </button>
+              )}
               <button onClick={() => { setEditEmp(viewEmp); setEditF({ name: viewEmp?.name || '', phone: viewEmp?.phone || '', designation: viewEmp?.designation || '', role: viewEmp?.role || 'Employee' }); }}
                 className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl text-[10px] font-pmedium uppercase tracking-widest text-blue-600 hover:bg-blue-100 transition-all">Edit</button>
               <button onClick={() => hToggle(viewEmp)}

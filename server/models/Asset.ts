@@ -219,6 +219,12 @@ const assetSchema = new mongoose.Schema(
             default: null,
         },
 
+        unitPrice: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
+
         value: {
             type: Number,
             default: 0,
