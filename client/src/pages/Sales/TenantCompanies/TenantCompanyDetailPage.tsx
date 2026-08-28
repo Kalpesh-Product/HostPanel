@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import * as XLSX from 'xlsx';
 import {
   ArrowLeft, Users, History, CalendarDays, CreditCard, Plus, X, Save,
   Mail, Phone, MapPin, CheckCircle2, AlertTriangle, Clock, Eye,
   ChevronDown, UserCog, ToggleLeft, ToggleRight, Building2, FileText, DollarSign,
   LayoutGrid, Loader2,
-  Banknote
+  Banknote, UploadCloud, FileSpreadsheet, Info
 } from 'lucide-react';
 import { getTenantCompany, addTenantCompanyEmployee, updateTenantCompanyEmployee, updateTenantCompanyEmployeeStatus, deleteTenantCompanyEmployee, updateTenantCompanyManager } from '../../../services/tenant-companies';
 import { getBookingsByTenantCompany } from '../../../services/meeting-room-bookings';
@@ -38,6 +39,63 @@ function fmtDate(v) {
 }
 function initials(e = {}) { const s = String(e.name || e.fullName || e.email || 'E').trim(); return s.split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase() || '').join('') || 'E'; }
 function empName(e = {}) { return String(e.name || e.fullName || e.email || 'Unnamed').trim(); }
+
+// ---------------------------------------------------------------------------
+// Bulk Upload – template & row parsing
+// ---------------------------------------------------------------------------
+const BULK_SHEET_NAME = 'Employees';
+const BULK_HEADERS = ['Name', 'Email', 'Phone', 'Designation', 'Role'];
+
+function readBulkCell(row, ...keys) {
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
+      return String(row[key]).trim();
+    }
+  }
+  return '';
+}
+
+function mapBulkRole(raw) {
+  const key = String(raw || '').trim().toLowerCase();
+  if (key === 'manager') return 'Manager';
+  if (key === 'employee') return 'Employee';
+  return '';
+}
+
+function parseBulkEmployeeRow(row, hasManager) {
+  const name = readBulkCell(row, 'Name', 'name', 'Employee Name', 'employeeName');
+  const email = readBulkCell(row, 'Email', 'email').toLowerCase();
+  const phone = readBulkCell(row, 'Phone', 'phone', 'Mobile', 'mobileNo');
+  const designation = readBulkCell(row, 'Designation', 'designation');
+  const role = mapBulkRole(readBulkCell(row, 'Role', 'role'));
+
+  if (!name) return { issue: 'Missing Name' };
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { issue: 'Missing or invalid Email' };
+  if (!phone) return { issue: 'Missing Phone' };
+  if (!designation) return { issue: 'Missing Designation' };
+  if (!role) return { issue: 'Role must be "Manager" or "Employee"' };
+  if (role === 'Manager' && hasManager) return { issue: 'A manager is already assigned to this tenant' };
+
+  return { payload: { name, email, phone, designation, role } };
+}
+
+function buildBulkTemplateWorkbook() {
+  const workbook = XLSX.utils.book_new();
+  const uploadSheet = XLSX.utils.aoa_to_sheet([BULK_HEADERS, ['Jane Doe', 'jane.doe@company.com', '9876543210', 'Software Engineer', 'Employee']]);
+  XLSX.utils.book_append_sheet(workbook, uploadSheet, BULK_SHEET_NAME);
+
+  const instructionsSheet = XLSX.utils.aoa_to_sheet([
+    ['Field', 'Notes'],
+    ['Name', 'Employee full name. Required.'],
+    ['Email', 'Used for invite/login. Must be unique per tenant. Required.'],
+    ['Phone', 'Contact number. Required.'],
+    ['Designation', "Employee's job title. Required."],
+    ['Role', 'Must be exactly "Manager" or "Employee". Only one Manager is allowed per tenant company — additional Manager rows will be skipped.'],
+  ]);
+  XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instructions');
+
+  return workbook;
+}
 
 function empStatusMeta(e = {}) {
   const s = String(e.status || '').toLowerCase();
@@ -151,6 +209,15 @@ export default function TenantCompanyDetailPage() {
   const [addF, setAddF] = useState({ name: '', email: '', phone: '', designation: '', role: '' });
   const [editF, setEditF] = useState({ name: '', phone: '', designation: '', role: 'Employee' });
 
+  // Bulk upload
+  const [bulkModal, setBulkModal] = useState(false);
+  const [bulkFileName, setBulkFileName] = useState('');
+  const [bulkRows, setBulkRows] = useState([]);
+  const [bulkImporting, setBulkImporting] = useState(false);
+  const [bulkSummary, setBulkSummary] = useState(null);
+  const [bulkError, setBulkError] = useState('');
+  const bulkFileInputRef = useRef(null);
+
   // Other modals
   const [mgrModal, setMgrModal] = useState(false);
   const [viewCredit, setViewCredit] = useState(null);
@@ -262,6 +329,61 @@ export default function TenantCompanyDetailPage() {
   const hToggle = async emp => { if (!tenant || isSaving) return; setIsSaving(true); try { const ns = emp.status === 'Inactive' ? 'Active' : 'Inactive'; await updateTenantCompanyEmployeeStatus(tenant.recordId || tenant.id, emp.id, { status: ns }); toast.success(ns === 'Active' ? 'Activated.' : 'Deactivated.'); refresh(); } catch (err) { toast.error(err?.message || 'Failed'); } finally { setIsSaving(false); } };
   const hDel = async eid => { if (!tenant || isSaving) return; setIsSaving(true); try { await deleteTenantCompanyEmployee(tenant.recordId || tenant.id, eid); toast.success('Removed.'); setViewEmp(null); refresh(); } catch (err) { toast.error(err?.message || 'Failed'); } finally { setIsSaving(false); } };
   const hSetMgr = async eid => { if (!tenant || isSaving) return; setIsSaving(true); try { await updateTenantCompanyManager(tenant.recordId || tenant.id, { employeeId: eid }); toast.success('Manager updated.'); setMgrModal(false); refresh(); } catch (err) { toast.error(err?.message || 'Failed'); } finally { setIsSaving(false); } };
+
+  // ---------- Bulk Upload Handlers ----------
+  const openBulkModal = () => { setBulkModal(true); setBulkFileName(''); setBulkRows([]); setBulkSummary(null); setBulkError(''); };
+  const closeBulkModal = () => { setBulkModal(false); setBulkFileName(''); setBulkRows([]); setBulkSummary(null); setBulkError(''); };
+
+  const hBulkDownloadTemplate = () => {
+    const workbook = buildBulkTemplateWorkbook();
+    XLSX.writeFile(workbook, 'tenant-employee-bulk-upload-template.xlsx');
+  };
+
+  const hBulkFileChange = e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBulkFileName(file.name);
+    setBulkSummary(null);
+    setBulkError('');
+    const reader = new FileReader();
+    reader.onload = evt => {
+      try {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+        const sheetName = workbook.SheetNames.includes(BULK_SHEET_NAME) ? BULK_SHEET_NAME : workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        setBulkRows(rows);
+        if (rows.length === 0) setBulkError('No rows found in the spreadsheet.');
+      } catch (err) {
+        setBulkError('Failed to parse spreadsheet. Please check the file format.');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const hBulkImport = async () => {
+    if (!tenant || bulkRows.length === 0) return;
+    setBulkImporting(true);
+    let created = 0, skipped = 0;
+    const issues = [];
+    let hasManager = Boolean(mgrEmp);
+    for (let i = 0; i < bulkRows.length; i++) {
+      const result = parseBulkEmployeeRow(bulkRows[i], hasManager);
+      if (result.issue) { skipped++; issues.push(`Row ${i + 2}: ${result.issue}`); continue; }
+      try {
+        await addTenantCompanyEmployee(tenant.recordId || tenant.id, result.payload);
+        created++;
+        if (result.payload.role === 'Manager') hasManager = true;
+      } catch (err) {
+        skipped++;
+        issues.push(`Row ${i + 2}: ${err?.response?.data?.message || err?.message || 'Creation failed'}`);
+      }
+    }
+    setBulkImporting(false);
+    setBulkSummary({ created, skipped, issues });
+    if (created > 0) refresh();
+  };
 
   // ---------- Loading / Not found ----------
   if (isLoading) {
@@ -502,6 +624,9 @@ export default function TenantCompanyDetailPage() {
                   <button onClick={() => setMgrModal(true)}
                     data-tour="tenant-detail-change-manager"
                     className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200/60 text-slate-700 rounded-xl text-[10px] font-pmedium hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"><UserCog size={12} /> Change Manager</button>
+                  <button onClick={openBulkModal}
+                    data-tour="tenant-detail-bulk-upload-employees"
+                    className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200/60 text-slate-700 rounded-xl text-[10px] font-pmedium hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"><UploadCloud size={12} /> Bulk Upload</button>
                   <button onClick={() => setAddModal(true)}
                     data-tour="tenant-detail-add-employee"
                     className="flex items-center gap-1.5 px-3 py-2 bg-[#2563EB] text-white rounded-2xl text-[10px] font-pmedium shadow-sm hover:bg-[#2563EB]/90 active:scale-95 transition-all"><Plus size={12} strokeWidth={3} /> Add Employee</button>
@@ -916,6 +1041,76 @@ export default function TenantCompanyDetailPage() {
                   className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl text-[10px] font-pmedium shadow-sm hover:bg-[#2563EB]/90 disabled:cursor-not-allowed disabled:opacity-60 transition-all">{isSaving && <Loader2 size={13} className="animate-spin" />}{isSaving ? 'Adding...' : 'Add Employee'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================ */}
+      {/* BULK UPLOAD EMPLOYEES MODAL */}
+      {/* ================================================================ */}
+      {bulkModal && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-md h-auto rounded-t-[32px] sm:rounded-[32px] shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <h3 className="text-sm font-pmedium text-slate-900 flex items-center gap-2"><UploadCloud size={16} /> Bulk Upload Employees</h3>
+              <button onClick={closeBulkModal}
+                className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all"><X size={16} /></button>
+            </div>
+            <div className="p-5 space-y-4 overflow-y-auto">
+              {!bulkFileName ? (
+                <>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={hBulkDownloadTemplate}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 hover:border-[#2563EB] hover:text-[#2563EB] transition-all">
+                      <FileSpreadsheet size={13} /> Download Template
+                    </button>
+                  </div>
+                  <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
+                    <Info size={13} className="text-blue-500 mt-0.5 shrink-0" />
+                    <p className="text-[10px] font-pmedium text-blue-700 leading-relaxed">Fill in Name, Email, Phone, Designation and Role ("Manager" or "Employee") per row. Only one Manager is allowed per tenant.</p>
+                  </div>
+                  <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:border-[#2563EB] transition-colors cursor-pointer" onClick={() => bulkFileInputRef.current?.click()}>
+                    <UploadCloud size={28} className="mx-auto text-slate-300 mb-3" />
+                    <p className="text-[12px] font-pmedium text-slate-600 mb-1">Click to upload spreadsheet</p>
+                    <p className="text-[10px] text-slate-400">Supports .xlsx, .xls, .csv — use the template above for the required columns.</p>
+                  </div>
+                  <input ref={bulkFileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={hBulkFileChange} />
+                </>
+              ) : bulkSummary ? (
+                <div className="space-y-3">
+                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100">
+                    <p className="text-[12px] font-pmedium text-emerald-800">Import Complete</p>
+                    <p className="text-[11px] text-emerald-600 mt-1">{bulkSummary.created} created, {bulkSummary.skipped} skipped</p>
+                  </div>
+                  {bulkSummary.issues.length > 0 && (
+                    <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 max-h-40 overflow-y-auto space-y-1">
+                      {bulkSummary.issues.map((issue, i) => (
+                        <p key={i} className="text-[10px] font-pmedium text-amber-700">{issue}</p>
+                      ))}
+                    </div>
+                  )}
+                  <button onClick={closeBulkModal}
+                    className="w-full py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-[#2563EB]/90 transition-all">Done</button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                    <span className="text-[12px] font-pmedium text-slate-700 truncate">{bulkFileName}</span>
+                    <span className="text-[10px] font-pmedium text-slate-400 shrink-0">{bulkRows.length} rows</span>
+                  </div>
+                  {bulkError && <p className="text-[11px] font-pmedium text-red-500">{bulkError}</p>}
+                  <div className="flex gap-2">
+                    <button onClick={() => { setBulkFileName(''); setBulkRows([]); setBulkError(''); }}
+                      className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">Change File</button>
+                    <button onClick={hBulkImport} disabled={bulkImporting || bulkRows.length === 0}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-[#2563EB]/90 disabled:opacity-50 transition-all">
+                      {bulkImporting ? <Loader2 size={13} className="animate-spin" /> : <UploadCloud size={13} />}
+                      {bulkImporting ? 'Importing...' : `Import ${bulkRows.length} Rows`}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
