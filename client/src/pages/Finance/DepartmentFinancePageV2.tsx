@@ -928,6 +928,26 @@ export function DepartmentFinancePageV2() {
     setInvoiceForm({ invoiceNumber: '', amount: '', file: null });
   };
 
+  const handleDownloadImportTemplate = () => {
+    const headers = [[
+      'Month',
+      'Month Key',
+      'Budget Title',
+      'Expense Title',
+      'Description',
+      'Projected Amount',
+      'Actual Amount',
+      'Due Date',
+      'Payment Status',
+      'Invoice Number',
+    ]];
+    const worksheet = XLSX.utils.aoa_to_sheet(headers);
+    worksheet['!cols'] = headers[0].map((header) => ({ wch: Math.max(14, header.length + 2) }));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Finance Import');
+    XLSX.writeFile(workbook, 'budget-import-template.xlsx');
+  };
+
   const handleUploadInvoice = async () => {
     if (!invoiceTarget) return;
     const { month, expense } = invoiceTarget;
@@ -2566,7 +2586,7 @@ export function DepartmentFinancePageV2() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
           <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
             <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+              <h2 className="text-xl font-pmedium text-slate-900 flex items-center gap-2">
                 <FileSpreadsheet size={20} className="text-[#2563EB]" /> Import Finance Data
               </h2>
               <button onClick={() => { setShowImportModal(false); setImportFile(null); }} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm">
@@ -2575,8 +2595,15 @@ export function DepartmentFinancePageV2() {
             </div>
             <div className="p-4 sm:p-6 lg:p-8 space-y-5">
               <p className="text-xs text-slate-600">
-                Upload an Excel or CSV file with your department's finance data. Columns will be mapped to expenses, budgets, or vendors based on headers.
+                Download the template, keep its headers unchanged, and add your department's budget rows before uploading it.
               </p>
+              <button
+                type="button"
+                onClick={handleDownloadImportTemplate}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-[10px] font-pmedium uppercase tracking-wider text-blue-700 transition-colors hover:bg-blue-100"
+              >
+                <FileDown size={14} /> Download Template
+              </button>
               <div
                 onClick={() => fileInputRef.current?.click()}
                 className="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center cursor-pointer hover:border-[#2563EB] hover:bg-blue-50/30 transition-all"

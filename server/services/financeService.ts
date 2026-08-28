@@ -843,12 +843,13 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
     if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
     if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
     importMembership = await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
-    // Import writes expense rows, so an approved plan is locked for departments.
+    // Import replaces the plan's expense rows. Department members may do that
+    // only while the current annual-budget revision is still a Draft.
     if (
       !DEPARTMENT_FINANCE_PRIVILEGED_ROLES.has(normalizeFinanceRoleName(importMembership?.role)) &&
-      safeString((plan as any).status).toLowerCase() === "approved"
+      safeString((plan as any).status).toLowerCase() !== "draft"
     ) {
-      throw Object.assign(new Error("This annual budget is approved and locked. Contact Finance to make corrections."), { statusCode: 403 });
+      throw Object.assign(new Error("Bulk import is allowed only while the annual budget is a Draft. Create a revision before importing changes."), { statusCode: 409 });
     }
   } else {
     importMembership = await assertActorOwnsDepartment(workspaceId, input.userId, department);
@@ -856,9 +857,9 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
     if (plan) {
       if (
         !DEPARTMENT_FINANCE_PRIVILEGED_ROLES.has(normalizeFinanceRoleName(importMembership?.role)) &&
-        safeString((plan as any).status).toLowerCase() === "approved"
+        safeString((plan as any).status).toLowerCase() !== "draft"
       ) {
-        throw Object.assign(new Error("This annual budget is approved and locked. Contact Finance to make corrections."), { statusCode: 403 });
+        throw Object.assign(new Error("Bulk import is allowed only while the annual budget is a Draft. Create a revision before importing changes."), { statusCode: 409 });
       }
     } else {
       // create minimal empty plan (Phase1 already creates via POST budget-request, but import should also be able to bootstrap)
