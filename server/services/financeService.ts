@@ -2010,6 +2010,9 @@ export async function applyFinanceApprovalDecisionInternal(input: {
     const record = await ExtraFinanceRequest.findById(requestObjectId).exec();
     if (!record) throw Object.assign(new Error("Extra finance request not found."), { statusCode: 404 });
     if (String(record.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
+    if (safeString(record.status).toLowerCase() !== "pending") {
+      throw Object.assign(new Error("Only a pending extra budget revision can receive an approval decision."), { statusCode: 409 });
+    }
     const wasApplied = Boolean((record as any).appliedAt);
 
     const step = role === "owner" ? "owner" : "financeManager";

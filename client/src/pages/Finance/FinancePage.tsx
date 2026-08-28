@@ -703,7 +703,89 @@ export function FinancePage() {
       </PageFrame>
       
       {/* MODALS */}
-      {viewingRequest && (
+      {viewingRequest && viewingRequest.type === 'extra' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#0F172A]/80 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl sm:rounded-[2.5rem] w-full max-w-lg sm:max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-4 sm:p-6 lg:p-8 bg-slate-900 border-b border-slate-800 flex justify-between items-center shrink-0">
+              <div>
+                <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2"><AlertCircle size={18} className="sm:w-5 sm:h-5" /> Extra Budget</h2>
+                <p className="text-[9px] sm:text-[10px] font-pmedium text-slate-400 uppercase">REF: {viewingRequest.requestKey || viewingRequest.id} • Revision {Number(viewingRequest.revision || 1)}</p>
+              </div>
+              <button onClick={() => setViewingRequest(null)} className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
+            </div>
+
+            <div className="p-4 sm:p-6 lg:p-8 overflow-y-auto flex-1 bg-white space-y-4 sm:space-y-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 pb-4 border-b border-gray-100">
+                <div>
+                  <p className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase mb-1">Department</p>
+                  <p className="text-xl sm:text-2xl font-black text-gray-900 flex items-center gap-2"><Building2 size={16} className="sm:w-5 sm:h-5 text-amber-500" /> {viewingRequest.department}</p>
+                  <p className="mt-1 text-[10px] font-pmedium text-gray-400">Submitted by {viewingRequest.submittedByName || 'Dept. Manager'} {viewingRequest.date || viewingRequest.submittedAtLabel ? `• ${viewingRequest.date || viewingRequest.submittedAtLabel}` : ''}</p>
+                </div>
+                <div className="text-left sm:text-right">
+                  <p className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase mb-1">Requested</p>
+                  <p className="text-2xl sm:text-3xl font-black text-amber-600">{formatCurrency(viewingRequest.amount)}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase mb-2">Expense Title</p>
+                  <p className="text-sm font-black text-gray-900">{viewingRequest.title || viewingRequest.targetTitle || 'Extra Budget'}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase mb-2">Requested Month</p>
+                  <p className="text-sm font-black text-gray-900">{viewingRequest.month || viewingRequest.monthKey || '—'}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase mb-2 flex items-center gap-1.5"><FileText size={12} className="sm:w-3.5 sm:h-3.5" /> Justification</p>
+                <div className="text-xs sm:text-sm font-medium text-gray-800 leading-relaxed bg-gray-50 border border-gray-200 p-3 sm:p-5 rounded-xl whitespace-pre-line">
+                  {viewingRequest.reason || viewingRequest.breakdown || 'No additional justification provided.'}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase mb-2">Approval Status</p>
+                {hasApprovalProgress(viewingRequest.approvalFlow)
+                  ? <ApprovalFlowBadges flow={viewingRequest.approvalFlow} />
+                  : <span className={statusPillClass(viewingRequest.status)}>{viewingRequest.status}</span>}
+              </div>
+            </div>
+
+            {(() => {
+              const requestStatus = String(viewingRequest.status || '').toLowerCase();
+              const actionable = requestStatus === 'pending' && !viewingHasDecided;
+              if (actionable) {
+                return (
+                  <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-3 gap-2.5 shrink-0">
+                    <button disabled={isSavingDecision} onClick={() => { setDecisionComment(''); setDecisionPrompt({ action: 'Discuss', request: viewingRequest }); }} className="min-w-0 px-3 py-3 bg-white border border-blue-200 text-blue-600 rounded-xl font-pmedium hover:bg-blue-50 transition-all text-[11px] flex items-center justify-center gap-1.5">
+                      <MessageSquare size={14} /> REQUEST CHANGES
+                    </button>
+                    <button disabled={isSavingDecision} onClick={() => { setDecisionComment(''); setDecisionPrompt({ action: 'Rejected', request: viewingRequest }); }} className="min-w-0 px-3 py-3 bg-white border border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-[11px] flex items-center justify-center gap-1.5">
+                      <XCircle size={14} /> REJECT
+                    </button>
+                    <button disabled={isSavingDecision} onClick={() => handleAction('extra', viewingRequest.id, 'Approved')} className="min-w-0 px-3 py-3 bg-green-600 text-white rounded-xl font-pmedium shadow-sm hover:bg-green-700 transition-all text-[11px] flex items-center justify-center gap-1.5">
+                      APPROVE <CheckCircle2 size={14} />
+                    </button>
+                  </div>
+                );
+              }
+              if (viewingMyStepStatus === 'approved' || viewingMyStepStatus === 'rejected') {
+                return (
+                  <div className="p-4 sm:p-6 bg-emerald-50/60 border-t border-gray-100 flex items-center justify-between gap-3 shrink-0">
+                    <span className="flex items-center gap-2 text-[11px] font-pmedium uppercase tracking-wider text-emerald-700"><CheckCircle2 size={14} /> You have already {viewingMyStepStatus} this request.</span>
+                    <button onClick={() => setViewingRequest(null)} className="px-8 py-3 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-sm">CLOSE</button>
+                  </div>
+                );
+              }
+              return <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-100"><button onClick={() => setViewingRequest(null)} className="w-full py-3 bg-white border border-gray-200 text-gray-700 rounded-xl font-pmedium hover:bg-gray-100 transition-all text-sm">CLOSE</button></div>;
+            })()}
+          </div>
+        </div>
+      )}
+
+      {viewingRequest && viewingRequest.type === 'annual' && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
           <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full sm:w-[95vw] max-w-[1500px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">

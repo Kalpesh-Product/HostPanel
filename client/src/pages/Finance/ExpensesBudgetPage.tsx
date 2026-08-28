@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
 import {
   Wallet,
   TrendingDown,
+  TrendingUp,
   AlertCircle,
   Search,
   FileText,
@@ -443,7 +443,13 @@ function mapExtraRequestToBudget(request: any = {}): ExtraBudget {
     department: request.department || 'Unassigned',
     requested: Number(request.amount || 0),
     approved: status === 'Approved' ? Number(request.amount || 0) : 0,
-    status: status === 'Approved' ? 'Approved' : status === 'Rejected' ? 'Rejected' : 'Pending Review',
+    status: status === 'Approved'
+      ? 'Approved'
+      : status === 'Rejected'
+        ? 'Rejected'
+        : status === 'Discuss'
+          ? 'Changes Requested'
+          : 'Pending Review',
     date: request.submittedAtLabel || request.date || '',
     details: request.reason || request.breakdown || request.description || '',
     month: request.month || '',
@@ -834,7 +840,6 @@ export function ExpensesBudgetPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const fiscalYearOptions = getFiscalYearOptions();
   const [selectedFY, setSelectedFY] = useState(DEFAULT_FISCAL_YEAR);
-  const navigate = useNavigate();
   const currentUser = getStoredUser();
   const currentUserName = String(
     currentUser?.fullName ||
@@ -1075,15 +1080,18 @@ export function ExpensesBudgetPage() {
   const statCards = useMemo(() => {
     switch (activeTab) {
       case 'estimated': {
-        const totalAllocated = estimatedBudgets.filter(b => b.status === 'Active').reduce((acc, curr) => acc + curr.approved, 0) +
-          extraBudgets.filter(b => b.status === 'Approved').reduce((acc, curr) => acc + curr.approved, 0);
-        const totalProjected = estimatedBudgets.reduce((acc, curr) => acc + curr.requested, 0);
-        const activeDepts = new Set(estimatedBudgets.map(b => b.department).filter(Boolean)).size;
+        const approvedAnnualBudget = estimatedBudgets
+          .filter(b => b.status === 'Active')
+          .reduce((acc, curr) => acc + curr.approved, 0);
+        const approvedExtraBudget = extraBudgets
+          .filter(b => b.status === 'Approved')
+          .reduce((acc, curr) => acc + curr.approved, 0);
+        const totalAvailableBudget = approvedAnnualBudget + approvedExtraBudget;
         const pendingApprovals = estimatedBudgets.filter(b => b.status === 'Pending Review').length;
         return [
-          { key: 'allocated', label: 'Total Allocated', value: formatCurrency(totalAllocated), isCurrency: true, icon: PieChart },
-          { key: 'projected', label: 'Total Projected', value: formatCurrency(totalProjected), isCurrency: true, icon: TrendingDown },
-          { key: 'departments', label: 'Departments', value: String(activeDepts), icon: Building2 },
+          { key: 'annual-approved', label: 'Approved Annual Budget', value: formatCurrency(approvedAnnualBudget), isCurrency: true, icon: PieChart },
+          { key: 'extra-approved', label: 'Approved Extra Budget', value: formatCurrency(approvedExtraBudget), isCurrency: true, icon: TrendingUp },
+          { key: 'available', label: 'Total Available Budget', value: formatCurrency(totalAvailableBudget), isCurrency: true, icon: Wallet },
           { key: 'pending', label: 'Pending Approvals', value: String(pendingApprovals), icon: AlertCircle },
         ];
       }
@@ -1182,7 +1190,7 @@ export function ExpensesBudgetPage() {
         setEstimatedBudgets(enrichedAnnualRequests.map(mapAnnualRequestToBudget));
         setExtraBudgets(Array.isArray(payload.extraRequests) ? payload.extraRequests.map(mapExtraRequestToBudget) : []);
         syncExpenseHistoryFromPayload(payload, enrichedAnnualRequests);
-        toast.success(`Request rejected for ${rejectingRequest.department}.`);
+        toast.success(decision === 'Discuss' ? `Changes requested from ${rejectingRequest.department}.` : `Request rejected for ${rejectingRequest.department}.`);
         setRejectingRequest(null);
         setRejectReason('');
       } catch (error: any) { toast.error(error?.message || 'Failed to reject extra budget.'); }
@@ -1256,11 +1264,9 @@ export function ExpensesBudgetPage() {
         reportRows: selectedReport.reportRows,
         monthlyData: selectedReport.monthlyData,
       });
-      if (reportFormat === 'PDF') await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
-      const createdReportId = response?.data?.report?.recordId;
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       window.dispatchEvent(new Event('reports:refresh'));
-      toast.success(reportFormat === 'PDF' ? 'Finance report saved to Reports.' : 'Finance report saved to Reports. Preview it before downloading.');
-      navigate(createdReportId ? `/extra-common-modules/reports?reportId=${createdReportId}` : '/extra-common-modules/reports');
+      toast.success(`${reportFormat} finance report downloaded and saved to Reports.`);
     } catch (exportError: any) {
       toast.error(exportError?.message || `Failed to export ${activeFinanceReportLabel.toLowerCase()}.`);
     }
@@ -2107,13 +2113,16 @@ export function ExpensesBudgetPage() {
             {(() => {
               const overall = String(viewingExtra.status || '').toLowerCase();
               const myDecision = getMyApprovalDecision(viewingExtra.approvalFlow);
-              if (!myDecision && overall !== 'approved' && overall !== 'rejected') {
+              if (!myDecision && overall === 'pending review') {
                 return (
-                  <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-100 flex gap-3 sm:gap-4 shrink-0">
-                    <button onClick={() => { setRejectingRequest({ ...viewingExtra, modalType: 'extra' }); setViewingExtra(null); }} className="flex-1 py-3 sm:py-3.5 bg-white border-2 border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                  <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-3 gap-2.5 shrink-0">
+                    <button onClick={() => { setRejectReason(''); setRejectingRequest({ ...viewingExtra, modalType: 'extra', decisionAction: 'Discuss' }); setViewingExtra(null); }} className="min-w-0 px-3 py-3 bg-white border border-blue-200 text-blue-600 rounded-xl font-pmedium hover:bg-blue-50 transition-all text-[11px] flex items-center justify-center gap-1.5">
+                      <MessageSquare size={14} className="sm:w-4 sm:h-4" /> REQUEST CHANGES
+                    </button>
+                    <button onClick={() => { setRejectReason(''); setRejectingRequest({ ...viewingExtra, modalType: 'extra' }); setViewingExtra(null); }} className="min-w-0 px-3 py-3 bg-white border border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-[11px] flex items-center justify-center gap-1.5">
                       <XCircle size={14} className="sm:w-4 sm:h-4" /> REJECT
                     </button>
-                    <button onClick={handleApproveExtra} className="flex-[2] py-3 sm:py-3.5 bg-green-600 text-white rounded-xl font-pmedium shadow-md shadow-green-200 hover:bg-green-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                    <button onClick={handleApproveExtra} className="min-w-0 px-3 py-3 bg-green-600 text-white rounded-xl font-pmedium shadow-sm hover:bg-green-700 transition-all text-[11px] flex items-center justify-center gap-1.5">
                       APPROVE <CheckCircle2 size={14} className="sm:w-4 sm:h-4" />
                     </button>
                   </div>

@@ -6,7 +6,7 @@ import {
   CheckCircle2, Clock, Check, Loader2, X, FileText, FileWarning, Search, FileDown, FileSpreadsheet, Calendar, Pencil, MessageSquare
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAppConfirm } from '@/components/app/AppConfirmProvider';
 import { getStoredUser, normalizeUserRole } from '@/lib/auth-session';
@@ -248,7 +248,6 @@ export function DepartmentFinancePageV2() {
   );
   const fiscalYearOptions = getFiscalYearOptions();
   const location = useLocation();
-  const navigate = useNavigate();
   const { confirm } = useAppConfirm();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const workspacePreferences = useWorkspacePreferences();
@@ -503,7 +502,9 @@ export function DepartmentFinancePageV2() {
     let count = 0;
     monthlyExpenses.forEach((month) => {
       (month.expenses || []).forEach((expense) => {
-        if (expense.status === 'Paid' && getExpenseInvoices(expense).length === 0) count += 1;
+        const paymentStatus = String(expense.paymentStatus || expense.status || '').trim().toLowerCase();
+        const isPaidAwaitingInvoice = paymentStatus === 'payment done - invoice pending' || paymentStatus === 'paid';
+        if (isPaidAwaitingInvoice && getExpenseInvoices(expense).length === 0) count += 1;
       });
     });
     return count;
@@ -1007,11 +1008,9 @@ export function DepartmentFinancePageV2() {
           value: formatCurrency(month.projectedAmount),
         })),
       });
-      if (reportFormat === 'PDF') await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
-      const createdReportId = response?.data?.report?.recordId;
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       window.dispatchEvent(new Event('reports:refresh'));
-      toast.success(reportFormat === 'PDF' ? 'Report saved to Reports.' : 'Report saved to Reports. Preview it before downloading.');
-      navigate(createdReportId ? `/extra-common-modules/reports?reportId=${createdReportId}` : '/extra-common-modules/reports');
+      toast.success(`${reportFormat} report downloaded and saved to Reports.`);
     } catch (error: any) {
       toast.error(getApiErrorMessage(error, 'Failed to generate report.'));
     }
@@ -1107,18 +1106,20 @@ export function DepartmentFinancePageV2() {
               <button
                 onClick={() => handleGenerateReport('PDF')}
                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-rose-50 hover:border-rose-200 text-slate-500 transition-all active:scale-95 shadow-sm"
-                title="Export as PDF"
+                title="PDF"
+                aria-label="PDF"
               >
                 <FileDown size={15} />
-                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-rose-500 text-white px-1.5 py-0.5 rounded">Export PDF</span>
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-rose-500 text-white px-1.5 py-0.5 rounded">PDF</span>
               </button>
               <button
                 onClick={() => handleGenerateReport('Excel')}
                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm"
-                title="Export as Excel"
+                title="Excel"
+                aria-label="Excel"
               >
                 <FileSpreadsheet size={15} />
-                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">Export Excel</span>
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">Excel</span>
               </button>
             </div>
           </div>

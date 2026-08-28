@@ -38,6 +38,10 @@ export function AppConfirmProvider({ children }: { children: React.ReactNode }) 
     return new Promise<boolean>((resolve) => {
       setState({
         open: true,
+        title: '',
+        message: '',
+        confirmLabel: 'Confirm',
+        cancelLabel: 'Cancel',
         ...options,
         resolve,
       });

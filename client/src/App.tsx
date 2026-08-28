@@ -4,6 +4,7 @@ import { createTheme, ThemeProvider } from "@mui/material/styles";
 import { Toaster } from "sonner";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { AppConfirmProvider } from "./components/app/AppConfirmProvider";
 
 const theme = createTheme({
   typography: {
@@ -56,8 +57,10 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <LocalizationProvider dateAdapter={AdapterDayjs}>
-        <RouterProvider router={routes} />
-        <Toaster richColors />
+        <AppConfirmProvider>
+          <RouterProvider router={routes} />
+          <Toaster richColors />
+        </AppConfirmProvider>
       </LocalizationProvider>
     </ThemeProvider>
   );
