@@ -118,6 +118,13 @@ const verifyJwt = (req, res, next) => {
           activeMembership.role?.name ||
           (typeof activeMembership.role === "string" ? activeMembership.role : "member"),
         isPrimary: Boolean(activeMembership.isPrimary),
+        departments: Array.isArray(activeMembership.departments)
+          ? activeMembership.departments.map((department: any) => ({
+              _id: department?._id || department,
+              name: department?.name || department?.label || "",
+              label: department?.label || department?.name || "",
+            }))
+          : [],
       };
       req.user = userId;
       next();

@@ -6,7 +6,7 @@ import {
   CheckCircle2, Clock, Check, Loader2, X, FileText, FileWarning, Search, FileDown, FileSpreadsheet, Calendar, Pencil, MessageSquare
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAppConfirm } from '@/components/app/AppConfirmProvider';
 import { getStoredUser, normalizeUserRole } from '@/lib/auth-session';
@@ -248,7 +248,6 @@ export function DepartmentFinancePageV2() {
   );
   const fiscalYearOptions = getFiscalYearOptions();
   const location = useLocation();
-  const navigate = useNavigate();
   const { confirm } = useAppConfirm();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const workspacePreferences = useWorkspacePreferences();
@@ -503,7 +502,9 @@ export function DepartmentFinancePageV2() {
     let count = 0;
     monthlyExpenses.forEach((month) => {
       (month.expenses || []).forEach((expense) => {
-        if (expense.status === 'Paid' && getExpenseInvoices(expense).length === 0) count += 1;
+        const paymentStatus = String(expense.paymentStatus || expense.status || '').trim().toLowerCase();
+        const isPaidAwaitingInvoice = paymentStatus === 'payment done - invoice pending' || paymentStatus === 'paid';
+        if (isPaidAwaitingInvoice && getExpenseInvoices(expense).length === 0) count += 1;
       });
     });
     return count;
@@ -927,6 +928,26 @@ export function DepartmentFinancePageV2() {
     setInvoiceForm({ invoiceNumber: '', amount: '', file: null });
   };
 
+  const handleDownloadImportTemplate = () => {
+    const headers = [[
+      'Month',
+      'Month Key',
+      'Budget Title',
+      'Expense Title',
+      'Description',
+      'Projected Amount',
+      'Actual Amount',
+      'Due Date',
+      'Payment Status',
+      'Invoice Number',
+    ]];
+    const worksheet = XLSX.utils.aoa_to_sheet(headers);
+    worksheet['!cols'] = headers[0].map((header) => ({ wch: Math.max(14, header.length + 2) }));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Finance Import');
+    XLSX.writeFile(workbook, 'budget-import-template.xlsx');
+  };
+
   const handleUploadInvoice = async () => {
     if (!invoiceTarget) return;
     const { month, expense } = invoiceTarget;
@@ -1007,11 +1028,9 @@ export function DepartmentFinancePageV2() {
           value: formatCurrency(month.projectedAmount),
         })),
       });
-      if (reportFormat === 'PDF') await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
-      const createdReportId = response?.data?.report?.recordId;
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       window.dispatchEvent(new Event('reports:refresh'));
-      toast.success(reportFormat === 'PDF' ? 'Report saved to Reports.' : 'Report saved to Reports. Preview it before downloading.');
-      navigate(createdReportId ? `/extra-common-modules/reports?reportId=${createdReportId}` : '/extra-common-modules/reports');
+      toast.success(`${reportFormat} report downloaded and saved to Reports.`);
     } catch (error: any) {
       toast.error(getApiErrorMessage(error, 'Failed to generate report.'));
     }
@@ -1107,18 +1126,20 @@ export function DepartmentFinancePageV2() {
               <button
                 onClick={() => handleGenerateReport('PDF')}
                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-rose-50 hover:border-rose-200 text-slate-500 transition-all active:scale-95 shadow-sm"
-                title="Export as PDF"
+                title="PDF"
+                aria-label="PDF"
               >
                 <FileDown size={15} />
-                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-rose-500 text-white px-1.5 py-0.5 rounded">Export PDF</span>
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-rose-500 text-white px-1.5 py-0.5 rounded">PDF</span>
               </button>
               <button
                 onClick={() => handleGenerateReport('Excel')}
                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm"
-                title="Export as Excel"
+                title="Excel"
+                aria-label="Excel"
               >
                 <FileSpreadsheet size={15} />
-                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">Export Excel</span>
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">Excel</span>
               </button>
             </div>
           </div>
@@ -2560,7 +2581,7 @@ export function DepartmentFinancePageV2() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
           <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
             <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+              <h2 className="text-xl font-pmedium text-slate-900 flex items-center gap-2">
                 <FileSpreadsheet size={20} className="text-[#2563EB]" /> Import Finance Data
               </h2>
               <button onClick={() => { setShowImportModal(false); setImportFile(null); }} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm">
@@ -2569,8 +2590,15 @@ export function DepartmentFinancePageV2() {
             </div>
             <div className="p-4 sm:p-6 lg:p-8 space-y-5">
               <p className="text-xs text-slate-600">
-                Upload an Excel or CSV file with your department's finance data. Columns will be mapped to expenses, budgets, or vendors based on headers.
+                Download the template, keep its headers unchanged, and add your department's budget rows before uploading it.
               </p>
+              <button
+                type="button"
+                onClick={handleDownloadImportTemplate}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-[10px] font-pmedium uppercase tracking-wider text-blue-700 transition-colors hover:bg-blue-100"
+              >
+                <FileDown size={14} /> Download Template
+              </button>
               <div
                 onClick={() => fileInputRef.current?.click()}
                 className="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center cursor-pointer hover:border-[#2563EB] hover:bg-blue-50/30 transition-all"

@@ -843,12 +843,13 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
     if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
     if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
     importMembership = await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
-    // Import writes expense rows, so an approved plan is locked for departments.
+    // Import replaces the plan's expense rows. Department members may do that
+    // only while the current annual-budget revision is still a Draft.
     if (
       !DEPARTMENT_FINANCE_PRIVILEGED_ROLES.has(normalizeFinanceRoleName(importMembership?.role)) &&
-      safeString((plan as any).status).toLowerCase() === "approved"
+      safeString((plan as any).status).toLowerCase() !== "draft"
     ) {
-      throw Object.assign(new Error("This annual budget is approved and locked. Contact Finance to make corrections."), { statusCode: 403 });
+      throw Object.assign(new Error("Bulk import is allowed only while the annual budget is a Draft. Create a revision before importing changes."), { statusCode: 409 });
     }
   } else {
     importMembership = await assertActorOwnsDepartment(workspaceId, input.userId, department);
@@ -856,9 +857,9 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
     if (plan) {
       if (
         !DEPARTMENT_FINANCE_PRIVILEGED_ROLES.has(normalizeFinanceRoleName(importMembership?.role)) &&
-        safeString((plan as any).status).toLowerCase() === "approved"
+        safeString((plan as any).status).toLowerCase() !== "draft"
       ) {
-        throw Object.assign(new Error("This annual budget is approved and locked. Contact Finance to make corrections."), { statusCode: 403 });
+        throw Object.assign(new Error("Bulk import is allowed only while the annual budget is a Draft. Create a revision before importing changes."), { statusCode: 409 });
       }
     } else {
       // create minimal empty plan (Phase1 already creates via POST budget-request, but import should also be able to bootstrap)
@@ -1920,13 +1921,18 @@ export async function applyFinanceApprovalDecisionInternal(input: {
     status: "Approved" | "Rejected" | "Discuss";
     scope?: "owner" | "financeManager";
     note?: string;
+    temporaryFounderOverride?: boolean;
   };
 }) {
   const { workspaceId, userId, requestType, requestId, body } = input;
   const { status, scope = "owner", note = "" } = body;
+  const temporaryFounderOverride = body.temporaryFounderOverride === true;
 
   if (!["Approved", "Rejected", "Discuss"].includes(status)) {
     throw Object.assign(new Error("Invalid status. Must be Approved, Rejected, or Discuss."), { statusCode: 400 });
+  }
+  if (temporaryFounderOverride && (scope !== "financeManager" || status !== "Approved")) {
+    throw Object.assign(new Error("Temporary founder override requires a Finance Manager approval."), { statusCode: 403 });
   }
 
   const now = new Date();
@@ -1964,9 +1970,26 @@ export async function applyFinanceApprovalDecisionInternal(input: {
       decidedAtLabel: formatBillingDateLabel(now),
       note,
     };
+    if (temporaryFounderOverride) {
+      (record.approvalFlow as any).owner = {
+        status: "Approved",
+        approverUserId: userId,
+        approverName: "Finance Manager (temporary founder override)",
+        decidedAt: now,
+        decidedAtLabel: formatBillingDateLabel(now),
+        note: "Temporary override used because Founder was unavailable. Replace with formal delegated approval workflow.",
+      };
+    }
 
     if (!Array.isArray((record.approvalFlow as any).decisionHistory)) (record.approvalFlow as any).decisionHistory = [];
     (record.approvalFlow as any).decisionHistory.push(decision);
+    if (temporaryFounderOverride) {
+      (record.approvalFlow as any).decisionHistory.push({
+        ...decision,
+        role: "owner_delegate",
+        note: "Temporary founder-unavailable override used by Finance Manager.",
+      });
+    }
     (record.approvalFlow as any).lastDecisionByRole = role;
     (record.approvalFlow as any).lastDecisionAt = now;
     (record.approvalFlow as any).lastDecisionAtLabel = formatBillingDateLabel(now);
@@ -2010,6 +2033,9 @@ export async function applyFinanceApprovalDecisionInternal(input: {
     const record = await ExtraFinanceRequest.findById(requestObjectId).exec();
     if (!record) throw Object.assign(new Error("Extra finance request not found."), { statusCode: 404 });
     if (String(record.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
+    if (safeString(record.status).toLowerCase() !== "pending") {
+      throw Object.assign(new Error("Only a pending extra budget revision can receive an approval decision."), { statusCode: 409 });
+    }
     const wasApplied = Boolean((record as any).appliedAt);
 
     const step = role === "owner" ? "owner" : "financeManager";
@@ -2021,9 +2047,26 @@ export async function applyFinanceApprovalDecisionInternal(input: {
       decidedAtLabel: formatBillingDateLabel(now),
       note,
     };
+    if (temporaryFounderOverride) {
+      (record.approvalFlow as any).owner = {
+        status: "Approved",
+        approverUserId: userId,
+        approverName: "Finance Manager (temporary founder override)",
+        decidedAt: now,
+        decidedAtLabel: formatBillingDateLabel(now),
+        note: "Temporary override used because Founder was unavailable. Replace with formal delegated approval workflow.",
+      };
+    }
 
     if (!Array.isArray((record.approvalFlow as any).decisionHistory)) (record.approvalFlow as any).decisionHistory = [];
     (record.approvalFlow as any).decisionHistory.push(decision);
+    if (temporaryFounderOverride) {
+      (record.approvalFlow as any).decisionHistory.push({
+        ...decision,
+        role: "owner_delegate",
+        note: "Temporary founder-unavailable override used by Finance Manager.",
+      });
+    }
     (record.approvalFlow as any).lastDecisionByRole = role;
     (record.approvalFlow as any).lastDecisionAt = now;
     (record.approvalFlow as any).lastDecisionAtLabel = formatBillingDateLabel(now);

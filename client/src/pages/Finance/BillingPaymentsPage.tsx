@@ -955,9 +955,9 @@ export function BillingPaymentsPage() {
         sourceRef: selectedReport.sourceRef,
         reportRows: selectedReport.reportRows,
       });
-      if (reportFormat === 'PDF') await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       window.dispatchEvent(new Event('reports:refresh'));
-      toast.success(`${activeReportLabel} report saved.`);
+      toast.success(`${reportFormat} ${activeReportLabel.toLowerCase()} report downloaded and saved to Reports.`);
     } catch (exportError: any) {
       toast.error(exportError?.message || 'Failed to export report.');
     }

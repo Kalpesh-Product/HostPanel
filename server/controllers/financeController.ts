@@ -556,7 +556,7 @@ export async function applyFinanceApprovalDecision(req: Request, res: Response, 
     if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
     if (!userId) return res.status(401).json({ message: "Unauthorized: user not resolved." });
 
-    const { requestId, requestType, decision, comment, scope } = req.body || {};
+    const { requestId, requestType, decision, comment, scope, temporaryFounderOverride } = req.body || {};
     if (!requestId) return res.status(400).json({ message: "requestId is required" });
     if (!requestType) return res.status(400).json({ message: "requestType is required" });
     if (!decision) return res.status(400).json({ message: "decision is required" });
@@ -566,15 +566,27 @@ export async function applyFinanceApprovalDecision(req: Request, res: Response, 
     const isOwner = ["owner", "founder", "super_admin", "admin"].includes(roleValue);
     // Workspace members may be stored as the generic Manager role while their
     // Finance department assignment supplies the functional Finance Manager scope.
-    const isFinanceManager = ["finance_manager", "finance", "manager"].includes(roleValue);
+    const membershipDepartments = Array.isArray((req as any).workspaceMembership?.departments)
+      ? (req as any).workspaceMembership.departments
+      : [];
+    const isFinanceDepartmentMember = membershipDepartments.some((department: any) =>
+      String(department?.name || department?.label || department || "")
+        .trim().toLowerCase().replace(/[\s-]+/g, "_") === "finance"
+    );
+    const isFinanceManager = ["finance_manager", "finance"].includes(roleValue) ||
+      (roleValue === "manager" && isFinanceDepartmentMember);
     const effectiveScope = isOwner ? "owner" : isFinanceManager ? "financeManager" : null;
     if (!effectiveScope) return res.status(403).json({ message: "Only the owner or finance manager can decide finance requests." });
     if (scope && scope !== effectiveScope) return res.status(403).json({ message: "Approval scope does not match the authenticated role." });
+    if (temporaryFounderOverride && (effectiveScope !== "financeManager" || decision !== "Approved")) {
+      return res.status(403).json({ message: "Temporary founder override is available only to Finance Manager while approving a request." });
+    }
 
     const body = {
       status: decision,
       scope: effectiveScope,
       note: comment || "",
+      temporaryFounderOverride: temporaryFounderOverride === true,
     };
 
     const result = await applyFinanceApprovalDecisionInternal({
