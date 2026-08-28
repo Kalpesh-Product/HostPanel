@@ -1,10 +1,16 @@
 import mongoose, { Document, Schema } from "mongoose";
 
 export interface IInventoryLedger {
+    _id?: mongoose.Types.ObjectId;
+    type?: "Initial" | "Purchase" | "Consumption" | "Allocation" | "Transfer Out" | "Transfer In" | "Return" | "Maintenance" | "Adjustment";
     dateLabel: string;
+    date?: Date;
     qty: number;
+    unitPrice?: number;
+    source?: string;
     target: string;
     action: string;
+    addedByUserId?: mongoose.Types.ObjectId | null;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -21,6 +27,9 @@ export interface IInventory extends Document {
     departmentId?: mongoose.Types.ObjectId | null;
     departmentName?: string;
     location?: string;
+    unit?: string;
+    unitPrice?: number;
+    totalValue?: number;
     totalQuantity: number;
     availableQuantity: number;
     addedByRole?: string;
@@ -32,12 +41,21 @@ export interface IInventory extends Document {
 
 const inventoryLedgerSchema = new Schema<IInventoryLedger>(
     {
+        type: {
+            type: String,
+            enum: ["Initial", "Purchase", "Consumption", "Allocation", "Transfer Out", "Transfer In", "Return", "Maintenance", "Adjustment"],
+            default: "Adjustment",
+        },
         dateLabel: { type: String, default: "Today", trim: true, maxlength: 60 },
-        qty: { type: Number, required: true, min: 1 },
+        date: { type: Date, default: Date.now },
+        qty: { type: Number, required: true, min: 0 },
+        unitPrice: { type: Number, default: 0, min: 0 },
+        source: { type: String, default: "", trim: true, maxlength: 120 },
         target: { type: String, required: true, trim: true, maxlength: 120 },
         action: { type: String, required: true, trim: true, maxlength: 180 },
+        addedByUserId: { type: Schema.Types.ObjectId, ref: "HostUser", default: null },
     },
-    { _id: false, timestamps: true }
+    { timestamps: true }
 );
 
 const inventorySchema = new Schema<IInventory>(
@@ -116,6 +134,22 @@ const inventorySchema = new Schema<IInventory>(
             default: "",
             trim: true,
             maxlength: 120,
+        },
+        unit: {
+            type: String,
+            default: "",
+            trim: true,
+            maxlength: 40,
+        },
+        unitPrice: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
+        totalValue: {
+            type: Number,
+            default: 0,
+            min: 0,
         },
         totalQuantity: {
             type: Number,

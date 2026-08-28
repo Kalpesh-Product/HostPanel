@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, type ChangeEvent } from 'react';
+import { useState, useMemo, useEffect, useRef, type ChangeEvent } from 'react';
+import * as XLSX from 'xlsx';
 import { getStoredUser } from '@/lib/auth-session';
 import { createInventory, getInventory, updateInventory, transferInventory, returnInventory, markUnderMaintenance } from '@/services/inventory';
 import { getOrganizationOverview } from '@/services/organization';
@@ -8,10 +9,12 @@ import { normalizeDepartmentKey } from '@/utils/user-helpers';
 import {
   Search, Plus, X, Package, TrendingDown, RefreshCw, Box, History, User,
   AlertTriangle, ShieldCheck, ArrowUpDown, ArrowUp, ArrowDown, Filter,
-  RotateCcw, Wrench, Eye, ArrowRightLeft, Building2,
+  RotateCcw, Wrench, Eye, ArrowRightLeft, Building2, UploadCloud, Info, Loader2, FileSpreadsheet,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageFrame from '@/components/Pages/PageFrame';
+import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
+import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
 
 interface InventoryItem {
   recordId?: string;
@@ -23,6 +26,9 @@ interface InventoryItem {
   status?: string;
   department: string;
   location?: string;
+  unit?: string;
+  unitPrice?: number;
+  totalValue?: number;
   totalQuantity: number;
   availableQuantity: number;
   allocatedQuantity: number;
@@ -31,11 +37,14 @@ interface InventoryItem {
 }
 
 interface LedgerEntry {
+  type?: string;
   date?: string;
   dateLabel?: string;
   target?: string;
   action?: string;
   qty?: number;
+  unitPrice?: number;
+  source?: string;
 }
 
 interface NewItemData {
@@ -44,6 +53,8 @@ interface NewItemData {
   category: string;
   department: string;
   quantity: string;
+  unit: string;
+  unitPrice: string;
   floor: string;
   wing: string;
 }
@@ -71,6 +82,49 @@ type SortField = 'name' | 'category' | 'totalQuantity' | 'availableQuantity' | '
 type SortDir = 'asc' | 'desc';
 
 const LOW_STOCK_THRESHOLD = 10;
+
+// ---------------------------------------------------------------------------
+// Bulk Upload – template & row helpers
+// ---------------------------------------------------------------------------
+const INVENTORY_CATEGORY_OPTIONS = [
+  'Physical', 'Digital', 'Other', 'Office Supplies', 'Pantry', 'Facilities', 'Branding', 'Hardware', 'Safety Equipment',
+];
+const INVENTORY_BULK_SHEET_NAME = 'Inventory';
+const INVENTORY_BULK_HEADERS = ['Item Name', 'Category', 'Quantity', 'Unit', 'Price per Unit', 'Floor', 'Wing'];
+
+function buildInventoryBulkTemplateWorkbook() {
+  const workbook = XLSX.utils.book_new();
+  const uploadSheet = XLSX.utils.aoa_to_sheet([
+    INVENTORY_BULK_HEADERS,
+    ['Printer Paper A4', 'Office Supplies', 500, 'ream', 35, 'Floor 3', 'A'],
+  ]);
+  XLSX.utils.book_append_sheet(workbook, uploadSheet, INVENTORY_BULK_SHEET_NAME);
+
+  const instructionsSheet = XLSX.utils.aoa_to_sheet([
+    ['Field', 'Notes'],
+    ['Item Name', 'Required.'],
+    ['Category', `One of: ${INVENTORY_CATEGORY_OPTIONS.join(', ')}. Defaults to "Other" if left blank or unrecognized.`],
+    ['Quantity', 'Starting stock count. Required, must be >= 0.'],
+    ['Unit', 'Optional unit of measurement, e.g. "pcs", "box", "kg", "ream".'],
+    ['Price per Unit', 'Optional numeric price for a single unit. Total Value is calculated automatically as Price per Unit x Quantity.'],
+    ['Floor', 'Optional physical location.'],
+    ['Wing', 'Optional physical location.'],
+    [],
+    ['Note', 'All rows are added to your own department automatically. This item type is always Consumable.'],
+  ]);
+  XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instructions');
+
+  return workbook;
+}
+
+function readBulkInventoryCell(row: Record<string, any>, ...keys: string[]): string {
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
+      return String(row[key]).trim();
+    }
+  }
+  return '';
+}
 
 function getRoleBand(role: string): string {
   const r = String(role || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
@@ -211,6 +265,8 @@ export function DepartmentInventoryPage() {
   const [resolvedDeptLabel, setResolvedDeptLabel] = useState('');
   const deptLabel = resolvedDeptLabel || getDepartmentLabel(storedUser);
   const categories = getDeptCategories(deptLabel);
+  const workspacePreferences = useWorkspacePreferences();
+  const formatCurrency = (val: any) => formatWorkspaceCurrency(val, workspacePreferences.currency, { maximumFractionDigits: 2 });
 
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isLoadingInventory, setIsLoadingInventory] = useState(true);
@@ -228,15 +284,30 @@ export function DepartmentInventoryPage() {
   const [viewingItem, setViewingItem] = useState<InventoryItem | null>(null);
   const [fetchedDepartments, setFetchedDepartments] = useState<string[]>([]);
 
+  const [bulkInventoryModal, setBulkInventoryModal] = useState(false);
+  const [bulkInventoryFileName, setBulkInventoryFileName] = useState('');
+  const [bulkInventoryRows, setBulkInventoryRows] = useState<Record<string, any>[]>([]);
+  const [bulkInventoryImporting, setBulkInventoryImporting] = useState(false);
+  const [bulkInventorySummary, setBulkInventorySummary] = useState<{ created: number; skipped: number; issues: string[] } | null>(null);
+  const [bulkInventoryError, setBulkInventoryError] = useState('');
+  const bulkInventoryFileInputRef = useRef<HTMLInputElement>(null);
+
   const [newItem, setNewItem] = useState<NewItemData>({
     name: '',
     trackingType: 'Consumable',
     category: categories[0] || 'Office Supplies',
     department: deptLabel,
     quantity: '',
+    unit: '',
+    unitPrice: '',
     floor: '',
     wing: '',
   });
+  const totalValuePreview = useMemo(() => {
+    const unitPriceNum = Number(String(newItem.unitPrice || '').replace(/[^0-9.-]/g, '')) || 0;
+    const qty = Math.max(0, parseInt(String(newItem.quantity || '').trim(), 10) || 0);
+    return unitPriceNum * qty;
+  }, [newItem.unitPrice, newItem.quantity]);
   const [updateStock, setUpdateStock] = useState<UpdateStockData>({
     itemId: '', actionType: 'increase', quantity: '', reason: '',
   });
@@ -406,6 +477,8 @@ export function DepartmentInventoryPage() {
         trackingType: 'Consumable',
         department: deptLabel,
         location: getLocationLabel(newItem.floor, newItem.wing),
+        unit: newItem.unit,
+        unitPrice: newItem.unitPrice ? Number(String(newItem.unitPrice).replace(/[^0-9.-]/g, '')) : 0,
         totalQuantity: parseInt(newItem.quantity, 10),
       });
       const createdItem = response?.data?.inventoryItem || response?.inventoryItem;
@@ -415,7 +488,7 @@ export function DepartmentInventoryPage() {
         setTimeout(() => setSuccessMessage(''), 3000);
       }
       setIsAddModalOpen(false);
-      setNewItem({ name: '', trackingType: 'Consumable', category: categories[0] || 'Office Supplies', department: deptLabel, quantity: '', floor: '', wing: '' });
+      setNewItem({ name: '', trackingType: 'Consumable', category: categories[0] || 'Office Supplies', department: deptLabel, quantity: '', unit: '', unitPrice: '', floor: '', wing: '' });
       setFloorMode('select');
       setWingMode('select');
     } catch (error: any) {
@@ -424,6 +497,112 @@ export function DepartmentInventoryPage() {
       setIsSaving(false);
     }
   };
+
+  function openBulkInventoryModal() {
+    setBulkInventoryModal(true);
+    setBulkInventoryFileName('');
+    setBulkInventoryRows([]);
+    setBulkInventorySummary(null);
+    setBulkInventoryError('');
+  }
+
+  function closeBulkInventoryModal() {
+    if (bulkInventoryImporting) return;
+    setBulkInventoryModal(false);
+    setBulkInventoryFileName('');
+    setBulkInventoryRows([]);
+    setBulkInventorySummary(null);
+    setBulkInventoryError('');
+  }
+
+  function handleBulkInventoryDownloadTemplate() {
+    const workbook = buildInventoryBulkTemplateWorkbook();
+    XLSX.writeFile(workbook, 'inventory-bulk-upload-template.xlsx');
+  }
+
+  function handleBulkInventoryFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setBulkInventoryFileName(file.name);
+    setBulkInventorySummary(null);
+    setBulkInventoryError('');
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+        const sheetName = workbook.SheetNames.includes(INVENTORY_BULK_SHEET_NAME) ? INVENTORY_BULK_SHEET_NAME : workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, any>[];
+        setBulkInventoryRows(rows);
+        if (rows.length === 0) setBulkInventoryError('No rows found in the spreadsheet.');
+      } catch {
+        setBulkInventoryError('Failed to parse spreadsheet. Please check the file format.');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  async function handleBulkInventoryImport() {
+    if (bulkInventoryRows.length === 0) return;
+    setBulkInventoryImporting(true);
+    let created = 0;
+    let skipped = 0;
+    const issues: string[] = [];
+
+    for (let i = 0; i < bulkInventoryRows.length; i++) {
+      const row = bulkInventoryRows[i];
+      const rowNum = i + 2;
+      try {
+        const name = readBulkInventoryCell(row, 'Item Name', 'name', 'itemName');
+        if (!name) { skipped++; issues.push(`Row ${rowNum}: Item Name is required.`); continue; }
+
+        const categoryRaw = readBulkInventoryCell(row, 'Category', 'category');
+        const category = INVENTORY_CATEGORY_OPTIONS.includes(categoryRaw) ? categoryRaw : 'Other';
+
+        const quantity = Math.max(0, parseInt(readBulkInventoryCell(row, 'Quantity', 'quantity') || '0', 10) || 0);
+        const unit = readBulkInventoryCell(row, 'Unit', 'unit');
+        const unitPriceNum = Number(readBulkInventoryCell(row, 'Price per Unit', 'unitPrice', 'Price').replace(/[^0-9.-]/g, '')) || 0;
+        const floor = readBulkInventoryCell(row, 'Floor', 'floor');
+        const wing = readBulkInventoryCell(row, 'Wing', 'wing');
+
+        await createInventory({
+          name,
+          category,
+          trackingType: 'Consumable',
+          department: deptLabel,
+          location: getLocationLabel(floor, wing),
+          unit,
+          unitPrice: unitPriceNum,
+          totalQuantity: quantity,
+        });
+        created++;
+      } catch (err: any) {
+        skipped++;
+        issues.push(`Row ${rowNum}: ${err?.response?.data?.message || err?.message || 'Failed to create inventory item.'}`);
+      }
+    }
+
+    if (created > 0) {
+      try {
+        const response = await getInventory();
+        const items = Array.isArray(response?.data?.inventory) ? response.data.inventory
+          : Array.isArray(response?.inventory) ? response.inventory
+          : [];
+        const normalized = items
+          .map(normalizeInventoryItem)
+          .filter((item: InventoryItem) =>
+            normalizeDepartmentKey(String(item.department || '')) === normalizeDepartmentKey(deptLabel)
+          );
+        setInventory(normalized);
+      } catch {
+        // non-critical: newly created items just won't appear until next manual refresh
+      }
+    }
+
+    setBulkInventoryImporting(false);
+    setBulkInventorySummary({ created, skipped, issues });
+  }
 
   const handleUpdateStock = async () => {
     if (!updateStock.itemId || !updateStock.quantity) return;
@@ -559,9 +738,17 @@ export function DepartmentInventoryPage() {
               )}
               {roleBand !== 'employee' && (
                 <button
+                  onClick={openBulkInventoryModal}
+                  className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:text-[#2563EB] hover:border-[#2563EB] transition-all whitespace-nowrap"
+                >
+                  <UploadCloud size={14} strokeWidth={2.5} /> BULK UPLOAD
+                </button>
+              )}
+              {roleBand !== 'employee' && (
+                <button
                   data-tour="dept-inventory-add-btn"
                   onClick={() => {
-                    setNewItem({ name: '', trackingType: 'Consumable', category: categories[0] || 'Office Supplies', department: deptLabel, quantity: '', floor: '', wing: '' });
+                    setNewItem({ name: '', trackingType: 'Consumable', category: categories[0] || 'Office Supplies', department: deptLabel, quantity: '', unit: '', unitPrice: '', floor: '', wing: '' });
                     setFloorMode('select');
                     setWingMode('select');
                     setIsAddModalOpen(true);
@@ -884,6 +1071,73 @@ export function DepartmentInventoryPage() {
         </div>
       </PageFrame>
 
+      {bulkInventoryModal && (
+        <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-md h-auto rounded-t-[32px] sm:rounded-[32px] shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <h3 className="text-sm font-pmedium text-slate-900 flex items-center gap-2"><UploadCloud size={16} /> Bulk Upload Inventory</h3>
+              <button onClick={closeBulkInventoryModal}
+                className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all"><X size={16} /></button>
+            </div>
+            <div className="p-5 space-y-4 overflow-y-auto">
+              {!bulkInventoryFileName ? (
+                <>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={handleBulkInventoryDownloadTemplate}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 hover:border-[#2563EB] hover:text-[#2563EB] transition-all">
+                      <FileSpreadsheet size={13} /> Download Template
+                    </button>
+                  </div>
+                  <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
+                    <Info size={13} className="text-blue-500 mt-0.5 shrink-0" />
+                    <p className="text-[10px] font-pmedium text-blue-700 leading-relaxed">Fill in Item Name, Category, Quantity, Unit and Price per Unit per row. Every row is added to {deptLabel} automatically. Total Value is calculated automatically.</p>
+                  </div>
+                  <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:border-[#2563EB] transition-colors cursor-pointer" onClick={() => bulkInventoryFileInputRef.current?.click()}>
+                    <UploadCloud size={28} className="mx-auto text-slate-300 mb-3" />
+                    <p className="text-[12px] font-pmedium text-slate-600 mb-1">Click to upload spreadsheet</p>
+                    <p className="text-[10px] text-slate-400">Supports .xlsx, .xls, .csv — use the template above for the required columns.</p>
+                  </div>
+                  <input ref={bulkInventoryFileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleBulkInventoryFileChange} />
+                </>
+              ) : bulkInventorySummary ? (
+                <div className="space-y-3">
+                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100">
+                    <p className="text-[12px] font-pmedium text-emerald-800">Import Complete</p>
+                    <p className="text-[11px] text-emerald-600 mt-1">{bulkInventorySummary.created} item(s) created, {bulkInventorySummary.skipped} skipped</p>
+                  </div>
+                  {bulkInventorySummary.issues.length > 0 && (
+                    <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 max-h-40 overflow-y-auto space-y-1">
+                      {bulkInventorySummary.issues.map((issue, i) => (
+                        <p key={i} className="text-[10px] font-pmedium text-amber-700">{issue}</p>
+                      ))}
+                    </div>
+                  )}
+                  <button onClick={closeBulkInventoryModal}
+                    className="w-full py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-[#2563EB]/90 transition-all">Done</button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                    <span className="text-[12px] font-pmedium text-slate-700 truncate">{bulkInventoryFileName}</span>
+                    <span className="text-[10px] font-pmedium text-slate-400 shrink-0">{bulkInventoryRows.length} rows</span>
+                  </div>
+                  {bulkInventoryError && <p className="text-[11px] font-pmedium text-red-500">{bulkInventoryError}</p>}
+                  <div className="flex gap-2">
+                    <button onClick={() => { setBulkInventoryFileName(''); setBulkInventoryRows([]); setBulkInventoryError(''); }}
+                      className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">Change File</button>
+                    <button onClick={handleBulkInventoryImport} disabled={bulkInventoryImporting || bulkInventoryRows.length === 0}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-[#2563EB]/90 disabled:opacity-50 transition-all">
+                      {bulkInventoryImporting ? <Loader2 size={13} className="animate-spin" /> : <UploadCloud size={13} />}
+                      {bulkInventoryImporting ? 'Importing...' : `Import ${bulkInventoryRows.length} Rows`}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODALS */}
       <AnimatePresence>
         {/* Add New Item Modal */}
@@ -943,6 +1197,32 @@ export function DepartmentInventoryPage() {
                         value={newItem.quantity}
                         onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
                       />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Unit</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. pcs, box, kg"
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                        value={newItem.unit}
+                        onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price per Unit ({workspacePreferences.currency})</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="e.g. 35"
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                        value={newItem.unitPrice}
+                        onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Total Value ({workspacePreferences.currency})</label>
+                      <input type="text" readOnly value={formatCurrency(totalValuePreview)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-500 outline-none cursor-not-allowed" />
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Floor</label>
@@ -1238,7 +1518,7 @@ export function DepartmentInventoryPage() {
               <div className="p-5 sm:p-6 md:p-8 overflow-y-auto flex-1 space-y-6 [&::-webkit-scrollbar]:hidden bg-slate-50/30 min-h-[200px]">
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-white rounded-xl border border-slate-100 p-3 text-center">
-                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Total</p>
+                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Total{viewingItem.unit ? ` (${viewingItem.unit})` : ''}</p>
                     <p className="text-lg font-black text-[#0F172A] mt-1">{viewingItem.totalQuantity}</p>
                   </div>
                   <div className="bg-white rounded-xl border border-slate-100 p-3 text-center">
@@ -1250,6 +1530,18 @@ export function DepartmentInventoryPage() {
                     <p className="text-lg font-black text-[#0F172A] mt-1">{viewingItem.allocatedQuantity}</p>
                   </div>
                 </div>
+                {(viewingItem.unitPrice || viewingItem.totalValue) ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-white rounded-xl border border-slate-100 p-3 text-center">
+                      <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Price per Unit</p>
+                      <p className="text-[13px] font-pmedium text-[#0F172A] mt-1">{formatCurrency(viewingItem.unitPrice || 0)}</p>
+                    </div>
+                    <div className="bg-white rounded-xl border border-slate-100 p-3 text-center">
+                      <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Total Value</p>
+                      <p className="text-[13px] font-pmedium text-[#0F172A] mt-1">{formatCurrency(viewingItem.totalValue || 0)}</p>
+                    </div>
+                  </div>
+                ) : null}
 
                 <h3 className="text-[11px] font-black text-[#2563EB] uppercase tracking-widest flex items-center gap-2 pb-3 border-b border-slate-100">
                   <History size={15} /> Ledger Audit Trail
@@ -1263,10 +1555,12 @@ export function DepartmentInventoryPage() {
                         <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 uppercase tracking-wider mt-1.5 flex items-center w-max">
                           {entry.action}
                         </span>
+                        {entry.source ? <p className="text-[9px] text-slate-400 mt-1">Source: {entry.source}</p> : null}
                       </div>
                       <div className="text-right">
                         <span className="font-black text-lg text-[#0F172A]">{entry.qty}</span>
                         <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest block mt-0.5">Units</span>
+                        {entry.unitPrice ? <span className="text-[9px] text-slate-400 block mt-0.5">@ {formatCurrency(entry.unitPrice)}</span> : null}
                       </div>
                     </div>
                   )) : (

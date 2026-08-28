@@ -7,7 +7,7 @@ import { AssetRequestsPanel } from './AssetRequestsPanel';
 import { getOrganizationOverview } from '@/services/organization';
 import { axiosPrivate } from '@/utils/axios';
 import { getResources } from '@/services/resources';
-import { createAsset, createAssetCategory, createAssetSubCategory, getAssets, updateAsset, transferAsset, releaseAssetAllocation, getDepartments } from '@/services/assets';
+import { createAsset, createAssetCategory, createAssetSubCategory, getAssets, getAssetSummary, updateAsset, transferAsset, releaseAssetAllocation, getDepartments } from '@/services/assets';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
 import {
@@ -149,6 +149,7 @@ interface TransferForm {
 
 const DEFAULT_OWNED_EXPIRY_MONTHS = 12;
 const ADD_NEW_OPTION = '__add_new__';
+const ASSETS_PAGE_SIZE = 25;
 
 function getLocationLabel(floor: string, wing: string): string {
   const parts = [floor, wing].filter(Boolean);
@@ -483,6 +484,11 @@ export function AssetsPage() {
   const bulkAssetFileInputRef = useRef<HTMLInputElement>(null);
 
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [assetsPagination, setAssetsPagination] = useState({ page: 1, limit: ASSETS_PAGE_SIZE, total: 0, totalPages: 1 });
+  const [isLoadingMoreAssets, setIsLoadingMoreAssets] = useState(false);
+  const assetsLoadMoreSentinelRef = useRef<HTMLTableCellElement | null>(null);
+  const assetsLoadMoreSentinelMobileRef = useRef<HTMLDivElement | null>(null);
+  const [assetSummary, setAssetSummary] = useState<{ totalQuantity: number; totalAllocatedQuantity: number } | null>(null);
   const [issueAsset, setIssueAsset] = useState<Asset | null>(null);
   const [issueForm, setIssueForm] = useState({ title: '', description: '', priority: 'Medium' });
   const [isSubmittingIssue, setIsSubmittingIssue] = useState(false);
@@ -608,28 +614,87 @@ export function AssetsPage() {
     return () => { mounted = false; };
   }, []);
 
-  useEffect(() => {
-    let mounted = true;
-    async function loadAssets() {
-      try {
-        const response = await getAssets();
-        if (!mounted) return;
-        const rawAssets = (response?.data?.assets || response?.assets || []) as any[];
-        setAssets(rawAssets.map(normalizeAsset));
-        setErrorMessage('');
-      } catch (error: any) {
-        if (mounted) setErrorMessage(error.message || 'Unable to load assets right now.');
-      } finally {
-        if (mounted) { setIsLoadingAssets(false); setIsInitialLoading(false); }
+  async function loadAssetsPage(page: number, { replace }: { replace: boolean }) {
+    if (replace) setIsLoadingAssets(true); else setIsLoadingMoreAssets(true);
+    try {
+      const response = await getAssets({ page, limit: ASSETS_PAGE_SIZE });
+      const rawAssets = (response?.data?.assets || response?.assets || []) as any[];
+      const pagination = response?.data?.pagination || response?.pagination || null;
+      const normalized = rawAssets.map(normalizeAsset);
+      setAssets((prev) => {
+        if (replace) return normalized;
+        const existingIds = new Set(prev.map((a) => a.recordId));
+        return [...prev, ...normalized.filter((a) => !existingIds.has(a.recordId))];
+      });
+      if (pagination) {
+        setAssetsPagination({
+          page: Number(pagination.page) || page,
+          limit: Number(pagination.limit) || ASSETS_PAGE_SIZE,
+          total: Number(pagination.total) || 0,
+          totalPages: Number(pagination.totalPages) || 1,
+        });
       }
+      setErrorMessage('');
+    } catch (error: any) {
+      setErrorMessage(error.message || 'Unable to load assets right now.');
+    } finally {
+      if (replace) { setIsLoadingAssets(false); setIsInitialLoading(false); } else { setIsLoadingMoreAssets(false); }
     }
-    loadAssets();
-    return () => { mounted = false; };
+  }
+
+  function handleLoadMoreAssets() {
+    if (isLoadingMoreAssets || assetsPagination.page >= assetsPagination.totalPages) return;
+    loadAssetsPage(assetsPagination.page + 1, { replace: false });
+  }
+
+  useEffect(() => {
+    loadAssetsPage(1, { replace: true });
   }, [location.key]);
+
+  // Infinite scroll: observe a sentinel row/card at the bottom of the currently visible
+  // (desktop table or mobile card) list and load the next page once it scrolls into view.
+  useEffect(() => {
+    if (assetsPagination.page >= assetsPagination.totalPages) return undefined;
+    const nodes = [assetsLoadMoreSentinelRef.current, assetsLoadMoreSentinelMobileRef.current].filter(Boolean) as Element[];
+    if (nodes.length === 0) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting) && !isLoadingMoreAssets) {
+          handleLoadMoreAssets();
+        }
+      },
+      { rootMargin: '300px' },
+    );
+    nodes.forEach((node) => observer.observe(node));
+    return () => observer.disconnect();
+  }, [assetsPagination.page, assetsPagination.totalPages, isLoadingMoreAssets]);
 
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+
+  async function refreshAssetSummary() {
+    try {
+      const targetDeptId = selectedDeptFilter === 'All'
+        ? undefined
+        : departmentRecords.find((d) => normalizeDepartmentName(d.name) === normalizeDepartmentName(selectedDeptFilter))?.id;
+      const response = await getAssetSummary(targetDeptId ? { departmentId: targetDeptId } : undefined);
+      const summary = response?.data || response;
+      if (summary) {
+        setAssetSummary({
+          totalQuantity: Number(summary.totalQuantity) || 0,
+          totalAllocatedQuantity: Number(summary.totalAllocatedQuantity) || 0,
+        });
+      }
+    } catch {
+      // non-critical: stat cards fall back to whatever's currently loaded
+    }
+  }
+
+  useEffect(() => {
+    refreshAssetSummary();
+  }, [selectedDeptFilter, departmentRecords]);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
@@ -946,9 +1011,7 @@ export function AssetsPage() {
         const notes = readBulkAssetCell(row, 'Notes', 'notes');
         if (notes) payload.append('notes', notes);
 
-        const response = await createAsset(payload);
-        const savedAsset = response?.data?.asset || response?.asset;
-        if (savedAsset) setAssets((prev) => [normalizeAsset(savedAsset), ...prev]);
+        await createAsset(payload);
         created++;
       } catch (err: any) {
         skipped++;
@@ -957,6 +1020,10 @@ export function AssetsPage() {
     }
 
     await loadAssetTaxonomy();
+    if (created > 0) {
+      await loadAssetsPage(1, { replace: true });
+      refreshAssetSummary();
+    }
     setBulkAssetImporting(false);
     setBulkAssetSummary({ created, skipped, issues });
   }
@@ -1009,6 +1076,7 @@ export function AssetsPage() {
         setAssets((prev) => editingAsset
           ? prev.map((asset) => asset.recordId === editingAsset.recordId ? normalized : asset)
           : [normalized, ...prev]);
+        refreshAssetSummary();
       }
       setAssetForm({ ...INITIAL_ASSET_FORM, department: defaultDepartment, assignedTo: defaultDepartment });
       setIsAddModalOpen(false);
@@ -1029,10 +1097,25 @@ export function AssetsPage() {
       .reduce((sum, allocation) => sum + allocation.quantity, 0);
   }
 
+  // Employee assignment always draws from a specific department's pool. A department-to-department
+  // transfer draws from the owning department's overall pool instead, for Founder/Super Admin always,
+  // and for an Admin/Manager only when their own department is the one that owns the asset.
+  function effectiveAvailableQuantity(asset: Asset, form: TransferForm): number {
+    if (form.assignedToType === 'employee') return departmentAvailableQuantity(asset, form.department);
+    return (isFounderScope || canActAsOwnerFor(asset)) ? asset.availableQuantity : departmentAvailableQuantity(asset, form.department);
+  }
+
   function canManageAssignedAsset(asset: Asset): boolean {
     if (isFounderScope) return true;
     return managedDepartmentKeys.has(normalizeDepartmentName(asset.department || '')) ||
       asset.allocations.some((allocation) => managedDepartmentKeys.has(normalizeDepartmentName(allocation.department || '')));
+  }
+
+  // Founder/Super Admin can always transfer stock between departments. An Admin/Manager gets
+  // that same right only for assets their own department actually owns — everyone else stays
+  // limited to assigning already-held/allocated units to their own employees.
+  function canActAsOwnerFor(asset: Asset): boolean {
+    return isFounderScope || managedDepartmentKeys.has(normalizeDepartmentName(asset.department || ''));
   }
 
   function canTransferAsset(asset: Asset): boolean {
@@ -1040,8 +1123,12 @@ export function AssetsPage() {
     return assignedDepartments.some((department) => departmentAvailableQuantity(asset, department) > 0);
   }
 
-  function transferDepartmentsFor(asset: Asset): string[] {
+  function transferDepartmentsFor(asset: Asset, assignedToType: string = transferForm.assignedToType): string[] {
     if (isFounderScope) return departmentOptions;
+    if (assignedToType === 'department' && canActAsOwnerFor(asset)) {
+      // Owning-department admin transferring stock: any other department in the workspace is a valid target.
+      return departmentOptions.filter((department) => normalizeDepartmentName(department) !== normalizeDepartmentName(asset.department || ''));
+    }
     return assignedDepartments.filter((department) => departmentAvailableQuantity(asset, department) > 0);
   }
 
@@ -1050,11 +1137,13 @@ export function AssetsPage() {
   }
 
   function openTransferAsset(asset: Asset) {
-    const availableDepartment = isFounderScope ? '' : transferDepartmentsFor(asset)[0] || '';
+    const canActAsOwner = canActAsOwnerFor(asset);
+    const initialAssignedToType = canActAsOwner ? 'department' : 'employee';
+    const availableDepartment = initialAssignedToType === 'department' ? '' : (transferDepartmentsFor(asset, initialAssignedToType)[0] || '');
     setActiveAssetForTransfer(asset);
     setTransferForm({
       department: availableDepartment,
-      assignedToType: isFounderScope ? 'department' : 'employee',
+      assignedToType: initialAssignedToType,
       assignedTo: '',
       assignedToUserId: '',
       transferReason: '',
@@ -1085,6 +1174,7 @@ export function AssetsPage() {
         const normalized = normalizeAsset(updated);
         setAssets((prev) => prev.map((asset) => asset.recordId === normalized.recordId ? normalized : asset));
         if (viewingAsset?.recordId === normalized.recordId) setViewingAsset(normalized);
+        refreshAssetSummary();
       }
       setTransferForm({ department: '', assignedToType: 'department', assignedTo: '', assignedToUserId: '', transferReason: '', quantity: '1' });
       setShowTransferDialog(false);
@@ -1110,6 +1200,7 @@ export function AssetsPage() {
         const normalized = normalizeAsset(updated);
         setAssets((prev) => prev.map((asset) => asset.recordId === normalized.recordId ? normalized : asset));
         setViewingAsset(normalized);
+        refreshAssetSummary();
       }
     } catch (error: any) {
       setErrorMessage(error?.response?.data?.message || error.message || 'Unable to release this allocation.');
@@ -1335,8 +1426,8 @@ function AssetsSkeleton() {
             {/* 2. STAT CARDS */}
             <div data-tour="assets-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
               {[
-                { key: 'total', label: 'Total Units', value: statsBase.reduce((sum, asset) => sum + asset.quantity, 0), cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', icon: Box, iconClass: 'bg-slate-50 text-slate-600' },
-                { key: 'active', label: 'Allocated Units', value: statsBase.reduce((sum, asset) => sum + asset.allocatedQuantity, 0), cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', icon: ShieldCheck, iconClass: 'bg-emerald-50 text-emerald-600' },
+                { key: 'total', label: 'Total Units', value: assetSummary ? assetSummary.totalQuantity : statsBase.reduce((sum, asset) => sum + asset.quantity, 0), cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', icon: Box, iconClass: 'bg-slate-50 text-slate-600' },
+                { key: 'active', label: 'Allocated Units', value: assetSummary ? assetSummary.totalAllocatedQuantity : statsBase.reduce((sum, asset) => sum + asset.allocatedQuantity, 0), cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', icon: ShieldCheck, iconClass: 'bg-emerald-50 text-emerald-600' },
                 { key: 'maintenance', label: 'In Maintenance', value: statsBase.filter(t => t.status === 'Maintenance').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', icon: Wrench, iconClass: 'bg-amber-50 text-amber-600' },
                 { key: 'decommissioned', label: 'Decommissioned', value: statsBase.filter(t => t.status === 'Decommissioned').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-slate-400', icon: Box, iconClass: 'bg-slate-50 text-slate-500' },
               ].map((card) => {
@@ -1490,7 +1581,7 @@ function AssetsSkeleton() {
                               <button
                                 onClick={() => openTransferAsset(asset)}
                                 className="p-1.5 bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-700 rounded-lg transition-all"
-                                title={isFounderScope ? 'Transfer' : 'Assign Employee'}
+                                title={canActAsOwnerFor(asset) ? 'Transfer' : 'Assign Employee'}
                               >
                                 <ArrowRightLeft size={15} strokeWidth={2.5} />
                               </button>
@@ -1499,6 +1590,15 @@ function AssetsSkeleton() {
                         </td>
                       </tr>
                     ))}
+                    {displayedAssets.length > 0 && assetsPagination.page < assetsPagination.totalPages && (
+                      <tr>
+                        <td colSpan={8} ref={assetsLoadMoreSentinelRef} className="py-6 text-center text-[11px] font-pmedium text-slate-400">
+                          {isLoadingMoreAssets && (
+                            <span className="inline-flex items-center gap-1.5"><Loader2 size={14} className="animate-spin" /> Loading more assets...</span>
+                          )}
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
 
@@ -1541,7 +1641,7 @@ function AssetsSkeleton() {
                                 onClick={() => openTransferAsset(asset)}
                             className="flex-1 justify-center px-3 py-2 bg-slate-50 border border-slate-200 text-indigo-600 rounded-xl font-pmedium text-[10px] uppercase shadow-sm hover:shadow-md hover:border-indigo-200 hover:bg-white transition-all flex items-center gap-1.5"
                           >
-                            <ArrowRightLeft size={13} strokeWidth={2} /> {isFounderScope ? 'Transfer' : 'Assign'}
+                            <ArrowRightLeft size={13} strokeWidth={2} /> {canActAsOwnerFor(asset) ? 'Transfer' : 'Assign'}
                           </button>
                         )}
                         {canManageAssets && canManageAssignedAsset(asset) && (
@@ -1561,6 +1661,13 @@ function AssetsSkeleton() {
                       </div>
                     </div>
                   ))}
+                  {displayedAssets.length > 0 && assetsPagination.page < assetsPagination.totalPages && (
+                    <div ref={assetsLoadMoreSentinelMobileRef} className="py-4 text-center text-[11px] font-pmedium text-slate-400">
+                      {isLoadingMoreAssets && (
+                        <span className="inline-flex items-center gap-1.5"><Loader2 size={14} className="animate-spin" /> Loading more assets...</span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {displayedAssets.length === 0 && (
@@ -1573,6 +1680,12 @@ function AssetsSkeleton() {
                   </div>
                 )}
               </div>
+
+              {assetsPagination.total > assets.length && (
+                <div className="flex items-center justify-center border-t border-slate-100/70 bg-white/70 px-4 py-3">
+                  <p className="text-[11px] font-pmedium text-slate-500">Showing {assets.length} of {assetsPagination.total} assets — scroll down to load more.</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -2114,7 +2227,7 @@ function AssetsSkeleton() {
               <button onClick={() => setViewingAsset(null)} className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase">CLOSE</button>
               <button type="button" disabled title="Issue reporting will be enabled later" className="w-full sm:w-auto px-4 py-2.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-2xl font-pmedium text-[10px] uppercase flex items-center justify-center gap-1.5 opacity-70 cursor-not-allowed"><AlertTriangle size={13} /> Raise Issue</button>
               {canManageAssets && canTransferAsset(viewingAsset) && (
-                <button onClick={() => openTransferAsset(viewingAsset)} className="w-full sm:w-auto px-4 py-2.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-2xl font-pmedium text-[10px] uppercase flex items-center justify-center gap-1.5 hover:bg-indigo-100 transition-all"><ArrowRightLeft size={13} /> {isFounderScope ? 'Transfer' : 'Assign Employee'}</button>
+                <button onClick={() => openTransferAsset(viewingAsset)} className="w-full sm:w-auto px-4 py-2.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-2xl font-pmedium text-[10px] uppercase flex items-center justify-center gap-1.5 hover:bg-indigo-100 transition-all"><ArrowRightLeft size={13} /> {canActAsOwnerFor(viewingAsset) ? 'Transfer' : 'Assign Employee'}</button>
               )}
               {canManageAssets && canManageAssignedAsset(viewingAsset) && (
                 <button onClick={() => openEditAsset(viewingAsset)} className="w-full sm:w-auto px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-blue-700 active:scale-95 transition-all uppercase flex items-center justify-center gap-1.5"><Pencil size={13} /> EDIT ASSET</button>
@@ -2171,12 +2284,12 @@ function AssetsSkeleton() {
               <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                 <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
                   <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Building2 size={16} /></span>
-                  <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">{isFounderScope ? 'Transfer Details' : 'Assignment Details'}</span>
+                  <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">{canActAsOwnerFor(activeAssetForTransfer) ? 'Transfer Details' : 'Assignment Details'}</span>
                 </h4>
                 <div className="space-y-3">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Department <span className="text-red-400">*</span></label>
-                    <select required disabled={!isFounderScope} value={transferForm.department} onChange={(e: ChangeEvent<HTMLSelectElement>) => setTransferForm((prev) => ({ ...prev, department: e.target.value, assignedToType: !canManageAssignedAsset(activeAssetForTransfer) && e.target.value === activeAssetForTransfer.department ? 'department' : prev.assignedToType, assignedToUserId: '', assignedTo: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all cursor-pointer">
+                    <select required disabled={!isFounderScope && !canActAsOwnerFor(activeAssetForTransfer)} value={transferForm.department} onChange={(e: ChangeEvent<HTMLSelectElement>) => setTransferForm((prev) => ({ ...prev, department: e.target.value, assignedToType: !canManageAssignedAsset(activeAssetForTransfer) && e.target.value === activeAssetForTransfer.department ? 'department' : prev.assignedToType, assignedToUserId: '', assignedTo: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all cursor-pointer">
                       <option value="">Select department</option>
                       {transferDepartmentsFor(activeAssetForTransfer).map((dept) => <option key={dept} value={dept}>{dept === activeAssetForTransfer.department ? `${dept} (Owning Department)` : dept}</option>)}
                     </select>
@@ -2184,7 +2297,7 @@ function AssetsSkeleton() {
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Assign To</label>
                     <div className="relative">
-                      <select disabled={!isFounderScope} value={transferForm.assignedToType} onChange={(e: ChangeEvent<HTMLSelectElement>) => setTransferForm((prev) => ({ ...prev, assignedToType: e.target.value, assignedToUserId: '', assignedTo: e.target.value === 'department' ? prev.department : '', quantity: e.target.value === 'employee' ? '1' : prev.quantity }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all appearance-none cursor-pointer">
+                      <select disabled={!isFounderScope && !canActAsOwnerFor(activeAssetForTransfer)} value={transferForm.assignedToType} onChange={(e: ChangeEvent<HTMLSelectElement>) => setTransferForm((prev) => ({ ...prev, assignedToType: e.target.value, department: '', assignedToUserId: '', assignedTo: '', quantity: e.target.value === 'employee' ? '1' : prev.quantity }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all appearance-none cursor-pointer">
                         <option value="department">Department</option>
                         <option value="employee">Employee</option>
                       </select>
@@ -2214,11 +2327,11 @@ function AssetsSkeleton() {
                   )}
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Quantity *</label>
-                    <input type="number" min={1} max={transferForm.assignedToType === 'employee' ? 1 : (isFounderScope ? activeAssetForTransfer.availableQuantity : departmentAvailableQuantity(activeAssetForTransfer, transferForm.department))} disabled={transferForm.assignedToType === 'employee'} value={transferForm.assignedToType === 'employee' ? '1' : transferForm.quantity} onChange={(e: ChangeEvent<HTMLInputElement>) => setTransferForm((prev) => ({ ...prev, quantity: e.target.value }))} className="w-full px-3 py-2 bg-white disabled:bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
-                    <p className="text-[10px] text-slate-400">Available: {isFounderScope ? activeAssetForTransfer.availableQuantity : departmentAvailableQuantity(activeAssetForTransfer, transferForm.department)} unit(s)</p>
+                    <input type="number" min={1} max={transferForm.assignedToType === 'employee' ? 1 : effectiveAvailableQuantity(activeAssetForTransfer, transferForm)} disabled={transferForm.assignedToType === 'employee'} value={transferForm.assignedToType === 'employee' ? '1' : transferForm.quantity} onChange={(e: ChangeEvent<HTMLInputElement>) => setTransferForm((prev) => ({ ...prev, quantity: e.target.value }))} className="w-full px-3 py-2 bg-white disabled:bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                    <p className="text-[10px] text-slate-400">Available: {effectiveAvailableQuantity(activeAssetForTransfer, transferForm)} unit(s)</p>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">{isFounderScope ? 'Reason for Transfer' : 'Assignment Note'}</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">{canActAsOwnerFor(activeAssetForTransfer) ? 'Reason for Transfer' : 'Assignment Note'}</label>
                     <textarea rows={2} value={transferForm.transferReason} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setTransferForm((prev) => ({ ...prev, transferReason: e.target.value }))} placeholder="Optional reason..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-600 outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none transition-all placeholder:text-slate-400" />
                   </div>
                 </div>
@@ -2229,7 +2342,7 @@ function AssetsSkeleton() {
 
             <div className="pt-4 sm:pt-6 p-4 sm:p-6 border-t border-slate-200/60 bg-white shrink-0 flex gap-3 flex-col-reverse sm:flex-row sm:justify-center">
               <button onClick={() => setShowTransferDialog(false)} className="w-full sm:w-auto px-6 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase">CANCEL</button>
-              <button onClick={handleTransferAsset} disabled={isSaving || !transferForm.department || !transferForm.quantity || Number(transferForm.quantity) < 1 || Number(transferForm.quantity) > (isFounderScope ? activeAssetForTransfer.availableQuantity : departmentAvailableQuantity(activeAssetForTransfer, transferForm.department)) || (transferForm.assignedToType === 'employee' && !transferForm.assignedToUserId)} className="w-full sm:w-auto px-6 py-2.5 bg-indigo-600 text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-indigo-700 active:scale-95 transition-all uppercase disabled:cursor-not-allowed disabled:opacity-70">{isSaving ? 'SAVING...' : isFounderScope ? 'TRANSFER' : 'ASSIGN'}</button>
+              <button onClick={handleTransferAsset} disabled={isSaving || !transferForm.department || !transferForm.quantity || Number(transferForm.quantity) < 1 || Number(transferForm.quantity) > effectiveAvailableQuantity(activeAssetForTransfer, transferForm) || (transferForm.assignedToType === 'employee' && !transferForm.assignedToUserId)} className="w-full sm:w-auto px-6 py-2.5 bg-indigo-600 text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-indigo-700 active:scale-95 transition-all uppercase disabled:cursor-not-allowed disabled:opacity-70">{isSaving ? 'SAVING...' : canActAsOwnerFor(activeAssetForTransfer) ? 'TRANSFER' : 'ASSIGN'}</button>
             </div>
           </div>
         </div>

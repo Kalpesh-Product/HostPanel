@@ -16,6 +16,12 @@ function toObjId(id) {
   }
 }
 
+function normalizeMoneyValue(value) {
+  if (value === undefined || value === null || value === "") return 0;
+  const numeric = Number(String(value).replace(/[^0-9.\-]/g, ""));
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
 function normalizeInventoryInput(input = {}) {
   return {
     name: String(input.name || "").trim(),
@@ -24,6 +30,8 @@ function normalizeInventoryInput(input = {}) {
     departmentId: input.departmentId ?? null,
     department: String(input.department || "").trim(),
     location: String(input.location || "").trim(),
+    unit: String(input.unit || "").trim(),
+    unitPrice: normalizeMoneyValue(input.unitPrice),
     totalQuantity: Number(input.totalQuantity ?? 0),
     availableQuantity: Number(input.availableQuantity ?? input.totalQuantity ?? 0),
     inventoryCode: String(input.inventoryCode || "").trim(),
@@ -169,14 +177,20 @@ export async function createInventoryForCurrentUser(userId, input) {
 
   const totalQuantity = Math.max(0, Number(payload.totalQuantity || 0));
   const availableQuantity = Math.max(0, Number(payload.availableQuantity || totalQuantity));
+  const unitPrice = payload.unitPrice || 0;
+  const totalValue = unitPrice * totalQuantity;
 
   const ledger = totalQuantity > 0
     ? [
         {
+          type: "Initial",
           dateLabel: "Today",
+          date: new Date(),
           qty: totalQuantity,
+          unitPrice,
           target: payload.department || "Initial",
           action: "Initial Stock Created",
+          addedByUserId: new mongoose.Types.ObjectId(String(ownerId)),
         },
       ]
     : [];
@@ -194,6 +208,9 @@ export async function createInventoryForCurrentUser(userId, input) {
     departmentId: payload.departmentId ? toObjId(payload.departmentId) : null,
     departmentName: payload.department || "",
     location: payload.location || "",
+    unit: payload.unit || "",
+    unitPrice,
+    totalValue,
     totalQuantity,
     availableQuantity,
     ledger: payload.ledger?.length ? payload.ledger : ledger,
@@ -248,14 +265,21 @@ export async function updateInventoryForCurrentUser(userId, inventoryId, input) 
       throw err;
     }
 
+    if (input.unitPrice !== undefined) doc.unitPrice = normalizeMoneyValue(input.unitPrice);
+
     if (input.actionType === "increase") {
       doc.totalQuantity += qty;
       doc.availableQuantity += qty;
       doc.ledger.unshift({
+        type: "Purchase",
         dateLabel: "Today",
+        date: new Date(),
         qty,
+        unitPrice: doc.unitPrice,
+        source: input.source || "",
         target: existing.departmentName || "Stock",
         action: input.reason || "Stock Increased",
+        addedByUserId: toObjId(userId),
       });
     } else {
       if (doc.availableQuantity < qty) {
@@ -266,13 +290,19 @@ export async function updateInventoryForCurrentUser(userId, inventoryId, input) 
       doc.totalQuantity -= qty;
       doc.availableQuantity -= qty;
       doc.ledger.unshift({
+        type: "Consumption",
         dateLabel: "Today",
+        date: new Date(),
         qty,
+        unitPrice: doc.unitPrice,
+        source: input.source || "",
         target: existing.departmentName || "Stock",
         action: input.reason || "Utilized",
+        addedByUserId: toObjId(userId),
       });
     }
 
+    doc.totalValue = (doc.unitPrice || 0) * doc.totalQuantity;
     await doc.save();
     return { inventoryItem: { ...doc.toObject(), department: doc.departmentName || "Unassigned" } };
   }
@@ -284,8 +314,15 @@ export async function updateInventoryForCurrentUser(userId, inventoryId, input) 
   if (input.departmentId !== undefined) update.departmentId = input.departmentId ? toObjId(input.departmentId) : null;
   if (input.department !== undefined) update.departmentName = String(input.department).trim();
   if (input.location !== undefined) update.location = String(input.location).trim();
+  if (input.unit !== undefined) update.unit = String(input.unit).trim();
   if (input.totalQuantity !== undefined) update.totalQuantity = Math.max(0, Number(input.totalQuantity));
   if (input.availableQuantity !== undefined) update.availableQuantity = Math.max(0, Number(input.availableQuantity));
+  if (input.unitPrice !== undefined) update.unitPrice = normalizeMoneyValue(input.unitPrice);
+  if (input.unitPrice !== undefined || input.totalQuantity !== undefined) {
+    const nextUnitPrice = input.unitPrice !== undefined ? update.unitPrice : existing.unitPrice || 0;
+    const nextQuantity = input.totalQuantity !== undefined ? update.totalQuantity : existing.totalQuantity || 0;
+    update.totalValue = nextUnitPrice * nextQuantity;
+  }
   if (Array.isArray(input.ledger)) update.ledger = input.ledger;
 
   const doc = await Inventory.findByIdAndUpdate(inventoryId, update, {
@@ -339,10 +376,14 @@ export async function allocateInventoryForCurrentUser(userId, inventoryId, input
 
   doc.availableQuantity -= qty;
   doc.ledger.unshift({
+    type: "Allocation",
     dateLabel: "Today",
+    date: new Date(),
     qty,
+    unitPrice: doc.unitPrice,
     target: employee ? String(employee) : employeeUserId ? String(employeeUserId) : "Employee",
     action: note || "Allocated to Employee",
+    addedByUserId: toObjId(userId),
   });
 
   await doc.save();
@@ -408,10 +449,14 @@ export async function transferInventoryForCurrentUser(userId, inventoryId, input
 
   source.availableQuantity -= qty;
   source.ledger.unshift({
+    type: "Transfer Out",
     dateLabel: "Today",
+    date: new Date(),
     qty,
+    unitPrice: source.unitPrice,
     target: String(targetDepartment),
     action: "Transferred Out",
+    addedByUserId: toObjId(userId),
   });
 
   await source.save();
@@ -428,11 +473,16 @@ export async function transferInventoryForCurrentUser(userId, inventoryId, input
   if (target) {
     target.totalQuantity += qty;
     target.availableQuantity += qty;
+    target.totalValue = (target.unitPrice || 0) * target.totalQuantity;
     target.ledger.unshift({
+      type: "Transfer In",
       dateLabel: "Today",
+      date: new Date(),
       qty,
+      unitPrice: target.unitPrice || source.unitPrice,
       target: source.departmentName || "Source",
       action: "Received via Transfer",
+      addedByUserId: toObjId(userId),
     });
     await target.save();
   } else {
@@ -455,14 +505,21 @@ export async function transferInventoryForCurrentUser(userId, inventoryId, input
       trackingType: source.trackingType,
       departmentId: targetDepartmentId ? toObjId(targetDepartmentId) : null,
       departmentName: targetDepartment,
+      unit: source.unit || "",
+      unitPrice: source.unitPrice || 0,
+      totalValue: (source.unitPrice || 0) * qty,
       totalQuantity: qty,
       availableQuantity: qty,
       ledger: [
         {
+          type: "Transfer In",
           dateLabel: "Today",
+          date: new Date(),
           qty,
+          unitPrice: source.unitPrice || 0,
           target: source.departmentName || "Source",
           action: "Received via Transfer",
+          addedByUserId: toObjId(userId),
         },
       ],
     });
@@ -549,10 +606,14 @@ export async function returnInventoryForCurrentUser(userId, inventoryId, input =
 
   doc.availableQuantity += qty;
   doc.ledger.unshift({
+    type: "Return",
     dateLabel: "Today",
+    date: new Date(),
     qty,
+    unitPrice: doc.unitPrice,
     target: returnedBy || "Employee",
     action: reason || "Item Returned",
+    addedByUserId: toObjId(userId),
   });
 
   await doc.save();
@@ -585,10 +646,13 @@ export async function markUnderMaintenanceForCurrentUser(userId, inventoryId, in
 
   doc.status = "maintenance";
   doc.ledger.unshift({
+    type: "Maintenance",
     dateLabel: "Today",
+    date: new Date(),
     qty: 0,
     target: expectedDate ? `Est. ${expectedDate}` : "Maintenance",
     action: reason || "Marked Under Maintenance",
+    addedByUserId: toObjId(userId),
   });
 
   await doc.save();
