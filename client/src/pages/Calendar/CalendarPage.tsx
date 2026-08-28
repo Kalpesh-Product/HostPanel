@@ -781,7 +781,6 @@ function UnifiedCalendar() {
       {showEventModal && selectedEvent && (
         <div
           className="fixed inset-0 z-[80] flex items-center justify-center bg-[#0F172A]/40 p-3 backdrop-blur-sm"
-          onClick={() => { setShowEventModal(false); setSelectedEvent(null); }}
         >
           <div
             role="dialog"

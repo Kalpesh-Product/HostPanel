@@ -280,8 +280,6 @@ const FinalizeSetupPage: React.FC = () => {
     ).trim();
 
     const legacyCompanyId = String(authUser?.companyId || "").trim();
-    const looksLikeLegacyCompanyCode = /^CMP/i.test(legacyCompanyId);
-    const looksLikeLegacyResolvedId = /^CMP/i.test(resolvedCompanyId);
     const companyNameHint = String(
       (auth.user as { companyName?: string } | null)?.companyName ||
         workspaceDetails.businessName ||
@@ -290,47 +288,48 @@ const FinalizeSetupPage: React.FC = () => {
       .trim()
       .toLowerCase();
 
-    if ((looksLikeLegacyCompanyCode || looksLikeLegacyResolvedId) && legacyCompanyId) {
-      try {
-        const hostCompaniesResponse = await axiosPrivate.get(
-          `${MASTER_PANEL_BASE_URL}/api/hosts/host-companies`,
+    try {
+      const hostCompaniesResponse = await axiosPrivate.get(
+        `${MASTER_PANEL_BASE_URL}/api/hosts/host-companies`,
+      );
+      const hostCompanies =
+        (Array.isArray(hostCompaniesResponse?.data)
+          ? hostCompaniesResponse.data
+          : Array.isArray(hostCompaniesResponse?.data?.data)
+          ? hostCompaniesResponse.data.data
+          : Array.isArray(hostCompaniesResponse?.data?.companies)
+          ? hostCompaniesResponse.data.companies
+          : []) as Array<Record<string, unknown>>;
+
+      let matchedCompany = hostCompanies.find((company) => {
+        const leadId = String(company?.leadId || "").trim();
+        const companyId = String(company?.companyId || "").trim();
+        return (
+          (legacyCompanyId && (leadId === legacyCompanyId || companyId === legacyCompanyId)) ||
+          false
         );
-        const hostCompanies =
-          (Array.isArray(hostCompaniesResponse?.data)
-            ? hostCompaniesResponse.data
-            : Array.isArray(hostCompaniesResponse?.data?.data)
-            ? hostCompaniesResponse.data.data
-            : Array.isArray(hostCompaniesResponse?.data?.companies)
-            ? hostCompaniesResponse.data.companies
-            : []) as Array<Record<string, unknown>>;
+      });
 
-        let matchedCompany = hostCompanies.find((company) => {
-          const leadId = String(company?.leadId || "").trim();
-          const companyId = String(company?.companyId || "").trim();
-          return leadId === legacyCompanyId || companyId === legacyCompanyId;
+      if (!matchedCompany && companyNameHint) {
+        matchedCompany = hostCompanies.find((company) => {
+          const name = String(company?.companyName || "").trim().toLowerCase();
+          return name && name === companyNameHint;
         });
-
-        if (!matchedCompany && companyNameHint) {
-          matchedCompany = hostCompanies.find((company) => {
-            const name = String(company?.companyName || "").trim().toLowerCase();
-            return name && name === companyNameHint;
-          });
-        }
-
-        if (matchedCompany?.companyId) {
-          resolvedCompanyId = String(matchedCompany.companyId).trim();
-          localStorage.setItem("host_lead_company_id", resolvedCompanyId);
-        }
-      } catch {
-        // keep fallback
       }
+
+      if (matchedCompany?.companyId) {
+        resolvedCompanyId = String(matchedCompany.companyId).trim();
+        localStorage.setItem("host_lead_company_id", resolvedCompanyId);
+      }
+    } catch {
+      // keep fallback
     }
 
-    if (resolvedCompanyId && /^[a-f0-9]{24}$/i.test(resolvedCompanyId)) {
-      return "";
+    if (resolvedCompanyId && !/^[a-f0-9]{24}$/i.test(resolvedCompanyId)) {
+      return resolvedCompanyId;
     }
 
-    return resolvedCompanyId;
+    return "";
   };
 
   useEffect(() => {

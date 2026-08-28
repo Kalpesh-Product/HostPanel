@@ -100,6 +100,7 @@ import {
   getWorkspaceCount,
   isModuleLockedForPlan,
 } from "../utils/workspacePlanAccess";
+import { normalizeLegacyRoute } from "../utils/legacyRouteMap";
 
 type PlanType = "basic" | "professional" | "custom";
 
@@ -203,20 +204,20 @@ const readWorkspaceSetup = (): WorkspaceSetupState => {
 };
 
 const companySettingsData: NavNode[] = [
-  { id: "website-builder", label: "Website Builder", icon: Globe, route: "/company-settings/website-builder" },
-  { id: "wono-nomad", label: "Wono Nomads", icon: ShieldCheck, route: "/company-settings/wono-nomad" },
-  { id: "organization-management", label: "Organization Management", icon: Building, route: "/company-settings/organization-management" },
+  { id: "website-builder", label: "Website Builder", icon: Globe, route: "/key-apps/website-builder" },
+  { id: "wono-nomad", label: "Wono Nomads", icon: ShieldCheck, route: "/key-apps/wono-nomad" },
+  { id: "organization-management", label: "Organization Management", icon: Building, route: "/core-modules/organization-management" },
   { id: "module-management", label: "Module Management", icon: Boxes, disabled: true },
-  { id: "access-grants", label: "Access Grants", icon: UserCog, route: "/company-settings/access-grants" },
-  { id: "unit-settings", label: "Unit Settings", icon: SlidersHorizontal, route: "/company-settings/unit-settings", disabled: true },
-  { id: "unit-management", label: "Unit Management", icon: LayoutGrid, route: "/company-settings/unit-management", disabled: true },
-  { id: "customer-support", label: "Customer Support", icon: Headphones, route: "/company-settings/customer-support" },
+  { id: "access-grants", label: "Access Grants", icon: UserCog, route: "/core-modules/access-grants" },
+  { id: "unit-settings", label: "Unit Settings", icon: SlidersHorizontal, route: "/core-modules/workspace-settings", disabled: true },
+  { id: "unit-management", label: "Unit Management", icon: LayoutGrid, route: "/core-modules/workspace-management", disabled: true },
+  { id: "customer-support", label: "Customer Support", icon: Headphones, route: "/common-modules/customer-support" },
 ];
 
 const keyAppsData: NavNode[] = [
-  { id: "website-builder", label: "Website Builder", icon: Globe, route: "/company-settings/website-builder", disabled: false },
-  { id: "wono-nomad", label: "Nomad Listings", icon: ShieldCheck, route: "/company-settings/wono-nomad", disabled: false },
-  { id: "website-leads", label: "All Leads", icon: Magnet, route: "/company-settings/all-leads", disabled: false },
+  { id: "website-builder", label: "Website Builder", icon: Globe, route: "/key-apps/website-builder", disabled: false },
+  { id: "wono-nomad", label: "Nomad Listings", icon: ShieldCheck, route: "/key-apps/wono-nomad", disabled: false },
+  { id: "website-leads", label: "All Leads", icon: Magnet, route: "/key-apps/all-leads", disabled: false },
   { id: "visitor-management", label: "Visitor Management", icon: ContactRound, route: "/visitors/visitor-management", disabled: false },
 ];
 
@@ -227,13 +228,13 @@ const departmentModules: NavNode[] = [
     icon: Users,
     defaultOpen: false,
     children: [
-      { id: "employee-management", label: "Company Management", icon: UserSquare, route: "/hr/company-management", disabled: false },
-      { id: "hr-documents", label: "Documents", icon: FileText, route: "/hr/documents", disabled: false },
-      { id: "recruitment", label: "Recruitment", icon: UserPlus, route: "/hr/recruitment", disabled: false },
-      { id: "leave-request-processing", label: "Leave Request Processing", icon: CalendarCheck, route: "/hr/leave-request-processing", disabled: false },
-      { id: "attendance-review", label: "Attendance Review", icon: ClipboardCheck, route: "/hr/attendance-review", disabled: false },
-      { id: "payroll-management", label: "Payroll Management", icon: Banknote, route: "/hr/payroll-management", disabled: false },
-      { id: "exit-management",      label: "Resignation Management",            icon: UserMinus,    route: "/hr/resignation-management", disabled: false },
+      { id: "employee-management", label: "Company Management", icon: UserSquare, route: "/department-accesses/hr-department/company-management", disabled: false },
+      { id: "hr-documents", label: "Documents", icon: FileText, route: "/department-accesses/hr-department/documents", disabled: false },
+      { id: "recruitment", label: "Recruitment", icon: UserPlus, route: "/department-accesses/hr-department/recruitment", disabled: false },
+      { id: "leave-request-processing", label: "Leave Request Processing", icon: CalendarCheck, route: "/department-accesses/hr-department/leave-request-processing", disabled: false },
+      { id: "attendance-review", label: "Attendance Review", icon: ClipboardCheck, route: "/department-accesses/hr-department/attendance-review", disabled: false },
+      { id: "payroll-management", label: "Payroll Management", icon: Banknote, route: "/department-accesses/hr-department/payroll-management", disabled: false },
+      { id: "exit-management",      label: "Resignation Management",            icon: UserMinus,    route: "/department-accesses/hr-department/resignation-management", disabled: false },
     ],
   },
   {
@@ -242,8 +243,8 @@ const departmentModules: NavNode[] = [
     icon: Building2,
     defaultOpen: false,
     children: [
-      { id: "tenant-companies-admin", label: "Tenant Companies", icon: Store, route: "/administration/tenant-companies", disabled: false },
-      { id: "bookings", label: "Bookings", icon: Bed, route: "/administration/bookings", disabled: false },
+      { id: "tenant-companies-admin", label: "Tenant Companies", icon: Store, route: "/department-accesses/administration-department/tenant-companies", disabled: false },
+      { id: "bookings", label: "Bookings", icon: Bed, route: "/department-accesses/administration-department/bookings", disabled: false },
       {
         id: "visitors-management",
         label: "Visitors Management",
@@ -251,8 +252,8 @@ const departmentModules: NavNode[] = [
         route: "/visitors/visitor-management",
         disabled: false,
       },
-      { id: "resource-management", label: "Resource Management", icon: HandCoins, route: "/administration/resource-management", disabled: false },
-      { id: "house-keeping", label: "House Keeping", icon: Sparkles, route: "/administration/house-keeping", disabled: false },
+      { id: "resource-management", label: "Resource Management", icon: HandCoins, route: "/department-accesses/administration-department/resource-management", disabled: false },
+      { id: "house-keeping", label: "House Keeping", icon: Sparkles, route: "/department-accesses/administration-department/house-keeping", disabled: false },
     ],
   },
   {
@@ -261,10 +262,10 @@ const departmentModules: NavNode[] = [
     icon: BriefcaseBusiness,
     defaultOpen: false,
     children: [
-      { id: "leads-management", label: "Leads Management", icon: Magnet, route: "/sales/leads-management", disabled: false },
-      { id: "tenant-companies-sales", label: "Tenant Companies", icon: Store, route: "/sales/tenant-companies", disabled: false },
-      { id: "resource-pricing", label: "Resource & Pricing", icon: Tag, route: "/sales-crm/resource-pricing", disabled: false },
-      { id: "sales-architecture", label: "Sales Architecture", icon: ShoppingCart, route: "/sales-crm/sales-architecture", disabled: false },
+      { id: "leads-management", label: "Leads Management", icon: Magnet, route: "/department-accesses/sales-department/leads-management", disabled: false },
+      { id: "tenant-companies-sales", label: "Tenant Companies", icon: Store, route: "/department-accesses/sales-department/tenant-companies", disabled: false },
+      { id: "resource-pricing", label: "Resource & Pricing", icon: Tag, route: "/department-accesses/sales-department/resource-pricing", disabled: false },
+      { id: "sales-architecture", label: "Sales Architecture", icon: ShoppingCart, route: "/department-accesses/sales-department/sales-architecture", disabled: false },
     ],
   },
   {
@@ -273,9 +274,9 @@ const departmentModules: NavNode[] = [
     icon: WalletCards,
     defaultOpen: false,
     children: [
-      { id: "finance-budget", label: "Finance & Budget", icon: PiggyBank, route: "/finance/expenses-budget", disabled: false },
-      { id: "billing-payments", label: "Billing & Payments", icon: Receipt, route: "/finance/billing-payments", disabled: false },
-      { id: "accounting", label: "Accounting", icon: Calculator, route: "/finance/accounting", disabled: false },
+      { id: "finance-budget", label: "Finance & Budget", icon: PiggyBank, route: "/department-accesses/finance-department/expenses-budget", disabled: false },
+      { id: "billing-payments", label: "Billing & Payments", icon: Receipt, route: "/department-accesses/finance-department/billing-payments", disabled: false },
+      { id: "accounting", label: "Accounting", icon: Calculator, route: "/department-accesses/finance-department/accounting", disabled: false },
     ],
   },
   {
@@ -284,8 +285,8 @@ const departmentModules: NavNode[] = [
     icon: Wrench,
     defaultOpen: false,
     children: [
-      { id: "maintenance-repair-logs", label: "Maintenance Repair Logs", icon: ClipboardList, route: "/maintenance/repair-logs" },
-      { id: "amc-maintenance-scheduler", label: "AMC Maintenance Scheduler", icon: CalendarClock, route: "/maintenance/amc-scheduler" },
+      { id: "maintenance-repair-logs", label: "Maintenance Repair Logs", icon: ClipboardList, route: "/department-accesses/maintenance-department/repair-logs" },
+      { id: "amc-maintenance-scheduler", label: "AMC Maintenance Scheduler", icon: CalendarClock, route: "/department-accesses/maintenance-department/amc-scheduler" },
     ],
   },
   {
@@ -294,9 +295,9 @@ const departmentModules: NavNode[] = [
     icon: Laptop,
     defaultOpen: false,
     children: [
-      { id: "tech-website-builder", label: "Website Builder", icon: Code2, route: "/company-settings/website-builder" },
-      { id: "website-leads", label: "Website Leads", icon: NotebookText, route: "/company-settings/website-builder/leads" },
-      { id: "website-review", label: "Website Review", icon: CheckCircle2, route: "/company-settings/website-builder/dynamic/reviews" },
+      { id: "tech-website-builder", label: "Website Builder", icon: Code2, route: "/key-apps/website-builder" },
+      { id: "website-leads", label: "Website Leads", icon: NotebookText, route: "/key-apps/website-builder/leads" },
+      { id: "website-review", label: "Website Review", icon: CheckCircle2, route: "/key-apps/website-builder/dynamic/reviews" },
     ],
   },
   {
@@ -305,8 +306,8 @@ const departmentModules: NavNode[] = [
     icon: Server,
     defaultOpen: false,
     children: [
-      { id: "it-repair-logs", label: "IT Repair Logs", icon: FileSearch, route: "/it/repair-logs" },
-      { id: "it-system-access", label: "System Access", icon: ShieldCheck, route: "/it/system-access" },
+      { id: "it-repair-logs", label: "IT Repair Logs", icon: FileSearch, route: "/department-accesses/it-department/repair-logs" },
+      { id: "it-system-access", label: "System Access", icon: ShieldCheck, route: "/department-accesses/it-department/system-access" },
     ],
   },
 ];
@@ -336,41 +337,41 @@ const SECTION_ABBR: Record<string, string> = {
 
 const ROUTE_BY_ID: Record<string, string> = {
   dashboard: "/dashboard",
-  attendance: "/extra-common-modules/attendance",
-  "customer-support": "/company-settings/customer-support",
-  "website-builder": "/company-settings/website-builder",
-  "wono-nomad": "/company-settings/wono-nomad",
-  "website-leads": "/company-settings/website-builder/leads",
-  "website-review": "/company-settings/website-builder/dynamic/reviews",
-  "organization-management": "/company-settings/organization-management",
-  "access-grants": "/company-settings/access-grants",
-  "unit-settings": "/company-settings/unit-settings",
-  "unit-management": "/company-settings/unit-management",
+  attendance: "/common-modules/attendance",
+  "customer-support": "/common-modules/customer-support",
+  "website-builder": "/key-apps/website-builder",
+  "wono-nomad": "/key-apps/wono-nomad",
+  "website-leads": "/key-apps/website-builder/leads",
+  "website-review": "/key-apps/website-builder/dynamic/reviews",
+  "organization-management": "/core-modules/organization-management",
+  "access-grants": "/core-modules/access-grants",
+  "unit-settings": "/core-modules/workspace-settings",
+  "unit-management": "/core-modules/workspace-management",
   "visitor-management": "/visitors/visitor-management",
   "visitors-management": "/visitors/visitor-management",
-  "tenant-companies-sales": "/sales-crm/tenant-companies",
-  "resource-pricing": "/sales-crm/resource-pricing",
-  "leads-management": "/sales-crm/leads-management",
-  "sales-architecture": "/sales-crm/sales-architecture",
-  "tenant-companies-admin": "/administration/tenant-companies",
-  bookings: "/administration/bookings",
-  "resource-management": "/administration/resource-management",
-  "house-keeping": "/administration/house-keeping",
-  "meeting-room-system": "/meetings/meeting-rooms",
+  "tenant-companies-sales": "/department-accesses/sales-department/tenant-companies",
+  "resource-pricing": "/department-accesses/sales-department/resource-pricing",
+  "leads-management": "/department-accesses/sales-department/leads-management",
+  "sales-architecture": "/department-accesses/sales-department/sales-architecture",
+  "tenant-companies-admin": "/department-accesses/administration-department/tenant-companies",
+  bookings: "/department-accesses/administration-department/bookings",
+  "resource-management": "/department-accesses/administration-department/resource-management",
+  "house-keeping": "/department-accesses/administration-department/house-keeping",
+  "meeting-room-system": "/common-modules/meeting-room-booking",
   assets: "/extra-common-modules/assets",
-  analytics: "/company-settings/analytics",
+  analytics: "/core-modules/analytics",
   inventory: "/extra-common-modules/inventory",
   "department-inventory": "/extra-common-modules/department-inventory",
   "finance-management": "/extra-common-modules/finance-management",
   "team-management": "/extra-common-modules/team-management",
-  "finance-budget": "/finance/expenses-budget",
-  "billing-payments": "/finance/billing-payments",
-  accounting: "/finance/accounting",
+  "finance-budget": "/department-accesses/finance-department/expenses-budget",
+  "billing-payments": "/department-accesses/finance-department/billing-payments",
+  accounting: "/department-accesses/finance-department/accounting",
   reports: "/extra-common-modules/reports",
-  tasks: "/extra-common-modules/tasks",
-  "leave-requests": "/leave-requests",
-  calendar: "/calendar",
-  tickets: "/tickets",
+  tasks: "/common-modules/tasks",
+  "leave-requests": "/common-modules/leave-requests",
+  calendar: "/common-modules/calendar",
+  tickets: "/common-modules/tickets",
   "tenant-dashboard": "/dashboard/tenant",
   "tenant-meeting-room-booking": "/dashboard/tenant/meeting-room-booking",
   "tenant-booking-history": "/dashboard/tenant/booking-history",
@@ -378,17 +379,17 @@ const ROUTE_BY_ID: Record<string, string> = {
   "tenant-tickets": "/dashboard/tenant/tickets",
   "tenant-profile": "/profile/my-profile",
   profile: "/profile/my-profile",
-  "employee-management": "/hr/company-management",
-  "hr-documents": "/hr/documents",
-  "attendance-review": "/hr/attendance-review",
-  "leave-request-processing": "/hr/leave-request-processing",
-  "recruitment": "/hr/recruitment",
-  "payroll-management": "/hr/payroll-management",
-  "exit-management": "/hr/resignation-management",
-  "it-repair-logs": "/it/repair-logs",
-  "it-system-access": "/it/system-access",
-  "maintenance-repair-logs": "/maintenance/repair-logs",
-  "amc-maintenance-scheduler": "/maintenance/amc-scheduler",
+  "employee-management": "/department-accesses/hr-department/company-management",
+  "hr-documents": "/department-accesses/hr-department/documents",
+  "attendance-review": "/department-accesses/hr-department/attendance-review",
+  "leave-request-processing": "/department-accesses/hr-department/leave-request-processing",
+  "recruitment": "/department-accesses/hr-department/recruitment",
+  "payroll-management": "/department-accesses/hr-department/payroll-management",
+  "exit-management": "/department-accesses/hr-department/resignation-management",
+  "it-repair-logs": "/department-accesses/it-department/repair-logs",
+  "it-system-access": "/department-accesses/it-department/system-access",
+  "maintenance-repair-logs": "/department-accesses/maintenance-department/repair-logs",
+  "amc-maintenance-scheduler": "/department-accesses/maintenance-department/amc-scheduler",
 };
 
 const ICON_BY_ID: Record<string, ElementType> = {
@@ -649,9 +650,9 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey
   const isActive = (() => {
     if (!item.route) return false;
     if (item.id === "website-builder") {
-      return pathname === "/company-settings/website-builder";
+      return pathname === "/key-apps/website-builder";
     }
-    return pathname.startsWith(item.route);
+    return pathname.startsWith(normalizeLegacyRoute(item.route));
   })();
 
   const handleClick = () => {
@@ -1453,7 +1454,7 @@ useEffect(() => {
     );
     sortedItems = sortedItems.map((item) => {
       if (item.id === "website-leads" && sectionKey === "key-apps")
-        return { ...item, label: "All Leads", icon: Magnet, route: "/company-settings/all-leads" };
+        return { ...item, label: "All Leads", icon: Magnet, route: "/key-apps/all-leads" };
       if (item.id === "website-leads")
         return { ...item, label: "Website Leads", icon: NotebookText };
       if (item.id === "resource-pricing")
@@ -1543,7 +1544,7 @@ useEffect(() => {
       return;
     }
     if (!item.route) return;
-    navigateFromSidebar(item.route, sectionKey);
+    navigateFromSidebar(normalizeLegacyRoute(item.route), sectionKey);
   };
 
   return (

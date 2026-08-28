@@ -1249,7 +1249,7 @@ export default function AdministrationTenantCompaniesPage() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex flex-wrap items-center justify-center gap-1.5">
-                          <button onClick={() => navigate(`/administration/tenant-companies/${company.recordId || company.id}`)} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm" title="View Details">
+                          <button onClick={() => navigate(`/department-accesses/administration-department/tenant-companies/${company.recordId || company.id}`)} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm" title="View Details">
                             <Eye size={14} />
                           </button>
                           <button onClick={() => openEditModal(company)} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 rounded-lg transition-all shadow-sm" title="Edit Company Record">

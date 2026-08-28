@@ -10,7 +10,7 @@
  * already granted-module-driven — this page just gives that same content a
  * proper admin-branded header, consistent with EmployeeDashboardOverview.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
 import PageFrame from "@/components/Pages/PageFrame";
 import useDashboardAccess from "@/hooks/useDashboardAccess";
 import useWorkspacePreferences from "@/hooks/useWorkspacePreferences";
@@ -18,6 +18,24 @@ import { useFreshCurrentUser } from "@/hooks/useFreshCurrentUser";
 import { PlanBadge, getGreeting } from "@/pages/Dashboard/FrontendDashboard/dashboard/DashboardShared";
 import { DashboardAttendanceCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
 import ModuleAccessDashboard from "@/pages/Dashboard/FrontendDashboard/dashboard/ModuleAccessDashboard";
+import { matchDepartmentSlug, type DeptSlug } from "@/lib/departmentSlug";
+import { HRDashboardWidgets } from "@/pages/HR/HRDashboardOverview";
+import { AdministrationDashboardWidgets } from "@/pages/Administration/AdministrationDashboardOverview";
+import { SalesDashboardWidgets } from "@/pages/Sales/SalesDashboardOverview";
+import { FinanceDashboardWidgets } from "@/pages/Finance/FinanceDashboardOverview";
+import { MaintenanceDashboardWidgets } from "@/pages/Maintenance/MaintenanceDashboardOverview";
+import { TechDashboardWidgets } from "@/pages/Tech/TechDashboardOverview";
+import { ITDashboardWidgets } from "@/pages/IT/ITDashboardOverview";
+
+const RICH_WIDGETS_BY_SLUG: Record<DeptSlug, ComponentType> = {
+  hr: HRDashboardWidgets,
+  administration: AdministrationDashboardWidgets,
+  sales: SalesDashboardWidgets,
+  finance: FinanceDashboardWidgets,
+  maintenance: MaintenanceDashboardWidgets,
+  tech: TechDashboardWidgets,
+  it: ITDashboardWidgets,
+};
 
 const WorkspaceClock = ({ timezone, location }: { timezone: string; location: string }) => {
   const [tick, setTick] = useState(new Date());
@@ -118,6 +136,17 @@ export function AdminDashboardOverview() {
     }
   }, [adminName, now, workspacePreferences.timezone]);
 
+  const { richDepartments, otherDepartments } = useMemo(() => {
+    const rich: { id: string; name: string; slug: DeptSlug }[] = [];
+    const other: typeof access.departments = [];
+    for (const dept of access.departments) {
+      const slug = matchDepartmentSlug(dept.name);
+      if (slug) rich.push({ id: dept.id, name: dept.name, slug });
+      else other.push(dept);
+    }
+    return { richDepartments: rich, otherDepartments: other };
+  }, [access.departments]);
+
   return (
     <div className="p-4 flex flex-col gap-5">
 
@@ -137,12 +166,26 @@ export function AdminDashboardOverview() {
 
       <DashboardAttendanceCard />
 
-      {/* Cards/charts/quick links, built per department this admin is assigned to */}
+      {/* Real department dashboards (stat cards, donuts, trend charts) for
+          each of the 7 named departments this admin is assigned to */}
+      {richDepartments.map((dept) => {
+        const Widgets = RICH_WIDGETS_BY_SLUG[dept.slug];
+        return (
+          <div key={dept.id} className="flex flex-col gap-3">
+            <h3 className="text-content font-pmedium text-slate-700 uppercase tracking-wide">{dept.name}</h3>
+            <Widgets />
+          </div>
+        );
+      })}
+
+      {/* Granted-module-driven cards/charts/quick links for any assigned
+          department that isn't one of the 7 named ones (custom departments) */}
       <ModuleAccessDashboard
         moduleMap={access.moduleMap}
         grantedModuleIds={access.grantedModuleIds}
         roleBand={access.roleBand}
-        departments={access.departments}
+        departments={otherDepartments}
+        showAttendanceCard={false}
       />
     </div>
   );

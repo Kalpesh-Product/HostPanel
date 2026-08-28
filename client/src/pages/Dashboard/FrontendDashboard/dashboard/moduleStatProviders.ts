@@ -172,24 +172,24 @@ export const useModuleStats = (moduleIds: Set<string>) => {
       const tickets = arr(ticketsQuery.data);
       const open = tickets.filter((t: any) => ["open", "Open"].includes(t.status)).length;
       const resolved = tickets.filter((t: any) => ["resolved", "Resolved", "closed", "Closed"].includes(t.status)).length;
-      list.push({ moduleId: "tickets", icon: Ticket, label: "Support Tickets", value: tickets.length, sub: `${open} open, ${resolved} resolved`, color: "#ef4444", route: "/tickets" });
+      list.push({ moduleId: "tickets", icon: Ticket, label: "Support Tickets", value: tickets.length, sub: `${open} open, ${resolved} resolved`, color: "#ef4444", route: "/common-modules/tickets" });
     }
 
     if (bookingsQuery.data) {
       const bookings = arr(bookingsQuery.data);
       const confirmed = bookings.filter((b: any) => String(b.status || "").toLowerCase() === "confirmed").length;
-      list.push({ moduleId: "meeting-room-system", icon: CalendarCheck, label: "Meeting Room Bookings", value: bookings.length, sub: `${confirmed} confirmed`, color: "#2563EB", route: "/meetings/meeting-rooms" });
+      list.push({ moduleId: "meeting-room-system", icon: CalendarCheck, label: "Meeting Room Bookings", value: bookings.length, sub: `${confirmed} confirmed`, color: "#2563EB", route: "/common-modules/meeting-room-booking" });
     }
 
     if (tenantsQuery.data) {
       const tenants = arr(tenantsQuery.data);
       const active = tenants.filter((t: any) => String(t.status || "").toLowerCase() === "active").length;
-      list.push({ moduleId: "tenant-companies-sales", icon: Building2, label: "Tenant Companies", value: tenants.length, sub: `${active} active`, color: "#1E3D73", route: "/sales-crm/tenant-companies" });
+      list.push({ moduleId: "tenant-companies-sales", icon: Building2, label: "Tenant Companies", value: tenants.length, sub: `${active} active`, color: "#1E3D73", route: "/department-accesses/sales-department/tenant-companies" });
     }
 
     if (pricingQuery.data) {
       const packages = arr(pricingQuery.data);
-      list.push({ moduleId: "resource-pricing", icon: Tag, label: "Pricing Packages", value: packages.length, color: "#7c3aed", route: "/sales-crm/resource-pricing" });
+      list.push({ moduleId: "resource-pricing", icon: Tag, label: "Pricing Packages", value: packages.length, color: "#7c3aed", route: "/department-accesses/sales-department/resource-pricing" });
     }
 
     if (visitorsQuery.data) {
@@ -201,37 +201,37 @@ export const useModuleStats = (moduleIds: Set<string>) => {
 
     if (resourcesQuery.data) {
       const resources = arr(resourcesQuery.data);
-      list.push({ moduleId: "resource-management", icon: HandCoins, label: "Resources", value: resources.length, color: "#059669", route: "/administration/resource-management" });
+      list.push({ moduleId: "resource-management", icon: HandCoins, label: "Resources", value: resources.length, color: "#059669", route: "/department-accesses/administration-department/resource-management" });
     }
 
     if (housekeepingQuery.data) {
       const summary: any = (housekeepingQuery.data as any)?.data?.summary ?? {};
-      list.push({ moduleId: "house-keeping", icon: Sparkles, label: "Housekeeping Tasks", value: summary.activeTasks ?? 0, sub: `${summary.pendingTasks ?? 0} pending`, color: "#0891b2", route: "/administration/house-keeping" });
+      list.push({ moduleId: "house-keeping", icon: Sparkles, label: "Housekeeping Tasks", value: summary.activeTasks ?? 0, sub: `${summary.pendingTasks ?? 0} pending`, color: "#0891b2", route: "/department-accesses/administration-department/house-keeping" });
     }
 
     if (maintenanceQuery.data) {
       const overview: any = maintenanceQuery.data;
-      list.push({ moduleId: "maintenance-repair-logs", icon: Wrench, label: "Maintenance Health", value: `${overview?.uptimePercentage ?? 0}%`, sub: `${overview?.overdueSchedules ?? 0} overdue, ${overview?.openRepairLogs ?? 0} open repairs`, color: "#f59e0b", route: "/maintenance/repair-logs" });
+      list.push({ moduleId: "maintenance-repair-logs", icon: Wrench, label: "Maintenance Health", value: `${overview?.uptimePercentage ?? 0}%`, sub: `${overview?.overdueSchedules ?? 0} overdue, ${overview?.openRepairLogs ?? 0} open repairs`, color: "#f59e0b", route: "/department-accesses/maintenance-department/repair-logs" });
     }
 
     if (itQuery.data) {
       const overview: any = itQuery.data;
-      list.push({ moduleId: "it-repair-logs", icon: MonitorCog, label: "IT Resolution Rate", value: `${overview?.resolutionRate ?? 0}%`, sub: `${overview?.openLogs ?? 0} open, ${overview?.totalLogs ?? 0} total`, color: "#0891b2", route: "/it/repair-logs" });
+      list.push({ moduleId: "it-repair-logs", icon: MonitorCog, label: "IT Resolution Rate", value: `${overview?.resolutionRate ?? 0}%`, sub: `${overview?.openLogs ?? 0} open, ${overview?.totalLogs ?? 0} total`, color: "#0891b2", route: "/department-accesses/it-department/repair-logs" });
     }
 
     if (employeeMgmtQuery.data) {
       const summary: any = employeeMgmtQuery.data;
-      list.push({ moduleId: "employee-management", icon: Users, label: "Employees", value: summary.totalEmployees ?? 0, sub: `${summary.activeEmployees ?? 0} active`, color: "#1E3D73", route: "/hr/company-management" });
+      list.push({ moduleId: "employee-management", icon: Users, label: "Employees", value: summary.totalEmployees ?? 0, sub: `${summary.activeEmployees ?? 0} active`, color: "#1E3D73", route: "/department-accesses/hr-department/company-management" });
     }
 
     if (recruitmentQuery.data) {
       const summary: any = (recruitmentQuery.data as any)?.summary ?? {};
-      list.push({ moduleId: "recruitment", icon: UserPlus, label: "Open Positions", value: summary.activeJobs ?? 0, sub: `${summary.totalCandidates ?? 0} candidates`, color: "#7c3aed", route: "/hr/recruitment" });
+      list.push({ moduleId: "recruitment", icon: UserPlus, label: "Open Positions", value: summary.activeJobs ?? 0, sub: `${summary.totalCandidates ?? 0} candidates`, color: "#7c3aed", route: "/department-accesses/hr-department/recruitment" });
     }
 
     if (attendanceReviewQuery.data) {
       const stats: any = (attendanceReviewQuery.data as any)?.stats ?? {};
-      list.push({ moduleId: "attendance-review", icon: ClipboardCheck, label: "Team Attendance %", value: `${stats.attendancePercentage ?? 0}%`, sub: `${stats.present ?? 0} present, ${stats.absent ?? 0} absent`, color: "#059669", route: "/hr/attendance-review" });
+      list.push({ moduleId: "attendance-review", icon: ClipboardCheck, label: "Team Attendance %", value: `${stats.attendancePercentage ?? 0}%`, sub: `${stats.present ?? 0} present, ${stats.absent ?? 0} absent`, color: "#059669", route: "/department-accesses/hr-department/attendance-review" });
     }
 
     return list;

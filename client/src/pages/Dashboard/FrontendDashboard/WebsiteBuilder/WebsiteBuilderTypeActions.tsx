@@ -111,8 +111,8 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
   const hasCheckedWebsiteRef = useRef(false);
   const checkedCompanyContextRef = useRef("");
   // const [workspacePlan, setWorkspacePlan] = useState("");
-  const builderBasePath = location.pathname.includes("/company-settings/website-builder")
-    ? "/company-settings/website-builder"
+  const builderBasePath = location.pathname.includes("/key-apps/website-builder")
+    ? "/key-apps/website-builder"
     : "/dashboard/website-builder";
 
   const contextCompanyId = String(auth?.user?.companyId || "").trim();

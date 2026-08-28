@@ -801,7 +801,6 @@ export default function HREmployeeAttendanceDetailPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
-            onClick={() => setPreviewSelfie(null)}
           >
             <motion.div
               initial={{ scale: 0.96, y: 12 }}

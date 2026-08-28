@@ -1082,7 +1082,7 @@ export default function SalesArchitecturePage() {
           const monthlyRent = Number(viewTenant.billingDetails?.monthlyRent || 0) || calcMonthly;
 
           return (
-            <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={() => setViewTenantId("")}>
+            <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3">
               <div
                 className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]"
                 onClick={(e) => e.stopPropagation()}
@@ -1336,7 +1336,7 @@ export default function SalesArchitecturePage() {
           const viewDeptLocs = Array.from(viewDeptAssignment?.locationLabels || []);
 
           return (
-            <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={() => setViewDeptId("")}>
+            <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3">
               <div
                 className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]"
                 onClick={(e) => e.stopPropagation()}
@@ -1780,7 +1780,7 @@ export default function SalesArchitecturePage() {
 
         {/* Release Spaces Modal — pick which assigned spaces to free up */}
         {releaseTarget && (
-          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-3" onClick={() => { setReleaseTarget(null); setReleaseSelectedIds([]); }}>
+          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-3">
             <div
               className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]"
               onClick={(e) => e.stopPropagation()}

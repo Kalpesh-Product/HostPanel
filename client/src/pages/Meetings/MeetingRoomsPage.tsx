@@ -2991,7 +2991,7 @@ export function MeetingRoomsPage() {
     setShowExternalBookingDialog(false);
     setShowNewExternalBookingDialog(false);
     setShowTenantBookingDialog(false);
-    navigate('/sales-crm/resource-pricing', {
+    navigate('/department-accesses/sales-department/resource-pricing', {
       state: {
         from: '/meeting-rooms',
         intent: preset === 'tenant_inventory' ? 'add-tenant-inventory' : 'add-meeting-resource',
@@ -3005,14 +3005,14 @@ export function MeetingRoomsPage() {
 
   const goToOrganizationManagement = () => {
     setShowInternalBookingDialog(false);
-    navigate('/company-settings/organization-management', {
+    navigate('/core-modules/organization-management', {
       state: { from: '/meeting-rooms', intent: 'add-employee-for-internal-booking' },
     });
   };
 
   const goToSalesTenantCompanies = () => {
     setShowTenantBookingDialog(false);
-    navigate('/sales-crm/tenant-companies', {
+    navigate('/department-accesses/sales-department/tenant-companies', {
       state: { from: '/meeting-rooms', intent: 'add-tenant-company' },
     });
   };

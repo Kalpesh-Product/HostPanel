@@ -29,7 +29,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="organization-add-user"]', title: "Add a platform user", description: "Open the member form, choose an available Professional role and department access, then send the invitation. The button is disabled when the five-user plan limit is reached." },
       { selector: '[data-tour="organization-members-table"]', title: "Member records and access", description: "Review identity, role, departments, status, and access. Authorized users can toggle account access and open View Details for the complete member record.", side: "top" },
     ],
-    matches: exact("/company-settings/organization-management"),
+    matches: exact("/core-modules/organization-management"),
   },
   {
     id: "professional-access-grants",
@@ -45,7 +45,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="access-grants-transfer"]', title: "Transfer ownership", description: "Appears only when an eligible member exists and you are in your main unit. Opens the handoff that makes another member the workspace Founder." },
       { selector: '[data-tour="access-grants-table"]', title: "Review members and their actions", description: "The list shows role, department scope, account status, and each member's row actions. The shield action opens Sidebar Access for Professional modules; the user-and-cog action opens role details and authorized role changes. Ownership transfer appears separately only when an eligible member exists.", side: "top" },
     ],
-    matches: exact("/company-settings/access-grants"),
+    matches: exact("/core-modules/access-grants"),
   },
   {
     id: "professional-dashboard",
@@ -91,7 +91,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="tickets-raise-btn"]', title: "Raise a new ticket", description: "Click this to open the ticket form. Choose the target department, set a priority (Low, Medium, or High), write a clear title and description, set a due date, and optionally assign it to a specific person." },
       { selector: '[data-tour="tickets-table"]', title: "Ticket list and actions", description: "Each row shows the ticket ID, title, who raised it, which department it is routed to, its priority, status, and when it was last updated. Click the eye icon on any row to open the full ticket detail." },
     ],
-    matches: exact("/tickets"),
+    matches: exact("/common-modules/tickets"),
   },
   {
     id: "professional-attendance",
@@ -124,7 +124,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { tabPage: "corrections", selector: '[data-tour="attendance-search"]', title: "Find a request", description: "Locate a correction by employee name when reviewing specific cases." },
       { tabPage: "corrections", selector: '[data-tour="attendance-table"]', title: "Requests and outcomes", description: "Each row shows what was asked for versus the original punch times, who requested it, and its current state. Approved fixes update the underlying attendance record automatically.", side: "top" },
     ],
-    matches: exact("/extra-common-modules/attendance"),
+    matches: exact("/common-modules/attendance"),
   },
   {
     id: "professional-meeting-rooms",
@@ -149,7 +149,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="meetings-table"]', title: "Booking list and actions", description: "Each row shows the room, host or client, schedule, status, and available actions. Click the eye icon to view full details, or use reschedule, extend, or cancel buttons as available." },
       { selector: '[data-tour="meetings-calendar"]', title: "Room availability calendar", description: "Check room availability by date. Select a room and month to see which days are free (green), partially booked (amber), or fully booked (red)." },
     ],
-    matches: startsWith("/meetings/meeting-rooms"),
+    matches: startsWith("/common-modules/meeting-room-booking"),
   },
   {
     id: "professional-calendar",
@@ -163,7 +163,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { text: "Tickets", exactText: true, title: "Filter event types", description: "Show all events or focus on Bookings, Tickets, or Holidays. Professional workspaces do not include Custom-only Tasks and Leave filters." },
       { selector: '[data-tour="page-content"] .grid-cols-7', title: "Monthly calendar", description: "Select a date to review its events, or select an event badge to open its complete date, module, priority, and status details." },
     ],
-    matches: exact("/calendar"),
+    matches: exact("/common-modules/calendar"),
   },
   {
     id: "professional-workspace-settings",
@@ -178,7 +178,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="unit-settings-business-hours"]', title: "Set operating hours", description: "Choose opening and closing times for the active unit, then select Save Hours. These hours control meeting-room, walk-in, and booking availability for its resources." },
       { selector: '[data-tour="unit-settings-billing"]', title: "Tax and payment preferences", description: "Configure the location-level tax and payment rules that drive external and walk-in booking totals, payment evidence, and confirmation emails for the active unit.", side: "top" },
     ],
-    matches: exact("/company-settings/workspace-settings"),
+    matches: exact("/core-modules/workspace-settings"),
   },
   {
     id: "professional-workspace-management",
@@ -195,7 +195,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="unit-management-edit-unit"]', title: "Edit the unit name", description: "Select Edit Unit to open the edit dialog, update the branch name, and save it. The refreshed name is applied to the linked unit after the update succeeds." },
       { selector: '[data-tour="unit-management-switch-unit"]', title: "Switch to a linked unit", description: "Select Switch on any linked unit that is not already active to move your session there. This button is only available for units that are not currently active, disabled, or deleted." },
     ],
-    matches: exact("/company-settings/workspace-management"),
+    matches: exact("/core-modules/workspace-management"),
   },
   {
     id: "professional-leads-management",
@@ -208,7 +208,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="page-content"] table', title: "Lead records", description: "The table shows contact details, requirements, stage, source, and timeline. Select View details to inspect the complete lead." },
       { selector: 'button[aria-label^="View details for"]', title: "Lead details and conversion", description: "Review the lead before updating it. Suitable visitor leads can be converted; website leads can be closed after follow-up is complete." },
     ],
-    matches: exact("/sales-crm/leads-management"),
+    matches: exact("/department-accesses/sales-department/leads-management"),
   },
   {
     id: "professional-tenant-company-detail",
@@ -229,7 +229,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="tenant-detail-credits-month"]', tabPage: "credits", title: "Monthly credit activity", description: "Pick any month and year to review that period's used, refunded, and net credits, then read every transaction as debits and credits with its running balance.", side: "top" },
       { selector: '[data-tour="tenant-detail-space-summary"]', tabPage: "space-allocation", title: "Allocated space", description: "The assigned area with open desks, cabin desks, and total seats, followed by the desk-level breakdown and location labels from the tenant's package." },
     ],
-    matches: (path) => /^\/sales-crm\/tenant-companies\/[^/]+$/.test(path),
+    matches: (path) => /^\/department-accesses\/sales-department\/tenant-companies\/[^/]+$/.test(path),
   },
   {
     id: "professional-tenant-companies",
@@ -250,7 +250,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="sales-tenant-request-search"]', tabPage: "requests", title: "Find a request", description: "Search credit requests by tenant name." },
       { selector: '[data-tour="sales-tenant-request-table"]', tabPage: "requests", title: "The request workflow", description: "Each row shows the tenant, credits requested with rate and total value, invoice state, and requester. Approve or Reject new requests, Verify payment once proof is submitted, then Add credits completes the top-up. Open View invoice or View proof to check Finance documents first.", side: "top" },
     ],
-    matches: exact("/sales-crm/tenant-companies"),
+    matches: exact("/department-accesses/sales-department/tenant-companies"),
   },
   {
     id: "professional-resource-pricing",
@@ -275,7 +275,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="resource-pricing-export-btns"]', tabPage: "tenant", title: "Export packages", description: "Download the current filtered package list as a PDF report or Excel file saved to Reports." },
       { selector: '[data-tour="resource-pricing-table"]', tabPage: "tenant", title: "Package list and actions", description: "Each row shows coverage by floor and wing with open, cabin, and total seats, monthly credits that expire monthly, duration, and contract value. Recommended, Custom, and Locked badges explain each package's state. Use the eye action to review details and the pencil to edit; locked packages cannot be edited or deleted while assigned to a tenant.", side: "top" },
     ],
-    matches: exact("/sales-crm/resource-pricing"),
+    matches: exact("/department-accesses/sales-department/resource-pricing"),
   },
   {
     id: "professional-sales-architecture",
@@ -289,7 +289,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { text: "Assign Space to Department", title: "Assign department space", description: "Allocate available workspace blocks to an internal department and confirm the selected capacity." },
       { text: "Release Spaces", exactText: true, title: "Release an allocation", description: "Use Release Spaces when assigned blocks must return to the available inventory. Review the selection carefully before confirming." },
     ],
-    matches: exact("/sales-crm/sales-architecture"),
+    matches: exact("/department-accesses/sales-department/sales-architecture"),
   },
 ];
 

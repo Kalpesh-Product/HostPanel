@@ -2155,7 +2155,7 @@ export default function PricingPackagesPage() {
         ) : null}
 
         {isHoursModalOpen ? (
-          <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsHoursModalOpen(false)}>
+          <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
             <div
               onClick={(e) => e.stopPropagation()}
               className="bg-white/95 backdrop-blur-xl w-full sm:max-w-md rounded-t-[32px] sm:rounded-[32px] shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300"

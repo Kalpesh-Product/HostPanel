@@ -39,7 +39,7 @@ const CUSTOM_PAGE_TOURS: CustomTourRoute[] = [
       { selector: '[data-tour="organization-add-user"]', title: "Add a platform user", description: "Open the member form, choose an available role and department access, then send the invitation." },
       { selector: '[data-tour="organization-members-table"]', title: "Member records and access", description: "Review identity, role, departments, status, and access. Authorized users can toggle account access and open View Details for the complete member record.", side: "top" },
     ],
-    matches: exact("/company-settings/organization-management"),
+    matches: exact("/core-modules/organization-management"),
   },
   {
     id: "custom-calendar",
@@ -53,7 +53,7 @@ const CUSTOM_PAGE_TOURS: CustomTourRoute[] = [
       { text: "Tickets", exactText: true, title: "Filter event types", description: "Show all events or focus on Bookings, Tickets, Tasks, Leave, or Holidays." },
       { selector: '[data-tour="page-content"] .grid-cols-7', title: "Monthly calendar", description: "Select a date to review its events, or select an event badge to open its complete date, module, priority, and status details." },
     ],
-    matches: exact("/calendar"),
+    matches: exact("/common-modules/calendar"),
   },
   {
     id: "custom-tasks",
@@ -69,7 +69,7 @@ const CUSTOM_PAGE_TOURS: CustomTourRoute[] = [
       { selector: '[data-tour="tasks-page-assign-btn"]', title: "Assign a new task", description: "Opens the Delegate Task form. Choose Standard Execution for direct work or Formal Approval Request when sign-off is needed first, write the title and detailed instructions, route it to a department, optionally pick a specific assignee, set the deadline, and attach reference files." },
       { selector: '[data-tour="tasks-page-table"]', title: "Task list and full workflow", description: "Each row shows type and department, who raised and who received it, priority with live progress, due date, and an overdue warning. Open any task to read instructions, accept it, update progress as work advances, complete it with a note and attachments, comment for clarification, and approve or reject formal approval requests.", side: "top" },
     ],
-    matches: exact("/extra-common-modules/tasks"),
+    matches: exact("/common-modules/tasks"),
   },
 ];
 

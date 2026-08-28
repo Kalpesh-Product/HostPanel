@@ -2422,7 +2422,6 @@ const FreshStudioTemplate: React.FC = () => {
       {t.galleryViewerOpen ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-6"
-          onClick={t.closeGalleryViewer}
         >
           <button
             type="button"
@@ -2596,7 +2595,6 @@ const FreshStudioTemplate: React.FC = () => {
       {t.selectedLeadProduct && !t.selectedDetailItem ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={t.closeLeadModal}
         >
           <div
             className="w-full max-w-md rounded-[4px] bg-[#14141c] p-8 shadow-xl"
@@ -2674,7 +2672,6 @@ const FreshStudioTemplate: React.FC = () => {
       {t.reviewModalOpen ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => t.setReviewModalOpen(false)}
         >
           <div
             className="w-full max-w-md rounded-[4px] bg-[#14141c] p-8 shadow-xl"

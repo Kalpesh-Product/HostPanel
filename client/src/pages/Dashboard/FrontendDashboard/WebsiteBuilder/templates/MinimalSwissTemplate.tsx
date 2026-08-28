@@ -314,7 +314,6 @@ const MinimalSwissTemplate: React.FC = () => {
   const galleryViewer = t.galleryViewerOpen ? (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-6"
-      onClick={t.closeGalleryViewer}
     >
       <button
         type="button"
@@ -1764,7 +1763,6 @@ const MinimalSwissTemplate: React.FC = () => {
       {t.selectedLeadProduct && !t.selectedDetailItem ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={t.closeLeadModal}
         >
           <div
             className="w-full max-w-md rounded-[5px] border border-white/15 bg-[#0d0d10] p-8"
@@ -1833,7 +1831,6 @@ const MinimalSwissTemplate: React.FC = () => {
       {t.reviewModalOpen ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => t.setReviewModalOpen(false)}
         >
           <div
             className="w-full max-w-md rounded-[5px] border border-white/15 bg-[#0d0d10] p-8"

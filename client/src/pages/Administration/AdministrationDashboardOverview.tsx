@@ -191,65 +191,16 @@ const WorkspaceClock = ({ timezone, location }: { timezone: string; location: st
   );
 };
 
-export function AdministrationDashboardOverview() {
-  const currentUser = useFreshCurrentUser();
+/**
+ * Stat cards, charts, and quick links for the Administration dashboard —
+ * split out from AdministrationDashboardOverview so AdminDashboardOverview
+ * can render this same content for an Admin assigned to the Administration
+ * department, without the department's own greeting/header banner.
+ */
+export function AdministrationDashboardWidgets() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [dashboard, setDashboard] = useState<DashboardState>(DEFAULT_DASHBOARD);
-
-  const access = useDashboardAccess();
-  const workspacePreferences = useWorkspacePreferences();
-  const [now, setNow] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 60_000);
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    setNow(new Date());
-  }, [workspacePreferences.timezone]);
-
-  const managerName = useMemo(() => {
-    const full = `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim();
-    return full || currentUser?.fullName || currentUser?.name || currentUser?.displayName || "Administration Manager";
-  }, [currentUser]);
-
-  const { greeting, todayLabel } = useMemo(() => {
-    const timezone = workspacePreferences.timezone;
-
-    try {
-      const hourPart = new Intl.DateTimeFormat("en-US", {
-        timeZone: timezone,
-        hour: "2-digit",
-        hourCycle: "h23",
-      })
-        .formatToParts(now)
-        .find((part) => part.type === "hour")?.value;
-      const workspaceHour = Number(hourPart);
-
-      return {
-        greeting: `${getGreeting(Number.isFinite(workspaceHour) ? workspaceHour : now.getHours())}, ${managerName}`,
-        todayLabel: new Intl.DateTimeFormat("en-IN", {
-          timeZone: timezone,
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }).format(now),
-      };
-    } catch {
-      return {
-        greeting: `${getGreeting(now.getHours())}, ${managerName}`,
-        todayLabel: now.toLocaleDateString("en-IN", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }),
-      };
-    }
-  }, [managerName, now, workspacePreferences.timezone]);
 
   useEffect(() => {
     let isMounted = true;
@@ -494,43 +445,27 @@ export function AdministrationDashboardOverview() {
   }
 
   return (
-    <div className="p-4 flex flex-col gap-5">
-
-      <PageFrame>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h2 className="text-title font-pmedium text-primary uppercase">Administration Dashboard</h2>
-              <PlanBadge plan={access.plan} />
-            </div>
-            <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
-            <p className="text-content font-pmedium text-gray-700">{todayLabel}<WorkspaceClock timezone={workspacePreferences.timezone} location={workspacePreferences.location} /></p>
-          </div>
-        </div>
-      </PageFrame>
-
+    <div className="flex flex-col gap-5">
       {error ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-700">
           {error}
         </div>
       ) : null}
 
-      <DashboardAttendanceCard />
-
       <WidgetSection layout={4} title="Overview" border normalCase>
         <StatCard icon={Eye} label="Visitors Today" value={dailyVisitors.length} sub={`${liveVisitors.length} checked in`} color="#80bf01" route="/visitors/visitor-management" />
-        <StatCard icon={Building2} label="Total Tenants" value={tenantStats.total} sub={`${tenantStats.active} active`} color="#1E3D73" route="/administration/tenant-companies" />
-        <StatCard icon={CalendarCheck} label="Meeting Room Bookings" value={bookingStats.total} sub={`${bookingStats.confirmedToday} confirmed today`} color="#2563EB" route="/administration/bookings" />
-        <StatCard icon={HandCoins} label="Resources" value={resourceStats.total} sub={`${resourceStats.inUse} in use · ${resourceStats.active} active`} color="#7c3aed" route="/administration/resource-management" />
-        <StatCard icon={Wrench} label="Housekeeping Tasks" value={pendingHousekeeping} sub={`${activeHousekeeping} active`} color="#f59e0b" route="/administration/house-keeping" />
+        <StatCard icon={Building2} label="Total Tenants" value={tenantStats.total} sub={`${tenantStats.active} active`} color="#1E3D73" route="/department-accesses/administration-department/tenant-companies" />
+        <StatCard icon={CalendarCheck} label="Meeting Room Bookings" value={bookingStats.total} sub={`${bookingStats.confirmedToday} confirmed today`} color="#2563EB" route="/department-accesses/administration-department/bookings" />
+        <StatCard icon={HandCoins} label="Resources" value={resourceStats.total} sub={`${resourceStats.inUse} in use · ${resourceStats.active} active`} color="#7c3aed" route="/department-accesses/administration-department/resource-management" />
+        <StatCard icon={Wrench} label="Housekeeping Tasks" value={pendingHousekeeping} sub={`${activeHousekeeping} active`} color="#f59e0b" route="/department-accesses/administration-department/house-keeping" />
       </WidgetSection>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <TeamLiveStatusCard department="administration" viewAllRoute="/administration/bookings" />
+        <TeamLiveStatusCard department="administration" viewAllRoute="/department-accesses/administration-department/bookings" />
 
         <DepartmentVisitorsCard department="administration" title="Administration Visitors" />
 
-        <SectionCard title="Housekeeping Queue" linkLabel="View all" linkRoute="/administration/house-keeping">
+        <SectionCard title="Housekeeping Queue" linkLabel="View all" linkRoute="/department-accesses/administration-department/house-keeping">
           {housekeepingQueue.length > 0 ? housekeepingQueue.map((task, index) => (
             <RecentItem
               key={task.id || task.taskCode || index}
@@ -572,15 +507,15 @@ export function AdministrationDashboardOverview() {
       </div>
 
       <WidgetSection layout={4} title="Quick Links" border normalCase>
-        <QuickLink icon={Building2} label="Tenant Companies" description="Manage tenants & agreements" route="/administration/tenant-companies" color="#1E3D73" />
-        <QuickLink icon={CalendarCheck} label="Bookings" description="Meeting room bookings" route="/administration/bookings" color="#2563EB" />
-        <QuickLink icon={HandCoins} label="Resource Management" description="Desks, rooms & assets" route="/administration/resource-management" color="#7c3aed" />
-        <QuickLink icon={Wrench} label="Housekeeping" description="Tasks & staff attendance" route="/administration/house-keeping" color="#f59e0b" />
+        <QuickLink icon={Building2} label="Tenant Companies" description="Manage tenants & agreements" route="/department-accesses/administration-department/tenant-companies" color="#1E3D73" />
+        <QuickLink icon={CalendarCheck} label="Bookings" description="Meeting room bookings" route="/department-accesses/administration-department/bookings" color="#2563EB" />
+        <QuickLink icon={HandCoins} label="Resource Management" description="Desks, rooms & assets" route="/department-accesses/administration-department/resource-management" color="#7c3aed" />
+        <QuickLink icon={Wrench} label="Housekeeping" description="Tasks & staff attendance" route="/department-accesses/administration-department/house-keeping" color="#f59e0b" />
         <QuickLink icon={ContactRound} label="Visitor Management" description="Check-in / check-out" route="/visitors/visitor-management" color="#80bf01" />
       </WidgetSection>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SectionCard title="Recent Tenants" linkLabel="View all" linkRoute="/administration/tenant-companies">
+        <SectionCard title="Recent Tenants" linkLabel="View all" linkRoute="/department-accesses/administration-department/tenant-companies">
           {tenants.length > 0 ? [...tenants]
             .sort((left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime())
             .slice(0, 5)
@@ -606,7 +541,7 @@ export function AdministrationDashboardOverview() {
           centerLabel="Tenants"
         />
 
-        <SectionCard title="Resource Directory" linkLabel="View all" linkRoute="/administration/resource-management">
+        <SectionCard title="Resource Directory" linkLabel="View all" linkRoute="/department-accesses/administration-department/resource-management">
           {resources.length > 0 ? [...resources]
             .sort((left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime())
             .slice(0, 5)
@@ -640,6 +575,84 @@ export function AdministrationDashboardOverview() {
         options={monthlyBarOptions}
         height={260}
       />
+    </div>
+  );
+}
+
+export function AdministrationDashboardOverview() {
+  const currentUser = useFreshCurrentUser();
+  const access = useDashboardAccess();
+  const workspacePreferences = useWorkspacePreferences();
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    setNow(new Date());
+  }, [workspacePreferences.timezone]);
+
+  const managerName = useMemo(() => {
+    const full = `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim();
+    return full || currentUser?.fullName || currentUser?.name || currentUser?.displayName || "Administration Manager";
+  }, [currentUser]);
+
+  const { greeting, todayLabel } = useMemo(() => {
+    const timezone = workspacePreferences.timezone;
+
+    try {
+      const hourPart = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        hour: "2-digit",
+        hourCycle: "h23",
+      })
+        .formatToParts(now)
+        .find((part) => part.type === "hour")?.value;
+      const workspaceHour = Number(hourPart);
+
+      return {
+        greeting: `${getGreeting(Number.isFinite(workspaceHour) ? workspaceHour : now.getHours())}, ${managerName}`,
+        todayLabel: new Intl.DateTimeFormat("en-IN", {
+          timeZone: timezone,
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }).format(now),
+      };
+    } catch {
+      return {
+        greeting: `${getGreeting(now.getHours())}, ${managerName}`,
+        todayLabel: now.toLocaleDateString("en-IN", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+      };
+    }
+  }, [managerName, now, workspacePreferences.timezone]);
+
+  return (
+    <div className="p-4 flex flex-col gap-5">
+      <PageFrame>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-title font-pmedium text-primary uppercase">Administration Dashboard</h2>
+              <PlanBadge plan={access.plan} />
+            </div>
+            <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
+            <p className="text-content font-pmedium text-gray-700">{todayLabel}<WorkspaceClock timezone={workspacePreferences.timezone} location={workspacePreferences.location} /></p>
+          </div>
+        </div>
+      </PageFrame>
+
+      <DashboardAttendanceCard />
+
+      <AdministrationDashboardWidgets />
     </div>
   );
 }

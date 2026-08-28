@@ -57,6 +57,7 @@ import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import { getProfileTabItemsForPlan } from "../../Profile/profileAccess";
 import { getUpgradePlanOptions } from "../../WorkspaceSetup/workspaceSetupPlans";
 import { getEnabledModuleIdsForPlan, getWorkspaceCount } from "../../../utils/workspacePlanAccess";
+import { normalizeLegacyRoute } from "../../../utils/legacyRouteMap";
 import { toast } from "sonner";
 
 type PlanType = "basic" | "professional" | "custom";
@@ -182,51 +183,51 @@ const ADD_ON_SECTION_ORDER: SectionType[] = [
 
 export const DEFAULT_SECTION_ROUTES: Record<string, string> = {
   dashboard: "/dashboard",
-  tickets: "/tickets",
+  tickets: "/common-modules/tickets",
   "company-profile": "/profile/company-profile",
   "my-profile": "/profile/my-profile",
   "change-password": "/profile/change-password",
   "assigned-assets": "/profile/assigned-assets",
   payslips: "/profile/payslips",
   "exit-request": "/profile/resignation-request",
-  "meeting-room-system": "/meetings/meeting-rooms",
-  "customer-support": "/company-settings/customer-support",
-  tasks: "/extra-common-modules/tasks",
-  "leave-requests": "/leave-requests",
-  attendance: "/extra-common-modules/attendance",
-  calendar: "/calendar",
+  "meeting-room-system": "/common-modules/meeting-room-booking",
+  "customer-support": "/common-modules/customer-support",
+  tasks: "/common-modules/tasks",
+  "leave-requests": "/common-modules/leave-requests",
+  attendance: "/common-modules/attendance",
+  calendar: "/common-modules/calendar",
   assets: "/extra-common-modules/assets",
   inventory: "/extra-common-modules/inventory",
   "department-inventory": "/extra-common-modules/department-inventory",
   "finance-management": "/extra-common-modules/finance-management",
   reports: "/extra-common-modules/reports",
   // Department module routes, mirroring the sidebar's ROUTE_BY_ID.
-  "employee-management": "/hr/company-management",
-  "hr-documents": "/hr/documents",
-  "attendance-review": "/hr/attendance-review",
-  "leave-request-processing": "/hr/leave-request-processing",
-  recruitment: "/hr/recruitment",
-  "payroll-management": "/hr/payroll-management",
-  "exit-management": "/hr/resignation-management",
-  "tenant-companies-admin": "/administration/tenant-companies",
-  bookings: "/administration/bookings",
+  "employee-management": "/department-accesses/hr-department/company-management",
+  "hr-documents": "/department-accesses/hr-department/documents",
+  "attendance-review": "/department-accesses/hr-department/attendance-review",
+  "leave-request-processing": "/department-accesses/hr-department/leave-request-processing",
+  recruitment: "/department-accesses/hr-department/recruitment",
+  "payroll-management": "/department-accesses/hr-department/payroll-management",
+  "exit-management": "/department-accesses/hr-department/resignation-management",
+  "tenant-companies-admin": "/department-accesses/administration-department/tenant-companies",
+  bookings: "/department-accesses/administration-department/bookings",
   "visitors-management": "/visitors/visitor-management",
-  "resource-management": "/administration/resource-management",
-  "house-keeping": "/administration/house-keeping",
-  "leads-management": "/sales-crm/leads-management",
-  "tenant-companies-sales": "/sales-crm/tenant-companies",
-  "resource-pricing": "/sales-crm/resource-pricing",
-  "sales-architecture": "/sales-crm/sales-architecture",
-  "finance-budget": "/finance/expenses-budget",
-  "billing-payments": "/finance/billing-payments",
-  accounting: "/finance/accounting",
-  "maintenance-repair-logs": "/maintenance/repair-logs",
-  "amc-maintenance-scheduler": "/maintenance/amc-scheduler",
-  "tech-website-builder": "/company-settings/website-builder",
-  "website-leads": "/company-settings/website-builder/leads",
-  "website-review": "/company-settings/website-builder/dynamic/reviews",
-  "it-repair-logs": "/it/repair-logs",
-  "it-system-access": "/it/system-access",
+  "resource-management": "/department-accesses/administration-department/resource-management",
+  "house-keeping": "/department-accesses/administration-department/house-keeping",
+  "leads-management": "/department-accesses/sales-department/leads-management",
+  "tenant-companies-sales": "/department-accesses/sales-department/tenant-companies",
+  "resource-pricing": "/department-accesses/sales-department/resource-pricing",
+  "sales-architecture": "/department-accesses/sales-department/sales-architecture",
+  "finance-budget": "/department-accesses/finance-department/expenses-budget",
+  "billing-payments": "/department-accesses/finance-department/billing-payments",
+  accounting: "/department-accesses/finance-department/accounting",
+  "maintenance-repair-logs": "/department-accesses/maintenance-department/repair-logs",
+  "amc-maintenance-scheduler": "/department-accesses/maintenance-department/amc-scheduler",
+  "tech-website-builder": "/key-apps/website-builder",
+  "website-leads": "/key-apps/website-builder/leads",
+  "website-review": "/key-apps/website-builder/dynamic/reviews",
+  "it-repair-logs": "/department-accesses/it-department/repair-logs",
+  "it-system-access": "/department-accesses/it-department/system-access",
 };
 
 export const ICON_BY_ID: Record<string, ElementType> = {
@@ -300,13 +301,13 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
     sectionLabel: "Common Modules",
     items: [
       { id: "dashboard", label: "Dashboard", route: "/dashboard", implemented: true, unlockedInWorkspace: true },
-      { id: "customer-support", label: "Customer Support", route: "/company-settings/customer-support", implemented: true, unlockedInWorkspace: true },
-      { id: "attendance", label: "Attendance", route: "/extra-common-modules/attendance", implemented: true, unlockedInWorkspace: true },
-      { id: "tasks", label: "Tasks", route: "/extra-common-modules/tasks", implemented: true, unlockedInWorkspace: true },
-      { id: "tickets", label: "Tickets", route: "/tickets", implemented: true, unlockedInWorkspace: true },
-      { id: "leave-requests", label: "Leave Requests", route: "/leave-requests", implemented: true, unlockedInWorkspace: true },
-      { id: "meeting-room-system", label: "Meeting Room Booking", route: "/meetings/meeting-rooms", implemented: true, unlockedInWorkspace: true },
-      { id: "calendar", label: "Calendar", route: "/calendar", implemented: true, unlockedInWorkspace: true },
+      { id: "customer-support", label: "Customer Support", route: "/common-modules/customer-support", implemented: true, unlockedInWorkspace: true },
+      { id: "attendance", label: "Attendance", route: "/common-modules/attendance", implemented: true, unlockedInWorkspace: true },
+      { id: "tasks", label: "Tasks", route: "/common-modules/tasks", implemented: true, unlockedInWorkspace: true },
+      { id: "tickets", label: "Tickets", route: "/common-modules/tickets", implemented: true, unlockedInWorkspace: true },
+      { id: "leave-requests", label: "Leave Requests", route: "/common-modules/leave-requests", implemented: true, unlockedInWorkspace: true },
+      { id: "meeting-room-system", label: "Meeting Room Booking", route: "/common-modules/meeting-room-booking", implemented: true, unlockedInWorkspace: true },
+      { id: "calendar", label: "Calendar", route: "/common-modules/calendar", implemented: true, unlockedInWorkspace: true },
     ],
   },
   "extra-common-modules": {
@@ -317,16 +318,16 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
       { id: "inventory", label: "Inventory", implemented: false, unlockedInWorkspace: false },
       { id: "finance-management", label: "Finance Management", implemented: false, unlockedInWorkspace: false },
       { id: "reports", label: "Reports", implemented: false, unlockedInWorkspace: false },
-      { id: "tasks", label: "Tasks", route: "/extra-common-modules/tasks", implemented: true, unlockedInWorkspace: true },
+      { id: "tasks", label: "Tasks", route: "/common-modules/tasks", implemented: true, unlockedInWorkspace: true },
     ],
   },
   "key-apps": {
     sectionId: "key-apps",
     sectionLabel: "Key Apps",
     items: [
-      { id: "website-builder", label: "Website Builder", route: "/company-settings/website-builder", implemented: true, unlockedInWorkspace: true },
-      { id: "wono-nomad", label: "Nomad Listings", route: "/company-settings/wono-nomad", implemented: true, unlockedInWorkspace: true },
-      { id: "website-leads", label: "All Leads", route: "/company-settings/all-leads", implemented: true, unlockedInWorkspace: true },
+      { id: "website-builder", label: "Website Builder", route: "/key-apps/website-builder", implemented: true, unlockedInWorkspace: true },
+      { id: "wono-nomad", label: "Nomad Listings", route: "/key-apps/wono-nomad", implemented: true, unlockedInWorkspace: true },
+      { id: "website-leads", label: "All Leads", route: "/key-apps/all-leads", implemented: true, unlockedInWorkspace: true },
       { id: "visitor-management", label: "Visitor Management", route: "/visitors/visitor-management", implemented: true, unlockedInWorkspace: true },
     ],
   },
@@ -346,11 +347,11 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
     sectionId: "founder-core-modules",
     sectionLabel: "Core Modules",
     items: [
-      { id: "organization-management", label: "Organization Management", route: "/company-settings/organization-management", implemented: true, unlockedInWorkspace: true },
-      { id: "access-grants", label: "Access Grants", route: "/company-settings/access-grants", implemented: true, unlockedInWorkspace: true },
-      { id: "workspace-settings", label: "Unit Settings", route: "/company-settings/workspace-settings", implemented: true, unlockedInWorkspace: false },
-      { id: "workspace-management", label: "Unit Management", route: "/company-settings/workspace-management", implemented: true, unlockedInWorkspace: false },
-      { id: "analytics", label: "Analytics", route: "/company-settings/analytics", implemented: true, unlockedInWorkspace: true },
+      { id: "organization-management", label: "Organization Management", route: "/core-modules/organization-management", implemented: true, unlockedInWorkspace: true },
+      { id: "access-grants", label: "Access Grants", route: "/core-modules/access-grants", implemented: true, unlockedInWorkspace: true },
+      { id: "workspace-settings", label: "Unit Settings", route: "/core-modules/workspace-settings", implemented: true, unlockedInWorkspace: false },
+      { id: "workspace-management", label: "Unit Management", route: "/core-modules/workspace-management", implemented: true, unlockedInWorkspace: false },
+      { id: "analytics", label: "Analytics", route: "/core-modules/analytics", implemented: true, unlockedInWorkspace: true },
     ],
   },
   "department-accesses": {
@@ -366,9 +367,9 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
         id: "tech-department",
         label: "Tech Department",
         tabs: [
-          { id: "tech-website-builder", label: "Website Builder", route: "/company-settings/website-builder", implemented: true, unlockedInWorkspace: true },
-          { id: "website-leads", label: "Website Leads", route: "/company-settings/website-builder/leads", implemented: true, unlockedInWorkspace: true },
-          { id: "website-review", label: "Website Review", route: "/company-settings/website-builder/dynamic/reviews", implemented: true, unlockedInWorkspace: true },
+          { id: "tech-website-builder", label: "Website Builder", route: "/key-apps/website-builder", implemented: true, unlockedInWorkspace: true },
+          { id: "website-leads", label: "Website Leads", route: "/key-apps/website-builder/leads", implemented: true, unlockedInWorkspace: true },
+          { id: "website-review", label: "Website Review", route: "/key-apps/website-builder/dynamic/reviews", implemented: true, unlockedInWorkspace: true },
         ],
       },
       { id: "it-department", label: "IT Department", tabs: [] },
@@ -1019,7 +1020,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
     const itemsWithAttendance = sectionId === "common-modules"
       ? (rawItems.some((i) => String(i?.id || "").trim() === "attendance")
           ? rawItems
-          : [...rawItems, { id: "attendance", label: "Attendance", route: "/extra-common-modules/attendance", implemented: true, unlockedInWorkspace: true }])
+          : [...rawItems, { id: "attendance", label: "Attendance", route: "/common-modules/attendance", implemented: true, unlockedInWorkspace: true }])
       : rawItems;
     const filteredItems = sectionId === "extra-common-modules"
       ? itemsWithAttendance.filter((item) => {
@@ -1030,9 +1031,9 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
     const remappedItems = filteredItems.map((item) => {
       const itemId = String(item?.id || "").trim();
       if (itemId === "website-leads" && sectionId === "key-apps")
-        return { ...item, label: "All Leads", route: "/company-settings/all-leads" };
+        return { ...item, label: "All Leads", route: "/key-apps/all-leads" };
       if (itemId === "website-leads")
-        return { ...item, label: "Website Leads", route: "/company-settings/website-builder/leads" };
+        return { ...item, label: "Website Leads", route: "/key-apps/website-builder/leads" };
       if (itemId === "resource-pricing")
         return { ...item, label: "Resource & Pricing" };
       return item;
@@ -1052,7 +1053,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
         const itemLabel = String(item?.label || itemId).trim();
         const Icon = ICON_BY_ID[itemId];
         const iconNode = Icon ? <Icon size={26} /> : undefined;
-        const routedItem = String(item?.route || DEFAULT_SECTION_ROUTES[itemId] || "").trim() || undefined;
+        const routedItem = normalizeLegacyRoute(String(item?.route || DEFAULT_SECTION_ROUTES[itemId] || "").trim()) || undefined;
 
         if (sectionId === "profile") {
           const profileTab = profilePlanTabs.find((tab) => tab.id === itemId);
@@ -1084,7 +1085,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
           return {
             id: itemId,
             title: itemLabel,
-            route: hasUnlockedChildren ? `/module-sections/department-accesses/${itemId}` : undefined,
+            route: hasUnlockedChildren ? `/department-accesses/${itemId}` : undefined,
             icon: iconNode,
             isEnabled: hasUnlockedChildren,
             isInteractive: hasUnlockedChildren,
@@ -1174,7 +1175,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
       const Icon = ICON_BY_ID[itemId];
       const unlocked = isItemUnlocked(itemId);
       const route =
-        String(item?.route || DEFAULT_SECTION_ROUTES[itemId] || "").trim() || undefined;
+        normalizeLegacyRoute(String(item?.route || DEFAULT_SECTION_ROUTES[itemId] || "").trim()) || undefined;
       entries.push({
         id: itemId,
         title: String(item?.label || itemId).trim(),

@@ -5087,7 +5087,6 @@ const ClassicTemplate = () => {
           role="dialog"
           aria-modal="true"
           aria-label="Gallery viewer"
-          onClick={closeGalleryViewer}
         >
           <div
             className="relative flex w-full max-w-[1320px] flex-col gap-3 overflow-hidden rounded-[18px] bg-white p-2 shadow-[0_20px_80px_rgba(15,23,42,0.35)] md:max-h-[88vh] md:p-3 lg:flex-row"

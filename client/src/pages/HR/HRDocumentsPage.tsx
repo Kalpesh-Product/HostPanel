@@ -482,7 +482,7 @@ export default function HRDocumentsPage(): React.ReactElement {
            MODAL: Employee Document Folder
            ═══════════════════════════════════════════════════════ */}
       {viewingDocsFor && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0F172A]/60 backdrop-blur-sm p-4" onClick={() => setViewingDocsFor(null)}>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0F172A]/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[2.5rem] w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
             <div className="px-6 md:px-8 py-6 bg-slate-50 border-b border-slate-100 flex justify-between items-start shrink-0">

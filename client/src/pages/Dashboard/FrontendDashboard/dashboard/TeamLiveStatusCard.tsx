@@ -128,7 +128,7 @@ interface TeamLiveStatusCardProps {
   viewAllRoute?: string;
 }
 
-export const TeamLiveStatusCard = ({ department, viewAllRoute = "/extra-common-modules/attendance" }: TeamLiveStatusCardProps) => {
+export const TeamLiveStatusCard = ({ department, viewAllRoute = "/common-modules/attendance" }: TeamLiveStatusCardProps) => {
   const currentUser = useFreshCurrentUser();
 
   const currentUserDepartments = useMemo(() => {

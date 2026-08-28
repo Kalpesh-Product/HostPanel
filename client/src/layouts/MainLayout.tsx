@@ -13,6 +13,7 @@ import ScrollToTop from "../components/ScrollToTop";
 import useAuth from "../hooks/useAuth";
 import { PERMISSIONS } from "../constants/permissions";
 import AiChat from "../components/AiChat";
+import ModuleAccessGuard from "../routes/ModuleAccessGuard";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import useAxiosPrivate from "../hooks/useAxiosPrivate";
 import { queryClient } from "../main";
@@ -154,8 +155,10 @@ const MainLayout = () => {
             >
               <ScrollToTop />
               <div className="w-full min-w-0" data-tour="page-content">
-                <Outlet />
-                <PageGuideButton available={isTourAvailable} onStart={startCurrentTour} />
+                <ModuleAccessGuard isTenantRoute={isTenantRoute}>
+                  <Outlet />
+                  <PageGuideButton available={isTourAvailable} onStart={startCurrentTour} />
+                </ModuleAccessGuard>
               </div>
 
               <div ref={dummyRef} className="h-1 w-1 bg-red-500 text-red-500" />

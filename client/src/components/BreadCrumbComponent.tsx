@@ -27,19 +27,19 @@ const SECTION_LABELS = {
 
 const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
   {
-    pattern: "/module-sections/common-modules",
+    pattern: "/common-modules",
     crumbs: [{ label: SECTION_LABELS.common }],
   },
   {
-    pattern: "/module-sections/extra-common-modules",
+    pattern: "/extra-common-modules",
     crumbs: [{ label: SECTION_LABELS.extraCommon }],
   },
   {
-    pattern: "/module-sections/key-apps",
+    pattern: "/key-apps",
     crumbs: [{ label: SECTION_LABELS.keyApps }],
   },
   {
-    pattern: "/module-sections/founder-core-modules",
+    pattern: "/core-modules",
     crumbs: [{ label: SECTION_LABELS.founderCore }],
   },
   {
@@ -47,55 +47,55 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     crumbs: [{ label: SECTION_LABELS.addOns }],
   },
   {
-    pattern: "/module-sections/department-accesses",
+    pattern: "/department-accesses",
     crumbs: [{ label: SECTION_LABELS.departmentAccesses }],
   },
   {
-    pattern: "/module-sections/department-accesses/hr-department",
+    pattern: "/department-accesses/hr-department",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
       { label: "HR Department" },
     ],
   },
   {
-    pattern: "/module-sections/department-accesses/administration-department",
+    pattern: "/department-accesses/administration-department",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
       { label: "Administration Department" },
     ],
   },
   {
-    pattern: "/module-sections/department-accesses/sales-department",
+    pattern: "/department-accesses/sales-department",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
       { label: "Sales Department" },
     ],
   },
   {
-    pattern: "/module-sections/department-accesses/finance-department",
+    pattern: "/department-accesses/finance-department",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
       { label: "Finance Department" },
     ],
   },
   {
-    pattern: "/module-sections/department-accesses/maintenance-department",
+    pattern: "/department-accesses/maintenance-department",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
       { label: "Maintenance Department" },
     ],
   },
   {
-    pattern: "/module-sections/department-accesses/tech-department",
+    pattern: "/department-accesses/tech-department",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
       { label: "Tech Department" },
     ],
   },
   {
-    pattern: "/module-sections/department-accesses/it-department",
+    pattern: "/department-accesses/it-department",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
       { label: "IT Department" },
     ],
   },
@@ -118,99 +118,99 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
   {
     pattern: "/dashboard",
     crumbs: [
-      { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },
+      { label: SECTION_LABELS.common, path: "/common-modules" },
       { label: "Dashboard" },
     ],
   },
   {
-    pattern: "/calendar",
+    pattern: "/common-modules/calendar",
     crumbs: [
-      { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },
+      { label: SECTION_LABELS.common, path: "/common-modules" },
       { label: "Calendar" },
     ],
   },
   {
-    pattern: "/tickets",
+    pattern: "/common-modules/tickets",
     crumbs: [
-      { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },
+      { label: SECTION_LABELS.common, path: "/common-modules" },
       { label: "Tickets" },
     ],
   },
   {
-    pattern: "/meetings/meeting-rooms",
+    pattern: "/common-modules/meeting-room-booking",
     crumbs: [
-      { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },
+      { label: SECTION_LABELS.common, path: "/common-modules" },
       { label: "Meeting Room Booking" },
     ],
   },
   {
-    pattern: "/company-settings/customer-support",
+    pattern: "/common-modules/customer-support",
     crumbs: [
-      { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },
+      { label: SECTION_LABELS.common, path: "/common-modules" },
       { label: "Customer Support" },
     ],
   },
   {
-    pattern: "/extra-common-modules/attendance",
+    pattern: "/common-modules/attendance",
     crumbs: [
-      { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },
+      { label: SECTION_LABELS.common, path: "/common-modules" },
       { label: "Attendance" },
     ],
   },
   {
-    pattern: "/extra-common-modules/tasks",
+    pattern: "/common-modules/tasks",
     fromSection: "extra-common-modules",
     crumbs: [
-      { label: SECTION_LABELS.extraCommon, path: "/module-sections/extra-common-modules" },
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
       { label: "Tasks" },
     ],
   },
   {
-    pattern: "/extra-common-modules/tasks",
+    pattern: "/common-modules/tasks",
     crumbs: [
-      { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },
+      { label: SECTION_LABELS.common, path: "/common-modules" },
       { label: "Tasks" },
     ],
   },
   {
     pattern: "/extra-common-modules/assets",
     crumbs: [
-      { label: SECTION_LABELS.extraCommon, path: "/module-sections/extra-common-modules" },
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
       { label: "Assets" },
     ],
   },
   {
     pattern: "/extra-common-modules/inventory",
     crumbs: [
-      { label: SECTION_LABELS.extraCommon, path: "/module-sections/extra-common-modules" },
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
       { label: "Inventory" },
     ],
   },
   {
     pattern: "/extra-common-modules/department-inventory",
     crumbs: [
-      { label: SECTION_LABELS.extraCommon, path: "/module-sections/extra-common-modules" },
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
       { label: "Department Inventory" },
     ],
   },
   {
     pattern: "/extra-common-modules/finance-management",
     crumbs: [
-      { label: SECTION_LABELS.extraCommon, path: "/module-sections/extra-common-modules" },
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
       { label: "Finance Management" },
     ],
   },
   {
     pattern: "/extra-common-modules/reports",
     crumbs: [
-      { label: SECTION_LABELS.extraCommon, path: "/module-sections/extra-common-modules" },
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
       { label: "Reports" },
     ],
   },
   {
-    pattern: "/leave-requests",
+    pattern: "/common-modules/leave-requests",
     crumbs: [
-      { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },
+      { label: SECTION_LABELS.common, path: "/common-modules" },
       { label: "Leave Requests" },
     ],
   },
@@ -218,470 +218,508 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     pattern: "/visitors/visitor-management",
     fromSection: "department-accesses",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "Administration Department", path: "/module-sections/department-accesses/administration-department" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Administration Department", path: "/department-accesses/administration-department" },
       { label: "Visitor Management" },
     ],
   },
   {
     pattern: "/visitors/visitor-management",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
       { label: "Visitor Management" },
     ],
   },
   {
-    pattern: "/company-settings/wono-nomad",
+    pattern: "/key-apps/wono-nomad",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
       { label: "Nomad Listings" },
     ],
   },
   {
-    pattern: "/company-settings/nomad-listings/add",
+    pattern: "/key-apps/nomad-listings/add",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Nomad Listings", path: "/company-settings/wono-nomad" },
-      { label: "Listings", path: "/company-settings/nomad-listings" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Nomad Listings", path: "/key-apps/wono-nomad" },
+      { label: "Listings", path: "/key-apps/nomad-listings" },
       { label: "Add Listing" },
     ],
   },
   {
-    pattern: "/company-settings/nomad-listings/:listingId",
+    pattern: "/key-apps/nomad-listings/:listingId",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Nomad Listings", path: "/company-settings/wono-nomad" },
-      { label: "Listings", path: "/company-settings/nomad-listings" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Nomad Listings", path: "/key-apps/wono-nomad" },
+      { label: "Listings", path: "/key-apps/nomad-listings" },
       { label: "Edit Listing" },
     ],
   },
   {
-    pattern: "/company-settings/nomad-listings",
+    pattern: "/key-apps/nomad-listings",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Nomad Listings", path: "/company-settings/wono-nomad" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Nomad Listings", path: "/key-apps/wono-nomad" },
       { label: "Listings" },
     ],
   },
   {
-    pattern: "/company-settings/reviews",
+    pattern: "/key-apps/reviews",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Nomad Listings", path: "/company-settings/wono-nomad" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Nomad Listings", path: "/key-apps/wono-nomad" },
       { label: "Reviews" },
     ],
   },
   {
-    pattern: "/company-settings/nomads-leads",
+    pattern: "/key-apps/nomads-leads",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Nomad Listings", path: "/company-settings/wono-nomad" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Nomad Listings", path: "/key-apps/wono-nomad" },
       { label: "Leads" },
     ],
   },
   {
-    pattern: "/company-settings/all-leads",
+    pattern: "/key-apps/all-leads",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
       { label: "All Leads" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder",
+    pattern: "/key-apps/website-builder",
     fromSection: "department-accesses",
     end: false,
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "Tech Department", path: "/module-sections/department-accesses/tech-department" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Tech Department", path: "/department-accesses/tech-department" },
       { label: "Website Builder" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/leads",
+    pattern: "/key-apps/website-builder/leads",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
       { label: "Website Leads" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/dynamic/leads",
+    pattern: "/key-apps/website-builder/dynamic/leads",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "Website Leads" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/dynamic/reviews",
+    pattern: "/key-apps/website-builder/dynamic/reviews",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "Website Reviews" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/dynamic/careers",
+    pattern: "/key-apps/website-builder/dynamic/careers",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "Careers" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/dynamic/create-website",
+    pattern: "/key-apps/website-builder/dynamic/create-website",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "Create Website" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/select-theme",
+    pattern: "/key-apps/website-builder/select-theme",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "Select Theme" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/view-theme",
+    pattern: "/key-apps/website-builder/view-theme",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "View Theme" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/live-demo",
+    pattern: "/key-apps/website-builder/live-demo",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "Live Demo" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/edit-website",
+    pattern: "/key-apps/website-builder/edit-website",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "Edit Website" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/edit-website/:website",
+    pattern: "/key-apps/website-builder/edit-website/:website",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "Edit Website" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/edit-theme/:templateName/:pageName",
+    pattern: "/key-apps/website-builder/edit-theme/:templateName/:pageName",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "Edit Theme" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/data/leads",
+    pattern: "/key-apps/website-builder/data/leads",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "Leads" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/data/website-issue-reports",
+    pattern: "/key-apps/website-builder/data/website-issue-reports",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "Website Issue Reports" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/data/monthly-invoice-reports",
+    pattern: "/key-apps/website-builder/data/monthly-invoice-reports",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "Monthly Invoice Reports" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/data/vendor",
+    pattern: "/key-apps/website-builder/data/vendor",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "Vendor" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/data/vendor/vendor-onboard",
+    pattern: "/key-apps/website-builder/data/vendor/vendor-onboard",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "Vendor Onboard" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/data/vendor/:id",
+    pattern: "/key-apps/website-builder/data/vendor/:id",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "Vendor" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/settings/bulk-upload",
+    pattern: "/key-apps/website-builder/settings/bulk-upload",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "Bulk Upload" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/settings/sops",
+    pattern: "/key-apps/website-builder/settings/sops",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "SOPs" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/settings/policies",
+    pattern: "/key-apps/website-builder/settings/policies",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "Policies" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/finance/budget",
+    pattern: "/key-apps/website-builder/finance/budget",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "Budget" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/finance/payment-schedule",
+    pattern: "/key-apps/website-builder/finance/payment-schedule",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "Payment Schedule" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder/finance/voucher",
+    pattern: "/key-apps/website-builder/finance/voucher",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
       { label: "Voucher" },
     ],
   },
   {
-    pattern: "/company-settings/website-builder",
+    pattern: "/key-apps/website-builder",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
       { label: "Website Builder" },
     ],
   },
   {
-    pattern: "/company-settings/organization-management",
+    pattern: "/key-apps/poc-details",
     crumbs: [
-      { label: SECTION_LABELS.founderCore, path: "/module-sections/founder-core-modules" },
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "POC Details" },
+    ],
+  },
+  {
+    pattern: "/core-modules/organization-management",
+    crumbs: [
+      { label: SECTION_LABELS.founderCore, path: "/core-modules" },
       { label: "Organization Management" },
     ],
   },
   {
-    pattern: "/company-settings/access-grants",
+    pattern: "/core-modules/access-grants",
     crumbs: [
-      { label: SECTION_LABELS.founderCore, path: "/module-sections/founder-core-modules" },
+      { label: SECTION_LABELS.founderCore, path: "/core-modules" },
       { label: "Access Grants" },
     ],
   },
   {
-    pattern: "/company-settings/workspace-settings",
+    pattern: "/core-modules/workspace-settings",
     crumbs: [
-      { label: SECTION_LABELS.founderCore, path: "/module-sections/founder-core-modules" },
+      { label: SECTION_LABELS.founderCore, path: "/core-modules" },
       { label: "Unit Settings" },
     ],
   },
   {
-    pattern: "/company-settings/workspace-management",
+    pattern: "/core-modules/workspace-management",
     crumbs: [
-      { label: SECTION_LABELS.founderCore, path: "/module-sections/founder-core-modules" },
+      { label: SECTION_LABELS.founderCore, path: "/core-modules" },
       { label: "Unit Management" },
     ],
   },
   {
-    pattern: "/administration/tenant-companies",
+    pattern: "/core-modules/analytics",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "Administration Department", path: "/module-sections/department-accesses/administration-department" },
+      { label: SECTION_LABELS.founderCore, path: "/core-modules" },
+      { label: "Analytics" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/administration-department/tenant-companies",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Administration Department", path: "/department-accesses/administration-department" },
       { label: "Tenant Companies" },
     ],
   },
   {
-    pattern: "/administration/bookings",
+    pattern: "/department-accesses/administration-department/bookings",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "Administration Department", path: "/module-sections/department-accesses/administration-department" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Administration Department", path: "/department-accesses/administration-department" },
       { label: "Bookings" },
     ],
   },
   {
-    pattern: "/administration/resource-management",
+    pattern: "/department-accesses/administration-department/resource-management",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "Administration Department", path: "/module-sections/department-accesses/administration-department" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Administration Department", path: "/department-accesses/administration-department" },
       { label: "Resource Management" },
     ],
   },
   {
-    pattern: "/administration/house-keeping",
+    pattern: "/department-accesses/administration-department/house-keeping",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "Administration Department", path: "/module-sections/department-accesses/administration-department" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Administration Department", path: "/department-accesses/administration-department" },
       { label: "House Keeping" },
     ],
   },
   {
-    pattern: "/sales-crm/leads-management",
-    fromSection: "department-accesses",
+    pattern: "/department-accesses/sales-department/leads-management",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "Sales Department", path: "/module-sections/department-accesses/sales-department" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Sales Department", path: "/department-accesses/sales-department" },
       { label: "Leads Management" },
     ],
   },
   {
-    pattern: "/sales-crm/leads-management",
+    pattern: "/department-accesses/sales-department/tenant-companies/:id",
     crumbs: [
-      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Leads Management" },
-    ],
-  },
-  {
-    pattern: "/sales-crm/tenant-companies/:id",
-    crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "Sales Department", path: "/module-sections/department-accesses/sales-department" },
-      { label: "Tenant Companies", path: "/sales-crm/tenant-companies" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Sales Department", path: "/department-accesses/sales-department" },
+      { label: "Tenant Companies", path: "/department-accesses/sales-department/tenant-companies" },
       { label: "Tenant Details" },
     ],
   },
   {
-    pattern: "/sales-crm/tenant-companies",
+    pattern: "/department-accesses/sales-department/tenant-companies",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "Sales Department", path: "/module-sections/department-accesses/sales-department" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Sales Department", path: "/department-accesses/sales-department" },
       { label: "Tenant Companies" },
     ],
   },
   {
-    pattern: "/sales-crm/resource-pricing",
+    pattern: "/department-accesses/sales-department/resource-pricing",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "Sales Department", path: "/module-sections/department-accesses/sales-department" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Sales Department", path: "/department-accesses/sales-department" },
       { label: "Resource & Pricing" },
     ],
   },
   {
-    pattern: "/sales-crm/sales-architecture",
+    pattern: "/department-accesses/sales-department/sales-architecture",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "Sales Department", path: "/module-sections/department-accesses/sales-department" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Sales Department", path: "/department-accesses/sales-department" },
       { label: "Sales Architecture" },
     ],
   },
   {
-    pattern: "/hr/company-management",
+    pattern: "/department-accesses/hr-department/company-management",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "HR Department", path: "/module-sections/department-accesses/hr-department" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
       { label: "Company Management" },
     ],
   },
   {
-    pattern: "/hr/documents",
+    pattern: "/department-accesses/hr-department/documents",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "HR Department", path: "/module-sections/department-accesses/hr-department" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
       { label: "Documents" },
     ],
   },
   {
-    pattern: "/hr/attendance-review",
+    pattern: "/department-accesses/hr-department/attendance-review",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "HR Department", path: "/module-sections/department-accesses/hr-department" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
       { label: "Attendance Review" },
     ],
   },
   {
-    pattern: "/hr/attendance-review/:userId",
+    pattern: "/department-accesses/hr-department/attendance-review/:userId",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "HR Department", path: "/module-sections/department-accesses/hr-department" },
-      { label: "Attendance Review", path: "/hr/attendance-review" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      { label: "Attendance Review", path: "/department-accesses/hr-department/attendance-review" },
       { label: "Employee Attendance" },
     ],
   },
   {
-    pattern: "/hr/leave-request-processing",
+    pattern: "/department-accesses/hr-department/leave-request-processing",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "HR Department", path: "/module-sections/department-accesses/hr-department" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
       { label: "Leave Request Processing" },
     ],
   },
   {
-    pattern: "/hr/recruitment",
+    pattern: "/department-accesses/hr-department/recruitment",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "HR Department", path: "/module-sections/department-accesses/hr-department" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
       { label: "Recruitment" },
     ],
   },
   {
-    pattern: "/hr/payroll-management",
+    pattern: "/department-accesses/hr-department/payroll-management",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "HR Department", path: "/module-sections/department-accesses/hr-department" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
       { label: "Payroll Management" },
     ],
   },
   {
-    pattern: "/hr/resignation-management",
+    pattern: "/department-accesses/hr-department/resignation-management",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "HR Department", path: "/module-sections/department-accesses/hr-department" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
       { label: "Resignation Management" },
     ],
   },
   {
-    pattern: "/finance/expenses-budget",
+    pattern: "/department-accesses/finance-department/expenses-budget",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "Finance Department", path: "/module-sections/department-accesses/finance-department" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Finance Department", path: "/department-accesses/finance-department" },
       { label: "Expenses & Budget" },
     ],
   },
   {
-    pattern: "/finance/billing-payments",
+    pattern: "/department-accesses/finance-department/billing-payments",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "Finance Department", path: "/module-sections/department-accesses/finance-department" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Finance Department", path: "/department-accesses/finance-department" },
       { label: "Billing & Payments" },
     ],
   },
   {
-    pattern: "/finance/accounting",
+    pattern: "/department-accesses/finance-department/accounting",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
-      { label: "Finance Department", path: "/module-sections/department-accesses/finance-department" },
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Finance Department", path: "/department-accesses/finance-department" },
       { label: "Accounting" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/maintenance-department/repair-logs",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Maintenance Department", path: "/department-accesses/maintenance-department" },
+      { label: "Repair Logs" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/maintenance-department/amc-scheduler",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Maintenance Department", path: "/department-accesses/maintenance-department" },
+      { label: "AMC Scheduler" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/it-department/repair-logs",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "IT Department", path: "/department-accesses/it-department" },
+      { label: "Repair Logs" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/it-department/system-access",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "IT Department", path: "/department-accesses/it-department" },
+      { label: "System Access" },
     ],
   },
   {

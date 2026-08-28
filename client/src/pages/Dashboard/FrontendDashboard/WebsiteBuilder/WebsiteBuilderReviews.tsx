@@ -378,7 +378,7 @@ export default function WebsiteBuilderReviews() {
 
           {/* DETAIL MODAL */}
           {selectedReview && (
-            <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={() => setSelectedReviewId(null)}>
+            <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3">
               <div
                 className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]"
                 onClick={(e) => e.stopPropagation()}
@@ -481,7 +481,7 @@ export default function WebsiteBuilderReviews() {
           {/* CONFIRMATION MODAL */}
           {confirmAction && (
             <div className="fixed inset-0 z-[9999] overflow-hidden bg-[#0F172A]/60 backdrop-blur-md p-3 sm:p-4 flex items-center justify-center">
-              <div className="absolute inset-0 bg-[#0F172A]/60 backdrop-blur-sm" onClick={() => setConfirmAction(null)} />
+              <div className="absolute inset-0 bg-[#0F172A]/60 backdrop-blur-sm" />
               <div className="relative z-10 flex flex-col w-full max-w-[420px] overflow-hidden rounded-[2rem] border border-white/80 bg-white shadow-2xl p-6 text-center">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 mb-4">
                   <AlertTriangle size={28} className="text-amber-500" />

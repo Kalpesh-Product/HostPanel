@@ -1021,10 +1021,10 @@ export function AttendancePage() {
   const mainTabs = useMemo(() => {
     const tabs: { id: string; label: string }[] = [];
     tabs.push({ id: 'my-attendance', label: 'My Attendance' });
-    if (canManageAttendance) tabs.push({ id: 'team-attendance', label: 'Team Attendance' });
+    if (canManageAttendance) tabs.push({ id: 'team-attendance', label: isAdminProfile ? 'Assigned Dept Attendance' : 'Team Attendance' });
     tabs.push({ id: 'corrections', label: 'Corrections' });
     return tabs;
-  }, [canManageAttendance]);
+  }, [canManageAttendance, isAdminProfile]);
 
   const subTabs = ['all', 'present', 'absent', 'late'];
 
@@ -1128,7 +1128,7 @@ export function AttendancePage() {
               {canManageAttendance && (
                 <button
                   type="button"
-                  onClick={() => navigate('/hr/attendance-review')}
+                  onClick={() => navigate('/department-accesses/hr-department/attendance-review')}
                   className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-white hover:bg-amber-700 transition-colors"
                 >
                   <Settings size={12} /> Open Attendance Settings
@@ -1604,7 +1604,6 @@ export function AttendancePage() {
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-md flex items-center justify-center z-[100] p-4"
-            onClick={() => !isClockLoading && setShowClockModal(false)}
           >
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
@@ -1861,7 +1860,6 @@ export function AttendancePage() {
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-md flex items-center justify-center z-[100] p-4"
-            onClick={() => setViewingEmployee(null)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
@@ -1923,7 +1921,6 @@ export function AttendancePage() {
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-md flex items-center justify-center z-[100] p-4"
-            onClick={() => setViewingMonth(null)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
@@ -2022,7 +2019,6 @@ export function AttendancePage() {
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-md flex items-center justify-center z-[100] p-4"
-            onClick={() => setViewingDay(null)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
@@ -2073,7 +2069,6 @@ export function AttendancePage() {
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-md flex items-center justify-center z-[100] p-4"
-            onClick={() => setViewingCorrection(null)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}

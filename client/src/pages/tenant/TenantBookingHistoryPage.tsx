@@ -861,7 +861,7 @@ export default function TenantBookingHistoryPage() {
 
         {/* ── Booking detail modal ── */}
         {selectedBooking && (
-          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={() => setSelectedBooking(null)}>
+          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3">
             <div className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
               {/* Header */}
               <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between gap-3">
@@ -982,7 +982,7 @@ export default function TenantBookingHistoryPage() {
 
         {/* ── Cancel modal ── */}
         {cancelModal && (
-          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={() => !isSaving && setCancelModal(null)}>
+          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3">
             <div className="bg-white rounded-[2rem] max-w-md w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70" onClick={(e) => e.stopPropagation()}>
               <div className="p-5 sm:p-6 border-b border-slate-100 bg-red-50/40 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
@@ -1031,7 +1031,7 @@ export default function TenantBookingHistoryPage() {
 
         {/* ── Decline invite modal ── */}
         {declineModal && (
-          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={() => !isSaving && setDeclineModal(null)}>
+          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3">
             <div className="bg-white rounded-[2rem] max-w-md w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70" onClick={(e) => e.stopPropagation()}>
               <div className="p-5 sm:p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
@@ -1074,7 +1074,7 @@ export default function TenantBookingHistoryPage() {
 
         {/* ── Reschedule modal ── */}
         {rescheduleModal && (
-          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-3" onClick={() => !isSaving && closeRescheduleModal()}>
+          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-3">
             <form onSubmit={handleRescheduleSubmit} noValidate className="bg-white rounded-t-[2rem] sm:rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[92vh]" onClick={(e) => e.stopPropagation()}>
               {/* Header */}
               <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between gap-3">
@@ -1243,7 +1243,7 @@ export default function TenantBookingHistoryPage() {
 
         {/* ── Extend modal ── */}
         {extendModal && (
-          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={() => !isSaving && closeExtendModal()}>
+          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3">
             <form onSubmit={handleExtendBooking} className="bg-white rounded-[2rem] max-w-md w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70" onClick={(e) => e.stopPropagation()}>
               <div className="p-5 sm:p-6 border-b border-slate-100 bg-violet-50/40 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">

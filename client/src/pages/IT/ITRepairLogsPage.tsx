@@ -454,7 +454,7 @@ export default function ITRepairLogsPage() {
             className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
           >
-            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => { setSelectedSchedule(null); setSelectedLog(null); }} />
+            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
             <motion.div
               className="relative w-full sm:max-w-lg bg-white rounded-[2.5rem] shadow-2xl max-h-[85vh] flex flex-col overflow-hidden border border-white/70"
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
@@ -557,7 +557,7 @@ export default function ITRepairLogsPage() {
             className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
           >
-            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
+            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
             <motion.div
               className="relative w-full sm:max-w-lg bg-white rounded-[2.5rem] shadow-2xl max-h-[85vh] flex flex-col overflow-hidden border border-white/70"
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}

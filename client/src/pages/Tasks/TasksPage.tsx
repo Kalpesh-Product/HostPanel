@@ -1816,7 +1816,7 @@ export function TasksPage() {
                     My Tasks
                   </button>
                   <button onClick={() => { setActiveTab('assigned_dept_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'assigned_dept_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                    Department Tasks
+                    Assigned Dept Tasks
                   </button>
                   <button onClick={() => { setActiveTab('my_assigned'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'my_assigned' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned Tasks

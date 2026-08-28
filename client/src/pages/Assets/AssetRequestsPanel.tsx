@@ -441,7 +441,7 @@ export function AssetRequestsPanel({ onShowAssets }: { onShowAssets: () => void 
             className="fixed inset-0 z-[170] flex items-end sm:items-center justify-center"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
           >
-            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setViewingRequest(null)} />
+            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
             <motion.div
               className="relative w-full sm:max-w-lg bg-white rounded-t-[32px] sm:rounded-[32px] shadow-2xl max-h-[85vh] flex flex-col overflow-hidden border border-white/70"
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
@@ -589,7 +589,7 @@ export function AssetRequestsPanel({ onShowAssets }: { onShowAssets: () => void 
             className="fixed inset-0 z-[170] flex items-end sm:items-center justify-center"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
           >
-            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
+            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
             <motion.div
               className="relative w-full sm:max-w-2xl bg-white rounded-t-[32px] sm:rounded-[32px] shadow-2xl max-h-[92vh] sm:max-h-[90vh] flex flex-col overflow-hidden border border-white/70"
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}

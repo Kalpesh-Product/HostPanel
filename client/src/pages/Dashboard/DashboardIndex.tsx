@@ -11,6 +11,7 @@ import {
   canAccessTechDashboard,
   canAccessITDashboard,
 } from "@/lib/auth-session";
+import { departmentSlugMatches } from "@/lib/departmentSlug";
 import CompanySettingsDashboard from "./FrontendDashboard/CompanySettingsDashboard";
 import EmployeeDashboardOverview from "./EmployeeDashboardOverview";
 import AdminDashboardOverview from "./AdminDashboardOverview";
@@ -51,41 +52,13 @@ const DEPARTMENT_ROUTES: {
   canAccess: (user: unknown) => boolean;
   Component: ComponentType;
 }[] = [
-  {
-    matches: (department) => department === "hr" || department.startsWith("hr"),
-    canAccess: canAccessHRDashboard,
-    Component: HRDashboardOverview,
-  },
-  {
-    matches: (department) => department === "administration" || department.startsWith("administration"),
-    canAccess: canAccessAdministrationDashboard,
-    Component: AdministrationDashboardOverview,
-  },
-  {
-    matches: (department) => department === "sales" || department.startsWith("sales"),
-    canAccess: canAccessSalesDashboard,
-    Component: SalesDashboardOverview,
-  },
-  {
-    matches: (department) => department === "finance" || department.startsWith("finance"),
-    canAccess: canAccessFinanceDashboard,
-    Component: FinanceDashboardOverview,
-  },
-  {
-    matches: (department) => department === "maintenance" || department.startsWith("maintenance"),
-    canAccess: canAccessMaintenanceDashboard,
-    Component: MaintenanceDashboardOverview,
-  },
-  {
-    matches: (department) => department === "tech" || department.startsWith("tech") || department === "technology" || department.startsWith("technology"),
-    canAccess: canAccessTechDashboard,
-    Component: TechDashboardOverview,
-  },
-  {
-    matches: (department) => department === "it" || department.startsWith("it"),
-    canAccess: canAccessITDashboard,
-    Component: ITDashboardOverview,
-  },
+  { matches: (department) => departmentSlugMatches("hr", department), canAccess: canAccessHRDashboard, Component: HRDashboardOverview },
+  { matches: (department) => departmentSlugMatches("administration", department), canAccess: canAccessAdministrationDashboard, Component: AdministrationDashboardOverview },
+  { matches: (department) => departmentSlugMatches("sales", department), canAccess: canAccessSalesDashboard, Component: SalesDashboardOverview },
+  { matches: (department) => departmentSlugMatches("finance", department), canAccess: canAccessFinanceDashboard, Component: FinanceDashboardOverview },
+  { matches: (department) => departmentSlugMatches("maintenance", department), canAccess: canAccessMaintenanceDashboard, Component: MaintenanceDashboardOverview },
+  { matches: (department) => departmentSlugMatches("tech", department), canAccess: canAccessTechDashboard, Component: TechDashboardOverview },
+  { matches: (department) => departmentSlugMatches("it", department), canAccess: canAccessITDashboard, Component: ITDashboardOverview },
 ];
 
 /**
@@ -122,7 +95,7 @@ export function DashboardIndex() {
 
   if (!isOwnerOrSuperAdmin) {
     const matchedRoute = DEPARTMENT_ROUTES.find(
-      (route) => route.canAccess(currentUser) || departments.some((department) => route.matches(department)),
+      (route) => route.canAccess(currentUser) || (roleBand !== "admin" && departments.some((department) => route.matches(department))),
     );
 
     if (matchedRoute) {

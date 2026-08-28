@@ -272,7 +272,7 @@ function CandidateDetailModal({
   const customFieldEntries = parseCustomFields(fd.customFields || "");
 
   return (
-    <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={onClose}>
+    <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3">
       <div
         className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
@@ -499,7 +499,6 @@ function AddCandidateModal({
   return open && createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-start justify-center pt-[4vh] pb-8 bg-black/40 backdrop-blur-sm overflow-y-auto"
-      onClick={onClose}
     >
       <div
         className="relative w-full max-w-4xl mx-4 bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden"
@@ -700,7 +699,6 @@ function AddJobModal({ open, onClose, onSave, form, setForm, departments, mode =
   return open && createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-start justify-center pt-[4vh] pb-8 bg-[#0F172A]/40 backdrop-blur-sm overflow-y-auto"
-      onClick={onClose}
     >
         <div
           className="relative w-full max-w-4xl mx-4 bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden max-h-[92vh] flex flex-col"
@@ -834,7 +832,7 @@ interface JobDetailModalProps {
 
 function JobDetailModal({ job, onClose, onEdit }: JobDetailModalProps) {
   return (
-    <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={onClose}>
+    <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3">
       <div
         className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
@@ -1927,7 +1925,6 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
       {isBulkUploadMenuOpen && createPortal(
         <div
           className="fixed inset-0 z-[9999] flex items-start justify-center pt-[10vh] pb-8 bg-black/40 backdrop-blur-sm overflow-y-auto"
-          onClick={() => setIsBulkUploadMenuOpen(false)}
         >
           <div
             className="relative w-full max-w-xl mx-4 bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden"

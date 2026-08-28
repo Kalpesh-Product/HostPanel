@@ -754,16 +754,21 @@ const hasHrDepartmentAccess = async (membership) => {
 
 // "hr" is its own band, distinct from "admin" — HR always gets full
 // workspace visibility (like owner/super-admin), while a plain admin is
-// scoped to whatever department is assigned to them (see
-// getManagedDepartmentIds below).
+// scoped to whatever department(s) are assigned to them (see
+// getManagedDepartmentIds below) — even when HR happens to be one of those
+// assigned departments. The department-based HR escalation below only
+// applies to roles that aren't already explicitly "admin" (e.g. a plain
+// "Manager"/"Employee" role simply assigned to the HR department) — an
+// admin's role already decides their band, regardless of which departments
+// they're assigned to.
 const resolveAttendanceAccessBand = async (membership) => {
   const roleName = getRoleName(membership?.role || "");
   const normalizedRoleName = normalizeRole(roleName);
   if (normalizedRoleName === "founder") return "owner";
   if (normalizedRoleName === "super_admin" || normalizedRoleName === "superadmin") return "super_admin";
   if (isHrLabel(roleName)) return "hr";
-  if (await hasHrDepartmentAccess(membership)) return "hr";
   if (normalizedRoleName === "admin" || normalizedRoleName === "admin_manager") return "admin";
+  if (await hasHrDepartmentAccess(membership)) return "hr";
   if (normalizedRoleName === "manager") return "manager";
   return "employee";
 };

@@ -727,7 +727,7 @@ export default function LeadsManagementPage() {
         )}
 
       {mainTab === "unit-tour" && selectedLead && (
-        <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={() => setSelectedLeadId(null)}>
+        <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3">
           <div
             className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]"
             onClick={(e) => e.stopPropagation()}
@@ -863,7 +863,7 @@ export default function LeadsManagementPage() {
       )}
 
       {mainTab === "website-leads" && selectedWebsiteLead && (
-        <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={() => setSelectedWebsiteLeadId(null)}>
+        <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3">
           <div
             className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]"
             onClick={(e) => e.stopPropagation()}

@@ -151,65 +151,16 @@ const WorkspaceClock = ({ timezone, location }: { timezone: string; location: st
   );
 };
 
-export function SalesDashboardOverview() {
-  const currentUser = useFreshCurrentUser();
+/**
+ * Stat cards, charts, and quick links for the Sales dashboard — split out
+ * from SalesDashboardOverview so AdminDashboardOverview can render this same
+ * content for an Admin assigned to the Sales department, without the
+ * department's own greeting/header banner.
+ */
+export function SalesDashboardWidgets() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [dashboard, setDashboard] = useState<DashboardState>(DEFAULT_DASHBOARD);
-
-  const access = useDashboardAccess();
-  const workspacePreferences = useWorkspacePreferences();
-  const [now, setNow] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 60_000);
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    setNow(new Date());
-  }, [workspacePreferences.timezone]);
-
-  const managerName = useMemo(() => {
-    const full = `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim();
-    return full || currentUser?.fullName || currentUser?.name || currentUser?.displayName || "Sales Manager";
-  }, [currentUser]);
-
-  const { greeting, todayLabel } = useMemo(() => {
-    const timezone = workspacePreferences.timezone;
-
-    try {
-      const hourPart = new Intl.DateTimeFormat("en-US", {
-        timeZone: timezone,
-        hour: "2-digit",
-        hourCycle: "h23",
-      })
-        .formatToParts(now)
-        .find((part) => part.type === "hour")?.value;
-      const workspaceHour = Number(hourPart);
-
-      return {
-        greeting: `${getGreeting(Number.isFinite(workspaceHour) ? workspaceHour : now.getHours())}, ${managerName}`,
-        todayLabel: new Intl.DateTimeFormat("en-IN", {
-          timeZone: timezone,
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }).format(now),
-      };
-    } catch {
-      return {
-        greeting: `${getGreeting(now.getHours())}, ${managerName}`,
-        todayLabel: now.toLocaleDateString("en-IN", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }),
-      };
-    }
-  }, [managerName, now, workspacePreferences.timezone]);
 
   useEffect(() => {
     let isMounted = true;
@@ -427,22 +378,7 @@ export function SalesDashboardOverview() {
   }
 
   return (
-    <div className="p-4 flex flex-col gap-5">
-
-      {/* Greeting banner */}
-      <PageFrame>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h2 className="text-title font-pmedium text-primary uppercase">Sales Dashboard</h2>
-              <PlanBadge plan={access.plan} />
-            </div>
-            <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
-            <p className="text-content font-pmedium text-gray-700">{todayLabel}<WorkspaceClock timezone={workspacePreferences.timezone} location={workspacePreferences.location} /></p>
-          </div>
-        </div>
-      </PageFrame>
-
+    <div className="flex flex-col gap-5">
       {error ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-700">
           {error}
@@ -450,23 +386,21 @@ export function SalesDashboardOverview() {
       ) : null}
 
       {/* Overview — only the metrics that matter */}
-      <DashboardAttendanceCard />
-
       <WidgetSection layout={4} title="Overview" border normalCase>
-        <StatCard icon={Magnet} label="Website Leads" value={totalLeads} sub={`${newLeadsCount} new · uncontacted`} color="#2563EB" route="/sales-crm/leads-management" />
-        <StatCard icon={Building2} label="Tenant Companies" value={totalTenants} sub={`${activeTenantsCount} active`} color="#0891b2" route="/sales-crm/tenant-companies" />
-        <StatCard icon={Tag} label="Pricing Packages" value={totalPackages} sub={`${activePackagesCount} active`} color="#7c3aed" route="/sales-crm/resource-pricing" />
-        <StatCard icon={CheckCircle2} label="Contacted Leads" value={contactedLeadsCount} sub={`${contactedPercent}% of total leads`} color="#22c55e" route="/sales-crm/leads-management" />
+        <StatCard icon={Magnet} label="Website Leads" value={totalLeads} sub={`${newLeadsCount} new · uncontacted`} color="#2563EB" route="/department-accesses/sales-department/leads-management" />
+        <StatCard icon={Building2} label="Tenant Companies" value={totalTenants} sub={`${activeTenantsCount} active`} color="#0891b2" route="/department-accesses/sales-department/tenant-companies" />
+        <StatCard icon={Tag} label="Pricing Packages" value={totalPackages} sub={`${activePackagesCount} active`} color="#7c3aed" route="/department-accesses/sales-department/resource-pricing" />
+        <StatCard icon={CheckCircle2} label="Contacted Leads" value={contactedLeadsCount} sub={`${contactedPercent}% of total leads`} color="#22c55e" route="/department-accesses/sales-department/leads-management" />
         <StatCard icon={Eye} label="Visitors Today" value={dailyVisitors.length} sub={`${liveVisitors.length} checked in`} color="#80bf01" route="/visitors/visitor-management" />
       </WidgetSection>
 
       {/* Team status, live visitors and recent leads */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <TeamLiveStatusCard department="sales" viewAllRoute="/sales-crm/leads-management" />
+        <TeamLiveStatusCard department="sales" viewAllRoute="/department-accesses/sales-department/leads-management" />
 
         <DepartmentVisitorsCard department="sales" title="Sales Visitors" />
 
-        <SectionCard title="Recent Website Leads" linkLabel="View all" linkRoute="/sales-crm/leads-management">
+        <SectionCard title="Recent Website Leads" linkLabel="View all" linkRoute="/department-accesses/sales-department/leads-management">
           <div className="space-y-3">
             {recentLeads.length > 0 ? recentLeads.map((lead, index) => (
               <RecentItem
@@ -486,14 +420,14 @@ export function SalesDashboardOverview() {
 
       {/* Quick links */}
       <WidgetSection layout={4} title="Quick Links" border normalCase>
-        <QuickLink icon={Magnet} label="Leads Management" description="Track & convert leads" route="/sales-crm/leads-management" color="#2563EB" />
-        <QuickLink icon={Building2} label="Tenant Companies" description="Manage tenant accounts" route="/sales-crm/tenant-companies" color="#0891b2" />
-        <QuickLink icon={Tag} label="Resource & Pricing" description="Packages & resource rates" route="/sales-crm/resource-pricing" color="#7c3aed" />
-        <QuickLink icon={ShoppingCart} label="Sales Architecture" description="Space & resource assignment" route="/sales-crm/sales-architecture" color="#f59e0b" />
+        <QuickLink icon={Magnet} label="Leads Management" description="Track & convert leads" route="/department-accesses/sales-department/leads-management" color="#2563EB" />
+        <QuickLink icon={Building2} label="Tenant Companies" description="Manage tenant accounts" route="/department-accesses/sales-department/tenant-companies" color="#0891b2" />
+        <QuickLink icon={Tag} label="Resource & Pricing" description="Packages & resource rates" route="/department-accesses/sales-department/resource-pricing" color="#7c3aed" />
+        <QuickLink icon={ShoppingCart} label="Sales Architecture" description="Space & resource assignment" route="/department-accesses/sales-department/sales-architecture" color="#f59e0b" />
       </WidgetSection>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <SectionCard title="Uncontacted Leads" linkLabel="View all" linkRoute="/sales-crm/leads-management">
+        <SectionCard title="Uncontacted Leads" linkLabel="View all" linkRoute="/department-accesses/sales-department/leads-management">
           {uncontactedLeads.length > 0 ? uncontactedLeads.map((lead, index) => (
             <RecentItem
               key={lead.id || lead._id || index}
@@ -516,7 +450,7 @@ export function SalesDashboardOverview() {
           centerLabel="Leads"
         />
 
-        <SectionCard title="Tenants Needing Attention" linkLabel="View all" linkRoute="/sales-crm/tenant-companies">
+        <SectionCard title="Tenants Needing Attention" linkLabel="View all" linkRoute="/department-accesses/sales-department/tenant-companies">
           {attentionTenants.length > 0 ? attentionTenants.map((tenant, index) => (
             <RecentItem
               key={tenant.recordId || tenant.id || tenant._id || index}
@@ -570,6 +504,85 @@ export function SalesDashboardOverview() {
         options={monthlyBarOptions}
         height={260}
       />
+    </div>
+  );
+}
+
+export function SalesDashboardOverview() {
+  const currentUser = useFreshCurrentUser();
+  const access = useDashboardAccess();
+  const workspacePreferences = useWorkspacePreferences();
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    setNow(new Date());
+  }, [workspacePreferences.timezone]);
+
+  const managerName = useMemo(() => {
+    const full = `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim();
+    return full || currentUser?.fullName || currentUser?.name || currentUser?.displayName || "Sales Manager";
+  }, [currentUser]);
+
+  const { greeting, todayLabel } = useMemo(() => {
+    const timezone = workspacePreferences.timezone;
+
+    try {
+      const hourPart = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        hour: "2-digit",
+        hourCycle: "h23",
+      })
+        .formatToParts(now)
+        .find((part) => part.type === "hour")?.value;
+      const workspaceHour = Number(hourPart);
+
+      return {
+        greeting: `${getGreeting(Number.isFinite(workspaceHour) ? workspaceHour : now.getHours())}, ${managerName}`,
+        todayLabel: new Intl.DateTimeFormat("en-IN", {
+          timeZone: timezone,
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }).format(now),
+      };
+    } catch {
+      return {
+        greeting: `${getGreeting(now.getHours())}, ${managerName}`,
+        todayLabel: now.toLocaleDateString("en-IN", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+      };
+    }
+  }, [managerName, now, workspacePreferences.timezone]);
+
+  return (
+    <div className="p-4 flex flex-col gap-5">
+      {/* Greeting banner */}
+      <PageFrame>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-title font-pmedium text-primary uppercase">Sales Dashboard</h2>
+              <PlanBadge plan={access.plan} />
+            </div>
+            <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
+            <p className="text-content font-pmedium text-gray-700">{todayLabel}<WorkspaceClock timezone={workspacePreferences.timezone} location={workspacePreferences.location} /></p>
+          </div>
+        </div>
+      </PageFrame>
+
+      <DashboardAttendanceCard />
+
+      <SalesDashboardWidgets />
     </div>
   );
 }

@@ -540,7 +540,6 @@ export default function AMCMaintenanceSchedulerPage() {
           >
             <div
               className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-              onClick={handleCloseDetail}
             />
             <motion.div
               className="relative w-full sm:max-w-2xl bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden"
@@ -674,7 +673,6 @@ export default function AMCMaintenanceSchedulerPage() {
           >
             <div
               className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-              onClick={handleCloseCreate}
             />
             <motion.div
               className="relative w-full sm:max-w-2xl bg-white rounded-[2.5rem] shadow-2xl max-h-[85vh] flex flex-col overflow-hidden border border-white/70"

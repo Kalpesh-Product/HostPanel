@@ -271,14 +271,14 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
     String(status || "Pending").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
   const quickLinks: QuickLinkItem[] = [
-    { icon: Map, label: "Nomads Listings", description: "Manage nomad space listings", route: "/company-settings/nomad-listings", color: "#059669" },
-    { icon: Globe, label: "Website Builder", description: "Build & manage your site", route: "/company-settings/website-builder", color: "#7c3aed" },
-    { icon: Building2, label: "Tenant Companies", description: "Manage tenants & agreements", route: "/sales-crm/tenant-companies", color: "#1E3D73" },
-    { icon: CalendarCheck, label: "Meeting Rooms", description: "View & manage bookings", route: "/meetings/meeting-rooms", color: "#2563EB" },
-    { icon: Ticket, label: "Customer Support", description: "Handle open tickets", route: "/company-settings/customer-support", color: "#ef4444" },
+    { icon: Map, label: "Nomads Listings", description: "Manage nomad space listings", route: "/key-apps/nomad-listings", color: "#059669" },
+    { icon: Globe, label: "Website Builder", description: "Build & manage your site", route: "/key-apps/website-builder", color: "#7c3aed" },
+    { icon: Building2, label: "Tenant Companies", description: "Manage tenants & agreements", route: "/department-accesses/sales-department/tenant-companies", color: "#1E3D73" },
+    { icon: CalendarCheck, label: "Meeting Rooms", description: "View & manage bookings", route: "/common-modules/meeting-room-booking", color: "#2563EB" },
+    { icon: Ticket, label: "Customer Support", description: "Handle open tickets", route: "/common-modules/customer-support", color: "#ef4444" },
     { icon: UserPlus, label: "Visitor Management", description: "Check-in / check-out", route: "/visitors/visitor-management", color: "#80bf01" },
-    { icon: LayoutGrid, label: "Organization", description: "Departments & members", route: "/company-settings/organization-management", color: "#0891b2" },
-    { icon: Calendar, label: "Calendar", description: "View events & schedules", route: "/calendar", color: "#059669" },
+    { icon: LayoutGrid, label: "Organization", description: "Departments & members", route: "/core-modules/organization-management", color: "#0891b2" },
+    { icon: Calendar, label: "Calendar", description: "View events & schedules", route: "/common-modules/calendar", color: "#059669" },
   ];
 
   if (tenantsLoading || bookingsLoading || ticketsLoading || visitorsLoading) {
@@ -310,11 +310,11 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
       {/* Professional-plan module overview */}
       <div data-tour="professional-overview">
         <WidgetSection layout={3} title="Overview" border normalCase>
-          <StatCard icon={Building2} label="Total Tenants" value={tenantStats.total} sub={`${tenantStats.active} active`} color="#1E3D73" route="/sales-crm/tenant-companies" />
-          <StatCard icon={CalendarCheck} label="Total Bookings" value={bookingStats.total} sub={`${bookingStats.todayCount} today`} color="#2563EB" route="/meetings/meeting-rooms" />
-          <StatCard icon={UserCheck} label="Confirmed Bookings" value={bookingStats.confirmed} sub={`${bookingStats.completed} completed`} color="#059669" route="/meetings/meeting-rooms" />
-          <StatCard icon={Ticket} label="Customer Support" value={ticketStats.total} sub={`${ticketStats.open} open`} color="#ef4444" route="/company-settings/customer-support" />
-          <StatCard icon={UserCheck} label="Resolved Tickets" value={ticketStats.resolved} sub={`${ticketStats.inProgress} in progress`} color="#7c3aed" route="/company-settings/customer-support" />
+          <StatCard icon={Building2} label="Total Tenants" value={tenantStats.total} sub={`${tenantStats.active} active`} color="#1E3D73" route="/department-accesses/sales-department/tenant-companies" />
+          <StatCard icon={CalendarCheck} label="Total Bookings" value={bookingStats.total} sub={`${bookingStats.todayCount} today`} color="#2563EB" route="/common-modules/meeting-room-booking" />
+          <StatCard icon={UserCheck} label="Confirmed Bookings" value={bookingStats.confirmed} sub={`${bookingStats.completed} completed`} color="#059669" route="/common-modules/meeting-room-booking" />
+          <StatCard icon={Ticket} label="Customer Support" value={ticketStats.total} sub={`${ticketStats.open} open`} color="#ef4444" route="/common-modules/customer-support" />
+          <StatCard icon={UserCheck} label="Resolved Tickets" value={ticketStats.resolved} sub={`${ticketStats.inProgress} in progress`} color="#7c3aed" route="/common-modules/customer-support" />
           <StatCard icon={Eye} label="Visitors Today" value={visitorStats.todayCount} sub={`${visitorStats.checkedIn} checked in`} color="#80bf01" route="/visitors/visitor-management" />
         </WidgetSection>
       </div>
@@ -345,7 +345,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
 
       {/* Recent bookings and booking status */}
       <div data-tour="professional-bookings" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SectionCard title="Recent Bookings" linkLabel="View all" linkRoute="/meetings/meeting-rooms">
+        <SectionCard title="Recent Bookings" linkLabel="View all" linkRoute="/common-modules/meeting-room-booking">
           {recentBookings.length > 0 ? recentBookings.map((b: any, i: number) => (
             <RecentItem key={i} title={b.bookedByName || b.clientName || "Guest"} sub={b.roomName || b.resourceName || "Meeting Room"} badge={b.status || "Pending"} badgeColor={statusBadgeColor(b.status || "")} time={humanRelTime(b.createdAt)} />
           )) : <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No recent bookings</p></div>}
@@ -355,7 +355,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
 
       {/* Recent tickets and ticket status */}
       <div data-tour="professional-tickets" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SectionCard title="Recent Tickets" linkLabel="View all" linkRoute="/company-settings/customer-support">
+        <SectionCard title="Recent Tickets" linkLabel="View all" linkRoute="/common-modules/customer-support">
           {recentTickets.length > 0 ? recentTickets.map((t: any, i: number) => (
             <RecentItem key={i} title={t.title || t.subject || `Ticket #${i + 1}`} sub={t.category || t.issueType || "Support"} badge={t.status || "Open"} badgeColor={statusBadgeColor(t.status || "")} time={humanRelTime(t.createdAt)} />
           )) : <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No recent tickets</p></div>}
@@ -365,7 +365,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
 
       {/* Recent tenants and tenant status */}
       <div data-tour="professional-tenants" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SectionCard title="Recent Tenants" linkLabel="View all" linkRoute="/sales-crm/tenant-companies">
+        <SectionCard title="Recent Tenants" linkLabel="View all" linkRoute="/department-accesses/sales-department/tenant-companies">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {recentTenants.length > 0 ? recentTenants.map((t: any, i: number) => (
               <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-200">
@@ -388,7 +388,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
 
       {/* Expiry alert */}
       {tenantStats.expiringSoon > 0 && (
-        <div data-tour="professional-expiry-alert" className="flex items-center gap-3 p-4 rounded-xl border-2 border-amber-300 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors" onClick={() => navigate("/sales-crm/tenant-companies")}>
+        <div data-tour="professional-expiry-alert" className="flex items-center gap-3 p-4 rounded-xl border-2 border-amber-300 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors" onClick={() => navigate("/department-accesses/sales-department/tenant-companies")}>
           <AlertCircle size={20} className="text-amber-600 flex-shrink-0" />
           <div>
             <p className="text-content font-pmedium text-amber-800">{tenantStats.expiringSoon} tenant agreement{tenantStats.expiringSoon > 1 ? "s" : ""} expiring within 30 days</p>

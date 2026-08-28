@@ -292,10 +292,10 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
     if (showBookings) cards.push({ icon: CalendarCheck, label: "Total Bookings", value: bookingStats.total, sub: `${bookingStats.todayCount} today`, color: "#2563EB", route: "/app/meeting-rooms" });
     if (showTickets) cards.push({ icon: Ticket, label: "Support Tickets", value: ticketStats.total, sub: `${ticketStats.open} open`, color: "#ef4444", route: "/app/tickets" });
     if (showVisitors) cards.push({ icon: Eye, label: "Visitors Today", value: visitorStats.todayCount, sub: `${visitorStats.checkedIn} checked in`, color: "#80bf01", route: "/visitors/visitor-management" });
-    if (showFinance) cards.push({ icon: Banknote, label: "Booking Revenue", value: fmtINR(bookingStats.revenue, workspacePreferences.currency), sub: "Meeting room revenue", color: "#f59e0b", route: "/app/finance/billing-payments" });
-    if (showHR) cards.push({ icon: Users, label: "Payroll Employees", value: hrStats.totalEmployees, sub: `${hrStats.paid} paid`, color: "#7c3aed", route: "/app/finance/billing-payments" });
-    if (showSales) cards.push({ icon: FileText, label: "Website Leads", value: leadStats.total, sub: `${leadStats.newLeads} new`, color: "#059669", route: "/company-settings/website-builder/leads" });
-    if (showLeaveRequests) cards.push({ icon: ICON_BY_ID["leave-requests"] || CalendarCheck, label: "Leave Requests", value: leaveStats.total, sub: `${leaveStats.pending} pending`, color: "#f59e0b", route: "/leave-requests" });
+    if (showFinance) cards.push({ icon: Banknote, label: "Booking Revenue", value: fmtINR(bookingStats.revenue, workspacePreferences.currency), sub: "Meeting room revenue", color: "#f59e0b", route: "/app/department-accesses/finance-department/billing-payments" });
+    if (showHR) cards.push({ icon: Users, label: "Payroll Employees", value: hrStats.totalEmployees, sub: `${hrStats.paid} paid`, color: "#7c3aed", route: "/app/department-accesses/finance-department/billing-payments" });
+    if (showSales) cards.push({ icon: FileText, label: "Website Leads", value: leadStats.total, sub: `${leadStats.newLeads} new`, color: "#059669", route: "/key-apps/website-builder/leads" });
+    if (showLeaveRequests) cards.push({ icon: ICON_BY_ID["leave-requests"] || CalendarCheck, label: "Leave Requests", value: leaveStats.total, sub: `${leaveStats.pending} pending`, color: "#f59e0b", route: "/common-modules/leave-requests" });
     return cards;
   }, [showTenants, showBookings, showTickets, showVisitors, showFinance, showHR, showSales, showLeaveRequests,
     tenantStats, bookingStats, ticketStats, visitorStats, hrStats, leadStats, leaveStats, workspacePreferences.currency]);
@@ -345,10 +345,10 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
 
   const quickLinks = useMemo(() => {
     const links: QuickLinkItem[] = [
-      { icon: MapIcon, label: "Wono Nomad Listings", description: "Manage nomad space listings", route: "/company-settings/nomad-listings", color: "#059669" },
-      { icon: LayoutGrid, label: "Organization", description: "Departments & members", route: "/company-settings/organization-management", color: "#0891b2" },
+      { icon: MapIcon, label: "Wono Nomad Listings", description: "Manage nomad space listings", route: "/key-apps/nomad-listings", color: "#059669" },
+      { icon: LayoutGrid, label: "Organization", description: "Departments & members", route: "/core-modules/organization-management", color: "#0891b2" },
       { icon: BarChart3, label: "Reports", description: "Analytics & export", route: "/app/reports", color: "#059669" },
-      ...(showWebsite ? [{ icon: Globe, label: "Website Builder", description: "Build & manage your site", route: "/company-settings/website-builder", color: "#7c3aed" }] : []),
+      ...(showWebsite ? [{ icon: Globe, label: "Website Builder", description: "Build & manage your site", route: "/key-apps/website-builder", color: "#7c3aed" }] : []),
       ...dynamicQuickLinks,
     ];
     const seenRoutes = new Set<string>();
@@ -429,9 +429,9 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
       {/* Finance highlight row */}
       {showFinance && (
         <WidgetSection layout={3} title="Financial Snapshot" border normalCase>
-          <StatCard icon={Banknote} label="Booking Revenue" value={fmtINR(bookingStats.revenue, workspacePreferences.currency)} sub="Meeting room revenue" color="#f59e0b" route="/app/finance/billing-payments" />
-          <StatCard icon={CreditCard} label="Security Deposits" value={billingStats.total} sub={`${billingStats.paid} paid · ${billingStats.pending} pending`} color="#1E3D73" route="/app/finance/billing-payments" />
-          {showHR && <StatCard icon={Users} label="Net Payable" value={fmtINR(hrStats.netPayable, workspacePreferences.currency)} sub={`${hrStats.paid}/${hrStats.totalEmployees} employees paid`} color="#7c3aed" route="/app/finance/billing-payments" />}
+          <StatCard icon={Banknote} label="Booking Revenue" value={fmtINR(bookingStats.revenue, workspacePreferences.currency)} sub="Meeting room revenue" color="#f59e0b" route="/app/department-accesses/finance-department/billing-payments" />
+          <StatCard icon={CreditCard} label="Security Deposits" value={billingStats.total} sub={`${billingStats.paid} paid · ${billingStats.pending} pending`} color="#1E3D73" route="/app/department-accesses/finance-department/billing-payments" />
+          {showHR && <StatCard icon={Users} label="Net Payable" value={fmtINR(hrStats.netPayable, workspacePreferences.currency)} sub={`${hrStats.paid}/${hrStats.totalEmployees} employees paid`} color="#7c3aed" route="/app/department-accesses/finance-department/billing-payments" />}
           {!showHR && <StatCard icon={UserCheck} label="Confirmed Bookings" value={bookingStats.confirmed} sub={`${bookingStats.pending} pending`} color="#059669" route="/app/meeting-rooms" />}
         </WidgetSection>
       )}
@@ -439,7 +439,7 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
       {/* Team live status + founder visitors */}
       {(showTeamStatus || showVisitors) && (
         <div className={`grid grid-cols-1 gap-4 ${teamRowCount >= 3 ? "lg:grid-cols-3" : teamRowCount === 2 ? "lg:grid-cols-2" : ""}`}>
-          {showTeamStatus && <TeamLiveStatusCard viewAllRoute="/extra-common-modules/attendance" />}
+          {showTeamStatus && <TeamLiveStatusCard viewAllRoute="/common-modules/attendance" />}
           {showVisitors && (
             <SectionCard title="Recent Visitors" linkLabel="View all" linkRoute="/visitors/visitor-management">
               {recentVisitors.length > 0 ? recentVisitors.map((v: any, i: number) => (
@@ -510,7 +510,7 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {(showSales || showWebsite) && (
             <>
-              <SectionCard title="Recent Leads" linkLabel="View all" linkRoute="/company-settings/website-builder/leads">
+              <SectionCard title="Recent Leads" linkLabel="View all" linkRoute="/key-apps/website-builder/leads">
                 {recentLeads.length > 0 ? recentLeads.map((l: any, i: number) => (
                   <RecentItem key={l._id || i} title={l.name || l.fullName || "Lead"} sub={l.email || l.phone || "—"} badge={(l.status || "Pending") === "Pending" ? "New" : l.status} badgeColor={statusBadgeColor(l.status === "Contacted" || l.status === "Closed" ? "active" : "pending")} time={humanRelTime(l.createdAt)} />
                 )) : <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No leads yet</p></div>}
@@ -520,7 +520,7 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
           )}
           {showLeaveRequests && (
             <>
-              <SectionCard title="Recent Leave Requests" linkLabel="View all" linkRoute="/leave-requests">
+              <SectionCard title="Recent Leave Requests" linkLabel="View all" linkRoute="/common-modules/leave-requests">
                 {recentLeaveRequests.length > 0 ? recentLeaveRequests.map((l: any, i: number) => (
                   <RecentItem key={l.recordId || l.id || i} title={l.employeeName || "Employee"} sub={`${l.leaveType || "Leave"} · ${l.days || 1}d`} badge={l.status || "Pending"} badgeColor={statusBadgeColor(l.status === "approved" ? "active" : l.status === "rejected" ? "completed" : "pending")} time={humanRelTime(l.startDate || l.createdAt)} />
                 )) : <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No leave requests yet</p></div>}

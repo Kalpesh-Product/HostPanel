@@ -32,6 +32,8 @@ interface ModuleAccessDashboardProps {
   roleBand: RoleBand;
   departments: { id: string; name: string; moduleIds: string[] }[];
   showCommonModules?: boolean;
+  /** Set false when the caller already renders its own attendance/clock-in card elsewhere on the page. */
+  showAttendanceCard?: boolean;
 }
 
 const toQuickLink = (id: string, label: string): QuickLinkItem | null => {
@@ -46,6 +48,7 @@ const ModuleAccessDashboard = ({
   grantedModuleIds,
   departments,
   showCommonModules = true,
+  showAttendanceCard: allowAttendanceCard = true,
 }: ModuleAccessDashboardProps) => {
   const sections = Array.isArray(moduleMap?.sections) ? moduleMap.sections : [];
 
@@ -106,7 +109,7 @@ const ModuleAccessDashboard = ({
     : [];
 
   const canShowAttendanceCard = useShouldShowDashboardAttendance();
-  const showAttendanceCard = showCommonModules && canShowAttendanceCard;
+  const showAttendanceCard = showCommonModules && canShowAttendanceCard && allowAttendanceCard;
   const isEmpty = departmentSections.length === 0 && dedupedCommonLinks.length === 0 && commonStatCards.length === 0 && !showAttendanceCard;
 
   if (isEmpty) {

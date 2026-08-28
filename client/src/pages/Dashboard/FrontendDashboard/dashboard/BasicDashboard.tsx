@@ -159,12 +159,12 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers }: BasicDa
 
   // ── Quick links ────────────────────────────────────────────────────────────
   const quickLinks: QuickLinkItem[] = [
-    { icon: Map, label: "Nomads Listings", description: "Manage nomad space listings", route: "/company-settings/nomad-listings", color: "#059669" },
-    { icon: Globe, label: "Website Builder", description: "Build & publish your site", route: "/company-settings/website-builder", color: "#7c3aed" },
-    { icon: FileText, label: "Website Leads", description: "Manage incoming leads", route: "/company-settings/website-builder/leads", color: "#1E3D73" },
+    { icon: Map, label: "Nomads Listings", description: "Manage nomad space listings", route: "/key-apps/nomad-listings", color: "#059669" },
+    { icon: Globe, label: "Website Builder", description: "Build & publish your site", route: "/key-apps/website-builder", color: "#7c3aed" },
+    { icon: FileText, label: "Website Leads", description: "Manage incoming leads", route: "/key-apps/website-builder/leads", color: "#1E3D73" },
     { icon: Eye, label: "Visitor Management", description: "Log & track visitors", route: "/visitors/visitor-management", color: "#80bf01" },
-    { icon: Users, label: "Organization", description: "Manage team & departments", route: "/company-settings/organization-management", color: "#0891b2" },
-    { icon: LayoutGrid, label: "Access Grants", description: "Control role permissions", route: "/company-settings/access-grants", color: "#f59e0b" },
+    { icon: Users, label: "Organization", description: "Manage team & departments", route: "/core-modules/organization-management", color: "#0891b2" },
+    { icon: LayoutGrid, label: "Access Grants", description: "Control role permissions", route: "/core-modules/access-grants", color: "#f59e0b" },
   ];
 
   if (visitorsLoading || leadsLoading) {
@@ -196,8 +196,8 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers }: BasicDa
       <div data-tour="dashboard-overview">
         <WidgetSection layout={4} title="Overview" border normalCase>
         <StatCard icon={Eye} label="Visitors Today" value={visitorStats.todayCount} sub={`${visitorStats.checkedIn} currently in`} color="#80bf01" route="/visitors/visitor-management" />
-        <StatCard icon={UserPlus} label="Website Leads" value={leadStats.total} sub={`${leadStats.newLeads} new`} color="#1E3D73" route="/company-settings/website-builder/leads" />
-        <StatCard icon={Users} label="Active Members" value={orgStats.activeMembers} sub={`${orgStats.totalMembers} total members`} color="#0891b2" route="/company-settings/organization-management" />
+        <StatCard icon={UserPlus} label="Website Leads" value={leadStats.total} sub={`${leadStats.newLeads} new`} color="#1E3D73" route="/key-apps/website-builder/leads" />
+        <StatCard icon={Users} label="Active Members" value={orgStats.activeMembers} sub={`${orgStats.totalMembers} total members`} color="#0891b2" route="/core-modules/organization-management" />
         <StatCard icon={Eye} label="All-Time Visitors" value={visitorStats.totalCount} sub="Total logged visitors" color="#7c3aed" route="/visitors/visitor-management" />
         </WidgetSection>
       </div>
@@ -212,7 +212,7 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers }: BasicDa
       {/* Recent leads + Lead status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div data-tour="dashboard-recent-leads">
-          <SectionCard title="Recent Leads" linkLabel="View all" linkRoute="/company-settings/website-builder/leads">
+          <SectionCard title="Recent Leads" linkLabel="View all" linkRoute="/key-apps/website-builder/leads">
           {recentLeads.length > 0 ? (
             recentLeads.map((l: any, i: number) => (
               <RecentItem

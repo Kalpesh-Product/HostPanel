@@ -118,65 +118,16 @@ const WorkspaceClock = ({ timezone, location }: { timezone: string; location: st
   );
 };
 
-export function ITDashboardOverview() {
-  const currentUser = useFreshCurrentUser();
+/**
+ * Stat cards, charts, and quick links for the IT dashboard — split out from
+ * ITDashboardOverview so AdminDashboardOverview can render this same content
+ * for an Admin assigned to the IT department, without the department's own
+ * greeting/header banner.
+ */
+export function ITDashboardWidgets() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [dashboard, setDashboard] = useState<DashboardState>(DEFAULT_DASHBOARD);
-
-  const access = useDashboardAccess();
-  const workspacePreferences = useWorkspacePreferences();
-  const [now, setNow] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 60_000);
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    setNow(new Date());
-  }, [workspacePreferences.timezone]);
-
-  const itManagerName = useMemo(() => {
-    const full = `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim();
-    return full || currentUser?.fullName || currentUser?.name || currentUser?.displayName || "IT Manager";
-  }, [currentUser]);
-
-  const { greeting, todayLabel } = useMemo(() => {
-    const timezone = workspacePreferences.timezone;
-
-    try {
-      const hourPart = new Intl.DateTimeFormat("en-US", {
-        timeZone: timezone,
-        hour: "2-digit",
-        hourCycle: "h23",
-      })
-        .formatToParts(now)
-        .find((part) => part.type === "hour")?.value;
-      const workspaceHour = Number(hourPart);
-
-      return {
-        greeting: `${getGreeting(Number.isFinite(workspaceHour) ? workspaceHour : now.getHours())}, ${itManagerName}`,
-        todayLabel: new Intl.DateTimeFormat("en-IN", {
-          timeZone: timezone,
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }).format(now),
-      };
-    } catch {
-      return {
-        greeting: `${getGreeting(now.getHours())}, ${itManagerName}`,
-        todayLabel: now.toLocaleDateString("en-IN", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }),
-      };
-    }
-  }, [itManagerName, now, workspacePreferences.timezone]);
 
   useEffect(() => {
     let isMounted = true;
@@ -334,41 +285,26 @@ export function ITDashboardOverview() {
   }
 
   return (
-    <div className="p-4 flex flex-col gap-5">
-      <PageFrame>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h2 className="text-title font-pmedium text-primary uppercase">IT Dashboard</h2>
-              <PlanBadge plan={access.plan} />
-            </div>
-            <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
-            <p className="text-content font-pmedium text-gray-700">{todayLabel}<WorkspaceClock timezone={workspacePreferences.timezone} location={workspacePreferences.location} /></p>
-          </div>
-        </div>
-      </PageFrame>
-
+    <div className="flex flex-col gap-5">
       {error ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-700">
           {error}
         </div>
       ) : null}
 
-      <DashboardAttendanceCard />
-
       <WidgetSection layout={4} title="Overview" border normalCase>
-        <StatCard icon={MonitorCog} label="Resolution Rate" value={`${resolutionRate}%`} sub={`${totalLogs} total logs`} color="#0891b2" route="/it/repair-logs" />
-        <StatCard icon={AlertCircle} label="Open Logs" value={openLogs} sub={`${inProgressLogs} in progress`} color="#ef4444" route="/it/repair-logs" />
-        <StatCard icon={Clock3} label="In Progress Logs" value={inProgressLogs} sub={`${resolvedLogs} resolved`} color="#f59e0b" route="/it/repair-logs" />
-        <StatCard icon={FileSearch} label="Total Logs" value={totalLogs} sub={`${closedLogs} closed`} color="#7c3aed" route="/it/repair-logs" />
+        <StatCard icon={MonitorCog} label="Resolution Rate" value={`${resolutionRate}%`} sub={`${totalLogs} total logs`} color="#0891b2" route="/department-accesses/it-department/repair-logs" />
+        <StatCard icon={AlertCircle} label="Open Logs" value={openLogs} sub={`${inProgressLogs} in progress`} color="#ef4444" route="/department-accesses/it-department/repair-logs" />
+        <StatCard icon={Clock3} label="In Progress Logs" value={inProgressLogs} sub={`${resolvedLogs} resolved`} color="#f59e0b" route="/department-accesses/it-department/repair-logs" />
+        <StatCard icon={FileSearch} label="Total Logs" value={totalLogs} sub={`${closedLogs} closed`} color="#7c3aed" route="/department-accesses/it-department/repair-logs" />
       </WidgetSection>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <TeamLiveStatusCard department="it" viewAllRoute="/it/repair-logs" />
+        <TeamLiveStatusCard department="it" viewAllRoute="/department-accesses/it-department/repair-logs" />
 
         <DepartmentVisitorsCard department="it" title="IT Visitors" />
 
-        <SectionCard title="Recent IT Repair Logs" linkLabel="View all" linkRoute="/it/repair-logs">
+        <SectionCard title="Recent IT Repair Logs" linkLabel="View all" linkRoute="/department-accesses/it-department/repair-logs">
           {recentRepairLogs.length > 0 ? recentRepairLogs.map((log, index) => (
             <RecentItem
               key={log.id || log._id || index}
@@ -385,12 +321,12 @@ export function ITDashboardOverview() {
       </div>
 
       <WidgetSection layout={4} title="Quick Links" border normalCase>
-        <QuickLink icon={FileSearch} label="IT Repair Logs" description="Log & track repairs" route="/it/repair-logs" color="#2563EB" />
-        <QuickLink icon={KeyRound} label="System Access" description="Manage software access" route="/it/system-access" color="#7c3aed" />
+        <QuickLink icon={FileSearch} label="IT Repair Logs" description="Log & track repairs" route="/department-accesses/it-department/repair-logs" color="#2563EB" />
+        <QuickLink icon={KeyRound} label="System Access" description="Manage software access" route="/department-accesses/it-department/system-access" color="#7c3aed" />
       </WidgetSection>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SectionCard title="Recently Resolved Logs" linkLabel="View all" linkRoute="/it/repair-logs">
+        <SectionCard title="Recently Resolved Logs" linkLabel="View all" linkRoute="/department-accesses/it-department/repair-logs">
           {recentlyResolvedLogs.length > 0 ? recentlyResolvedLogs.map((log, index) => (
             <RecentItem
               key={log.id || log._id || index}
@@ -421,6 +357,84 @@ export function ITDashboardOverview() {
         options={monthlyBarOptions}
         height={260}
       />
+    </div>
+  );
+}
+
+export function ITDashboardOverview() {
+  const currentUser = useFreshCurrentUser();
+  const access = useDashboardAccess();
+  const workspacePreferences = useWorkspacePreferences();
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    setNow(new Date());
+  }, [workspacePreferences.timezone]);
+
+  const itManagerName = useMemo(() => {
+    const full = `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim();
+    return full || currentUser?.fullName || currentUser?.name || currentUser?.displayName || "IT Manager";
+  }, [currentUser]);
+
+  const { greeting, todayLabel } = useMemo(() => {
+    const timezone = workspacePreferences.timezone;
+
+    try {
+      const hourPart = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        hour: "2-digit",
+        hourCycle: "h23",
+      })
+        .formatToParts(now)
+        .find((part) => part.type === "hour")?.value;
+      const workspaceHour = Number(hourPart);
+
+      return {
+        greeting: `${getGreeting(Number.isFinite(workspaceHour) ? workspaceHour : now.getHours())}, ${itManagerName}`,
+        todayLabel: new Intl.DateTimeFormat("en-IN", {
+          timeZone: timezone,
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }).format(now),
+      };
+    } catch {
+      return {
+        greeting: `${getGreeting(now.getHours())}, ${itManagerName}`,
+        todayLabel: now.toLocaleDateString("en-IN", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+      };
+    }
+  }, [itManagerName, now, workspacePreferences.timezone]);
+
+  return (
+    <div className="p-4 flex flex-col gap-5">
+      <PageFrame>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-title font-pmedium text-primary uppercase">IT Dashboard</h2>
+              <PlanBadge plan={access.plan} />
+            </div>
+            <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
+            <p className="text-content font-pmedium text-gray-700">{todayLabel}<WorkspaceClock timezone={workspacePreferences.timezone} location={workspacePreferences.location} /></p>
+          </div>
+        </div>
+      </PageFrame>
+
+      <DashboardAttendanceCard />
+
+      <ITDashboardWidgets />
     </div>
   );
 }

@@ -395,7 +395,7 @@ function buildSalesArchitectureLink(tenant = {}) {
   }
 
   const query = params.toString();
-  return `/dashboard/sales-crm/sales-architecture${query ? `?${query}` : ''}`;
+  return `/dashboard/department-accesses/sales-department/sales-architecture${query ? `?${query}` : ''}`;
 }
 
 function normalizeResourceKey(resource = {}) {
@@ -2715,9 +2715,9 @@ export default function TenantCompaniesPage() {
 
   const goToAddTenantResource = () => {
     setShowResourcePrerequisite(false);
-    navigate('/sales-crm/resource-pricing', {
+    navigate('/department-accesses/sales-department/resource-pricing', {
       state: {
-        from: '/sales-crm/tenant-companies',
+        from: '/department-accesses/sales-department/tenant-companies',
         intent: 'add-tenant-inventory',
         openResourceModal: true,
         preset: 'tenant_inventory',
@@ -3110,7 +3110,7 @@ export default function TenantCompaniesPage() {
                       </td>
                       <td className="px-3.5 py-2">
                         <div className="flex flex-wrap items-center justify-center gap-2 transition-opacity">
-                          <button onClick={() => navigate(`/sales-crm/tenant-companies/${tenant.recordId || tenant.id}`)} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm" title="View Profile">
+                          <button onClick={() => navigate(`/department-accesses/sales-department/tenant-companies/${tenant.recordId || tenant.id}`)} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm" title="View Profile">
                             <Eye size={14} />
                           </button>
                           <button onClick={() => {
@@ -3408,7 +3408,7 @@ export default function TenantCompaniesPage() {
           )}
 
           {showResourcePrerequisite && (
-            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm" onClick={() => setShowResourcePrerequisite(false)}>
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
               <div className="relative w-full max-w-md overflow-hidden rounded-[2rem] border border-white/70 bg-white p-6 text-center shadow-2xl sm:p-8" onClick={(event) => event.stopPropagation()}>
                 <button type="button" onClick={() => setShowResourcePrerequisite(false)} className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-700"><X size={16} /></button>
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 text-[#2563EB] shadow-sm"><Building2 size={24} /></div>

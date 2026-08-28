@@ -185,7 +185,7 @@ export default function ChatWidgetPreview() {
 
     const handleContactSupport = () => {
         setShowChat(false);
-        navigate('/company-settings/customer-support');
+        navigate('/common-modules/customer-support');
     };
 
     return (

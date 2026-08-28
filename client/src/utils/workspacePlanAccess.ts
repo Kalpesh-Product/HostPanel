@@ -51,7 +51,11 @@ const PROFESSIONAL_EXTRA_IDS = [
 ] as const;
 
 const WORKSPACE_MANAGEMENT_ID = "workspace-management";
-const BASIC_LOCKED_MODULE_IDS = ["workspace-settings"] as const;
+// Hard-locked for Basic even though canAccessWorkspaceManagement() would
+// otherwise enable "workspace-management" once workspaceCount >= 1. Kept in
+// sync with the BASIC_PLAN_HARD_LOCK_IDS duplicates in ModuleCardsLanding.tsx
+// and AddModulesPage.tsx.
+const BASIC_LOCKED_MODULE_IDS = ["workspace-settings", "workspace-management"] as const;
 
 export const getWorkspaceCount = (value: unknown): number => {
   const parsed = Number(value);

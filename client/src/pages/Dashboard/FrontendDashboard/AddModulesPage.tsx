@@ -55,6 +55,7 @@ import useAuth from "../../../hooks/useAuth";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import { PLAN_UI_DATA } from "../../WorkspaceSetup/workspaceSetupPlans";
 import { getEnabledModuleIdsForPlan, getWorkspaceCount } from "../../../utils/workspacePlanAccess";
+import { normalizeLegacyRoute } from "../../../utils/legacyRouteMap";
 import { toast } from "sonner";
 
 type PlanType = "basic" | "professional" | "custom";
@@ -128,42 +129,42 @@ const DEPARTMENT_ORDER = [
 
 const DEFAULT_SECTION_ROUTES: Record<string, string> = {
   dashboard: "/dashboard",
-  tickets: "/tickets",
-  "customer-support": "/company-settings/customer-support",
-  tasks: "/extra-common-modules/tasks",
-  "leave-requests": "/leave-requests",
-  attendance: "/extra-common-modules/attendance",
-  calendar: "/calendar",
+  tickets: "/common-modules/tickets",
+  "customer-support": "/common-modules/customer-support",
+  tasks: "/common-modules/tasks",
+  "leave-requests": "/common-modules/leave-requests",
+  attendance: "/common-modules/attendance",
+  calendar: "/common-modules/calendar",
   assets: "/extra-common-modules/assets",
   inventory: "/extra-common-modules/inventory",
   "finance-management": "/extra-common-modules/finance-management",
   "team-management": "/extra-common-modules/team-management",
   reports: "/extra-common-modules/reports",
-  "employee-management": "/hr/company-management",
-  "hr-documents": "/hr/documents",
-  recruitment: "/hr/recruitment",
-  "leave-request-processing": "/hr/leave-request-processing",
-  "attendance-review": "/hr/attendance-review",
-  "payroll-management": "/hr/payroll-management",
-  "exit-management": "/hr/resignation-management",
-  "tenant-companies-admin": "/administration/tenant-companies",
-  bookings: "/administration/bookings",
+  "employee-management": "/department-accesses/hr-department/company-management",
+  "hr-documents": "/department-accesses/hr-department/documents",
+  recruitment: "/department-accesses/hr-department/recruitment",
+  "leave-request-processing": "/department-accesses/hr-department/leave-request-processing",
+  "attendance-review": "/department-accesses/hr-department/attendance-review",
+  "payroll-management": "/department-accesses/hr-department/payroll-management",
+  "exit-management": "/department-accesses/hr-department/resignation-management",
+  "tenant-companies-admin": "/department-accesses/administration-department/tenant-companies",
+  bookings: "/department-accesses/administration-department/bookings",
   "visitors-management": "/visitors/visitor-management",
-  "resource-management": "/administration/resource-management",
-  "house-keeping": "/administration/house-keeping",
-  "leads-management": "/sales-crm/leads-management",
-  "tenant-companies-sales": "/sales-crm/tenant-companies",
-  "resource-pricing": "/sales-crm/resource-pricing",
-  "sales-architecture": "/sales-crm/sales-architecture",
-  "finance-budget": "/finance/expenses-budget",
-  "billing-payments": "/finance/billing-payments",
-  accounting: "/finance/accounting",
-  "maintenance-repair-logs": "/maintenance/repair-logs",
-  "amc-maintenance-scheduler": "/maintenance/amc-scheduler",
-  "tech-website-builder": "/company-settings/website-builder",
-  "website-review": "/company-settings/website-builder/dynamic/reviews",
-  "it-repair-logs": "/it/repair-logs",
-  "it-system-access": "/it/system-access",
+  "resource-management": "/department-accesses/administration-department/resource-management",
+  "house-keeping": "/department-accesses/administration-department/house-keeping",
+  "leads-management": "/department-accesses/sales-department/leads-management",
+  "tenant-companies-sales": "/department-accesses/sales-department/tenant-companies",
+  "resource-pricing": "/department-accesses/sales-department/resource-pricing",
+  "sales-architecture": "/department-accesses/sales-department/sales-architecture",
+  "finance-budget": "/department-accesses/finance-department/expenses-budget",
+  "billing-payments": "/department-accesses/finance-department/billing-payments",
+  accounting: "/department-accesses/finance-department/accounting",
+  "maintenance-repair-logs": "/department-accesses/maintenance-department/repair-logs",
+  "amc-maintenance-scheduler": "/department-accesses/maintenance-department/amc-scheduler",
+  "tech-website-builder": "/key-apps/website-builder",
+  "website-review": "/key-apps/website-builder/dynamic/reviews",
+  "it-repair-logs": "/department-accesses/it-department/repair-logs",
+  "it-system-access": "/department-accesses/it-department/system-access",
 };
 
 const DEPARTMENT_LABELS: Record<string, string> = {
@@ -678,7 +679,7 @@ const AddModulesPage = () => {
           });
           const hasUnlocked = unlockedTabs.length > 0;
           const deptRoute = sectionId === "department-accesses"
-            ? `/module-sections/department-accesses/${itemId}`
+            ? `/department-accesses/${itemId}`
             : undefined;
           cards.push({
             id: itemId,
@@ -741,7 +742,7 @@ const AddModulesPage = () => {
       const itemLabel = String(item?.label || itemId).trim();
       const Icon = ICON_BY_ID[itemId];
       const iconNode = Icon ? <Icon size={26} /> : undefined;
-      const route = String(item?.route || DEFAULT_SECTION_ROUTES[itemId] || "").trim() || undefined;
+      const route = normalizeLegacyRoute(String(item?.route || DEFAULT_SECTION_ROUTES[itemId] || "").trim()) || undefined;
       const basicPlanLocked = planLabel === "basic" && BASIC_PLAN_HARD_LOCK_IDS.has(itemId);
       const workspaceUnlocked = workspaceEnabledCanonicalIds.has(itemId) || enabledIds.has(itemId);
       const roleUnlocked = roleAllowedModuleIds.has(itemId);

@@ -674,7 +674,7 @@ export default function TenantDashboardPage() {
 
         {/* Credits alert modal */}
         {showCreditAlert && (
-          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={dismissCreditAlert}>
+          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3">
             <div className="bg-white rounded-[2rem] max-w-md w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70" onClick={(e) => e.stopPropagation()}>
               <div className="p-5 sm:p-6 border-b border-slate-100 bg-amber-50/40 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">

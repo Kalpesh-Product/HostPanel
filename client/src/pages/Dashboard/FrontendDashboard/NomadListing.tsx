@@ -283,7 +283,7 @@ const NomadListing = () => {
       toast.success("Company added successfully!");
       reset();
       void refetchListings();
-      navigate("/company-settings/nomad-listings");
+      navigate("/key-apps/nomad-listings");
     },
     onError: (err) => {
       toast.error(err?.response?.data?.message || "Failed to add company");
@@ -1119,7 +1119,7 @@ const NomadListing = () => {
             </button>
             <button
               type="button"
-              onClick={() => navigate("/company-settings/nomad-listings")}
+              onClick={() => navigate("/key-apps/nomad-listings")}
               className="px-8 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50"
             >
               Cancel

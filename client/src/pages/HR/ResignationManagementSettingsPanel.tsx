@@ -199,7 +199,6 @@ export function ResignationManagementSettingsPanel({
           role="dialog"
           aria-modal="true"
           aria-labelledby="exit-settings-title"
-          onClick={() => setIsOpen(false)}
         >
           <div
             className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl"

@@ -1081,7 +1081,7 @@ export default function WorkspaceSettingsPage() {
                 {overview?.workspaceManagement?.enabled && canOpenWorkspaceManagement ? (
                   <button
                     type="button"
-                    onClick={() => navigate("/company-settings/workspace-management")}
+                    onClick={() => navigate("/core-modules/workspace-management")}
                     className="inline-flex h-8.5 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-[10px] font-pmedium text-slate-700 transition hover:bg-slate-50 whitespace-nowrap"
                   >
                     <PanelsTopLeft className="h-4 w-4" />

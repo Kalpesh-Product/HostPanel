@@ -1345,8 +1345,8 @@ const CreateWebsite = () => {
     selectedCompanyId === authenticatedCompanyId
       ? selectedCompany
       : null;
-  const builderBasePath = location.pathname.includes("/company-settings/website-builder")
-    ? "/company-settings/website-builder"
+  const builderBasePath = location.pathname.includes("/key-apps/website-builder")
+    ? "/key-apps/website-builder"
     : "/dashboard/website-builder";
   const createOrEditRoute = `${builderBasePath}/dynamic/create-website`;
   const effectiveEditMode = isEditMode || hasExistingWebsite;

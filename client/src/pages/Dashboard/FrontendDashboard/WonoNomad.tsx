@@ -27,21 +27,21 @@ const WonoNomad = () => {
               <Card
                 icon={<MdOutlineTravelExplore />}
                 title="Listings"
-                route="/company-settings/nomad-listings"
+                route="/key-apps/nomad-listings"
               />
             </div>
             <div data-tour="wono-nomad-reviews">
               <Card
                 icon={<MdOutlineRateReview />}
                 title="Reviews"
-                route="/company-settings/reviews"
+                route="/key-apps/reviews"
               />
             </div>
             <div data-tour="wono-nomad-leads">
               <Card
                 icon={<ContactRound />}
                 title="Leads"
-                route="/company-settings/nomads-leads"
+                route="/key-apps/nomads-leads"
               />
             </div>
           </div>

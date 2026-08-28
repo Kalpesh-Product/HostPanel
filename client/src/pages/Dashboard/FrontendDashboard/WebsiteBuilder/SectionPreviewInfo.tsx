@@ -578,7 +578,6 @@ const SectionPreviewInfo = ({ section }) => {
         createPortal(
           <div
             className="fixed inset-0 z-[1400] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
-            onClick={() => setOpen(false)}
           >
             <div
               className="bg-white w-full max-w-2xl max-h-[85vh] rounded-[22px] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200"

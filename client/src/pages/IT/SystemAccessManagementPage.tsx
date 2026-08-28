@@ -515,7 +515,7 @@ export default function SystemAccessManagementPage() {
             className="fixed inset-0 z-[150] flex items-center justify-center px-4 py-6"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           >
-            <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={() => !isSaving && setIsModalOpen(false)} />
+            <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" />
             <motion.div
               className="relative w-full max-w-4xl overflow-hidden rounded-[2.5rem] border border-white/70 bg-white shadow-2xl max-h-[90vh] flex flex-col"
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}

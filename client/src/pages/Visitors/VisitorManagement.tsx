@@ -2241,7 +2241,7 @@ export default function VisitorsManagementPage() {
   }, [walkInRoomOptions, form.resourceName]);
 
   const goToResourcePricing = () => {
-    navigate('/sales-crm/resource-pricing', {
+    navigate('/department-accesses/sales-department/resource-pricing', {
       state: {
         from: '/app/visitors/visitor-management',
         intent: 'add-meeting-resource',
@@ -6695,7 +6695,7 @@ export default function VisitorsManagementPage() {
         {/* MODAL 4B: RESCHEDULE CONFIRMATION */}
         {showRescheduleConfirm && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" onClick={() => setShowRescheduleConfirm(false)} />
+            <div className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" />
             <div className="bg-white rounded-[2rem] w-full max-w-sm shadow-2xl border border-white/70 relative z-10 overflow-hidden animate-in zoom-in duration-200">
               <div className="p-6 flex flex-col items-center text-center gap-3">
                 <div className="w-12 h-12 rounded-full flex items-center justify-center bg-amber-50 text-amber-600">

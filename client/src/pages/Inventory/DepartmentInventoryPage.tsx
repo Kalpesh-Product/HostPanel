@@ -545,9 +545,8 @@ export function DepartmentInventoryPage() {
           <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                <Package size={18} /> Department Inventory
+                <Package size={18} /> {deptLabel} Inventory
               </h2>
-              <p className="text-[11px] font-pmedium text-[#2563EB] uppercase tracking-widest mt-1">{deptLabel}</p>
             </div>
             <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
               {roleBand !== 'employee' && (

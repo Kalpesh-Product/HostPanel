@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, Outlet, useLocation } from "react-router-dom";
+import { createBrowserRouter, Navigate, Outlet, useLocation, useParams } from "react-router-dom";
 import { getStoredUser } from "../lib/auth-session";
 import MainLayout from "../layouts/MainLayout";
 import AuthLayout from "../layouts/AuthLayout";
@@ -200,6 +200,44 @@ function VerticalPickerRoute() {
   const location = useLocation();
   const workspaceId = new URLSearchParams(location.search).get("workspaceId") || "";
   return <VerticalPicker workspaceId={workspaceId} />;
+}
+
+// Redirects a legacy URL to its new home, substituting any :param segments
+// from the old route (e.g. "/key-apps/nomad-listings/:listingId").
+function ParamRedirect({ to }: { to: string }) {
+  const params = useParams();
+  const resolved = to.replace(/:([A-Za-z0-9_]+)/g, (_match, key) => encodeURIComponent(params[key] ?? ""));
+  return <Navigate to={resolved} replace />;
+}
+
+// Redirects a legacy URL tree (matched via a trailing "/*") to the same
+// sub-path under its new parent, e.g.
+// "/company-settings/website-builder/dynamic/leads" -> "/key-apps/website-builder/dynamic/leads".
+function ParamWildcardRedirect({ to }: { to: string }) {
+  const params = useParams();
+  const rest = params["*"] ? `/${params["*"]}` : "";
+  return <Navigate to={`${to}${rest}`} replace />;
+}
+
+// The old generic "/module-sections/:sectionId(/:departmentId)" routes now
+// redirect to the section's new top-level URL for the sections that moved;
+// sections that didn't move (add-ons, profile, general, tenant-portal) keep
+// rendering the landing page directly, unchanged.
+const MOVED_SECTION_URL_PREFIX: Record<string, string> = {
+  "department-accesses": "/department-accesses",
+  "key-apps": "/key-apps",
+  "common-modules": "/common-modules",
+  "extra-common-modules": "/extra-common-modules",
+  "founder-core-modules": "/core-modules",
+};
+
+function ModuleSectionRedirect() {
+  const { sectionId, departmentId } = useParams();
+  const prefix = sectionId ? MOVED_SECTION_URL_PREFIX[sectionId] : undefined;
+  if (prefix) {
+    return <Navigate to={departmentId ? `${prefix}/${departmentId}` : prefix} replace />;
+  }
+  return <ModuleCardsLanding />;
 }
 
 export const routes = createBrowserRouter([
@@ -423,177 +461,293 @@ export const routes = createBrowserRouter([
                 element: <CompanyReviews />,
               },
 
+              // Legacy "/company-settings/*" URLs — kept working via redirects
+              // below. The real pages now live under /key-apps, /core-modules,
+              // and /common-modules, matching the breadcrumb hierarchy.
+              {
+                path: "company-settings/wono-nomad",
+                element: <Navigate to="/key-apps/wono-nomad" replace />,
+              },
+              {
+                path: "company-settings/all-leads",
+                element: <Navigate to="/key-apps/all-leads" replace />,
+              },
+              {
+                path: "company-settings/nomad-listings",
+                element: <Navigate to="/key-apps/nomad-listings" replace />,
+              },
+              {
+                path: "company-settings/nomad-listings/add",
+                element: <Navigate to="/key-apps/nomad-listings/add" replace />,
+              },
+              {
+                path: "company-settings/nomad-listings/:listingId",
+                element: <ParamRedirect to="/key-apps/nomad-listings/:listingId" />,
+              },
+              {
+                path: "company-settings/reviews",
+                element: <Navigate to="/key-apps/reviews" replace />,
+              },
+              {
+                path: "company-settings/nomads-leads",
+                element: <Navigate to="/key-apps/nomads-leads" replace />,
+              },
+              {
+                path: "company-settings/poc-details",
+                element: <Navigate to="/key-apps/poc-details" replace />,
+              },
+              {
+                path: "company-settings/website-builder/*",
+                element: <ParamWildcardRedirect to="/key-apps/website-builder" />,
+              },
+              {
+                path: "company-settings/website-builder",
+                element: <Navigate to="/key-apps/website-builder" replace />,
+              },
+              {
+                path: "company-settings/organization-management",
+                element: <Navigate to="/core-modules/organization-management" replace />,
+              },
+              {
+                path: "company-settings/access-grants",
+                element: <Navigate to="/core-modules/access-grants" replace />,
+              },
+              {
+                path: "company-settings/workspace-settings",
+                element: <Navigate to="/core-modules/workspace-settings" replace />,
+              },
+              {
+                path: "company-settings/workspace-management",
+                element: <Navigate to="/core-modules/workspace-management" replace />,
+              },
+              {
+                path: "company-settings/analytics",
+                element: <Navigate to="/core-modules/analytics" replace />,
+              },
+              {
+                path: "company-settings/customer-support",
+                element: <Navigate to="/common-modules/customer-support" replace />,
+              },
               {
                 path: "company-settings",
-                element: <Outlet />,
-                children: [
-                  {
-                    index: true, // login lands here
-                    element: <ModuleCardsLanding section="company-settings" />,
-                  },
-
-                  {
-                    path: "wono-nomad",
-                    element: <WonoNomad />,
-                  },
-                  {
-                    path: "all-leads",
-                    element: <AllLeads />,
-                  },
-                  {
-                    path: "nomad-listings",
-                    element: <NomadListingsOverview />,
-                  },
-                  {
-                    path: "nomad-listings/add",
-                    element: <NomadListing />,
-                  },
-                  {
-                    path: "nomad-listings/:listingId",
-                    element: <EditNomadListing />,
-                  },
-                  {
-                    path: "reviews",
-                    element: <CompanyReviews />,
-                  },
-                  {
-                    path: "nomads-leads",
-                    element: <NomadsLeads />,
-                  },
-                  {
-                    path: "website-builder",
-                    element: <FrontendLayout />,
-                    children: [
-                      { index: true, element: <WebsiteBuilderTypeActions type="dynamic" /> },
-                      { path: "select-theme", element: <ThemeGrid /> },
-                      { path: "view-theme", element: <ViewTheme /> },
-                      { path: "leads", element: <CompanyLeads /> },
-                      { path: "live-demo", element: <PageDemo /> },
-                      { path: "edit-website", element: <EditWebsite /> }, // no param
-                      {
-                        path: "edit-website/:website",
-                        element: <EditWebsite />,
-                      }, // with param
-                      { path: "dynamic", element: <WebsiteBuilderTypeActions type="dynamic" /> },
-                      { path: "dynamic/select-template", element: <SelectWebsiteTemplate /> },
-                      { path: "dynamic/create-website", element: <CreateWebsite /> },
-                      { path: "dynamic/leads", element: <CompanyLeads /> },
-                      { path: "dynamic/reviews", element: <WebsiteBuilderReviews /> },
-                      { path: "dynamic/careers", element: <WebsiteBuilderCareers /> },
-                      // Dynamic-only mode:
-                      // { path: "static", element: <WebsiteBuilderTypeActions type="static" /> },
-                      // { path: "static/select-vertical", element: <VerticalPickerRoute /> },
-                      // { path: "static/create-website", element: <CreateWebsite /> },
-                      // { path: "static/leads", element: <CompanyLeads /> },
-                      {
-                        path: "edit-website/:website",
-                        element: <EditWebsite />,
-                      },
-
-                      {
-                        path: "edit-theme/:templateName/:pageName",
-                        element: <EditTemplate />,
-                      },
-                      {
-                        path: "data",
-                        element: <FrontendData />,
-                        children: [
-                          {
-                            index: true,
-                            path: "leads",
-                            element: <FrontendLeads />,
-                          },
-                          {
-                            path: "asset-list",
-                            element: <DepartmentAssetCommon />,
-                          },
-                          {
-                            path: "website-issue-reports",
-                            element: <FrontendWebsiteIssueReports />,
-                          },
-                          {
-                            path: "monthly-invoice-reports",
-                            element: <MonthlyInvoiceCommon />,
-                          },
-                          { path: "vendor", element: <VendorTable /> },
-                          {
-                            path: "vendor/vendor-onboard",
-                            element: <Vendor />,
-                          },
-                          { path: "vendor/:id", element: <ViewVendor /> },
-                        ],
-                      },
-                      {
-                        path: "settings",
-                        element: <FrontendSettings />,
-                        children: [
-                          {
-                            path: "bulk-upload",
-                            element: <DepartmentWiseBulkUpload />,
-                          },
-                          { path: "sops", element: <SopUpload /> },
-                          { path: "policies", element: <PolicyUpload /> },
-                        ],
-                      },
-                      {
-                        path: "finance",
-                        element: <FrontendFinLayout />,
-                        children: [
-                          { path: "budget", element: <BudgetPage /> },
-                          {
-                            path: "payment-schedule",
-                            element: <PaymentScheduleCommon />,
-                          },
-                          { path: "voucher", element: <Reimbursement /> },
-                        ],
-                      },
-                    ],
-                  },
-                  {
-                    path: "poc-details",
-                    element: <PocDetails />,
-                  },
-                  {
-                    path: "organization-management",
-                    element: <OrganizationPage />,
-                  },
-                  {
-                    path: "access-grants",
-                    element: <AccessGrant />,
-                  },
-                  {
-                    path: "workspace-settings",
-                    element: <UnitSettingsPage />,
-                  },
-                  {
-                    path: "workspace-management",
-                    element: <UnitManagementPage />,
-                  },
-                  {
-                    path: "analytics",
-                    element: <AnalyticsPage />,
-                  },
-                  {
-                    path: "customer-support",
-                    element: <CustomerSupportPage />,
-                  },
-                ],
+                element: <Navigate to="/key-apps" replace />,
               },
+
+              // Key Apps
               {
                 path: "key-apps",
                 element: <ModuleCardsLanding section="key-apps" />,
               },
               {
+                path: "key-apps/wono-nomad",
+                element: <WonoNomad />,
+              },
+              {
+                path: "key-apps/all-leads",
+                element: <AllLeads />,
+              },
+              {
+                path: "key-apps/nomad-listings",
+                element: <NomadListingsOverview />,
+              },
+              {
+                path: "key-apps/nomad-listings/add",
+                element: <NomadListing />,
+              },
+              {
+                path: "key-apps/nomad-listings/:listingId",
+                element: <EditNomadListing />,
+              },
+              {
+                path: "key-apps/reviews",
+                element: <CompanyReviews />,
+              },
+              {
+                path: "key-apps/nomads-leads",
+                element: <NomadsLeads />,
+              },
+              {
+                path: "key-apps/poc-details",
+                element: <PocDetails />,
+              },
+              {
+                path: "key-apps/website-builder",
+                element: <FrontendLayout />,
+                children: [
+                  { index: true, element: <WebsiteBuilderTypeActions type="dynamic" /> },
+                  { path: "select-theme", element: <ThemeGrid /> },
+                  { path: "view-theme", element: <ViewTheme /> },
+                  { path: "leads", element: <CompanyLeads /> },
+                  { path: "live-demo", element: <PageDemo /> },
+                  { path: "edit-website", element: <EditWebsite /> }, // no param
+                  {
+                    path: "edit-website/:website",
+                    element: <EditWebsite />,
+                  }, // with param
+                  { path: "dynamic", element: <WebsiteBuilderTypeActions type="dynamic" /> },
+                  { path: "dynamic/select-template", element: <SelectWebsiteTemplate /> },
+                  { path: "dynamic/create-website", element: <CreateWebsite /> },
+                  { path: "dynamic/leads", element: <CompanyLeads /> },
+                  { path: "dynamic/reviews", element: <WebsiteBuilderReviews /> },
+                  { path: "dynamic/careers", element: <WebsiteBuilderCareers /> },
+                  // Dynamic-only mode:
+                  // { path: "static", element: <WebsiteBuilderTypeActions type="static" /> },
+                  // { path: "static/select-vertical", element: <VerticalPickerRoute /> },
+                  // { path: "static/create-website", element: <CreateWebsite /> },
+                  // { path: "static/leads", element: <CompanyLeads /> },
+                  {
+                    path: "edit-theme/:templateName/:pageName",
+                    element: <EditTemplate />,
+                  },
+                  {
+                    path: "data",
+                    element: <FrontendData />,
+                    children: [
+                      {
+                        index: true,
+                        path: "leads",
+                        element: <FrontendLeads />,
+                      },
+                      {
+                        path: "asset-list",
+                        element: <DepartmentAssetCommon />,
+                      },
+                      {
+                        path: "website-issue-reports",
+                        element: <FrontendWebsiteIssueReports />,
+                      },
+                      {
+                        path: "monthly-invoice-reports",
+                        element: <MonthlyInvoiceCommon />,
+                      },
+                      { path: "vendor", element: <VendorTable /> },
+                      {
+                        path: "vendor/vendor-onboard",
+                        element: <Vendor />,
+                      },
+                      { path: "vendor/:id", element: <ViewVendor /> },
+                    ],
+                  },
+                  {
+                    path: "settings",
+                    element: <FrontendSettings />,
+                    children: [
+                      {
+                        path: "bulk-upload",
+                        element: <DepartmentWiseBulkUpload />,
+                      },
+                      { path: "sops", element: <SopUpload /> },
+                      { path: "policies", element: <PolicyUpload /> },
+                    ],
+                  },
+                  {
+                    path: "finance",
+                    element: <FrontendFinLayout />,
+                    children: [
+                      { path: "budget", element: <BudgetPage /> },
+                      {
+                        path: "payment-schedule",
+                        element: <PaymentScheduleCommon />,
+                      },
+                      { path: "voucher", element: <Reimbursement /> },
+                    ],
+                  },
+                ],
+              },
+
+              {
                 path: "add-modules",
                 element: <AddModulesPage />,
               },
+
+              // Core Modules
               {
-                path: "module-sections/:sectionId/:departmentId",
-                element: <ModuleCardsLanding />,
+                path: "core-modules",
+                element: <ModuleCardsLanding section="founder-core-modules" />,
+              },
+              {
+                path: "core-modules/organization-management",
+                element: <OrganizationPage />,
+              },
+              {
+                path: "core-modules/access-grants",
+                element: <AccessGrant />,
+              },
+              {
+                path: "core-modules/workspace-settings",
+                element: <UnitSettingsPage />,
+              },
+              {
+                path: "core-modules/workspace-management",
+                element: <UnitManagementPage />,
+              },
+              {
+                path: "core-modules/analytics",
+                element: <AnalyticsPage />,
+              },
+
+              // Common Modules
+              {
+                path: "common-modules",
+                element: <ModuleCardsLanding section="common-modules" />,
+              },
+              {
+                path: "common-modules/customer-support",
+                element: <CustomerSupportPage />,
+              },
+              {
+                path: "common-modules/attendance",
+                element: <AttendancePage />,
+              },
+              {
+                path: "common-modules/tickets",
+                element: <TicketsPage />,
+              },
+              {
+                path: "common-modules/leave-requests",
+                element: <LeaveRequestsPage />,
+              },
+              {
+                path: "common-modules/meeting-room-booking",
+                element: <MeetingRoomsPage />,
+              },
+              {
+                path: "common-modules/calendar",
+                element: <CalendarPage />,
+              },
+              {
+                path: "common-modules/tasks",
+                element: <TasksPage />,
               },
               {
                 path: "extra-common-modules/attendance",
-                element: <AttendancePage />,
+                element: <Navigate to="/common-modules/attendance" replace />,
+              },
+              {
+                path: "extra-common-modules/tasks",
+                element: <Navigate to="/common-modules/tasks" replace />,
+              },
+              {
+                path: "leave-requests",
+                element: <Navigate to="/common-modules/leave-requests" replace />,
+              },
+              {
+                path: "tickets",
+                element: <Navigate to="/common-modules/tickets" replace />,
+              },
+              {
+                path: "calendar",
+                element: <Navigate to="/common-modules/calendar" replace />,
+              },
+              {
+                path: "meetings/meeting-rooms",
+                element: <Navigate to="/common-modules/meeting-room-booking" replace />,
+              },
+
+              // Extra Common Modules
+              {
+                path: "extra-common-modules",
+                element: <ModuleCardsLanding section="extra-common-modules" />,
               },
               {
                 path: "extra-common-modules/assets",
@@ -625,18 +779,25 @@ export const routes = createBrowserRouter([
                 path: "extra-common-modules/reports",
                 element: <ReportsPage />,
               },
+
+              // Department Accesses
               {
-                path: "extra-common-modules/tasks",
-                element: <TasksPage />,
+                path: "department-accesses",
+                element: <ModuleCardsLanding section="department-accesses" />,
               },
               {
-                path: "leave-requests",
-                element: <LeaveRequestsPage />,
+                path: "department-accesses/:departmentId",
+                element: <ModuleCardsLanding section="department-accesses" />,
+              },
+              {
+                path: "module-sections/:sectionId/:departmentId",
+                element: <ModuleSectionRedirect />,
               },
               {
                 path: "module-sections/:sectionId",
-                element: <ModuleCardsLanding />,
+                element: <ModuleSectionRedirect />,
               },
+
               {
                 path: "services",
                 element: <Services />,
@@ -644,10 +805,6 @@ export const routes = createBrowserRouter([
               {
                 path: "reports",
                 element: <ReportsPage />,
-              },
-              {
-                path: "calendar",
-                element: <CalendarPage />,
               },
               {
                 path: "access",
@@ -763,26 +920,8 @@ export const routes = createBrowserRouter([
               },
 
               {
-                path: "tickets",
-                children: [
-                  {
-                    index: true,
-                    element: <TicketsPage />,
-                  },
-                ],
-              },
-              {
-                path: "meetings",
-                children: [
-                  {
-                    path: "meeting-rooms",
-                    element: <MeetingRoomsPage />,
-                  },
-                ],
-              },
-              {
                 path: "tickets-center",
-                element: <Navigate to="/tickets" replace />,
+                element: <Navigate to="/common-modules/tickets" replace />,
               },
               {
                 path: "assets",
@@ -1060,142 +1199,145 @@ export const routes = createBrowserRouter([
                   },
                 ],
               },
+              // Department Access — Sales
               {
-                path: "sales-crm",
-                children: [
-                  {
-                    path: "tenant-companies",
-                    element: <TenantCompaniesPage />,
-                  },
-                  {
-                    path: "tenant-companies/:id",
-                    element: <TenantCompanyDetailPage />,
-                  },
-                  {
-                    path: "resource-pricing",
-                    element: <ResourcePricingPage />,
-                  },
-                  {
-                    path: "leads-management",
-                    element: <LeadsManagementPage />,
-                  },
-                  {
-                    path: "sales-architecture",
-                    element: <SalesArchitecturePage />,
-                  },
-                ],
+                path: "department-accesses/sales-department/tenant-companies",
+                element: <TenantCompaniesPage />,
               },
-                  {
-                    path: "administration",
-                    children: [
-                      {
-                        path: "tenant-companies",
-                        element: <AdministrationTenantCompaniesPage />,
-                      },
-                      {
-                        path: "tenant-companies/:id",
-                        element: <AdministrationTenantCompanyDetailPage />,
-                      },
-                      {
-                        path: "bookings",
-                        element: <AdministrationBookingsPage />,
-                      },
-                      {
-                        path: "resource-management",
-                        element: <AdministrationResourceManagementPage />,
-                      },
-                      {
-                        path: "house-keeping",
-                        element: <AdministrationHousekeepingPage />,
-                      },
-                    ],
-                  },
-                  {
-                    path: "maintenance",
-                    children: [
-                      {
-                        path: "repair-logs",
-                        element: <RepairLogsPage />,
-                      },
-                      {
-                        path: "amc-scheduler",
-                        element: <AMCMaintenanceSchedulerPage />,
-                      },
-                    ],
-                  },
-                  {
-                    path: "it",
-                    children: [
-                      {
-                        path: "repair-logs",
-                        element: <ITRepairLogsPage />,
-                      },
-                      {
-                        path: "system-access",
-                        element: <SystemAccessManagementPage />,
-                      },
-                    ],
-                  },
-                  {
-                    path: "hr",
-                    element: <Outlet />,
-                    children: [
-                      {
-                        path: "company-management",
-                        element: <HREmployeeManagementPage />,
-                      },
-                      {
-                        path: "documents",
-                        element: <HRDocumentsPage />,
-                      },
-                      {
-                        path: "attendance-review",
-                        element: <HRAttendanceReviewPage />,
-                      },
-                      {
-                        path: "attendance-review/:userId",
-                        element: <HREmployeeAttendanceDetailPage />,
-                      },
-                      {
-                        path: "leave-request-processing",
-                        element: <HRLeaveRequestsProcessingPage />,
-                      },
-                      {
-                        path: "recruitment",
-                        element: <HRRecruitmentPage />,
-                      },
-                      {
-                        path: "payroll-management",
-                        element: <HRPayrollPage />,
-                      },
-                      {
-                        path: "resignation-management",
-                        element: <HRResignationManagementPage />,
-                      },
-                      {
-                        path: "exit-management",
-                        element: <Navigate to="/hr/resignation-management" replace />,
-                      },
-                    ],
-                  },
-                  {
-                    path: "finance",
-                    element: <Outlet />,
-                    children: [
-                      {
-                        path: "expenses-budget",
-                        element: <ExpensesBudgetPage />,
-                      },
-                      {
-                        path: "billing-payments",
-                        element: <BillingPaymentsPage />,
-                      },
-                      {
-                        path: "accounting",
-                        element: <AccountingPage />,
-                      },
-                    ],
-                  },
+              {
+                path: "department-accesses/sales-department/tenant-companies/:id",
+                element: <TenantCompanyDetailPage />,
+              },
+              {
+                path: "department-accesses/sales-department/resource-pricing",
+                element: <ResourcePricingPage />,
+              },
+              {
+                path: "department-accesses/sales-department/leads-management",
+                element: <LeadsManagementPage />,
+              },
+              {
+                path: "department-accesses/sales-department/sales-architecture",
+                element: <SalesArchitecturePage />,
+              },
+              {
+                path: "sales-crm/*",
+                element: <ParamWildcardRedirect to="/department-accesses/sales-department" />,
+              },
+
+              // Department Access — Administration
+              {
+                path: "department-accesses/administration-department/tenant-companies",
+                element: <AdministrationTenantCompaniesPage />,
+              },
+              {
+                path: "department-accesses/administration-department/tenant-companies/:id",
+                element: <AdministrationTenantCompanyDetailPage />,
+              },
+              {
+                path: "department-accesses/administration-department/bookings",
+                element: <AdministrationBookingsPage />,
+              },
+              {
+                path: "department-accesses/administration-department/resource-management",
+                element: <AdministrationResourceManagementPage />,
+              },
+              {
+                path: "department-accesses/administration-department/house-keeping",
+                element: <AdministrationHousekeepingPage />,
+              },
+              {
+                path: "administration/*",
+                element: <ParamWildcardRedirect to="/department-accesses/administration-department" />,
+              },
+
+              // Department Access — Maintenance
+              {
+                path: "department-accesses/maintenance-department/repair-logs",
+                element: <RepairLogsPage />,
+              },
+              {
+                path: "department-accesses/maintenance-department/amc-scheduler",
+                element: <AMCMaintenanceSchedulerPage />,
+              },
+              {
+                path: "maintenance/*",
+                element: <ParamWildcardRedirect to="/department-accesses/maintenance-department" />,
+              },
+
+              // Department Access — IT
+              {
+                path: "department-accesses/it-department/repair-logs",
+                element: <ITRepairLogsPage />,
+              },
+              {
+                path: "department-accesses/it-department/system-access",
+                element: <SystemAccessManagementPage />,
+              },
+              {
+                path: "it/*",
+                element: <ParamWildcardRedirect to="/department-accesses/it-department" />,
+              },
+
+              // Department Access — HR
+              {
+                path: "department-accesses/hr-department/company-management",
+                element: <HREmployeeManagementPage />,
+              },
+              {
+                path: "department-accesses/hr-department/documents",
+                element: <HRDocumentsPage />,
+              },
+              {
+                path: "department-accesses/hr-department/attendance-review",
+                element: <HRAttendanceReviewPage />,
+              },
+              {
+                path: "department-accesses/hr-department/attendance-review/:userId",
+                element: <HREmployeeAttendanceDetailPage />,
+              },
+              {
+                path: "department-accesses/hr-department/leave-request-processing",
+                element: <HRLeaveRequestsProcessingPage />,
+              },
+              {
+                path: "department-accesses/hr-department/recruitment",
+                element: <HRRecruitmentPage />,
+              },
+              {
+                path: "department-accesses/hr-department/payroll-management",
+                element: <HRPayrollPage />,
+              },
+              {
+                path: "department-accesses/hr-department/resignation-management",
+                element: <HRResignationManagementPage />,
+              },
+              {
+                path: "department-accesses/hr-department/exit-management",
+                element: <Navigate to="/department-accesses/hr-department/resignation-management" replace />,
+              },
+              {
+                path: "hr/*",
+                element: <ParamWildcardRedirect to="/department-accesses/hr-department" />,
+              },
+
+              // Department Access — Finance
+              {
+                path: "department-accesses/finance-department/expenses-budget",
+                element: <ExpensesBudgetPage />,
+              },
+              {
+                path: "department-accesses/finance-department/billing-payments",
+                element: <BillingPaymentsPage />,
+              },
+              {
+                path: "department-accesses/finance-department/accounting",
+                element: <AccountingPage />,
+              },
+              {
+                path: "finance/*",
+                element: <ParamWildcardRedirect to="/department-accesses/finance-department" />,
+              },
             ],
           },
         ],

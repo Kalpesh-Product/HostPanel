@@ -378,7 +378,6 @@ function CorrectionDetailModal({ record, open, onClose, onAction, acting }: Corr
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-md flex items-center justify-center z-[100] p-4"
-          onClick={onClose}
         >
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
@@ -787,7 +786,7 @@ export default function HRAttendanceReviewPage() {
       return;
     }
     const recordDate = record.date || rangeTo;
-    navigate(`/hr/attendance-review/${record.userId}`, {
+    navigate(`/department-accesses/hr-department/attendance-review/${record.userId}`, {
       state: {
         month: recordDate.substring(0, 7),
         date: recordDate,
@@ -1443,7 +1442,6 @@ export default function HRAttendanceReviewPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-md flex items-center justify-center z-[100] p-4"
-            onClick={() => !geofenceSaving && setShowGeofenceModal(false)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}

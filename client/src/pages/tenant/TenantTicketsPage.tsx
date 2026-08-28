@@ -518,7 +518,7 @@ export default function TenantTicketsPage() {
 
         {/* ── Create ticket modal ── */}
         {showCreateForm && (
-          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-3 animate-in fade-in duration-200" onClick={() => !isSubmitting && setShowCreateForm(false)}>
+          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-3 animate-in fade-in duration-200">
             <form onSubmit={handleCreateTicket} noValidate className="bg-white rounded-t-[2rem] sm:rounded-[2rem] max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[92vh] sm:max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
               {/* Header */}
               <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between gap-3">
@@ -640,7 +640,7 @@ export default function TenantTicketsPage() {
 
         {/* ── View ticket modal ── */}
         {selectedTicket && (
-          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={() => setSelectedTicket(null)}>
+          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3">
             <div className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
               {/* Header */}
               <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between gap-3">

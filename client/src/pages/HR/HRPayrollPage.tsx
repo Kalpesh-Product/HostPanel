@@ -226,7 +226,6 @@ function HandoffConfirmModal({ open, onClose, onConfirm, mode, error, submitting
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-[#0F172A]/40 backdrop-blur-sm"
-          onClick={onClose}
         >
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
@@ -314,7 +313,6 @@ function HistoryCycleModal({ cycle, workspaceCurrency, onClose, onViewEmployee }
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#0F172A]/40 backdrop-blur-sm"
-          onClick={onClose}
         >
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
@@ -569,7 +567,6 @@ function PayrollTemplateModal({
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           className="fixed inset-0 z-[130] flex items-center justify-center bg-[#0F172A]/55 p-3 backdrop-blur-sm sm:p-5"
-          onClick={() => { if (!saving) onClose(); }}
         >
           <motion.div
             initial={{ scale: 0.97, opacity: 0, y: 12 }}
@@ -679,7 +676,6 @@ function EmployeeDetailModal({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-[#0F172A]/40 backdrop-blur-sm"
-        onClick={() => { onClose(); setAdjustment({ type: "bonus", amount: "", reason: "" }); }}
       >
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
@@ -1243,7 +1239,7 @@ export default function HRPayrollPage() {
       const currentUser = getStoredUser();
       if (currentUser && canAccessFinanceDashboard(currentUser)) {
         navigate(
-          `/dashboard/finance/billing-payments?tab=payroll&month=${encodeURIComponent(selectedMonth)}&year=${encodeURIComponent(selectedYear)}`,
+          `/dashboard/department-accesses/finance-department/billing-payments?tab=payroll&month=${encodeURIComponent(selectedMonth)}&year=${encodeURIComponent(selectedYear)}`,
           { replace: true },
         );
       } else if (currentUser) {
@@ -1823,7 +1819,7 @@ export default function HRPayrollPage() {
                                 {ctcPayrollEmployees.length === 0 && (
                                   <button
                                     type="button"
-                                    onClick={() => navigate("/hr/company-management")}
+                                    onClick={() => navigate("/department-accesses/hr-department/company-management")}
                                     className="mt-4 flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-white transition-colors hover:bg-blue-700"
                                   >
                                     <Plus size={14} /> Open Company Management

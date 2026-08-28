@@ -21,7 +21,13 @@ const MuiModal = ({ open, onClose, title, children, variant = "default", subtitl
 
   return (
     <AnimatePresence>
-      <Modal open={open} onClose={onClose}>
+      <Modal
+        open={open}
+        onClose={(event, reason) => {
+          if (reason === "backdropClick") return;
+          onClose();
+        }}
+      >
         <div
           ref={modalRef}
           className={isWorkspace

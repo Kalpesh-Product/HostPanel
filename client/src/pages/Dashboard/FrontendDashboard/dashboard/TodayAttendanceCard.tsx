@@ -247,14 +247,14 @@ const TodayAttendanceCard = () => {
               </button>
             )}
             {isCompleted && <span className="text-small font-pmedium text-slate-500">Attendance completed for today</span>}
-            {access.hasModule("attendance") && <a href="/extra-common-modules/attendance" className="inline-flex items-center gap-1 text-small font-pmedium text-[#2563EB] hover:underline">Details <ArrowRight size={13} /></a>}
+            {access.hasModule("attendance") && <a href="/common-modules/attendance" className="inline-flex items-center gap-1 text-small font-pmedium text-[#2563EB] hover:underline">Details <ArrowRight size={13} /></a>}
           </div>
         </div>
         {errorMessage && !showClockModal && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-small font-pmedium text-rose-700">{errorMessage}</p>}
       </section>
 
       {showClockModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/80 p-4 backdrop-blur-md" onClick={closeClockModal}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/80 p-4 backdrop-blur-md">
           <div className="flex max-h-[calc(100vh-1.5rem)] w-full max-w-[420px] flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-4">
               <div>

@@ -364,6 +364,13 @@ export function AssetsPage() {
     () => new Set(assignedDepartments.map((d) => normalizeDepartmentName(d))),
     [assignedDepartments],
   );
+  const pageTitle = isFounderScope
+    ? 'Overall Assets'
+    : roleBand === 'admin'
+      ? 'Assigned Dept Assets'
+      : assignedDepartments[0]
+        ? `${assignedDepartments[0]} Assets`
+        : 'Assets';
   const [isLoadingMembers, setIsLoadingMembers] = useState(true);
   const [isLoadingAssets, setIsLoadingAssets] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -1030,7 +1037,7 @@ function AssetsSkeleton() {
             <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
               <div>
                 <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                   Assets
+                   {pageTitle}
                 </h2>
                 <p className="text-xs font-pmedium text-slate-500 mt-1">
                   {isFounderScope

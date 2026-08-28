@@ -48,7 +48,7 @@ const startsWith = (path: string) => (pathname: string) =>
   pathname === path || pathname.startsWith(`${path}/`);
 const nomadListingAction = (action: "add" | "edit" | "view") => (pathname: string) => {
   const routeSuffix = "/nomad-listings/" + action;
-  return pathname === "/company-settings" + routeSuffix || pathname === "/dashboard" + routeSuffix;
+  return pathname === "/key-apps" + routeSuffix || pathname === "/dashboard" + routeSuffix;
 };
 
 const BASIC_PAGE_TOURS: TourRoute[] = [
@@ -118,7 +118,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="wono-nomad-reviews"]', title: "Reviews", description: "See customer reviews submitted through your Nomads listings. Monitor feedback, check ratings, and follow up with guests who left reviews." },
       { selector: '[data-tour="wono-nomad-leads"]', title: "Leads", description: "Track enquiries and interest from Nomads visitors. Review lead details, contact information, and follow up to convert them into bookings or partnerships." },
     ],
-    matches: (path) => /^\/(company-settings|dashboard)\/wono-nomad\/?$/.test(path),
+    matches: (path) => /^\/(key-apps|dashboard)\/wono-nomad\/?$/.test(path),
   },
   {
     id: "basic-nomad-listings",
@@ -133,7 +133,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="nomad-add-listing"]', title: "Add a new listing", description: "Opens the listing form where you enter workspace details — name, type, location, amenities, images, and contact info. If you've reached your plan limit, this button will be disabled." },
       { selector: '[data-tour="nomad-table"]', title: "Listing records and actions", description: "Each row shows your listing's name, type, city, active/inactive status, and creation date. Click the pencil icon to edit any listing." },
     ],
-    matches: (path) => /^(\/company-settings|\/dashboard)\/nomad-listings\/?$/.test(path),
+    matches: (path) => /^(\/key-apps|\/dashboard)\/nomad-listings\/?$/.test(path),
   },
   {
     id: "basic-website-builder-editor",
@@ -184,7 +184,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { editorPage: "contact-us", selector: '[data-tour="wb-editor-contact-page-details"]', title: "Contact page details", description: "Control the Contact page visibility and update its shared email, phone, address, and map. Changes here also update the Home contact section." },
       { editorPage: "contact-us", selector: '[data-tour="wb-editor-contact-page-inquiry"]', title: "Contact availability and enquiries", description: "Add optional business hours and choose whether the Contact page displays its enquiry form. Submitted messages are saved as General Inquiry leads." },
     ],
-    matches: (path) => /^(\/company-settings|\/dashboard)\/website-builder\/(dynamic\/create-website|edit-website)(\/|$)/.test(path),
+    matches: (path) => /^(\/key-apps|\/dashboard)\/website-builder\/(dynamic\/create-website|edit-website)(\/|$)/.test(path),
   },
   {
     id: "basic-website-theme",
@@ -198,7 +198,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { text: "Select", title: "Select the theme", description: "Confirms this design as the starting point for your website and moves you to the content editor where you can customize every section." },
       { text: "Load More", title: "Load more themes", description: "Displays the next group of available themes without losing the ones already shown. Keep browsing until you find the right design." },
     ],
-    matches: (path) => /^(\/company-settings|\/dashboard)\/website-builder\/(select-theme|view-theme|live-demo)\/?/.test(path),
+    matches: (path) => /^(\/key-apps|\/dashboard)\/website-builder\/(select-theme|view-theme|live-demo)\/?/.test(path),
   },
   {
     id: "basic-website-leads",
@@ -212,7 +212,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="wb-leads-table"]', title: "Website lead records", description: "Review each lead's contact details, source, product, current status, received date, and available action." },
       { selector: '[data-tour="wb-leads-view"]', title: "Open lead details", description: "The eye button opens the full enquiry so you can read the submitted information and close the lead after following up." },
     ],
-    matches: (path) => /^(\/company-settings|\/dashboard)\/website-builder\/(dynamic\/)?leads\/?$/.test(path),
+    matches: (path) => /^(\/key-apps|\/dashboard)\/website-builder\/(dynamic\/)?leads\/?$/.test(path),
   },
   {
     id: "basic-website-reviews",
@@ -226,7 +226,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="wb-reviews-table"]', title: "Review list", description: "The table shows each review with its moderation status and whether an approved review is enabled for public display on your website." },
       { selector: '[data-tour="wb-reviews-view"]', title: "Review details and actions", description: "The eye button opens the full review. Pending reviews can be approved or rejected, and approved reviews can be enabled or disabled for public display." },
     ],
-    matches: (path) => /^(\/company-settings|\/dashboard)\/website-builder\/dynamic\/reviews\/?$/.test(path),
+    matches: (path) => /^(\/key-apps|\/dashboard)\/website-builder\/dynamic\/reviews\/?$/.test(path),
   },
   {
     id: "basic-website-careers",
@@ -252,7 +252,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { tabPage: "candidates", selector: '[data-tour="hr-recruit-search"]', title: "Find an applicant", description: "Search by applicant name or the position they applied for." },
       { tabPage: "candidates", selector: '[data-tour="hr-recruit-table"]', title: "Applications and actions", description: "Each application shows the candidate, position applied for, source, and a status dropdown to advance them through the pipeline. Open full details with the eye action; the convert action appears once a candidate is Selected.", side: "top" },
     ],
-    matches: (path) => /^(\/company-settings|\/dashboard)\/website-builder\/dynamic\/careers\/?$/.test(path),
+    matches: (path) => /^(\/key-apps|\/dashboard)\/website-builder\/dynamic\/careers\/?$/.test(path),
   },
   {
     id: "basic-website-builder",
@@ -266,7 +266,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="wb-reviews"]', title: "Website Reviews", description: "Customer reviews submitted through your website appear here. Approve good reviews to display them publicly on your site, or reject inappropriate ones. You control what visitors see." },
       { selector: '[data-tour="wb-careers"]', title: "Careers", description: "Create and publish job openings that appear on your website careers page. Add role title, department, description, and vacancies, then publish to make them live. This card is locked until your website is created for the first time." },
     ],
-    matches: (path) => /^(\/company-settings|\/dashboard)\/website-builder(?:\/dynamic)?$/.test(path),
+    matches: (path) => /^(\/key-apps|\/dashboard)\/website-builder(?:\/dynamic)?$/.test(path),
   },
   {
     id: "basic-nomad-reviews",
@@ -280,7 +280,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="nomad-reviews-table"]', title: "Review list", description: "Each row shows the reviewer, star rating, description, source, status, and whether an approved review is enabled for public display on your listing." },
       { selector: '[data-tour="nomad-reviews-view"]', title: "Open review details", description: "The eye button opens the full review so you can read the feedback and approve, reject, or enable/disable it for public display." },
     ],
-    matches: exact("/company-settings/reviews"),
+    matches: exact("/key-apps/reviews"),
   },
   {
     id: "basic-nomad-leads",
@@ -294,7 +294,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="wb-leads-table"]', title: "Nomads lead records", description: "Review each lead's contact details, source, product or service, current status, received date, and available action." },
       { selector: '[data-tour="wb-leads-view"]', title: "Open lead details", description: "The eye button opens the full enquiry so you can read the submitted information and close the lead after following up." },
     ],
-    matches: (path) => /^\/company-settings\/nomads-leads\/?$/.test(path),
+    matches: (path) => /^\/key-apps\/nomads-leads\/?$/.test(path),
   },
   {
     id: "basic-profile-hub",
@@ -422,7 +422,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="organization-add-user"]', title: "Invite the Super Admin", description: "Select Add User to enter the additional user’s name and email. Their role is fixed to Super Admin on Basic. After that one invitation or member exists, this button is disabled because the plan limit has been reached." },
       { selector: '[data-tour="organization-members-table"]', title: "Manage member access", description: "Each row shows identity, role, status, access, and the View Details action. The access switch enables or disables the Super Admin’s workspace login; protected Founder and self-access controls remain locked.", side: "top" },
     ],
-    matches: exact("/company-settings/organization-management"),
+    matches: exact("/core-modules/organization-management"),
   },
   {
     id: "basic-access-grants",
@@ -439,7 +439,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="access-grants-transfer"]', title: "Transfer ownership", description: "Appears only when an eligible member exists and you are in your main unit. Opens the handoff that makes another member the workspace Founder." },
       { selector: '[data-tour="access-grants-table"]', title: "Review granted access", description: "The list shows each user’s identity, current role, department scope, status, and row actions. The Founder row is protected. For the Super Admin, the shield action opens Sidebar Access limited to Basic modules, and the user-and-cog action opens role and ownership details.", side: "top" },
     ],
-    matches: exact("/company-settings/access-grants"),
+    matches: exact("/core-modules/access-grants"),
   },
   {
     id: "basic-customer-support",
@@ -454,7 +454,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { text: "RAISE ISSUE TO WONO TEAM", title: "Raise an issue", description: "Opens the support form for the issue title, detailed description, affected page, and supporting attachments." },
       { selector: 'button[aria-label^="View details for"]', title: "View issue details", description: "Opens the complete request, status history, attachments, and available follow-up actions for that support issue." },
     ],
-    matches: exact("/company-settings/customer-support"),
+    matches: exact("/common-modules/customer-support"),
   },
   {
     id: "basic-visitor-add",
@@ -582,7 +582,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="leaves-department-cards"]', tabPage: "assigned-dept-leaves", title: "Absence overview", description: "These cards show how many people are on leave today in each department so staffing gaps stay visible." },
       { selector: '[data-tour="leaves-table"]', tabPage: "assigned-dept-leaves", title: "Department leave records", description: "Review leave across your assigned departments and open any record for its complete details.", side: "top" },
     ],
-    matches: exact("/leave-requests"),
+    matches: exact("/common-modules/leave-requests"),
   },
   {
     id: "basic-attendance",
@@ -615,7 +615,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { tabPage: "corrections", selector: '[data-tour="attendance-search"]', title: "Find a request", description: "Locate a correction by employee name when reviewing specific cases." },
       { tabPage: "corrections", selector: '[data-tour="attendance-table"]', title: "Requests and outcomes", description: "Each row shows what was asked for versus the original punch times, who requested it, and its current state. Approved fixes update the underlying attendance record automatically.", side: "top" },
     ],
-    matches: exact("/extra-common-modules/attendance"),
+    matches: exact("/common-modules/attendance"),
   },
   {
     id: "basic-tasks",
@@ -632,7 +632,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="tasks-page-assign-btn"]', title: "Assign a new task", description: "Opens the Delegate Task form: choose Standard Execution or a Formal Approval Request, write the title and instructions, route it to a department, optionally pick an assignee, set the deadline, and attach reference files." },
       { selector: '[data-tour="tasks-page-table"]', title: "Task list and details", description: "Each task shows its type and department, who raised and received it, priority with progress, due date, and overdue warnings. Open a task to accept it, update progress, complete it with a note, or approve or reject approval requests.", side: "top" },
     ],
-    matches: exact("/extra-common-modules/tasks"),
+    matches: exact("/common-modules/tasks"),
   },
   {
     id: "basic-leaves",
@@ -650,7 +650,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="leaves-apply-btn"]', title: "Apply for leave", description: "Choose the leave category and dates, then full day, half day, or partial hours. Sundays and holidays are excluded, balances are checked, and overlapping approved leave is blocked before submitting." },
       { selector: '[data-tour="leaves-table"]', title: "Requests and actions", description: "Each row shows the leave type, dates, duration, mode, status, and approver. Open a request to review its details; approvers can approve or reject pending ones, and certificates can be attached where required.", side: "top" },
     ],
-    matches: exact("/leave-requests"),
+    matches: exact("/common-modules/leave-requests"),
   },
   {
     id: "basic-assets",
@@ -775,7 +775,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { tabPage: "birthdays", selector: '[data-tour="hr-birthdays-search"]', title: "Search birthdays", description: "Find employees by name, email, employee ID, or department inside the selected month." },
       { tabPage: "birthdays", selector: '[data-tour="hr-birthdays-table"]', title: "Birthday list", description: "Each row shows employee details, date of birth, age, birthday date, and whether the celebration is today, upcoming, or completed.", side: "top" },
     ],
-    matches: exact("/hr/company-management"),
+    matches: exact("/department-accesses/hr-department/company-management"),
   },
   {
     id: "basic-hr-documents",
@@ -789,7 +789,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="hr-docs-search"]', title: "Search and filter", description: "Find a person or a named document, and narrow the list to one department." },
       { selector: '[data-tour="hr-docs-table"]', title: "Employee documents", description: "Each row lists the employee with their stored files. Open any document in a new tab, or view everything a person has on file in one place.", side: "top" },
     ],
-    matches: exact("/hr/documents"),
+    matches: exact("/department-accesses/hr-department/documents"),
   },
   {
     id: "basic-hr-attendance-review",
@@ -820,7 +820,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="hr-att-detail-summary"]', title: "Employee profile (detail view)", description: "When reviewing one person, this card shows their monthly hours, present days, and absences at a glance." },
       { selector: '[data-tour="hr-att-detail-table"]', title: "Daily records (detail view)", description: "Day-by-day punches with in and out times, breaks, and hours. Open a day to inspect selfie captures and the full timeline.", side: "top" },
     ],
-    matches: startsWith("/hr/attendance-review"),
+    matches: startsWith("/department-accesses/hr-department/attendance-review"),
   },
   {
     id: "basic-hr-leave-processing",
@@ -855,7 +855,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="hr-leave-calendar-search"]', tabPage: "holidays", title: "Search entries", description: "Find a holiday or event by name within the selected calendar." },
       { selector: '[data-tour="hr-leave-add-entry"]', tabPage: "holidays", title: "Add holidays and events", description: "Create a company holiday or event manually. On the Holidays calendar, Import also bulk-adds public holidays for your region. Existing entries can be edited or removed from their rows.", side: "top" },
     ],
-    matches: exact("/hr/leave-request-processing"),
+    matches: exact("/department-accesses/hr-department/leave-request-processing"),
   },
   {
     id: "basic-hr-recruitment",
@@ -884,7 +884,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { tabPage: "candidates", selector: '[data-tour="hr-recruit-add-btn"]', title: "Add a candidate manually", description: "Register walk-ins, referrals, or offline applicants. Enter their name, email, phone, and the position applied for.", side: "left" },
       { tabPage: "candidates", selector: '[data-tour="hr-recruit-table"]', title: "Candidate rows and actions", description: "Each row shows the candidate's name and email, position applied for, source, and a pipeline status dropdown to advance them through Screening, Interview Scheduled, Interviewed, or Selected. The eye button opens full details and the convert button appears once a candidate is marked Selected.", side: "top" },
     ],
-    matches: exact("/hr/recruitment"),
+    matches: exact("/department-accesses/hr-department/recruitment"),
   },
   {
     id: "basic-hr-payroll",
@@ -909,7 +909,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="hr-payroll-department-filter"]', tabPage: "history", title: "Department filter", description: "Narrow past cycles to a single department when your access covers more than one." },
       { selector: '[data-tour="hr-payroll-table"]', tabPage: "history", title: "Past cycles and payment progress", description: "Every cycle handed to Finance with its status and totals. Open a cycle to review its employees, amounts, and how far payments have progressed.", side: "top" },
     ],
-    matches: exact("/hr/payroll-management"),
+    matches: exact("/department-accesses/hr-department/payroll-management"),
   },
   {
     id: "basic-hr-resignation",
@@ -930,7 +930,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { tabPage: "notice", textOnly: true, title: "Clearance checklist", description: "Inside Manage, HR can extend the notice period, tick return and clearance items, save progress, and complete the resignation only after every required item is cleared." },
       { tabPage: "history", selector: '[data-tour="hr-resignation-table"]', title: "Resignation history", description: "History keeps completed and rejected resignation records with employee details, department, final resignation date, reason, status, and the view action for the full case file.", side: "top" },
     ],
-    matches: exact("/hr/resignation-management"),
+    matches: exact("/department-accesses/hr-department/resignation-management"),
   },
   {
     id: "basic-admin-tenant-companies",
@@ -945,7 +945,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="admin-tenant-status-select"]', title: "Filter by package", description: "Narrow the directory to tenants contracted on one specific package." },
       { selector: '[data-tour="admin-tenant-table"]', title: "Directory and actions", description: "Each row shows company and contact details, contract period, package and credits, and status. View Details opens the complete profile, Edit Company Record corrects saved information, and Renew Contract extends duration or adds credits.", side: "top" },
     ],
-    matches: exact("/administration/tenant-companies"),
+    matches: exact("/department-accesses/administration-department/tenant-companies"),
   },
   {
     id: "basic-admin-tenant-company-detail",
@@ -967,7 +967,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="tenant-detail-credits-month"]', tabPage: "credits", title: "Monthly credit activity", description: "Pick any month and year to review that period's used, refunded, and net credits, then read every transaction as debits and credits with its running balance.", side: "top" },
       { selector: '[data-tour="tenant-detail-space-summary"]', tabPage: "space-allocation", title: "Allocated space", description: "The assigned area with open desks, cabin desks, and total seats, followed by the desk-level breakdown and location labels from the tenant's package." },
     ],
-    matches: (path) => /^\/administration\/tenant-companies\/[^/]+$/.test(path),
+    matches: (path) => /^\/department-accesses\/administration-department\/tenant-companies\/[^/]+$/.test(path),
   },
   {
     id: "basic-admin-bookings",
@@ -991,7 +991,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="admin-bookings-table"]', tabPage: "tenant", title: "Tenant company reservations", description: "Reservations made by tenant companies with the company column shown per row. Open a row to review the booking and its current state.", side: "top" },
       { selector: '[data-tour="admin-bookings-table"]', tabPage: "history", title: "Booking history", description: "The archived record of past bookings across scopes — use it to audit usage or resolve disputes about earlier reservations.", side: "top" },
     ],
-    matches: exact("/administration/bookings"),
+    matches: exact("/department-accesses/administration-department/bookings"),
   },
   {
     id: "basic-admin-resource-management",
@@ -1007,7 +1007,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="admin-resource-add-btn"]', title: "Add resources", description: "Add Resource registers a new unit with its floor, wing, capacity, and credits. The upload icon next to it bulk-imports many resources from Excel at once." },
       { selector: '[data-tour="admin-resource-table"]', title: "Resource register", description: "Each row lists location, category, seats, inventory mode, and credits, with edit and delete actions. On smaller screens the same data appears as cards.", side: "top" },
     ],
-    matches: exact("/administration/resource-management"),
+    matches: exact("/department-accesses/administration-department/resource-management"),
   },
   {
     id: "basic-admin-housekeeping",
@@ -1023,7 +1023,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="admin-housekeeping-add-btn"]', title: "Create work", description: "Add Scheduled Task plans a cleaning job with time and assignee. The nearby buttons open staff management — Show Staff marks attendance, Add Staff registers new cleaners, and Bulk Upload imports them from Excel." },
       { selector: '[data-tour="admin-housekeeping-table"]', title: "Task board", description: "Tasks show area, floor, assignee, start time, and status with edit or cancel actions; history rows preserve who completed what and when.", side: "top" },
     ],
-    matches: exact("/administration/house-keeping"),
+    matches: exact("/department-accesses/administration-department/house-keeping"),
   },
   {
     id: "basic-dashboard",
@@ -1114,7 +1114,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="it-repair-search-create"]', title: "Search and create", description: "Use the search bar to find logs by code, asset, or issue. Click Log IT Repair to open the form and raise a new repair entry." },
       { selector: '[data-tour="it-repair-table"]', title: "Repair log records", description: "Each row shows the log code, asset name, issue type, assigned technician, status, and creation date. Click View to open full details and advance the status." },
     ],
-    matches: exact("/it/repair-logs"),
+    matches: exact("/department-accesses/it-department/repair-logs"),
   },
   {
     id: "basic-maintenance-repair-logs",
@@ -1138,7 +1138,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       // ── Workflow explanation ──
       { textOnly: true, title: "Advancing a repair", description: "Open any log with View to see its full record. Start Work moves it to In Progress; from there Mark Resolved records completion or Close Log archives it directly. Closed logs are final and move to History." },
     ],
-    matches: exact("/maintenance/repair-logs"),
+    matches: exact("/department-accesses/maintenance-department/repair-logs"),
   },
   {
     id: "basic-amc-scheduler",
@@ -1160,7 +1160,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       // ── Workflow explanation ──
       { textOnly: true, title: "Completing a service", description: "Open a schedule and select Complete Service: today is saved as the last serviced date, the next due date advances by the frequency, the status returns to Scheduled, and the visit is written into the schedule's service history." },
     ],
-    matches: exact("/maintenance/amc-scheduler"),
+    matches: exact("/department-accesses/maintenance-department/amc-scheduler"),
   },
 ];
 

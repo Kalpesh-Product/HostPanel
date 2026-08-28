@@ -12,6 +12,7 @@ import {
   CalendarClock,
   MessageSquareCode,
   Calendar,
+  CalendarDays,
   Package,
 } from "lucide-react";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
@@ -34,6 +35,9 @@ import { DashboardAttendanceCard } from "@/pages/Dashboard/FrontendDashboard/das
 import { getTasks } from "@/services/tasks";
 import { getTickets } from "@/services/tickets";
 import { getLeaveRequests } from "@/services/leave-requests";
+import { getAssets } from "@/services/assets";
+import { getMyBookings } from "@/services/meeting-room-bookings";
+import { getMyCalendar } from "@/services/calendar";
 
 /* ───────────────────────────── Types ───────────────────────────── */
 
@@ -73,16 +77,45 @@ interface LeaveRequestRecord {
   updatedAt?: string;
 }
 
+interface AssetRecord {
+  id?: string;
+  recordId?: string;
+  _id?: string;
+  name?: string;
+  assignedTo?: string;
+  assignedToUserId?: { _id?: string } | string | null;
+  allocations?: Array<{ userId?: string | null; quantity?: number }>;
+}
+
+interface BookingRecord {
+  id?: string;
+  _id?: string;
+  date?: string;
+  status?: string;
+}
+
+interface CalendarEventRecord {
+  id?: string;
+  date?: string;
+  type?: string;
+}
+
 interface DashboardState {
   tasks: TaskRecord[];
   tickets: TicketRecord[];
   leaveRequests: LeaveRequestRecord[];
+  assets: AssetRecord[];
+  bookings: BookingRecord[];
+  calendarEvents: CalendarEventRecord[];
 }
 
 const DEFAULT_DASHBOARD: DashboardState = {
   tasks: [],
   tickets: [],
   leaveRequests: [],
+  assets: [],
+  bookings: [],
+  calendarEvents: [],
 };
 
 /* ───────────────────────────── Helpers ───────────────────────────── */
@@ -235,10 +268,13 @@ export function EmployeeDashboardOverview() {
       setError("");
 
       try {
-        const [tasksResponse, ticketsResponse, leaveResponse] = await Promise.allSettled([
+        const [tasksResponse, ticketsResponse, leaveResponse, assetsResponse, bookingsResponse, calendarResponse] = await Promise.allSettled([
           getTasks({ limit: 200 }),
           getTickets({ limit: 200 }),
           getLeaveRequests(),
+          getAssets(),
+          getMyBookings(),
+          getMyCalendar(),
         ]);
 
         if (!isMounted) {
@@ -261,10 +297,30 @@ export function EmployeeDashboardOverview() {
 
         const leaveData = leaveResponse.status === "fulfilled" ? (leaveResponse.value as Record<string, unknown>) || {} : {};
 
+        const assetsData = assetsResponse.status === "fulfilled" ? (assetsResponse.value as Record<string, unknown>) : null;
+        const assetsList = Array.isArray((assetsData as Record<string, unknown>)?.assets)
+          ? ((assetsData as Record<string, unknown>).assets as AssetRecord[])
+          : Array.isArray(assetsData)
+            ? (assetsData as AssetRecord[])
+            : [];
+
+        const bookingsData = bookingsResponse.status === "fulfilled" ? (bookingsResponse.value as Record<string, unknown>) : null;
+        const bookingsList = Array.isArray((bookingsData as Record<string, unknown>)?.bookings)
+          ? ((bookingsData as Record<string, unknown>).bookings as BookingRecord[])
+          : [];
+
+        const calendarData = calendarResponse.status === "fulfilled" ? (calendarResponse.value as Record<string, unknown>) : null;
+        const calendarEventsList = Array.isArray((calendarData as Record<string, unknown>)?.events)
+          ? ((calendarData as Record<string, unknown>).events as CalendarEventRecord[])
+          : [];
+
         setDashboard({
           tasks: tasksList,
           tickets: ticketsList,
           leaveRequests: Array.isArray(leaveData.leaveRequests) ? (leaveData.leaveRequests as LeaveRequestRecord[]) : [],
+          assets: assetsList,
+          bookings: bookingsList,
+          calendarEvents: calendarEventsList,
         });
 
         const failures = [tasksResponse, ticketsResponse, leaveResponse].filter((result) => result.status === "rejected");
@@ -320,6 +376,28 @@ export function EmployeeDashboardOverview() {
   const openTicketsCount = myTickets.filter((ticket) => !["resolved", "closed"].includes(normalizeText(ticket.status))).length;
   const pendingLeaveCount = myLeaveRequests.filter((request) => normalizeText(request.status).includes("pending")).length;
 
+  const myAssignedAssetsCount = useMemo(() => {
+    return dashboard.assets.filter((asset) => {
+      const assignedToUserId = String(
+        (typeof asset.assignedToUserId === "object" ? asset.assignedToUserId?._id : asset.assignedToUserId) || "",
+      );
+      const allocatedToMe = (asset.allocations || []).some((allocation) => String(allocation.userId || "") && currentUserIds.includes(String(allocation.userId)));
+      return allocatedToMe || (assignedToUserId && currentUserIds.includes(assignedToUserId)) || (Boolean(currentUserName) && normalizeText(asset.assignedTo) === currentUserName);
+    }).length;
+  }, [dashboard.assets, currentUserIds, currentUserName]);
+
+  const todayKey = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  const upcomingBookingsCount = useMemo(
+    () => dashboard.bookings.filter((booking) => (booking.date || "") >= todayKey && !["cancelled", "rejected"].includes(normalizeText(booking.status))).length,
+    [dashboard.bookings, todayKey],
+  );
+
+  const upcomingCalendarEventsCount = useMemo(
+    () => dashboard.calendarEvents.filter((event) => (event.date || "") >= todayKey).length,
+    [dashboard.calendarEvents, todayKey],
+  );
+
   if (isLoading) {
     return <DashboardSkeleton />;
   }
@@ -351,25 +429,28 @@ export function EmployeeDashboardOverview() {
 
       {/* Overview — only the metrics that matter */}
       <WidgetSection layout={3} title="Overview" border normalCase>
-        <StatCard icon={ListChecks} label="My Tasks" value={myTasks.length} sub={`${openTasksCount} open`} color="#1E3D73" route="/extra-common-modules/tasks" />
-        <StatCard icon={Ticket} label="My Tickets" value={myTickets.length} sub={`${openTicketsCount} open`} color="#ef4444" route="/tickets" />
-        <StatCard icon={CalendarClock} label="Leave Requests" value={myLeaveRequests.length} sub={`${pendingLeaveCount} pending`} color="#f59e0b" route="/leave-requests" />
+        <StatCard icon={ListChecks} label="My Tasks" value={myTasks.length} sub={`${openTasksCount} open`} color="#1E3D73" route="/common-modules/tasks" />
+        <StatCard icon={Ticket} label="My Tickets" value={myTickets.length} sub={`${openTicketsCount} open`} color="#ef4444" route="/common-modules/tickets" />
+        <StatCard icon={CalendarClock} label="Leave Requests" value={myLeaveRequests.length} sub={`${pendingLeaveCount} pending`} color="#f59e0b" route="/common-modules/leave-requests" />
+        <StatCard icon={Package} label="Assigned Assets" value={myAssignedAssetsCount} sub="Equipment assigned to you" color="#0891b2" route="/profile/assigned-assets" />
+        <StatCard icon={Calendar} label="Upcoming Bookings" value={upcomingBookingsCount} sub="Meeting room bookings" color="#7c3aed" route="/common-modules/meeting-room-booking" />
+        <StatCard icon={CalendarDays} label="Upcoming Events" value={upcomingCalendarEventsCount} sub="On your calendar" color="#059669" route="/common-modules/calendar" />
       </WidgetSection>
 
       {/* Quick links */}
       <WidgetSection layout={4} title="Quick Links" border normalCase>
-        <QuickLink icon={ListChecks} label="Tasks" description="Your assigned work" route="/extra-common-modules/tasks" color="#1E3D73" />
-        <QuickLink icon={Ticket} label="Tickets" description="Raise or track support tickets" route="/tickets" color="#ef4444" />
-        <QuickLink icon={CalendarClock} label="Leave Requests" description="Apply for or check leaves" route="/leave-requests" color="#f59e0b" />
-        <QuickLink icon={Calendar} label="Meeting Rooms" description="Book a meeting room" route="/meetings/meeting-rooms" color="#2563EB" />
-        <QuickLink icon={Calendar} label="Calendar" description="View events & schedules" route="/calendar" color="#059669" />
-        <QuickLink icon={MessageSquareCode} label="Customer Support" description="Get help from support" route="/company-settings/customer-support" color="#7c3aed" />
+        <QuickLink icon={ListChecks} label="Tasks" description="Your assigned work" route="/common-modules/tasks" color="#1E3D73" />
+        <QuickLink icon={Ticket} label="Tickets" description="Raise or track support tickets" route="/common-modules/tickets" color="#ef4444" />
+        <QuickLink icon={CalendarClock} label="Leave Requests" description="Apply for or check leaves" route="/common-modules/leave-requests" color="#f59e0b" />
+        <QuickLink icon={Calendar} label="Meeting Rooms" description="Book a meeting room" route="/common-modules/meeting-room-booking" color="#2563EB" />
+        <QuickLink icon={Calendar} label="Calendar" description="View events & schedules" route="/common-modules/calendar" color="#059669" />
+        <QuickLink icon={MessageSquareCode} label="Customer Support" description="Get help from support" route="/common-modules/customer-support" color="#7c3aed" />
         <QuickLink icon={Package} label="Assigned Assets" description="Equipment assigned to you" route="/profile/assigned-assets" color="#0891b2" />
       </WidgetSection>
 
       {/* Assigned to me */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <SectionCard title="My Tasks" linkLabel="View all" linkRoute="/extra-common-modules/tasks">
+        <SectionCard title="My Tasks" linkLabel="View all" linkRoute="/common-modules/tasks">
           {myTasks.length > 0 ? myTasks.slice(0, 6).map((task, index) => (
             <RecentItem
               key={task.id || task._id || index}
@@ -384,7 +465,7 @@ export function EmployeeDashboardOverview() {
           )}
         </SectionCard>
 
-        <SectionCard title="My Tickets" linkLabel="View all" linkRoute="/tickets">
+        <SectionCard title="My Tickets" linkLabel="View all" linkRoute="/common-modules/tickets">
           {myTickets.length > 0 ? myTickets.slice(0, 6).map((ticket, index) => (
             <RecentItem
               key={ticket.id || ticket._id || index}

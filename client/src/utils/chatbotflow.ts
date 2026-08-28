@@ -140,7 +140,7 @@ export const chatbotFlow: ChatbotFlowItem[] = [
   {
     id: "basic-website-builder",
     plans: ALL_PLANS,
-    pageRoutes: ["/company-settings/website-builder"],
+    pageRoutes: ["/key-apps/website-builder"],
     generalQuestion: "How do I edit my website or see leads?",
     initialResponse: "You can manage your site from Website Builder.",
     firstStepId: "basic-website-need",
@@ -159,7 +159,7 @@ export const chatbotFlow: ChatbotFlowItem[] = [
   {
     id: "basic-team-users",
     plans: ["basic"],
-    pageRoutes: ["/company-settings/organization-management"],
+    pageRoutes: ["/core-modules/organization-management"],
     generalQuestion: "How do I add a team member?",
     initialResponse: "On the Basic plan, the founder can add exactly one additional user.",
     firstStepId: "basic-team-need",
@@ -178,7 +178,7 @@ export const chatbotFlow: ChatbotFlowItem[] = [
   {
     id: "basic-org-access",
     plans: ALL_PLANS,
-    pageRoutes: ["/company-settings/organization-management", "/company-settings/access-grants"],
+    pageRoutes: ["/core-modules/organization-management", "/core-modules/access-grants"],
     generalQuestion: "What are Departments and Access Grants?",
     initialResponse: "These control who can see and manage what inside your workspace.",
     firstStepId: "basic-org-need",
@@ -215,7 +215,7 @@ export const chatbotFlow: ChatbotFlowItem[] = [
   {
     id: "pro-calendar-units",
     plans: ["professional", "custom"],
-    pageRoutes: ["/calendar", "/company-settings/workspace-settings", "/company-settings/workspace-management"],
+    pageRoutes: ["/common-modules/calendar", "/core-modules/workspace-settings", "/core-modules/workspace-management"],
     generalQuestion: "How do I use Calendar or manage my Units?",
     initialResponse: "Professional includes Calendar and Unit Settings/Management.",
     firstStepId: "pro-calendar-need",
@@ -234,7 +234,7 @@ export const chatbotFlow: ChatbotFlowItem[] = [
   {
     id: "pro-tickets-meetings-sales",
     plans: ["professional", "custom"],
-    pageRoutes: ["/tickets", "/meetings/meeting-rooms", "/sales-crm/leads-management", "/sales-crm/tenant-companies", "/sales-crm/resource-pricing", "/sales-crm/sales-architecture"],
+    pageRoutes: ["/common-modules/tickets", "/common-modules/meeting-room-booking", "/department-accesses/sales-department/leads-management", "/department-accesses/sales-department/tenant-companies", "/department-accesses/sales-department/resource-pricing", "/department-accesses/sales-department/sales-architecture"],
     generalQuestion: "Where are Tickets, Meeting Room Booking, or Sales tools?",
     initialResponse: "These are all part of Professional and available now.",
     firstStepId: "pro-dev-need",

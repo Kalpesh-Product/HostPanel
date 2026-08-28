@@ -117,14 +117,14 @@ export default function NomadListingsOverview() {
       toast.error(limitMessage, { position: "bottom-right" });
       return;
     }
-    navigate(`/company-settings/nomad-listings/add`, { state: { companyId } });
+    navigate(`/key-apps/nomad-listings/add`, { state: { companyId } });
   };
 
   const handleEdit = (item) => {
     sessionStorage.setItem("companyId", companyId);
     sessionStorage.setItem("companyName", item?.companyName || "");
     sessionStorage.setItem("businessId", item?.businessId || "");
-    navigate(`/company-settings/nomad-listings/edit`, {
+    navigate(`/key-apps/nomad-listings/edit`, {
       state: { website: item, companyId, isLoading: isPending },
     });
   };
@@ -133,7 +133,7 @@ export default function NomadListingsOverview() {
     sessionStorage.setItem("companyId", companyId);
     sessionStorage.setItem("companyName", item?.companyName || "");
     sessionStorage.setItem("businessId", item?.businessId || "");
-    navigate(`/company-settings/nomad-listings/view`, {
+    navigate(`/key-apps/nomad-listings/view`, {
       state: { website: item, companyId, isLoading: isPending, mode: "view" },
     });
   };

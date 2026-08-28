@@ -129,65 +129,16 @@ const WorkspaceClock = ({ timezone, location }: { timezone: string; location: st
   );
 };
 
-export function MaintenanceDashboardOverview() {
-  const currentUser = useFreshCurrentUser();
+/**
+ * Stat cards, charts, and quick links for the Maintenance dashboard — split
+ * out from MaintenanceDashboardOverview so AdminDashboardOverview can render
+ * this same content for an Admin assigned to the Maintenance department,
+ * without the department's own greeting/header banner.
+ */
+export function MaintenanceDashboardWidgets() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [dashboard, setDashboard] = useState<DashboardState>(DEFAULT_DASHBOARD);
-
-  const access = useDashboardAccess();
-  const workspacePreferences = useWorkspacePreferences();
-  const [now, setNow] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 60_000);
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    setNow(new Date());
-  }, [workspacePreferences.timezone]);
-
-  const managerName = useMemo(() => {
-    const full = `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim();
-    return full || currentUser?.fullName || currentUser?.name || currentUser?.displayName || "Maintenance Manager";
-  }, [currentUser]);
-
-  const { greeting, todayLabel } = useMemo(() => {
-    const timezone = workspacePreferences.timezone;
-
-    try {
-      const hourPart = new Intl.DateTimeFormat("en-US", {
-        timeZone: timezone,
-        hour: "2-digit",
-        hourCycle: "h23",
-      })
-        .formatToParts(now)
-        .find((part) => part.type === "hour")?.value;
-      const workspaceHour = Number(hourPart);
-
-      return {
-        greeting: `${getGreeting(Number.isFinite(workspaceHour) ? workspaceHour : now.getHours())}, ${managerName}`,
-        todayLabel: new Intl.DateTimeFormat("en-IN", {
-          timeZone: timezone,
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }).format(now),
-      };
-    } catch {
-      return {
-        greeting: `${getGreeting(now.getHours())}, ${managerName}`,
-        todayLabel: now.toLocaleDateString("en-IN", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }),
-      };
-    }
-  }, [managerName, now, workspacePreferences.timezone]);
 
   useEffect(() => {
     let isMounted = true;
@@ -342,22 +293,7 @@ export function MaintenanceDashboardOverview() {
   }
 
   return (
-    <div className="p-4 flex flex-col gap-5">
-
-        {/* Greeting banner */}
-        <PageFrame>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-3 flex-wrap">
-                <h2 className="text-title font-pmedium text-primary uppercase">Maintenance Dashboard</h2>
-                <PlanBadge plan={access.plan} />
-              </div>
-              <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
-              <p className="text-content font-pmedium text-gray-700">{todayLabel}<WorkspaceClock timezone={workspacePreferences.timezone} location={workspacePreferences.location} /></p>
-            </div>
-          </div>
-        </PageFrame>
-
+    <div className="flex flex-col gap-5">
         {error ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-700">
             {error}
@@ -365,22 +301,20 @@ export function MaintenanceDashboardOverview() {
         ) : null}
 
         {/* Overview — only the metrics that matter */}
-        <DashboardAttendanceCard />
-
         <WidgetSection layout={4} title="Overview" border normalCase>
-          <StatCard icon={Activity} label="Uptime" value={`${uptimePercentage}%`} sub={`${totalSchedules} schedules tracked`} color="#1E3D73" route="/maintenance/amc-scheduler" />
-          <StatCard icon={Wrench} label="Open Repair Logs" value={openRepairLogs} sub={`${repairLogs.length} logged total`} color="#ef4444" route="/maintenance/repair-logs" />
-          <StatCard icon={AlertTriangle} label="Overdue Schedules" value={overdueSchedules} sub={`${dueSoonSchedules} due soon`} color="#dc2626" route="/maintenance/amc-scheduler" />
-          <StatCard icon={Clock} label="Due Soon Schedules" value={dueSoonSchedules} sub={`${healthySchedules} healthy`} color="#f59e0b" route="/maintenance/amc-scheduler" />
+          <StatCard icon={Activity} label="Uptime" value={`${uptimePercentage}%`} sub={`${totalSchedules} schedules tracked`} color="#1E3D73" route="/department-accesses/maintenance-department/amc-scheduler" />
+          <StatCard icon={Wrench} label="Open Repair Logs" value={openRepairLogs} sub={`${repairLogs.length} logged total`} color="#ef4444" route="/department-accesses/maintenance-department/repair-logs" />
+          <StatCard icon={AlertTriangle} label="Overdue Schedules" value={overdueSchedules} sub={`${dueSoonSchedules} due soon`} color="#dc2626" route="/department-accesses/maintenance-department/amc-scheduler" />
+          <StatCard icon={Clock} label="Due Soon Schedules" value={dueSoonSchedules} sub={`${healthySchedules} healthy`} color="#f59e0b" route="/department-accesses/maintenance-department/amc-scheduler" />
         </WidgetSection>
 
         {/* Repair log queue, AMC schedule pipeline and recently completed service */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <TeamLiveStatusCard department="maintenance" viewAllRoute="/maintenance/amc-scheduler" />
+          <TeamLiveStatusCard department="maintenance" viewAllRoute="/department-accesses/maintenance-department/amc-scheduler" />
 
           <DepartmentVisitorsCard department="maintenance" title="Maintenance Visitors" />
 
-          <SectionCard title="Recent Repair Logs" linkLabel="View all" linkRoute="/maintenance/repair-logs">
+          <SectionCard title="Recent Repair Logs" linkLabel="View all" linkRoute="/department-accesses/maintenance-department/repair-logs">
             {recentRepairLogs.length > 0 ? recentRepairLogs.map((log, index) => (
               <RecentItem
                 key={log._id || log.repairLogCode || index}
@@ -398,12 +332,12 @@ export function MaintenanceDashboardOverview() {
 
         {/* Quick links */}
         <WidgetSection layout={4} title="Quick Links" border normalCase>
-          <QuickLink icon={ScanSearch} label="Repair Logs" description="Log & track repairs" route="/maintenance/repair-logs" color="#ef4444" />
-          <QuickLink icon={CalendarClock} label="AMC Scheduler" description="Preventive servicing & alerts" route="/maintenance/amc-scheduler" color="#f59e0b" />
+          <QuickLink icon={ScanSearch} label="Repair Logs" description="Log & track repairs" route="/department-accesses/maintenance-department/repair-logs" color="#ef4444" />
+          <QuickLink icon={CalendarClock} label="AMC Scheduler" description="Preventive servicing & alerts" route="/department-accesses/maintenance-department/amc-scheduler" color="#f59e0b" />
         </WidgetSection>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <SectionCard title="Active Repair Logs" linkLabel="View all" linkRoute="/maintenance/repair-logs">
+          <SectionCard title="Active Repair Logs" linkLabel="View all" linkRoute="/department-accesses/maintenance-department/repair-logs">
             {activeRepairLogs.length > 0 ? activeRepairLogs.map((log, index) => (
               <RecentItem
                 key={log._id || log.repairLogCode || index}
@@ -428,7 +362,7 @@ export function MaintenanceDashboardOverview() {
 
           {repairLogs.length > 0 ? (
             <>
-              <SectionCard title="Resolved & Closed Logs" linkLabel="View all" linkRoute="/maintenance/repair-logs">
+              <SectionCard title="Resolved & Closed Logs" linkLabel="View all" linkRoute="/department-accesses/maintenance-department/repair-logs">
                 {resolvedRepairLogs.length > 0 ? resolvedRepairLogs.map((log, index) => (
                   <RecentItem
                     key={log._id || log.repairLogCode || index}
@@ -461,6 +395,84 @@ export function MaintenanceDashboardOverview() {
           options={monthlyBarOptions}
           height={260}
         />
+    </div>
+  );
+}
+
+export function MaintenanceDashboardOverview() {
+  const currentUser = useFreshCurrentUser();
+  const access = useDashboardAccess();
+  const workspacePreferences = useWorkspacePreferences();
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    setNow(new Date());
+  }, [workspacePreferences.timezone]);
+
+  const managerName = useMemo(() => {
+    const full = `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim();
+    return full || currentUser?.fullName || currentUser?.name || currentUser?.displayName || "Maintenance Manager";
+  }, [currentUser]);
+
+  const { greeting, todayLabel } = useMemo(() => {
+    const timezone = workspacePreferences.timezone;
+
+    try {
+      const hourPart = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        hour: "2-digit",
+        hourCycle: "h23",
+      })
+        .formatToParts(now)
+        .find((part) => part.type === "hour")?.value;
+      const workspaceHour = Number(hourPart);
+
+      return {
+        greeting: `${getGreeting(Number.isFinite(workspaceHour) ? workspaceHour : now.getHours())}, ${managerName}`,
+        todayLabel: new Intl.DateTimeFormat("en-IN", {
+          timeZone: timezone,
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }).format(now),
+      };
+    } catch {
+      return {
+        greeting: `${getGreeting(now.getHours())}, ${managerName}`,
+        todayLabel: now.toLocaleDateString("en-IN", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+      };
+    }
+  }, [managerName, now, workspacePreferences.timezone]);
+
+  return (
+    <div className="p-4 flex flex-col gap-5">
+      <PageFrame>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-title font-pmedium text-primary uppercase">Maintenance Dashboard</h2>
+              <PlanBadge plan={access.plan} />
+            </div>
+            <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
+            <p className="text-content font-pmedium text-gray-700">{todayLabel}<WorkspaceClock timezone={workspacePreferences.timezone} location={workspacePreferences.location} /></p>
+          </div>
+        </div>
+      </PageFrame>
+
+      <DashboardAttendanceCard />
+
+      <MaintenanceDashboardWidgets />
     </div>
   );
 }

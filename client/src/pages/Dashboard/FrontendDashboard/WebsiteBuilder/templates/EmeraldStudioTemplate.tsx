@@ -549,11 +549,12 @@ const EmeraldStudioTemplate: React.FC = () => {
   }
 
   const galleryViewer = t.galleryViewerOpen ? (
-    <div
-      className="fixed inset-0 z-50 bg-emerald-950/95 flex items-center justify-center px-6"
-      onClick={t.closeGalleryViewer}
-    >
-      <button className="absolute top-6 right-6 text-stone-400 hover:text-stone-100 transition-colors">
+    <div className="fixed inset-0 z-50 bg-emerald-950/95 flex items-center justify-center px-6">
+      <button
+        type="button"
+        onClick={t.closeGalleryViewer}
+        className="absolute top-6 right-6 text-stone-400 hover:text-stone-100 transition-colors"
+      >
         <svg
           className="w-8 h-8"
           fill="none"
@@ -2366,7 +2367,6 @@ const EmeraldStudioTemplate: React.FC = () => {
       {t.selectedLeadProduct && !t.selectedDetailItem ? (
         <div
           className="fixed inset-0 z-50 bg-emerald-950/95 flex items-center justify-center px-6"
-          onClick={t.closeLeadModal}
         >
           <div
             className="bg-emerald-900/80 border border-emerald-800/50 rounded-2xl max-w-md w-full shadow-2xl p-8"
@@ -2446,7 +2446,6 @@ const EmeraldStudioTemplate: React.FC = () => {
       {t.reviewModalOpen ? (
         <div
           className="fixed inset-0 z-50 bg-emerald-950/95 flex items-center justify-center px-6"
-          onClick={() => t.setReviewModalOpen(false)}
         >
           <div
             className="bg-emerald-900/80 border border-emerald-800/50 rounded-2xl max-w-md w-full shadow-2xl p-8"

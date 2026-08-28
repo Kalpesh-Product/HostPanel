@@ -1133,10 +1133,7 @@ export default function UserDetails() {
   </div>
 
   {isEditModalOpen && createPortal(
-    <div
-      className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-black/40 pt-[6vh] pb-8 backdrop-blur-sm"
-      onClick={() => !isSavingProfile && setIsEditModalOpen(false)}
-    >
+    <div className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-black/40 pt-[6vh] pb-8 backdrop-blur-sm">
       <div
         className="relative mx-4 w-full max-w-2xl overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}

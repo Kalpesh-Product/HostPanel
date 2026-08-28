@@ -2044,7 +2044,7 @@ export function DepartmentFinancePageV2() {
       {/* Vendor Detail Modal — sits above the vendor list (both would tie at z-100) */}
       <AnimatePresence>
         {invoiceTarget && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[120] flex items-center justify-center bg-[#0F172A]/70 p-4 backdrop-blur-sm" onClick={() => setInvoiceTarget(null)}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[120] flex items-center justify-center bg-[#0F172A]/70 p-4 backdrop-blur-sm">
             <motion.div initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }} className="w-full max-w-lg overflow-hidden rounded-[1.75rem] bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-4">
                 <div><h2 className="text-lg font-pmedium text-slate-900">Add Invoice</h2><p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{invoiceTarget.expense.title}</p></div>
@@ -2086,7 +2086,6 @@ export function DepartmentFinancePageV2() {
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[110] flex items-center justify-center bg-[#0F172A]/55 p-4 backdrop-blur-sm"
-            onClick={() => setViewingVendor(null)}
           >
             <motion.div
               initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}
@@ -2151,7 +2150,6 @@ export function DepartmentFinancePageV2() {
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[110] flex items-center justify-center bg-[#0F172A]/70 p-4 backdrop-blur-sm"
-            onClick={() => setShowIncreaseForm(false)}
           >
             <motion.div
               initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}
@@ -2265,7 +2263,6 @@ export function DepartmentFinancePageV2() {
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[110] flex items-center justify-center bg-[#0F172A]/70 p-4 backdrop-blur-sm"
-            onClick={() => setShowExtraBudgetForm(false)}
           >
             <motion.div
               initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}
@@ -2359,7 +2356,6 @@ export function DepartmentFinancePageV2() {
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/70 p-4 backdrop-blur-sm"
-            onClick={() => setShowVendorList(false)}
           >
             <motion.div
               initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}
@@ -2452,7 +2448,6 @@ export function DepartmentFinancePageV2() {
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[110] flex items-center justify-center bg-[#0F172A]/70 p-4 backdrop-blur-sm"
-            onClick={closeVendorForm}
           >
             <motion.div
               initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}

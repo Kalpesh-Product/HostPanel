@@ -129,8 +129,8 @@ export const resolvePostLoginRoute = (user?: any): string => {
   const role = getRoleString(user);
   if (role === "owner" || role === "super_admin" || role === "super-admin" || role === "admin") return "/dashboard";
   if (role === "hr-manager" || role === "hr_manager" || role === "hr") return "/dashboard";
-  if (role === "finance-manager" || role === "finance_manager" || role === "finance") return "/dashboard/finance/billing-payments";
-  if (role === "sales-manager" || role === "sales_manager" || role === "sales") return "/sales-crm/leads-management";
-  if (role === "it-manager" || role === "it_manager" || role === "it") return "/it/repair-logs";
+  if (role === "finance-manager" || role === "finance_manager" || role === "finance") return "/dashboard/department-accesses/finance-department/billing-payments";
+  if (role === "sales-manager" || role === "sales_manager" || role === "sales") return "/department-accesses/sales-department/leads-management";
+  if (role === "it-manager" || role === "it_manager" || role === "it") return "/department-accesses/it-department/repair-logs";
   return "/dashboard";
 };

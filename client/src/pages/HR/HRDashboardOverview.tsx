@@ -328,7 +328,7 @@ function DashboardBirthdaysCard({ employees }: { employees: EmployeeRecord[] }) 
   }, [employees, currentMonthKey]);
 
   return (
-    <SectionCard title={`${currentMonthName} Birthdays`} linkLabel="View all" linkRoute="/hr/company-management">
+    <SectionCard title={`${currentMonthName} Birthdays`} linkLabel="View all" linkRoute="/department-accesses/hr-department/company-management">
       <div className="flex-1 flex flex-col gap-1.5 overflow-hidden">
         {visible.length > 0 ? visible.map(({ employee, birthday }) => {
           const empName = employee.name || employee.fullName || "Employee";
@@ -393,7 +393,7 @@ function DashboardResignationsCard({ requests }: { requests: ResignationRecord[]
   );
 
   return (
-    <SectionCard title="Recent Resignations" linkLabel="View all" linkRoute="/hr/resignation-management">
+    <SectionCard title="Recent Resignations" linkLabel="View all" linkRoute="/department-accesses/hr-department/resignation-management">
       <div className="flex-1 flex flex-col gap-1.5 overflow-hidden">
         {visible.length > 0 ? visible.map((request) => {
           const initials = String(request.employeeName || "?").split(" ").map((part) => part[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
@@ -429,81 +429,19 @@ function DashboardResignationsCard({ requests }: { requests: ResignationRecord[]
 
 /* ───────────────────────────── Component ───────────────────────────── */
 
-export function HRDashboardOverview() {
-  const currentUser = useFreshCurrentUser();
+/**
+ * Stat cards, charts, and quick links for the HR dashboard — split out from
+ * HRDashboardOverview so AdminDashboardOverview can render this same content
+ * for an Admin assigned to the HR department, without the department's own
+ * greeting/header banner.
+ */
+export function HRDashboardWidgets() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [dashboard, setDashboard] = useState<DashboardState>(DEFAULT_DASHBOARD);
   const [monthlyAttendance, setMonthlyAttendance] = useState<number[]>(() => new Array(12).fill(0));
-
-  const access = useDashboardAccess();
   const workspacePreferences = useWorkspacePreferences();
-  const [now, setNow] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    setNow(new Date());
-  }, [workspacePreferences.timezone]);
-
-  const founderName = useMemo(() => {
-    const full = `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim();
-    return full || currentUser?.fullName || currentUser?.name || currentUser?.displayName || "HR Manager";
-  }, [currentUser]);
-
-  const { greeting, todayLabel } = useMemo(() => {
-    const timezone = workspacePreferences.timezone;
-
-    try {
-      const hourPart = new Intl.DateTimeFormat("en-US", {
-        timeZone: timezone,
-        hour: "2-digit",
-        hourCycle: "h23",
-      })
-        .formatToParts(now)
-        .find((part) => part.type === "hour")?.value;
-      const workspaceHour = Number(hourPart);
-
-      return {
-        greeting: `${getGreeting(Number.isFinite(workspaceHour) ? workspaceHour : now.getHours())}, ${founderName}`,
-        todayLabel: new Intl.DateTimeFormat("en-IN", {
-          timeZone: timezone,
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }).format(now),
-      };
-    } catch {
-      return {
-        greeting: `${getGreeting(now.getHours())}, ${founderName}`,
-        todayLabel: now.toLocaleDateString("en-IN", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }),
-      };
-    }
-  }, [founderName, now, workspacePreferences.timezone]);
-
-  const timeLabel = useMemo(() => {
-    try {
-      return new Intl.DateTimeFormat("en-US", {
-        timeZone: workspacePreferences.timezone,
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: true,
-      }).format(now);
-    } catch {
-      return "";
-    }
-  }, [now, workspacePreferences.timezone]);
 
   useEffect(() => {
     let isMounted = true;
@@ -809,26 +747,7 @@ export function HRDashboardOverview() {
   }
 
   return (
-    <div className="p-4 flex flex-col gap-5">
-
-        {/* Greeting banner */}
-        <PageFrame>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-3 flex-wrap">
-                <h2 className="text-title font-pmedium text-primary uppercase">HR Dashboard</h2>
-                <PlanBadge plan={access.plan} />
-              </div>
-              <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
-              <p className="text-content font-pmedium text-gray-700">
-                {todayLabel}
-                {timeLabel ? ` | ${timeLabel}` : ""}
-                {workspacePreferences.location ? ` - ${workspacePreferences.location}` : ""}
-              </p>
-            </div>
-          </div>
-        </PageFrame>
-
+    <div className="flex flex-col gap-5">
         {error ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-700">
             {error}
@@ -836,26 +755,24 @@ export function HRDashboardOverview() {
         ) : null}
 
         {/* Overview — only the metrics that matter */}
-        <DashboardAttendanceCard />
-
         <WidgetSection layout={4} title="Overview" border normalCase>
-          <StatCard icon={Users} label="Total Employees" value={totalEmployees} sub={`${presentEmployees} present today`} color="#1E3D73" route="/hr/company-management" />
-          <StatCard icon={CalendarDays} label="Pending Leaves" value={pendingLeaves} sub={`${formatPercentage(attendanceRate)} attendance rate`} color="#f59e0b" route="/hr/leave-request-processing" />
-          <StatCard icon={Clock} label="Correction Requests" value={pendingCorrections} sub="Awaiting HR review" color="#ef4444" route="/hr/attendance-review" />
-          <StatCard icon={Briefcase} label="Open Positions" value={openPositions} sub={`${selectedCandidates} shortlisted · ${onboardedCount} onboarded`} color="#7c3aed" route="/hr/recruitment" />
-          <StatCard icon={Wallet} label="Payroll" value={fmtINR(payrollStats.netPayable, workspacePreferences.currency)} sub={`${payrollStats.paid}/${payrollStats.totalEmployees} employees paid`} color="#0ea5e9" route="/hr/payroll-management" />
-          <StatCard icon={Cake} label={`${BIRTHDAY_MONTH_NAMES[new Date().getMonth()] || ""} Birthdays`} value={thisMonthBirthdays} sub="Celebrations this month" color="#ec4899" route="/hr/company-management" />
-          <StatCard icon={UserMinus} label="Pending Resignations" value={pendingResignations} sub="Awaiting HR review" color="#ef4444" route="/hr/resignation-management" />
-          <StatCard icon={LogOut} label="On Notice" value={activeNoticeCount} sub="Active notice periods" color="#f97316" route="/hr/resignation-management" />
+          <StatCard icon={Users} label="Total Employees" value={totalEmployees} sub={`${presentEmployees} present today`} color="#1E3D73" route="/department-accesses/hr-department/company-management" />
+          <StatCard icon={CalendarDays} label="Pending Leaves" value={pendingLeaves} sub={`${formatPercentage(attendanceRate)} attendance rate`} color="#f59e0b" route="/department-accesses/hr-department/leave-request-processing" />
+          <StatCard icon={Clock} label="Correction Requests" value={pendingCorrections} sub="Awaiting HR review" color="#ef4444" route="/department-accesses/hr-department/attendance-review" />
+          <StatCard icon={Briefcase} label="Open Positions" value={openPositions} sub={`${selectedCandidates} shortlisted · ${onboardedCount} onboarded`} color="#7c3aed" route="/department-accesses/hr-department/recruitment" />
+          <StatCard icon={Wallet} label="Payroll" value={fmtINR(payrollStats.netPayable, workspacePreferences.currency)} sub={`${payrollStats.paid}/${payrollStats.totalEmployees} employees paid`} color="#0ea5e9" route="/department-accesses/hr-department/payroll-management" />
+          <StatCard icon={Cake} label={`${BIRTHDAY_MONTH_NAMES[new Date().getMonth()] || ""} Birthdays`} value={thisMonthBirthdays} sub="Celebrations this month" color="#ec4899" route="/department-accesses/hr-department/company-management" />
+          <StatCard icon={UserMinus} label="Pending Resignations" value={pendingResignations} sub="Awaiting HR review" color="#ef4444" route="/department-accesses/hr-department/resignation-management" />
+          <StatCard icon={LogOut} label="On Notice" value={activeNoticeCount} sub="Active notice periods" color="#f97316" route="/department-accesses/hr-department/resignation-management" />
         </WidgetSection>
 
         {/* Team status, live visitors and today's correction queue */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <TeamLiveStatusCard department="hr" viewAllRoute="/hr/attendance-review" />
+          <TeamLiveStatusCard department="hr" viewAllRoute="/department-accesses/hr-department/attendance-review" />
 
           <DepartmentVisitorsCard department="hr" title="HR Visitors" />
 
-          <SectionCard title="Correction Requests" linkLabel="View all" linkRoute="/hr/attendance-review">
+          <SectionCard title="Correction Requests" linkLabel="View all" linkRoute="/department-accesses/hr-department/attendance-review">
             <div className="space-y-3">
               {correctionsToday.length > 0 ? correctionsToday.map((request) => {
                 const requestKey = request.correctionId || request.recordId || request.id;
@@ -865,7 +782,7 @@ export function HRDashboardOverview() {
                     key={requestKey}
                     role="button"
                     tabIndex={0}
-                    onClick={() => request.userId && navigate(`/hr/attendance-review/${request.userId}`)}
+                    onClick={() => request.userId && navigate(`/department-accesses/hr-department/attendance-review/${request.userId}`)}
                     className="flex cursor-pointer items-start justify-between gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 transition-colors hover:border-primary"
                   >
                     <div className="flex min-w-0 items-start gap-3">
@@ -891,17 +808,17 @@ export function HRDashboardOverview() {
 
         {/* Quick links */}
         <WidgetSection layout={4} title="Quick Links" border normalCase>
-          <QuickLink icon={Users} label="Company Management" description="Directory & records" route="/hr/company-management" color="#2563EB" />
-          <QuickLink icon={UserCheck} label="Attendance Review" description="Review team punches" route="/hr/attendance-review" color="#f59e0b" />
-          <QuickLink icon={CalendarDays} label="Leave Requests" description="Approve or reject leaves" route="/hr/leave-request-processing" color="#22c55e" />
-          <QuickLink icon={UserPlus} label="Recruitment" description="Candidates & job openings" route="/hr/recruitment" color="#8b5cf6" />
-          <QuickLink icon={Wallet} label="Payroll" description="Payroll management" route="/hr/payroll-management" color="#0ea5e9" />
-          <QuickLink icon={FileText} label="HR Documents" description="Policies & documents" route="/hr/documents" color="#64748b" />
-          <QuickLink icon={UserMinus} label="Resignation Management" description="Offboarding workflow" route="/hr/resignation-management" color="#ef4444" />
+          <QuickLink icon={Users} label="Company Management" description="Directory & records" route="/department-accesses/hr-department/company-management" color="#2563EB" />
+          <QuickLink icon={UserCheck} label="Attendance Review" description="Review team punches" route="/department-accesses/hr-department/attendance-review" color="#f59e0b" />
+          <QuickLink icon={CalendarDays} label="Leave Requests" description="Approve or reject leaves" route="/department-accesses/hr-department/leave-request-processing" color="#22c55e" />
+          <QuickLink icon={UserPlus} label="Recruitment" description="Candidates & job openings" route="/department-accesses/hr-department/recruitment" color="#8b5cf6" />
+          <QuickLink icon={Wallet} label="Payroll" description="Payroll management" route="/department-accesses/hr-department/payroll-management" color="#0ea5e9" />
+          <QuickLink icon={FileText} label="HR Documents" description="Policies & documents" route="/department-accesses/hr-department/documents" color="#64748b" />
+          <QuickLink icon={UserMinus} label="Resignation Management" description="Offboarding workflow" route="/department-accesses/hr-department/resignation-management" color="#ef4444" />
         </WidgetSection>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <SectionCard title="Recent Leave Requests" linkLabel="View all" linkRoute="/hr/leave-request-processing">
+          <SectionCard title="Recent Leave Requests" linkLabel="View all" linkRoute="/department-accesses/hr-department/leave-request-processing">
             {recentLeaves.length > 0 ? recentLeaves.map((request, index) => (
               <RecentItem
                 key={request.id || request.recordId || index}
@@ -924,7 +841,7 @@ export function HRDashboardOverview() {
             centerLabel="Leaves"
           />
 
-          <SectionCard title="Recent Attendance" linkLabel="View all" linkRoute="/hr/attendance-review">
+          <SectionCard title="Recent Attendance" linkLabel="View all" linkRoute="/department-accesses/hr-department/attendance-review">
             {recentAttendance.length > 0 ? recentAttendance.map((row, index) => (
               <RecentItem
                 key={row.id || row.recordId || index}
@@ -947,7 +864,7 @@ export function HRDashboardOverview() {
             centerLabel="Today"
           />
 
-          <SectionCard title="Recent Candidates" linkLabel="View all" linkRoute="/hr/recruitment">
+          <SectionCard title="Recent Candidates" linkLabel="View all" linkRoute="/department-accesses/hr-department/recruitment">
             {recentCandidates.length > 0 ? recentCandidates.map((candidate, index) => (
               <RecentItem
                 key={candidate.id || candidate.recordId || index}
@@ -984,6 +901,102 @@ export function HRDashboardOverview() {
           options={monthlyBarOptions}
           height={260}
         />
+    </div>
+  );
+}
+
+export function HRDashboardOverview() {
+  const currentUser = useFreshCurrentUser();
+  const access = useDashboardAccess();
+  const workspacePreferences = useWorkspacePreferences();
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    setNow(new Date());
+  }, [workspacePreferences.timezone]);
+
+  const founderName = useMemo(() => {
+    const full = `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim();
+    return full || currentUser?.fullName || currentUser?.name || currentUser?.displayName || "HR Manager";
+  }, [currentUser]);
+
+  const { greeting, todayLabel } = useMemo(() => {
+    const timezone = workspacePreferences.timezone;
+
+    try {
+      const hourPart = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        hour: "2-digit",
+        hourCycle: "h23",
+      })
+        .formatToParts(now)
+        .find((part) => part.type === "hour")?.value;
+      const workspaceHour = Number(hourPart);
+
+      return {
+        greeting: `${getGreeting(Number.isFinite(workspaceHour) ? workspaceHour : now.getHours())}, ${founderName}`,
+        todayLabel: new Intl.DateTimeFormat("en-IN", {
+          timeZone: timezone,
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }).format(now),
+      };
+    } catch {
+      return {
+        greeting: `${getGreeting(now.getHours())}, ${founderName}`,
+        todayLabel: now.toLocaleDateString("en-IN", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+      };
+    }
+  }, [founderName, now, workspacePreferences.timezone]);
+
+  const timeLabel = useMemo(() => {
+    try {
+      return new Intl.DateTimeFormat("en-US", {
+        timeZone: workspacePreferences.timezone,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      }).format(now);
+    } catch {
+      return "";
+    }
+  }, [now, workspacePreferences.timezone]);
+
+  return (
+    <div className="p-4 flex flex-col gap-5">
+      <PageFrame>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-title font-pmedium text-primary uppercase">HR Dashboard</h2>
+              <PlanBadge plan={access.plan} />
+            </div>
+            <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
+            <p className="text-content font-pmedium text-gray-700">
+              {todayLabel}
+              {timeLabel ? ` | ${timeLabel}` : ""}
+              {workspacePreferences.location ? ` - ${workspacePreferences.location}` : ""}
+            </p>
+          </div>
+        </div>
+      </PageFrame>
+
+      <DashboardAttendanceCard />
+
+      <HRDashboardWidgets />
     </div>
   );
 }

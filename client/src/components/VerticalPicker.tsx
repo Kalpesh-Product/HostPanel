@@ -83,9 +83,9 @@ export default function VerticalPicker({ workspaceId }: VerticalPickerProps) {
   const [options, setOptions] = useState<VerticalOption[]>([]);
 
   const builderBasePath = location.pathname.includes(
-    "/company-settings/website-builder",
+    "/key-apps/website-builder",
   )
-    ? "/company-settings/website-builder"
+    ? "/key-apps/website-builder"
     : "/dashboard/website-builder";
 
   const contextCompanyId = auth?.user?.companyId || "";

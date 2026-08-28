@@ -306,7 +306,7 @@ export default function AdministrationTenantCompanyDetailPage() {
 
             {/* ---- HEADER ---- */}
             <div className="flex items-center gap-3">
-              <button onClick={() => navigate('/administration/tenant-companies')}
+              <button onClick={() => navigate('/department-accesses/administration-department/tenant-companies')}
                 className="p-2 bg-white border border-slate-200 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-all shadow-sm"><ArrowLeft size={16} /></button>
               <div className="flex items-center gap-3 flex-1">
                 <div className="w-10 h-10 rounded-xl bg-[#0F172A] text-white flex items-center justify-center text-sm font-black shadow-sm">

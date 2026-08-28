@@ -2712,7 +2712,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       shifts={attendanceShifts}
                       error={addFormErrors.shiftId}
                       onChange={(value) => handleAddFieldChange("shiftId", value)}
-                      onConfigureShifts={() => navigate("/hr/attendance-review?openAttendanceSettings=1")}
+                      onConfigureShifts={() => navigate("/department-accesses/hr-department/attendance-review?openAttendanceSettings=1")}
                     />
                   </div>
 
@@ -3567,7 +3567,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     shifts={attendanceShifts}
                     error={editFormErrors.shiftId}
                     onChange={(value) => setEditForm((previous) => ({ ...previous, shiftId: value }))}
-                    onConfigureShifts={() => navigate("/hr/attendance-review?openAttendanceSettings=1")}
+                    onConfigureShifts={() => navigate("/department-accesses/hr-department/attendance-review?openAttendanceSettings=1")}
                   />
                 </div>
               </FormSection>
@@ -4000,7 +4000,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       shifts={attendanceShifts}
                       error={addFormErrors.shiftId}
                       onChange={(value) => handleAddFieldChange("shiftId", value)}
-                      onConfigureShifts={() => navigate("/hr/attendance-review?openAttendanceSettings=1")}
+                      onConfigureShifts={() => navigate("/department-accesses/hr-department/attendance-review?openAttendanceSettings=1")}
                     />
                 </div>
               </FormSection>
@@ -4098,7 +4098,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       )}
 
       {managingAccessFor && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[5vh] pb-8 bg-black/40 backdrop-blur-sm overflow-y-auto" onClick={() => setManagingAccessFor(null)}>
+        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[5vh] pb-8 bg-black/40 backdrop-blur-sm overflow-y-auto">
           <div className="relative w-full max-w-2xl mx-4 bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
@@ -4163,7 +4163,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
       {/* ─── MODAL: Bulk Upload ─── */}
       {isBulkUploadModalOpen && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[10vh] pb-8 bg-black/40 backdrop-blur-sm overflow-y-auto" onClick={() => setIsBulkUploadModalOpen(false)}>
+        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[10vh] pb-8 bg-black/40 backdrop-blur-sm overflow-y-auto">
           <div className="relative w-full max-w-lg mx-4 bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
@@ -4242,7 +4242,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
       {/* ─── MODAL: Bulk Upload Instructions ─── */}
       {isBulkInstructionsOpen && createPortal(
-        <div className="fixed inset-0 z-[10000] flex items-start justify-center pt-[6vh] pb-8 bg-black/40 backdrop-blur-sm overflow-y-auto" onClick={() => setIsBulkInstructionsOpen(false)}>
+        <div className="fixed inset-0 z-[10000] flex items-start justify-center pt-[6vh] pb-8 bg-black/40 backdrop-blur-sm overflow-y-auto">
           <div className="relative w-full max-w-2xl mx-4 bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">

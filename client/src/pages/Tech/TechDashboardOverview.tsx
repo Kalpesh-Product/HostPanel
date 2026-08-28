@@ -109,65 +109,16 @@ const WorkspaceClock = ({ timezone, location }: { timezone: string; location: st
   );
 };
 
-export function TechDashboardOverview() {
-  const currentUser = useFreshCurrentUser();
+/**
+ * Stat cards, charts, and quick links for the Tech dashboard — split out from
+ * TechDashboardOverview so AdminDashboardOverview can render this same
+ * content for an Admin assigned to the Tech department, without the
+ * department's own greeting/header banner.
+ */
+export function TechDashboardWidgets() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [dashboard, setDashboard] = useState<DashboardState>(DEFAULT_DASHBOARD);
-
-  const access = useDashboardAccess();
-  const workspacePreferences = useWorkspacePreferences();
-  const [now, setNow] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 60_000);
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    setNow(new Date());
-  }, [workspacePreferences.timezone]);
-
-  const managerName = useMemo(() => {
-    const full = `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim();
-    return full || currentUser?.fullName || currentUser?.name || currentUser?.displayName || "Tech Manager";
-  }, [currentUser]);
-
-  const { greeting, todayLabel } = useMemo(() => {
-    const timezone = workspacePreferences.timezone;
-
-    try {
-      const hourPart = new Intl.DateTimeFormat("en-US", {
-        timeZone: timezone,
-        hour: "2-digit",
-        hourCycle: "h23",
-      })
-        .formatToParts(now)
-        .find((part) => part.type === "hour")?.value;
-      const workspaceHour = Number(hourPart);
-
-      return {
-        greeting: `${getGreeting(Number.isFinite(workspaceHour) ? workspaceHour : now.getHours())}, ${managerName}`,
-        todayLabel: new Intl.DateTimeFormat("en-IN", {
-          timeZone: timezone,
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }).format(now),
-      };
-    } catch {
-      return {
-        greeting: `${getGreeting(now.getHours())}, ${managerName}`,
-        todayLabel: now.toLocaleDateString("en-IN", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }),
-      };
-    }
-  }, [managerName, now, workspacePreferences.timezone]);
 
   useEffect(() => {
     let isMounted = true;
@@ -280,22 +231,7 @@ export function TechDashboardOverview() {
   }
 
   return (
-    <div className="p-4 flex flex-col gap-5">
-
-        {/* Greeting banner */}
-        <PageFrame>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-3 flex-wrap">
-                <h2 className="text-title font-pmedium text-primary uppercase">Tech Dashboard</h2>
-                <PlanBadge plan={access.plan} />
-              </div>
-              <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
-              <p className="text-content font-pmedium text-gray-700">{todayLabel}<WorkspaceClock timezone={workspacePreferences.timezone} location={workspacePreferences.location} /></p>
-            </div>
-          </div>
-        </PageFrame>
-
+    <div className="flex flex-col gap-5">
         {error ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-700">
             {error}
@@ -303,30 +239,28 @@ export function TechDashboardOverview() {
         ) : null}
 
         {/* Overview — only the metrics that matter */}
-        <DashboardAttendanceCard />
-
         <WidgetSection layout={4} title="Overview" border normalCase>
-          <StatCard icon={Magnet} label="Website Leads" value={leads.length} sub={`${pendingLeads.length} new/uncontacted`} color="#2563EB" route="/company-settings/website-builder/leads" />
-          <StatCard icon={UserCheck} label="Contacted Leads" value={contactedLeads.length} sub={`${closedLeads.length} closed`} color="#f59e0b" route="/company-settings/website-builder/leads" />
-          <StatCard icon={CheckCircle2} label="Closed Leads" value={closedLeads.length} sub={`${rejectedLeads.length} rejected`} color="#22c55e" route="/company-settings/website-builder/leads" />
+          <StatCard icon={Magnet} label="Website Leads" value={leads.length} sub={`${pendingLeads.length} new/uncontacted`} color="#2563EB" route="/key-apps/website-builder/leads" />
+          <StatCard icon={UserCheck} label="Contacted Leads" value={contactedLeads.length} sub={`${closedLeads.length} closed`} color="#f59e0b" route="/key-apps/website-builder/leads" />
+          <StatCard icon={CheckCircle2} label="Closed Leads" value={closedLeads.length} sub={`${rejectedLeads.length} rejected`} color="#22c55e" route="/key-apps/website-builder/leads" />
         </WidgetSection>
 
         {/* Team status and live visitors */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <TeamLiveStatusCard department="tech" viewAllRoute="/company-settings/website-builder/leads" />
+          <TeamLiveStatusCard department="tech" viewAllRoute="/key-apps/website-builder/leads" />
 
           <DepartmentVisitorsCard department="tech" title="Tech Visitors" />
         </div>
 
         {/* Quick links */}
         <WidgetSection layout={4} title="Quick Links" border normalCase>
-          <QuickLink icon={Globe} label="Website Builder" description="Build & manage websites" route="/company-settings/website-builder" color="#2563EB" />
-          <QuickLink icon={Magnet} label="Website Leads" description="Track & follow up leads" route="/company-settings/website-builder/leads" color="#f59e0b" />
-          <QuickLink icon={CheckCircle2} label="Website Review" description="Visitor-submitted reviews" route="/company-settings/website-builder/dynamic/reviews" color="#22c55e" />
+          <QuickLink icon={Globe} label="Website Builder" description="Build & manage websites" route="/key-apps/website-builder" color="#2563EB" />
+          <QuickLink icon={Magnet} label="Website Leads" description="Track & follow up leads" route="/key-apps/website-builder/leads" color="#f59e0b" />
+          <QuickLink icon={CheckCircle2} label="Website Review" description="Visitor-submitted reviews" route="/key-apps/website-builder/dynamic/reviews" color="#22c55e" />
         </WidgetSection>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <SectionCard title="Recent Website Leads" linkLabel="View all" linkRoute="/company-settings/website-builder/leads">
+          <SectionCard title="Recent Website Leads" linkLabel="View all" linkRoute="/key-apps/website-builder/leads">
             {recentLeads.length > 0 ? recentLeads.map((lead, index) => (
               <RecentItem
                 key={lead.id || lead._id || index}
@@ -357,6 +291,84 @@ export function TechDashboardOverview() {
           options={monthlyBarOptions}
           height={260}
         />
+    </div>
+  );
+}
+
+export function TechDashboardOverview() {
+  const currentUser = useFreshCurrentUser();
+  const access = useDashboardAccess();
+  const workspacePreferences = useWorkspacePreferences();
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    setNow(new Date());
+  }, [workspacePreferences.timezone]);
+
+  const managerName = useMemo(() => {
+    const full = `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim();
+    return full || currentUser?.fullName || currentUser?.name || currentUser?.displayName || "Tech Manager";
+  }, [currentUser]);
+
+  const { greeting, todayLabel } = useMemo(() => {
+    const timezone = workspacePreferences.timezone;
+
+    try {
+      const hourPart = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        hour: "2-digit",
+        hourCycle: "h23",
+      })
+        .formatToParts(now)
+        .find((part) => part.type === "hour")?.value;
+      const workspaceHour = Number(hourPart);
+
+      return {
+        greeting: `${getGreeting(Number.isFinite(workspaceHour) ? workspaceHour : now.getHours())}, ${managerName}`,
+        todayLabel: new Intl.DateTimeFormat("en-IN", {
+          timeZone: timezone,
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }).format(now),
+      };
+    } catch {
+      return {
+        greeting: `${getGreeting(now.getHours())}, ${managerName}`,
+        todayLabel: now.toLocaleDateString("en-IN", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+      };
+    }
+  }, [managerName, now, workspacePreferences.timezone]);
+
+  return (
+    <div className="p-4 flex flex-col gap-5">
+      <PageFrame>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-title font-pmedium text-primary uppercase">Tech Dashboard</h2>
+              <PlanBadge plan={access.plan} />
+            </div>
+            <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
+            <p className="text-content font-pmedium text-gray-700">{todayLabel}<WorkspaceClock timezone={workspacePreferences.timezone} location={workspacePreferences.location} /></p>
+          </div>
+        </div>
+      </PageFrame>
+
+      <DashboardAttendanceCard />
+
+      <TechDashboardWidgets />
     </div>
   );
 }

@@ -26,8 +26,8 @@ const SelectWebsiteTemplate = () => {
     }
   });
 
-  const builderBasePath = location.pathname.includes("/company-settings/website-builder")
-    ? "/company-settings/website-builder"
+  const builderBasePath = location.pathname.includes("/key-apps/website-builder")
+    ? "/key-apps/website-builder"
     : "/dashboard/website-builder";
 
   const handlePreview = (templateId: string) => {
