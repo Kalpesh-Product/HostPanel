@@ -938,6 +938,7 @@ export function ExpensesBudgetPage() {
   const [viewingInvoice, setViewingInvoice] = useState<any>(null);
   const [rejectingRequest, setRejectingRequest] = useState<any>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [temporaryFounderOverride, setTemporaryFounderOverride] = useState(false);
   const [departments, setDepartments] = useState<string[]>([]);
   const [isUpdatingExpense, setIsUpdatingExpense] = useState(false);
 
@@ -1130,7 +1131,11 @@ export function ExpensesBudgetPage() {
   /* ── Approval / Rejection handlers ── */
 
   const handleApproveEstimated = (req: Budget) => {
-    applyFinanceApprovalDecision('annual', req.id, { status: 'Approved', fiscalYear: selectedFY })
+    applyFinanceApprovalDecision('annual', req.id, {
+      status: 'Approved',
+      fiscalYear: selectedFY,
+      temporaryFounderOverride,
+    })
       .then(async () => {
         const payload = await getFinanceSnapshot(selectedFY);
         const enrichedAnnualRequests = Array.isArray(payload.annualRequests)
@@ -1139,7 +1144,10 @@ export function ExpensesBudgetPage() {
         setEstimatedBudgets(enrichedAnnualRequests.map(mapAnnualRequestToBudget));
         setExtraBudgets(Array.isArray(payload.extraRequests) ? payload.extraRequests.map(mapExtraRequestToBudget) : []);
         syncExpenseHistoryFromPayload(payload, enrichedAnnualRequests);
-        toast.success(`Estimated annual budget approved for ${req.department}.`);
+        toast.success(temporaryFounderOverride
+          ? `Annual budget approved with temporary Founder override for ${req.department}.`
+          : `Estimated annual budget approved for ${req.department}.`);
+        setTemporaryFounderOverride(false);
         setViewingBudget(null);
       })
       .catch((error: any) => { toast.error(error?.message || 'Failed to approve estimated budget.'); });
@@ -1147,7 +1155,11 @@ export function ExpensesBudgetPage() {
 
   const handleApproveExtra = () => {
     if (!viewingExtra?.id) return;
-    applyFinanceApprovalDecision('extra', viewingExtra.id, { status: 'Approved', fiscalYear: selectedFY })
+    applyFinanceApprovalDecision('extra', viewingExtra.id, {
+      status: 'Approved',
+      fiscalYear: selectedFY,
+      temporaryFounderOverride,
+    })
       .then(async () => {
         const payload = await getFinanceSnapshot(selectedFY);
         const enrichedAnnualRequests = Array.isArray(payload.annualRequests)
@@ -1156,7 +1168,10 @@ export function ExpensesBudgetPage() {
         setEstimatedBudgets(enrichedAnnualRequests.map(mapAnnualRequestToBudget));
         setExtraBudgets(Array.isArray(payload.extraRequests) ? payload.extraRequests.map(mapExtraRequestToBudget) : []);
         syncExpenseHistoryFromPayload(payload, enrichedAnnualRequests);
-        toast.success(`Extra budget approved for ${viewingExtra.department}.`);
+        toast.success(temporaryFounderOverride
+          ? `Extra budget approved with temporary Founder override for ${viewingExtra.department}.`
+          : `Extra budget approved for ${viewingExtra.department}.`);
+        setTemporaryFounderOverride(false);
         setViewingExtra(null);
       })
       .catch((error: any) => { toast.error(error?.message || 'Failed to approve extra budget.'); });
@@ -1474,7 +1489,7 @@ export function ExpensesBudgetPage() {
                                 : getStatusBadge(budget.status)}
                             </td>
                             <td className="px-6 py-5 text-center">
-                              <button onClick={() => setViewingBudget(budget)} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto">
+                              <button onClick={() => { setTemporaryFounderOverride(false); setViewingBudget(budget); }} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto">
                                 <Eye size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">View</span>
                               </button>
                             </td>
@@ -1525,7 +1540,7 @@ export function ExpensesBudgetPage() {
                               : getStatusBadge(extra.status)}
                           </td>
                           <td className="px-6 py-5 text-center">
-                            <button onClick={() => setViewingExtra(extra)} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto">
+                            <button onClick={() => { setTemporaryFounderOverride(false); setViewingExtra(extra); }} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto">
                               <Eye size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">Review</span>
                             </button>
                           </td>
@@ -1931,18 +1946,21 @@ export function ExpensesBudgetPage() {
             {(() => {
               const overall = String(viewingBudget.status || '').toLowerCase();
               const myDecision = getMyApprovalDecision(viewingBudget.approvalFlow);
+              const founderAlreadyApproved = String(viewingBudget.approvalFlow?.owner?.status || '').toLowerCase() === 'approved';
               if (!myDecision && overall === 'pending review') {
                 return (
-                  <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex gap-3 sm:gap-4 shrink-0">
-                    <button onClick={() => { setRejectReason(''); setRejectingRequest({ ...viewingBudget, modalType: 'estimated', decisionAction: 'Discuss' }); setViewingExpense(null); setViewingBudget(null); }} className="flex-1 py-3.5 bg-white border-2 border-blue-200 text-blue-600 rounded-xl font-pmedium hover:bg-blue-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
-                      <MessageSquare size={14} /> REQUEST CHANGES
-                    </button>
-                    <button onClick={() => { setRejectingRequest({ ...viewingBudget, modalType: 'estimated' }); setViewingExpense(null); setViewingBudget(null); }} className="flex-1 py-3.5 bg-white border-2 border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
-                      <XCircle size={14} /> REJECT REQUEST
-                    </button>
-                    <button onClick={() => handleApproveEstimated(viewingBudget)} className="flex-[2] py-3.5 bg-green-600 text-white rounded-xl font-pmedium shadow-lg shadow-green-200 hover:bg-green-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
-                      APPROVE BUDGET <CheckCircle2 size={14} />
-                    </button>
+                  <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 shrink-0">
+                    {!founderAlreadyApproved && (
+                      <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+                        <input type="checkbox" checked={temporaryFounderOverride} onChange={(event) => setTemporaryFounderOverride(event.target.checked)} className="mt-0.5 h-4 w-4 accent-amber-600" />
+                        <span><span className="block text-[11px] font-pmedium">Founder is on leave — use temporary override</span><span className="mt-0.5 block text-[9px] font-medium text-amber-700">Approves both Founder and Finance steps under your user ID and records an audit warning.</span></span>
+                      </label>
+                    )}
+                    <div className="flex gap-3 sm:gap-4">
+                      <button onClick={() => { setTemporaryFounderOverride(false); setRejectReason(''); setRejectingRequest({ ...viewingBudget, modalType: 'estimated', decisionAction: 'Discuss' }); setViewingExpense(null); setViewingBudget(null); }} className="flex-1 py-3.5 bg-white border-2 border-blue-200 text-blue-600 rounded-xl font-pmedium hover:bg-blue-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2"><MessageSquare size={14} /> REQUEST CHANGES</button>
+                      <button onClick={() => { setTemporaryFounderOverride(false); setRejectingRequest({ ...viewingBudget, modalType: 'estimated' }); setViewingExpense(null); setViewingBudget(null); }} className="flex-1 py-3.5 bg-white border-2 border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2"><XCircle size={14} /> REJECT REQUEST</button>
+                      <button onClick={() => handleApproveEstimated(viewingBudget)} className="flex-[2] py-3.5 bg-green-600 text-white rounded-xl font-pmedium shadow-lg shadow-green-200 hover:bg-green-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">APPROVE BUDGET <CheckCircle2 size={14} /></button>
+                    </div>
                   </div>
                 );
               }
@@ -2113,18 +2131,21 @@ export function ExpensesBudgetPage() {
             {(() => {
               const overall = String(viewingExtra.status || '').toLowerCase();
               const myDecision = getMyApprovalDecision(viewingExtra.approvalFlow);
+              const founderAlreadyApproved = String(viewingExtra.approvalFlow?.owner?.status || '').toLowerCase() === 'approved';
               if (!myDecision && overall === 'pending review') {
                 return (
-                  <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-3 gap-2.5 shrink-0">
-                    <button onClick={() => { setRejectReason(''); setRejectingRequest({ ...viewingExtra, modalType: 'extra', decisionAction: 'Discuss' }); setViewingExtra(null); }} className="min-w-0 px-3 py-3 bg-white border border-blue-200 text-blue-600 rounded-xl font-pmedium hover:bg-blue-50 transition-all text-[11px] flex items-center justify-center gap-1.5">
-                      <MessageSquare size={14} className="sm:w-4 sm:h-4" /> REQUEST CHANGES
-                    </button>
-                    <button onClick={() => { setRejectReason(''); setRejectingRequest({ ...viewingExtra, modalType: 'extra' }); setViewingExtra(null); }} className="min-w-0 px-3 py-3 bg-white border border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-[11px] flex items-center justify-center gap-1.5">
-                      <XCircle size={14} className="sm:w-4 sm:h-4" /> REJECT
-                    </button>
-                    <button onClick={handleApproveExtra} className="min-w-0 px-3 py-3 bg-green-600 text-white rounded-xl font-pmedium shadow-sm hover:bg-green-700 transition-all text-[11px] flex items-center justify-center gap-1.5">
-                      APPROVE <CheckCircle2 size={14} className="sm:w-4 sm:h-4" />
-                    </button>
+                  <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 shrink-0">
+                    {!founderAlreadyApproved && (
+                      <label className="mb-3 flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+                        <input type="checkbox" checked={temporaryFounderOverride} onChange={(event) => setTemporaryFounderOverride(event.target.checked)} className="mt-0.5 h-4 w-4 accent-amber-600" />
+                        <span><span className="block text-[11px] font-pmedium">Founder is on leave — use temporary override</span><span className="mt-0.5 block text-[9px] font-medium text-amber-700">Approves both steps under your user ID and records an audit warning.</span></span>
+                      </label>
+                    )}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      <button onClick={() => { setTemporaryFounderOverride(false); setRejectReason(''); setRejectingRequest({ ...viewingExtra, modalType: 'extra', decisionAction: 'Discuss' }); setViewingExtra(null); }} className="min-w-0 px-3 py-3 bg-white border border-blue-200 text-blue-600 rounded-xl font-pmedium hover:bg-blue-50 transition-all text-[11px] flex items-center justify-center gap-1.5"><MessageSquare size={14} className="sm:w-4 sm:h-4" /> REQUEST CHANGES</button>
+                      <button onClick={() => { setTemporaryFounderOverride(false); setRejectReason(''); setRejectingRequest({ ...viewingExtra, modalType: 'extra' }); setViewingExtra(null); }} className="min-w-0 px-3 py-3 bg-white border border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-[11px] flex items-center justify-center gap-1.5"><XCircle size={14} className="sm:w-4 sm:h-4" /> REJECT</button>
+                      <button onClick={handleApproveExtra} className="min-w-0 px-3 py-3 bg-green-600 text-white rounded-xl font-pmedium shadow-sm hover:bg-green-700 transition-all text-[11px] flex items-center justify-center gap-1.5">APPROVE <CheckCircle2 size={14} className="sm:w-4 sm:h-4" /></button>
+                    </div>
                   </div>
                 );
               }

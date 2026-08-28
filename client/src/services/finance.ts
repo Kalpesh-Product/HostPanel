@@ -19,7 +19,7 @@ export const getFinanceSnapshot = async (fiscalYear: string) => {
 export const applyFinanceApprovalDecision = async (
   type: string,
   id: string,
-  payload: { status: string; fiscalYear?: string; scope?: 'owner' | 'financeManager'; note?: string },
+  payload: { status: string; fiscalYear?: string; scope?: 'owner' | 'financeManager'; note?: string; temporaryFounderOverride?: boolean },
 ) => {
   const response = await axiosPrivate.post('/api/finance/approval/decision', {
     requestId: id,
@@ -28,6 +28,7 @@ export const applyFinanceApprovalDecision = async (
     scope: payload.scope,
     comment: payload.note,
     fiscalYear: payload.fiscalYear,
+    temporaryFounderOverride: payload.temporaryFounderOverride === true,
   });
   return unwrap(response);
 };

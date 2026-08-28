@@ -1921,13 +1921,18 @@ export async function applyFinanceApprovalDecisionInternal(input: {
     status: "Approved" | "Rejected" | "Discuss";
     scope?: "owner" | "financeManager";
     note?: string;
+    temporaryFounderOverride?: boolean;
   };
 }) {
   const { workspaceId, userId, requestType, requestId, body } = input;
   const { status, scope = "owner", note = "" } = body;
+  const temporaryFounderOverride = body.temporaryFounderOverride === true;
 
   if (!["Approved", "Rejected", "Discuss"].includes(status)) {
     throw Object.assign(new Error("Invalid status. Must be Approved, Rejected, or Discuss."), { statusCode: 400 });
+  }
+  if (temporaryFounderOverride && (scope !== "financeManager" || status !== "Approved")) {
+    throw Object.assign(new Error("Temporary founder override requires a Finance Manager approval."), { statusCode: 403 });
   }
 
   const now = new Date();
@@ -1965,9 +1970,26 @@ export async function applyFinanceApprovalDecisionInternal(input: {
       decidedAtLabel: formatBillingDateLabel(now),
       note,
     };
+    if (temporaryFounderOverride) {
+      (record.approvalFlow as any).owner = {
+        status: "Approved",
+        approverUserId: userId,
+        approverName: "Finance Manager (temporary founder override)",
+        decidedAt: now,
+        decidedAtLabel: formatBillingDateLabel(now),
+        note: "Temporary override used because Founder was unavailable. Replace with formal delegated approval workflow.",
+      };
+    }
 
     if (!Array.isArray((record.approvalFlow as any).decisionHistory)) (record.approvalFlow as any).decisionHistory = [];
     (record.approvalFlow as any).decisionHistory.push(decision);
+    if (temporaryFounderOverride) {
+      (record.approvalFlow as any).decisionHistory.push({
+        ...decision,
+        role: "owner_delegate",
+        note: "Temporary founder-unavailable override used by Finance Manager.",
+      });
+    }
     (record.approvalFlow as any).lastDecisionByRole = role;
     (record.approvalFlow as any).lastDecisionAt = now;
     (record.approvalFlow as any).lastDecisionAtLabel = formatBillingDateLabel(now);
@@ -2025,9 +2047,26 @@ export async function applyFinanceApprovalDecisionInternal(input: {
       decidedAtLabel: formatBillingDateLabel(now),
       note,
     };
+    if (temporaryFounderOverride) {
+      (record.approvalFlow as any).owner = {
+        status: "Approved",
+        approverUserId: userId,
+        approverName: "Finance Manager (temporary founder override)",
+        decidedAt: now,
+        decidedAtLabel: formatBillingDateLabel(now),
+        note: "Temporary override used because Founder was unavailable. Replace with formal delegated approval workflow.",
+      };
+    }
 
     if (!Array.isArray((record.approvalFlow as any).decisionHistory)) (record.approvalFlow as any).decisionHistory = [];
     (record.approvalFlow as any).decisionHistory.push(decision);
+    if (temporaryFounderOverride) {
+      (record.approvalFlow as any).decisionHistory.push({
+        ...decision,
+        role: "owner_delegate",
+        note: "Temporary founder-unavailable override used by Finance Manager.",
+      });
+    }
     (record.approvalFlow as any).lastDecisionByRole = role;
     (record.approvalFlow as any).lastDecisionAt = now;
     (record.approvalFlow as any).lastDecisionAtLabel = formatBillingDateLabel(now);
