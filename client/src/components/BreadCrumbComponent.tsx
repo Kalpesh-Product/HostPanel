@@ -201,6 +201,14 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/extra-common-modules/finance-management/review/annual/:requestId",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
+      { label: "Finance Management", path: "/extra-common-modules/finance-management" },
+      { label: "Annual Budget Review" },
+    ],
+  },
+  {
     pattern: "/extra-common-modules/reports",
     crumbs: [
       { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
@@ -672,6 +680,15 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
       { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
       { label: "Finance Department", path: "/department-accesses/finance-department" },
       { label: "Expenses & Budget" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/finance-department/expenses-budget/review/annual/:requestId",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Finance Department", path: "/department-accesses/finance-department" },
+      { label: "Expenses & Budget", path: "/department-accesses/finance-department/expenses-budget" },
+      { label: "Annual Budget Review" },
     ],
   },
   {
