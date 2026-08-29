@@ -994,11 +994,15 @@ export function ExpensesBudgetPage() {
           const sourceExpenses = Array.isArray(sourceMonth?.expenses) ? sourceMonth.expenses : [];
           const targetId = normalizeLookupKey(targetExpense.id);
           const targetVendorId = normalizeLookupKey(targetExpense.vendorId);
-          const matchedExpense = sourceExpenses.find((exp: any) => {
-            if (targetId && normalizeLookupKey(exp?.expenseKey) === targetId) return true;
-            if (targetVendorId && normalizeLookupKey(exp?.vendorId) === targetVendorId) return true;
-            return false;
-          });
+          // Try an exact expenseKey match across the whole month first. Only fall
+          // back to matching by vendorId (ambiguous when two expenses share a
+          // vendor) if no expense in the month actually carries that expenseKey —
+          // otherwise an earlier expense from the same vendor wins the match
+          // before the correct one is ever checked.
+          const matchedExpense =
+            (targetId && sourceExpenses.find((exp: any) => normalizeLookupKey(exp?.expenseKey) === targetId)) ||
+            (targetVendorId && sourceExpenses.find((exp: any) => normalizeLookupKey(exp?.vendorId) === targetVendorId)) ||
+            undefined;
           expenseKey = expenseKey || matchedExpense?.expenseKey || '';
           planId = planId || matchedExpense?.planId || '';
         }
