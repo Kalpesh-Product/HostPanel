@@ -54,6 +54,25 @@ export const updateMonthlyExpenseStatus = async (payload: {
   return unwrap(response);
 };
 
+/**
+ * Record an additional payment against an expense line while its projected
+ * amount remains. The amount accumulates into the line's actualAmount and the
+ * line re-enters "Payment Pending" until Finance executes the installment.
+ */
+export const recordAdditionalExpensePayment = async (payload: {
+  planId: string;
+  fiscalYear?: string;
+  monthKey: string;
+  expenseId: string;
+  amount: number;
+}) => {
+  const response = await axiosPrivate.patch(
+    '/api/finance/department/expense/additional-payment',
+    payload,
+  );
+  return unwrap(response);
+};
+
 // --- Department Finance Page V2 ---
 
 export const getDepartmentFinanceData = async (fiscalYear: string, department: string) => {

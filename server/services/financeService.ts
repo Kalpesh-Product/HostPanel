@@ -758,6 +758,78 @@ export async function updateMonthlyExpenseStatusInternal(input: {
   return expense;
 }
 
+// Option B — additional payments: a paid expense line may receive further
+// payments while its projected amount remains. The department records the
+// additional intent (the amount accumulates into actualAmount) and the line
+// re-enters "Payment Pending" so Finance executes the new installment.
+// Segregation of duties is preserved: recording ≠ paying.
+export async function recordAdditionalExpensePaymentInternal(input: {
+  workspaceId: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
+  planId: mongoose.Types.ObjectId;
+  monthKey: string;
+  expenseId: string;
+  amount: number;
+}) {
+  const { workspaceId, userId, planId, monthKey, expenseId } = input;
+  const amount = safeNumber(input.amount, NaN);
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw Object.assign(new Error("Additional payment amount must be greater than zero."), { statusCode: 400 });
+  }
+
+  const plan = await DepartmentFinancePlan.findById(planId).exec();
+  if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
+  if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
+
+  const membership = await assertActorOwnsDepartment(workspaceId, userId, safeString((plan as any).department));
+  assertPlanAllowsSpend(safeString((plan as any).status), membership?.role);
+
+  const expense = await FinanceExpense.findOne({
+    workspaceId,
+    planId,
+    expenseKey: safeString(expenseId),
+    monthKey: normalizeMonthKey(monthKey),
+  }).exec();
+  if (!expense) throw Object.assign(new Error("Expense not found."), { statusCode: 404 });
+
+  if (normalizeExpenseTag(safeString((expense as any).expenseTag)) === "add-on") {
+    const approved = await hasApprovedExtraForMonth(plan, workspaceId, normalizeMonthKey(monthKey));
+    if (!approved) {
+      throw Object.assign(
+        new Error("This extra budget request is not approved yet. Founder and finance manager approval is required before recording costs against it."),
+        { statusCode: 403 }
+      );
+    }
+  }
+
+  const projected = safeNumber((expense as any).projectedAmount, 0);
+  const currentActual = safeNumber((expense as any).actualAmount, 0);
+  const remaining = projected - currentActual;
+
+  if (remaining <= 0.009) {
+    throw Object.assign(
+      new Error("This expense line's projected amount is fully used. File an extra budget request for additional funds."),
+      { statusCode: 409 }
+    );
+  }
+  if (amount > remaining + 0.009) {
+    throw Object.assign(
+      new Error(`Additional payment exceeds the remaining projected amount (${remaining.toLocaleString()}).`),
+      { statusCode: 409 }
+    );
+  }
+
+  (expense as any).actualAmount = currentActual + amount;
+  (expense as any).savings = Math.max(0, projected - safeNumber((expense as any).actualAmount, 0));
+  // A new installment now awaits Finance execution — re-open the lifecycle.
+  (expense as any).paymentStatus = "Payment Pending";
+
+  await expense.save();
+  await syncMonthlyPlanFromFinanceExpenses(planId);
+  return expense;
+}
+
 export async function upsertReminderInternal(input: {
   workspaceId: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;

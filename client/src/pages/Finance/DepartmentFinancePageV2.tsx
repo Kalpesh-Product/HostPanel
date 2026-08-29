@@ -21,6 +21,7 @@ import {
   submitExtraBudget,
   submitVendor,
   updateMonthlyExpenseStatus,
+  recordAdditionalExpensePayment,
   uploadInvoice,
 } from '@/services/finance';
 import { downloadReportFile } from '@/utils/report-download';
@@ -290,6 +291,8 @@ export function DepartmentFinancePageV2() {
   const [selectedVendorToLink, setSelectedVendorToLink] = useState('');
   const [actualAmountToPay, setActualAmountToPay] = useState('');
   const [isLinkingVendor, setIsLinkingVendor] = useState(false);
+  const [additionalAmount, setAdditionalAmount] = useState('');
+  const [isRecordingAdditional, setIsRecordingAdditional] = useState(false);
   const [expandedMonthKey, setExpandedMonthKey] = useState<string | null>(null);
 
   // Draft annual budget builder (month-by-month, pre-submission)
@@ -892,6 +895,32 @@ export function DepartmentFinancePageV2() {
     }
   };
 
+  const handleRecordAdditionalPayment = async () => {
+    const amount = Number(additionalAmount || 0);
+    if (!additionalAmount || amount <= 0) {
+      toast.error('Enter the additional payment amount.');
+      return;
+    }
+    if (!viewingExpense) return;
+    setIsRecordingAdditional(true);
+    try {
+      await recordAdditionalExpensePayment({
+        planId: String(financeData?.plan?._id || ''),
+        fiscalYear: selectedFY,
+        monthKey: viewingExpense.month?.monthKey || '',
+        expenseId: viewingExpense.expense.id,
+        amount,
+      });
+      toast.success('Additional payment recorded. The line is back in Payment Pending for Finance.');
+      setAdditionalAmount('');
+      setRefreshKey((k) => k + 1);
+    } catch (error: any) {
+      toast.error(getApiErrorMessage(error, 'Failed to record additional payment.'));
+    } finally {
+      setIsRecordingAdditional(false);
+    }
+  };
+
   const handleSendReminder = async () => {
     setIsSendingReminder(true);
     try {
@@ -1083,6 +1112,13 @@ export function DepartmentFinancePageV2() {
   const maxActualAllowed = expenseProjected;
   const actualOverProjected =
     !!expenseDetail && actualAmountToPay !== '' && Number(actualAmountToPay) > maxActualAllowed + 0.009;
+  // Additional payments: a paid line can receive further installments while
+  // projected amount remains. Amounts accumulate into the line's Actual and
+  // the line re-enters Payment Pending until Finance executes the payment.
+  const expenseActualRecorded = Number(expenseDetail?.actualAmount ?? 0);
+  const expenseRemaining = Math.max(0, expenseProjected - expenseActualRecorded);
+  const canRecordAdditionalPayment =
+    !!expenseDetail && canRecordSpend && !addonLinkLocked && expenseRemaining > 0.009;
   const isDraftBudget = !financeData?.annualRequest || String(financeData?.annualRequest?.status || '').toLowerCase() === 'draft';
   const draftTotalProjected = draftMonths.reduce(
     (sum, m) => sum + m.expenses.reduce((s, e) => s + Number(e.projectedAmount || 0), 0),
@@ -1958,7 +1994,38 @@ export function DepartmentFinancePageV2() {
                 <div>
                   <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Vendor</p>
                   {viewingExpense.expense.vendorName ? (
-                    <p className="text-sm font-bold text-slate-900">{viewingExpense.expense.vendorName}</p>
+                    <div className="space-y-3">
+                      <p className="text-sm font-bold text-slate-900">{viewingExpense.expense.vendorName}</p>
+                      {canRecordAdditionalPayment && (
+                        <div className="space-y-2 rounded-xl border border-blue-200 bg-blue-50/60 p-3">
+                          <p className="text-[10px] font-pmedium uppercase tracking-wider text-blue-700">
+                            Remaining projected: {formatCurrency(expenseRemaining)} — record another payment against this line.
+                          </p>
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={additionalAmount}
+                              onChange={(e) => setAdditionalAmount(e.target.value)}
+                              placeholder={`Remaining: ${formatCurrency(expenseRemaining)}`}
+                              className="w-full sm:flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                            />
+                            <button
+                              type="button"
+                              disabled={!additionalAmount || Number(additionalAmount) <= 0 || Number(additionalAmount) > expenseRemaining + 0.009 || isRecordingAdditional}
+                              onClick={handleRecordAdditionalPayment}
+                              className="shrink-0 px-4 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {isRecordingAdditional ? 'Recording…' : 'Record Additional Payment'}
+                            </button>
+                          </div>
+                          <p className="text-[9px] font-medium text-slate-500">
+                            The amount adds to this line's Actual and the line re-enters Payment Pending until Finance executes it.
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   ) : vendors.length > 0 ? (
                     <div className="flex flex-col gap-2">
                       {!canRecordSpend && (
