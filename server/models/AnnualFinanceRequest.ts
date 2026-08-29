@@ -42,6 +42,9 @@ export interface IAnnualFinanceRequest extends Document {
     submittedAt?: Date | null;
     submittedAtLabel?: string;
     revision: number;
+    isHistorical?: boolean;
+    historicalImportedAt?: Date | null;
+    historicalImportedByName?: string;
     supersedesRequestId?: mongoose.Types.ObjectId | null;
     approvalFlow: IFinanceApprovalFlow;
     monthlyBreakdown: IMonthlyBreakdown[];
@@ -163,6 +166,9 @@ const annualFinanceRequestSchema = new Schema<IAnnualFinanceRequest>(
         revision: { type: Number, required: true, min: 1, default: 1 },
         supersedesRequestId: { type: Schema.Types.ObjectId, ref: "AnnualFinanceRequest", default: null },
         approvalFlow: { type: financeApprovalFlowSchema, default: () => ({}) },
+        isHistorical: { type: Boolean, default: false },
+        historicalImportedAt: { type: Date, default: null },
+        historicalImportedByName: { type: String, trim: true, default: "", maxlength: 120 },
         monthlyBreakdown: { type: [monthlyBreakdownSchema], default: [] },
     },
     {

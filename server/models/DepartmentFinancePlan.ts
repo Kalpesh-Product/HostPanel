@@ -62,6 +62,10 @@ export interface IDepartmentFinancePlan extends Document {
     fiscalYear: string;
     requestId?: string;
     status?: "Draft" | "Pending" | "Approved" | "Rejected" | string;
+    isHistorical?: boolean;
+    historicalImportedAt?: Date | null;
+    historicalImportedByUserId?: mongoose.Types.ObjectId | null;
+    historicalImportedByName?: string;
     previousSpend: number;
     annualBudgetRequested: number;
     approvedAnnualBudget: number;
@@ -174,6 +178,10 @@ const departmentFinancePlanSchema = new Schema<IDepartmentFinancePlan>(
         fiscalYear: { type: String, trim: true, required: true, maxlength: 20, index: true },
         requestId: { type: String, trim: true, default: "", maxlength: 60 },
         status: { type: String, trim: true, default: "Draft" },
+        isHistorical: { type: Boolean, default: false },
+        historicalImportedAt: { type: Date, default: null },
+        historicalImportedByUserId: { type: Schema.Types.ObjectId, ref: "HostUser", default: null },
+        historicalImportedByName: { type: String, trim: true, default: "", maxlength: 120 },
         previousSpend: { type: Number, required: true, min: 0, default: 0 },
         annualBudgetRequested: { type: Number, required: true, min: 0, default: 0 },
         approvedAnnualBudget: { type: Number, required: true, min: 0, default: 0 },

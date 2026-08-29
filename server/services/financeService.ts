@@ -78,6 +78,27 @@ function assertPlanAllowsSpend(planStatus: string, membershipRole: any) {
   }
 }
 
+// Historical records (imported for reference) are immutable — closed periods
+// never accept new spend, vendors, payments, invoices, or revisions.
+function assertPlanIsMutable(plan: any) {
+  if (plan?.isHistorical === true) {
+    throw Object.assign(
+      new Error("This is a historical imported record and cannot be modified."),
+      { statusCode: 409 }
+    );
+  }
+}
+
+// Historical imports are restricted to fully completed past fiscal years
+// (Indian fiscal year runs April–March; "FY 2025-26" ends Mar 31, 2026).
+function isPastFiscalYear(fiscalYear: string): boolean {
+  const range = parseFiscalYearRange(fiscalYear);
+  if (!range) return false;
+  const now = new Date();
+  const currentFyStartYear = now.getMonth() + 1 >= 4 ? now.getFullYear() : now.getFullYear() - 1;
+  return range.end.getTime() < new Date(currentFyStartYear, 3, 1).getTime();
+}
+
 // Forward-only payment lifecycle used to gate department-managed payments.
 const PAYMENT_STATUS_RANKS = ["planned", "payment pending", "payment done - invoice pending", "invoice shared"];
 
@@ -426,6 +447,7 @@ export async function resetRejectedAnnualBudgetForDepartmentInternal(input: {
     fiscalYear: input.fiscalYear,
   }).exec();
   if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
+  assertPlanIsMutable(plan);
   const previousRequest = await AnnualFinanceRequest.findOne({
     workspaceId: input.workspaceId,
     department: input.department,
@@ -705,6 +727,7 @@ export async function addMonthlyExpenseInternal(input: {
   const plan = await DepartmentFinancePlan.findById(planId).exec();
   if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
   if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
+  assertPlanIsMutable(plan);
   const membership = await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
   assertPlanAllowsSpend(safeString((plan as any).status), membership?.role);
 
@@ -732,6 +755,7 @@ export async function updateMonthlyExpenseStatusInternal(input: {
   const plan = await DepartmentFinancePlan.findById(planId).exec();
   if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
   if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
+  assertPlanIsMutable(plan);
 
   const membership = await getFinanceActorMembership(workspaceId, input.userId);
 
@@ -781,6 +805,7 @@ export async function recordAdditionalExpensePaymentInternal(input: {
   const plan = await DepartmentFinancePlan.findById(planId).exec();
   if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
   if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
+  assertPlanIsMutable(plan);
 
   const membership = await assertActorOwnsDepartment(workspaceId, userId, safeString((plan as any).department));
   assertPlanAllowsSpend(safeString((plan as any).status), membership?.role);
@@ -900,6 +925,7 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
   input: any;
 }) {
   const { workspaceId, planId, input: payload } = input;
+  const historical = payload?.historical === true;
 
   const department = String(payload?.department || payload?.dept || "").trim();
   const fiscalYear = String(payload?.fiscalYear || payload?.fy || "").trim();
@@ -910,30 +936,69 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
 
   let plan = null as any;
   let importMembership: any = null;
+  if (historical) {
+    // Historical budgets are finalized records imported by finance-side
+    // roles for completed fiscal years — no approval flow. Same
+    // segregation-of-duties gate as executing payments (canManageAllFinancePayments):
+    // Finance, including a manager whose own department is Finance, acts
+    // company-wide here — other departments' managers may not.
+    importMembership = await getFinanceActorMembership(workspaceId, input.userId);
+    if (!canManageAllFinancePayments(importMembership)) {
+      throw Object.assign(new Error("Only privileged finance roles can import historical budget records."), { statusCode: 403 });
+    }
+    if (!isPastFiscalYear(fiscalYear)) {
+      throw Object.assign(new Error("Historical import is only available for fully completed past fiscal years."), { statusCode: 400 });
+    }
+  }
+
   if (planId) {
     plan = await DepartmentFinancePlan.findById(planId).exec();
     if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
     if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
-    importMembership = await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
-    // Import replaces the plan's expense rows. Department members may do that
-    // only while the current annual-budget revision is still a Draft.
-    if (
-      !DEPARTMENT_FINANCE_PRIVILEGED_ROLES.has(normalizeFinanceRoleName(importMembership?.role)) &&
-      safeString((plan as any).status).toLowerCase() !== "draft"
-    ) {
-      throw Object.assign(new Error("Bulk import is allowed only while the annual budget is a Draft. Create a revision before importing changes."), { statusCode: 409 });
-    }
-  } else {
-    importMembership = await assertActorOwnsDepartment(workspaceId, input.userId, department);
-    plan = await DepartmentFinancePlan.findOne({ workspaceId, fiscalYear, department }).exec();
-    if (plan) {
+    if (historical) {
+      if (plan.isHistorical !== true) {
+        throw Object.assign(new Error("A live budget already exists for this department and fiscal year. Historical import cannot overwrite it."), { statusCode: 409 });
+      }
+      plan.historicalImportedAt = new Date();
+      plan.historicalImportedByUserId = input.userId;
+      await plan.save();
+    } else {
+      importMembership = await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
+      // Import replaces the plan's expense rows. Department members may do that
+      // only while the current annual-budget revision is still a Draft.
       if (
         !DEPARTMENT_FINANCE_PRIVILEGED_ROLES.has(normalizeFinanceRoleName(importMembership?.role)) &&
         safeString((plan as any).status).toLowerCase() !== "draft"
       ) {
         throw Object.assign(new Error("Bulk import is allowed only while the annual budget is a Draft. Create a revision before importing changes."), { statusCode: 409 });
       }
+      assertPlanIsMutable(plan);
+    }
+  } else {
+    if (historical) {
+      plan = await DepartmentFinancePlan.findOne({ workspaceId, fiscalYear, department }).exec();
+      if (plan && plan.isHistorical !== true) {
+        throw Object.assign(new Error("A live budget already exists for this department and fiscal year. Historical import cannot overwrite it."), { statusCode: 409 });
+      }
+      if (plan && plan.isHistorical === true) {
+        throw Object.assign(new Error("A historical record already exists for this department and fiscal year and cannot be re-imported."), { statusCode: 409 });
+      }
     } else {
+      importMembership = await assertActorOwnsDepartment(workspaceId, input.userId, department);
+      plan = await DepartmentFinancePlan.findOne({ workspaceId, fiscalYear, department }).exec();
+      if (plan) {
+        if (
+          !DEPARTMENT_FINANCE_PRIVILEGED_ROLES.has(normalizeFinanceRoleName(importMembership?.role)) &&
+          safeString((plan as any).status).toLowerCase() !== "draft"
+        ) {
+          throw Object.assign(new Error("Bulk import is allowed only while the annual budget is a Draft. Create a revision before importing changes."), { statusCode: 409 });
+        }
+        assertPlanIsMutable(plan);
+      }
+    }
+    if (!plan) {
+      const importedAt = new Date();
+      const importedByRoleName = safeString((importMembership?.role as any)?.name || importMembership?.role || "Finance");
       // create minimal empty plan (Phase1 already creates via POST budget-request, but import should also be able to bootstrap)
       plan = await DepartmentFinancePlan.create({
         snapshotId: new mongoose.Types.ObjectId(),
@@ -943,24 +1008,38 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
         managerName: "",
         fiscalYear,
         requestId: "",
-        status: "Draft",
+        status: historical ? "Approved" : "Draft",
+        isHistorical: historical,
+        historicalImportedAt: historical ? importedAt : null,
+        historicalImportedByUserId: historical ? input.userId : null,
+        historicalImportedByName: historical ? importedByRoleName : "",
         previousSpend: 0,
         annualBudgetRequested: 0,
         approvedAnnualBudget: 0,
-        notes: "",
+        notes: historical ? safeString(payload?.notes, "Imported historical record.") : "",
         submittedByUserId: input.userId,
-        submittedByName: "",
-        submittedAt: new Date(),
-        submittedAtLabel: "",
-        approvalFlow: {
-          owner: { status: "Pending", approverUserId: null, approverName: "", decidedAt: null, decidedAtLabel: "", note: "" },
-          financeManager: { status: "Pending", approverUserId: null, approverName: "", decidedAt: null, decidedAtLabel: "", note: "" },
-          finalStatus: "Pending",
-          lastDecisionByRole: "",
-          lastDecisionAt: null,
-          lastDecisionAtLabel: "",
-          decisionHistory: [],
-        },
+        submittedByName: historical ? "Historical Import" : "",
+        submittedAt: importedAt,
+        submittedAtLabel: historical ? importedAt.toLocaleDateString("en-IN", { month: "short", day: "2-digit", year: "numeric" }) : "",
+        approvalFlow: historical
+          ? {
+              owner: { status: "Approved", approverUserId: null, approverName: "Historical Import", decidedAt: importedAt, decidedAtLabel: importedAt.toLocaleDateString("en-IN", { month: "short", day: "2-digit", year: "numeric" }), note: "" },
+              financeManager: { status: "Approved", approverUserId: null, approverName: "Historical Import", decidedAt: importedAt, decidedAtLabel: importedAt.toLocaleDateString("en-IN", { month: "short", day: "2-digit", year: "numeric" }), note: "" },
+              finalStatus: "Approved",
+              lastDecisionByRole: "",
+              lastDecisionAt: null,
+              lastDecisionAtLabel: "",
+              decisionHistory: [],
+            }
+          : {
+              owner: { status: "Pending", approverUserId: null, approverName: "", decidedAt: null, decidedAtLabel: "", note: "" },
+              financeManager: { status: "Pending", approverUserId: null, approverName: "", decidedAt: null, decidedAtLabel: "", note: "" },
+              finalStatus: "Pending",
+              lastDecisionByRole: "",
+              lastDecisionAt: null,
+              lastDecisionAtLabel: "",
+              decisionHistory: [],
+            },
         monthlyPlan: [],
         reminders: [],
       });
@@ -991,7 +1070,7 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
         projectedAmount: safeNumber(row?.projectedAmount ?? row?.["Projected Amount"] ?? row?.amount ?? row?.Amount, 0),
         actualAmount: safeNumber(row?.actualAmount ?? row?.["Actual Amount"] ?? row?.actualSpent ?? row?.["Actual Spent"], 0),
         dueDate: safeString(row?.dueDate ?? row?.["Due Date"], ""),
-        paymentStatus: safeString(row?.paymentStatus ?? row?.["Payment Status"], "Planned"),
+        paymentStatus: safeString(row?.paymentStatus ?? row?.["Payment Status"], historical ? "Invoice Shared" : "Planned"),
         invoiceNumber: safeString(row?.invoiceNumber ?? row?.["Invoice Number"], ""),
       });
     }
@@ -1061,7 +1140,7 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
         projectedAmount,
         actualAmount,
         savings: Math.max(0, projectedAmount - actualAmount),
-        paymentStatus: safeString(e?.paymentStatus, "Planned"),
+        paymentStatus: safeString(e?.paymentStatus, historical ? "Invoice Shared" : "Planned"),
         invoiceNumber: safeString(e?.invoiceNumber, ""),
         invoiceFile: safeString(e?.invoiceFile, ""),
         invoiceUrl: safeString(e?.invoiceUrl, ""),
@@ -1093,6 +1172,64 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
   }
 
   await syncMonthlyPlanFromFinanceExpenses(planObjectId);
+
+  // Historical imports also create/update a matching APPROVED annual request
+  // so the record flows through the existing FM/Founder lists and dashboards.
+  if (historical) {
+    const importedAt = new Date();
+    const importedByRoleName = safeString((importMembership?.role as any)?.name || importMembership?.role || "Finance");
+    const importedAtLabel = importedAt.toLocaleDateString("en-IN", { month: "short", day: "2-digit", year: "numeric" });
+    const historicalFlow = {
+      owner: { status: "Approved", approverUserId: null, approverName: "Historical Import", decidedAt: importedAt, decidedAtLabel: importedAtLabel, note: "" },
+      financeManager: { status: "Approved", approverUserId: null, approverName: "Historical Import", decidedAt: importedAt, decidedAtLabel: importedAtLabel, note: "" },
+      finalStatus: "Approved",
+      lastDecisionByRole: "",
+      lastDecisionAt: null,
+      lastDecisionAtLabel: "",
+      decisionHistory: [],
+    };
+    const totalProjected = (Array.isArray(monthlyEntries) ? monthlyEntries : []).reduce(
+      (sum: number, m: any) => sum + (Array.isArray(m?.expenses) ? m.expenses : []).reduce((s: number, e: any) => s + safeNumber(e?.projectedAmount ?? e?.amount ?? e?.estimatedAmount, 0), 0),
+      0
+    );
+    plan.annualBudgetRequested = totalProjected;
+    plan.approvedAnnualBudget = totalProjected;
+
+    let request = plan.requestId
+      ? await AnnualFinanceRequest.findById(plan.requestId).exec()
+      : await AnnualFinanceRequest.findOne({ workspaceId, department: plan.department, fiscalYear: plan.fiscalYear }).exec();
+    if (!request) {
+      request = await AnnualFinanceRequest.create({
+        snapshotId: plan.snapshotId,
+        workspaceId,
+        requestKey: `HIST-${Date.now()}-${String(plan.planKey).slice(-8)}`,
+        department: plan.department,
+        fiscalYear: plan.fiscalYear,
+        requestedBudget: totalProjected,
+        previousSpend: safeNumber((plan as any).previousSpend, 0),
+        status: "Approved",
+        breakdown: safeString(payload?.notes, "Imported historical record."),
+        submittedByUserId: input.userId,
+        submittedByName: "Historical Import",
+        submittedAt: importedAt,
+        submittedAtLabel: importedAtLabel,
+        revision: 1,
+        approvalFlow: historicalFlow,
+        isHistorical: true,
+        historicalImportedAt: importedAt,
+        historicalImportedByName: importedByRoleName,
+      } as any);
+    } else {
+      request.status = "Approved";
+      request.requestedBudget = totalProjected;
+      (request as any).approvalFlow = historicalFlow;
+      (request as any).isHistorical = true;
+      (request as any).historicalImportedAt = importedAt;
+      (request as any).historicalImportedByName = importedByRoleName;
+      await request.save();
+    }
+    plan.requestId = String((request as any)._id);
+  }
 
   // Ensure plan.reminders exists
   if (!Array.isArray(plan.reminders)) plan.reminders = [];
@@ -1137,6 +1274,7 @@ export async function submitVendorForDepartmentInternal(input: {
   const plan = await DepartmentFinancePlan.findById(planId).exec();
   if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
   if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
+  assertPlanIsMutable(plan);
   const membership = await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
   assertPlanAllowsSpend(safeString((plan as any).status), membership?.role);
 
@@ -1331,6 +1469,7 @@ export async function submitExtraBudgetForDepartmentInternal(input: {
     throw Object.assign(new Error("Submit the annual budget before requesting an extra budget."), { statusCode: 409 });
   }
   if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
+  assertPlanIsMutable(plan);
   await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
 
   if (requestType === "increase") {
@@ -1504,6 +1643,7 @@ export async function uploadInvoiceForDepartmentInternal(input: {
   const plan = await DepartmentFinancePlan.findById(planId).exec();
   if (!plan) throw Object.assign(new Error("Department finance plan not found."), { statusCode: 404 });
   if (String(plan.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
+  assertPlanIsMutable(plan);
   await assertActorOwnsDepartment(workspaceId, input.userId, safeString((plan as any).department));
 
   // Uploading an invoice only completes the lifecycle once the expense is
@@ -2026,6 +2166,9 @@ export async function applyFinanceApprovalDecisionInternal(input: {
     const record = await AnnualFinanceRequest.findById(requestObjectId).exec();
     if (!record) throw Object.assign(new Error("Annual finance request not found."), { statusCode: 404 });
     if (String(record.workspaceId) !== String(workspaceId)) throw Object.assign(new Error("Workspace mismatch."), { statusCode: 403 });
+    if ((record as any).isHistorical === true) {
+      throw Object.assign(new Error("Historical records are immutable — they cannot be re-approved or rejected."), { statusCode: 409 });
+    }
     if (safeString(record.status).toLowerCase() !== "pending") {
       throw Object.assign(new Error("Only a pending annual budget revision can receive an approval decision."), { statusCode: 409 });
     }

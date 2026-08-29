@@ -791,6 +791,10 @@ export function DepartmentFinancePageV2() {
   };
 
   const handleImportFile = async () => {
+    if (isHistoricalPlan) {
+      toast.error('Historical records are read-only and cannot be re-imported.');
+      return;
+    }
     if (!importFile) {
       toast.error('Please select a file to import.');
       return;
@@ -1084,9 +1088,10 @@ export function DepartmentFinancePageV2() {
     .find((decision: any) => String(decision?.note || '').trim());
   const isBudgetPending = financeData?.status?.toLowerCase() === 'pending';
   const isBudgetApproved = financeData?.status?.toLowerCase() === 'approved';
+  const isHistoricalPlan = financeData?.plan?.isHistorical === true;
   // Departments can only link vendors / record actuals once the annual budget
   // is approved; finance-privileged roles keep access for corrections.
-  const canRecordSpend = isBudgetApproved || FINANCE_PAYMENT_ROLES.includes(userRole);
+  const canRecordSpend = !isHistoricalPlan && (isBudgetApproved || FINANCE_PAYMENT_ROLES.includes(userRole));
   // Inline guard: the linked vendor's actual cost may exceed this expense's own
   // projection only by the month's unused APPROVED extra-budget headroom.
   const expenseDetail = viewingExpense?.expense;
@@ -1356,8 +1361,18 @@ export function DepartmentFinancePageV2() {
             </div>
           )}
 
+          {/* HISTORICAL RECORD BANNER */}
+          {isHistoricalPlan && (
+            <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-3 text-xs font-bold text-indigo-700 flex items-center gap-3">
+              <Clock size={18} className="shrink-0" />
+              <div className="flex-1">
+                <span className="font-black">Historical Record</span> — This budget was imported for record-keeping from a past fiscal year. It is read-only and cannot be modified.
+              </div>
+            </div>
+          )}
+
           {/* APPROVED BANNER */}
-          {isBudgetApproved && (
+          {isBudgetApproved && !isHistoricalPlan && (
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-xs font-bold text-emerald-700 flex items-center gap-3">
               <CheckCircle2 size={18} className="shrink-0" />
               <div className="flex-1">

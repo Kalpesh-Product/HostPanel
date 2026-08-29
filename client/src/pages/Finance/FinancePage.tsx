@@ -594,9 +594,14 @@ export function FinancePage() {
                           <td className="px-5 py-4 font-pmedium text-[#2563EB] text-lg">{formatCurrency(req.requestedBudget)}</td>
                           <td className="px-5 py-4 font-pmedium text-slate-500">{formatCurrency(getDepartmentActualSpend(req.department))}</td>
                           <td className="px-5 py-4">
-                            {hasApprovalProgress(req.approvalFlow)
-                              ? <ApprovalFlowBadges flow={req.approvalFlow} />
-                              : <span className={statusPillClass(req.status)}>{req.status}</span>}
+                            <div className="flex flex-col items-start gap-1">
+                              {hasApprovalProgress(req.approvalFlow)
+                                ? <ApprovalFlowBadges flow={req.approvalFlow} />
+                                : <span className={statusPillClass(req.status)}>{req.status}</span>}
+                              {req.isHistorical && (
+                                <span className="inline-flex px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-[8px] font-pmedium uppercase tracking-wider">Historical</span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-5 py-4 text-center">
                             <button onClick={() => navigate(`/extra-common-modules/finance-management/review/annual/${encodeURIComponent(req.id)}`, { state: { request: req, fiscalYear: selectedFY } })} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all mx-auto block" title="View Request">
@@ -618,9 +623,14 @@ export function FinancePage() {
                             <div className="mt-1 text-[10px] text-slate-500 max-w-[250px] truncate">{req.reason}</div>
                           </td>
                           <td className="px-5 py-4">
-                            {hasApprovalProgress(req.approvalFlow)
-                              ? <ApprovalFlowBadges flow={req.approvalFlow} />
-                              : <span className={statusPillClass(req.status)}>{req.status}</span>}
+                            <div className="flex flex-col items-start gap-1">
+                              {hasApprovalProgress(req.approvalFlow)
+                                ? <ApprovalFlowBadges flow={req.approvalFlow} />
+                                : <span className={statusPillClass(req.status)}>{req.status}</span>}
+                              {req.isHistorical && (
+                                <span className="inline-flex px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-[8px] font-pmedium uppercase tracking-wider">Historical</span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-5 py-4 text-center">
                             <button onClick={() => setViewingRequest({ ...req, type: 'extra' })} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all mx-auto block" title="View Request">

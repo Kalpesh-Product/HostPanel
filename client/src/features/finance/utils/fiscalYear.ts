@@ -23,7 +23,7 @@ export const DEFAULT_FISCAL_YEAR = getCurrentFiscalYear();
 
 /**
  * Returns a list of fiscal year options for the dropdown selector.
- * Includes 2 years back and 1 year ahead.
+ * Includes 4 years back (covers historical/imported records) and 1 year ahead.
  */
 export const getFiscalYearOptions = (): string[] => {
   const now = new Date();
@@ -32,7 +32,7 @@ export const getFiscalYearOptions = (): string[] => {
   const currentFyStart = month >= getFiscalYearStartMonth() ? year : year - 1;
 
   const options: string[] = [];
-  for (let offset = -2; offset <= 1; offset++) {
+  for (let offset = -4; offset <= 1; offset++) {
     const start = currentFyStart + offset;
     const end = start + 1;
     options.push(`FY ${start}-${String(end).slice(2)}`);

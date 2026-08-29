@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import * as XLSX from 'xlsx';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
 import {
@@ -18,6 +19,7 @@ import {
   Calendar,
   Clock,
   DownloadCloud,
+  History,
   FileWarning,
   Bell,
   DollarSign,
@@ -28,7 +30,7 @@ import {
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
-import { applyFinanceApprovalDecision, getFinanceSnapshot, updateMonthlyExpenseStatus } from '@/services/finance';
+import { applyFinanceApprovalDecision, getFinanceSnapshot, importFinanceSnapshot, updateMonthlyExpenseStatus } from '@/services/finance';
 import { createReport } from '@/services/reports';
 import { downloadReportFile } from '@/utils/report-download';
 import { getStoredUser } from '@/lib/auth-session';
@@ -138,6 +140,7 @@ export interface Budget {
   monthlyBreakdown: MonthlyBreakdown[];
   submittedByName: string;
   approvalStateLabel: string;
+  isHistorical?: boolean;
 }
 
 interface ExtraBudget {
@@ -432,6 +435,7 @@ export function mapAnnualRequestToBudget(request: any = {}): Budget {
     submittedByName: request.submittedByName || '',
     approvalStateLabel: request.approvalStateLabel || '',
     revision: Number(request.revision || 1),
+    isHistorical: Boolean(request.isHistorical),
   };
 }
 
@@ -943,6 +947,11 @@ export function ExpensesBudgetPage() {
   const [temporaryFounderOverride, setTemporaryFounderOverride] = useState(false);
   const [departments, setDepartments] = useState<string[]>([]);
   const [isUpdatingExpense, setIsUpdatingExpense] = useState(false);
+  const [showHistoricalImport, setShowHistoricalImport] = useState(false);
+  const [historicalDepartment, setHistoricalDepartment] = useState('');
+  const [historicalFY, setHistoricalFY] = useState('');
+  const [historicalFile, setHistoricalFile] = useState<File | null>(null);
+  const [isImportingHistorical, setIsImportingHistorical] = useState(false);
 
   const [estimatedBudgets, setEstimatedBudgets] = useState<Budget[]>([]);
   const [extraBudgets, setExtraBudgets] = useState<ExtraBudget[]>([]);
@@ -1222,6 +1231,45 @@ export function ExpensesBudgetPage() {
     }
   };
 
+  /* ── Historical import (Founder/Finance only): finalized past-year records ── */
+
+  const historicalFYOptions = fiscalYearOptions.slice(0, Math.max(0, fiscalYearOptions.indexOf(DEFAULT_FISCAL_YEAR)));
+
+  const handleHistoricalImport = async () => {
+    if (!historicalDepartment || !historicalFY) { toast.error('Select the department and fiscal year.'); return; }
+    if (!historicalFile) { toast.error('Attach the historical budget file (.xlsx / .csv).'); return; }
+    setIsImportingHistorical(true);
+    try {
+      const data = await historicalFile.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      if (!sheet) { toast.error('Could not read the first sheet of the file.'); return; }
+      const records = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: '' }).map((row) => {
+        const normalized: Record<string, any> = {};
+        Object.keys(row).forEach((key) => { normalized[String(key).trim()] = row[key]; });
+        return normalized;
+      });
+      if (records.length === 0) { toast.error('The file has no data rows.'); return; }
+      await importFinanceSnapshot({ historical: true, department: historicalDepartment, fiscalYear: historicalFY, records });
+      toast.success(`Historical budget imported for ${historicalDepartment} (${historicalFY}).`);
+      setShowHistoricalImport(false);
+      setHistoricalFile(null);
+      window.dispatchEvent(new Event('finance:snapshot-updated'));
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || error?.message || 'Failed to import historical budget.');
+    } finally {
+      setIsImportingHistorical(false);
+    }
+  };
+
+  const handleDownloadHistoricalTemplate = () => {
+    const headers = [['Month', 'Month Key', 'Budget Title', 'Expense Title', 'Description', 'Projected Amount', 'Actual Amount', 'Due Date', 'Payment Status', 'Invoice Number']];
+    const worksheet = XLSX.utils.aoa_to_sheet(headers);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Historical Import');
+    XLSX.writeFile(workbook, 'historical-budget-template.xlsx');
+  };
+
   /* ── Export handler ── */
 
   const handleExportActiveFinanceReport = async (format = 'PDF') => {
@@ -1352,6 +1400,15 @@ export function ExpensesBudgetPage() {
                                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                                 <FileSpreadsheet size={16} className="text-emerald-500"/>
                                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setShowHistoricalImport(true)}
+                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-blue-50 hover:border-blue-200 text-slate-500 transition-all active:scale-95 shadow-sm"
+                                title="Upload a historical (already closed) budget for records"
+                              >
+                                <History size={16} className="text-blue-500" />
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-blue-500 text-white px-1.5 py-0.5 rounded">HISTORICAL</span>
                               </button>
             </div>
           </div>
@@ -1490,9 +1547,14 @@ export function ExpensesBudgetPage() {
                               )}
                             </td>
                             <td className="px-6 py-5 text-center">
-                              {hasApprovalProgress(budget.approvalFlow)
-                                ? <ApprovalFlowBadges flow={budget.approvalFlow} />
-                                : getStatusBadge(budget.status)}
+                              <div className="flex flex-col items-center gap-1">
+                                {hasApprovalProgress(budget.approvalFlow)
+                                  ? <ApprovalFlowBadges flow={budget.approvalFlow} />
+                                  : getStatusBadge(budget.status)}
+                                {budget.isHistorical && (
+                                  <span className="inline-flex px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-[8px] font-pmedium uppercase tracking-wider">Historical</span>
+                                )}
+                              </div>
                             </td>
                             <td className="px-6 py-5 text-center">
                               <button onClick={() => { setTemporaryFounderOverride(false); navigate(`/department-accesses/finance-department/expenses-budget/review/annual/${encodeURIComponent(budget.id)}`, { state: { request: budget, fiscalYear: selectedFY } }); }} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto">
@@ -2229,6 +2291,52 @@ export function ExpensesBudgetPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Historical Import Modal (Founder/Finance only) ── */}
+      {showHistoricalImport && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-[#0F172A]/85 backdrop-blur-md">
+          <div className="bg-white rounded-2xl sm:rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col">
+            <div className="px-6 py-5 bg-slate-900 flex justify-between items-start">
+              <div>
+                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-blue-500/20 text-blue-300 border-blue-400/30 inline-block">Records Only</span>
+                <h3 className="text-lg font-black text-white flex items-center gap-2 mt-1"><History size={16} /> Upload Historical Budget</h3>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">Past fiscal years • No approval flow • Read-only record</p>
+              </div>
+              <button onClick={() => setShowHistoricalImport(false)} className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={14} /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-medium text-amber-800">
+                Use this only for budgets that were already approved and fully settled outside the panel. Imported records are immutable and cannot be modified later.
+              </p>
+              <label className="block">
+                <span className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Department *</span>
+                <select value={historicalDepartment} onChange={(e) => setHistoricalDepartment(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] font-medium text-slate-800 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100">
+                  <option value="">Select department…</option>
+                  {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </label>
+              <label className="block">
+                <span className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Fiscal Year (past only) *</span>
+                <select value={historicalFY} onChange={(e) => setHistoricalFY(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] font-medium text-slate-800 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100">
+                  <option value="">Select fiscal year…</option>
+                  {historicalFYOptions.map((fy) => <option key={fy} value={fy}>{fy}</option>)}
+                </select>
+              </label>
+              <label className="block">
+                <span className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Budget file (.xlsx / .csv) *</span>
+                <input type="file" accept=".xlsx,.xls,.csv" onChange={(e) => setHistoricalFile(e.target.files?.[0] || null)} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] font-medium text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-[10px] file:font-pmedium file:uppercase file:tracking-wider file:text-blue-700" />
+              </label>
+              <button type="button" onClick={handleDownloadHistoricalTemplate} className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600 hover:underline">Download template</button>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setShowHistoricalImport(false)} className="flex-1 rounded-xl border border-slate-200 py-3 text-xs font-pmedium text-slate-600 hover:bg-slate-50 transition-all">CANCEL</button>
+                <button type="button" disabled={isImportingHistorical} onClick={handleHistoricalImport} className="flex-[2] rounded-xl py-3 bg-green-600 text-white text-xs font-pmedium hover:bg-green-700 transition-all disabled:opacity-50">
+                  {isImportingHistorical ? 'Importing…' : 'IMPORT RECORD'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
