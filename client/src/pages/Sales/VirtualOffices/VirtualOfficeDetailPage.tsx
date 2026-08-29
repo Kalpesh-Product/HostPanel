@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Building2, Mail, Phone, Wallet, ShieldCheck, CalendarDays,
   Users, LayoutGrid, CreditCard, X, Loader2, CheckCircle2, AlertTriangle,
-  Percent, MapPin, Package, Receipt, FileText,
+  Percent, MapPin, Package, Receipt, FileText, Pencil, RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -15,6 +15,10 @@ import useWorkspacePreferences from "../../../hooks/useWorkspacePreferences";
 import { formatWorkspaceCurrency } from "../../../lib/workspaceLocalization";
 import PageFrame from "../../../components/Pages/PageFrame";
 import { SalesTenantCompaniesSkeleton } from "../../../components/ui/SalesPageSkeletons";
+import VirtualOfficeFormModal from "./VirtualOfficeFormModal";
+import VirtualOfficeRenewModal from "./VirtualOfficeRenewModal";
+
+const RENEWABLE_STATUSES = new Set(["Expiring Soon", "Expired"]);
 
 const RENT_STATUS = [
   { value: "Active", label: "Active", className: "border-emerald-200 bg-emerald-50 text-emerald-700" },
@@ -78,6 +82,8 @@ export default function VirtualOfficeDetailPage() {
   const [record, setRecord] = useState(null);
   const [activeTab, setActiveTab] = useState("profile");
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showRenewModal, setShowRenewModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const workspacePreferences = useWorkspacePreferences();
   const currency = workspacePreferences.currency;
@@ -220,12 +226,22 @@ export default function VirtualOfficeDetailPage() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 shrink-0">
+                <button onClick={() => setShowEditModal(true)} type="button" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900">
+                  <Pencil size={13} /> Edit
+                </button>
+                {RENEWABLE_STATUSES.has(record.status) && (
+                  <button onClick={() => setShowRenewModal(true)} type="button" className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-amber-700 shadow-sm transition hover:bg-amber-100">
+                    <RefreshCw size={13} /> Renew Contract
+                  </button>
+                )}
                 <button onClick={openPaymentModal} type="button" className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-white shadow-sm transition hover:bg-blue-700">
                   <CreditCard size={13} /> Record Payment
                 </button>
+                {/* Delete hidden for now — re-enable by uncommenting when needed.
                 <button onClick={handleDelete} type="button" className="rounded-xl border border-rose-200 px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-rose-600 transition hover:bg-rose-50">
                   Delete
                 </button>
+                */}
               </div>
             </div>
 
@@ -309,7 +325,7 @@ export default function VirtualOfficeDetailPage() {
                   <Calc label="Meeting Credits" value={record.totalMeetingCredits} sub={`${record.perDeskMeetingCredits}/desk`} />
                   <Calc label="Annual Increment" value={`${record.annualIncrement || 0}%`} icon={Percent} />
                   <Calc label="Term" value={`${record.totalTerm || 0} months`} />
-                  <Calc label="Rent Date" value={formatDate(record.rentDate)} icon={CalendarDays} />
+                  <Calc label="Rent Start Date" value={formatDate(record.rentDate)} icon={CalendarDays} />
                   <Calc label="Next Increment" value={formatDate(record.nextIncrementDate)} icon={CalendarDays} />
                   <Calc label="Term End" value={formatDate(record.termEnd)} icon={CalendarDays} />
                   <Calc label="Past Due" value={formatDate(record.pastDueDate)} icon={AlertTriangle} />
@@ -428,6 +444,21 @@ export default function VirtualOfficeDetailPage() {
           </div>
         </div>
       )}
+
+      <VirtualOfficeFormModal
+        open={showEditModal}
+        mode="edit"
+        initialRecord={record}
+        onClose={() => setShowEditModal(false)}
+        onSaved={() => loadRecord()}
+      />
+
+      <VirtualOfficeRenewModal
+        open={showRenewModal}
+        record={record}
+        onClose={() => setShowRenewModal(false)}
+        onRenewed={() => loadRecord()}
+      />
     </>
   );
 }

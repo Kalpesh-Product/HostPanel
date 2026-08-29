@@ -87,6 +87,81 @@ function buildNextIncrementDate(rentDate, annualIncrement) {
   return next;
 }
 
+// Finds the rent-due period that "now" falls inside, given the contract's
+// rent day-of-month. `isFirstPeriod` covers the very first billing cycle,
+// whose rent is usually settled via the onboarding advance/security deposit
+// rather than a logged payment record, so callers should not auto-flag it.
+function getCurrentBillingPeriod(rentDate, now) {
+  const start = toDateOrNull(rentDate);
+  if (!start) return null;
+  let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+  let periodStart = new Date(start);
+  periodStart.setMonth(periodStart.getMonth() + months);
+  if (periodStart.getTime() > now.getTime()) {
+    months -= 1;
+    periodStart = new Date(start);
+    periodStart.setMonth(periodStart.getMonth() + months);
+  }
+  if (months < 0) return null;
+  const periodEnd = new Date(periodStart);
+  periodEnd.setMonth(periodEnd.getMonth() + 1);
+  periodEnd.setDate(periodEnd.getDate() - 1);
+  return { periodStart, periodEnd, isFirstPeriod: months === 0 };
+}
+
+function computeEffectiveRentStatus(record, now = new Date()) {
+  const currentStatus = normalizeText(record.rentStatus);
+  if (currentStatus.toLowerCase() === "cancelled") return currentStatus;
+
+  const rentDate = toDateOrNull(record.rentDate);
+  if (!rentDate || rentDate.getTime() > now.getTime()) return currentStatus;
+
+  const termEnd = toDateOrNull(record.termEnd);
+  if (termEnd && now.getTime() > termEnd.getTime()) return currentStatus;
+
+  const period = getCurrentBillingPeriod(rentDate, now);
+  if (!period || period.isFirstPeriod) return currentStatus;
+
+  const monthlyRent = Math.max(0, Number(record.monthlyRent || 0));
+  const paymentRecords = Array.isArray(record.paymentRecords) ? record.paymentRecords : [];
+  const paidForPeriod = paymentRecords.reduce((sum, p) => {
+    const pStart = toDateOrNull(p.periodStart) || toDateOrNull(p.paymentDate);
+    const pEnd = toDateOrNull(p.periodEnd) || toDateOrNull(p.paymentDate);
+    if (!pStart || !pEnd) return sum;
+    const overlaps = pStart.getTime() <= period.periodEnd.getTime() && pEnd.getTime() >= period.periodStart.getTime();
+    return sum + (overlaps && p.status === "Paid" ? Number(p.amount || 0) : 0);
+  }, 0);
+
+  if (monthlyRent > 0 && paidForPeriod >= monthlyRent) return "Active";
+  return "Overdue";
+}
+
+// Recomputes and persists rentStatus for any record in `filter` whose current
+// billing period has gone unpaid past its due date. Runs on every list/get
+// so the flag stays live without needing a background job.
+async function syncOverdueRentStatuses(filter) {
+  const now = new Date();
+  const candidates = await VirtualOffice.find({
+    ...filter,
+    rentStatus: { $ne: "Cancelled" },
+    rentDate: { $ne: null },
+  })
+    .select("rentDate rentStatus termEnd monthlyRent paymentRecords")
+    .lean();
+
+  const ops = [];
+  for (const rec of candidates) {
+    const effective = computeEffectiveRentStatus(rec, now);
+    if (effective && effective !== rec.rentStatus) {
+      ops.push({ updateOne: { filter: { _id: rec._id }, update: { $set: { rentStatus: effective } } } });
+    }
+  }
+
+  if (ops.length > 0) {
+    await VirtualOffice.bulkWrite(ops);
+  }
+}
+
 async function getNextRecordNumber(workspaceId) {
   const latest = await VirtualOffice.findOne({ workspaceId })
     .sort({ recordNumber: -1 })
@@ -109,6 +184,9 @@ function validateOnboardingInput(input = {}) {
   const totalTerm = Number(input.totalTerm || 0);
   if (!Number.isFinite(totalTerm) || totalTerm <= 0) {
     errors.push("Contract term (months) must be greater than zero.");
+  }
+  if (!toDateOrNull(input.rentDate)) {
+    errors.push("Rent start date is required.");
   }
   return errors;
 }
@@ -256,6 +334,7 @@ export async function listVirtualOfficesForCurrentUser(userId, query = {}) {
   const workspaceId = access.workspaceId;
 
   const baseFilter = { workspaceId };
+  await syncOverdueRentStatuses(baseFilter);
   const now = new Date();
   const search = normalizeText(query.search || "");
   const statusValue = normalizeText(query.status || "");
@@ -307,6 +386,7 @@ export async function listVirtualOfficesForCurrentUser(userId, query = {}) {
 
 export async function getVirtualOfficeForCurrentUser(userId, recordId) {
   const access = await resolveWorkspaceAccess(userId);
+  await syncOverdueRentStatuses({ _id: recordId, workspaceId: access.workspaceId });
   const record = await VirtualOffice.findById(recordId).lean();
   ensureExists(record, access.workspaceId);
   return { record: formatRecord(record) };
@@ -332,8 +412,9 @@ export async function createVirtualOfficeForCurrentUser(userId, input = {}) {
   const recordNumber = await getNextRecordNumber(access.workspaceId);
   const rentDate = toDateOrNull(input.rentDate);
   const totalTerm = Math.max(1, Number(input.totalTerm || 0));
+  const annualIncrement = Math.max(0, Number(input.annualIncrement || 0));
   const termEnd = buildTermEndDate(rentDate, totalTerm);
-  const nextIncrementDate = buildNextIncrementDate(rentDate, calcs.totalContract);
+  const nextIncrementDate = buildNextIncrementDate(rentDate, annualIncrement);
   const rentStatus = normalizeText(input.rentStatus || "Active");
 
   const record = await VirtualOffice.create({
@@ -372,7 +453,7 @@ export async function createVirtualOfficeForCurrentUser(userId, input = {}) {
     totalMeetingCredits: calcs.totalMeetingCredits,
     rentDate,
     rentStatus,
-    annualIncrement: Math.max(0, Number(input.annualIncrement || 0)),
+    annualIncrement,
     totalTerm,
     termEnd,
     nextIncrementDate,
@@ -411,6 +492,7 @@ export async function updateVirtualOfficeForCurrentUser(userId, recordId, input 
   const calcs = computeCalculations(merged);
   const rentDate = toDateOrNull(input.rentDate ?? record.rentDate);
   const totalTerm = Math.max(1, Number(input.totalTerm ?? (record.totalTerm || 0)));
+  const annualIncrement = Math.max(0, Number(input.annualIncrement ?? record.annualIncrement));
   const termEnd = input.rentDate || input.totalTerm != null
     ? buildTermEndDate(rentDate, totalTerm)
     : record.termEnd;
@@ -443,10 +525,10 @@ export async function updateVirtualOfficeForCurrentUser(userId, recordId, input 
     totalMeetingCredits: calcs.totalMeetingCredits,
     rentDate: rentDate || record.rentDate,
     rentStatus: normalizeText(input.rentStatus ?? record.rentStatus),
-    annualIncrement: Math.max(0, Number(input.annualIncrement ?? record.annualIncrement)),
+    annualIncrement,
     totalTerm,
     termEnd,
-    nextIncrementDate: input.rentDate ? buildNextIncrementDate(rentDate, calcs.totalContract) : record.nextIncrementDate,
+    nextIncrementDate: buildNextIncrementDate(rentDate, annualIncrement),
     pastDueDate: input.pastDueDate !== undefined ? toDateOrNull(input.pastDueDate) : record.pastDueDate,
     securityDeposit: calcs.securityDeposit,
     securityDepositPaid: input.securityDepositPaid !== undefined ? Boolean(input.securityDepositPaid) : record.securityDepositPaid,
@@ -495,9 +577,11 @@ export async function recordRentPaymentForCurrentUser(userId, recordId, input = 
   }
 
   const paymentRecords = Array.isArray(record.paymentRecords) ? [...record.paymentRecords] : [];
-  paymentRecords.push({
-    periodStart: toDateOrNull(input.periodStart),
-    periodEnd: toDateOrNull(input.periodEnd),
+  const periodStart = toDateOrNull(input.periodStart);
+  const periodEnd = toDateOrNull(input.periodEnd);
+  const newRecord = {
+    periodStart,
+    periodEnd,
     monthLabel: normalizeText(input.monthLabel || ""),
     amount: Math.max(0, Number(input.amount || 0)),
     status: ["Paid", "Partially Paid", "Pending", "Overdue"].includes(input.status) ? input.status : "Paid",
@@ -505,14 +589,25 @@ export async function recordRentPaymentForCurrentUser(userId, recordId, input = 
     paymentDate: toDateOrNull(input.paymentDate) || new Date(),
     paymentMethod: normalizeText(input.paymentMethod || ""),
     notes: normalizeText(input.notes || ""),
-  });
+  };
+  paymentRecords.push(newRecord);
   record.paymentRecords = paymentRecords;
 
+  // Only sum payments belonging to the same billing period as the one just
+  // recorded, not every payment ever made — otherwise one fully-paid month
+  // permanently marks the contract "Active" even as later months lapse.
   const monthlyRent = Math.max(0, Number(record.monthlyRent || 0));
-  const paidThisPeriod = paymentRecords.reduce((sum, p) => sum + (p.status === "Paid" ? Number(p.amount || 0) : 0), 0);
-  if (paidThisPeriod >= monthlyRent) {
+  const recordsForPeriod = periodStart && periodEnd
+    ? paymentRecords.filter((p) => {
+        const pStart = toDateOrNull(p.periodStart);
+        const pEnd = toDateOrNull(p.periodEnd);
+        return pStart && pEnd && pStart.getTime() === periodStart.getTime() && pEnd.getTime() === periodEnd.getTime();
+      })
+    : [newRecord];
+  const paidForPeriod = recordsForPeriod.reduce((sum, p) => sum + (p.status === "Paid" ? Number(p.amount || 0) : 0), 0);
+  if (paidForPeriod >= monthlyRent) {
     record.rentStatus = "Active";
-  } else if (paidThisPeriod > 0) {
+  } else if (paidForPeriod > 0) {
     record.rentStatus = "Overdue";
   }
 
