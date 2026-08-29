@@ -6,6 +6,7 @@ import {
   addMonthlyExpenseInternal,
   updateMonthlyExpenseStatusInternal,
   upsertReminderInternal,
+  recordAdditionalExpensePaymentInternal,
   importFinanceSnapshotForDepartmentInternal,
   submitVendorForDepartmentInternal,
   submitExtraBudgetForDepartmentInternal,
@@ -215,6 +216,44 @@ export async function updateMonthlyExpenseStatus(req: Request, res: Response, ne
     return res.status(200).json({
       success: true,
       message: "Expense status updated successfully.",
+      data: updated,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function recordAdditionalExpensePayment(req: Request, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = getWorkspaceId(req);
+    const userId = getUserId(req);
+
+    if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
+    if (!userId) return res.status(401).json({ message: "Unauthorized: user not resolved." });
+
+    const { planId, monthKey, expenseId, amount } = (req.body || {}) as any;
+
+    if (!planId) return res.status(400).json({ message: "planId is required" });
+    if (!monthKey) return res.status(400).json({ message: "monthKey is required" });
+    if (!expenseId) return res.status(400).json({ message: "expenseId is required" });
+    if (amount === undefined || amount === null || Number(amount) <= 0) {
+      return res.status(400).json({ message: "amount must be greater than zero" });
+    }
+
+    // Segregation of duties: the department records the additional payment
+    // intent; the line re-enters "Payment Pending" until Finance executes it.
+    const updated = await recordAdditionalExpensePaymentInternal({
+      workspaceId,
+      userId,
+      planId,
+      monthKey,
+      expenseId,
+      amount: Number(amount),
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Additional payment recorded. The line is back in Payment Pending for Finance.",
       data: updated,
     });
   } catch (error) {

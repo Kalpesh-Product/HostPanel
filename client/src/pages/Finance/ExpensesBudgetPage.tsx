@@ -26,6 +26,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { applyFinanceApprovalDecision, getFinanceSnapshot, updateMonthlyExpenseStatus } from '@/services/finance';
 import { createReport } from '@/services/reports';
@@ -45,7 +46,7 @@ interface ApprovalFlowEntry {
   decidedAtLabel?: string;
 }
 
-interface ApprovalFlow {
+export interface ApprovalFlow {
   owner?: ApprovalFlowEntry;
   financeManager?: ApprovalFlowEntry;
   finalStatus?: string;
@@ -106,7 +107,7 @@ interface Expense {
   actualAmountPatched?: number;
 }
 
-interface MonthlyBreakdown {
+export interface MonthlyBreakdown {
   monthKey?: string;
   month?: string;
   title?: string;
@@ -120,7 +121,7 @@ interface MonthlyBreakdown {
   savings?: number;
 }
 
-interface Budget {
+export interface Budget {
   id: string;
   department: string;
   requested: number;
@@ -243,7 +244,7 @@ function isPaidLikeStatus(status = ''): boolean {
   );
 }
 
-function normalizeApprovalFlow(flow: Partial<ApprovalFlow> = {}): ApprovalFlow {
+export function normalizeApprovalFlow(flow: Partial<ApprovalFlow> = {}): ApprovalFlow {
   return {
     owner: {
       status: flow?.owner?.status || 'Pending',
@@ -262,7 +263,7 @@ function normalizeApprovalFlow(flow: Partial<ApprovalFlow> = {}): ApprovalFlow {
   };
 }
 
-function getDepartmentFinancePlan(payload: any = {}, departmentName = ''): any {
+export function getDepartmentFinancePlan(payload: any = {}, departmentName = ''): any {
   const targetKey = normalizeLookupKey(departmentName);
   return Array.isArray(payload.departmentFinance)
     ? payload.departmentFinance.find((plan: any) => normalizeLookupKey(plan?.department || plan?.name || '') === targetKey)
@@ -375,7 +376,7 @@ function enrichMonthlyBreakdownWithDepartmentPlan(monthlyBreakdown: any[] = [], 
   });
 }
 
-function enrichAnnualRequestWithDepartmentPlan(request: any = {}, departmentPlan: any = null): any {
+export function enrichAnnualRequestWithDepartmentPlan(request: any = {}, departmentPlan: any = null): any {
   return {
     ...request,
     monthlyBreakdown: enrichMonthlyBreakdownWithDepartmentPlan(
@@ -407,7 +408,7 @@ function getBudgetUsedAmount(request: any = {}): number {
   return breakdownUsed > 0 ? breakdownUsed : Number(request.actualSpent ?? request.previousSpend ?? 0);
 }
 
-function mapAnnualRequestToBudget(request: any = {}): Budget {
+export function mapAnnualRequestToBudget(request: any = {}): Budget {
   const approvalFlow = normalizeApprovalFlow(request.approvalFlow || {});
   const requestId = String(request.id || request._id || '');
   const status = request.status || approvalFlow.finalStatus || 'Pending';
@@ -834,7 +835,19 @@ function buildExpenseHistoryFromDepartmentPlans(departmentPlans: any[] = []): Le
 
 /* ───────────────────── Main Component ───────────────────── */
 
+// This page is the Finance approval desk. Its action state must always come
+// from the financeManager step. Finance managers may be stored under the
+// generic Manager role plus a Finance department assignment, so inferring
+// the scope from the client-side role string can incorrectly read the
+// founder's owner step and hide Finance's action buttons.
+export const getMyApprovalDecision = (flow: any): string => {
+  if (!flow) return '';
+  const scoped = String(flow?.financeManager?.status || '').toLowerCase();
+  return scoped === 'approved' || scoped === 'rejected' ? scoped : '';
+};
+
 export function ExpensesBudgetPage() {
+  const navigate = useNavigate();
   const [isLoadingFinance, setIsLoadingFinance] = useState(true);
   const [hasLoadedFinanceSnapshot, setHasLoadedFinanceSnapshot] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -848,17 +861,6 @@ export function ExpensesBudgetPage() {
     currentUser?.email ||
     'Finance Team',
   ).trim();
-
-  // This page is the Finance approval desk. Its action state must always come
-  // from the financeManager step. Finance managers may be stored under the
-  // generic Manager role plus a Finance department assignment, so inferring
-  // the scope from the client-side role string can incorrectly read the
-  // founder's owner step and hide Finance's action buttons.
-  const getMyApprovalDecision = (flow: any): string => {
-    if (!flow) return '';
-    const scoped = String(flow?.financeManager?.status || '').toLowerCase();
-    return scoped === 'approved' || scoped === 'rejected' ? scoped : '';
-  };
 
   // Total APPROVED extra-budget funds for a department + month — used to badge
   // expense rows whose actual over-projection was sanctioned via extra budget.
@@ -994,11 +996,15 @@ export function ExpensesBudgetPage() {
           const sourceExpenses = Array.isArray(sourceMonth?.expenses) ? sourceMonth.expenses : [];
           const targetId = normalizeLookupKey(targetExpense.id);
           const targetVendorId = normalizeLookupKey(targetExpense.vendorId);
-          const matchedExpense = sourceExpenses.find((exp: any) => {
-            if (targetId && normalizeLookupKey(exp?.expenseKey) === targetId) return true;
-            if (targetVendorId && normalizeLookupKey(exp?.vendorId) === targetVendorId) return true;
-            return false;
-          });
+          // Try an exact expenseKey match across the whole month first. Only fall
+          // back to matching by vendorId (ambiguous when two expenses share a
+          // vendor) if no expense in the month actually carries that expenseKey —
+          // otherwise an earlier expense from the same vendor wins the match
+          // before the correct one is ever checked.
+          const matchedExpense =
+            (targetId && sourceExpenses.find((exp: any) => normalizeLookupKey(exp?.expenseKey) === targetId)) ||
+            (targetVendorId && sourceExpenses.find((exp: any) => normalizeLookupKey(exp?.vendorId) === targetVendorId)) ||
+            undefined;
           expenseKey = expenseKey || matchedExpense?.expenseKey || '';
           planId = planId || matchedExpense?.planId || '';
         }
@@ -1489,7 +1495,7 @@ export function ExpensesBudgetPage() {
                                 : getStatusBadge(budget.status)}
                             </td>
                             <td className="px-6 py-5 text-center">
-                              <button onClick={() => { setTemporaryFounderOverride(false); setViewingBudget(budget); }} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto">
+                              <button onClick={() => { setTemporaryFounderOverride(false); navigate(`/department-accesses/finance-department/expenses-budget/review/annual/${encodeURIComponent(budget.id)}`, { state: { request: budget, fiscalYear: selectedFY } }); }} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto">
                                 <Eye size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">View</span>
                               </button>
                             </td>

@@ -6,6 +6,7 @@ import {
   submitBudgetRequest,
   addMonthlyExpense,
   updateMonthlyExpenseStatus,
+  recordAdditionalExpensePayment,
   upsertReminder,
   importFinanceSnapshot,
   submitVendor,
@@ -38,6 +39,7 @@ router.get("/department", getDepartmentFinance);
 router.post("/department/budget-request", submitBudgetRequest);
 router.post("/department/month-expense", addMonthlyExpense);
 router.patch("/department/month-expense/status", updateMonthlyExpenseStatus);
+router.patch("/department/expense/additional-payment", recordAdditionalExpensePayment);
 router.post("/department/reminder", upsertReminder);
 router.post("/department/import-snapshot", importFinanceSnapshot);
 router.post("/department/vendor", submitVendor);

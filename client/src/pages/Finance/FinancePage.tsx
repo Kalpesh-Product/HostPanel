@@ -5,6 +5,7 @@ import {
   Calendar, Filter, Plus, FileText, Receipt, FileWarning, Download,
   AlertTriangle, XCircle, PieChart
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { getStoredUser } from '@/lib/auth-session';
 import { applyFinanceApprovalDecision, getFinanceSnapshot, updateMonthlyExpenseStatus } from '@/services/finance';
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
@@ -26,6 +27,7 @@ function getApiErrorMessage(error: any, fallback: string): string {
 }
 
 export function FinancePage() {
+  const navigate = useNavigate();
   const currentUser = getStoredUser();
   const profile = {
     name:
@@ -597,7 +599,7 @@ export function FinancePage() {
                               : <span className={statusPillClass(req.status)}>{req.status}</span>}
                           </td>
                           <td className="px-5 py-4 text-center">
-                            <button onClick={() => setViewingRequest({ ...req, type: 'annual' })} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all mx-auto block" title="View Request">
+                            <button onClick={() => navigate(`/extra-common-modules/finance-management/review/annual/${encodeURIComponent(req.id)}`, { state: { request: req, fiscalYear: selectedFY } })} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all mx-auto block" title="View Request">
                               <Eye size={15} strokeWidth={2.5} />
                             </button>
                           </td>
