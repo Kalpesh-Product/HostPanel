@@ -22,7 +22,7 @@ export interface IInventory extends Document {
     inventoryCode: string;
     name: string;
     category: "Physical" | "Digital" | "Other" | "Office Supplies" | "Pantry" | "Facilities" | "Branding" | "Hardware" | "Safety Equipment";
-    trackingType: "Consumable" | "Returnable Asset";
+    trackingType: "Consumable";
     status?: "active" | "maintenance" | "retired";
     departmentId?: mongoose.Types.ObjectId | null;
     departmentName?: string;
@@ -107,7 +107,7 @@ const inventorySchema = new Schema<IInventory>(
         },
         trackingType: {
             type: String,
-            enum: ["Consumable", "Returnable Asset"],
+            enum: ["Consumable"],
             default: "Consumable",
             required: true,
             index: true,

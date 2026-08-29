@@ -1,6 +1,5 @@
 // @ts-nocheck
 import { Request, Response, NextFunction } from "express";
-import WorkspaceMember from "../models/WorkspaceMember.js";
 import {
   listInventoryForCurrentUser,
   createInventoryForCurrentUser,
@@ -8,8 +7,6 @@ import {
   allocateInventoryForCurrentUser,
   transferInventoryForCurrentUser,
   deleteInventoryForCurrentUser,
-  returnInventoryForCurrentUser,
-  markUnderMaintenanceForCurrentUser,
 } from "../services/inventoryService.js";
 
 const getCurrentWorkspaceId = (req: Request) => {
@@ -34,27 +31,16 @@ function getRoleBand(role) {
   return "employee";
 }
 
+// verifyJwt already resolves the caller's *active* workspace membership (via
+// resolveActiveWorkspaceMembership) and attaches its departments — with names —
+// onto req.workspaceMembership. Re-querying WorkspaceMember here by workspace+user
+// alone can land on a different/stale membership record than the one verifyJwt
+// picked as active, which was silently starving Admin/Manager accounts of their
+// assigned departments (falling back to "only items I personally added").
 async function resolveAssignedDepartmentNames(req: Request): Promise<string[]> {
-  try {
-    const workspaceId = getCurrentWorkspaceId(req);
-    const userId = (req as any).user?.id || (req as any).user?._id || (req as any).user;
-    if (!workspaceId || !userId) return [];
-
-    const membership = await WorkspaceMember.findOne({
-      workspace: workspaceId,
-      user: userId,
-    })
-      .populate("departments", "name")
-      .lean()
-      .exec();
-
-    if (!membership?.departments || !Array.isArray(membership.departments)) return [];
-    return membership.departments
-      .map((d: any) => d?.name)
-      .filter(Boolean);
-  } catch {
-    return [];
-  }
+  const departments = (req as any).workspaceMembership?.departments;
+  if (!Array.isArray(departments)) return [];
+  return departments.map((d: any) => d?.name).filter(Boolean);
 }
 
 export async function listInventory(request: Request, response: Response, next: NextFunction) {
@@ -153,40 +139,6 @@ export async function deleteInventory(request: Request, response: Response, next
     const roleBand = getRoleBand((request as any).workspaceMembership?.role);
     const assignedDepartmentNames = await resolveAssignedDepartmentNames(request);
     const result = await deleteInventoryForCurrentUser(userId, inventoryId, {
-      roleBand,
-      assignedDepartmentNames,
-    });
-    response.status(200).json(result);
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function returnInventory(request: Request, response: Response, next: NextFunction) {
-  try {
-    const userId = (request as any).user?.id || (request as any).user?._id || (request as any).user;
-    const inventoryId = request.params.inventoryId;
-    const roleBand = getRoleBand((request as any).workspaceMembership?.role);
-    const assignedDepartmentNames = await resolveAssignedDepartmentNames(request);
-    const result = await returnInventoryForCurrentUser(userId, inventoryId, {
-      ...request.body,
-      roleBand,
-      assignedDepartmentNames,
-    });
-    response.status(200).json(result);
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function markUnderMaintenance(request: Request, response: Response, next: NextFunction) {
-  try {
-    const userId = (request as any).user?.id || (request as any).user?._id || (request as any).user;
-    const inventoryId = request.params.inventoryId;
-    const roleBand = getRoleBand((request as any).workspaceMembership?.role);
-    const assignedDepartmentNames = await resolveAssignedDepartmentNames(request);
-    const result = await markUnderMaintenanceForCurrentUser(userId, inventoryId, {
-      ...request.body,
       roleBand,
       assignedDepartmentNames,
     });
