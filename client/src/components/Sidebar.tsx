@@ -264,6 +264,7 @@ const departmentModules: NavNode[] = [
     children: [
       { id: "leads-management", label: "Leads Management", icon: Magnet, route: "/department-accesses/sales-department/leads-management", disabled: false },
       { id: "tenant-companies-sales", label: "Tenant Companies", icon: Store, route: "/department-accesses/sales-department/tenant-companies", disabled: false },
+      { id: "virtual-office-sales", label: "Virtual Offices", icon: Building2, route: "/department-accesses/sales-department/virtual-offices", disabled: false },
       { id: "resource-pricing", label: "Resource & Pricing", icon: Tag, route: "/department-accesses/sales-department/resource-pricing", disabled: false },
       { id: "sales-architecture", label: "Sales Architecture", icon: ShoppingCart, route: "/department-accesses/sales-department/sales-architecture", disabled: false },
     ],
@@ -350,6 +351,7 @@ const ROUTE_BY_ID: Record<string, string> = {
   "visitor-management": "/visitors/visitor-management",
   "visitors-management": "/visitors/visitor-management",
   "tenant-companies-sales": "/department-accesses/sales-department/tenant-companies",
+  "virtual-office-sales": "/department-accesses/sales-department/virtual-offices",
   "resource-pricing": "/department-accesses/sales-department/resource-pricing",
   "leads-management": "/department-accesses/sales-department/leads-management",
   "sales-architecture": "/department-accesses/sales-department/sales-architecture",
@@ -442,6 +444,7 @@ const ICON_BY_ID: Record<string, ElementType> = {
   "workspace-layout": LayoutDashboard,
   "leads-management": Magnet,
   "tenant-companies-sales": Store,
+  "virtual-office-sales": Building2,
   "resource-pricing": Tag,
   "sales-architecture": ShoppingCart,
   "finance-budget": PiggyBank,

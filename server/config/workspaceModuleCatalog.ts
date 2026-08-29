@@ -68,6 +68,7 @@ const MODULE_GROUPS = [
       { id: "house-keeping", label: "House Keeping", implemented: false },
       { id: "leads-management", label: "Leads Management", route: "/sales-crm/leads-management", implemented: true },
       { id: "tenant-companies-sales", label: "Tenant Companies", route: "/sales-crm/tenant-companies", implemented: true },
+      { id: "virtual-office-sales", label: "Virtual Offices", route: "/sales-crm/virtual-offices", implemented: true },
       { id: "resource-pricing", label: "Resource & Pricing", route: "/sales-crm/resource-pricing", implemented: true },
       { id: "sales-architecture", label: "Sales Architecture", route: "/sales-crm/sales-architecture", implemented: true },
       { id: "finance-budget", label: "Finance & Budget", implemented: false },
@@ -138,6 +139,7 @@ const MODULE_GROUPS = [
         tabs: [
           { id: "leads-management", label: "Leads Management", route: "/sales-crm/leads-management", implemented: true },
           { id: "tenant-companies-sales", label: "Tenant Companies", route: "/sales-crm/tenant-companies", implemented: true },
+          { id: "virtual-office-sales", label: "Virtual Offices", route: "/sales-crm/virtual-offices", implemented: true },
           { id: "resource-pricing", label: "Resource & Pricing", route: "/sales-crm/resource-pricing", implemented: true },
           { id: "sales-architecture", label: "Sales Architecture", route: "/sales-crm/sales-architecture", implemented: true },
         ],
@@ -351,6 +353,7 @@ const PROFESSIONAL_DEFAULT_IDS = new Set([
   // add-on set.
   "leads-management",
   "tenant-companies-sales",
+  "virtual-office-sales",
   "resource-pricing",
   "sales-architecture",
 ]);

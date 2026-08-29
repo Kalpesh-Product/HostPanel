@@ -594,6 +594,23 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/department-accesses/sales-department/virtual-offices/:id",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Sales Department", path: "/department-accesses/sales-department" },
+      { label: "Virtual Offices", path: "/department-accesses/sales-department/virtual-offices" },
+      { label: "Company Details" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/sales-department/virtual-offices",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Sales Department", path: "/department-accesses/sales-department" },
+      { label: "Virtual Offices" },
+    ],
+  },
+  {
     pattern: "/department-accesses/sales-department/resource-pricing",
     crumbs: [
       { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
