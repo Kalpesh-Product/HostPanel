@@ -67,6 +67,7 @@ import HRPayrollPage from "../pages/HR/HRPayrollPage";
 import HRResignationManagementPage from "../pages/HR/HRResignationManagementPage";
 import { ExpensesBudgetPage } from "../pages/Finance/ExpensesBudgetPage";
 import { FinanceBudgetReviewPage } from "../pages/Finance/FinanceBudgetReviewPage";
+import { FinanceDepartmentOverviewPage } from "../pages/Finance/FinanceDepartmentOverviewPage";
 import { BillingPaymentsPage } from "../pages/Finance/BillingPaymentsPage";
 import AccountingPage from "../pages/Finance/AccountingPage";
 import VendorTable from "../components/Pages/VendorTable";

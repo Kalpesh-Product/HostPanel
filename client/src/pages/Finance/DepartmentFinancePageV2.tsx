@@ -445,7 +445,13 @@ export function DepartmentFinancePageV2() {
   // ─── Computed ───────────────────────────────────────────────────────────
 
   const totalProjected = useMemo(
-    () => monthlyExpenses.reduce((sum, m) => sum + Number(m.projectedAmount || 0), 0),
+    () => monthlyExpenses.reduce((sum, m) => {
+      const expenseProjection = (m.expenses || []).reduce(
+        (monthSum, expense) => monthSum + Number(expense.projectedAmount || 0),
+        0,
+      );
+      return sum + (expenseProjection || Number(m.projectedAmount || 0));
+    }, 0),
     [monthlyExpenses],
   );
 

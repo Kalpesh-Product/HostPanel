@@ -410,10 +410,20 @@ export async function getDepartmentFinanceForManagerInternal(input: {
 
   const monthlyPlan = (Array.isArray(plan.monthlyPlan) ? plan.monthlyPlan : []).map((month: any) => {
     const monthExpenses = expensesByMonth.get(normalizeMonthKey(month.monthKey || month.month)) || [];
+    // Historical/backfilled plans can have valid FinanceExpense projections
+    // while the older cached monthlyPlan.projectedBudget remains zero. Expense
+    // rows are the persisted source of truth, so derive the displayed month
+    // projection from them whenever they exist.
+    const expenseProjectedAmount = monthExpenses
+      .filter((expense: any) => normalizeExpenseTag(safeString(expense.expenseTag)) !== "add-on")
+      .reduce((sum: number, expense: any) => sum + safeNumber(expense.projectedAmount, 0), 0);
+    const projectedAmount = monthExpenses.length > 0
+      ? expenseProjectedAmount
+      : safeNumber(month.projectedBudget, 0);
     return {
       ...(typeof month?.toObject === "function" ? month.toObject() : month),
-      projectedAmount: safeNumber(month.projectedBudget, 0),
-      allocatedBudget: safeNumber(month.allocatedBudget ?? month.projectedBudget, 0),
+      projectedAmount,
+      allocatedBudget: safeNumber(month.allocatedBudget, projectedAmount) || projectedAmount,
       actualSpent: monthExpenses.reduce((sum: number, expense: any) => sum + safeNumber(expense.actualAmount, 0), 0),
       expenses: monthExpenses,
     };

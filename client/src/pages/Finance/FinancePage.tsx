@@ -5,7 +5,7 @@ import {
   Calendar, Filter, Plus, FileText, Receipt, FileWarning, Download,
   AlertTriangle, XCircle, PieChart
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { getStoredUser } from '@/lib/auth-session';
 import { applyFinanceApprovalDecision, getFinanceSnapshot, updateMonthlyExpenseStatus } from '@/services/finance';
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
@@ -28,6 +28,7 @@ function getApiErrorMessage(error: any, fallback: string): string {
 
 export function FinancePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const currentUser = getStoredUser();
   const profile = {
     name:
@@ -50,7 +51,7 @@ export function FinancePage() {
   // --- STATE ---
   const fiscalYearOptions = getFiscalYearOptions();
   const [selectedFY, setSelectedFY] = useState(DEFAULT_FISCAL_YEAR);
-  const [activeTab, setActiveTab] = useState('approvals');
+  const [activeTab, setActiveTab] = useState((location.state as any)?.activeTab === 'overview' ? 'overview' : 'approvals');
   const [approvalSubTab, setApprovalSubTab] = useState('annual');
   const [isLoadingFinance, setIsLoadingFinance] = useState(false);
   const [hasLoadedFinanceSnapshot, setHasLoadedFinanceSnapshot] = useState(false);
@@ -690,8 +691,20 @@ export function FinancePage() {
                             </span>
                           </td>
                           <td className="px-5 py-4 text-center">
-                            <button onClick={() => setViewingDeptOverview(dept)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all mx-auto block" title="View Details">
-                              <Eye size={15} strokeWidth={2.5} />
+                            <button
+                              onClick={() => {
+                                const request = dept.approvedAnnualRequest;
+                                const requestId = request?.id || request?._id;
+                                if (!requestId) return;
+                                navigate(`/extra-common-modules/finance-management/review/annual/${encodeURIComponent(requestId)}`, {
+                                  state: { request, fiscalYear: selectedFY, returnTab: 'overview' },
+                                });
+                              }}
+                              disabled={!dept.approvedAnnualRequest?.id && !dept.approvedAnnualRequest?._id}
+                              className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto disabled:cursor-not-allowed disabled:opacity-40"
+                              title="View Details"
+                            >
+                              <Eye size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">View</span>
                             </button>
                           </td>
                         </tr>
@@ -1096,255 +1109,6 @@ export function FinancePage() {
                 </div>
               );
             })()}
-          </div>
-        </div>
-      )}
-
-      {viewingDeptOverview && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full sm:w-[95vw] max-w-[1500px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
-              <div>
-                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-blue-500/20 text-blue-300 border-blue-400/30 mb-2 inline-block">
-                  Department Budget Overview
-                </span>
-                <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1">
-                  <Building2 size={20} /> {viewingDeptOverview.name}
-                </h2>
-                <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">
-                  {overviewDetail?.plan?.fiscalYear || selectedFY}
-                  {overviewDetail?.planStatus ? ` • ${overviewDetail.planStatus}` : ''}
-                </p>
-              </div>
-              <button onClick={() => setViewingDeptOverview(null)} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all">
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
-              <div className="px-6 sm:px-8 py-5 grid grid-cols-2 sm:grid-cols-4 gap-4 border-b border-gray-100 bg-white">
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5 flex flex-col gap-1">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Total Budget</p>
-                  <p className="text-xl font-black text-gray-900">{formatCurrency((viewingDeptOverview.approvedBudget || 0) + (viewingDeptOverview.extraGrantedYTD || 0))}</p>
-                  {(viewingDeptOverview.extraGrantedYTD || 0) > 0 && (
-                    <p className="text-[9px] font-pmedium text-amber-600 uppercase tracking-wider">+{formatCurrency(viewingDeptOverview.extraGrantedYTD)} extra granted</p>
-                  )}
-                </div>
-                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:p-5 flex flex-col gap-1">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-600">Spent YTD</p>
-                  <p className="text-xl font-black text-blue-900">{formatCurrency(viewingDeptOverview.spentYTD)}</p>
-                </div>
-                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 sm:p-5 flex flex-col gap-1">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">Remaining</p>
-                  <p className="text-xl font-black text-emerald-700">
-                    {formatCurrency(Math.max(0, (viewingDeptOverview.approvedBudget || 0) + (viewingDeptOverview.extraGrantedYTD || 0) - (viewingDeptOverview.spentYTD || 0)))}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5 flex flex-col gap-1">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Months Tracked</p>
-                  <p className="text-xl font-black text-gray-900">{overviewDetail?.months.length || 0}</p>
-                </div>
-              </div>
-
-              <div className="px-4 sm:px-8 py-6">
-                <h4 className="mb-3 flex items-center gap-2 text-[10px] sm:text-xs font-pmedium uppercase tracking-widest text-gray-900">
-                  <Calendar size={13} className="text-[#2563EB]" /> Month-wise Spend
-                  {overviewDetail && overviewDetail.months.length > 0 && (
-                    <span className="ml-1 text-gray-400 font-bold normal-case tracking-normal">({overviewDetail.months.length} months)</span>
-                  )}
-                </h4>
-                {!overviewDetail || overviewDetail.months.length === 0 ? (
-                  <p className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-400">No monthly budget data recorded for this department yet.</p>
-                ) : (
-                  <div className="max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <div className="overflow-x-auto">
-                      <table className="w-full table-fixed text-left" style={{ minWidth: '1580px' }}>
-                        <thead>
-                          <tr className="border-b border-slate-200 bg-slate-50">
-                            <th className="w-[280px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Expense</th>
-                            <th className="w-[260px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Description</th>
-                            <th className="w-[130px] px-4 py-3.5 text-right text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Projected</th>
-                            <th className="w-[130px] px-4 py-3.5 text-right text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Actual</th>
-                            <th className="w-[120px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Due</th>
-                            <th className="w-[200px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Vendor</th>
-                            <th className="w-[140px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Payment</th>
-                            <th className="w-[220px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Invoice</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {overviewDetail.months.map((month) => {
-                            const expenses = Array.isArray(month.expenses) ? month.expenses : [];
-                            const monthVariance = month.projected - month.actualSpent;
-                            return (
-                              <React.Fragment key={month.key}>
-                                <tr className="border-y border-blue-100 bg-blue-50/80">
-                                  <td colSpan={8} className="px-4 py-3">
-                                    <div className="flex flex-wrap items-center justify-between gap-3">
-                                      <span className="flex min-w-0 items-center gap-2 text-[11px] font-pmedium uppercase tracking-widest text-slate-900">
-                                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-[#2563EB] shadow-sm">
-                                          <Calendar size={13} />
-                                        </span>
-                                        {month.label}{month.title ? ` — ${month.title}` : ''}
-                                      </span>
-                                      <div className="flex flex-wrap items-center gap-2">
-                                        <span className="rounded-full border border-blue-200 bg-white px-2.5 py-1 text-[10px] font-pmedium text-slate-700">
-                                          Projected <span className="text-[#2563EB]">{formatCurrency(month.projected)}</span>
-                                        </span>
-                                        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-pmedium ${monthVariance >= 0 ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
-                                          Actual <span className="font-black">{formatCurrency(month.actualSpent)}</span>
-                                          {month.actualSpent > 0 && (
-                                            <span className="ml-1 opacity-80">({monthVariance >= 0 ? `${formatCurrency(monthVariance)} left` : `${formatCurrency(Math.abs(monthVariance))} over`})</span>
-                                          )}
-                                        </span>
-                                        <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">
-                                          {expenses.length} expense{expenses.length === 1 ? '' : 's'}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </td>
-                                </tr>
-                                {expenses.length === 0 ? (
-                                  <tr className="bg-white">
-                                    <td colSpan={8} className="px-4 py-5 text-center text-[11px] font-bold text-slate-400">
-                                      No expenses recorded for this month.
-                                    </td>
-                                  </tr>
-                                ) : (
-                                  expenses.map((exp: any, eIdx: number) => {
-                                    const invoiceUrl = exp.invoiceUrl || exp.invoiceFile || '';
-                                    const invoices = Array.isArray(exp.invoices) && exp.invoices.length > 0
-                                      ? exp.invoices
-                                      : (exp.invoiceNumber || invoiceUrl
-                                        ? [{ invoiceNumber: exp.invoiceNumber, amount: exp.invoiceAmount, invoiceUrl }]
-                                        : []);
-                                    const projected = Number(exp.projectedAmount ?? 0);
-                                    const actual = Number(exp.actualAmount ?? exp.actualSpent ?? 0);
-                                    const variance = projected - actual;
-                                    const approvedIncrease = (Array.isArray(extraRequests) ? extraRequests : [])
-                                      .filter((request: any) =>
-                                        String(request?.status || '').toLowerCase() === 'approved' &&
-                                        String(request?.type || '').toLowerCase() === 'increase' &&
-                                        String(request?.appliedExpenseId || '') === String(exp?._id || exp?.id || ''))
-                                      .reduce((sum: number, request: any) => sum + Number(request?.amount || 0), 0);
-                                    const originalProjection = Math.max(0, projected - approvedIncrease);
-                                    return (
-                                      <tr key={`${month.key}-exp-${exp.id || eIdx}`} className="border-b border-slate-100 bg-white transition-colors hover:bg-blue-50/40">
-                                        <td className="px-4 py-4 align-top">
-                                          <div className="flex items-start gap-2">
-                                            {String(exp.expenseTag || '').toLowerCase() === 'add-on' && (
-                                              <span className="mt-0.5 shrink-0 rounded-md border border-amber-200 bg-amber-100 px-1.5 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-amber-700">Extra</span>
-                                            )}
-                                            <p className="min-w-0 break-words text-xs font-black leading-snug text-slate-900 sm:text-sm">{exp.title || exp.expenseLabel || `Expense ${eIdx + 1}`}</p>
-                                          </div>
-                                          {variance < 0 && (() => {
-                                            const over = Math.abs(variance);
-                                            const approvedExtra = (Array.isArray(extraRequests) ? extraRequests : [])
-                                              .filter((r: any) =>
-                                                String(r?.status || '').toLowerCase() === 'approved' &&
-                                                String(r?.department || '') === String(viewingDeptOverview?.name || '') &&
-                                                String(r?.monthKey || r?.month || '').toLowerCase() === month.key.toLowerCase())
-                                              .reduce((sum: number, r: any) => sum + Number(r?.amount || 0), 0);
-                                            if (approvedExtra + 0.009 < over) return null;
-                                            return (
-                                              <span className="mt-2 inline-flex max-w-full items-center gap-1.5 whitespace-normal rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">
-                                                {formatCurrency(over)} via extra budget
-                                              </span>
-                                            );
-                                          })()}
-                                          {exp.vendorName && (
-                                            <span className="mt-2 inline-flex max-w-full items-center gap-1.5 whitespace-normal rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-600">Vendor Linked</span>
-                                          )}
-                                        </td>
-                                        <td className="px-4 py-4 align-top">
-                                          <p className="break-words text-[11px] font-medium leading-relaxed text-slate-500 sm:text-xs">{exp.description || '—'}</p>
-                                        </td>
-                                        <td className="px-4 py-4 text-right align-top">
-                                          {approvedIncrease > 0 ? (
-                                            <div title={`Current projection: ${formatCurrency(projected)}`}>
-                                              <p className="whitespace-nowrap text-xs font-black text-slate-700 sm:text-sm">
-                                                {formatCurrency(originalProjection)} <span className="text-[#2563EB]">+ {formatCurrency(approvedIncrease)}</span>
-                                              </p>
-                                              <span className="mt-1 inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-blue-700">Projection Increased</span>
-                                            </div>
-                                          ) : (
-                                            <p className="whitespace-nowrap text-xs font-black text-[#2563EB] sm:text-sm">{formatCurrency(projected)}</p>
-                                          )}
-                                        </td>
-                                        <td className="px-4 py-4 align-top">
-                                          <p className={`whitespace-nowrap text-xs font-black sm:text-sm ${actual > projected ? 'text-rose-600' : 'text-emerald-600'}`}>{formatCurrency(actual)}</p>
-                                          {actual > 0 && (
-                                            <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-wider text-slate-400">
-                                              {variance >= 0 ? `${formatCurrency(variance)} saved` : `${formatCurrency(Math.abs(variance))} over`}
-                                            </p>
-                                          )}
-                                        </td>
-                                        <td className="px-4 py-4 align-top">
-                                          <p className="text-xs font-bold text-slate-600">{exp.dueDate || '—'}</p>
-                                        </td>
-                                        <td className="px-4 py-4 align-top">
-                                          {exp.vendorName ? (
-                                            <div className="min-w-0">
-                                              <p className="break-words text-xs font-black text-slate-900">{exp.vendorName}</p>
-                                              {exp.vendorContactPerson && <p className="mt-0.5 break-words text-[10px] font-medium text-slate-400">{exp.vendorContactPerson}</p>}
-                                            </div>
-                                          ) : (
-                                            <span className="text-[9px] font-pmedium uppercase tracking-widest text-slate-300">Not Assigned</span>
-                                          )}
-                                        </td>
-                                        <td className="px-4 py-4 align-top">
-                                          <span className={`inline-flex whitespace-normal px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest ${(exp.paymentStatus || '').includes('Done') || (exp.paymentStatus || '').includes('Paid') ? 'bg-green-50 text-green-700 border border-green-200' : (exp.paymentStatus || '').includes('Invoice') ? 'bg-blue-50 text-blue-700 border border-blue-200' : (exp.paymentStatus || '').includes('Pending') ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
-                                            {formatFinancePaymentStatus(exp.paymentStatus)}
-                                          </span>
-                                        </td>
-                                        <td className="px-4 py-4 align-top">
-                                          {invoices.length > 0 ? (
-                                            <div className="space-y-2">
-                                              <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">
-                                                {invoices.length} invoice{invoices.length === 1 ? '' : 's'}
-                                              </p>
-                                              {invoices.map((invoice: any, invoiceIndex: number) => {
-                                                const fileUrl = invoice?.invoiceUrl || invoice?.url || invoice?.invoiceFile || '';
-                                                const label = invoice?.invoiceNumber || `Invoice ${invoiceIndex + 1}`;
-                                                const content = (
-                                                  <>
-                                                    <Receipt size={11} className="shrink-0" />
-                                                    <span className="min-w-0 truncate font-black">{label}</span>
-                                                    {Number(invoice?.amount || 0) > 0 && <span className="ml-auto shrink-0">{formatCurrency(invoice.amount)}</span>}
-                                                  </>
-                                                );
-                                                return fileUrl ? (
-                                                  <a key={invoice?.invoiceKey || `${label}-${invoiceIndex}`} href={fileUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-2 text-[10px] text-blue-700 transition-colors hover:bg-blue-100" title={`View ${label}`}>
-                                                    {content}
-                                                  </a>
-                                                ) : (
-                                                  <div key={invoice?.invoiceKey || `${label}-${invoiceIndex}`} className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[10px] text-slate-600">
-                                                    {content}
-                                                  </div>
-                                                );
-                                              })}
-                                            </div>
-                                          ) : (
-                                            <span className="text-[9px] font-pmedium uppercase tracking-widest text-slate-300">No Invoice</span>
-                                          )}
-                                        </td>
-                                      </tr>
-                                    );
-                                  })
-                                )}
-                              </React.Fragment>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex justify-end shrink-0">
-              <button onClick={() => setViewingDeptOverview(null)} className="px-8 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-sm">CLOSE</button>
-            </div>
           </div>
         </div>
       )}

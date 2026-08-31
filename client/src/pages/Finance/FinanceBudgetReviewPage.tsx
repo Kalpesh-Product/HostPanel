@@ -51,7 +51,7 @@ export function FinanceBudgetReviewPage() {
   const { requestId = '' } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const routeState: { request?: any; fiscalYear?: string } = (location.state || {}) as any;
+  const routeState: { request?: any; fiscalYear?: string; returnTab?: 'overview' } = (location.state || {}) as any;
   const reviewer: ReviewerVariant = location.pathname.startsWith(FOUNDER_LIST_PATH) ? 'owner' : 'financeManager';
   const listPath = reviewer === 'owner' ? FOUNDER_LIST_PATH : FM_LIST_PATH;
 
@@ -211,6 +211,10 @@ export function FinanceBudgetReviewPage() {
   const founderAlreadyApproved = String(approvalFlow?.owner?.status || '').toLowerCase() === 'approved';
 
   const exitToBack = () => {
+    if (reviewer === 'owner' && routeState.returnTab === 'overview') {
+      navigate(listPath, { replace: true, state: { activeTab: 'overview' } });
+      return;
+    }
     const historyState: any = window.history?.state || {};
     if (typeof historyState.idx === 'number' && historyState.idx > 0) navigate(-1);
     else navigate(listPath, { replace: true });
