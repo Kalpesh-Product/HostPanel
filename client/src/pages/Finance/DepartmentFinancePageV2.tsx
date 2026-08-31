@@ -26,7 +26,7 @@ import {
 } from '@/services/finance';
 import { downloadReportFile } from '@/utils/report-download';
 import { extractDepartmentLabel, titleCase } from '@/utils/user-helpers';
-import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions } from '@/features/finance/utils/fiscalYear';
+import { DEFAULT_FISCAL_YEAR, deriveMonthLifecycle, getFiscalYearOptions } from '@/features/finance/utils/fiscalYear';
 import { formatFinancePaymentStatus } from '@/features/finance/utils/paymentStatus';
 import { statusPillClass } from '@/lib/status-pill';
 import { ApprovalFlowBadges } from '@/components/finance/ApprovalFlowBadges';
@@ -191,7 +191,9 @@ const generateId = () => Math.random().toString(36).substring(2, 9).toUpperCase(
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-// Friendly month status labels (UnitFlow-style) for the projected budget table.
+// Friendly month lifecycle labels (UnitFlow-style) for the projected budget table.
+// The lifecycle is derived from the calendar (see deriveMonthLifecycle) because the
+// stored month status is seeded "Upcoming" and never advanced server-side.
 function getFriendlyMonthStatus(monthStatus: string | undefined, planStatus: string | undefined) {
   const plan = String(planStatus || '').toLowerCase();
   if (!plan || plan === 'pending' || plan === 'draft' || plan === 'discuss') {
@@ -201,7 +203,7 @@ function getFriendlyMonthStatus(monthStatus: string | undefined, planStatus: str
     case 'current':
       return { label: 'Current Month', className: 'px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest border shadow-sm bg-blue-50 text-blue-700 border-blue-200' };
     case 'completed':
-      return { label: 'Completed/Paid', className: 'px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest border shadow-sm bg-green-50 text-green-700 border-green-200' };
+      return { label: 'Completed', className: 'px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest border shadow-sm bg-green-50 text-green-700 border-green-200' };
     default:
       return { label: 'Upcoming Month', className: 'px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest border shadow-sm bg-purple-50 text-purple-700 border-purple-200' };
   }
@@ -1658,8 +1660,8 @@ export function DepartmentFinancePageV2() {
                   <tbody className="divide-y divide-slate-100/60">
                     {filteredMonthlyExpenses.map((month) => {
                       const monthExpenses = month.expenses || [];
-                      const status = getFriendlyMonthStatus(month.status, financeData?.status);
                       const monthKeyNorm = String(month.monthKey || month.month || '').trim().toLowerCase();
+                      const status = getFriendlyMonthStatus(deriveMonthLifecycle(monthKeyNorm, selectedFY), financeData?.status);
                       const isExpanded = expandedMonthKey === monthKeyNorm;
                       const toggleExpand = () => setExpandedMonthKey(isExpanded ? null : monthKeyNorm);
                       const approvedMonthExpenses = monthExpenses.filter((expense) => {
