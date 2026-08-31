@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import {
@@ -12,6 +12,7 @@ import {
   addTenantCompanyEmployee,
   createTenantCompany,
   deleteTenantCompanyEmployee,
+  getAllTenantCompanies,
   getTenantCompanies,
   getTenantCompanySectors,
   renewTenantCompany,
@@ -766,8 +767,16 @@ export default function TenantCompaniesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingReport, setIsExportingReport] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [packageFilter, setPackageFilter] = useState('All Packages');
+  const [tenantsPage, setTenantsPage] = useState(1);
+  const [tenantsTotalPages, setTenantsTotalPages] = useState(1);
+  const [isLoadingMoreTenants, setIsLoadingMoreTenants] = useState(false);
+  const [isFilteringTenants, setIsFilteringTenants] = useState(false);
+  const [tenantsSummary, setTenantsSummary] = useState({ totalTenants: 0, activeContracts: 0, expiringSoon: 0, expired: 0 });
+  const tenantsRequestIdRef = useRef(0);
+  const loadMoreSentinelRef = useRef(null);
   const [activeTab, setActiveTab] = useState('companies');
   const [requestStatusFilter, setRequestStatusFilter] = useState('All Requests');
   const [activeModal, setActiveModal] = useState(null);
@@ -788,6 +797,48 @@ export default function TenantCompaniesPage() {
     [currentUser],
   );
 
+  // Search box updates on every keystroke; debounce it before it drives a server request.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Loads one page of the companies list (25 at a time) applying the current
+  // search/status/package filters server-side. `replace: true` swaps the list
+  // (a fresh search/filter or the initial load); otherwise the page is appended
+  // for infinite scroll. A request-id guard drops stale responses if filters
+  // change again before an in-flight request resolves.
+  const loadTenantsPage = useCallback(async (pageNum, { replace = false } = {}) => {
+    const requestId = ++tenantsRequestIdRef.current;
+    if (replace) setIsFilteringTenants(true); else setIsLoadingMoreTenants(true);
+    try {
+      const response = await getTenantCompanies({
+        page: pageNum,
+        limit: 25,
+        ...(debouncedSearchQuery ? { search: debouncedSearchQuery } : {}),
+        ...(statusFilter !== 'All Status' ? { status: statusFilter } : {}),
+        ...(packageFilter !== 'All Packages' ? { packageFilter } : {}),
+      });
+      if (tenantsRequestIdRef.current !== requestId) return;
+      const payload = response?.data || {};
+      const nextTenants = Array.isArray(payload.tenants) ? payload.tenants : [];
+      setTenants((current) => (replace ? nextTenants : [...current, ...nextTenants]));
+      setTenantsPage(Number(payload.page) || pageNum);
+      setTenantsTotalPages(Math.max(1, Number(payload.totalPages) || 1));
+      if (payload.summary) setTenantsSummary(payload.summary);
+      return payload;
+    } catch (error) {
+      if (tenantsRequestIdRef.current === requestId) {
+        toast.error(error.message || 'Failed to load tenant companies.');
+        if (replace) setTenants([]);
+      }
+    } finally {
+      if (tenantsRequestIdRef.current === requestId) {
+        if (replace) setIsFilteringTenants(false); else setIsLoadingMoreTenants(false);
+      }
+    }
+  }, [debouncedSearchQuery, statusFilter, packageFilter]);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -795,13 +846,16 @@ export default function TenantCompaniesPage() {
       let packagesFallback = [];
       try {
         const [tenantResult, resourceResult] = await Promise.allSettled([
-          getTenantCompanies(),
+          getTenantCompanies({ page: 1, limit: 25 }),
           getResources(),
         ]);
         if (!isMounted) return;
         if (tenantResult.status === 'fulfilled') {
           const payload = tenantResult.value?.data || {};
           setTenants(Array.isArray(payload.tenants) ? payload.tenants : []);
+          setTenantsPage(Number(payload.page) || 1);
+          setTenantsTotalPages(Math.max(1, Number(payload.totalPages) || 1));
+          if (payload.summary) setTenantsSummary(payload.summary);
           packagesFallback = Array.isArray(payload.packages) ? payload.packages : [];
         } else {
           toast.error(tenantResult.reason?.message || 'Failed to load tenant companies.');
@@ -841,6 +895,61 @@ export default function TenantCompaniesPage() {
       isMounted = false;
     };
   }, []);
+
+  // Re-run the search from page 1 whenever the debounced search text or the
+  // status/package filter changes — skip the very first run since the mount
+  // effect above already loaded page 1.
+  const didMountTenantFiltersRef = useRef(false);
+  useEffect(() => {
+    if (!didMountTenantFiltersRef.current) {
+      didMountTenantFiltersRef.current = true;
+      return;
+    }
+    loadTenantsPage(1, { replace: true });
+  }, [debouncedSearchQuery, statusFilter, packageFilter, loadTenantsPage]);
+
+  // Infinite scroll: observe a sentinel row at the bottom of the table and load
+  // the next page once it scrolls into view.
+  useEffect(() => {
+    if (activeTab !== 'companies') return undefined;
+    if (tenantsPage >= tenantsTotalPages) return undefined;
+    const node = loadMoreSentinelRef.current;
+    if (!node) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !isLoadingMoreTenants) {
+          loadTenantsPage(tenantsPage + 1, { replace: false });
+        }
+      },
+      { rootMargin: '300px' },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [activeTab, tenantsPage, tenantsTotalPages, isLoadingMoreTenants, loadTenantsPage]);
+
+  const loadCreditRequestTenants = useCallback(async () => {
+    setIsLoadingCreditRequestTenants(true);
+    try {
+      const response = await getAllTenantCompanies();
+      const payload = response?.data || {};
+      setCreditRequestTenants(Array.isArray(payload.tenants) ? payload.tenants : []);
+    } catch (error) {
+      toast.error(error.message || 'Failed to load credit requests.');
+    } finally {
+      setIsLoadingCreditRequestTenants(false);
+    }
+  }, []);
+
+  // Refetch the full tenant set (for credit-request aggregation) each time the
+  // Requests tab is activated, rather than on every page load — most sessions
+  // never touch this tab, and re-fetching on open keeps it from going stale
+  // after edits made elsewhere (renewals, space assignment, etc).
+  useEffect(() => {
+    if (activeTab === 'requests') {
+      loadCreditRequestTenants();
+    }
+  }, [activeTab, loadCreditRequestTenants]);
 
   const tenantPackages = useMemo(
     () => availablePackages.filter((item) => item.category === 'Tenant'),
@@ -1312,6 +1421,11 @@ export default function TenantCompaniesPage() {
       .some((employee) => employee.role === 'Manager');
 
   const [tenants, setTenants] = useState([]);
+  // The Requests tab needs credit requests aggregated across every tenant company,
+  // not just the 25-at-a-time page loaded for the Companies tab, so it's backed by
+  // its own full fetch instead of `tenants`.
+  const [creditRequestTenants, setCreditRequestTenants] = useState([]);
+  const [isLoadingCreditRequestTenants, setIsLoadingCreditRequestTenants] = useState(false);
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
@@ -1734,25 +1848,26 @@ export default function TenantCompaniesPage() {
     ? onboardingValidationErrors
     : fieldErrors;
 
-  const displayedTenants = useMemo(() => {
-    return tenants.filter(t => {
-      const matchesSearch = t.companyName.toLowerCase().includes(searchQuery.toLowerCase()) || t.contactName.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter === 'All Status' || t.status === statusFilter;
-      const matchesPackage = packageFilter === 'All Packages' || t.packageName === packageFilter || t.package === packageFilter;
-      return matchesSearch && matchesStatus && matchesPackage;
-    });
-  }, [tenants, searchQuery, statusFilter, packageFilter]);
-
+  // Companies list now loads 25-at-a-time via infinite scroll (server-side
+  // search/status/package filtering), so `tenants` only holds what's been
+  // scrolled into view — export needs the complete matching set regardless.
   const handleExportCompaniesReport = async (format = 'PDF') => {
     const reportFormat = String(format).toLowerCase() === 'excel' ? 'Excel' : 'PDF';
-    if (displayedTenants.length === 0) {
-      toast.error('There are no tenant companies to export.');
-      return;
-    }
-
     setIsExportingReport(reportFormat);
 
     try {
+      const exportResponse = await getAllTenantCompanies({
+        ...(debouncedSearchQuery ? { search: debouncedSearchQuery } : {}),
+        ...(statusFilter !== 'All Status' ? { status: statusFilter } : {}),
+        ...(packageFilter !== 'All Packages' ? { packageFilter } : {}),
+      });
+      const exportTenants = Array.isArray(exportResponse?.data?.tenants) ? exportResponse.data.tenants : [];
+
+      if (exportTenants.length === 0) {
+        toast.error('There are no tenant companies to export.');
+        return;
+      }
+
       const response = await createReport({
         title: 'Sales Tenant Companies',
         department: 'Sales',
@@ -1765,7 +1880,7 @@ export default function TenantCompaniesPage() {
         description: 'Sales tenant companies listing and contract summary.',
         sourceType: 'department-roster',
         sourceRef: 'sales-tenant-companies',
-        reportRows: buildTenantCompaniesExportRows(displayedTenants, {
+        reportRows: buildTenantCompaniesExportRows(exportTenants, {
           searchQuery,
           statusFilter,
           packageFilter,
@@ -1827,7 +1942,7 @@ export default function TenantCompaniesPage() {
   };
 
   const creditRequests = useMemo(() => {
-    return tenants.flatMap((tenant) => {
+    return creditRequestTenants.flatMap((tenant) => {
       const tenantRequests = Array.isArray(tenant.creditRequests) ? tenant.creditRequests : [];
       return tenantRequests.map((request) => ({
         ...request,
@@ -1837,7 +1952,7 @@ export default function TenantCompaniesPage() {
         currentCredits: tenant.creditsRemaining,
       }));
     });
-  }, [tenants]);
+  }, [creditRequestTenants]);
 
   const displayedCreditRequests = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -1926,7 +2041,7 @@ export default function TenantCompaniesPage() {
       {
         key: 'total-tenants',
         icon: Building,
-        value: formatInteger(tenants.length),
+        value: formatInteger(tenantsSummary.totalTenants),
         label: 'Total Tenants',
         tone: 'blue',
         cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md',
@@ -1935,7 +2050,7 @@ export default function TenantCompaniesPage() {
       {
         key: 'active-contracts',
         icon: CheckCircle2,
-        value: formatInteger(tenants.filter((tenant) => tenant.status === 'Active').length),
+        value: formatInteger(tenantsSummary.activeContracts),
         label: 'Active Contracts',
         tone: 'green',
         cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-green-500',
@@ -1944,7 +2059,7 @@ export default function TenantCompaniesPage() {
       {
         key: 'expiring-contracts',
         icon: AlertTriangle,
-        value: formatInteger(tenants.filter((tenant) => tenant.status === 'Expiring Soon').length),
+        value: formatInteger(tenantsSummary.expiringSoon),
         label: 'Expiring Soon (30d)',
         tone: 'amber',
         cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500',
@@ -1953,14 +2068,14 @@ export default function TenantCompaniesPage() {
       {
         key: 'expired-contracts',
         icon: XCircle,
-        value: formatInteger(tenants.filter((tenant) => tenant.status === 'Expired').length),
+        value: formatInteger(tenantsSummary.expired),
         label: 'Expired Contracts',
         tone: 'red',
         cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-red-500',
         iconClass: 'bg-red-50 text-red-600',
       },
     ];
-  }, [activeTab, creditRequestSummary, tenants]);
+  }, [activeTab, creditRequestSummary, tenantsSummary]);
 
   const handleCreditRequestAction = async (request, nextStatus) => {
     try {
@@ -1992,14 +2107,19 @@ export default function TenantCompaniesPage() {
 
       const payload = response?.data || {};
       const updatedRequest = payload.creditRequest;
+      // The Requests tab is backed by `creditRequestTenants` (a separate, complete
+      // fetch — see loadCreditRequestTenants), not the paginated `tenants` list, so
+      // both need patching to stay in sync with each other after this action.
       if (payload.tenant) {
-        setTenants((current) => current.map((tenant) => {
+        const applyTenantReplace = (current) => current.map((tenant) => {
           const currentTenantId = tenant.recordId || tenant.id;
           const updatedTenantId = payload.tenant.recordId || payload.tenant.id;
           return currentTenantId === updatedTenantId ? payload.tenant : tenant;
-        }));
+        });
+        setTenants(applyTenantReplace);
+        setCreditRequestTenants(applyTenantReplace);
       } else if (updatedRequest) {
-        setTenants((current) => current.map((tenant) => {
+        const applyCreditRequestPatch = (current) => current.map((tenant) => {
           const currentTenantId = String(tenant.recordId || tenant.id || '');
           if (currentTenantId !== String(tenantCompanyId)) {
             return tenant;
@@ -2013,7 +2133,9 @@ export default function TenantCompaniesPage() {
             : [];
 
           return { ...tenant, creditRequests: nextRequests };
-        }));
+        });
+        setTenants(applyCreditRequestPatch);
+        setCreditRequestTenants(applyCreditRequestPatch);
       }
 
       toast.success(nextStatus === 'REJECTED' ? 'Request rejected.' : nextStatus === 'PAYMENT_CONFIRMED' ? 'Payment verified.' : 'Request updated.');
@@ -2368,6 +2490,8 @@ export default function TenantCompaniesPage() {
       let created = 0;
       const failedRows = [];
 
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
       for (const [index, row] of nonEmptyRows.entries()) {
         const built = buildBulkTenantPayload(row);
         if (!built.payload) {
@@ -2375,14 +2499,30 @@ export default function TenantCompaniesPage() {
           continue;
         }
 
-        try {
-          const response = await createTenantCompany(built.payload);
-          const payload = response?.data || {};
-          const savedTenantId = payload?.tenant?.recordId || payload?.tenant?.id || '';
-          syncTenantCollections(payload, savedTenantId);
-          created += 1;
-        } catch (error) {
-          failedRows.push(`Row ${index + 2}: ${error.message || 'Unable to create tenant company.'}`);
+        // "Network Error" (no response at all — a dropped connection or a dev-server
+        // restart mid-batch) is transient, unlike a validation error the server
+        // rejected with a response. Retry only the former, a few times with backoff,
+        // so one bad beat in a 100+ row import doesn't strand otherwise-good rows.
+        let lastError = null;
+        let succeeded = false;
+        for (let attempt = 1; attempt <= 3 && !succeeded; attempt += 1) {
+          try {
+            const response = await createTenantCompany(built.payload);
+            const payload = response?.data || {};
+            const savedTenantId = payload?.tenant?.recordId || payload?.tenant?.id || '';
+            syncTenantCollections(payload, savedTenantId);
+            created += 1;
+            succeeded = true;
+          } catch (error) {
+            lastError = error;
+            const isNetworkError = !error?.response;
+            if (!isNetworkError || attempt === 3) break;
+            await sleep(500 * attempt);
+          }
+        }
+
+        if (!succeeded) {
+          failedRows.push(`Row ${index + 2}: ${lastError?.message || 'Unable to create tenant company.'}`);
         }
       }
 
@@ -2393,7 +2533,11 @@ export default function TenantCompaniesPage() {
         errors: failedRows,
       });
 
+      // Each successful row was pushed onto `tenants` locally as it was created
+      // (syncTenantCollections), which drifts pagination/summary out of sync with
+      // the server once dozens of rows land — reload page 1 fresh once the batch finishes.
       if (created > 0) {
+        loadTenantsPage(1, { replace: true });
         toast.success(`Imported ${created} tenant compan${created === 1 ? 'y' : 'ies'} from bulk upload.`);
       }
       if (failedRows.length > 0) {
@@ -3057,11 +3201,11 @@ export default function TenantCompaniesPage() {
             </div>
 
             <div className={`overflow-x-auto flex-1 ${activeTab === 'companies' ? '' : 'hidden'}`}>
-              <table data-tour="sales-tenant-table" className="w-full text-left">
+              <table data-tour="sales-tenant-table" className="w-full min-w-[1000px] text-left">
                 <thead className="bg-white text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100">
                   <tr>
-                    <th className="px-3.5 py-2">Company Info</th>
-                    <th className="px-3.5 py-2">Contact Details</th>
+                    <th className="px-3.5 py-2 min-w-[240px]">Company Info</th>
+                    <th className="px-3.5 py-2 min-w-[200px]">Contact Details</th>
                     <th className="px-3.5 py-2">Contract Period</th>
                     <th className="px-3.5 py-2">Package & Credits</th>
                     <th className="px-3.5 py-2 text-center">Status</th>
@@ -3069,7 +3213,7 @@ export default function TenantCompaniesPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {displayedTenants.map((tenant) => (
+                  {tenants.map((tenant) => (
                     <tr key={tenant.id} className="hover:bg-blue-50/30 transition-all group">
                       <td className="px-3.5 py-2">
                         <div className="flex items-center gap-3">
@@ -3077,14 +3221,14 @@ export default function TenantCompaniesPage() {
                             {getInitials(tenant.companyName)}
                           </div>
                           <div>
-                            <p className="font-pmedium text-primary text-sm max-w-37.5 truncate" title={tenant.companyName}>{tenant.companyName}</p>
+                            <p className="font-pmedium text-primary text-sm break-words" title={tenant.companyName}>{tenant.companyName}</p>
                             <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mt-0.5">{tenant.id}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-3.5 py-2 space-y-1">
-                        <p className="font-pmedium text-slate-800 text-xs">{tenant.contactName}</p>
-                        <p className="text-[10px] font-pmedium text-slate-500 flex items-center gap-1.5"><Mail size={10} /> {tenant.email}</p>
+                        <p className="font-pmedium text-slate-800 text-xs break-words">{tenant.contactName}</p>
+                        <p className="text-[10px] font-pmedium text-slate-500 flex items-center gap-1.5"><Mail size={10} /> <span className="break-all">{tenant.email}</span></p>
                         <p className="text-[10px] font-pmedium text-slate-500 flex items-center gap-1.5"><Phone size={10} /> {tenant.phone}</p>
                       </td>
                       <td className="px-3.5 py-2">
@@ -3135,8 +3279,22 @@ export default function TenantCompaniesPage() {
                       </td>
                     </tr>
                   ))}
-                  {displayedTenants.length === 0 && (
+                  {tenants.length === 0 && !isFilteringTenants && (
                     <tr><td colSpan={6} className="text-center py-20 text-slate-400 font-pmedium bg-slate-50/50">No companies match the current filters.</td></tr>
+                  )}
+                  {isFilteringTenants && (
+                    <tr><td colSpan={6} className="text-center py-16 text-slate-400 font-pmedium bg-slate-50/50">
+                      <span className="inline-flex items-center gap-1.5"><Loader2 size={14} className="animate-spin" /> Searching...</span>
+                    </td></tr>
+                  )}
+                  {tenants.length > 0 && tenantsPage < tenantsTotalPages && (
+                    <tr>
+                      <td colSpan={6} ref={loadMoreSentinelRef} className="text-center py-6 text-slate-400 text-[11px] font-pmedium">
+                        {isLoadingMoreTenants && (
+                          <span className="inline-flex items-center gap-1.5"><Loader2 size={14} className="animate-spin" /> Loading more...</span>
+                        )}
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>
@@ -3281,9 +3439,16 @@ export default function TenantCompaniesPage() {
                             </td>
                           </tr>
                         ))}
-                        {displayedCreditRequests.length === 0 && (
+                        {displayedCreditRequests.length === 0 && !isLoadingCreditRequestTenants && (
                           <tr>
                             <td colSpan={6} className="text-center py-20 text-slate-400 font-pmedium bg-slate-50/50">No credit requests match the current filters.</td>
+                          </tr>
+                        )}
+                        {isLoadingCreditRequestTenants && (
+                          <tr>
+                            <td colSpan={6} className="text-center py-16 text-slate-400 font-pmedium bg-slate-50/50">
+                              <span className="inline-flex items-center gap-1.5"><Loader2 size={14} className="animate-spin" /> Loading requests...</span>
+                            </td>
                           </tr>
                         )}
                       </tbody>
@@ -3298,7 +3463,7 @@ export default function TenantCompaniesPage() {
               <div className="w-full max-w-2xl overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70">
                 <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h2 className="text-base lg:text-lg font-black tracking-tight text-slate-800">Upload Tenant Companies</h2>
+                    <h2 className="text-base lg:text-lg font-pmedium  text-slate-800">Upload Tenant Companies</h2>
                     <p className="mt-1.5 max-w-xl text-[12px] font-pmedium text-slate-500">
                       Import only the onboarding text fields. Building name comes from sales architecture later, and package or contract values are filled during edit.
                     </p>

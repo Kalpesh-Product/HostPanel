@@ -4,6 +4,31 @@ export const getTenantCompanies = async (params?: Record<string, any>) => {
   return axiosPrivate.get("/api/v1/tenant-companies", { params });
 };
 
+// The list endpoint paginates (100 per page max) to keep individual queries bounded.
+// The list pages themselves now page through it incrementally (infinite scroll),
+// but actions like "export report" need the complete matching set regardless of
+// how much has been scrolled into view — this pages through every result for a
+// given filter (search/status/packageFilter) and merges it into one array.
+export const getAllTenantCompanies = async (params?: Record<string, any>) => {
+  const first = await getTenantCompanies({ ...params, page: 1, limit: 100 });
+  const firstPayload = first?.data || {};
+  const tenants = Array.isArray(firstPayload.tenants) ? [...firstPayload.tenants] : [];
+  const totalPages = Number(firstPayload.totalPages || 1);
+
+  if (totalPages > 1) {
+    const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+    const remainingResults = await Promise.all(
+      remainingPages.map((page) => getTenantCompanies({ ...params, page, limit: 100 }))
+    );
+    remainingResults.forEach((result) => {
+      const pagePayload = result?.data || {};
+      if (Array.isArray(pagePayload.tenants)) tenants.push(...pagePayload.tenants);
+    });
+  }
+
+  return { data: { ...firstPayload, tenants } };
+};
+
 export const getMyTenantCompany = async () => {
   return axiosPrivate.get("/api/v1/tenant-companies/my");
 };
@@ -26,6 +51,10 @@ export const renewTenantCompany = async (id: string, payload: Record<string, any
 
 export const addTenantCompanyEmployee = async (id: string, payload: Record<string, any>) => {
   return axiosPrivate.post(`/api/v1/tenant-companies/${id}/employees`, payload);
+};
+
+export const sendTenantCompanyEmployeeInvite = async (id: string, employeeId: string) => {
+  return axiosPrivate.post(`/api/v1/tenant-companies/${id}/employees/${employeeId}/send-invite`);
 };
 
 export const uploadTenantCompanyAgreementDocuments = async (id: string, files: File[]) => {

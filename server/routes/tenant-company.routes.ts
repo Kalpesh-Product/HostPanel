@@ -11,6 +11,7 @@ import {
   renewTenantCompany,
   assignTenantCompanySpace,
   addTenantCompanyEmployee,
+  sendTenantCompanyEmployeeInvite,
   updateTenantCompanyEmployee,
   updateTenantCompanyEmployeeStatus,
   deleteTenantCompanyEmployee,
@@ -53,6 +54,7 @@ router.post("/:id/space", assignTenantCompanySpace);
 
 // Employees
 router.post("/:id/employees", addTenantCompanyEmployee);
+router.post("/:id/employees/:employeeId/send-invite", sendTenantCompanyEmployeeInvite);
 router.patch("/:id/employees/:employeeId", updateTenantCompanyEmployee);
 router.patch("/:id/employees/:employeeId/status", updateTenantCompanyEmployeeStatus);
 router.delete("/:id/employees/:employeeId", deleteTenantCompanyEmployee);

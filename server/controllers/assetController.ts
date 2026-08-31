@@ -194,6 +194,21 @@ async function validateAssetTransfer({
     }
 
     const assignedDepartmentIds = await resolveAssignedDepartmentIds(workspaceId, userId);
+    const ownsAssetDepartment = isDeptAllowed(asset.departmentId, assignedDepartmentIds);
+
+    if (!assignedToUserId) {
+        // Pure department-to-department transfer (no employee involved): only the department
+        // that actually owns this asset may send its stock elsewhere — mirrors what Founder/
+        // Super Admin can do for any asset, but scoped to departments this admin/manager runs.
+        if (!ownsAssetDepartment) {
+            return { status: 403, message: "Only the department that owns this asset can transfer it to another department." };
+        }
+        if (String(assignedToDepartmentId) === idString(asset.departmentId)) {
+            return { status: 400, message: "The remaining quantity is already held by the owning department." };
+        }
+        return { targetDepartment, operation: "transfer" };
+    }
+
     if (!isDeptAllowed(assignedToDepartmentId, assignedDepartmentIds)) {
         return { status: 403, message: "Department admins can assign assets only inside their own department." };
     }
@@ -307,7 +322,7 @@ export const createAsset = async (req, res, next) => {
 
         const {
             department, assignedTo, assignedToUserId, assignedToDepartment,
-            expiryDate, warrantyExpiry, value, price,
+            expiryDate, warrantyExpiry, value, price, unitPrice,
             categoryId, subCategoryId, vendorId,
             quantity: rawQuantity, warrantyMonths: rawWarrantyMonths,
             serialNumber, serialNumbers: rawSerialNumbers,
@@ -363,6 +378,10 @@ export const createAsset = async (req, res, next) => {
         }
 
         const quantity = Math.max(1, Number(rawQuantity) || 1);
+
+        const unitPriceNum = unitPrice !== undefined
+            ? normalizeMoneyValue(unitPrice)
+            : normalizeMoneyValue(value ?? price) / quantity;
 
         let serialNumbers = [];
         if (rawSerialNumbers) {
@@ -446,7 +465,8 @@ export const createAsset = async (req, res, next) => {
             allocations: [],
             expiryDate: resolvedExpiry,
             warrantyExpiry: resolvedWarrantyExpiry,
-            value: normalizeMoneyValue(value ?? price),
+            unitPrice: unitPriceNum,
+            value: unitPriceNum * quantity,
             ...(assetImage ? { assetImage } : {}),
             ...(warrantyDocument ? { warrantyDocument } : {}),
         });
@@ -473,10 +493,47 @@ export const createAsset = async (req, res, next) => {
     }
 };
 
+// Mongoose auto-casts query filter values for find()/countDocuments(), but NOT for
+// aggregate()'s $match stage — so any filter built here must already carry real ObjectId
+// instances wherever it's going to be reused inside an aggregation pipeline (getAssetSummary).
+function toObjectId(value) {
+    return mongoose.Types.ObjectId.isValid(value) ? new mongoose.Types.ObjectId(value) : value;
+}
+
+// Shared by getAssets and getAssetSummary so list results and summary totals always agree:
+// a Founder/Super Admin sees everything in the workspace, everyone else only sees assets
+// their own department(s) own, have been allocated, or that are assigned to them personally.
+async function buildAssetScopeFilter(req, workspaceId) {
+    const userId = getCurrentUserId(req);
+    const filter = { workspaceId: toObjectId(workspaceId) };
+
+    const roleBand = getRoleBand(req.workspaceMembership?.role);
+    if (roleBand !== "owner" && roleBand !== "super_admin") {
+        const assignedDepartmentIds = await resolveAssignedDepartmentIds(workspaceId, userId);
+        const deptObjectIds = assignedDepartmentIds
+            .filter((id) => mongoose.Types.ObjectId.isValid(id))
+            .map((id) => new mongoose.Types.ObjectId(id));
+
+        const scopeConditions = [];
+        if (deptObjectIds.length > 0) {
+            scopeConditions.push({ departmentId: { $in: deptObjectIds } });
+            scopeConditions.push({ assignedToDepartmentId: { $in: deptObjectIds } });
+            scopeConditions.push({ "allocations.departmentId": { $in: deptObjectIds } });
+        }
+        if (userId) {
+            const userObjectId = toObjectId(userId);
+            scopeConditions.push({ assignedToUserId: userObjectId });
+            scopeConditions.push({ "allocations.userId": userObjectId });
+        }
+        filter.$and = [{ $or: scopeConditions.length > 0 ? scopeConditions : [{ _id: null }] }];
+    }
+
+    return filter;
+}
+
 export const getAssets = async (req, res, next) => {
     try {
         const workspaceId = getCurrentWorkspaceId(req);
-        const userId = getCurrentUserId(req);
 
         if (!workspaceId) {
             return res.status(400).json({
@@ -498,27 +555,7 @@ export const getAssets = async (req, res, next) => {
             limit = 20,
         } = req.query;
 
-        const filter = { workspaceId };
-
-        const roleBand = getRoleBand(req.workspaceMembership?.role);
-        if (roleBand !== "owner" && roleBand !== "super_admin") {
-            const assignedDepartmentIds = await resolveAssignedDepartmentIds(workspaceId, userId);
-            const deptObjectIds = assignedDepartmentIds
-                .filter((id) => mongoose.Types.ObjectId.isValid(id))
-                .map((id) => new mongoose.Types.ObjectId(id));
-
-            const scopeConditions = [];
-            if (deptObjectIds.length > 0) {
-                scopeConditions.push({ departmentId: { $in: deptObjectIds } });
-                scopeConditions.push({ assignedToDepartmentId: { $in: deptObjectIds } });
-                scopeConditions.push({ "allocations.departmentId": { $in: deptObjectIds } });
-            }
-            if (userId) {
-                scopeConditions.push({ assignedToUserId: userId });
-                scopeConditions.push({ "allocations.userId": userId });
-            }
-            filter.$and = [{ $or: scopeConditions.length > 0 ? scopeConditions : [{ _id: null }] }];
-        }
+        const filter = await buildAssetScopeFilter(req, workspaceId);
 
         if (status) filter.status = status;
         if (category) filter.category = category;
@@ -659,7 +696,7 @@ export const updateAsset = async (req, res, next) => {
             });
         }
 
-        const existingAsset = await Asset.findOne({ _id: assetId, workspaceId }).select("departmentId assignedToDepartmentId allocations quantity categoryId").lean().exec();
+        const existingAsset = await Asset.findOne({ _id: assetId, workspaceId }).select("departmentId assignedToDepartmentId allocations quantity categoryId unitPrice").lean().exec();
         if (!existingAsset) {
             return res.status(404).json({
                 message: "Asset not found",
@@ -670,7 +707,7 @@ export const updateAsset = async (req, res, next) => {
         delete req.body.createdBy;
         delete req.body.assetNumber;
 
-        const { department, assignedTo, assignedToUserId, assignedToDepartmentId, transferReason, transferDate, expiryDate, warrantyExpiry, value, ...updateBody } = req.body;
+        const { department, assignedTo, assignedToUserId, assignedToDepartmentId, transferReason, transferDate, expiryDate, warrantyExpiry, value, unitPrice, ...updateBody } = req.body;
 
         if (department) {
             updateBody.departmentId = await resolveDepartmentId(workspaceId, department);
@@ -728,8 +765,17 @@ export const updateAsset = async (req, res, next) => {
         }
         if (expiryDate !== undefined) updateBody.expiryDate = expiryDate ? new Date(expiryDate) : null;
         if (warrantyExpiry !== undefined) updateBody.warrantyExpiry = warrantyExpiry ? new Date(warrantyExpiry) : null;
-        if (value !== undefined || updateBody.price !== undefined) {
+        const targetQuantity = updateBody.quantity !== undefined
+            ? Number(updateBody.quantity)
+            : Math.max(1, Number(existingAsset.quantity) || 1);
+        if (unitPrice !== undefined) {
+            updateBody.unitPrice = normalizeMoneyValue(unitPrice);
+            updateBody.value = updateBody.unitPrice * targetQuantity;
+        } else if (value !== undefined || updateBody.price !== undefined) {
             updateBody.value = normalizeMoneyValue(value ?? updateBody.price);
+            updateBody.unitPrice = updateBody.value / targetQuantity;
+        } else if (updateBody.quantity !== undefined) {
+            updateBody.value = Number(existingAsset.unitPrice || 0) * targetQuantity;
         }
         delete updateBody.price;
 
@@ -902,7 +948,7 @@ export const transferAsset = async (req, res, next) => {
         const totalAllocated = asset.allocations.reduce((sum, allocation) => sum + Number(allocation.quantity || 0), 0);
         const owningDepartmentAvailable = Math.max(0, Number(asset.quantity || 1) - totalAllocated);
 
-        if (roleBand === "owner" || roleBand === "super_admin") {
+        if (validation.operation === "transfer") {
             if (!assignedToUserId && targetDepartmentId === ownerDepartmentId) {
                 return res.status(400).json({ message: "The remaining quantity is already held by the owning department." });
             }
@@ -1077,6 +1123,13 @@ export const getAssetSummary = async (req, res, next) => {
             });
         }
 
+        const { departmentId } = req.query;
+        const filter = await buildAssetScopeFilter(req, workspaceId);
+        if (departmentId && mongoose.Types.ObjectId.isValid(departmentId)) {
+            filter.departmentId = new mongoose.Types.ObjectId(departmentId);
+        }
+        const matchStage = { $match: filter };
+
         const [
             totalAssets,
             activeAssets,
@@ -1086,25 +1139,26 @@ export const getAssetSummary = async (req, res, next) => {
             ownedAssets,
             rentedAssets,
             totalValueResult,
+            quantityResult,
             categorySummary,
             departmentSummary,
         ] = await Promise.all([
-            Asset.countDocuments({ workspaceId }),
+            Asset.countDocuments(filter),
 
-            Asset.countDocuments({ workspaceId, status: "Active" }),
+            Asset.countDocuments({ ...filter, status: "Active" }),
 
-            Asset.countDocuments({ workspaceId, status: "Inactive" }),
+            Asset.countDocuments({ ...filter, status: "Inactive" }),
 
-            Asset.countDocuments({ workspaceId, status: "Disposed" }),
+            Asset.countDocuments({ ...filter, status: "Disposed" }),
 
-            Asset.countDocuments({ workspaceId, status: "Repair" }),
+            Asset.countDocuments({ ...filter, status: "Repair" }),
 
-            Asset.countDocuments({ workspaceId, ownershipType: "Owned" }),
+            Asset.countDocuments({ ...filter, ownershipType: "Owned" }),
 
-            Asset.countDocuments({ workspaceId, ownershipType: "Rented" }),
+            Asset.countDocuments({ ...filter, ownershipType: "Rented" }),
 
             Asset.aggregate([
-                { $match: { workspaceId: new mongoose.Types.ObjectId(workspaceId) } },
+                matchStage,
                 {
                     $group: {
                         _id: null,
@@ -1114,7 +1168,26 @@ export const getAssetSummary = async (req, res, next) => {
             ]),
 
             Asset.aggregate([
-                { $match: { workspaceId: new mongoose.Types.ObjectId(workspaceId) } },
+                matchStage,
+                {
+                    $group: {
+                        _id: null,
+                        totalQuantity: { $sum: "$quantity" },
+                        totalAllocatedQuantity: {
+                            $sum: {
+                                $reduce: {
+                                    input: { $ifNull: ["$allocations", []] },
+                                    initialValue: 0,
+                                    in: { $add: ["$$value", { $ifNull: ["$$this.quantity", 0] }] },
+                                },
+                            },
+                        },
+                    },
+                },
+            ]),
+
+            Asset.aggregate([
+                matchStage,
                 {
                     $group: {
                         _id: "$category",
@@ -1125,7 +1198,7 @@ export const getAssetSummary = async (req, res, next) => {
             ]),
 
             Asset.aggregate([
-                { $match: { workspaceId: new mongoose.Types.ObjectId(workspaceId) } },
+                matchStage,
                 {
                     $group: {
                         _id: "$departmentId",
@@ -1162,6 +1235,8 @@ export const getAssetSummary = async (req, res, next) => {
                 ownedAssets,
                 rentedAssets,
                 totalValue: totalValueResult?.[0]?.totalValue || 0,
+                totalQuantity: quantityResult?.[0]?.totalQuantity || 0,
+                totalAllocatedQuantity: quantityResult?.[0]?.totalAllocatedQuantity || 0,
                 categorySummary,
                 departmentSummary,
             },

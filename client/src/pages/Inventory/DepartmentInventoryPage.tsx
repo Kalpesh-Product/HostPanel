@@ -1,17 +1,20 @@
-import { useState, useMemo, useEffect, type ChangeEvent } from 'react';
+import { useState, useMemo, useEffect, useRef, type ChangeEvent } from 'react';
+import * as XLSX from 'xlsx';
 import { getStoredUser } from '@/lib/auth-session';
-import { createInventory, getInventory, updateInventory, transferInventory, returnInventory, markUnderMaintenance } from '@/services/inventory';
+import { createInventory, getInventory, updateInventory, transferInventory } from '@/services/inventory';
 import { getOrganizationOverview } from '@/services/organization';
 import { getResources } from '@/services/resources';
 import { axiosPrivate } from '@/utils/axios';
 import { normalizeDepartmentKey } from '@/utils/user-helpers';
 import {
-  Search, Plus, X, Package, TrendingDown, RefreshCw, Box, History, User,
-  AlertTriangle, ShieldCheck, ArrowUpDown, ArrowUp, ArrowDown, Filter,
-  RotateCcw, Wrench, Eye, ArrowRightLeft, Building2,
+  Search, Plus, X, Package, TrendingDown, TrendingUp, RefreshCw, Box, History, User,
+  AlertTriangle, ShieldCheck, ArrowUpDown, ArrowUp, ArrowDown, Filter, Pencil, Wrench,
+  Eye, ArrowRightLeft, Building2, UploadCloud, Info, Loader2, FileSpreadsheet, ChevronDown,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageFrame from '@/components/Pages/PageFrame';
+import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
+import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
 
 interface InventoryItem {
   recordId?: string;
@@ -23,19 +26,26 @@ interface InventoryItem {
   status?: string;
   department: string;
   location?: string;
+  unit?: string;
+  unitPrice?: number;
+  totalValue?: number;
   totalQuantity: number;
   availableQuantity: number;
   allocatedQuantity: number;
+  addedByRole?: string;
   ledger: LedgerEntry[];
   createdAt?: string;
 }
 
 interface LedgerEntry {
+  type?: string;
   date?: string;
   dateLabel?: string;
   target?: string;
   action?: string;
   qty?: number;
+  unitPrice?: number;
+  source?: string;
 }
 
 interface NewItemData {
@@ -44,6 +54,8 @@ interface NewItemData {
   category: string;
   department: string;
   quantity: string;
+  unit: string;
+  unitPrice: string;
   floor: string;
   wing: string;
 }
@@ -53,6 +65,11 @@ const ADD_NEW_OPTION = '__add_new__';
 function getLocationLabel(floor: string, wing: string): string {
   const parts = [floor, wing].filter(Boolean);
   return parts.length > 0 ? parts.join(', ') : '';
+}
+
+function getLocationParts(location?: string): { floor: string; wing: string } {
+  const parts = String(location || '').split(',').map((part) => part.trim()).filter(Boolean);
+  return { floor: parts[0] || '', wing: parts[1] || '' };
 }
 
 interface UpdateStockData {
@@ -71,6 +88,113 @@ type SortField = 'name' | 'category' | 'totalQuantity' | 'availableQuantity' | '
 type SortDir = 'asc' | 'desc';
 
 const LOW_STOCK_THRESHOLD = 10;
+
+function getStockStatusKey(item: InventoryItem): 'out' | 'low' | 'ok' | 'other' {
+  if (item.status === 'maintenance' || item.status === 'retired') return 'other';
+  if ((item.availableQuantity || 0) === 0) return 'out';
+  if ((item.availableQuantity || 0) <= LOW_STOCK_THRESHOLD) return 'low';
+  return 'ok';
+}
+
+interface MonthlyBalanceRow {
+  monthKey: string;
+  monthLabel: string;
+  opening: number;
+  closing: number;
+  netChange: number;
+  entryCount: number;
+}
+
+function getLedgerEntryDelta(entry: LedgerEntry): number {
+  const qty = Math.abs(entry.qty || 0);
+  const text = String(entry.type || entry.action || '').toLowerCase();
+  if (/initial|purchase|transfer in|return|received/.test(text)) return qty;
+  if (/consumption|consumed|allocat|transfer out|utilized|issued/.test(text)) return -qty;
+  return 0;
+}
+
+function getLedgerEntryDate(entry: LedgerEntry, fallback?: string): Date {
+  const raw = entry.date || entry.dateLabel || fallback;
+  const parsed = raw ? new Date(raw) : null;
+  if (parsed && !Number.isNaN(parsed.getTime())) return parsed;
+  return fallback ? new Date(fallback) : new Date();
+}
+
+function computeMonthlyBalances(item: InventoryItem): MonthlyBalanceRow[] {
+  const entries = [...(item.ledger || [])]
+    .map((entry) => ({ entry, when: getLedgerEntryDate(entry, item.createdAt) }))
+    .sort((a, b) => a.when.getTime() - b.when.getTime());
+
+  const rows: MonthlyBalanceRow[] = [];
+  let runningBalance = 0;
+  let currentRow: MonthlyBalanceRow | null = null;
+
+  entries.forEach(({ entry, when }) => {
+    const monthKey = `${when.getFullYear()}-${String(when.getMonth() + 1).padStart(2, '0')}`;
+    if (!currentRow || currentRow.monthKey !== monthKey) {
+      currentRow = {
+        monthKey,
+        monthLabel: when.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }),
+        opening: runningBalance,
+        closing: runningBalance,
+        netChange: 0,
+        entryCount: 0,
+      };
+      rows.push(currentRow);
+    }
+    const delta = getLedgerEntryDelta(entry);
+    runningBalance += delta;
+    currentRow.closing = runningBalance;
+    currentRow.netChange += delta;
+    currentRow.entryCount += 1;
+  });
+
+  return rows.reverse();
+}
+
+// ---------------------------------------------------------------------------
+// Bulk Upload – template & row helpers
+// ---------------------------------------------------------------------------
+const INVENTORY_CATEGORY_OPTIONS = [
+  'Physical', 'Digital', 'Other', 'Office Supplies', 'Pantry', 'Facilities', 'Branding', 'Hardware', 'Safety Equipment',
+];
+const INVENTORY_BULK_SHEET_NAME = 'Inventory';
+const INVENTORY_BULK_HEADERS = ['Item Name', 'Category', 'Quantity', 'Available Quantity', 'Unit', 'Price per Unit', 'Floor', 'Wing'];
+
+function buildInventoryBulkTemplateWorkbook() {
+  const workbook = XLSX.utils.book_new();
+  const uploadSheet = XLSX.utils.aoa_to_sheet([
+    INVENTORY_BULK_HEADERS,
+    ['Printer Paper A4', 'Office Supplies', 500, 500, 'ream', 35, 'Floor 3', 'A'],
+  ]);
+  XLSX.utils.book_append_sheet(workbook, uploadSheet, INVENTORY_BULK_SHEET_NAME);
+
+  const instructionsSheet = XLSX.utils.aoa_to_sheet([
+    ['Field', 'Notes'],
+    ['Item Name', 'Required.'],
+    ['Category', `One of: ${INVENTORY_CATEGORY_OPTIONS.join(', ')}. Defaults to "Other" if left blank or unrecognized.`],
+    ['Quantity', 'Total units ever purchased/acquired for this item. Required, must be >= 0.'],
+    ['Available Quantity', 'How many units are currently on hand and not yet used up. Defaults to Quantity if left blank.'],
+    ['Unit', 'Optional unit of measurement, e.g. "pcs", "box", "kg", "ream".'],
+    ['Price per Unit', 'Optional numeric price for a single unit. Total Value is calculated automatically as Price per Unit x Quantity.'],
+    ['Floor', 'Optional physical location.'],
+    ['Wing', 'Optional physical location.'],
+    [],
+    ['Note', 'All rows are added to your own department automatically. This item type is always Consumable.'],
+  ]);
+  XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instructions');
+
+  return workbook;
+}
+
+function readBulkInventoryCell(row: Record<string, any>, ...keys: string[]): string {
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
+      return String(row[key]).trim();
+    }
+  }
+  return '';
+}
 
 function getRoleBand(role: string): string {
   const r = String(role || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
@@ -211,6 +335,8 @@ export function DepartmentInventoryPage() {
   const [resolvedDeptLabel, setResolvedDeptLabel] = useState('');
   const deptLabel = resolvedDeptLabel || getDepartmentLabel(storedUser);
   const categories = getDeptCategories(deptLabel);
+  const workspacePreferences = useWorkspacePreferences();
+  const formatCurrency = (val: any) => formatWorkspaceCurrency(val, workspacePreferences.currency, { maximumFractionDigits: 2 });
 
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isLoadingInventory, setIsLoadingInventory] = useState(true);
@@ -220,6 +346,8 @@ export function DepartmentInventoryPage() {
 
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [stockStatusFilter, setStockStatusFilter] = useState<'All' | 'ok' | 'low' | 'out'>('All');
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -228,27 +356,37 @@ export function DepartmentInventoryPage() {
   const [viewingItem, setViewingItem] = useState<InventoryItem | null>(null);
   const [fetchedDepartments, setFetchedDepartments] = useState<string[]>([]);
 
+  const [bulkInventoryModal, setBulkInventoryModal] = useState(false);
+  const [bulkInventoryFileName, setBulkInventoryFileName] = useState('');
+  const [bulkInventoryRows, setBulkInventoryRows] = useState<Record<string, any>[]>([]);
+  const [bulkInventoryImporting, setBulkInventoryImporting] = useState(false);
+  const [bulkInventorySummary, setBulkInventorySummary] = useState<{ created: number; skipped: number; issues: string[] } | null>(null);
+  const [bulkInventoryError, setBulkInventoryError] = useState('');
+  const bulkInventoryFileInputRef = useRef<HTMLInputElement>(null);
+
   const [newItem, setNewItem] = useState<NewItemData>({
     name: '',
     trackingType: 'Consumable',
     category: categories[0] || 'Office Supplies',
     department: deptLabel,
     quantity: '',
+    unit: '',
+    unitPrice: '',
     floor: '',
     wing: '',
   });
+  const totalValuePreview = useMemo(() => {
+    const unitPriceNum = Number(String(newItem.unitPrice || '').replace(/[^0-9.-]/g, '')) || 0;
+    const qty = Math.max(0, parseInt(String(newItem.quantity || '').trim(), 10) || 0);
+    return unitPriceNum * qty;
+  }, [newItem.unitPrice, newItem.quantity]);
   const [updateStock, setUpdateStock] = useState<UpdateStockData>({
     itemId: '', actionType: 'increase', quantity: '', reason: '',
   });
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [transferData, setTransferData] = useState<TransferData>({ targetDepartment: '', quantity: '' });
   const [activeTransferItem, setActiveTransferItem] = useState<InventoryItem | null>(null);
-  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
-  const [returnData, setReturnData] = useState({ quantity: '', returnedBy: '', reason: '' });
-  const [activeReturnItem, setActiveReturnItem] = useState<InventoryItem | null>(null);
-  const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
-  const [maintenanceData, setMaintenanceData] = useState({ reason: '', expectedDate: '' });
-  const [activeMaintenanceItem, setActiveMaintenanceItem] = useState<InventoryItem | null>(null);
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [resourceFloors, setResourceFloors] = useState<string[]>([]);
   const [resourceWings, setResourceWings] = useState<string[]>([]);
   const [floorMode, setFloorMode] = useState<'select' | 'custom'>('select');
@@ -367,6 +505,12 @@ export function DepartmentInventoryPage() {
 
   const processedInventory = useMemo(() => {
     let items = [...inventory];
+    if (categoryFilter !== 'All') {
+      items = items.filter((i) => i.category === categoryFilter);
+    }
+    if (stockStatusFilter !== 'All') {
+      items = items.filter((i) => getStockStatusKey(i) === stockStatusFilter);
+    }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       items = items.filter((i) =>
@@ -387,7 +531,7 @@ export function DepartmentInventoryPage() {
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return items;
-  }, [inventory, searchQuery, sortField, sortDir]);
+  }, [inventory, categoryFilter, stockStatusFilter, searchQuery, sortField, sortDir]);
 
   const totalItems = processedInventory.length;
   const totalStock = processedInventory.reduce((acc, i) => acc + (i.totalQuantity || 0), 0);
@@ -400,30 +544,167 @@ export function DepartmentInventoryPage() {
     setSuccessMessage('');
     setIsSaving(true);
     try {
-      const response = await createInventory({
+      const payload = {
         name: newItem.name,
         category: newItem.category,
         trackingType: 'Consumable',
         department: deptLabel,
         location: getLocationLabel(newItem.floor, newItem.wing),
+        unit: newItem.unit,
+        unitPrice: newItem.unitPrice ? Number(String(newItem.unitPrice).replace(/[^0-9.-]/g, '')) : 0,
         totalQuantity: parseInt(newItem.quantity, 10),
-      });
-      const createdItem = response?.data?.inventoryItem || response?.inventoryItem;
-      if (createdItem) {
-        setInventory((current) => [normalizeInventoryItem(createdItem), ...current]);
-        setSuccessMessage(`"${newItem.name}" added successfully.`);
+      };
+      const response = editingItem?.recordId
+        ? await updateInventory(editingItem.recordId, payload)
+        : await createInventory(payload);
+      const savedItem = response?.data?.inventoryItem || response?.inventoryItem;
+      if (savedItem) {
+        const normalized = normalizeInventoryItem(savedItem);
+        setInventory((current) => editingItem
+          ? current.map((item) => (item.recordId === editingItem.recordId ? normalized : item))
+          : [normalized, ...current]);
+        setSuccessMessage(editingItem ? `"${newItem.name}" updated successfully.` : `"${newItem.name}" added successfully.`);
         setTimeout(() => setSuccessMessage(''), 3000);
       }
       setIsAddModalOpen(false);
-      setNewItem({ name: '', trackingType: 'Consumable', category: categories[0] || 'Office Supplies', department: deptLabel, quantity: '', floor: '', wing: '' });
+      setEditingItem(null);
+      setNewItem({ name: '', trackingType: 'Consumable', category: categories[0] || 'Office Supplies', department: deptLabel, quantity: '', unit: '', unitPrice: '', floor: '', wing: '' });
       setFloorMode('select');
       setWingMode('select');
     } catch (error: any) {
-      setErrorMessage(error.message || 'Unable to add inventory item right now.');
+      setErrorMessage(error.message || `Unable to ${editingItem ? 'update' : 'add'} inventory item right now.`);
     } finally {
       setIsSaving(false);
     }
   };
+
+  function openEditItem(item: InventoryItem) {
+    const { floor, wing } = getLocationParts(item.location);
+    setEditingItem(item);
+    setNewItem({
+      name: item.name || '',
+      trackingType: 'Consumable',
+      category: item.category || categories[0] || 'Office Supplies',
+      department: deptLabel,
+      quantity: String(item.totalQuantity ?? ''),
+      unit: item.unit || '',
+      unitPrice: item.unitPrice ? String(item.unitPrice) : '',
+      floor,
+      wing,
+    });
+    setFloorMode(floor && !resourceFloors.includes(floor) ? 'custom' : 'select');
+    setWingMode(wing && !resourceWings.includes(wing) ? 'custom' : 'select');
+    setIsAddModalOpen(true);
+  }
+
+  function openBulkInventoryModal() {
+    setBulkInventoryModal(true);
+    setBulkInventoryFileName('');
+    setBulkInventoryRows([]);
+    setBulkInventorySummary(null);
+    setBulkInventoryError('');
+  }
+
+  function closeBulkInventoryModal() {
+    if (bulkInventoryImporting) return;
+    setBulkInventoryModal(false);
+    setBulkInventoryFileName('');
+    setBulkInventoryRows([]);
+    setBulkInventorySummary(null);
+    setBulkInventoryError('');
+  }
+
+  function handleBulkInventoryDownloadTemplate() {
+    const workbook = buildInventoryBulkTemplateWorkbook();
+    XLSX.writeFile(workbook, 'inventory-bulk-upload-template.xlsx');
+  }
+
+  function handleBulkInventoryFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setBulkInventoryFileName(file.name);
+    setBulkInventorySummary(null);
+    setBulkInventoryError('');
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+        const sheetName = workbook.SheetNames.includes(INVENTORY_BULK_SHEET_NAME) ? INVENTORY_BULK_SHEET_NAME : workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, any>[];
+        setBulkInventoryRows(rows);
+        if (rows.length === 0) setBulkInventoryError('No rows found in the spreadsheet.');
+      } catch {
+        setBulkInventoryError('Failed to parse spreadsheet. Please check the file format.');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  async function handleBulkInventoryImport() {
+    if (bulkInventoryRows.length === 0) return;
+    setBulkInventoryImporting(true);
+    let created = 0;
+    let skipped = 0;
+    const issues: string[] = [];
+
+    for (let i = 0; i < bulkInventoryRows.length; i++) {
+      const row = bulkInventoryRows[i];
+      const rowNum = i + 2;
+      try {
+        const name = readBulkInventoryCell(row, 'Item Name', 'name', 'itemName');
+        if (!name) { skipped++; issues.push(`Row ${rowNum}: Item Name is required.`); continue; }
+
+        const categoryRaw = readBulkInventoryCell(row, 'Category', 'category');
+        const category = INVENTORY_CATEGORY_OPTIONS.includes(categoryRaw) ? categoryRaw : 'Other';
+
+        const quantity = Math.max(0, parseInt(readBulkInventoryCell(row, 'Quantity', 'quantity') || '0', 10) || 0);
+        const availableQuantityRaw = readBulkInventoryCell(row, 'Available Quantity', 'availableQuantity');
+        const availableQuantity = availableQuantityRaw ? Math.max(0, parseInt(availableQuantityRaw, 10) || 0) : quantity;
+        const unit = readBulkInventoryCell(row, 'Unit', 'unit');
+        const unitPriceNum = Number(readBulkInventoryCell(row, 'Price per Unit', 'unitPrice', 'Price').replace(/[^0-9.-]/g, '')) || 0;
+        const floor = readBulkInventoryCell(row, 'Floor', 'floor');
+        const wing = readBulkInventoryCell(row, 'Wing', 'wing');
+
+        await createInventory({
+          name,
+          category,
+          trackingType: 'Consumable',
+          department: deptLabel,
+          location: getLocationLabel(floor, wing),
+          unit,
+          unitPrice: unitPriceNum,
+          totalQuantity: quantity,
+          availableQuantity: Math.min(availableQuantity, quantity),
+        });
+        created++;
+      } catch (err: any) {
+        skipped++;
+        issues.push(`Row ${rowNum}: ${err?.response?.data?.message || err?.message || 'Failed to create inventory item.'}`);
+      }
+    }
+
+    if (created > 0) {
+      try {
+        const response = await getInventory();
+        const items = Array.isArray(response?.data?.inventory) ? response.data.inventory
+          : Array.isArray(response?.inventory) ? response.inventory
+          : [];
+        const normalized = items
+          .map(normalizeInventoryItem)
+          .filter((item: InventoryItem) =>
+            normalizeDepartmentKey(String(item.department || '')) === normalizeDepartmentKey(deptLabel)
+          );
+        setInventory(normalized);
+      } catch {
+        // non-critical: newly created items just won't appear until next manual refresh
+      }
+    }
+
+    setBulkInventoryImporting(false);
+    setBulkInventorySummary({ created, skipped, issues });
+  }
 
   const handleUpdateStock = async () => {
     if (!updateStock.itemId || !updateStock.quantity) return;
@@ -479,60 +760,6 @@ export function DepartmentInventoryPage() {
     }
   };
 
-  const handleReturn = async () => {
-    if (!returnData.quantity || !activeReturnItem?.recordId) return;
-    setErrorMessage('');
-    setSuccessMessage('');
-    setIsSaving(true);
-    try {
-      const response = await returnInventory(activeReturnItem.recordId, {
-        quantity: returnData.quantity,
-        returnedBy: returnData.returnedBy,
-        reason: returnData.reason,
-      });
-      const updatedItem = response?.inventoryItem;
-      if (updatedItem) {
-        const normalized = normalizeInventoryItem(updatedItem);
-        setInventory((current) => current.map((item) => (item.recordId === normalized.recordId ? normalized : item)));
-        setSuccessMessage(`Returned ${returnData.quantity} units successfully.`);
-        setTimeout(() => setSuccessMessage(''), 3000);
-      }
-      setIsReturnModalOpen(false);
-      setReturnData({ quantity: '', returnedBy: '', reason: '' });
-      setActiveReturnItem(null);
-    } catch (error: any) {
-      setErrorMessage(error.message || 'Unable to return stock right now.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleMaintenance = async () => {
-    if (!maintenanceData.reason || !activeMaintenanceItem?.recordId) return;
-    setErrorMessage('');
-    setSuccessMessage('');
-    setIsSaving(true);
-    try {
-      const response = await markUnderMaintenance(activeMaintenanceItem.recordId, {
-        reason: maintenanceData.reason,
-        expectedDate: maintenanceData.expectedDate,
-      });
-      const updatedItem = response?.inventoryItem;
-      if (updatedItem) {
-        const normalized = normalizeInventoryItem(updatedItem);
-        setInventory((current) => current.map((item) => (item.recordId === normalized.recordId ? normalized : item)));
-        setSuccessMessage('Item marked under maintenance.');
-        setTimeout(() => setSuccessMessage(''), 3000);
-      }
-      setIsMaintenanceModalOpen(false);
-      setMaintenanceData({ reason: '', expectedDate: '' });
-      setActiveMaintenanceItem(null);
-    } catch (error: any) {
-      setErrorMessage(error.message || 'Unable to update maintenance status.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   if (isInitialLoading) return <TablePageSkeleton />;
 
@@ -559,9 +786,18 @@ export function DepartmentInventoryPage() {
               )}
               {roleBand !== 'employee' && (
                 <button
+                  onClick={openBulkInventoryModal}
+                  className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:text-[#2563EB] hover:border-[#2563EB] transition-all whitespace-nowrap"
+                >
+                  <UploadCloud size={14} strokeWidth={2.5} /> BULK UPLOAD
+                </button>
+              )}
+              {roleBand !== 'employee' && (
+                <button
                   data-tour="dept-inventory-add-btn"
                   onClick={() => {
-                    setNewItem({ name: '', trackingType: 'Consumable', category: categories[0] || 'Office Supplies', department: deptLabel, quantity: '', floor: '', wing: '' });
+                    setEditingItem(null);
+                    setNewItem({ name: '', trackingType: 'Consumable', category: categories[0] || 'Office Supplies', department: deptLabel, quantity: '', unit: '', unitPrice: '', floor: '', wing: '' });
                     setFloorMode('select');
                     setWingMode('select');
                     setIsAddModalOpen(true);
@@ -613,18 +849,57 @@ export function DepartmentInventoryPage() {
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
 
             {/* Toolbar */}
-            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-slate-50/50">
-              <h2 className="text-[12px] font-pmedium text-primary tracking-tight hidden lg:block">Inventory Directory</h2>
-              <div className="relative w-full md:w-72 shrink-0">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                <input
-                  data-tour="dept-inventory-search"
-                  type="text"
-                  placeholder="Search items..."
-                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400 shadow-sm"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+              <div data-tour="dept-inventory-status-filter" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                {[
+                  { key: 'All', label: 'All Stock' },
+                  { key: 'ok', label: 'OK' },
+                  { key: 'low', label: 'Low Stock' },
+                  { key: 'out', label: 'Out of Stock' },
+                ].map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setStockStatusFilter(key as typeof stockStatusFilter)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-pmedium whitespace-nowrap transition-all ${
+                      stockStatusFilter === key
+                        ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+                        : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+                {categories.length > 0 && (
+                  <div className="relative">
+                    <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
+                    <select
+                      data-tour="dept-inventory-category-filter"
+                      className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-xl text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[120px]"
+                      value={categoryFilter}
+                      onChange={(e) => setCategoryFilter(e.target.value)}
+                    >
+                      <option value="All">All Categories</option>
+                      {categories.map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2563EB] pointer-events-none" size={12} />
+                  </div>
+                )}
+                <div className="relative w-full sm:w-72 shrink-0">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <input
+                    data-tour="dept-inventory-search"
+                    type="text"
+                    placeholder="Search items..."
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400 shadow-sm"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
 
@@ -633,13 +908,13 @@ export function DepartmentInventoryPage() {
               <table data-tour="dept-inventory-table" className="hidden lg:table w-full text-left">
                 <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
+                    <th className="px-5 py-4">Item ID</th>
                     <th className="px-5 py-4 cursor-pointer select-none hover:text-slate-700 transition-colors" onClick={() => handleSort('name')}>
                       <span className="flex items-center gap-1.5">Item Name <SortIcon field="name" /></span>
                     </th>
                     <th className="px-5 py-4 cursor-pointer select-none hover:text-slate-700 transition-colors" onClick={() => handleSort('category')}>
                       <span className="flex items-center gap-1.5">Category <SortIcon field="category" /></span>
                     </th>
-                    <th className="px-5 py-4">Type</th>
                     <th className="px-5 py-4 text-center cursor-pointer select-none hover:text-slate-700 transition-colors" onClick={() => handleSort('totalQuantity')}>
                       <span className="flex items-center gap-1.5 justify-center">Total <SortIcon field="totalQuantity" /></span>
                     </th>
@@ -659,16 +934,14 @@ export function DepartmentInventoryPage() {
                     return (
                       <tr key={item.id || item.recordId} className={`hover:bg-slate-50/50 transition-all group ${isOut ? 'bg-red-50/30' : isLowStock ? 'bg-amber-50/20' : ''}`}>
                         <td className="px-5 py-4">
+                          <p className="text-[12px] font-pmedium text-slate-500 whitespace-nowrap">{item.inventoryCode || '--'}</p>
+                        </td>
+                        <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 border border-slate-200/60">
                               <Package className="text-slate-500" size={16} />
                             </div>
-                            <div>
-                              <p className="font-bold text-[#0F172A] text-[13px]">{item.name}</p>
-                              {item.inventoryCode && (
-                                <span className="text-[9px] font-pmedium text-slate-400">{item.inventoryCode}</span>
-                              )}
-                            </div>
+                            <p className="text-[12px] font-pmedium text-[#0F172A] truncate">{item.name}</p>
                           </div>
                         </td>
                         <td className="px-5 py-4">
@@ -676,19 +949,14 @@ export function DepartmentInventoryPage() {
                             {item.category || 'Other'}
                           </span>
                         </td>
-                        <td className="px-5 py-4">
-                          <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-pmedium uppercase tracking-widest border ${item.trackingType === 'Consumable' ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-purple-50 text-purple-600 border-purple-200'}`}>
-                            {item.trackingType}
-                          </span>
+                        <td className="px-5 py-4 text-center">
+                          <span className="font-pmedium text-slate-900">{item.totalQuantity}</span>
                         </td>
                         <td className="px-5 py-4 text-center">
-                          <span className="font-black text-slate-900">{item.totalQuantity}</span>
+                          <span className="font-pmedium text-[#2563EB]">{item.allocatedQuantity}</span>
                         </td>
                         <td className="px-5 py-4 text-center">
-                          <span className="font-bold text-[#2563EB]">{item.allocatedQuantity}</span>
-                        </td>
-                        <td className="px-5 py-4 text-center">
-                          <span className={`inline-flex px-2.5 py-1 rounded-lg text-[11px] font-black ${isOut ? 'bg-red-100 text-red-600' : isLowStock ? 'bg-amber-100 text-amber-700' : 'bg-green-50 text-green-600'}`}>
+                          <span className={`inline-flex px-2.5 py-1 rounded-lg text-[11px] font-pmedium ${isOut ? 'bg-red-100 text-red-600' : isLowStock ? 'bg-amber-100 text-amber-700' : 'bg-green-50 text-green-600'}`}>
                             {item.availableQuantity}
                           </span>
                         </td>
@@ -727,31 +995,14 @@ export function DepartmentInventoryPage() {
                                 <ArrowRightLeft size={15} strokeWidth={2.5} />
                               </button>
                             )}
-                            {item.trackingType === 'Returnable Asset' && (
-                              <>
-                                <button
-                                  onClick={() => {
-                                    setActiveReturnItem(item);
-                                    setReturnData({ quantity: '', returnedBy: '', reason: '' });
-                                    setIsReturnModalOpen(true);
-                                  }}
-                                  className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-all"
-                                  title="Return"
-                                >
-                                  <RotateCcw size={15} strokeWidth={2.5} />
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setActiveMaintenanceItem(item);
-                                    setMaintenanceData({ reason: '', expectedDate: '' });
-                                    setIsMaintenanceModalOpen(true);
-                                  }}
-                                  className="p-1.5 bg-slate-100 text-slate-600 hover:bg-orange-100 hover:text-orange-700 rounded-lg transition-all"
-                                  title="Mark Under Maintenance"
-                                >
-                                  <Wrench size={15} strokeWidth={2.5} />
-                                </button>
-                              </>
+                            {roleBand !== 'employee' && (
+                              <button
+                                onClick={() => openEditItem(item)}
+                                className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-all"
+                                title="Edit"
+                              >
+                                <Pencil size={15} strokeWidth={2.5} />
+                              </button>
                             )}
                           </div>
                         </td>
@@ -787,14 +1038,14 @@ export function DepartmentInventoryPage() {
                           <div className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100">
                             <Package className="text-[#2563EB]" size={16} />
                           </div>
-                          <div>
-                            <h3 className="text-[13px] font-bold text-[#0F172A] leading-tight mb-1">{item.name}</h3>
+                          <div className="min-w-0">
+                            {item.inventoryCode && (
+                              <p className="text-[9px] font-pmedium text-slate-400 mb-0.5">{item.inventoryCode}</p>
+                            )}
+                            <h3 className="text-[13px] font-pmedium text-[#0F172A] leading-tight mb-1 truncate">{item.name}</h3>
                             <div className="flex items-center gap-2">
                               <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-pmedium ${style.bg}`}>
                                 {item.category || 'Other'}
-                              </span>
-                              <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-pmedium uppercase tracking-wider border ${item.trackingType === 'Consumable' ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-purple-50 text-purple-600 border-purple-200'}`}>
-                                {item.trackingType}
                               </span>
                             </div>
                           </div>
@@ -804,15 +1055,15 @@ export function DepartmentInventoryPage() {
                       <div className="grid grid-cols-3 gap-3 bg-slate-50/80 rounded-xl p-3 border border-slate-100">
                         <div>
                           <p className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest mb-0.5">Total</p>
-                          <p className="text-[11px] font-black text-[#0F172A]">{item.totalQuantity}</p>
+                          <p className="text-[11px] font-pmedium text-[#0F172A]">{item.totalQuantity}</p>
                         </div>
                         <div>
                           <p className="text-[9px] font-pmedium text-[#2563EB] uppercase tracking-widest mb-0.5">Allocated</p>
-                          <p className="text-[11px] font-bold text-[#2563EB]">{item.allocatedQuantity}</p>
+                          <p className="text-[11px] font-pmedium text-[#2563EB]">{item.allocatedQuantity}</p>
                         </div>
                         <div>
                           <p className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest mb-0.5">Available</p>
-                          <p className={`text-[11px] font-black ${isOut ? 'text-red-600' : isLowStock ? 'text-amber-700' : 'text-green-600'}`}>{item.availableQuantity}</p>
+                          <p className={`text-[11px] font-pmedium ${isOut ? 'text-red-600' : isLowStock ? 'text-amber-700' : 'text-green-600'}`}>{item.availableQuantity}</p>
                         </div>
                       </div>
                       <div className="flex gap-2 pt-2 border-t border-slate-100">
@@ -843,29 +1094,13 @@ export function DepartmentInventoryPage() {
                             <ArrowRightLeft size={13} /> Transfer
                           </button>
                         )}
-                        {item.trackingType === 'Returnable Asset' && (
-                          <>
-                            <button
-                              onClick={() => {
-                                setActiveReturnItem(item);
-                                setReturnData({ quantity: '', returnedBy: '', reason: '' });
-                                setIsReturnModalOpen(true);
-                              }}
-                              className="flex-1 py-2 bg-white border border-slate-200 text-amber-700 rounded-xl text-[11px] hover:bg-amber-50 font-pmedium transition-all shadow-sm flex items-center justify-center gap-1.5"
-                            >
-                              <RotateCcw size={13} /> Return
-                            </button>
-                            <button
-                              onClick={() => {
-                                setActiveMaintenanceItem(item);
-                                setMaintenanceData({ reason: '', expectedDate: '' });
-                                setIsMaintenanceModalOpen(true);
-                              }}
-                              className="py-2 px-3 bg-white border border-slate-200 text-orange-600 rounded-xl text-[11px] hover:bg-orange-50 font-pmedium transition-all shadow-sm flex items-center justify-center"
-                            >
-                              <Wrench size={14} />
-                            </button>
-                          </>
+                        {roleBand !== 'employee' && (
+                          <button
+                            onClick={() => openEditItem(item)}
+                            className="py-2 px-3 bg-white border border-slate-200 text-amber-700 rounded-xl text-[11px] hover:bg-amber-50 font-pmedium transition-all shadow-sm flex items-center justify-center"
+                          >
+                            <Pencil size={14} />
+                          </button>
                         )}
                       </div>
                     </div>
@@ -884,6 +1119,73 @@ export function DepartmentInventoryPage() {
         </div>
       </PageFrame>
 
+      {bulkInventoryModal && (
+        <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-md h-auto rounded-t-[32px] sm:rounded-[32px] shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <h3 className="text-sm font-pmedium text-slate-900 flex items-center gap-2"><UploadCloud size={16} /> Bulk Upload Inventory</h3>
+              <button onClick={closeBulkInventoryModal}
+                className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all"><X size={16} /></button>
+            </div>
+            <div className="p-5 space-y-4 overflow-y-auto">
+              {!bulkInventoryFileName ? (
+                <>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={handleBulkInventoryDownloadTemplate}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 hover:border-[#2563EB] hover:text-[#2563EB] transition-all">
+                      <FileSpreadsheet size={13} /> Download Template
+                    </button>
+                  </div>
+                  <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
+                    <Info size={13} className="text-blue-500 mt-0.5 shrink-0" />
+                    <p className="text-[10px] font-pmedium text-blue-700 leading-relaxed">Fill in Item Name, Category, Quantity, Unit and Price per Unit per row. Every row is added to {deptLabel} automatically. Total Value is calculated automatically.</p>
+                  </div>
+                  <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:border-[#2563EB] transition-colors cursor-pointer" onClick={() => bulkInventoryFileInputRef.current?.click()}>
+                    <UploadCloud size={28} className="mx-auto text-slate-300 mb-3" />
+                    <p className="text-[12px] font-pmedium text-slate-600 mb-1">Click to upload spreadsheet</p>
+                    <p className="text-[10px] text-slate-400">Supports .xlsx, .xls, .csv — use the template above for the required columns.</p>
+                  </div>
+                  <input ref={bulkInventoryFileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleBulkInventoryFileChange} />
+                </>
+              ) : bulkInventorySummary ? (
+                <div className="space-y-3">
+                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100">
+                    <p className="text-[12px] font-pmedium text-emerald-800">Import Complete</p>
+                    <p className="text-[11px] text-emerald-600 mt-1">{bulkInventorySummary.created} item(s) created, {bulkInventorySummary.skipped} skipped</p>
+                  </div>
+                  {bulkInventorySummary.issues.length > 0 && (
+                    <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 max-h-40 overflow-y-auto space-y-1">
+                      {bulkInventorySummary.issues.map((issue, i) => (
+                        <p key={i} className="text-[10px] font-pmedium text-amber-700">{issue}</p>
+                      ))}
+                    </div>
+                  )}
+                  <button onClick={closeBulkInventoryModal}
+                    className="w-full py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-[#2563EB]/90 transition-all">Done</button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                    <span className="text-[12px] font-pmedium text-slate-700 truncate">{bulkInventoryFileName}</span>
+                    <span className="text-[10px] font-pmedium text-slate-400 shrink-0">{bulkInventoryRows.length} rows</span>
+                  </div>
+                  {bulkInventoryError && <p className="text-[11px] font-pmedium text-red-500">{bulkInventoryError}</p>}
+                  <div className="flex gap-2">
+                    <button onClick={() => { setBulkInventoryFileName(''); setBulkInventoryRows([]); setBulkInventoryError(''); }}
+                      className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">Change File</button>
+                    <button onClick={handleBulkInventoryImport} disabled={bulkInventoryImporting || bulkInventoryRows.length === 0}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-[#2563EB]/90 disabled:opacity-50 transition-all">
+                      {bulkInventoryImporting ? <Loader2 size={13} className="animate-spin" /> : <UploadCloud size={13} />}
+                      {bulkInventoryImporting ? 'Importing...' : `Import ${bulkInventoryRows.length} Rows`}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODALS */}
       <AnimatePresence>
         {/* Add New Item Modal */}
@@ -894,14 +1196,14 @@ export function DepartmentInventoryPage() {
               <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
-                    <Plus size={18} />
+                    {editingItem ? <Pencil size={18} /> : <Plus size={18} />}
                   </div>
                   <div>
-                    <h3 className="text-[15px] font-pmedium text-slate-900">Add New Item</h3>
-                    <p className="text-[12px] text-slate-500">Register new inventory for {deptLabel}.</p>
+                    <h3 className="text-[15px] font-pmedium text-slate-900">{editingItem ? 'Edit Item' : 'Add New Item'}</h3>
+                    <p className="text-[12px] text-slate-500">{editingItem ? `Update details for ${editingItem.name}.` : `Register new inventory for ${deptLabel}.`}</p>
                   </div>
                 </div>
-                <button onClick={() => setIsAddModalOpen(false)} className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"><X size={18} /></button>
+                <button onClick={() => { setIsAddModalOpen(false); setEditingItem(null); }} className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"><X size={18} /></button>
               </div>
 
               <form onSubmit={(e) => { e.preventDefault(); handleAddItem(); }} className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
@@ -943,6 +1245,32 @@ export function DepartmentInventoryPage() {
                         value={newItem.quantity}
                         onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
                       />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Unit</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. pcs, box, kg"
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                        value={newItem.unit}
+                        onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price per Unit ({workspacePreferences.currency})</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="e.g. 35"
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                        value={newItem.unitPrice}
+                        onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Total Value ({workspacePreferences.currency})</label>
+                      <input type="text" readOnly value={formatCurrency(totalValuePreview)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-500 outline-none cursor-not-allowed" />
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Floor</label>
@@ -1012,7 +1340,7 @@ export function DepartmentInventoryPage() {
                 </div>
 
                 <div className="pt-4 sm:pt-6 flex gap-3 border-t border-slate-200/60 flex-col-reverse sm:flex-row sm:justify-center">
-                  <button type="button" onClick={() => setIsAddModalOpen(false)} className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase">CANCEL</button>
+                  <button type="button" onClick={() => { setIsAddModalOpen(false); setEditingItem(null); }} className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase">CANCEL</button>
                   <button
                     type="submit"
                     disabled={!newItem.name || !newItem.quantity || isSaving}
@@ -1212,8 +1540,8 @@ export function DepartmentInventoryPage() {
             >
               <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0" />
               <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-start shrink-0">
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-pmedium text-[#0F172A] leading-tight pr-8">{viewingItem.name}</h2>
+                <div className="min-w-0 flex-1 pr-16 sm:pr-20 md:pr-24">
+                  <h2 className="text-base sm:text-lg font-pmedium text-[#0F172A] leading-tight break-words">{viewingItem.name}</h2>
                   <div className="flex items-center gap-2 mt-2 flex-wrap">
                     <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest bg-slate-50 border border-slate-200 px-2.5 py-1 rounded shadow-sm">
                       Dept: {viewingItem.department}
@@ -1230,15 +1558,44 @@ export function DepartmentInventoryPage() {
                     )}
                   </div>
                 </div>
+                <div className="absolute top-5 sm:top-6 md:top-8 right-14 sm:right-16 md:right-20 flex gap-2">
+                  {roleBand !== 'employee' && (
+                    <button
+                      onClick={() => { setViewingItem(null); openEditItem(viewingItem); }}
+                      className="w-10 h-10 bg-white hover:bg-amber-50 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-amber-600 shadow-sm transition-all"
+                      title="Edit"
+                    >
+                      <Pencil size={16} strokeWidth={2.5} />
+                    </button>
+                  )}
+                </div>
                 <button onClick={() => setViewingItem(null)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 shadow-sm transition-all absolute top-5 sm:top-6 md:top-8 right-5 sm:right-6 md:right-8">
                   <X size={18} strokeWidth={2.5} />
                 </button>
               </div>
 
               <div className="p-5 sm:p-6 md:p-8 overflow-y-auto flex-1 space-y-6 [&::-webkit-scrollbar]:hidden bg-slate-50/30 min-h-[200px]">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-white rounded-xl border border-slate-100 p-3">
+                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Category</p>
+                    <p className="text-[12px] font-pmedium text-[#0F172A] mt-1 truncate">{viewingItem.category || '--'}</p>
+                  </div>
+                  <div className="bg-white rounded-xl border border-slate-100 p-3">
+                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Status</p>
+                    <p className="text-[12px] font-pmedium text-[#0F172A] mt-1 capitalize">{viewingItem.status || 'active'}</p>
+                  </div>
+                  <div className="bg-white rounded-xl border border-slate-100 p-3">
+                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Added By</p>
+                    <p className="text-[12px] font-pmedium text-[#0F172A] mt-1 capitalize truncate">{viewingItem.addedByRole || '--'}</p>
+                  </div>
+                  <div className="bg-white rounded-xl border border-slate-100 p-3">
+                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Created</p>
+                    <p className="text-[12px] font-pmedium text-[#0F172A] mt-1">{formatDate(viewingItem.createdAt)}</p>
+                  </div>
+                </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-white rounded-xl border border-slate-100 p-3 text-center">
-                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Total</p>
+                    <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Total{viewingItem.unit ? ` (${viewingItem.unit})` : ''}</p>
                     <p className="text-lg font-black text-[#0F172A] mt-1">{viewingItem.totalQuantity}</p>
                   </div>
                   <div className="bg-white rounded-xl border border-slate-100 p-3 text-center">
@@ -1250,6 +1607,51 @@ export function DepartmentInventoryPage() {
                     <p className="text-lg font-black text-[#0F172A] mt-1">{viewingItem.allocatedQuantity}</p>
                   </div>
                 </div>
+                {(viewingItem.unitPrice || viewingItem.totalValue) ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-white rounded-xl border border-slate-100 p-3 text-center">
+                      <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Price per Unit</p>
+                      <p className="text-[13px] font-pmedium text-[#0F172A] mt-1">{formatCurrency(viewingItem.unitPrice || 0)}</p>
+                    </div>
+                    <div className="bg-white rounded-xl border border-slate-100 p-3 text-center">
+                      <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Total Value</p>
+                      <p className="text-[13px] font-pmedium text-[#0F172A] mt-1">{formatCurrency(viewingItem.totalValue || 0)}</p>
+                    </div>
+                  </div>
+                ) : null}
+
+                <h3 className="text-[11px] font-black text-[#2563EB] uppercase tracking-widest flex items-center gap-2 pb-3 border-b border-slate-100">
+                  <TrendingUp size={15} /> Monthly Stock Balance
+                </h3>
+                {(() => {
+                  const monthlyRows = computeMonthlyBalances(viewingItem);
+                  return monthlyRows.length > 0 ? (
+                    <div className="rounded-2xl border border-slate-100 overflow-hidden bg-white">
+                      <div className="grid grid-cols-4 px-4 py-2.5 bg-slate-50/70 text-[9px] font-pmedium text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                        <span>Month</span>
+                        <span className="text-center">Opening</span>
+                        <span className="text-center">Closing</span>
+                        <span className="text-right">Net Change</span>
+                      </div>
+                      <div className="max-h-48 overflow-y-auto [&::-webkit-scrollbar]:hidden divide-y divide-slate-50">
+                        {monthlyRows.map((row) => (
+                          <div key={row.monthKey} className="grid grid-cols-4 px-4 py-2.5 items-center">
+                            <span className="text-[12px] font-pmedium text-[#0F172A]">{row.monthLabel}</span>
+                            <span className="text-[12px] font-pmedium text-slate-500 text-center">{row.opening}{viewingItem.unit ? ` ${viewingItem.unit}` : ''}</span>
+                            <span className="text-[12px] font-pmedium text-[#0F172A] text-center">{row.closing}{viewingItem.unit ? ` ${viewingItem.unit}` : ''}</span>
+                            <span className={`text-[12px] font-pmedium text-right ${row.netChange > 0 ? 'text-emerald-600' : row.netChange < 0 ? 'text-red-500' : 'text-slate-400'}`}>
+                              {row.netChange > 0 ? '+' : ''}{row.netChange}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-6 border-2 border-dashed border-slate-200 rounded-2xl text-center bg-slate-50/50">
+                      <p className="text-[12px] text-slate-500 font-pmedium">No monthly movement recorded yet.</p>
+                    </div>
+                  );
+                })()}
 
                 <h3 className="text-[11px] font-black text-[#2563EB] uppercase tracking-widest flex items-center gap-2 pb-3 border-b border-slate-100">
                   <History size={15} /> Ledger Audit Trail
@@ -1263,10 +1665,12 @@ export function DepartmentInventoryPage() {
                         <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 uppercase tracking-wider mt-1.5 flex items-center w-max">
                           {entry.action}
                         </span>
+                        {entry.source ? <p className="text-[9px] text-slate-400 mt-1">Source: {entry.source}</p> : null}
                       </div>
                       <div className="text-right">
                         <span className="font-black text-lg text-[#0F172A]">{entry.qty}</span>
                         <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest block mt-0.5">Units</span>
+                        {entry.unitPrice ? <span className="text-[9px] text-slate-400 block mt-0.5">@ {formatCurrency(entry.unitPrice)}</span> : null}
                       </div>
                     </div>
                   )) : (
@@ -1281,112 +1685,6 @@ export function DepartmentInventoryPage() {
               </div>
             </motion.div>
           </motion.div>
-        )}
-
-        {/* Return Modal */}
-        {isReturnModalOpen && activeReturnItem && (
-          <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-md h-[75vh] sm:h-auto sm:max-h-[90vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300">
-              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0" />
-              <div className="p-4 sm:p-6 border-b border-slate-200/60 flex justify-between items-center shrink-0">
-                <h2 className="text-[14px] sm:text-[16px] font-pmedium text-[#0F172A] flex items-center gap-2.5">
-                  <span className="p-1.5 rounded-lg bg-amber-100 text-amber-700"><RotateCcw size={16} /></span>
-                  RETURN ITEM
-                </h2>
-                <button onClick={() => { setIsReturnModalOpen(false); setActiveReturnItem(null); }} className="w-10 h-10 bg-white hover:bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 shadow-sm transition-all"><X size={18} strokeWidth={2.5} /></button>
-              </div>
-              <div className="p-3 sm:p-4 space-y-4 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
-                  <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
-                    <span className="p-1.5 rounded-lg bg-amber-100 text-amber-700 shrink-0"><Package size={16} /></span>
-                    <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Item</span>
-                  </h4>
-                  <div className="flex items-center gap-3 bg-amber-50/60 p-3 rounded-xl border border-amber-100">
-                    <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center"><Package size={14} /></div>
-                    <div>
-                      <p className="text-[13px] font-pmedium text-[#0F172A]">{activeReturnItem.name}</p>
-                      <span className="text-[10px] font-pmedium text-amber-700">Allocated: {activeReturnItem.totalQuantity - activeReturnItem.availableQuantity}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
-                  <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
-                    <span className="p-1.5 rounded-lg bg-amber-100 text-amber-700 shrink-0"><RotateCcw size={16} /></span>
-                    <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Return Details</span>
-                  </h4>
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Quantity *</label>
-                      <input type="number" min={1} max={activeReturnItem.totalQuantity - activeReturnItem.availableQuantity} value={returnData.quantity} onChange={(e) => setReturnData({ ...returnData, quantity: e.target.value })} placeholder="How many units?" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Returned By</label>
-                      <input type="text" value={returnData.returnedBy} onChange={(e) => setReturnData({ ...returnData, returnedBy: e.target.value })} placeholder="Employee name or ID" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Reason</label>
-                      <textarea rows={2} value={returnData.reason} onChange={(e) => setReturnData({ ...returnData, reason: e.target.value })} placeholder="Optional reason..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-600 outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none transition-all placeholder:text-slate-400" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="pt-4 sm:pt-6 p-4 sm:p-6 border-t border-slate-200/60 bg-white shrink-0 flex gap-3 flex-col-reverse sm:flex-row sm:justify-center">
-                <button onClick={() => { setIsReturnModalOpen(false); setActiveReturnItem(null); }} className="w-full sm:w-auto px-6 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase">CANCEL</button>
-                <button onClick={handleReturn} disabled={isSaving || !returnData.quantity} className="w-full sm:w-auto px-6 py-2.5 bg-amber-600 text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-amber-700 active:scale-95 transition-all uppercase disabled:cursor-not-allowed disabled:opacity-70">{isSaving ? 'RETURNING...' : 'CONFIRM RETURN'}</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Maintenance Modal */}
-        {isMaintenanceModalOpen && activeMaintenanceItem && (
-          <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-md h-[75vh] sm:h-auto sm:max-h-[90vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300">
-              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0" />
-              <div className="p-4 sm:p-6 border-b border-slate-200/60 flex justify-between items-center shrink-0">
-                <h2 className="text-[14px] sm:text-[16px] font-pmedium text-[#0F172A] flex items-center gap-2.5">
-                  <span className="p-1.5 rounded-lg bg-orange-100 text-orange-700"><Wrench size={16} /></span>
-                  MAINTENANCE
-                </h2>
-                <button onClick={() => { setIsMaintenanceModalOpen(false); setActiveMaintenanceItem(null); }} className="w-10 h-10 bg-white hover:bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 shadow-sm transition-all"><X size={18} strokeWidth={2.5} /></button>
-              </div>
-              <div className="p-3 sm:p-4 space-y-4 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
-                  <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
-                    <span className="p-1.5 rounded-lg bg-orange-100 text-orange-700 shrink-0"><Package size={16} /></span>
-                    <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Item</span>
-                  </h4>
-                  <div className="flex items-center gap-3 bg-orange-50/60 p-3 rounded-xl border border-orange-100">
-                    <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center"><Package size={14} /></div>
-                    <div>
-                      <p className="text-[13px] font-pmedium text-[#0F172A]">{activeMaintenanceItem.name}</p>
-                      <span className="text-[10px] font-pmedium text-orange-700">{activeMaintenanceItem.department}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
-                  <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
-                    <span className="p-1.5 rounded-lg bg-orange-100 text-orange-700 shrink-0"><Wrench size={16} /></span>
-                    <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Maintenance Details</span>
-                  </h4>
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Reason *</label>
-                      <input type="text" value={maintenanceData.reason} onChange={(e) => setMaintenanceData({ ...maintenanceData, reason: e.target.value })} placeholder="e.g. Screen cracked, hardware failure" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Expected Return Date</label>
-                      <input type="date" value={maintenanceData.expectedDate} onChange={(e) => setMaintenanceData({ ...maintenanceData, expectedDate: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="pt-4 sm:pt-6 p-4 sm:p-6 border-t border-slate-200/60 bg-white shrink-0 flex gap-3 flex-col-reverse sm:flex-row sm:justify-center">
-                <button onClick={() => { setIsMaintenanceModalOpen(false); setActiveMaintenanceItem(null); }} className="w-full sm:w-auto px-6 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase">CANCEL</button>
-                <button onClick={handleMaintenance} disabled={isSaving || !maintenanceData.reason} className="w-full sm:w-auto px-6 py-2.5 bg-orange-600 text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-orange-700 active:scale-95 transition-all uppercase disabled:cursor-not-allowed disabled:opacity-70">{isSaving ? 'UPDATING...' : 'MARK MAINTENANCE'}</button>
-              </div>
-            </div>
-          </div>
         )}
 
       </AnimatePresence>
