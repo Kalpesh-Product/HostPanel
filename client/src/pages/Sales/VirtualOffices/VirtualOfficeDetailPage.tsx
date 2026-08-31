@@ -2,13 +2,14 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Building2, Mail, Phone, Wallet, ShieldCheck, CalendarDays,
-  Users, LayoutGrid, CreditCard, X, Loader2, CheckCircle2, AlertTriangle,
+  Users, LayoutGrid, CreditCard, AlertTriangle,
   Percent, MapPin, Package, Receipt, FileText, Pencil, RefreshCw,
+  TrendingUp, Landmark,
 } from "lucide-react";
+import { Country, State } from "country-state-city";
 import { toast } from "sonner";
 import {
   getVirtualOffice,
-  recordVirtualOfficeRentPayment,
   deleteVirtualOffice,
 } from "../../../services/virtual-offices";
 import useWorkspacePreferences from "../../../hooks/useWorkspacePreferences";
@@ -63,17 +64,6 @@ function getInitials(value) {
     .join("") || "VO";
 }
 
-function Field({ label, children }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[10px] font-pmedium uppercase tracking-widest text-slate-500">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-const inputClass =
-  "w-full px-3.5 py-2.5 bg-white border border-slate-200/60 rounded-xl text-[13px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400";
 
 export default function VirtualOfficeDetailPage() {
   const { id } = useParams();
@@ -81,27 +71,14 @@ export default function VirtualOfficeDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [record, setRecord] = useState(null);
   const [activeTab, setActiveTab] = useState("profile");
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRenewModal, setShowRenewModal] = useState(false);
-  const [saving, setSaving] = useState(false);
   const workspacePreferences = useWorkspacePreferences();
   const currency = workspacePreferences.currency;
   const fmt = useCallback(
     (v) => formatWorkspaceCurrency(Math.round(Number(v || 0)), currency, { maximumFractionDigits: 0 }),
     [currency],
   );
-
-  const [payment, setPayment] = useState({
-    monthLabel: "",
-    periodStart: "",
-    periodEnd: "",
-    amount: "",
-    transactionId: "",
-    paymentMethod: "",
-    status: "Paid",
-    notes: "",
-  });
 
   const loadRecord = useCallback(async () => {
     try {
@@ -117,38 +94,6 @@ export default function VirtualOfficeDetailPage() {
   useEffect(() => {
     loadRecord();
   }, [loadRecord]);
-
-  const openPaymentModal = () => {
-    setPayment({ ...payment, amount: record?.monthlyRent || "", monthLabel: new Date().toLocaleDateString("en-IN", { month: "long", year: "numeric" }) });
-    setShowPaymentModal(true);
-  };
-
-  const handleRecordPayment = async () => {
-    if (!Number(payment.amount)) {
-      toast.error("Enter the payment amount.");
-      return;
-    }
-    setSaving(true);
-    try {
-      await recordVirtualOfficeRentPayment(record._id || record.recordId, {
-        monthLabel: payment.monthLabel,
-        periodStart: payment.periodStart || null,
-        periodEnd: payment.periodEnd || null,
-        amount: Number(payment.amount),
-        transactionId: payment.transactionId,
-        paymentMethod: payment.paymentMethod,
-        status: payment.status,
-        notes: payment.notes,
-      });
-      toast.success("Rent payment recorded.");
-      setShowPaymentModal(false);
-      await loadRecord();
-    } catch (error) {
-      toast.error(error.message || "Failed to record payment.");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleDelete = async () => {
     if (!window.confirm("Delete this virtual office record? This cannot be undone.")) return;
@@ -189,18 +134,26 @@ export default function VirtualOfficeDetailPage() {
   const st = getMeta(record.status, RECORD_STATUS);
   const rt = getMeta(record.rentStatus, RENT_STATUS);
   const companyName = record.clientName || record.brandName;
+  const countryName = record.country ? Country.getCountryByCode(record.country)?.name : "";
+  const stateName = record.country && record.state ? State.getStateByCodeAndCountry(record.state, record.country)?.name : "";
+
+  const monthlyRentValue = Number(record.monthlyRent || 0);
+  const annualIncrementPercent = Number(record.annualIncrement || 0);
+  const nextYearIncrementAmount = Math.round(monthlyRentValue * (annualIncrementPercent / 100));
+  const nextYearMonthlyRent = monthlyRentValue + nextYearIncrementAmount;
 
   const statCards = [
     { key: "rent", label: "Monthly Rent", value: fmt(record.monthlyRent), icon: Wallet, cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md", iconClass: "bg-blue-50 text-blue-600" },
     { key: "advance", label: "Advance", value: fmt(record.advanceAmount), icon: CreditCard, cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-violet-500", iconClass: "bg-violet-50 text-violet-600" },
-    { key: "deposit", label: "Security Deposit", value: fmt(record.securityDeposit), icon: ShieldCheck, cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500", iconClass: "bg-emerald-50 text-emerald-600" },
-    { key: "initial", label: "Initial Amount", value: fmt(record.initialAmount), icon: CheckCircle2, cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500", iconClass: "bg-amber-50 text-amber-600" },
+    { key: "deposit", label: `Security Deposit (${record.securityDepositPercent ?? 0}%)`, value: fmt(record.securityDeposit), icon: ShieldCheck, cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500", iconClass: "bg-emerald-50 text-emerald-600" },
+    { key: "totalContract", label: "Total Contract Amount", value: fmt(record.totalContract), icon: Landmark, cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500", iconClass: "bg-amber-50 text-amber-600" },
   ];
 
   const tabs = [
     { id: "profile", label: "Company Profile", icon: Building2 },
-    { id: "plan", label: "Rental Plan & Calculations", icon: LayoutGrid },
-    { id: "payments", label: "Rent Payments", icon: Receipt },
+    { id: "plan", label: "Rental Plan & Revenue", icon: LayoutGrid },
+    { id: "payments", label: "Rent Payments History", icon: Receipt },
+    { id: "space-allocation", label: "Space Allocation", icon: MapPin },
   ];
 
   return (
@@ -234,9 +187,6 @@ export default function VirtualOfficeDetailPage() {
                     <RefreshCw size={13} /> Renew Contract
                   </button>
                 )}
-                <button onClick={openPaymentModal} type="button" className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-white shadow-sm transition hover:bg-blue-700">
-                  <CreditCard size={13} /> Record Payment
-                </button>
                 {/* Delete hidden for now — re-enable by uncommenting when needed.
                 <button onClick={handleDelete} type="button" className="rounded-xl border border-rose-200 px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-rose-600 transition hover:bg-rose-50">
                   Delete
@@ -285,6 +235,9 @@ export default function VirtualOfficeDetailPage() {
                       <Info label="Sector" value={record.sector} icon={Package} />
                       <Info label="Email" value={record.email || "--"} icon={Mail} />
                       <Info label="Phone" value={record.phone || "--"} icon={Phone} />
+                      <Info label="Country" value={countryName || "--"} icon={MapPin} />
+                      <Info label="State" value={stateName || "--"} icon={MapPin} />
+                      <Info label="City" value={record.city || "--"} icon={MapPin} />
                       <div className="sm:col-span-2">
                         <Info label="Service / Package" value={record.serviceName || "Virtual Office"} icon={Package} />
                       </div>
@@ -316,24 +269,48 @@ export default function VirtualOfficeDetailPage() {
             )}
 
             {activeTab === "plan" && (
-              <div className="bg-white rounded-[2rem] border border-slate-100 p-5 shadow-sm">
-                <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><LayoutGrid size={14} /> Desk &amp; Rental Breakdown</h3>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <Calc label="Open Desks" value={`${record.openDesks || 0} × ${fmt(record.openDeskRate)}/day`} sub={`= ${fmt(record.openTotal)}`} />
-                  <Calc label="Cabin Desks" value={`${record.cabinDesks || 0} × ${fmt(record.cabinDeskRate)}/day`} sub={`= ${fmt(record.cabinTotal)}`} />
-                  <Calc label="Total Desks" value={record.totalDesks} />
-                  <Calc label="Meeting Credits" value={record.totalMeetingCredits} sub={`${record.perDeskMeetingCredits}/desk`} />
-                  <Calc label="Annual Increment" value={`${record.annualIncrement || 0}%`} icon={Percent} />
-                  <Calc label="Term" value={`${record.totalTerm || 0} months`} />
-                  <Calc label="Rent Start Date" value={formatDate(record.rentDate)} icon={CalendarDays} />
-                  <Calc label="Next Increment" value={formatDate(record.nextIncrementDate)} icon={CalendarDays} />
-                  <Calc label="Term End" value={formatDate(record.termEnd)} icon={CalendarDays} />
-                  <Calc label="Past Due" value={formatDate(record.pastDueDate)} icon={AlertTriangle} />
-                  <div className="sm:col-span-2 lg:col-span-2">
-                    <div className="flex h-full flex-col justify-center rounded-2xl border border-slate-100 p-4">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Current Rent Status</span>
-                        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest ${rt.className}`}>{rt.label}</span>
+              <div className="space-y-4">
+                <div className="bg-white rounded-[2rem] border border-slate-100 p-5 shadow-sm">
+                  <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><LayoutGrid size={14} /> Desk &amp; Rental Breakdown</h3>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <Calc label="Open Desks" value={`${record.openDesks || 0} × ${fmt(record.openDeskMonthlyRate)}/month`} sub={`= ${fmt(record.monthlyRent)}`} />
+                    <Calc label="Total Desks" value={record.totalDesks} />
+                    <Calc label="Meeting Credits" value={record.totalMeetingCredits} sub={`${record.perDeskMeetingCredits}/desk`} />
+                    <Calc label="Term" value={`${record.totalTerm || 0} months`} />
+                    <Calc label="Term Start Date" value={formatDate(record.termStart)} icon={CalendarDays} />
+                    <Calc label="Term End" value={formatDate(record.termEnd)} icon={CalendarDays} />
+                    <Calc label="Rent Due Date" value={formatDate(record.rentDate)} icon={CalendarDays} />
+                    <Calc label="Lock-in Period" value={record.lockInMonths ? `${record.lockInMonths} months` : "None"} sub={record.lockInEnd ? `Ends ${formatDate(record.lockInEnd)}` : undefined} icon={ShieldCheck} />
+                    <Calc label="Past Due" value={formatDate(record.pastDueDate)} icon={AlertTriangle} />
+                    <div className="sm:col-span-2 lg:col-span-4">
+                      <div className="flex h-full flex-col justify-center rounded-2xl border border-slate-100 p-4">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Current Rent Status</span>
+                          <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest ${rt.className}`}>{rt.label}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-[2rem] border border-slate-100 p-5 shadow-sm">
+                  <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><TrendingUp size={14} /> Revenue &amp; Contract Value</h3>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <Calc label="Total Contract Amount" value={fmt(record.totalContract)} icon={Landmark} />
+                    <Calc label="Security Deposit" value={fmt(record.securityDeposit)} sub={`${record.securityDepositPercent ?? 0}% of contract`} icon={ShieldCheck} />
+                    <Calc label="Annual Increment" value={`${record.annualIncrement || 0}%`} icon={Percent} />
+                    <Calc label="Next Increment Date" value={formatDate(record.nextIncrementDate)} icon={CalendarDays} />
+                    <div className="sm:col-span-2 lg:col-span-4">
+                      <div className="flex items-center justify-between gap-3 flex-wrap rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
+                        <div>
+                          <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-600">Next Year Rent Projection</p>
+                          <p className="mt-1 text-sm font-pmedium text-slate-900">
+                            {annualIncrementPercent > 0
+                              ? `${fmt(monthlyRentValue)} + ${fmt(nextYearIncrementAmount)} (${annualIncrementPercent}%) = ${fmt(nextYearMonthlyRent)} / month`
+                              : "No annual increment set — monthly rent stays the same next year."}
+                          </p>
+                        </div>
+                        <TrendingUp className="h-7 w-7 text-emerald-500 shrink-0" />
                       </div>
                     </div>
                   </div>
@@ -345,12 +322,10 @@ export default function VirtualOfficeDetailPage() {
               <div className="bg-white rounded-[2rem] border border-slate-100 p-5 shadow-sm">
                 <div className="mb-4 flex items-center justify-between">
                   <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 flex items-center gap-2"><Receipt size={14} /> Rent Payments</h3>
-                  <button onClick={openPaymentModal} type="button" className="rounded-lg bg-blue-50 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-blue-600 transition hover:bg-blue-100">
-                    + Add Payment
-                  </button>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Recorded from Rent Collections &amp; Payments</p>
                 </div>
                 {Array.isArray(record.paymentRecords) && record.paymentRecords.length === 0 ? (
-                  <p className="py-10 text-center text-xs font-pmedium text-slate-400">No rent payments recorded yet.</p>
+                  <p className="py-10 text-center text-xs font-pmedium text-slate-400">No rent payments recorded yet. Record one from the Rent Collections &amp; Payments tab.</p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[760px] text-left">
@@ -386,64 +361,104 @@ export default function VirtualOfficeDetailPage() {
                 )}
               </div>
             )}
+
+            {activeTab === "space-allocation" && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                  <div className="flex flex-col items-center justify-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
+                    <MapPin className="mb-1 text-amber-500" size={22} />
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mt-1">Area</p>
+                    <p className="text-xs font-pmedium text-slate-900 mt-0.5">{record.space?.floor || "Unassigned"}</p>
+                  </div>
+                  <div className="flex flex-col items-center justify-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
+                    <LayoutGrid className="mb-1 text-blue-500" size={22} />
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mt-1">Open Desks</p>
+                    <p className="text-2xl font-black text-slate-900 mt-0.5">{record.spaceAssigned?.openDesks || 0}</p>
+                  </div>
+                  <div className="flex flex-col items-center justify-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
+                    <Building2 className="mb-1 text-purple-500" size={22} />
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mt-1">Cabin Desks</p>
+                    <p className="text-2xl font-black text-slate-900 mt-0.5">{record.spaceAssigned?.cabinDesks || 0}</p>
+                  </div>
+                  <div className="flex flex-col items-center justify-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
+                    <Users className="mb-1 text-sky-500" size={22} />
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mt-1">Total Seats</p>
+                    <p className="text-2xl font-black text-slate-900 mt-0.5">{record.spaceAssigned?.totalSeats || 0}</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="p-4 border-b border-slate-100/60 bg-slate-50/50">
+                      <p className="text-[10px] font-pmedium uppercase tracking-wider text-slate-900">Assigned Space Breakdown</p>
+                    </div>
+                    <div className="p-4 space-y-4">
+                      <div>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Assigned Floor</p>
+                        <p className="text-sm font-pmedium text-slate-900 mt-1">{record.space?.floor || "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Assigned Desks</p>
+                        {Array.isArray(record.assignedResources) && record.assignedResources.length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {record.assignedResources.map((r) => (
+                              <span
+                                key={r.recordId}
+                                className={`inline-flex rounded-full border px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest ${
+                                  r.type === "Cabin Desk" ? "border-violet-200 bg-violet-50 text-violet-700" : "border-blue-200 bg-blue-50 text-blue-700"
+                                }`}
+                              >
+                                {r.resourceCode || r.name}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm font-pmedium text-slate-300 mt-0.5">N/A</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="p-4 border-b border-slate-100/60 bg-slate-50/50">
+                      <p className="text-[10px] font-pmedium uppercase tracking-wider text-slate-900">Location Labels</p>
+                    </div>
+                    <div className="p-4">
+                      <div className="flex flex-wrap gap-1.5">
+                        {Array.isArray(record.spaceAssigned?.locationLabels) && record.spaceAssigned.locationLabels.length > 0 ? (
+                          record.spaceAssigned.locationLabels.map((l, i) => (
+                            <span key={i} className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-600">{l}</span>
+                          ))
+                        ) : (
+                          <span className="text-xs font-pmedium text-slate-400">No assigned location labels.</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {Array.isArray(record.space?.seats) && record.space.seats.length > 0 && (
+                  <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="p-4 border-b border-slate-100/60 bg-slate-50/50">
+                      <p className="text-[10px] font-pmedium uppercase tracking-wider text-slate-900">Assigned Seats by Area</p>
+                    </div>
+                    <div className="p-4">
+                      <div className="rounded-xl border border-orange-100 bg-orange-50/50 p-3">
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-orange-600">{record.space?.floor || "Area"}</p>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {record.space.seats.map((s, i) => (
+                            <span key={i} className="rounded-lg border border-orange-200 bg-white px-2.5 py-1 text-[10px] font-pmedium text-orange-800 shadow-sm">{s}</span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </PageFrame>
       </div>
-
-      {showPaymentModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#0F172A]/40 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-[2rem] bg-white shadow-2xl border border-white/70">
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-              <h2 className="text-base font-pmedium text-slate-800">Record Rent Payment</h2>
-              <button onClick={() => setShowPaymentModal(false)} type="button" className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="space-y-4 px-6 py-5">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Month Label">
-                  <input className={inputClass} value={payment.monthLabel} onChange={(e) => setPayment({ ...payment, monthLabel: e.target.value })} />
-                </Field>
-                <Field label="Amount">
-                  <input type="number" min="0" className={inputClass} value={payment.amount} onChange={(e) => setPayment({ ...payment, amount: e.target.value })} />
-                </Field>
-                <Field label="Period Start">
-                  <input type="date" className={inputClass} value={payment.periodStart} onChange={(e) => setPayment({ ...payment, periodStart: e.target.value })} />
-                </Field>
-                <Field label="Period End">
-                  <input type="date" className={inputClass} value={payment.periodEnd} onChange={(e) => setPayment({ ...payment, periodEnd: e.target.value })} />
-                </Field>
-                <Field label="Payment Method">
-                  <input className={inputClass} value={payment.paymentMethod} onChange={(e) => setPayment({ ...payment, paymentMethod: e.target.value })} placeholder="e.g. Bank Transfer" />
-                </Field>
-                <Field label="Transaction ID">
-                  <input className={inputClass} value={payment.transactionId} onChange={(e) => setPayment({ ...payment, transactionId: e.target.value })} />
-                </Field>
-                <Field label="Status">
-                  <select className={inputClass} value={payment.status} onChange={(e) => setPayment({ ...payment, status: e.target.value })}>
-                    <option value="Paid">Paid</option>
-                    <option value="Partially Paid">Partially Paid</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Overdue">Overdue</option>
-                  </select>
-                </Field>
-                <Field label="Notes">
-                  <input className={inputClass} value={payment.notes} onChange={(e) => setPayment({ ...payment, notes: e.target.value })} />
-                </Field>
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-6 py-4">
-              <button onClick={() => setShowPaymentModal(false)} disabled={saving} type="button" className="rounded-xl px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-600 transition hover:bg-slate-100">
-                Cancel
-              </button>
-              <button onClick={handleRecordPayment} disabled={saving} type="button" className="flex items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-                {saving ? "Saving..." : "Record Payment"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <VirtualOfficeFormModal
         open={showEditModal}

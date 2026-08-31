@@ -11,6 +11,8 @@ export interface IResource extends Document {
     inventoryMode: string;
     assignedTenantCompanyId?: mongoose.Types.ObjectId | null;
     assignedTenantCompanyName: string;
+    assignedVirtualOfficeId?: mongoose.Types.ObjectId | null;
+    assignedVirtualOfficeName: string;
     assignedDepartmentId: string;
     assignedDepartmentName: string;
     assignedAt: Date | null;
@@ -107,6 +109,19 @@ const resourceSchema = new Schema<IResource>(
             index: true,
         },
         assignedTenantCompanyName: {
+            type: String,
+            trim: true,
+            default: "",
+            maxlength: 160,
+            index: true,
+        },
+        assignedVirtualOfficeId: {
+            type: Schema.Types.ObjectId,
+            ref: "VirtualOffice",
+            default: null,
+            index: true,
+        },
+        assignedVirtualOfficeName: {
             type: String,
             trim: true,
             default: "",

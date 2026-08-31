@@ -17,22 +17,22 @@ const inputClass =
   "w-full px-3.5 py-2.5 bg-white border border-slate-200/60 rounded-xl text-[13px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400";
 
 export default function VirtualOfficeRenewModal({ open, record, onClose, onRenewed }) {
-  const [rentDate, setRentDate] = useState("");
+  const [termStart, setTermStart] = useState("");
   const [totalTerm, setTotalTerm] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const workspacePreferences = useWorkspacePreferences();
   const fmt = (v) => formatWorkspaceCurrency(Math.round(Number(v || 0)), workspacePreferences.currency, { maximumFractionDigits: 0 });
-  const termEndPreview = useMemo(() => computeTermEnd(rentDate, totalTerm), [rentDate, totalTerm]);
+  const termEndPreview = useMemo(() => computeTermEnd(termStart, totalTerm), [termStart, totalTerm]);
 
   useEffect(() => {
     if (!open || !record) return;
-    setRentDate(dayAfter(record.termEnd));
+    setTermStart(dayAfter(record.termEnd));
     setTotalTerm(String(record.totalTerm || ""));
   }, [open, record]);
 
   const handleRenew = async () => {
-    if (!rentDate) {
-      toast.error("Choose the new rent start date.");
+    if (!termStart) {
+      toast.error("Choose the new term start date.");
       return;
     }
     if (!Number(totalTerm) || Number(totalTerm) <= 0) {
@@ -42,7 +42,7 @@ export default function VirtualOfficeRenewModal({ open, record, onClose, onRenew
     setIsSaving(true);
     try {
       const response = await updateVirtualOffice(record._id || record.recordId, {
-        rentDate: new Date(rentDate).toISOString(),
+        termStart: new Date(termStart).toISOString(),
         totalTerm: Number(totalTerm),
         status: "Active",
         rentStatus: "Active",
@@ -70,12 +70,12 @@ export default function VirtualOfficeRenewModal({ open, record, onClose, onRenew
         </div>
         <div className="space-y-4 px-6 py-5">
           <p className="text-xs font-pmedium text-slate-500">
-            Sets a new rent start date and term for {record.clientName || record.brandName}. The current monthly rent
-            of {record.monthlyRent ? fmt(record.monthlyRent) : "the existing amount"} carries over — adjust it separately via Edit if needed.
+            Sets a new term start date and length for {record.clientName || record.brandName}. The recurring rent due
+            date and monthly rent of {record.monthlyRent ? fmt(record.monthlyRent) : "the existing amount"} carry over — adjust them separately via Edit if needed.
           </p>
           <label className="block">
-            <span className="mb-1 block text-[10px] font-pmedium uppercase tracking-widest text-slate-500">New Rent Start Date</span>
-            <input type="date" className={inputClass} value={rentDate} onChange={(e) => setRentDate(e.target.value)} />
+            <span className="mb-1 block text-[10px] font-pmedium uppercase tracking-widest text-slate-500">New Term Start Date</span>
+            <input type="date" className={inputClass} value={termStart} onChange={(e) => setTermStart(e.target.value)} />
           </label>
           <label className="block">
             <span className="mb-1 block text-[10px] font-pmedium uppercase tracking-widest text-slate-500">New Term (months)</span>

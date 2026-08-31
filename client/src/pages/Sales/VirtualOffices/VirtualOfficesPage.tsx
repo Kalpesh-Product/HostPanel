@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Building2, Search, Plus, Eye, Pencil, RefreshCw, ShieldCheck, AlertTriangle,
-  Users, Wallet, Receipt, CheckCircle2, Clock,
+  Users, Wallet, Receipt, CheckCircle2, Clock, CreditCard,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -15,6 +15,8 @@ import PageFrame from "../../../components/Pages/PageFrame";
 import { SalesTenantCompaniesSkeleton } from "../../../components/ui/SalesPageSkeletons";
 import VirtualOfficeFormModal from "./VirtualOfficeFormModal";
 import VirtualOfficeRenewModal from "./VirtualOfficeRenewModal";
+import VirtualOfficePaymentModal from "./VirtualOfficePaymentModal";
+import VirtualOfficeRentDetailsModal from "./VirtualOfficeRentDetailsModal";
 
 const RENT_STATUS_OPTIONS = [
   { value: "Active", label: "Active", className: "border-emerald-200 bg-emerald-50 text-emerald-700" },
@@ -30,13 +32,6 @@ const RECORD_STATUS_OPTIONS = [
   { value: "Expiring Soon", label: "Expiring Soon", className: "border-amber-200 bg-amber-50 text-amber-700" },
   { value: "Expired", label: "Expired", className: "border-rose-200 bg-rose-50 text-rose-700" },
   { value: "Cancelled", label: "Cancelled", className: "border-slate-200 bg-slate-100 text-slate-600" },
-];
-
-const PAYMENT_STATUS_OPTIONS = [
-  { value: "Paid", label: "Paid", className: "border-emerald-200 bg-emerald-50 text-emerald-700" },
-  { value: "Partially Paid", label: "Partially Paid", className: "border-blue-200 bg-blue-50 text-blue-700" },
-  { value: "Pending", label: "Pending", className: "border-amber-200 bg-amber-50 text-amber-700" },
-  { value: "Overdue", label: "Overdue", className: "border-rose-200 bg-rose-50 text-rose-700" },
 ];
 
 function formatDate(value) {
@@ -71,7 +66,10 @@ export default function VirtualOfficesPage() {
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [rentStatusFilter, setRentStatusFilter] = useState("All Rent Status");
   const [collectionSearch, setCollectionSearch] = useState("");
-  const [collectionStatusFilter, setCollectionStatusFilter] = useState("All Payments");
+  const [collectionStatusFilter, setCollectionStatusFilter] = useState("All Rent Status");
+  const [viewingRecord, setViewingRecord] = useState(null);
+  const [payingRecord, setPayingRecord] = useState(null);
+  const [showPaymentPicker, setShowPaymentPicker] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState("create");
   const [editingRecord, setEditingRecord] = useState(null);
@@ -147,17 +145,19 @@ export default function VirtualOfficesPage() {
     );
   }, [records]);
 
-  const filteredPayments = useMemo(() => {
+  // Company-wise view for Rent Collections & Payments: one row per company,
+  // expandable to show that company's month-wise payment history.
+  const filteredCompanies = useMemo(() => {
     const q = collectionSearch.trim().toLowerCase();
-    return paymentLedger.filter((payment) => {
+    return records.filter((record) => {
+      const companyName = record.clientName || record.brandName || "";
       const matchesSearch = !q ||
-        String(payment.companyName || "").toLowerCase().includes(q) ||
-        String(payment.monthLabel || "").toLowerCase().includes(q) ||
-        String(payment.transactionId || "").toLowerCase().includes(q);
-      const matchesStatus = collectionStatusFilter === "All Payments" || payment.status === collectionStatusFilter;
+        companyName.toLowerCase().includes(q) ||
+        String(record.recordCode || "").toLowerCase().includes(q);
+      const matchesStatus = collectionStatusFilter === "All Rent Status" || record.rentStatus === collectionStatusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [paymentLedger, collectionSearch, collectionStatusFilter]);
+  }, [records, collectionSearch, collectionStatusFilter]);
 
   const collectionSummary = useMemo(() => {
     const totalCollected = paymentLedger.reduce((sum, p) => sum + (p.status === "Paid" ? Number(p.amount || 0) : 0), 0);
@@ -406,7 +406,7 @@ export default function VirtualOfficesPage() {
               <React.Fragment>
                 <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 shrink-0 bg-slate-50/50">
                   <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-                    {["All Payments", "Paid", "Partially Paid", "Pending", "Overdue"].map((status) => (
+                    {["All Rent Status", ...RENT_STATUS_OPTIONS.map((o) => o.value)].map((status) => (
                       <button
                         key={status}
                         type="button"
@@ -417,79 +417,93 @@ export default function VirtualOfficesPage() {
                             : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
                         }`}
                       >
-                        {status === "All Payments" ? "All" : status.replace(" Partially Paid", " Partial")}
+                        {status === "All Rent Status" ? "All" : status}
                       </button>
                     ))}
                   </div>
 
-                  <div className="relative w-full xl:w-80">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                    <input
-                      type="text"
-                      placeholder="Search company, month or transaction..."
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
-                      value={collectionSearch}
-                      onChange={(e) => setCollectionSearch(e.target.value)}
-                    />
+                  <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+                    <div className="relative flex-1 min-w-[180px]">
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                      <input
+                        type="text"
+                        placeholder="Search company..."
+                        className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                        value={collectionSearch}
+                        onChange={(e) => setCollectionSearch(e.target.value)}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowPaymentPicker(true)}
+                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
+                    >
+                      <CreditCard size={13} strokeWidth={2.5} /> RECORD PAYMENT
+                    </button>
                   </div>
                 </div>
 
                 <div className="overflow-x-auto flex-1">
-                  <table className="w-full min-w-[900px] text-left">
+                  <table className="w-full min-w-[820px] text-left">
                     <thead className="bg-white text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100">
                       <tr>
-                        <th className="px-3.5 py-2 min-w-[200px]">Company</th>
-                        <th className="px-3.5 py-2">Billing Month</th>
-                        <th className="px-3.5 py-2">Period</th>
-                        <th className="px-3.5 py-2">Amount</th>
-                        <th className="px-3.5 py-2">Method</th>
-                        <th className="px-3.5 py-2">Transaction</th>
-                        <th className="px-3.5 py-2 text-center">Status</th>
+                        <th className="px-3.5 py-2 min-w-[220px]">Company</th>
+                        <th className="px-3.5 py-2">Monthly Rent</th>
+                        <th className="px-3.5 py-2">Payment Records</th>
+                        <th className="px-3.5 py-2">Rent Status</th>
+                        <th className="px-3.5 py-2 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {filteredPayments.map((payment, idx) => {
-                        const meta = getStatusMeta(payment.status, PAYMENT_STATUS_OPTIONS);
+                      {filteredCompanies.map((record) => {
+                        const companyId = record._id || record.recordId;
+                        const companyName = record.clientName || record.brandName;
+                        const rt = rentMeta(record.rentStatus);
+                        const paymentCount = Array.isArray(record.paymentRecords) ? record.paymentRecords.length : 0;
                         return (
-                          <tr key={`${payment.companyId}-${idx}`} className="hover:bg-blue-50/30 transition-all group">
+                          <tr key={companyId} className="hover:bg-blue-50/30 transition-all group">
                             <td className="px-3.5 py-2">
-                              <button
-                                type="button"
-                                onClick={() => navigate(`/department-accesses/sales-department/virtual-offices/${payment.companyId}`)}
-                                className="flex items-center gap-3 text-left"
-                              >
+                              <button type="button" onClick={() => setViewingRecord(record)} className="flex items-center gap-3 text-left">
                                 <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-[11px] font-black shadow-sm shrink-0 border border-slate-200">
-                                  {payment.companyInitials || getInitials(payment.companyName)}
+                                  {record.initials || getInitials(companyName)}
                                 </div>
                                 <div>
-                                  <p className="font-pmedium text-primary text-sm break-words" title={payment.companyName}>{payment.companyName}</p>
-                                  <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mt-0.5">{payment.companyCode}</p>
+                                  <p className="font-pmedium text-primary text-sm break-words" title={companyName}>{companyName}</p>
+                                  <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mt-0.5">{record.recordCode}</p>
                                 </div>
                               </button>
                             </td>
-                            <td className="px-3.5 py-2 font-pmedium text-slate-800 text-xs">{payment.monthLabel || formatDate(payment.periodStart) || "--"}</td>
+                            <td className="px-3.5 py-2 font-pmedium text-slate-800 text-xs">{fmt(record.monthlyRent)}</td>
+                            <td className="px-3.5 py-2 font-pmedium text-slate-600 text-xs">{paymentCount} record{paymentCount === 1 ? "" : "s"}</td>
                             <td className="px-3.5 py-2">
-                              <p className="font-pmedium text-slate-600 text-xs">{formatDate(payment.periodStart)}</p>
-                              <p className="text-[10px] font-pmedium text-slate-400">to {formatDate(payment.periodEnd)}</p>
+                              <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest ${rt.className}`}>{rt.label}</span>
                             </td>
-                            <td className="px-3.5 py-2 font-pmedium text-slate-900 text-sm">{fmt(payment.amount)}</td>
-                            <td className="px-3.5 py-2 font-pmedium text-slate-600 text-xs">{payment.paymentMethod || "--"}</td>
                             <td className="px-3.5 py-2">
-                              <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">{payment.transactionId || "--"}</p>
-                            </td>
-                            <td className="px-3.5 py-2 text-center">
-                              <span className={`inline-flex rounded-full border px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest ${meta.className}`}>{meta.label}</span>
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setViewingRecord(record)}
+                                  className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm"
+                                  title="View rent details"
+                                >
+                                  <Eye size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setPayingRecord(record)}
+                                  className="p-2 bg-white border border-slate-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200 rounded-lg transition-all shadow-sm"
+                                  title="Record payment"
+                                >
+                                  <CreditCard size={14} />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
                       })}
-                      {filteredPayments.length === 0 && (
+                      {filteredCompanies.length === 0 && (
                         <tr>
-                          <td colSpan={7} className="text-center py-20 text-slate-400 font-pmedium bg-slate-50/50">
-                            {paymentLedger.length === 0
-                              ? "No rent payments recorded yet. Record a payment from a company's profile."
-                              : "No payments match the current filters."}
-                          </td>
+                          <td colSpan={5} className="text-center py-20 text-slate-400 font-pmedium bg-slate-50/50">No companies match the current filters.</td>
                         </tr>
                       )}
                     </tbody>
@@ -514,6 +528,23 @@ export default function VirtualOfficesPage() {
         record={renewingRecord}
         onClose={() => setRenewingRecord(null)}
         onRenewed={() => loadRecords()}
+      />
+
+      <VirtualOfficePaymentModal
+        open={Boolean(payingRecord) || showPaymentPicker}
+        record={payingRecord}
+        records={records}
+        onClose={() => {
+          setPayingRecord(null);
+          setShowPaymentPicker(false);
+        }}
+        onRecorded={() => loadRecords()}
+      />
+
+      <VirtualOfficeRentDetailsModal
+        open={Boolean(viewingRecord)}
+        record={viewingRecord}
+        onClose={() => setViewingRecord(null)}
       />
     </>
   );

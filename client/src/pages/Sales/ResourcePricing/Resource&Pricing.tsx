@@ -37,6 +37,7 @@ const ADD_NEW_OPTION = '__add_new__';
 const areaCapacityOptions = {
   open_desk: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
   cabin_desk: [4, 6, 8, 10],
+  virtual_office: [1, 2, 3, 4, 5],
 };
 
 function formatCurrency(value = 0, currency = 'INR') {
@@ -348,7 +349,7 @@ function getResourceCreditValue(resource = {}) {
 
 function getCapacityOptions(category = '', inventoryMode = 'area') {
   if (!isDeskCategory(category)) return [];
-  if (category === 'virtual_office') return [1];
+  if (category === 'virtual_office') return areaCapacityOptions[category] || [1, 2, 3, 4, 5];
   if (category === 'cabin_desk') return areaCapacityOptions[category] || [];
   if (inventoryMode === 'single') return [1];
   return areaCapacityOptions[category] || [];
@@ -1112,7 +1113,7 @@ export default function PricingPackagesPage() {
         location,
         floor: floorValue,
         wing,
-        capacity: resourceCategory === 'virtual_office' ? 1 : capacityValue,
+        capacity: capacityValue,
         pricePerHour: rawPricePerHour,
         pricePerDay: rawPricePerDay,
         credits: Math.max(1, rawCredits || 1),

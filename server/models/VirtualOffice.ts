@@ -45,18 +45,33 @@ const virtualOfficeSchema = new Schema(
     sector: { type: String, default: "", trim: true, maxlength: 120 },
     email: { type: String, default: "", trim: true, lowercase: true, maxlength: 160 },
     phone: { type: String, default: "", trim: true, maxlength: 40 },
+    country: { type: String, default: "", trim: true, maxlength: 120 },
+    state: { type: String, default: "", trim: true, maxlength: 120 },
+    city: { type: String, default: "", trim: true, maxlength: 120 },
 
     // Registered / service product (virtual office package)
     service: { type: Schema.Types.ObjectId, ref: "Service", default: null, index: true },
     serviceName: { type: String, default: "", trim: true, maxlength: 160 },
 
+    // Space allocation — which workspace location/floor/wing this virtual
+    // office's desks sit in, picked from what Resource Management has on
+    // file. Physical desk-by-desk assignment happens separately in Sales
+    // Architecture (Resource.assignedVirtualOfficeId).
+    spaceLocation: { type: String, default: "", trim: true, maxlength: 120 },
+    spaceFloor: { type: String, default: "", trim: true, maxlength: 60 },
+    spaceWing: { type: String, default: "", trim: true, maxlength: 10 },
+
     // Points of contact
     hoPoc: { type: virtualOfficePocSchema, default: () => ({}) },
     localPoc: { type: virtualOfficePocSchema, default: () => ({}) },
 
-    // Rental plan / desk calculations
+    // Rental plan / desk calculations. Monthly rent is desk-driven:
+    // openDesks x openDeskMonthlyRate. openDeskRate (per day), cabinDesks,
+    // cabinDeskRate and cabinTotal are kept only so pre-existing records
+    // retain their historical data — new records no longer populate them.
     openDesks: { type: Number, default: 0, min: 0 },
     openDeskRate: { type: Number, default: 0, min: 0 },
+    openDeskMonthlyRate: { type: Number, default: 0, min: 0 },
     openTotal: { type: Number, default: 0, min: 0 },
     cabinDesks: { type: Number, default: 0, min: 0 },
     cabinDeskRate: { type: Number, default: 0, min: 0 },
@@ -67,15 +82,22 @@ const virtualOfficeSchema = new Schema(
     perDeskMeetingCredits: { type: Number, default: 0, min: 0 },
     totalMeetingCredits: { type: Number, default: 0, min: 0 },
 
-    // Contract / rent terms & calculations
+    // Contract / rent terms & calculations. termStart is when the lease
+    // itself begins (can fall mid-month); rentDate is the separate recurring
+    // day-of-month rent is due each billing cycle — the two are often the
+    // same but aren't required to be.
+    termStart: { type: Date, default: null, index: true },
     rentDate: { type: Date, default: null, index: true },
     rentStatus: { type: String, default: "Active", trim: true, enum: ["Active", "Overdue", "Pending", "Cancelled"], index: true },
     annualIncrement: { type: Number, default: 0, min: 0 },
     totalTerm: { type: Number, default: 0, min: 0 },
     termEnd: { type: Date, default: null, index: true },
     nextIncrementDate: { type: Date, default: null },
+    lockInMonths: { type: Number, default: 0, min: 0 },
+    lockInEnd: { type: Date, default: null },
     pastDueDate: { type: Date, default: null },
     securityDeposit: { type: Number, default: 0, min: 0 },
+    securityDepositPercent: { type: Number, default: 0, min: 0, max: 100 },
     securityDepositPaid: { type: Boolean, default: false },
     advanceMonths: { type: Number, default: 1, min: 0 },
     advanceAmount: { type: Number, default: 0, min: 0 },

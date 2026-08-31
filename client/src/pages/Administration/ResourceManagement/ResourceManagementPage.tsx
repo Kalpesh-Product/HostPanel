@@ -109,6 +109,7 @@ const wingOptions = ['', ''];
 const areaCapacityOptions: Record<string, number[]> = {
   open_desk: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
   cabin_desk: [4, 6, 8, 10],
+  virtual_office: [1, 2, 3, 4, 5],
 };
 
 const BULK_TEMPLATE_HEADERS = [
@@ -300,7 +301,7 @@ function isPerPersonPricingCategory(category = ''): boolean {
 
 function getCapacityOptions(category = '', inventoryMode = 'area'): number[] {
   if (!isDeskCategory(category)) return [];
-  if (category === 'virtual_office') return [1];
+  if (category === 'virtual_office') return areaCapacityOptions[category] || [1, 2, 3, 4, 5];
   if (category === 'cabin_desk') return areaCapacityOptions[category] || [];
   if (inventoryMode === 'single') return [1];
   return areaCapacityOptions[category] || [];
@@ -428,7 +429,7 @@ function buildBulkResourcePayload(row: Record<string, unknown>): { payload: Part
       location,
       floor: floorValue || floorFallbacks[0],
       wing,
-      capacity: resourceCategory === 'virtual_office' ? 1 : capacityValue,
+      capacity: capacityValue,
       description,
       status: normalizeBulkStatus(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.status)),
     },

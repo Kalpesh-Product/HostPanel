@@ -1,6 +1,7 @@
 // @ts-nocheck
 import mongoose from "mongoose";
 import { VirtualOffice } from "../models/VirtualOffice.js";
+import { Resource } from "../models/Resource.js";
 import HostUser from "../models/HostUser.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Workspace from "../models/Workspace.js";
@@ -8,8 +9,6 @@ import Department from "../models/Department.js";
 
 const VIRTUAL_OFFICE_SALES_MODULE = "virtual-office-sales";
 const ADMIN_ROLES = new Set(["owner", "super_admin", "founder"]);
-
-const BILLING_MONTH_DAYS = 30;
 
 function toId(value) {
   return value ? String(value) : "";
@@ -177,43 +176,48 @@ function validateOnboardingInput(input = {}) {
   }
   if (!normalizeText(input.localPoc?.name)) errors.push("Local POC name is required.");
   if (!normalizeText(input.hoPoc?.name)) errors.push("HO POC name is required.");
-  const monthlyRent = Number(input.monthlyRent || 0);
-  if (!Number.isFinite(monthlyRent) || monthlyRent <= 0) {
-    errors.push("Monthly rent must be greater than zero.");
+  const openDesks = Number(input.openDesks || 0);
+  if (!Number.isFinite(openDesks) || openDesks <= 0) {
+    errors.push("Open desks must be greater than zero.");
+  }
+  const openDeskMonthlyRate = Number(input.openDeskMonthlyRate || 0);
+  if (!Number.isFinite(openDeskMonthlyRate) || openDeskMonthlyRate <= 0) {
+    errors.push("Monthly rate per open desk must be greater than zero.");
   }
   const totalTerm = Number(input.totalTerm || 0);
   if (!Number.isFinite(totalTerm) || totalTerm <= 0) {
     errors.push("Contract term (months) must be greater than zero.");
   }
+  if (!toDateOrNull(input.termStart)) {
+    errors.push("Term start date is required.");
+  }
   if (!toDateOrNull(input.rentDate)) {
-    errors.push("Rent start date is required.");
+    errors.push("Rent due date is required.");
   }
   return errors;
 }
 
+// Monthly rent is fully desk-driven: open desks x the per-desk monthly rate.
+// openDeskRate (per day) / cabin fields are accepted but no longer feed the
+// formula — they're only retained on existing records for historical data.
 function computeCalculations(input = {}) {
   const openDesks = Math.max(0, Number(input.openDesks || 0));
-  const openDeskRate = Math.max(0, Number(input.openDeskRate || 0));
-  const cabinDesks = Math.max(0, Number(input.cabinDesks || 0));
-  const cabinDeskRate = Math.max(0, Number(input.cabinDeskRate || 0));
-
-  const openTotal = Math.round(openDesks * openDeskRate * BILLING_MONTH_DAYS);
-  const cabinTotal = Math.round(cabinDesks * cabinDeskRate * BILLING_MONTH_DAYS);
-  const totalDesks = openDesks + cabinDesks;
-
-  // Desk-rate monthly rent (computed) falls back to the explicit monthlyRent.
-  const computedMonthly = Math.round(openTotal + cabinTotal);
-  const monthlyRent = Math.max(0, Number(input.monthlyRent || 0)) || computedMonthly;
+  const openDeskMonthlyRate = Math.max(0, Number(input.openDeskMonthlyRate || 0));
+  const totalDesks = openDesks;
+  const monthlyRent = Math.round(openDesks * openDeskMonthlyRate);
 
   const totalTerm = Math.max(0, Number(input.totalTerm || 0));
-  const annualIncrement = Math.max(0, Number(input.annualIncrement || 0));
   const advanceMonths = Math.max(0, Number(input.advanceMonths || 0) || 1);
 
-  // Security deposit defaults to one quarter of the contract total (mirrors
-  // the tenant-company billing convention) unless explicitly provided.
+  // Annual increment only applies once the contract runs past a full year.
+  const annualIncrement = totalTerm > 12 ? Math.max(0, Number(input.annualIncrement || 0)) : 0;
+
+  // Security deposit is a sales-set percentage of the contract total —
+  // left at 0 unless sales explicitly sets a percent or amount, no forced
+  // default.
   const totalContract = monthlyRent * totalTerm;
-  const securityDeposit = Math.max(0, Number(input.securityDeposit || 0))
-    || Math.round(totalContract * 0.25);
+  const securityDepositPercent = Math.max(0, Number(input.securityDepositPercent || 0));
+  const securityDeposit = Math.round(totalContract * (securityDepositPercent / 100));
 
   const advanceAmount = Math.round(monthlyRent * advanceMonths);
   const initialAmount = securityDeposit + advanceAmount;
@@ -221,11 +225,12 @@ function computeCalculations(input = {}) {
     || Math.round(Math.max(0, Number(input.perDeskMeetingCredits || 0)) * totalDesks);
 
   return {
-    openTotal,
-    cabinTotal,
     totalDesks,
     monthlyRent,
     totalContract,
+    annualIncrement,
+    advanceMonths,
+    securityDepositPercent,
     securityDeposit,
     advanceAmount,
     initialAmount,
@@ -307,11 +312,11 @@ function formatRecord(record) {
     clientName: normalizeText(record.clientName || record.brandName || ""),
     status,
     initials: getInitials(record.clientName || record.brandName),
+    termStart: record.termStart ?? record.rentDate,
     monthlyRent: roundNumber(record.monthlyRent || calcs.monthlyRent),
-    openTotal: roundNumber(record.openTotal ?? calcs.openTotal),
-    cabinTotal: roundNumber(record.cabinTotal ?? calcs.cabinTotal),
     totalDesks: roundNumber(record.totalDesks ?? calcs.totalDesks),
     totalMeetingCredits: roundNumber(record.totalMeetingCredits ?? calcs.totalMeetingCredits),
+    securityDepositPercent: record.securityDepositPercent ?? calcs.securityDepositPercent,
     securityDeposit: roundNumber(record.securityDeposit ?? calcs.securityDeposit),
     advanceAmount: roundNumber(record.advanceAmount ?? calcs.advanceAmount),
     initialAmount: roundNumber(record.initialAmount ?? calcs.initialAmount),
@@ -384,12 +389,71 @@ export async function listVirtualOfficesForCurrentUser(userId, query = {}) {
   };
 }
 
+// Mirrors formatTenantCompany()'s space/spaceAssigned computation in
+// tenant-company.service.ts, sourced from Resource.assignedVirtualOfficeId
+// instead of assignedTenantCompanyId — so the detail page's Space
+// Allocation tab reads the same shape as the tenant equivalent.
+async function getSpaceAllocationForRecord(record) {
+  const assignedResources = await Resource.find({
+    workspaceId: record.workspaceId,
+    assignedVirtualOfficeId: record._id,
+  }).sort({ floor: 1, wing: 1, name: 1 }).lean().exec();
+
+  const assignedResourceLabels = assignedResources
+    .map((resource) => normalizeText(
+      resource.location || [resource.floor, resource.wing].filter(Boolean).join(" ") || resource.name || resource.resourceCode,
+    ))
+    .filter(Boolean);
+  const locationLabels = [...new Set(assignedResourceLabels)];
+  const assignedSeats = [...new Set(
+    assignedResources.map((resource) => normalizeText(resource.name || resource.resourceCode)).filter(Boolean),
+  )];
+  const primaryFloor = normalizeText(assignedResources.find((r) => normalizeText(r.floor))?.floor || "");
+  const openDesks = assignedResources
+    .filter((r) => r.type === "Open Desk")
+    .reduce((sum, r) => sum + Number(r.capacity || 1), 0);
+  const cabinDesks = assignedResources
+    .filter((r) => r.type === "Cabin Desk")
+    .reduce((sum, r) => sum + Number(r.capacity || 1), 0);
+  const totalSeats = openDesks + cabinDesks;
+  const assignedDate = assignedResources.find((r) => r.assignedAt)?.assignedAt || null;
+
+  return {
+    space: {
+      floor: primaryFloor,
+      primaryFloor,
+      seats: assignedSeats,
+      assignedDate,
+    },
+    spaceAssigned: {
+      area: primaryFloor,
+      primaryFloor,
+      locationLabels,
+      assignedSeats,
+      openDesks,
+      cabinDesks,
+      totalSeats,
+    },
+    assignedResources: assignedResources.map((r) => ({
+      recordId: r._id,
+      name: r.name,
+      resourceCode: r.resourceCode,
+      type: r.type,
+      floor: r.floor,
+      wing: r.wing,
+      location: r.location,
+      capacity: r.capacity,
+    })),
+  };
+}
+
 export async function getVirtualOfficeForCurrentUser(userId, recordId) {
   const access = await resolveWorkspaceAccess(userId);
   await syncOverdueRentStatuses({ _id: recordId, workspaceId: access.workspaceId });
   const record = await VirtualOffice.findById(recordId).lean();
   ensureExists(record, access.workspaceId);
-  return { record: formatRecord(record) };
+  const allocation = await getSpaceAllocationForRecord(record);
+  return { record: { ...formatRecord(record), ...allocation } };
 }
 
 export async function createVirtualOfficeForCurrentUser(userId, input = {}) {
@@ -411,10 +475,12 @@ export async function createVirtualOfficeForCurrentUser(userId, input = {}) {
   const calcs = computeCalculations(input);
   const recordNumber = await getNextRecordNumber(access.workspaceId);
   const rentDate = toDateOrNull(input.rentDate);
+  const termStart = toDateOrNull(input.termStart) || rentDate;
   const totalTerm = Math.max(1, Number(input.totalTerm || 0));
-  const annualIncrement = Math.max(0, Number(input.annualIncrement || 0));
-  const termEnd = buildTermEndDate(rentDate, totalTerm);
-  const nextIncrementDate = buildNextIncrementDate(rentDate, annualIncrement);
+  const termEnd = buildTermEndDate(termStart, totalTerm);
+  const nextIncrementDate = buildNextIncrementDate(termStart, calcs.annualIncrement);
+  const lockInMonths = Math.max(0, Number(input.lockInMonths || 0));
+  const lockInEnd = lockInMonths > 0 ? buildTermEndDate(termStart, lockInMonths) : null;
   const rentStatus = normalizeText(input.rentStatus || "Active");
 
   const record = await VirtualOffice.create({
@@ -428,6 +494,12 @@ export async function createVirtualOfficeForCurrentUser(userId, input = {}) {
     sector: normalizeText(input.sector || ""),
     email: normalizeText(input.email || "").toLowerCase(),
     phone: normalizeText(input.phone || ""),
+    country: normalizeText(input.country || ""),
+    state: normalizeText(input.state || ""),
+    city: normalizeText(input.city || ""),
+    spaceLocation: normalizeText(input.spaceLocation || ""),
+    spaceFloor: normalizeText(input.spaceFloor || ""),
+    spaceWing: normalizeText(input.spaceWing || ""),
     service: input.service || null,
     serviceName: normalizeText(input.serviceName || ""),
     hoPoc: {
@@ -444,20 +516,21 @@ export async function createVirtualOfficeForCurrentUser(userId, input = {}) {
     },
     openDesks: Math.max(0, Number(input.openDesks || 0)),
     openDeskRate: Math.max(0, Number(input.openDeskRate || 0)),
-    openTotal: calcs.openTotal,
-    cabinDesks: Math.max(0, Number(input.cabinDesks || 0)),
-    cabinDeskRate: Math.max(0, Number(input.cabinDeskRate || 0)),
-    cabinTotal: calcs.cabinTotal,
+    openDeskMonthlyRate: Math.max(0, Number(input.openDeskMonthlyRate || 0)),
     totalDesks: calcs.totalDesks,
     perDeskMeetingCredits: Math.max(0, Number(input.perDeskMeetingCredits || 0)),
     totalMeetingCredits: calcs.totalMeetingCredits,
+    termStart,
     rentDate,
     rentStatus,
-    annualIncrement,
+    annualIncrement: calcs.annualIncrement,
     totalTerm,
     termEnd,
     nextIncrementDate,
+    lockInMonths,
+    lockInEnd,
     pastDueDate: toDateOrNull(input.pastDueDate),
+    securityDepositPercent: calcs.securityDepositPercent,
     securityDeposit: calcs.securityDeposit,
     securityDepositPaid: Boolean(input.securityDepositPaid),
     advanceMonths: calcs.advanceMonths,
@@ -491,11 +564,11 @@ export async function updateVirtualOfficeForCurrentUser(userId, recordId, input 
   const merged = { ...record.toObject(), ...input };
   const calcs = computeCalculations(merged);
   const rentDate = toDateOrNull(input.rentDate ?? record.rentDate);
+  const termStart = toDateOrNull(input.termStart ?? record.termStart ?? record.rentDate);
   const totalTerm = Math.max(1, Number(input.totalTerm ?? (record.totalTerm || 0)));
-  const annualIncrement = Math.max(0, Number(input.annualIncrement ?? record.annualIncrement));
-  const termEnd = input.rentDate || input.totalTerm != null
-    ? buildTermEndDate(rentDate, totalTerm)
-    : record.termEnd;
+  const termEnd = buildTermEndDate(termStart, totalTerm);
+  const lockInMonths = Math.max(0, Number(input.lockInMonths ?? record.lockInMonths ?? 0));
+  const lockInEnd = lockInMonths > 0 ? buildTermEndDate(termStart, lockInMonths) : null;
 
   Object.assign(record, {
     company: input.company !== undefined ? input.company : record.company,
@@ -504,6 +577,12 @@ export async function updateVirtualOfficeForCurrentUser(userId, recordId, input 
     sector: normalizeText(input.sector ?? record.sector),
     email: normalizeText(input.email ?? record.email).toLowerCase(),
     phone: normalizeText(input.phone ?? record.phone),
+    country: normalizeText(input.country ?? record.country),
+    state: normalizeText(input.state ?? record.state),
+    city: normalizeText(input.city ?? record.city),
+    spaceLocation: normalizeText(input.spaceLocation ?? record.spaceLocation),
+    spaceFloor: normalizeText(input.spaceFloor ?? record.spaceFloor),
+    spaceWing: normalizeText(input.spaceWing ?? record.spaceWing),
     service: input.service !== undefined ? input.service : record.service,
     serviceName: normalizeText(input.serviceName ?? record.serviceName),
     hoPoc: {
@@ -516,20 +595,21 @@ export async function updateVirtualOfficeForCurrentUser(userId, recordId, input 
     },
     openDesks: Math.max(0, Number(input.openDesks ?? record.openDesks)),
     openDeskRate: Math.max(0, Number(input.openDeskRate ?? record.openDeskRate)),
-    openTotal: calcs.openTotal,
-    cabinDesks: Math.max(0, Number(input.cabinDesks ?? record.cabinDesks)),
-    cabinDeskRate: Math.max(0, Number(input.cabinDeskRate ?? record.cabinDeskRate)),
-    cabinTotal: calcs.cabinTotal,
+    openDeskMonthlyRate: Math.max(0, Number(input.openDeskMonthlyRate ?? record.openDeskMonthlyRate)),
     totalDesks: calcs.totalDesks,
     perDeskMeetingCredits: Math.max(0, Number(input.perDeskMeetingCredits ?? record.perDeskMeetingCredits)),
     totalMeetingCredits: calcs.totalMeetingCredits,
+    termStart: termStart || record.termStart,
     rentDate: rentDate || record.rentDate,
     rentStatus: normalizeText(input.rentStatus ?? record.rentStatus),
-    annualIncrement,
+    annualIncrement: calcs.annualIncrement,
     totalTerm,
     termEnd,
-    nextIncrementDate: buildNextIncrementDate(rentDate, annualIncrement),
+    nextIncrementDate: buildNextIncrementDate(termStart, calcs.annualIncrement),
+    lockInMonths,
+    lockInEnd,
     pastDueDate: input.pastDueDate !== undefined ? toDateOrNull(input.pastDueDate) : record.pastDueDate,
+    securityDepositPercent: calcs.securityDepositPercent,
     securityDeposit: calcs.securityDeposit,
     securityDepositPaid: input.securityDepositPaid !== undefined ? Boolean(input.securityDepositPaid) : record.securityDepositPaid,
     advanceMonths: calcs.advanceMonths,

@@ -14,6 +14,7 @@ import { canExportReports } from "../../../utils/workspacePlanAccess";
 import { createReport } from "../../../services/reports";
 import { assignResource, getResources, releaseResourceAssignment } from "../../../services/resources";
 import { getTenantCompanies } from "../../../services/tenant-companies";
+import { getVirtualOffices } from "../../../services/virtual-offices";
 import { getOrganizationOverview } from "../../../services/organization";
 import { downloadReportFile } from "../../../utils/report-download";
 import { toast } from "sonner";
@@ -36,7 +37,11 @@ const floors = [];
 const wings = [];
 
 const deskCats = new Set(["open_desk", "cabin_desk"]);
-const bookingOnlyCats = new Set(["meeting_room", "conference_room", "virtual_office"]);
+// Virtual Office resources are assignable (to VO companies, via their own
+// tab/flow) — not purely booking-only like meeting/conference rooms — so
+// they get their own category, separate from bookingOnlyCats.
+const bookingOnlyCats = new Set(["meeting_room", "conference_room"]);
+const voCats = new Set(["virtual_office"]);
 const isDepartmentAssignableResource = (resource = {}) =>
   deskCats.has(String(resource.resourceCategory || "").trim().toLowerCase())
   && String(resource.inventoryMode || "area").trim().toLowerCase() !== "area";
@@ -99,7 +104,7 @@ const kindLabel = (r = {}) =>
 const iconFor = (r = {}) =>
   r.resourceCategory === "meeting_room" ? <Users size={18} /> :
   r.resourceCategory === "conference_room" ? <Presentation size={18} /> :
-  r.resourceCategory === "virtual_office" ? <Building2 size={18} /> :
+  r.resourceCategory === "virtual_office" ? <DoorOpen size={18} /> :
   r.resourceCategory === "cabin_desk" ? <Building2 size={18} /> :
   <Monitor size={18} />;
 
@@ -108,6 +113,7 @@ const toneFor = (r = {}, isPackageLocked = false) => {
   if (r.status === "Disabled") return ["bg-slate-100 border-slate-200 text-slate-500", "bg-slate-50 border-slate-200", "Disabled", "text-slate-500"];
   if (isPackageLocked) return ["bg-indigo-50 border-indigo-200 border-dashed text-indigo-700", "bg-indigo-50 border-indigo-300", r.assignedTenantCompanyName || "Package", "text-indigo-600"];
   if (r.assignmentType === "tenant") return ["bg-indigo-50 border-indigo-200 text-indigo-700", "bg-indigo-50 border-indigo-300", r.assignedTenantCompanyName || "Tenant", "text-indigo-600"];
+  if (r.assignmentType === "virtualOffice") return ["bg-teal-50 border-teal-200 text-teal-700", "bg-teal-50 border-teal-300", r.assignedVirtualOfficeName || "Virtual Office", "text-teal-600"];
   if (r.assignmentType === "department") return ["bg-amber-50 border-amber-200 text-amber-700", "bg-amber-50 border-amber-300", r.assignedDepartmentName || "Department", "text-amber-600"];
   if (bookingOnlyCats.has(r.resourceCategory)) return ["bg-fuchsia-50 border-fuchsia-200 text-fuchsia-700", "bg-fuchsia-50 border-fuchsia-200", "Booking", "text-fuchsia-600"];
   return ["bg-emerald-50 border-emerald-200 text-emerald-700", "bg-green-50 border-green-300", "Available", "text-emerald-600"];
@@ -184,7 +190,9 @@ function SpaceCard({ resource, selected, disabled, packageLocked, onToggle }) {
   const [badge, card, label] = toneFor(resource, packageLocked);
   const locked = packageLocked || disabled;
   const isAssigned = Boolean(resource.assignmentLabel);
-  const assignedTo = resource.assignedTenantCompanyName || resource.assignedDepartmentName || resource.assignmentLabel || "";
+  const assignedTo = resource.assignedTenantCompanyName || resource.assignedVirtualOfficeName || resource.assignedDepartmentName || resource.assignmentLabel || "";
+  const assignmentIconClass = resource.assignmentType === "tenant" ? "text-indigo-500" : resource.assignmentType === "virtualOffice" ? "text-teal-500" : "text-amber-500";
+  const assignmentTextClass = resource.assignmentType === "tenant" ? "text-indigo-700" : resource.assignmentType === "virtualOffice" ? "text-teal-700" : "text-amber-700";
   return (
     <button type="button" onClick={() => onToggle(resource)} disabled={locked}
       className={`group flex min-h-36 flex-col justify-between rounded-[1.75rem] border-2 p-3 text-left transition-all ${card} ${selected ? "shadow-lg -translate-y-0.5" : "shadow-sm hover:-translate-y-0.5 hover:shadow-md"} ${locked ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
@@ -212,8 +220,8 @@ function SpaceCard({ resource, selected, disabled, packageLocked, onToggle }) {
         </div>
         {isAssigned && assignedTo && (
           <div className="flex items-center gap-1">
-            <Building2 size={8} className={resource.assignmentType === "tenant" ? "text-indigo-500" : "text-amber-500"} />
-            <span className={`text-[9px] font-pmedium truncate max-w-[140px] ${resource.assignmentType === "tenant" ? "text-indigo-700" : "text-amber-700"}`}>{assignedTo}</span>
+            <Building2 size={8} className={assignmentIconClass} />
+            <span className={`text-[9px] font-pmedium truncate max-w-[140px] ${assignmentTextClass}`}>{assignedTo}</span>
           </div>
         )}
       </div>
@@ -224,6 +232,7 @@ function SpaceCard({ resource, selected, disabled, packageLocked, onToggle }) {
 const MAIN_TABS = [
   { key: "architecture", label: "Architecture", icon: LayoutGrid },
   { key: "tenants", label: "Tenants", icon: Building2 },
+  { key: "virtualOffices", label: "Virtual Offices", icon: DoorOpen },
   { key: "departments", label: "Departments", icon: Briefcase },
 ];
 
@@ -272,6 +281,18 @@ export default function SalesArchitecturePage() {
   const [isDeptAssignModalOpen, setIsDeptAssignModalOpen] = useState(false);
   const [deptAssignSelectedId, setDeptAssignSelectedId] = useState("");
 
+  // Virtual Offices tab — kept independent of the tenant assignment state
+  // above so browsing/assigning here never contaminates the Tenants tab.
+  const [virtualOffices, setVirtualOffices] = useState([]);
+  const [voListFilter, setVoListFilter] = useState("All");
+  const [voListSearch, setVoListSearch] = useState("");
+  const [viewVOId, setViewVOId] = useState("");
+  const [isVOAssignModalOpen, setIsVOAssignModalOpen] = useState(false);
+  const [selectedVOCompanyId, setSelectedVOCompanyId] = useState("");
+  const [voSelectedIds, setVoSelectedIds] = useState([]);
+  const [voSelectedFloor, setVoSelectedFloor] = useState("All");
+  const [voSelectedWing, setVoSelectedWing] = useState("All");
+
   const scopedCompanyId = searchParams.get("tenantCompanyId") || searchParams.get("companyId") || "";
   const scopedFloor = searchParams.get("floor") || "";
   const scopedWing = searchParams.get("wing") || "";
@@ -284,11 +305,11 @@ export default function SalesArchitecturePage() {
     let alive = true;
     (async () => {
       try {
-        const [rRes, tRes, oRes] = await Promise.allSettled([
-          getResources(), getTenantCompanies(), getOrganizationOverview(axiosPrivate),
+        const [rRes, tRes, oRes, voRes] = await Promise.allSettled([
+          getResources(), getTenantCompanies(), getOrganizationOverview(axiosPrivate), getVirtualOffices({ page: 1, limit: 200 }),
         ]);
         if (!alive) return;
-        
+
         const rawResources = rRes.status === "fulfilled" ? (rRes.value?.data?.data?.resources || rRes.value?.data?.resources || []) : [];
         const nextResources = Array.isArray(rawResources) ? rawResources.map(normalizeResource) : [];
         
@@ -333,8 +354,12 @@ export default function SalesArchitecturePage() {
           );
         }
         
+        const rawVOs = voRes.status === "fulfilled" ? (voRes.value?.data?.records || []) : [];
+        const nextVirtualOffices = Array.isArray(rawVOs) ? rawVOs : [];
+
         setResources(nextResources);
         setTenants(nextTenants);
+        setVirtualOffices(nextVirtualOffices);
         setOrganizationDepartments(nextDepartments);
         
         // Do not auto-set floor; default is "All"
@@ -423,6 +448,7 @@ export default function SalesArchitecturePage() {
     // status/assignment filter
     if (spaceFilter === "available") return !r.assignmentLabel && r.status === "Active" && !bookingOnlyCats.has(r.resourceCategory);
     if (spaceFilter === "tenant") return r.assignmentType === "tenant";
+    if (spaceFilter === "virtualOffice") return voCats.has(r.resourceCategory);
     if (spaceFilter === "department") return r.assignmentType === "department";
     if (spaceFilter === "maintenance") return r.status === "Under Maintenance";
     if (spaceFilter === "booking") return bookingOnlyCats.has(r.resourceCategory);
@@ -430,6 +456,7 @@ export default function SalesArchitecturePage() {
   }), [floorResources, query, selectedWing, spaceFilter]);
 
   const bookingOnly = useMemo(() => filtered.filter((r) => bookingOnlyCats.has(r.resourceCategory)), [filtered]);
+  const voFiltered = useMemo(() => filtered.filter((r) => voCats.has(r.resourceCategory)), [filtered]);
   const desks = useMemo(() => filtered.filter((r) => deskCats.has(r.resourceCategory)), [filtered]);
   const wingGroups = useMemo(() => {
     const groupKeys = Array.from(new Set(desks.map((r) => String(r.wing || '').trim().toUpperCase() || 'Unassigned'))).sort();
@@ -532,6 +559,64 @@ export default function SalesArchitecturePage() {
   }, [resources]);
 
   const unassignedDesks = useMemo(() => desks.filter((r) => isDepartmentAssignableResource(r) && !r.assignmentLabel && r.status === "Active"), [desks]);
+
+  // Virtual Offices tab — a virtual-office-category resource is the unit
+  // being assigned here, parallel to how tenant assignment works on desks.
+  const voResources = useMemo(() => resources.filter((r) => r.resourceCategory === "virtual_office"), [resources]);
+  const voAssignmentMap = useMemo(() => {
+    const map = {};
+    voResources.filter((r) => r.assignmentType === "virtualOffice").forEach((r) => {
+      const id = String(r.assignedVirtualOfficeId || "");
+      if (!id) return;
+      if (!map[id]) map[id] = { id, name: r.assignedVirtualOfficeName || "Unknown", resources: [], seatCount: 0 };
+      map[id].resources.push(r);
+      map[id].seatCount += Math.max(1, Number(r.capacity || 1));
+    });
+    return Object.values(map);
+  }, [voResources]);
+  const voAvailableFloors = useMemo(
+    () => Array.from(new Set(voResources.map((r) => r.floor).filter(Boolean))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+    [voResources],
+  );
+  const voAvailableWings = useMemo(
+    () => Array.from(new Set(voResources.map((r) => String(r.wing || "").trim().toUpperCase()).filter(Boolean))).sort(),
+    [voResources],
+  );
+  const voSelectedResources = useMemo(() => voResources.filter((r) => voSelectedIds.includes(String(r.recordId || r.id))), [voResources, voSelectedIds]);
+  const voSelectedSeatCount = useMemo(() => voSelectedResources.reduce((s, r) => s + Math.max(1, Number(r.capacity || 1)), 0), [voSelectedResources]);
+  const toggleVOResource = (r) => {
+    if (r.status !== "Active" || r.assignmentLabel) return;
+    const id = String(r.recordId || r.id);
+    setVoSelectedIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+  };
+  const clearVOSelection = () => setVoSelectedIds([]);
+
+  const saveVOAssignment = async () => {
+    const ids = voSelectedResources.map((r) => String(r.recordId || r.id)).filter(Boolean);
+    const company = virtualOffices.find((v) => String(v._id || v.recordId) === String(selectedVOCompanyId)) || null;
+    if (!ids.length || !company) return;
+    setSaving(true); setError("");
+    const payload = {
+      assignmentType: "virtualOffice",
+      virtualOfficeId: company._id || company.recordId || "",
+      virtualOfficeName: company.clientName || company.brandName || "",
+    };
+    try {
+      const updated = [];
+      for (const rid of ids) {
+        const res = await assignResource(rid, payload);
+        const resourceData = res?.data?.data?.resource || res?.data?.resource;
+        if (resourceData) updated.push(normalizeResource(resourceData));
+      }
+      if (updated.length) {
+        setResources((cur) => cur.map((r) => updated.find((x) => String(x.recordId) === String(r.recordId)) || r));
+      }
+      clearVOSelection();
+      setIsVOAssignModalOpen(false);
+      toast.success(`${updated.length} space(s) assigned successfully.`);
+    } catch (e) { setError(e.message || "Assignment failed."); toast.error(e.message || "Assignment failed."); }
+    finally { setSaving(false); }
+  };
 
   const packageLockedIds = useMemo(() => {
     const locked = new Set();
@@ -724,6 +809,7 @@ export default function SalesArchitecturePage() {
             { key: "all",         label: "All",         dot: "bg-slate-400",   active: "bg-slate-800 text-white border-slate-800",   idle: "bg-white text-slate-600 border-slate-200 hover:border-slate-400" },
             { key: "available",   label: "Available",   dot: "bg-emerald-400", active: "bg-emerald-500 text-white border-emerald-500", idle: "bg-white text-emerald-700 border-emerald-200 hover:border-emerald-400" },
             { key: "tenant",      label: "Tenant",      dot: "bg-indigo-400",  active: "bg-indigo-600 text-white border-indigo-600",  idle: "bg-white text-indigo-700 border-indigo-200 hover:border-indigo-400" },
+            { key: "virtualOffice", label: "Virtual Office", dot: "bg-teal-400", active: "bg-teal-600 text-white border-teal-600", idle: "bg-white text-teal-700 border-teal-200 hover:border-teal-400" },
             { key: "department",  label: "Department",  dot: "bg-amber-400",   active: "bg-amber-500 text-white border-amber-500",    idle: "bg-white text-amber-700 border-amber-200 hover:border-amber-400" },
             { key: "booking",     label: "Booking",     dot: "bg-fuchsia-400", active: "bg-fuchsia-600 text-white border-fuchsia-600", idle: "bg-white text-fuchsia-700 border-fuchsia-200 hover:border-fuchsia-400" },
             { key: "maintenance", label: "Maintenance", dot: "bg-slate-300",   active: "bg-slate-500 text-white border-slate-500",    idle: "bg-white text-slate-500 border-slate-200 hover:border-slate-400" },
@@ -826,6 +912,18 @@ export default function SalesArchitecturePage() {
                     {bookingOnly.map((r) => {
                       const id = String(r.recordId || r.id);
                       return <SpaceCard key={id} resource={r} selected={selectedIds.includes(id)} packageLocked={packageLockedIds.has(id)} onToggle={toggleResource} />;
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {voFiltered.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">Virtual Offices</p>
+                  <div className="grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-3">
+                    {voFiltered.map((r) => {
+                      const id = String(r.recordId || r.id);
+                      return <SpaceCard key={id} resource={r} selected={false} disabled packageLocked={false} onToggle={() => {}} />;
                     })}
                   </div>
                 </div>
@@ -1195,6 +1293,232 @@ export default function SalesArchitecturePage() {
       </>
     );
   };
+
+  const renderVirtualOffices = () => {
+    const viewVO = viewVOId ? virtualOffices.find((v) => String(v._id || v.recordId) === viewVOId) : null;
+    const viewVOResources = viewVO ? voResources.filter((r) => String(r.assignedVirtualOfficeId) === viewVOId) : [];
+    const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "--");
+
+    return (
+      <>
+        {renderFilterBar(false)}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          {[
+            { icon: DoorOpen, label: "Total Virtual Offices", value: virtualOffices.length, cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md", iconClass: "bg-slate-50 text-slate-600" },
+            { icon: CheckCircle2, label: "Active", value: virtualOffices.filter((v) => String(v.status || "").toLowerCase() === "active").length, cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500", iconClass: "bg-emerald-50 text-emerald-600" },
+            { icon: LayoutGrid, label: "Assigned Spaces", value: voResources.filter((r) => r.assignmentType === "virtualOffice").length, cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-indigo-500", iconClass: "bg-indigo-50 text-indigo-600" },
+            { icon: Users, label: "Total Assigned Seats", value: voAssignmentMap.reduce((s, a) => s + a.seatCount, 0), cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500", iconClass: "bg-blue-50 text-blue-600" },
+          ].map(({ icon: Icon, label, value, cardClass, iconClass }) => (
+            <div key={label} className={cardClass}>
+              <div className="min-w-0">
+                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">{label}</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{value}</p>
+              </div>
+              <div className={`p-2 rounded-2xl ${iconClass} shrink-0`}><Icon size={16} /></div>
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
+          <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+            <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+              {["All", "Active", "Expiring Soon", "Expired"].map((status) => (
+                <button key={status} type="button" onClick={() => setVoListFilter(status)}
+                  className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
+                    voListFilter === status
+                      ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
+                      : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
+                  }`}
+                >{status}</button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                <input type="text" placeholder="Search by company..."
+                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                  value={voListSearch} onChange={(e) => setVoListSearch(e.target.value)} />
+              </div>
+              <button onClick={() => { setSelectedVOCompanyId(""); clearVOSelection(); setIsVOAssignModalOpen(true); }}
+                className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
+              ><ArrowRight size={13} strokeWidth={3} /> ASSIGN SPACE</button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto flex-1">
+            <table className="w-full">
+              <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                <tr>
+                  <th className="px-5 py-4 text-left">Company</th>
+                  <th className="px-5 py-4 text-left">Status</th>
+                  <th className="px-5 py-4 text-left">Location</th>
+                  <th className="px-5 py-4 text-center">Assigned Seats</th>
+                  <th className="px-5 py-4 text-left">Space Blocks</th>
+                  <th className="px-5 py-4 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100/60">
+                {virtualOffices.filter((v) => {
+                  const status = String(v.status || "Active");
+                  const matchesStatus = voListFilter === "All" || status === voListFilter;
+                  const q = voListSearch.trim().toLowerCase();
+                  const matchesSearch = !q || [v.clientName, v.brandName, v.recordCode].filter(Boolean).some((val) => String(val).toLowerCase().includes(q));
+                  return matchesStatus && matchesSearch;
+                }).map((v) => {
+                  const vid = String(v._id || v.recordId);
+                  const assignedResources = voResources.filter((r) => String(r.assignedVirtualOfficeId) === vid);
+                  const assignedSeatCount = assignedResources.reduce((s, r) => s + Math.max(1, Number(r.capacity || 1)), 0);
+                  const assignedFloors = Array.from(new Set(assignedResources.map((r) => r.floor).filter(Boolean))).sort();
+                  const assignedWings = Array.from(new Set(assignedResources.map((r) => r.wing).filter(Boolean))).sort();
+                  const locationStr = [v.spaceLocation, v.spaceFloor ? `Floor ${v.spaceFloor}` : ""].filter(Boolean).join(" • ") ||
+                    (assignedFloors.length ? `Floor ${assignedFloors.join(", ")}${assignedWings.length ? ` Wing ${assignedWings.join("/")}` : ""}` : "");
+                  return (
+                    <tr key={vid} className={`hover:bg-slate-50/50 transition-colors group ${viewVOId === vid ? "bg-indigo-50/40" : ""}`}>
+                      <td className="px-5 py-4">
+                        <p className="text-[13px] font-pmedium text-slate-900">{v.clientName || v.brandName}</p>
+                        <p className="text-[10px] font-pmedium text-slate-500">{v.recordCode || "--"}</p>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className={`px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-wider ${
+                          String(v.status || "").toLowerCase() === "active" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
+                          String(v.status || "").includes("Expir") ? "bg-amber-50 text-amber-700 border border-amber-200" :
+                          "bg-slate-100 text-slate-600 border border-slate-200"
+                        }`}>{v.status || "Active"}</span>
+                      </td>
+                      <td className="px-5 py-4">
+                        {locationStr ? (
+                          <span className="text-[12px] font-pmedium text-slate-700">{locationStr}</span>
+                        ) : (
+                          <span className="text-[12px] text-slate-400">Not assigned</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 text-center">
+                        <span className={`text-[15px] font-pmedium ${assignedSeatCount > 0 ? "text-indigo-700" : "text-slate-400"}`}>
+                          {assignedSeatCount}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex flex-wrap gap-1">
+                          {assignedResources.slice(0, 4).map((r) => (
+                            <span key={r.recordId} className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[9px] font-pmedium">
+                              {r.name || r.resourceCode}
+                            </span>
+                          ))}
+                          {assignedResources.length > 4 && <span className="text-[9px] text-slate-500">+{assignedResources.length - 4} more</span>}
+                          {assignedResources.length === 0 && <span className="text-[11px] text-slate-400">No spaces assigned</span>}
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button onClick={() => setViewVOId(viewVOId === vid ? "" : vid)}
+                            className="p-2 rounded-xl bg-white border border-slate-200/60 text-slate-400 hover:text-[#2563EB] hover:border-blue-200 hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
+                            title="View Details"
+                          ><Eye size={15} /></button>
+                          {assignedResources.length > 0 && (
+                            <button
+                              onClick={() => {
+                                setReleaseTarget({ type: "virtualOffice", name: v.clientName || v.brandName, resources: assignedResources });
+                                setReleaseSelectedIds(assignedResources.map((r) => String(r.recordId || r.id)));
+                              }}
+                              disabled={saving}
+                              className="p-2 rounded-xl bg-white border border-slate-200/60 text-slate-400 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all active:scale-95 shadow-sm disabled:opacity-60"
+                              title="Release spaces assigned to this virtual office"
+                            ><RotateCcw size={15} /></button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {virtualOffices.length === 0 && (
+                  <tr><td colSpan={6} className="text-center py-20 text-slate-400 font-pmedium">No virtual office companies found.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Virtual office detail modal */}
+        {viewVO && (
+          <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3">
+            <div
+              className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white">
+                    <DoorOpen size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">{viewVO.clientName || viewVO.brandName}</h2>
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-1">Assignment Details</p>
+                  </div>
+                </div>
+                <button onClick={() => setViewVOId("")} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"><X size={16} /></button>
+              </div>
+
+              <div className="p-5 sm:p-6 space-y-5 overflow-y-auto bg-white">
+                <div>
+                  <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                    <Briefcase size={14} /> Contract Info
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                    {[
+                      { label: "Rent Status", value: viewVO.rentStatus || "--" },
+                      { label: "Term", value: viewVO.totalTerm ? `${viewVO.totalTerm} months` : "--" },
+                      { label: "Term Start", value: fmtDate(viewVO.termStart) },
+                      { label: "Term End", value: fmtDate(viewVO.termEnd) },
+                      { label: "Monthly Rent", value: viewVO.monthlyRent ? money(viewVO.monthlyRent) : "--" },
+                      { label: "Requested Location", value: [viewVO.spaceLocation, viewVO.spaceFloor, viewVO.spaceWing].filter(Boolean).join(" / ") || "--" },
+                    ].map(({ label, value }) => (
+                      <div key={label}>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">{label}</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-2"><Users size={14} /> Assigned Space Blocks</span>
+                    <span className="bg-blue-50 text-blue-700 border border-blue-100 px-2.5 py-0.5 rounded-full text-[9px] font-pmedium normal-case">
+                      {viewVOResources.reduce((s, r) => s + Math.max(1, Number(r.capacity || 1)), 0)} total seats
+                    </span>
+                  </h3>
+                  {viewVOResources.length === 0 ? (
+                    <p className="text-[12px] text-slate-400 font-pmedium py-6 text-center">No spaces assigned to this virtual office yet.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {viewVOResources.map((r) => (
+                        <div key={r.recordId} className="rounded-2xl bg-slate-50/60 border border-slate-100 p-3">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="min-w-0">
+                              <span className="text-[12px] font-pmedium text-slate-900 truncate block">{r.name || r.resourceCode}</span>
+                              <span className="text-[9px] font-pmedium text-slate-400 uppercase">{kindLabel(r)}</span>
+                            </div>
+                            <span className="bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-lg text-[9px] font-pmedium shrink-0 ml-2">{r.capacity} seats</span>
+                          </div>
+                          <p className="text-[10px] font-pmedium text-slate-500">{r.locationLabel || `Floor ${r.floor}${r.wing ? ` Wing ${r.wing}` : ""}`}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 shrink-0">
+                <button onClick={() => setViewVOId("")} className="w-full py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 transition-all">Close</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  };
+
   const renderDepartmentsTab = () => {
     return (
       <>
@@ -1477,6 +1801,7 @@ export default function SalesArchitecturePage() {
           <div className="flex-1 mt-2">
             {activeTab === "architecture" && renderArchitecture()}
             {activeTab === "tenants" && renderTenants()}
+            {activeTab === "virtualOffices" && renderVirtualOffices()}
             {activeTab === "departments" && renderDepartmentsTab()}
           </div>
         </div>
@@ -1608,6 +1933,119 @@ export default function SalesArchitecturePage() {
                     className="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-pmedium hover:bg-slate-200 transition-all text-[10px]"
                   >Cancel</button>
                   <button onClick={saveAssignment} disabled={!canSave}
+                    className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-pmedium shadow-sm hover:bg-blue-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:cursor-not-allowed"
+                  >{saving ? <><Loader2 size={14} className="animate-spin" /> Saving...</> : <><CheckCircle2 size={14} /> Confirm Allocation</>}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Virtual Office Assign Space Modal */}
+        {isVOAssignModalOpen && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#0F172A]/80 backdrop-blur-sm">
+            <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+              <div className="p-5 bg-blue-600 text-white flex justify-between items-center shrink-0">
+                <div>
+                  <h2 className="text-[15px] font-pmedium flex items-center gap-1.5"><DoorOpen size={18} /> Assign Space</h2>
+                  <p className="text-[10px] font-pmedium text-blue-200 uppercase tracking-widest mt-0.5">Select available virtual office spaces</p>
+                </div>
+                <button onClick={() => setIsVOAssignModalOpen(false)} className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center hover:bg-red-500 transition-all"><X size={14} /></button>
+              </div>
+              <div className="p-5 space-y-4 overflow-y-auto flex-1">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Assign to Virtual Office Company *</label>
+                  <select value={selectedVOCompanyId} onChange={(e) => setSelectedVOCompanyId(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none cursor-pointer"
+                  >
+                    <option value="">-- Select Virtual Office Company --</option>
+                    {virtualOffices.map((v) => <option key={v._id || v.recordId} value={v._id || v.recordId}>{v.clientName || v.brandName}</option>)}
+                  </select>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
+                    <LayoutGrid size={12} className="text-blue-500" />
+                    <select value={voSelectedFloor} onChange={(e) => { setVoSelectedFloor(e.target.value); setVoSelectedWing("All"); }}
+                      className="bg-transparent text-[11px] font-pmedium text-slate-900 outline-none cursor-pointer"
+                    >
+                      <option value="All">All Floors</option>
+                      {voAvailableFloors.map((f) => <option key={f} value={f}>Floor {f}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
+                    <Filter size={12} className="text-blue-500" />
+                    <select value={voSelectedWing} onChange={(e) => setVoSelectedWing(e.target.value)}
+                      className="bg-transparent text-[11px] font-pmedium text-slate-900 outline-none cursor-pointer"
+                    >
+                      <option value="All">All Wings</option>
+                      {voAvailableWings.map((w) => <option key={w} value={w}>Wing {w}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {(() => {
+                    const availableVOResources = voResources.filter((r) => !r.assignmentLabel && r.status === "Active" &&
+                      (voSelectedFloor === "All" || r.floor === voSelectedFloor) &&
+                      (voSelectedWing === "All" || r.wing === voSelectedWing)
+                    );
+                    if (availableVOResources.length === 0) {
+                      return <p className="text-center text-[11px] text-slate-400 py-6 border border-dashed border-slate-200 rounded-xl">No available virtual office spaces matching filters.</p>;
+                    }
+                    return (
+                      <div className="max-h-[30vh] overflow-y-auto pr-2 pb-2">
+                        <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-1.5">
+                          Virtual Office Spaces <span className="text-emerald-600">({availableVOResources.reduce((s, r) => s + Math.max(1, Number(r.capacity || 1)), 0)} seats)</span>
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {availableVOResources.map((r) => {
+                            const id = String(r.recordId || r.id);
+                            const isSelected = voSelectedIds.includes(id);
+                            return (
+                              <button key={id} type="button" onClick={() => toggleVOResource(r)}
+                                className={`group flex min-h-[72px] flex-col justify-between rounded-xl border-2 p-2.5 text-left transition-all ${
+                                  isSelected
+                                    ? "border-blue-400 bg-blue-50 ring-2 ring-blue-300 shadow-md scale-[1.01]"
+                                    : "border-slate-200 bg-white hover:border-slate-300 hover:-translate-y-0.5 hover:shadow-sm"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/70 bg-white/80 text-[#0F172A] shadow-sm">{iconFor(r)}</div>
+                                    <div className="min-w-0">
+                                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 truncate">{r.name || r.resourceCode || "Space"}</p>
+                                      <p className="text-[10px] font-pmedium leading-tight text-slate-800">{kindLabel(r)}{r.capacity ? ` · ${r.capacity}` : ""}</p>
+                                    </div>
+                                  </div>
+                                  {isSelected && <CheckCircle2 size={14} className="text-blue-500 shrink-0" />}
+                                </div>
+                                <p className="mt-1 text-[8px] font-pmedium text-slate-400">{r.locationLabel || "--"}</p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {voSelectedIds.length > 0 && (
+                  <div className="rounded-xl bg-indigo-50 border border-indigo-100 p-3">
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-indigo-500 mb-1.5">Selected ({voSelectedSeatCount} seats)</p>
+                    <div className="flex flex-wrap gap-1">
+                      {voSelectedResources.map((r) => (
+                        <span key={r.recordId} className="bg-white border border-indigo-200 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-pmedium">{r.name || r.resourceCode}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-2 border-t border-slate-100">
+                  <button onClick={() => { setIsVOAssignModalOpen(false); clearVOSelection(); }}
+                    className="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-pmedium hover:bg-slate-200 transition-all text-[10px]"
+                  >Cancel</button>
+                  <button onClick={saveVOAssignment} disabled={!selectedVOCompanyId || voSelectedIds.length === 0 || saving}
                     className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-pmedium shadow-sm hover:bg-blue-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:cursor-not-allowed"
                   >{saving ? <><Loader2 size={14} className="animate-spin" /> Saving...</> : <><CheckCircle2 size={14} /> Confirm Allocation</>}</button>
                 </div>
@@ -1794,7 +2232,7 @@ export default function SalesArchitecturePage() {
                   <div className="min-w-0">
                     <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">Release Spaces</h2>
                     <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-1 truncate">
-                      {releaseTarget.type === "tenant" ? "Tenant" : "Department"}: {releaseTarget.name}
+                      {releaseTarget.type === "tenant" ? "Tenant" : releaseTarget.type === "virtualOffice" ? "Virtual Office" : "Department"}: {releaseTarget.name}
                     </p>
                   </div>
                 </div>
