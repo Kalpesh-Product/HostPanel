@@ -29,7 +29,7 @@ import { extractDepartmentLabel, titleCase } from '@/utils/user-helpers';
 import { DEFAULT_FISCAL_YEAR, deriveMonthLifecycle, getFiscalYearOptions } from '@/features/finance/utils/fiscalYear';
 import { formatFinancePaymentStatus } from '@/features/finance/utils/paymentStatus';
 import { statusPillClass } from '@/lib/status-pill';
-import { ApprovalFlowBadges } from '@/components/finance/ApprovalFlowBadges';
+import { ApprovalFlowBadges, hasApprovalProgress } from '@/components/finance/ApprovalFlowBadges';
 import PageFrame from '@/components/Pages/PageFrame';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency, getWorkspaceCurrencySymbol } from '@/lib/workspaceLocalization';
@@ -1635,8 +1635,15 @@ export function DepartmentFinancePageV2() {
                       <div>
                         <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Status</p>
                         <div className="flex flex-col items-start gap-1.5">
-                          <span className={statusPillClass(financeData.annualRequest.status)}>{financeData.annualRequest.status}</span>
-                          <ApprovalFlowBadges flow={financeData.approvalFlow} />
+                          {/* Show ONE chip: the approval-flow badge once any approver has acted
+                              ("Founder Approved" / "Approved" / "Rejected" / "Changes Requested"),
+                              otherwise the plain status pill (e.g. "Pending"). Rendering both made
+                              "Approved" appear twice with mismatched styles. */}
+                          {hasApprovalProgress(financeData.approvalFlow) ? (
+                            <ApprovalFlowBadges flow={financeData.approvalFlow} />
+                          ) : (
+                            <span className={statusPillClass(financeData.annualRequest.status)}>{financeData.annualRequest.status}</span>
+                          )}
                         </div>
                       </div>
                       <div>
