@@ -31,6 +31,7 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { applyFinanceApprovalDecision, getFinanceSnapshot, importFinanceSnapshot, updateMonthlyExpenseStatus } from '@/services/finance';
+import { getDepartments as getAllWorkspaceDepartments } from '@/services/assets';
 import { createReport } from '@/services/reports';
 import { downloadReportFile } from '@/utils/report-download';
 import { getStoredUser } from '@/lib/auth-session';
@@ -934,6 +935,22 @@ export function ExpensesBudgetPage() {
     };
   }, [selectedFY]);
 
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await getAllWorkspaceDepartments();
+        const names = (Array.isArray(data) ? data : data?.departments || data?.data || [])
+          .map((department: any) => String(department?.name || department || '').trim())
+          .filter(Boolean);
+        if (mounted) setAllWorkspaceDepartments(names);
+      } catch {
+        // non-critical — Historical Import department picker just stays empty
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
   const [activeTab, setActiveTab] = useState('estimated');
   const [searchQuery, setSearchQuery] = useState('');
   const [deptFilter, setDeptFilter] = useState('All');
@@ -946,6 +963,7 @@ export function ExpensesBudgetPage() {
   const [rejectReason, setRejectReason] = useState('');
   const [temporaryFounderOverride, setTemporaryFounderOverride] = useState(false);
   const [departments, setDepartments] = useState<string[]>([]);
+  const [allWorkspaceDepartments, setAllWorkspaceDepartments] = useState<string[]>([]);
   const [isUpdatingExpense, setIsUpdatingExpense] = useState(false);
   const [showHistoricalImport, setShowHistoricalImport] = useState(false);
   const [historicalDepartment, setHistoricalDepartment] = useState('');
@@ -2315,7 +2333,7 @@ export function ExpensesBudgetPage() {
                 <span className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Department *</span>
                 <select value={historicalDepartment} onChange={(e) => setHistoricalDepartment(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] font-medium text-slate-800 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100">
                   <option value="">Select department…</option>
-                  {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+                  {allWorkspaceDepartments.map((d) => <option key={d} value={d}>{d}</option>)}
                 </select>
               </label>
               <label className="block">
