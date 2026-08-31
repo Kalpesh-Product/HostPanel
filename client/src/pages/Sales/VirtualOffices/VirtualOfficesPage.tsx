@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Building2, Search, Plus, Eye, Pencil, RefreshCw, ShieldCheck, AlertTriangle,
-  Users, Wallet, Receipt, CheckCircle2, Clock, CreditCard,
+  Users, Wallet, Receipt, CheckCircle2, Clock, CreditCard, UploadCloud,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -17,6 +17,7 @@ import VirtualOfficeFormModal from "./VirtualOfficeFormModal";
 import VirtualOfficeRenewModal from "./VirtualOfficeRenewModal";
 import VirtualOfficePaymentModal from "./VirtualOfficePaymentModal";
 import VirtualOfficeRentDetailsModal from "./VirtualOfficeRentDetailsModal";
+import VirtualOfficeBulkUploadModal from "./VirtualOfficeBulkUploadModal";
 
 const RENT_STATUS_OPTIONS = [
   { value: "Active", label: "Active", className: "border-emerald-200 bg-emerald-50 text-emerald-700" },
@@ -74,6 +75,7 @@ export default function VirtualOfficesPage() {
   const [modalMode, setModalMode] = useState("create");
   const [editingRecord, setEditingRecord] = useState(null);
   const [renewingRecord, setRenewingRecord] = useState(null);
+  const [bulkUploadType, setBulkUploadType] = useState(null);
 
   const workspacePreferences = useWorkspacePreferences();
   const navigate = useNavigate();
@@ -291,6 +293,14 @@ export default function VirtualOfficesPage() {
                     </select>
                     <button
                       type="button"
+                      onClick={() => setBulkUploadType("companies")}
+                      className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-slate-100 hover:border-slate-500 text-slate-500 transition-all active:scale-95 shadow-sm"
+                      title="Bulk upload companies"
+                    >
+                      <UploadCloud size={15} />
+                    </button>
+                    <button
+                      type="button"
                       onClick={openCreateModal}
                       className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
                     >
@@ -435,6 +445,14 @@ export default function VirtualOfficesPage() {
                     </div>
                     <button
                       type="button"
+                      onClick={() => setBulkUploadType("payments")}
+                      className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-slate-100 hover:border-slate-500 text-slate-500 transition-all active:scale-95 shadow-sm"
+                      title="Bulk upload rent payments"
+                    >
+                      <UploadCloud size={15} />
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setShowPaymentPicker(true)}
                       className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
                     >
@@ -545,6 +563,14 @@ export default function VirtualOfficesPage() {
         open={Boolean(viewingRecord)}
         record={viewingRecord}
         onClose={() => setViewingRecord(null)}
+      />
+
+      <VirtualOfficeBulkUploadModal
+        open={Boolean(bulkUploadType)}
+        type={bulkUploadType || "companies"}
+        records={records}
+        onClose={() => setBulkUploadType(null)}
+        onImported={() => loadRecords()}
       />
     </>
   );
