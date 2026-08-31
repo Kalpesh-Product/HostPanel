@@ -6,6 +6,8 @@ import {
   Building2,
   Calendar,
   CheckCircle2,
+  ChevronDown,
+  Eye,
   FileText,
   MessageSquare,
   PieChart,
@@ -75,6 +77,8 @@ export function FinanceBudgetReviewPage() {
   const [temporaryFounderOverride, setTemporaryFounderOverride] = useState(false);
   const [decisionPrompt, setDecisionPrompt] = useState<{ action: 'Rejected' | 'Discuss' } | null>(null);
   const [decisionComment, setDecisionComment] = useState('');
+  const [viewingExpenseDetails, setViewingExpenseDetails] = useState<any>(null);
+  const [expandedMonthKey, setExpandedMonthKey] = useState<string | null>(null);
 
   const workspacePreferences = useWorkspacePreferences();
   const formatCurrency = useCallback(
@@ -304,7 +308,7 @@ export function FinanceBudgetReviewPage() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                Annual Budget Review
+                {request.department} Annual Budget Review
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
                 {reviewer === 'owner' ? 'Founder approval desk' : 'Finance Manager approval desk'} | {request.department}
@@ -380,7 +384,7 @@ export function FinanceBudgetReviewPage() {
             ) : (
               <div className="max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="overflow-x-auto">
-                  <table className="w-full table-fixed text-left" style={{ minWidth: revealPaymentColumns ? '1410px' : '1050px' }}>
+                  <table className="w-full table-fixed text-left" style={{ minWidth: revealPaymentColumns ? (reviewer === 'owner' ? '1210px' : '1410px') : '1050px' }}>
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-50">
                         <th className="w-[290px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Expense</th>
@@ -388,22 +392,32 @@ export function FinanceBudgetReviewPage() {
                         <th className="w-[130px] px-4 py-3.5 text-right text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Projected</th>
                         <th className="w-[130px] px-4 py-3.5 text-right text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Actual</th>
                         <th className="w-[120px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Due</th>
-                        {revealPaymentColumns && <>
+                        {revealPaymentColumns && reviewer === 'financeManager' && <>
                           <th className="w-[220px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Vendor</th>
                           <th className="w-[160px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Payment</th>
                           <th className="w-[160px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Invoice</th>
+                        </>}
+                        {revealPaymentColumns && reviewer === 'owner' && <>
+                          <th className="w-[160px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Payment</th>
+                          <th className="w-[120px] px-4 py-3.5 text-center text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Action</th>
                         </>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {months.map((month) => {
                         const expenses = Array.isArray(month.expenses) ? month.expenses : [];
-                        const colSpan = revealPaymentColumns ? 8 : 5;
+                        const colSpan = revealPaymentColumns ? (reviewer === 'owner' ? 7 : 8) : 5;
+                        const isMonthExpanded = expandedMonthKey === String(month.key);
                         return (
                           <React.Fragment key={month.key}>
                             <tr className="border-y border-blue-100 bg-blue-50/80">
-                              <td colSpan={colSpan} className="px-4 py-3">
-                                <div className="flex flex-wrap items-center justify-between gap-3">
+                              <td colSpan={colSpan} className="p-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedMonthKey((current) => current === String(month.key) ? null : String(month.key))}
+                                  className="flex w-full cursor-pointer flex-wrap items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-blue-100/70"
+                                  aria-expanded={isMonthExpanded}
+                                >
                                   <span className="flex min-w-0 items-center gap-2 text-[11px] font-pmedium uppercase tracking-widest text-slate-900">
                                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-[#2563EB] shadow-sm">
                                       <Calendar size={13} />
@@ -414,7 +428,7 @@ export function FinanceBudgetReviewPage() {
                                     <span className="rounded-full border border-blue-200 bg-white px-2.5 py-1 text-[10px] font-pmedium text-slate-700">
                                       Projected <span className="text-[#2563EB]">{formatCurrency(month.projected)}</span>
                                     </span>
-                                    {revealPaymentColumns && month.actualSpent > 0 && (
+                                    {month.actualSpent > 0 && (
                                       <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-pmedium text-emerald-700">
                                         Used {formatCurrency(month.actualSpent)}
                                       </span>
@@ -422,11 +436,12 @@ export function FinanceBudgetReviewPage() {
                                     <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">
                                       {expenses.length} planned
                                     </span>
+                                    <ChevronDown size={15} className={`text-slate-500 transition-transform ${isMonthExpanded ? 'rotate-180' : ''}`} />
                                   </div>
-                                </div>
+                                </button>
                               </td>
                             </tr>
-                            {expenses.length === 0 ? (
+                            {isMonthExpanded && (expenses.length === 0 ? (
                               <tr className="bg-white">
                                 <td colSpan={colSpan} className="px-4 py-5 text-center text-[11px] font-bold text-slate-400">
                                   No expenses listed for this month.
@@ -499,7 +514,7 @@ export function FinanceBudgetReviewPage() {
                                     <td className="px-4 py-4 align-top">
                                       <p className="text-xs font-bold text-slate-600">{exp.dueDate || '—'}</p>
                                     </td>
-                                    {revealPaymentColumns && <>
+                                    {revealPaymentColumns && reviewer === 'financeManager' && <>
                                       <td className="px-4 py-4 align-top">
                                         {exp.vendorName ? (
                                           <div className="min-w-0">
@@ -547,10 +562,26 @@ export function FinanceBudgetReviewPage() {
                                         )}
                                       </td>
                                     </>}
+                                    {revealPaymentColumns && reviewer === 'owner' && <>
+                                      <td className="px-4 py-4 align-top">
+                                        <span className={`inline-flex whitespace-normal px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest ${paymentStatus.includes('Done') || paymentStatus.includes('Paid') ? 'bg-green-50 text-green-700 border border-green-200' : paymentStatus.includes('Invoice') ? 'bg-blue-50 text-blue-700 border border-blue-200' : paymentStatus.includes('Pending') ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                                          {formatFinancePaymentStatus(exp.paymentStatus)}
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-4 text-center align-top">
+                                        <button
+                                          type="button"
+                                          onClick={() => setViewingExpenseDetails({ ...exp, invoices })}
+                                          className="mx-auto inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-pmedium uppercase text-slate-700 shadow-sm transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
+                                        >
+                                          <Eye size={12} /> View
+                                        </button>
+                                      </td>
+                                    </>}
                                   </tr>
                                 );
                               })
-                            )}
+                            ))}
                           </React.Fragment>
                         );
                       })}
@@ -608,6 +639,73 @@ export function FinanceBudgetReviewPage() {
         })()}
         </div>
       </PageFrame>
+
+      {viewingExpenseDetails && (
+        <div className="fixed inset-0 z-[115] flex items-center justify-center bg-[#0F172A]/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between bg-slate-900 px-6 py-5 text-white">
+              <div>
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-300">Expense Details</p>
+                <h3 className="mt-1 text-lg font-black">{viewingExpenseDetails.title || viewingExpenseDetails.expenseLabel || 'Expense'}</h3>
+              </div>
+              <button type="button" onClick={() => setViewingExpenseDetails(null)} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-slate-300 transition hover:bg-red-500 hover:text-white">
+                <X size={14} />
+              </button>
+            </div>
+            <div className="max-h-[70vh] space-y-5 overflow-y-auto p-6">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Vendor</p>
+                  <p className="mt-1 text-sm font-black text-slate-900">{viewingExpenseDetails.vendorName || 'Not assigned'}</p>
+                  {viewingExpenseDetails.vendorContactPerson && <p className="mt-1 text-xs text-slate-500">{viewingExpenseDetails.vendorContactPerson}</p>}
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Payment Status</p>
+                  <p className="mt-1 text-sm font-black text-slate-900">{formatFinancePaymentStatus(viewingExpenseDetails.paymentStatus)}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Projected</p>
+                  <p className="mt-1 text-sm font-black text-blue-700">{formatCurrency(Number(viewingExpenseDetails.projectedAmount || 0))}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Actual</p>
+                  <p className="mt-1 text-sm font-black text-emerald-700">{formatCurrency(Number(viewingExpenseDetails.actualAmount ?? viewingExpenseDetails.actualSpent ?? 0))}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Description</p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">{viewingExpenseDetails.description || 'No description provided.'}</p>
+              </div>
+              <div>
+                <p className="mb-2 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Invoices</p>
+                {Array.isArray(viewingExpenseDetails.invoices) && viewingExpenseDetails.invoices.length > 0 ? (
+                  <div className="space-y-2">
+                    {viewingExpenseDetails.invoices.map((invoice: any, invoiceIndex: number) => {
+                      const fileUrl = invoice?.invoiceUrl || invoice?.url || invoice?.invoiceFile || '';
+                      const label = invoice?.invoiceNumber || `Invoice ${invoiceIndex + 1}`;
+                      return fileUrl ? (
+                        <a key={invoice?.invoiceKey || `${label}-${invoiceIndex}`} href={fileUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs font-pmedium text-blue-700 hover:bg-blue-100">
+                          <Receipt size={13} /> {label}
+                          {Number(invoice?.amount || 0) > 0 && <span className="ml-auto">{formatCurrency(invoice.amount)}</span>}
+                        </a>
+                      ) : (
+                        <div key={invoice?.invoiceKey || `${label}-${invoiceIndex}`} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-pmedium text-slate-600">
+                          <Receipt size={13} /> {label}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-400">No invoice attached.</p>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end border-t border-slate-100 px-6 py-4">
+              <button type="button" onClick={() => setViewingExpenseDetails(null)} className="rounded-xl bg-slate-100 px-6 py-2.5 text-xs font-pmedium text-slate-700 hover:bg-slate-200">CLOSE</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Request changes / Reject dialog */}
       {decisionPrompt && (

@@ -604,8 +604,8 @@ export function FinancePage() {
                             </div>
                           </td>
                           <td className="px-5 py-4 text-center">
-                            <button onClick={() => navigate(`/extra-common-modules/finance-management/review/annual/${encodeURIComponent(req.id)}`, { state: { request: req, fiscalYear: selectedFY } })} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all mx-auto block" title="View Request">
-                              <Eye size={15} strokeWidth={2.5} />
+                            <button onClick={() => navigate(`/extra-common-modules/finance-management/review/annual/${encodeURIComponent(req.id)}`, { state: { request: req, fiscalYear: selectedFY } })} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto" title="View Request">
+                              <Eye size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">View</span>
                             </button>
                           </td>
                         </tr>
@@ -633,8 +633,8 @@ export function FinancePage() {
                             </div>
                           </td>
                           <td className="px-5 py-4 text-center">
-                            <button onClick={() => setViewingRequest({ ...req, type: 'extra' })} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all mx-auto block" title="View Request">
-                              <Eye size={15} strokeWidth={2.5} />
+                            <button onClick={() => setViewingRequest({ ...req, type: 'extra' })} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto" title="View Request">
+                              <Eye size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">View</span>
                             </button>
                           </td>
                         </tr>

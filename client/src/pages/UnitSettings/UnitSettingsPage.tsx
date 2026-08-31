@@ -74,6 +74,16 @@ function formatTimeInZone(timeZone: string): string {
   }
 }
 
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+// Fiscal-year start options shown as their full span, e.g. "April to March".
+// A January start wraps around to end in December of the same year.
+const FISCAL_YEAR_RANGE_OPTIONS = MONTH_NAMES.map((month, index) => {
+  const startMonth = index + 1;
+  const endMonth = startMonth === 1 ? 12 : startMonth - 1;
+  return { value: startMonth, label: `${month} to ${MONTH_NAMES[endMonth - 1]}` };
+});
+
 type WorkspaceItem = {
   id: string;
   workspaceName: string;
@@ -170,6 +180,7 @@ export default function WorkspaceSettingsPage() {
   const [fiscalYearStartMonth, setFiscalYearStartMonth] = useState(4);
   const [billing, setBilling] = useState<WorkspaceBillingConfig>(() => getCountryBillingDefaults("IN"));
   const [isSavingHours, setIsSavingHours] = useState(false);
+  const [isSavingFiscalYear, setIsSavingFiscalYear] = useState(false);
   const [isSavingPreferences, setIsSavingPreferences] = useState(false);
 
   useEffect(() => {
@@ -383,17 +394,38 @@ export default function WorkspaceSettingsPage() {
     }
   };
 
+  const saveFiscalYear = async () => {
+    try {
+      setIsSavingFiscalYear(true);
+      await updateWorkspaceSettings(axiosPrivate, {
+        preferences: { fiscalYearStartMonth },
+      });
+      // Re-read persisted truth from the server so the form can never drift
+      // from what was actually stored — a silent save mismatch shows up here.
+      const refreshed = await getWorkspaceSettings(axiosPrivate);
+      const persisted = Number(refreshed?.data?.data?.settings?.preferences?.fiscalYearStartMonth);
+      const effectiveMonth = Number.isInteger(persisted) && persisted >= 1 && persisted <= 12
+        ? persisted
+        : fiscalYearStartMonth;
+      setFiscalYearStartMonth(effectiveMonth);
+      window.localStorage.setItem("workspaceFiscalYearStartMonth", String(effectiveMonth));
+      toast.success("Fiscal year updated successfully.");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to update fiscal year.");
+    } finally {
+      setIsSavingFiscalYear(false);
+    }
+  };
+
   const savePreferences = async () => {
     try {
       setIsSavingPreferences(true);
       await updateWorkspaceSettings(axiosPrivate, {
-        preferences: { billing, fiscalYearStartMonth },
+        preferences: { billing },
       });
-      window.localStorage.setItem("workspaceFiscalYearStartMonth", String(fiscalYearStartMonth));
-      window.dispatchEvent(new Event("workspace-fiscal-year-updated"));
-      toast.success("Preferences updated successfully.");
+      toast.success("Tax and payment preferences updated successfully.");
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to update preferences.");
+      toast.error(error?.response?.data?.message || "Failed to update tax and payment preferences.");
     } finally {
       setIsSavingPreferences(false);
     }
@@ -922,11 +954,20 @@ export default function WorkspaceSettingsPage() {
                       onChange={(event) => setFiscalYearStartMonth(Number(event.target.value))}
                       className="mt-1 w-full bg-transparent text-[12px] font-pmedium text-[#0F172A] outline-none cursor-pointer"
                     >
-                      {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((month, index) => (
-                        <option key={month} value={index + 1}>{month}</option>
+                      {FISCAL_YEAR_RANGE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </select>
                     <p className="mt-1 text-[10px] font-pmedium text-slate-400">Used by Finance, Accounting, budgets, and reports.</p>
+                    <button
+                      type="button"
+                      onClick={saveFiscalYear}
+                      disabled={isSavingFiscalYear}
+                      className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#2563EB] px-3 py-2 text-[10px] font-pmedium text-white shadow-sm transition-all hover:bg-primary/95 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isSavingFiscalYear ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} strokeWidth={3} />}
+                      {isSavingFiscalYear ? "SAVING..." : "SAVE FISCAL YEAR"}
+                    </button>
                   </div>
                 </div>
                 <label className="flex items-center gap-2.5 mb-4 cursor-pointer select-none">
