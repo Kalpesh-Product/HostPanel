@@ -42,6 +42,7 @@ import ticketRoutes from "./routes/ticketRoutes.js";
 import resourceRoutes from "./routes/resourceRoutes.js";
 import plansPricingRoutes from "./routes/plansPricing.routes.js";
 import tenantCompanyRoutes from "./routes/tenant-company.routes.js";
+import virtualOfficeRoutes from "./routes/virtualOffice.routes.js";
 import calendarRoutes from "./routes/calendarRoutes.js";
 import hrRoutes from "./routes/hrRoutes.js";
 import { publicRouter as recruitmentPublicRoutes } from "./routes/recruitmentRoutes.js";
@@ -177,6 +178,7 @@ app.use("/api/tickets", verifyJwt, blockWriteIfImpersonating, ticketRoutes);
 app.use("/api/v1/resources", verifyJwt, blockWriteIfImpersonating, resourceRoutes);
 app.use("/api/v1/pricing-packages", verifyJwt, blockWriteIfImpersonating, plansPricingRoutes);
 app.use("/api/v1/tenant-companies", verifyJwt, blockWriteIfImpersonating, tenantCompanyRoutes);
+app.use("/api/v1/virtual-offices", verifyJwt, blockWriteIfImpersonating, virtualOfficeRoutes);
 app.use("/api/reports", verifyJwt, blockWriteIfImpersonating, reportRoutes);
 app.use("/api/analytics", verifyJwt, blockWriteIfImpersonating, analyticsRoutes);
 

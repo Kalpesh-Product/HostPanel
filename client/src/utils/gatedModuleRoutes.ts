@@ -31,6 +31,7 @@ export const GATED_MODULE_ROUTES: Array<{ route: string; moduleId: string }> = [
   // Sales Department (Professional+)
   { route: "/department-accesses/sales-department/leads-management", moduleId: "leads-management" },
   { route: "/department-accesses/sales-department/tenant-companies", moduleId: "tenant-companies-sales" },
+  { route: "/department-accesses/sales-department/virtual-offices", moduleId: "virtual-office-sales" },
   { route: "/department-accesses/sales-department/resource-pricing", moduleId: "resource-pricing" },
   { route: "/department-accesses/sales-department/sales-architecture", moduleId: "sales-architecture" },
 

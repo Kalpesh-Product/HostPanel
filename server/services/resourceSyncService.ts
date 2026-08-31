@@ -14,6 +14,7 @@ export const resourceStatuses = ["Active", "Under Maintenance", "Disabled"];
 export const areaCapacityCatalog: Record<string, number[]> = {
     open_desk: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
     cabin_desk: [4, 6, 8, 10],
+    virtual_office: [1, 2, 3, 4, 5],
 };
 const DEFAULT_BOOKING_SPAN_HOURS = 13;
 
@@ -46,6 +47,7 @@ export function normalizeResourceInventoryMode(value = "", category = "", capaci
 export function getResourceCapacityOptions(category = "", inventoryMode = "area") {
     const resourceCategory = normalizeResourceCategory(category);
     if (resourceCategory === "cabin_desk") return areaCapacityCatalog[resourceCategory] || [1];
+    if (resourceCategory === "virtual_office") return areaCapacityCatalog[resourceCategory] || [1];
     if (resourceCategory === "open_desk") {
         if (inventoryMode === "single") return [1];
         return areaCapacityCatalog[resourceCategory] || [1];
@@ -153,12 +155,14 @@ export function formatResource(roomDoc: any) {
     const inventoryMode = normalizeResourceInventoryMode(room.inventoryMode, resourceCategory, room.capacity);
     const locationArea = [floor, wing].filter(Boolean).join(" ").trim();
     const locationLabel = [location, locationArea].filter(Boolean).join(" • ").trim();
-    const assignmentLabel = room.assignedTenantCompanyName || room.assignedDepartmentName || "";
+    const assignmentLabel = room.assignedTenantCompanyName || room.assignedVirtualOfficeName || room.assignedDepartmentName || "";
     const assignmentType = room.assignedTenantCompanyId
         ? "tenant"
-        : room.assignedDepartmentName
-            ? "department"
-            : "";
+        : room.assignedVirtualOfficeId
+            ? "virtualOffice"
+            : room.assignedDepartmentName
+                ? "department"
+                : "";
 
     return {
         recordId: room._id,
@@ -170,6 +174,8 @@ export function formatResource(roomDoc: any) {
         inventoryMode,
         assignedTenantCompanyId: room.assignedTenantCompanyId || null,
         assignedTenantCompanyName: room.assignedTenantCompanyName || "",
+        assignedVirtualOfficeId: room.assignedVirtualOfficeId || null,
+        assignedVirtualOfficeName: room.assignedVirtualOfficeName || "",
         assignedDepartmentId: room.assignedDepartmentId || "",
         assignedDepartmentName: room.assignedDepartmentName || "",
         assignmentLabel,

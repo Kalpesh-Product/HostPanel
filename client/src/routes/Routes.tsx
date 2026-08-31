@@ -120,6 +120,8 @@ import TenantCompanyDetailPage from "../pages/Sales/TenantCompanies/TenantCompan
 import ResourcePricingPage from "../pages/Sales/ResourcePricing/Resource&Pricing";
 import LeadsManagementPage from "../pages/Sales/LeadsManagement/LeadsManagementPage";
 import SalesArchitecturePage from "../pages/Sales/SalesArchitecture/SalesArchitecturePage";
+import VirtualOfficesPage from "../pages/Sales/VirtualOffices/VirtualOfficesPage";
+import VirtualOfficeDetailPage from "../pages/Sales/VirtualOffices/VirtualOfficeDetailPage";
 import AdministrationTenantCompaniesPage from "../pages/Administration/TenantCompanies/TenantCompaniesPage";
 import AdministrationTenantCompanyDetailPage from "../pages/Administration/TenantCompanies/TenantCompanyDetailPage";
 import AdministrationBookingsPage from "../pages/Administration/Bookings/BookingsPage";
@@ -1213,6 +1215,14 @@ export const routes = createBrowserRouter([
               {
                 path: "department-accesses/sales-department/tenant-companies/:id",
                 element: <TenantCompanyDetailPage />,
+              },
+              {
+                path: "department-accesses/sales-department/virtual-offices",
+                element: <VirtualOfficesPage />,
+              },
+              {
+                path: "department-accesses/sales-department/virtual-offices/:id",
+                element: <VirtualOfficeDetailPage />,
               },
               {
                 path: "department-accesses/sales-department/resource-pricing",

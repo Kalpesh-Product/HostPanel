@@ -27,6 +27,7 @@ const DEPARTMENT_MODULE_MAP = {
   ],
   Sales: [
     "tenant-companies-sales",
+    "virtual-office-sales",
     "leads-management",
     "visitor-management",
     "resource-pricing",

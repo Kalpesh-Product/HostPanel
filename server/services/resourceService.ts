@@ -39,7 +39,7 @@ export async function getWorkspaceBookingSpanHours(workspaceId: string): Promise
     return DEFAULT_BOOKING_SPAN_HOURS;
 }
 
-const assignableResourceCategories = new Set(["open_desk", "cabin_desk"]);
+const assignableResourceCategories = new Set(["open_desk", "cabin_desk", "virtual_office"]);
 
 // ---- Validation helpers (replacing Zod) ----
 
@@ -103,10 +103,12 @@ function validateUpdateInput(input: any) {
 
 function validateAssignInput(input: any) {
     const errors: string[] = [];
-    if (input.assignmentType && !["tenant", "department"].includes(input.assignmentType))
-        errors.push("Assignment type must be 'tenant' or 'department'");
+    if (input.assignmentType && !["tenant", "virtualOffice", "department"].includes(input.assignmentType))
+        errors.push("Assignment type must be 'tenant', 'virtualOffice' or 'department'");
     if ((!input.assignmentType || input.assignmentType === "tenant") && !input.tenantCompanyId && !input.tenantCompanyName)
         errors.push("Choose a tenant company or department to assign this resource.");
+    if (input.assignmentType === "virtualOffice" && !input.virtualOfficeId && !input.virtualOfficeName)
+        errors.push("Choose a virtual office company to assign this resource.");
     if (input.assignmentType === "department" && !input.departmentId && !input.departmentName)
         errors.push("Choose a tenant company or department to assign this resource.");
     return errors.length > 0 ? errors.join("; ") : null;
@@ -435,9 +437,26 @@ export async function assignResourceForOwner(workspaceId: string, ownerId: strin
     const assignmentType = input.assignmentType || "tenant";
 
     if (assignmentType === "department" && String(resource!.inventoryMode || "area").trim().toLowerCase() === "area") {
-        const error: any = new Error("Area blocks can only be assigned to tenant companies.");
+        const error: any = new Error("Area blocks can only be assigned to tenant or virtual office companies.");
         error.statusCode = 400;
         throw error;
+    }
+
+    // Once a resource is assigned to a company, it can't be silently handed
+    // to someone else — release it first. Re-submitting the same assignee
+    // (e.g. re-saving) is a no-op, not a conflict.
+    const currentAssigneeId = resource!.assignedTenantCompanyId || resource!.assignedVirtualOfficeId;
+    if (currentAssigneeId) {
+        const requestedId = assignmentType === "tenant" ? input.tenantCompanyId
+            : assignmentType === "virtualOffice" ? input.virtualOfficeId
+            : null;
+        const isSameAssignee = requestedId && String(currentAssigneeId) === String(requestedId);
+        if (!isSameAssignee) {
+            const currentAssigneeName = resource!.assignedTenantCompanyName || resource!.assignedVirtualOfficeName || "another company";
+            const error: any = new Error(`This resource is already assigned to ${currentAssigneeName}. Release it before assigning it elsewhere.`);
+            error.statusCode = 409;
+            throw error;
+        }
     }
 
     if (assignmentType === "tenant") {
@@ -447,15 +466,31 @@ export async function assignResourceForOwner(workspaceId: string, ownerId: strin
             throw error;
         }
 
-        // TenantCompany model doesn't exist in this project - skip validation
-        // const company = await TenantCompany.findOne({ ... }).lean();
-
         resource!.assignedTenantCompanyId = input.tenantCompanyId
             ? (new mongoose.Types.ObjectId(input.tenantCompanyId) as any)
             : null;
         resource!.assignedTenantCompanyName = normalizeResourceName(
             input.tenantCompanyName || input.tenantCompanyId || "",
         );
+        resource!.assignedVirtualOfficeId = null as any;
+        resource!.assignedVirtualOfficeName = "";
+        resource!.assignedDepartmentId = "";
+        resource!.assignedDepartmentName = "";
+    } else if (assignmentType === "virtualOffice") {
+        if (!input.virtualOfficeId) {
+            const error: any = new Error("Virtual office company is required for virtual office assignment.");
+            error.statusCode = 400;
+            throw error;
+        }
+
+        resource!.assignedVirtualOfficeId = input.virtualOfficeId
+            ? (new mongoose.Types.ObjectId(input.virtualOfficeId) as any)
+            : null;
+        resource!.assignedVirtualOfficeName = normalizeResourceName(
+            input.virtualOfficeName || input.virtualOfficeId || "",
+        );
+        resource!.assignedTenantCompanyId = null as any;
+        resource!.assignedTenantCompanyName = "";
         resource!.assignedDepartmentId = "";
         resource!.assignedDepartmentName = "";
     } else {
@@ -464,6 +499,8 @@ export async function assignResourceForOwner(workspaceId: string, ownerId: strin
 
         resource!.assignedTenantCompanyId = null as any;
         resource!.assignedTenantCompanyName = "";
+        resource!.assignedVirtualOfficeId = null as any;
+        resource!.assignedVirtualOfficeName = "";
         resource!.assignedDepartmentId = normalizeResourceName(departmentId);
         resource!.assignedDepartmentName = normalizeResourceName(departmentName);
     }
@@ -490,6 +527,8 @@ export async function releaseResourceAssignmentForOwner(workspaceId: string, own
 
     resource!.assignedTenantCompanyId = null as any;
     resource!.assignedTenantCompanyName = "";
+    resource!.assignedVirtualOfficeId = null as any;
+    resource!.assignedVirtualOfficeName = "";
     resource!.assignedDepartmentId = "";
     resource!.assignedDepartmentName = "";
     resource!.assignedAt = null as any;

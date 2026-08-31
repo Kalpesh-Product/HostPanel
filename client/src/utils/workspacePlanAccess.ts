@@ -46,6 +46,7 @@ const PROFESSIONAL_EXTRA_IDS = [
   // matching note in server/config/workspaceModuleCatalog.ts.
   "leads-management",
   "tenant-companies-sales",
+  "virtual-office-sales",
   "resource-pricing",
   "sales-architecture",
 ] as const;

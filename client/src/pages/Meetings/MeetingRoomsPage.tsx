@@ -270,6 +270,14 @@ function isActiveRoom(room: any) {
   return status !== 'under maintenance' && status !== 'disabled' && room.activationReady !== false && room.isActive !== false;
 }
 
+// Virtual Office resources are a sales product, not something bookable via
+// the external-booking flow — excluded there specifically.
+function isVirtualOfficeRoom(room: any) {
+  const normalizedType = String(room.type || '').trim().toLowerCase();
+  const normalizedCategory = String(room.resourceCategory || '').trim().toLowerCase();
+  return normalizedType === 'virtual office' || normalizedCategory === 'virtual_office';
+}
+
 function resolveBookingRoomName(booking: any) {
   return String(booking.roomName || booking.resourceName || booking.resource || booking.roomDescription || '').trim();
 }
@@ -1201,21 +1209,25 @@ function ExternalBookingDialog({
   const [wingFilter, setWingFilter] = useState('');
   const [floorFilter, setFloorFilter] = useState('');
 
+  // External bookings never offer Virtual Office resources — that's a sales
+  // product assigned via Sales Architecture, not something booked here.
+  const bookableRoomCatalog = useMemo(() => roomCatalog.filter((r) => !isVirtualOfficeRoom(r)), [roomCatalog]);
+
   // Filtered resource list for the resource selector
   const filteredResources = useMemo(() => {
-    return roomCatalog.filter((r) => {
+    return bookableRoomCatalog.filter((r) => {
       if (!isActiveRoom(r)) return false;
       if (typeFilter && r.type !== typeFilter) return false;
       if (floorFilter && r.floor !== floorFilter) return false;
       if (wingFilter && r.wing !== wingFilter) return false;
       return true;
     });
-  }, [roomCatalog, typeFilter, floorFilter, wingFilter]);
+  }, [bookableRoomCatalog, typeFilter, floorFilter, wingFilter]);
 
   // Distinct filter option lists derived from full catalog
-  const distinctTypes = useMemo(() => Array.from(new Set(roomCatalog.map((r) => r.type).filter(Boolean))).sort(), [roomCatalog]);
-  const distinctFloors = useMemo(() => Array.from(new Set(roomCatalog.map((r) => r.floor).filter(Boolean))).sort(), [roomCatalog]);
-  const distinctWings = useMemo(() => Array.from(new Set(roomCatalog.map((r) => r.wing).filter(Boolean))).sort(), [roomCatalog]);
+  const distinctTypes = useMemo(() => Array.from(new Set(bookableRoomCatalog.map((r) => r.type).filter(Boolean))).sort(), [bookableRoomCatalog]);
+  const distinctFloors = useMemo(() => Array.from(new Set(bookableRoomCatalog.map((r) => r.floor).filter(Boolean))).sort(), [bookableRoomCatalog]);
+  const distinctWings = useMemo(() => Array.from(new Set(bookableRoomCatalog.map((r) => r.wing).filter(Boolean))).sort(), [bookableRoomCatalog]);
 
   // Selected resource for pricing helper text
   const selectedResource = useMemo(
@@ -7039,7 +7051,7 @@ export function MeetingRoomsPage() {
                     <div className="h-px flex-1 bg-slate-100" />
                   </div>
                   {(() => {
-                    const activeRooms = roomCatalog.filter(isActiveRoom);
+                    const activeRooms = roomCatalog.filter((r) => isActiveRoom(r) && !isVirtualOfficeRoom(r));
                     const roomTypes = [...new Set(activeRooms.map(r => r.type).filter(Boolean))];
                     const floors = [...new Set(activeRooms.filter(r => !externalBookingForm.roomType || r.type === externalBookingForm.roomType).map(r => r.floor).filter(Boolean))];
                     const hasWings = activeRooms.some(r => (!externalBookingForm.floor || r.floor === externalBookingForm.floor) && Boolean(r.wing));
