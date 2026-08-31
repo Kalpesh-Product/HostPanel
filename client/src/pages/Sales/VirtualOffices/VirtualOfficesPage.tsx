@@ -214,6 +214,16 @@ export default function VirtualOfficesPage() {
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">Onboard and manage companies using our virtual office services.</p>
             </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setBulkUploadType(activeTab === "collections" ? "payments" : "companies")}
+                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-slate-100 hover:border-slate-500 text-slate-500 transition-all active:scale-95 shadow-sm"
+              >
+                <UploadCloud size={13} />
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-500 text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
+              </button>
+            </div>
           </div>
 
           <div className="mb-8 mt-5 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
@@ -291,14 +301,6 @@ export default function VirtualOfficesPage() {
                     >
                       {["All Rent Status", ...RENT_STATUS_OPTIONS.map((o) => o.value)].map((v) => <option key={v}>{v}</option>)}
                     </select>
-                    <button
-                      type="button"
-                      onClick={() => setBulkUploadType("companies")}
-                      className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-slate-100 hover:border-slate-500 text-slate-500 transition-all active:scale-95 shadow-sm"
-                      title="Bulk upload companies"
-                    >
-                      <UploadCloud size={15} />
-                    </button>
                     <button
                       type="button"
                       onClick={openCreateModal}
@@ -443,14 +445,6 @@ export default function VirtualOfficesPage() {
                         onChange={(e) => setCollectionSearch(e.target.value)}
                       />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setBulkUploadType("payments")}
-                      className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-slate-100 hover:border-slate-500 text-slate-500 transition-all active:scale-95 shadow-sm"
-                      title="Bulk upload rent payments"
-                    >
-                      <UploadCloud size={15} />
-                    </button>
                     <button
                       type="button"
                       onClick={() => setShowPaymentPicker(true)}
