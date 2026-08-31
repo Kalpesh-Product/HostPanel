@@ -50,7 +50,9 @@ function getCurrentPeriodKey(): string {
 }
 
 function parseFiscalYears(value: string = '') {
-  const match = String(value).match(/FY\s*(\d{2,4})\s*-\s*(\d{2,4})/i);
+  // Accepts both label shapes: "FY 2026-27" (two-year span) and "FY 2026"
+  // (single-year, January-start workspaces).
+  const match = String(value).match(/FY\s*(\d{2,4})(?:\s*-\s*(\d{2,4}))?/i);
   if (!match) {
     const year = new Date().getFullYear();
     return { startYear: year, endYear: year + 1 };
@@ -60,9 +62,10 @@ function parseFiscalYears(value: string = '') {
     if (!Number.isFinite(parsed)) return new Date().getFullYear();
     return parsed < 100 ? 2000 + parsed : parsed;
   };
+  const startYear = normalizeYear(match[1]);
   return {
-    startYear: normalizeYear(match[1]),
-    endYear: normalizeYear(match[2]),
+    startYear,
+    endYear: match[2] ? normalizeYear(match[2]) : startYear,
   };
 }
 

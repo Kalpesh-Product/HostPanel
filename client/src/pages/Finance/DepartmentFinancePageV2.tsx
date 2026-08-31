@@ -26,7 +26,7 @@ import {
 } from '@/services/finance';
 import { downloadReportFile } from '@/utils/report-download';
 import { extractDepartmentLabel, titleCase } from '@/utils/user-helpers';
-import { DEFAULT_FISCAL_YEAR, deriveMonthLifecycle, getFiscalYearOptions } from '@/features/finance/utils/fiscalYear';
+import { DEFAULT_FISCAL_YEAR, deriveMonthLifecycle, getFiscalMonthSequence, getFiscalYearOptions } from '@/features/finance/utils/fiscalYear';
 import { formatFinancePaymentStatus } from '@/features/finance/utils/paymentStatus';
 import { statusPillClass } from '@/lib/status-pill';
 import { ApprovalFlowBadges, hasApprovalProgress } from '@/components/finance/ApprovalFlowBadges';
@@ -178,10 +178,6 @@ function getExpenseInvoices(expense?: ExpenseData | null): ExpenseInvoice[] {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-const monthKeys = [
-  'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec', 'jan', 'feb', 'mar',
-];
-
 const monthLabels: Record<string, string> = {
   apr: 'April', may: 'May', jun: 'June', jul: 'July', aug: 'August', sep: 'September',
   oct: 'October', nov: 'November', dec: 'December', jan: 'January', feb: 'February', mar: 'March',
@@ -250,6 +246,9 @@ export function DepartmentFinancePageV2() {
     typeof storedDepartment === 'string' ? storedDepartment : storedDepartment?.name || storedDepartment?.label || '',
   );
   const fiscalYearOptions = getFiscalYearOptions();
+  // Fiscal month order follows the workspace's FY start month (Jan-start
+  // workspaces get jan→dec; the April default keeps apr→mar).
+  const monthKeys = getFiscalMonthSequence();
   const location = useLocation();
   const { confirm } = useAppConfirm();
   const fileInputRef = useRef<HTMLInputElement>(null);

@@ -7,6 +7,7 @@ import AnnualFinanceRequest from "../models/AnnualFinanceRequest.js";
 import ExtraFinanceRequest from "../models/ExtraFinanceRequest.js";
 import { TenantCompany } from "../models/TenantCompany.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
+import Workspace from "../models/Workspace.js";
 import { parseFiscalYearRange } from "../utils/fiscalYear.js";
 
 // Roles that oversee all departments (owner-side / finance-side) and are exempt
@@ -89,14 +90,26 @@ function assertPlanIsMutable(plan: any) {
   }
 }
 
-// Historical imports are restricted to fully completed past fiscal years
-// (Indian fiscal year runs April–March; "FY 2025-26" ends Mar 31, 2026).
-function isPastFiscalYear(fiscalYear: string): boolean {
-  const range = parseFiscalYearRange(fiscalYear);
+// Workspaces can pick their own fiscal-year start month in Workspace Settings
+// (preferences.fiscalYearStartMonth, 1-12). Defaults to April (4) when unset.
+async function getWorkspaceFyStartMonth(workspaceId: mongoose.Types.ObjectId): Promise<number> {
+  const workspace: any = await Workspace.findById(workspaceId)
+    .select("preferences.fiscalYearStartMonth")
+    .lean()
+    .exec();
+  const value = Number(workspace?.preferences?.fiscalYearStartMonth);
+  return Number.isInteger(value) && value >= 1 && value <= 12 ? value : 4;
+}
+
+// Historical imports are restricted to fully completed past fiscal years.
+// The FY start month comes from the workspace, so a January-start workspace
+// ("FY 2026" = Jan–Dec 2026) gates correctly instead of assuming April–March.
+function isPastFiscalYear(fiscalYear: string, fyStartMonth = 4): boolean {
+  const range = parseFiscalYearRange(fiscalYear, fyStartMonth);
   if (!range) return false;
   const now = new Date();
-  const currentFyStartYear = now.getMonth() + 1 >= 4 ? now.getFullYear() : now.getFullYear() - 1;
-  return range.end.getTime() < new Date(currentFyStartYear, 3, 1).getTime();
+  const currentFyStartYear = now.getMonth() + 1 >= fyStartMonth ? now.getFullYear() : now.getFullYear() - 1;
+  return range.end.getTime() < new Date(currentFyStartYear, fyStartMonth - 1, 1).getTime();
 }
 
 // Forward-only payment lifecycle used to gate department-managed payments.
@@ -141,10 +154,12 @@ const FISCAL_MONTH_ORDER = ["apr", "may", "jun", "jul", "aug", "sep", "oct", "no
 // Approved extra-budget headroom concept retired under the strict line-item
 // model (Option A): approved extras surface as their own Add-on lines instead.
 
-function buildDefaultDueDate(monthKey: string, fiscalYear: string): string {  const idx = FISCAL_MONTH_ORDER.indexOf(normalizeMonthKey(monthKey).slice(0, 3));
-  const range = parseFiscalYearRange(fiscalYear);
+function buildDefaultDueDate(monthKey: string, fiscalYear: string, fyStartMonth = 4): string {
+  const idx = FISCAL_MONTH_ORDER.indexOf(normalizeMonthKey(monthKey).slice(0, 3));
+  const range = parseFiscalYearRange(fiscalYear, fyStartMonth);
   if (idx < 0 || !range) return "";
-  const due = new Date(range.start.getFullYear(), 3 + idx + 1, 0);
+  // idx-th fiscal month after the FY start; due on that month's last day.
+  const due = new Date(range.start.getFullYear(), range.start.getMonth() + idx + 1, 0);
   const yyyy = due.getFullYear();
   const mm = String(due.getMonth() + 1).padStart(2, "0");
   const dd = String(due.getDate()).padStart(2, "0");
@@ -192,7 +207,7 @@ const FISCAL_MONTH_LABELS = [
   "October", "November", "December", "January", "February", "March",
 ];
 
-function resolveImportedMonth(raw: string): { key: string; label: string } | null {
+function resolveImportedMonth(raw: string, fyStartMonth = 4): { key: string; label: string } | null {
   const value = safeString(raw);
   if (!value) return null;
   const lower = value.toLowerCase();
@@ -212,7 +227,7 @@ function resolveImportedMonth(raw: string): { key: string; label: string } | nul
     const serial = Number(lower);
     if (serial >= 20000 && serial <= 60000) {
       const utcDate = new Date(Math.round((serial - 25569) * 86400 * 1000));
-      const index = (utcDate.getUTCMonth() - 3 + 12) % 12; // fiscal year starts April
+      const index = (utcDate.getUTCMonth() - (fyStartMonth - 1) + 12) % 12; // anchor to the workspace's FY start
       return { key: FISCAL_MONTH_KEYS[index], label: `${FISCAL_MONTH_LABELS[index]} ${utcDate.getUTCFullYear()}` };
     }
   }
@@ -936,6 +951,7 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
 
   let plan = null as any;
   let importMembership: any = null;
+  const fyStartMonth = await getWorkspaceFyStartMonth(workspaceId);
   if (historical) {
     // Historical budgets are finalized records imported by finance-side
     // roles for completed fiscal years — no approval flow. Same
@@ -946,7 +962,7 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
     if (!canManageAllFinancePayments(importMembership)) {
       throw Object.assign(new Error("Only privileged finance roles can import historical budget records."), { statusCode: 403 });
     }
-    if (!isPastFiscalYear(fiscalYear)) {
+    if (!isPastFiscalYear(fiscalYear, fyStartMonth)) {
       throw Object.assign(new Error("Historical import is only available for fully completed past fiscal years."), { statusCode: 400 });
     }
   }
@@ -1053,7 +1069,7 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
       const month = safeString(row?.month ?? row?.Month ?? row?.MONTH, "");
       const rawMonthKey = safeString(row?.monthKey ?? row?.["Month Key"] ?? month, "");
       if (!rawMonthKey) continue;
-      const resolvedMonth = resolveImportedMonth(rawMonthKey) ?? resolveImportedMonth(month);
+      const resolvedMonth = resolveImportedMonth(rawMonthKey, fyStartMonth) ?? resolveImportedMonth(month, fyStartMonth);
       const monthKey = resolvedMonth?.key ?? rawMonthKey;
       const monthLabel = resolvedMonth?.label ?? (month || rawMonthKey);
       if (!grouped.has(normalizeMonthKey(monthKey))) {
@@ -1116,7 +1132,7 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
 
   for (const m of monthlyEntries) {
     const rawKey = safeString(m?.monthKey || m?.month || "", "");
-    const resolvedMonth = resolveImportedMonth(rawKey) ?? resolveImportedMonth(safeString(m?.month || "", ""));
+    const resolvedMonth = resolveImportedMonth(rawKey, fyStartMonth) ?? resolveImportedMonth(safeString(m?.month || "", ""), fyStartMonth);
     const monthKey = resolvedMonth?.key ?? rawKey;
     const month = resolvedMonth?.label ?? safeString(m?.month || m?.title || monthKey, "");
     if (!monthKey || !month) continue;
@@ -1136,7 +1152,7 @@ export async function importFinanceSnapshotForDepartmentInternal(input: {
         monthKey,
         month,
         date: normalizeImportedDate(e?.date),
-        dueDate: normalizeImportedDate(e?.dueDate) || buildDefaultDueDate(monthKey, safeString((plan as any).fiscalYear)),
+        dueDate: normalizeImportedDate(e?.dueDate) || buildDefaultDueDate(monthKey, safeString((plan as any).fiscalYear), fyStartMonth),
         projectedAmount,
         actualAmount,
         savings: Math.max(0, projectedAmount - actualAmount),
@@ -1780,20 +1796,22 @@ function normalizeDepartmentKey(value: string) {
   return value.toString().trim().toLowerCase().replace(/[\s_]+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-function getFiscalYearLabel(startYear?: number) {
+function getFiscalYearLabel(startYear?: number, fyStartMonth = 4) {
   const safeStartYear = Number(startYear);
   const now = new Date();
   const currentYear = now.getFullYear();
-  const resolvedStartYear = Number.isFinite(safeStartYear) ? safeStartYear : (now.getMonth() >= 3 ? currentYear : currentYear - 1);
+  const resolvedStartYear = Number.isFinite(safeStartYear)
+    ? safeStartYear
+    : (now.getMonth() + 1 >= fyStartMonth ? currentYear : currentYear - 1);
+  // A January fiscal start spans a single calendar year → "FY 2026".
+  if (fyStartMonth === 1) return `FY ${resolvedStartYear}`;
   const nextYear = resolvedStartYear + 1;
   return `FY ${resolvedStartYear}-${String(nextYear).slice(-2)}`;
 }
 
-function getCurrentFiscalYearLabel() {
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const startYear = now.getMonth() >= 3 ? currentYear : currentYear - 1;
-  return getFiscalYearLabel(startYear);
+async function getCurrentFiscalYearLabel(workspaceId: mongoose.Types.ObjectId) {
+  const fyStartMonth = await getWorkspaceFyStartMonth(workspaceId);
+  return getFiscalYearLabel(undefined, fyStartMonth);
 }
 
 export async function listFinanceSnapshotForManagerInternal(input: {
@@ -1801,7 +1819,7 @@ export async function listFinanceSnapshotForManagerInternal(input: {
   fiscalYear?: string;
 }) {
   const { workspaceId } = input;
-  const fiscalYear = input.fiscalYear || getCurrentFiscalYearLabel();
+  const fiscalYear = input.fiscalYear || (await getCurrentFiscalYearLabel(workspaceId));
 
   const plans = await DepartmentFinancePlan.find({ workspaceId, fiscalYear }).lean();
   const annualRequests = await AnnualFinanceRequest.find({ workspaceId, fiscalYear }).lean();
@@ -1897,7 +1915,7 @@ export async function getTenantBillingSnapshotForCurrentUser(input: {
   const { workspaceId, query = {} } = input;
 
   const tenantFilter: any = { workspaceId };
-  const fiscalYearRange = parseFiscalYearRange(query.fiscalYear);
+  const fiscalYearRange = parseFiscalYearRange(query.fiscalYear, await getWorkspaceFyStartMonth(workspaceId));
   if (fiscalYearRange) {
     // A tenant belongs to a fiscal year if its contract overlaps that FY's date range.
     tenantFilter.contractStart = { $lte: fiscalYearRange.end };

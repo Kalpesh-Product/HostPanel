@@ -192,7 +192,8 @@ interface TransactionEntry {
 }
 
 function getFiscalYearStartYear(value: string) {
-  const match = String(value || '').match(/FY\s*(\d{4})-(\d{2,4})/i);
+  // "FY 2026" (January start) or "FY 2026-27" (two-year span).
+  const match = String(value || '').match(/FY\s*(\d{4})(?:\s*-\s*\d{2,4})?/i);
   return match ? Number(match[1]) : new Date().getFullYear();
 }
 
@@ -226,7 +227,8 @@ function formatCurrency(value: number, currency?: string): string {
 }
 
 function parseFiscalYearRange(fiscalYear = DEFAULT_FISCAL_YEAR): { start: Date; end: Date } {
-  const match = String(fiscalYear || '').match(/FY\s*(\d{2,4})-(\d{2,4})/i);
+  // "FY 2026" (January start, single calendar year) or "FY 2026-27".
+  const match = String(fiscalYear || '').match(/FY\s*(\d{2,4})(?:\s*-\s*(\d{2,4}))?/i);
   if (!match) {
     const now = new Date();
     const currentYear = now.getFullYear();

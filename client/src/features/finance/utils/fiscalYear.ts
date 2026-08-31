@@ -1,6 +1,11 @@
 /**
- * Returns the current fiscal year string in the format "FY YYYY-YY".
- * Indian fiscal year runs April – March.
+ * Fiscal-year utilities. The workspace can pick its fiscal-year start month in
+ * Workspace Settings (preferences.fiscalYearStartMonth, 1-12; synced to
+ * localStorage by useWorkspacePreferences). Default is April (4), the Indian FY.
+ *
+ * Label rules:
+ *   - January start  -> single calendar year, e.g. "FY 2026" (Jan–Dec 2026)
+ *   - Any other start -> spans two calendar years, e.g. "FY 2026-27" (Apr 2026–Mar 2027)
  */
 export const getFiscalYearStartMonth = (): number => {
   if (typeof window === "undefined") return 4;
@@ -9,14 +14,14 @@ export const getFiscalYearStartMonth = (): number => {
 };
 
 export const getCurrentFiscalYear = (): string => {
+  const startMonth = getFiscalYearStartMonth();
   const now = new Date();
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
 
-  // April (month=3) onwards → new FY starts
-  const fyStartYear = month >= getFiscalYearStartMonth() ? year : year - 1;
-  const fyEndYear = fyStartYear + 1;
-  return `FY ${fyStartYear}-${String(fyEndYear).slice(2)}`;
+  const fyStartYear = month >= startMonth ? year : year - 1;
+  if (startMonth === 1) return `FY ${fyStartYear}`;
+  return `FY ${fyStartYear}-${String(fyStartYear + 1).slice(2)}`;
 };
 
 export const DEFAULT_FISCAL_YEAR = getCurrentFiscalYear();
@@ -24,20 +29,36 @@ export const DEFAULT_FISCAL_YEAR = getCurrentFiscalYear();
 /**
  * Returns a list of fiscal year options for the dropdown selector.
  * Includes 4 years back (covers historical/imported records) and 1 year ahead.
+ * Labels follow the workspace's FY start month ("FY 2026" for January starts,
+ * "FY 2026-27" otherwise).
  */
 export const getFiscalYearOptions = (): string[] => {
+  const startMonth = getFiscalYearStartMonth();
   const now = new Date();
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
-  const currentFyStart = month >= getFiscalYearStartMonth() ? year : year - 1;
+  const currentFyStart = month >= startMonth ? year : year - 1;
 
   const options: string[] = [];
   for (let offset = -4; offset <= 1; offset++) {
     const start = currentFyStart + offset;
     const end = start + 1;
-    options.push(`FY ${start}-${String(end).slice(2)}`);
+    options.push(startMonth === 1 ? `FY ${start}` : `FY ${start}-${String(end).slice(2)}`);
   }
   return options;
+};
+
+const CALENDAR_MONTH_KEYS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
+/**
+ * The 12 fiscal month keys ('jan'…'dec') in fiscal order, starting from the
+ * workspace's fiscal-year start month — 'apr'-first for the April default,
+ * 'jan'-first for a January start, etc. Pages use this to order month
+ * dropdowns, draft month pickers and budget tables.
+ */
+export const getFiscalMonthSequence = (): string[] => {
+  const start = getFiscalYearStartMonth() - 1;
+  return Array.from({ length: 12 }, (_, i) => CALENDAR_MONTH_KEYS[(start + i) % 12]);
 };
 
 const MONTH_KEY_TO_INDEX: Record<string, number> = {
@@ -54,11 +75,11 @@ export type MonthLifecycle = "completed" | "current" | "upcoming";
  * the lifecycle from the calendar instead: months before the current calendar
  * month → "completed", the current calendar month → "current", later → "upcoming".
  * monthKey is the 3-letter lowercase key ('apr' … 'mar'); fiscalYear is the
- * "FY 2026-27" style label.
+ * "FY 2026-27" or "FY 2026" (January start) style label.
  */
 export const deriveMonthLifecycle = (monthKey: string, fiscalYear: string): MonthLifecycle => {
   const monthIndex = MONTH_KEY_TO_INDEX[String(monthKey || "").trim().toLowerCase().slice(0, 3)];
-  const match = /fy\s*(\d{4})\s*-\s*\d{2,4}/i.exec(String(fiscalYear || ""));
+  const match = /fy\s*(\d{4})(?:\s*-\s*\d{2,4})?/i.exec(String(fiscalYear || ""));
   if (monthIndex === undefined || !match) return "upcoming";
 
   const fyStartYear = Number(match[1]);
