@@ -229,7 +229,7 @@ export function FinanceDashboardWidgets() {
         </div>
       ) : null}
 
-      <WidgetSection layout={4} title="Overview" border normalCase>
+      <WidgetSection layout={3} title="Overview" border normalCase>
         <StatCard
           icon={Wallet}
           label="Net Payable"
@@ -278,7 +278,7 @@ export function FinanceDashboardWidgets() {
         </SectionCard>
       </div>
 
-      <WidgetSection layout={4} title="Quick Links" border normalCase>
+      <WidgetSection layout={3} title="Quick Links" border normalCase>
         <QuickLink icon={Wallet} label="Expenses & Budget" description="Departmental budgets & spend" route="/department-accesses/finance-department/expenses-budget" color="#f59e0b" />
         <QuickLink icon={Receipt} label="Billing & Payments" description="Deposits, bookings & payroll" route="/department-accesses/finance-department/billing-payments" color="#1E3D73" />
         <QuickLink icon={Calculator} label="Accounting" description="Ledgers & reconciliation" route="/department-accesses/finance-department/accounting" color="#7c3aed" />

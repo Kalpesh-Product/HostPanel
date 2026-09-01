@@ -452,7 +452,7 @@ export function AdministrationDashboardWidgets() {
         </div>
       ) : null}
 
-      <WidgetSection layout={4} title="Overview" border normalCase>
+      <WidgetSection layout={5} title="Overview" border normalCase>
         <StatCard icon={Eye} label="Visitors Today" value={dailyVisitors.length} sub={`${liveVisitors.length} checked in`} color="#80bf01" route="/visitors/visitor-management" />
         <StatCard icon={Building2} label="Total Tenants" value={tenantStats.total} sub={`${tenantStats.active} active`} color="#1E3D73" route="/department-accesses/administration-department/tenant-companies" />
         <StatCard icon={CalendarCheck} label="Meeting Room Bookings" value={bookingStats.total} sub={`${bookingStats.confirmedToday} confirmed today`} color="#2563EB" route="/department-accesses/administration-department/bookings" />
@@ -506,7 +506,7 @@ export function AdministrationDashboardWidgets() {
         />
       </div>
 
-      <WidgetSection layout={4} title="Quick Links" border normalCase>
+      <WidgetSection layout={5} title="Quick Links" border normalCase>
         <QuickLink icon={Building2} label="Tenant Companies" description="Manage tenants & agreements" route="/department-accesses/administration-department/tenant-companies" color="#1E3D73" />
         <QuickLink icon={CalendarCheck} label="Bookings" description="Meeting room bookings" route="/department-accesses/administration-department/bookings" color="#2563EB" />
         <QuickLink icon={HandCoins} label="Resource Management" description="Desks, rooms & assets" route="/department-accesses/administration-department/resource-management" color="#7c3aed" />

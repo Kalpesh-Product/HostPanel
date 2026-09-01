@@ -36,23 +36,17 @@ export const StatCard = ({
   const navigate = useNavigate();
   return (
     <div
-      className="rounded-xl p-5 shadow-md bg-white flex flex-col gap-3 transition-all duration-200 hover:shadow-lg cursor-pointer border border-borderGray"
+      className="flex items-center justify-between gap-3 rounded-2xl border border-borderGray border-l-4 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md cursor-pointer"
+      style={{ borderLeftColor: color }}
       onClick={() => { if (onClick) onClick(); else if (route) navigate(route); }}
     >
-      <div className="flex items-center justify-between">
-        <div className="p-2.5 rounded-lg" style={{ backgroundColor: color + "18" }}>
-          <Icon size={20} style={{ color }} />
-        </div>
-        {route && (
-          <div className="p-1.5 rounded-full hover:bg-primary hover:text-white text-gray-300 transition-colors">
-            <ArrowRight size={12} />
-          </div>
-        )}
+      <div className="min-w-0">
+        <p className="text-small font-pmedium text-gray-800 uppercase tracking-widest mb-1 truncate">{label}</p>
+        <p className="text-2xl font-pmedium text-gray-800">{value}</p>
+        {sub && <p className="text-small font-pmedium text-gray-500 mt-1 truncate">{sub}</p>}
       </div>
-      <div>
-        <p className="text-2xl font-pbold text-gray-900">{value}</p>
-        <p className="text-content font-pmedium text-primary uppercase tracking-wide mt-0.5">{label}</p>
-        {sub && <p className="text-small text-gray-400 mt-1">{sub}</p>}
+      <div className="p-2.5 rounded-xl shrink-0" style={{ backgroundColor: `${color}18` }}>
+        <Icon size={20} style={{ color }} />
       </div>
     </div>
   );

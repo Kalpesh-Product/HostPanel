@@ -331,7 +331,7 @@ export function MaintenanceDashboardWidgets() {
         </div>
 
         {/* Quick links */}
-        <WidgetSection layout={4} title="Quick Links" border normalCase>
+        <WidgetSection layout={2} title="Quick Links" border normalCase>
           <QuickLink icon={ScanSearch} label="Repair Logs" description="Log & track repairs" route="/department-accesses/maintenance-department/repair-logs" color="#ef4444" />
           <QuickLink icon={CalendarClock} label="AMC Scheduler" description="Preventive servicing & alerts" route="/department-accesses/maintenance-department/amc-scheduler" color="#f59e0b" />
         </WidgetSection>

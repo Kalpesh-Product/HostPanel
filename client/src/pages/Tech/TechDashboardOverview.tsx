@@ -239,7 +239,7 @@ export function TechDashboardWidgets() {
         ) : null}
 
         {/* Overview — only the metrics that matter */}
-        <WidgetSection layout={4} title="Overview" border normalCase>
+        <WidgetSection layout={3} title="Overview" border normalCase>
           <StatCard icon={Magnet} label="Website Leads" value={leads.length} sub={`${pendingLeads.length} new/uncontacted`} color="#2563EB" route="/key-apps/website-builder/leads" />
           <StatCard icon={UserCheck} label="Contacted Leads" value={contactedLeads.length} sub={`${closedLeads.length} closed`} color="#f59e0b" route="/key-apps/website-builder/leads" />
           <StatCard icon={CheckCircle2} label="Closed Leads" value={closedLeads.length} sub={`${rejectedLeads.length} rejected`} color="#22c55e" route="/key-apps/website-builder/leads" />
@@ -253,7 +253,7 @@ export function TechDashboardWidgets() {
         </div>
 
         {/* Quick links */}
-        <WidgetSection layout={4} title="Quick Links" border normalCase>
+        <WidgetSection layout={3} title="Quick Links" border normalCase>
           <QuickLink icon={Globe} label="Website Builder" description="Build & manage websites" route="/key-apps/website-builder" color="#2563EB" />
           <QuickLink icon={Magnet} label="Website Leads" description="Track & follow up leads" route="/key-apps/website-builder/leads" color="#f59e0b" />
           <QuickLink icon={CheckCircle2} label="Website Review" description="Visitor-submitted reviews" route="/key-apps/website-builder/dynamic/reviews" color="#22c55e" />

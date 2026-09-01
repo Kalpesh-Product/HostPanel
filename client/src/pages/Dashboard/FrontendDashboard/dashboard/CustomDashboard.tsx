@@ -32,7 +32,7 @@ import {
   StatCard, QuickLink, SectionCard, RecentItem, DonutWidget, BarWidget,
 } from "./DashboardShared";
 import type { QuickLinkItem } from "./DashboardShared";
-import { statusBadgeColor, humanRelTime, fmtINR } from "./dashboardUtils";
+import { statusBadgeColor, humanRelTime, fmtINR, pickCardCols } from "./dashboardUtils";
 import useWorkspacePreferences from "../../../../hooks/useWorkspacePreferences";
 import { getTenantCompanies } from "../../../../services/tenant-companies";
 import { getMeetingRoomBookings } from "../../../../services/meeting-room-bookings";
@@ -285,25 +285,21 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
   }, [tenantsRaw]);
 
   // ── Top-level stat cards (only enabled modules show up) ───────────────────
-
+  // Kept to the founder's core, day-to-day domains. Booking Revenue and a
+  // payroll headcount both already live in the Financial Snapshot row below
+  // (Booking Revenue verbatim, employee count in Net Payable's sub-text) —
+  // repeating them here just doubled the same numbers on one page.
   const bespokeStatCards = useMemo(() => {
     const cards = [];
     if (showTenants) cards.push({ icon: Building2, label: "Total Tenants", value: tenantStats.total, sub: `${tenantStats.active} active`, color: "#1E3D73", route: "/company-settings/companies" });
     if (showBookings) cards.push({ icon: CalendarCheck, label: "Total Bookings", value: bookingStats.total, sub: `${bookingStats.todayCount} today`, color: "#2563EB", route: "/app/meeting-rooms" });
     if (showTickets) cards.push({ icon: Ticket, label: "Support Tickets", value: ticketStats.total, sub: `${ticketStats.open} open`, color: "#ef4444", route: "/app/tickets" });
     if (showVisitors) cards.push({ icon: Eye, label: "Visitors Today", value: visitorStats.todayCount, sub: `${visitorStats.checkedIn} checked in`, color: "#80bf01", route: "/visitors/visitor-management" });
-    if (showFinance) cards.push({ icon: Banknote, label: "Booking Revenue", value: fmtINR(bookingStats.revenue, workspacePreferences.currency), sub: "Meeting room revenue", color: "#f59e0b", route: "/app/department-accesses/finance-department/billing-payments" });
-    if (showHR) cards.push({ icon: Users, label: "Payroll Employees", value: hrStats.totalEmployees, sub: `${hrStats.paid} paid`, color: "#7c3aed", route: "/app/department-accesses/finance-department/billing-payments" });
     if (showSales) cards.push({ icon: FileText, label: "Website Leads", value: leadStats.total, sub: `${leadStats.newLeads} new`, color: "#059669", route: "/key-apps/website-builder/leads" });
     if (showLeaveRequests) cards.push({ icon: ICON_BY_ID["leave-requests"] || CalendarCheck, label: "Leave Requests", value: leaveStats.total, sub: `${leaveStats.pending} pending`, color: "#f59e0b", route: "/common-modules/leave-requests" });
     return cards;
-  }, [showTenants, showBookings, showTickets, showVisitors, showFinance, showHR, showSales, showLeaveRequests,
-    tenantStats, bookingStats, ticketStats, visitorStats, hrStats, leadStats, leaveStats, workspacePreferences.currency]);
-
-  const statCards = useMemo(
-    () => [...bespokeStatCards, ...longTailCards],
-    [bespokeStatCards, longTailCards],
-  );
+  }, [showTenants, showBookings, showTickets, showVisitors, showSales, showLeaveRequests,
+    tenantStats, bookingStats, ticketStats, visitorStats, leadStats, leaveStats]);
 
   // ── Quick links — built from the workspace's actual module catalog ───────
 
@@ -409,7 +405,8 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
 
   // ── Layout ────────────────────────────────────────────────────────────────
 
-  const cardCols = Math.min(Math.max(statCards.length, 1), 4) as 1 | 2 | 3 | 4;
+  const bespokeCardCols = pickCardCols(bespokeStatCards.length);
+  const longTailCardCols = pickCardCols(longTailCards.length);
   const showTeamStatus = showAttendance;
   const teamRowCount = [showTeamStatus, showVisitors, showVisitors].filter(Boolean).length;
 
@@ -419,10 +416,22 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
       {/* Clock in / out */}
       {showAttendance && <TodayAttendanceCard />}
 
-      {/* Dynamic stat cards — common, extra-common, core & custom-selected modules */}
-      {statCards.length > 0 && (
-        <WidgetSection layout={cardCols} title="Overview" border normalCase>
-          {statCards.map((c, i) => <StatCard key={i} {...c} />)}
+      {/* Founder's core day-to-day numbers — tenants, bookings, tickets, visitors, leads, leave */}
+      {bespokeStatCards.length > 0 && (
+        <WidgetSection layout={bespokeCardCols} title="Overview" border normalCase>
+          {bespokeStatCards.map((c, i) => <StatCard key={i} {...c} />)}
+        </WidgetSection>
+      )}
+
+      {/* Everything else enabled (resources, housekeeping, maintenance, IT, HR,
+          recruitment, attendance review, pricing) — kept as its own, lower-priority
+          section instead of merging into Overview above, so the founder's core
+          numbers aren't buried in a wall of up to a dozen more cards. These also
+          double as this dashboard's only entry point into department pages, since
+          Quick Links below deliberately excludes department-scoped modules. */}
+      {longTailCards.length > 0 && (
+        <WidgetSection layout={longTailCardCols} title="Department Modules" border normalCase>
+          {longTailCards.map((c, i) => <StatCard key={i} {...c} />)}
         </WidgetSection>
       )}
 
@@ -461,7 +470,7 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
       )}
 
       {/* Quick links — dynamic, based on the founder's module access */}
-      <WidgetSection layout={Math.min(quickLinks.length, 4) as 1 | 2 | 3 | 4} title="Quick Links" border normalCase>
+      <WidgetSection layout={pickCardCols(quickLinks.length)} title="Quick Links" border normalCase>
         {quickLinks.map((ql, i) => <QuickLink key={i} {...ql} />)}
       </WidgetSection>
 

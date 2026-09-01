@@ -194,6 +194,8 @@ const CompanySettingsDashboard = () => {
               onUpgradeClick={() => setShowUpgradeModal(true)}
               activeMembers={access.metrics.activeMembers}
               totalMembers={access.metrics.totalMembers}
+              moduleMap={access.moduleMap}
+              grantedModuleIds={access.grantedModuleIds}
             />
           )}
           {access.plan === "professional" && (

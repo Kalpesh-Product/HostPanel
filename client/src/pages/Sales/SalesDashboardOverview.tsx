@@ -386,7 +386,7 @@ export function SalesDashboardWidgets() {
       ) : null}
 
       {/* Overview — only the metrics that matter */}
-      <WidgetSection layout={4} title="Overview" border normalCase>
+      <WidgetSection layout={5} title="Overview" border normalCase>
         <StatCard icon={Magnet} label="Website Leads" value={totalLeads} sub={`${newLeadsCount} new · uncontacted`} color="#2563EB" route="/department-accesses/sales-department/leads-management" />
         <StatCard icon={Building2} label="Tenant Companies" value={totalTenants} sub={`${activeTenantsCount} active`} color="#0891b2" route="/department-accesses/sales-department/tenant-companies" />
         <StatCard icon={Tag} label="Pricing Packages" value={totalPackages} sub={`${activePackagesCount} active`} color="#7c3aed" route="/department-accesses/sales-department/resource-pricing" />

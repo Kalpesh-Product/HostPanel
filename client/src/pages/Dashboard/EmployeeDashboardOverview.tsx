@@ -31,6 +31,7 @@ import {
   humanRelTime,
   statusBadgeColor,
 } from "@/pages/Dashboard/FrontendDashboard/dashboard/DashboardShared";
+import { pickCardCols } from "@/pages/Dashboard/FrontendDashboard/dashboard/dashboardUtils";
 import { DashboardAttendanceCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
 import { getTasks } from "@/services/tasks";
 import { getTickets } from "@/services/tickets";
@@ -438,7 +439,7 @@ export function EmployeeDashboardOverview() {
       </WidgetSection>
 
       {/* Quick links */}
-      <WidgetSection layout={4} title="Quick Links" border normalCase>
+      <WidgetSection layout={pickCardCols(7)} title="Quick Links" border normalCase>
         <QuickLink icon={ListChecks} label="Tasks" description="Your assigned work" route="/common-modules/tasks" color="#1E3D73" />
         <QuickLink icon={Ticket} label="Tickets" description="Raise or track support tickets" route="/common-modules/tickets" color="#ef4444" />
         <QuickLink icon={CalendarClock} label="Leave Requests" description="Apply for or check leaves" route="/common-modules/leave-requests" color="#f59e0b" />

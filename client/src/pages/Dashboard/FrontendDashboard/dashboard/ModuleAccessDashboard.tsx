@@ -19,6 +19,7 @@ import WidgetSection from "../../../../components/WidgetSection";
 import { StatCard, QuickLink, DonutWidget } from "./DashboardShared";
 import type { QuickLinkItem } from "./DashboardShared";
 import { ICON_BY_ID, DEFAULT_SECTION_ROUTES } from "../ModuleCardsLanding";
+import { pickCardCols } from "./dashboardUtils";
 import TodayAttendanceCard from "./TodayAttendanceCard";
 import { useShouldShowDashboardAttendance } from "./useDashboardAttendanceVisibility";
 import { useModuleStats } from "./moduleStatProviders";
@@ -129,14 +130,14 @@ const ModuleAccessDashboard = ({
       {departmentSections.map((group) => (
         <div key={group.name} className="flex flex-col gap-4">
           {group.statCards.length > 0 && (
-            <WidgetSection layout={Math.min(group.statCards.length, 4) as 1 | 2 | 3 | 4} title={`${group.name} Overview`} border normalCase>
+            <WidgetSection layout={pickCardCols(group.statCards.length)} title={`${group.name} Overview`} border normalCase>
               {group.statCards.map((c, i) => (
                 <StatCard key={i} icon={c.icon} label={c.label} value={c.value} sub={c.sub} color={c.color} route={c.route} />
               ))}
             </WidgetSection>
           )}
           {group.links.length > 0 && (
-            <WidgetSection layout={4} title={`${group.name} Modules`} border normalCase>
+            <WidgetSection layout={pickCardCols(group.links.length)} title={`${group.name} Modules`} border normalCase>
               {group.links.map((link, i) => (
                 <QuickLink key={i} {...link} />
               ))}
@@ -153,14 +154,14 @@ const ModuleAccessDashboard = ({
       {(commonStatCards.length > 0 || dedupedCommonLinks.length > 0) && (
         <div className="flex flex-col gap-4">
           {commonStatCards.length > 0 && (
-            <WidgetSection layout={Math.min(commonStatCards.length, 4) as 1 | 2 | 3 | 4} title="Your Overview" border normalCase>
+            <WidgetSection layout={pickCardCols(commonStatCards.length)} title="Your Overview" border normalCase>
               {commonStatCards.map((c, i) => (
                 <StatCard key={i} icon={c.icon} label={c.label} value={c.value} sub={c.sub} color={c.color} route={c.route} />
               ))}
             </WidgetSection>
           )}
           {dedupedCommonLinks.length > 0 && (
-            <WidgetSection layout={4} title="Your Modules" border normalCase>
+            <WidgetSection layout={pickCardCols(dedupedCommonLinks.length)} title="Your Modules" border normalCase>
               {dedupedCommonLinks.map((link, i) => (
                 <QuickLink key={i} {...link} />
               ))}

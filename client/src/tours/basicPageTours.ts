@@ -40,7 +40,7 @@ interface TourRoute extends BasicPageTour {
   matches: (pathname: string) => boolean;
 }
 
-const BASIC_TOUR_VERSION = 6;
+const BASIC_TOUR_VERSION = 8;
 
 const exact = (path: string) => (pathname: string) =>
   pathname === path || pathname === `${path}/`;
@@ -1037,14 +1037,14 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="breadcrumb"]', title: "Your current location", description: "The breadcrumb shows where you are inside the workspace so you can keep track of the current module and page." },
       { selector: '[data-tour="workspace-switcher"]', title: "Switch workspaces", description: "If you belong to more than one workspace, switch here. Tour completion is remembered separately for every member in each workspace." },
       { selector: '[data-notification-trigger]', title: "Workspace notifications", description: "Open notifications to see new activity and updates that may need your attention." },
-      { selector: '[data-tour="dashboard-plan"]', title: "Your Basic plan", description: "This banner confirms the active plan. Selecting it opens the upgrade options where Professional features such as meeting rooms, tickets, and Sales modules can be reviewed." },
-      { selector: '[data-tour="dashboard-overview"]', title: "Overview and direct shortcuts", description: "These cards combine live totals with navigation. Visitors Today and All-Time Visitors open Visitor Management, Website Leads opens website enquiries, and Active Members opens Organization Management." },
-      { selector: '[data-tour="dashboard-quick-links"]', title: "Quick Links to common pages", description: "Select a shortcut to open Listings, Website Builder, Website Leads, Visitor Management, Organization, or Access Grants directly." },
+      { selector: '[data-tour="dashboard-plan"]', title: "Your Basic plan", description: "This strip confirms the active plan. Selecting it opens the upgrade options where Professional features such as meeting rooms, tickets, and Sales modules can be reviewed." },
+      { selector: '[data-tour="dashboard-overview"]', title: "Today at a glance", description: "Three live numbers answer the day's key questions: visitors today, website leads received, and active members. Select a card to open the matching page." },
+      { selector: '[data-tour="dashboard-quick-links"]', title: "Quick actions", description: "Shortcuts to the modules this workspace actually has enabled — the list adjusts automatically as modules are added." },
+      { selector: '[data-tour="dashboard-getting-started"]', title: "Getting started", description: "Until leads or visitors start coming in, this checklist replaces the activity panels below — follow the three steps in order to get your workspace live." },
       { selector: '[data-tour="dashboard-recent-leads"]', title: "Recent Leads", description: "This list shows the newest website enquiries and their current stage. View all opens the complete Website Leads page for search, filtering, details, and follow-up actions." },
-      { selector: '[data-tour="dashboard-lead-status"]', title: "Lead Status", description: "This chart summarizes how many leads are new and how many have been contacted, helping you see the current follow-up workload at a glance." },
+      { selector: '[data-tour="dashboard-lead-status"]', title: "Lead Status", description: "This chart shows how leads are spread across stages — pending, contacted, closed, and rejected — so the follow-up workload is visible at a glance." },
       { selector: '[data-tour="dashboard-recent-visitors"]', title: "Recent Visitors", description: "This list shows the latest visitor activity and check-in state. View all opens Visitor Management where the complete visitor workflow is available." },
-      { selector: '[data-tour="dashboard-visitor-types"]', title: "Visitor Types", description: "This chart groups recorded visitors by type so you can quickly understand who is using the workspace." },
-      { selector: '[data-tour="dashboard-visitor-trend"]', title: "Monthly Visitor Trend", description: "This financial-year chart compares monthly visitor volume and helps reveal changes in workspace activity over time." },
+      { selector: '[data-tour="dashboard-visitor-trend"]', title: "Monthly Visitor Trend", description: "This financial-year chart beside Recent Visitors compares monthly visitor volume and helps reveal changes in workspace activity over time." },
     ],
     matches: exact("/dashboard"),
   },

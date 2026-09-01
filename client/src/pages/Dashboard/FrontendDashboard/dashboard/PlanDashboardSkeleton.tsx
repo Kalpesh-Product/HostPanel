@@ -15,10 +15,10 @@ const SectionHeaderSkeleton = () => (
   </div>
 );
 
-const StatsSkeleton = ({ count, columns }: { count: number; columns: 3 | 4 }) => (
+const StatsSkeleton = ({ count }: { count: number }) => (
   <div>
     <SectionHeaderSkeleton />
-    <div className={`grid grid-cols-1 gap-4 rounded-b-xl border-2 border-t-0 border-borderGray p-4 sm:grid-cols-2 ${columns === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
+    <div className="grid grid-cols-1 gap-4 rounded-b-xl border-2 border-t-0 border-borderGray p-4 sm:grid-cols-2 lg:grid-cols-3">
       {Array.from({ length: count }).map((_, index) => (
         <div key={index} className="rounded-xl border border-borderGray bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
@@ -34,11 +34,11 @@ const StatsSkeleton = ({ count, columns }: { count: number; columns: 3 | 4 }) =>
   </div>
 );
 
-const QuickLinksSkeleton = ({ columns }: { columns: 3 | 4 }) => (
+const QuickLinksSkeleton = ({ count = 6 }: { count?: number }) => (
   <div>
     <SectionHeaderSkeleton />
-    <div className={`grid grid-cols-1 gap-4 rounded-b-xl border-2 border-t-0 border-borderGray p-4 sm:grid-cols-2 ${columns === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
-      {Array.from({ length: 6 }).map((_, index) => (
+    <div className="grid grid-cols-1 gap-4 rounded-b-xl border-2 border-t-0 border-borderGray p-4 sm:grid-cols-2 lg:grid-cols-4">
+      {Array.from({ length: count }).map((_, index) => (
         <div key={index} className="flex items-center gap-3 rounded-xl border border-borderGray bg-white p-3">
           <SkeletonBlock className="h-9 w-9 flex-shrink-0 rounded-lg" />
           <div className="min-w-0 flex-1 space-y-2">
@@ -52,33 +52,40 @@ const QuickLinksSkeleton = ({ columns }: { columns: 3 | 4 }) => (
   </div>
 );
 
+const ListCardSkeleton = () => (
+  <div className="overflow-hidden rounded-xl border-2 border-borderGray bg-white">
+    <div className="flex items-center justify-between border-b-2 border-borderGray p-4">
+      <SkeletonBlock className="h-5 w-32" />
+      <SkeletonBlock className="h-3 w-14" />
+    </div>
+    <div className="space-y-4 p-4">
+      {Array.from({ length: 4 }).map((_, rowIndex) => (
+        <div key={rowIndex} className="flex items-center justify-between border-b border-gray-100 pb-3 last:border-0">
+          <div className="space-y-2">
+            <SkeletonBlock className="h-4 w-36" />
+            <SkeletonBlock className="h-3 w-24 bg-gray-100" />
+          </div>
+          <SkeletonBlock className="h-5 w-16 rounded-full" />
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const DonutCardSkeleton = () => (
+  <div className="overflow-hidden rounded-xl border-2 border-borderGray bg-white">
+    <div className="border-b-2 border-borderGray p-4"><SkeletonBlock className="h-5 w-32" /></div>
+    <div className="flex h-44 items-center justify-center">
+      <div className="h-36 w-36 rounded-full border-[18px] border-gray-200" />
+    </div>
+  </div>
+);
+
+/** List + donut row (e.g. Recent Leads | Lead Status). */
 const DetailRowSkeleton = () => (
   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-    {Array.from({ length: 2 }).map((_, cardIndex) => (
-      <div key={cardIndex} className="overflow-hidden rounded-xl border-2 border-borderGray bg-white">
-        <div className="flex items-center justify-between border-b-2 border-borderGray p-4">
-          <SkeletonBlock className="h-5 w-32" />
-          {cardIndex === 0 && <SkeletonBlock className="h-3 w-14" />}
-        </div>
-        <div className="space-y-4 p-4">
-          {cardIndex === 0 ? (
-            Array.from({ length: 4 }).map((_, rowIndex) => (
-              <div key={rowIndex} className="flex items-center justify-between border-b border-gray-100 pb-3 last:border-0">
-                <div className="space-y-2">
-                  <SkeletonBlock className="h-4 w-36" />
-                  <SkeletonBlock className="h-3 w-24 bg-gray-100" />
-                </div>
-                <SkeletonBlock className="h-5 w-16 rounded-full" />
-              </div>
-            ))
-          ) : (
-            <div className="flex h-44 items-center justify-center">
-              <div className="h-36 w-36 rounded-full border-[18px] border-gray-200" />
-            </div>
-          )}
-        </div>
-      </div>
-    ))}
+    <ListCardSkeleton />
+    <DonutCardSkeleton />
   </div>
 );
 
@@ -92,6 +99,14 @@ const ChartSkeleton = () => (
         </div>
       ))}
     </div>
+  </div>
+);
+
+/** List + bar-chart row (e.g. Recent Visitors | Monthly Visitor Trend). */
+const ListChartRowSkeleton = () => (
+  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+    <ListCardSkeleton />
+    <ChartSkeleton />
   </div>
 );
 
@@ -126,10 +141,21 @@ export const PlanDashboardSkeleton = ({ plan = "basic", includeHeader = false }:
           <SkeletonBlock className="h-4 w-3/4" />
           <SkeletonBlock className="ml-auto h-6 w-20 flex-shrink-0 rounded-full" />
         </div>
-        <StatsSkeleton count={isProfessional ? 6 : 4} columns={isProfessional ? 3 : 4} />
-        <QuickLinksSkeleton columns={isProfessional ? 4 : 3} />
-        {Array.from({ length: isProfessional ? 3 : 2 }).map((_, index) => <DetailRowSkeleton key={index} />)}
-        {Array.from({ length: isProfessional ? 3 : 1 }).map((_, index) => <ChartSkeleton key={index} />)}
+        <StatsSkeleton count={isProfessional ? 4 : 3} />
+        <QuickLinksSkeleton count={isProfessional ? 7 : 4} />
+        {isProfessional ? (
+          <>
+            {Array.from({ length: 4 }).map((_, index) => <DetailRowSkeleton key={index} />)}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, index) => <ChartSkeleton key={index} />)}
+            </div>
+          </>
+        ) : (
+          <>
+            <DetailRowSkeleton />
+            <ListChartRowSkeleton />
+          </>
+        )}
       </div>
     </div>
   );

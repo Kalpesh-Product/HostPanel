@@ -320,7 +320,7 @@ export function ITDashboardWidgets() {
         </SectionCard>
       </div>
 
-      <WidgetSection layout={4} title="Quick Links" border normalCase>
+      <WidgetSection layout={2} title="Quick Links" border normalCase>
         <QuickLink icon={FileSearch} label="IT Repair Logs" description="Log & track repairs" route="/department-accesses/it-department/repair-logs" color="#2563EB" />
         <QuickLink icon={KeyRound} label="System Access" description="Manage software access" route="/department-accesses/it-department/system-access" color="#7c3aed" />
       </WidgetSection>

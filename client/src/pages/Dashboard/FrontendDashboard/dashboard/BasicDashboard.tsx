@@ -1,24 +1,27 @@
 /**
  * BasicDashboard — shown for workspaces on the Basic plan.
- * Focus: Website leads, visitors (from real visitor API), org, quick links.
+ * Simplified, glanceable layout: plan strip → today's key numbers → quick
+ * actions → one row per topic (leads, visitors). Built only from the shared
+ * dashboard widgets so it stays consistent with the other plan dashboards.
  * Upgrade nudge → opens the upgrade modal (Professional only).
  */
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import WidgetSection from "../../../../components/WidgetSection";
-import BarGraph from "../../../../components/graphs/BarGraph";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import useAuth from "../../../../hooks/useAuth";
 import {
-  Globe, Users, Eye, UserPlus, LayoutGrid, ArrowRight,
-  FileText, Zap, Map,
+  Globe, Users, Eye, UserPlus, FileText, Zap, ArrowRight, LayoutGrid,
 } from "lucide-react";
 import {
-  StatCard, QuickLink, SectionCard, RecentItem, DonutWidget,
+  StatCard, QuickLink, SectionCard, RecentItem, DonutWidget, BarWidget,
 } from "./DashboardShared";
 import type { QuickLinkItem } from "./DashboardShared";
 import { statusBadgeColor, humanRelTime } from "./dashboardUtils";
+import { ICON_BY_ID, DEFAULT_SECTION_ROUTES } from "../ModuleCardsLanding";
+import type { WorkspaceModuleSection } from "../../../../hooks/useDashboardAccess";
 import dayjs from "dayjs";
 import PlanDashboardSkeleton from "./PlanDashboardSkeleton";
 
@@ -28,14 +31,85 @@ interface BasicDashboardProps {
    * doesn't re-fetch /api/organization/overview a second time on the same page load. */
   activeMembers: number;
   totalMembers: number;
+  /** The workspace's real module catalog + this member's actual grants, so Quick
+   * Actions reflects what the workspace has instead of a hand-picked subset. */
+  moduleMap: { sections: WorkspaceModuleSection[] };
+  grantedModuleIds: Set<string>;
 }
+
+// The shared module catalog (ModuleCardsLanding) doesn't carry a route for
+// "visitor-management" — only its plural department-tab alias
+// "visitors-management" — so it's added here rather than touching the
+// shared file for one dashboard's sake.
+const BASIC_ROUTE_BY_ID: Record<string, string> = {
+  ...DEFAULT_SECTION_ROUTES,
+  "visitor-management": "/visitors/visitor-management",
+};
+
+const BASIC_MODULE_COPY: Record<string, { description: string; color: string }> = {
+  "customer-support": { description: "Raise issues to the WoNo team", color: "#ef4444" },
+  "visitor-management": { description: "Log & track visitors", color: "#80bf01" },
+  "tech-website-builder": { description: "Build & publish your site", color: "#7c3aed" },
+  "website-leads": { description: "Follow up on every enquiry", color: "#1E3D73" },
+  "website-review": { description: "See what visitors are saying", color: "#059669" },
+  "organization-management": { description: "Members, roles & departments", color: "#0891b2" },
+  "access-grants": { description: "Control who can access what", color: "#f59e0b" },
+};
 
 // FY month labels Apr–Mar
 const FY_MONTHS = ["Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
 
 const fyMonthIndex = (date: Date) => (date.getMonth() + 9) % 12;
 
-const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers }: BasicDashboardProps) => {
+// Lead pipeline stages — mirrors the statuses on the Website Leads page.
+const LEAD_STAGES = [
+  { key: "Pending", label: "Pending", color: "#f59e0b" },
+  { key: "Contacted", label: "Contacted", color: "#2563EB" },
+  { key: "Closed", label: "Closed", color: "#059669" },
+  { key: "Rejected", label: "Rejected", color: "#ef4444" },
+] as const;
+
+// Shown instead of the leads/visitors rows until the workspace has real
+// activity — four empty "No data yet" panels teach a first-time user
+// nothing, one ordered checklist does.
+const GETTING_STARTED_STEPS = [
+  { icon: Globe, label: "Build & publish your website", description: "Pick a template and go live in minutes.", route: "/key-apps/website-builder", color: "#7c3aed" },
+  { icon: FileText, label: "Share your website link", description: "Every enquiry that comes in becomes a lead here automatically.", route: "/key-apps/website-builder/leads", color: "#1E3D73" },
+  { icon: Eye, label: "Log your first visitor", description: "Track walk-ins and guests as they check in.", route: "/visitors/visitor-management", color: "#80bf01" },
+];
+
+const GettingStartedCard = () => {
+  const navigate = useNavigate();
+  return (
+    <div className="border-default rounded-xl overflow-hidden">
+      <div className="p-4 border-b-2 border-borderGray uppercase">
+        <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">Getting Started</span>
+      </div>
+      <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {GETTING_STARTED_STEPS.map((step, i) => (
+          <div
+            key={step.route}
+            className="flex items-start gap-3 p-3 rounded-xl border border-borderGray bg-white hover:border-primary hover:shadow-md cursor-pointer transition-all duration-200"
+            onClick={() => navigate(step.route)}
+          >
+            <div
+              className="flex items-center justify-center h-7 w-7 rounded-full text-white text-content font-pmedium flex-shrink-0"
+              style={{ backgroundColor: step.color }}
+            >
+              {i + 1}
+            </div>
+            <div className="min-w-0">
+              <p className="text-content font-pmedium text-gray-900">{step.label}</p>
+              <p className="text-small text-gray-500 mt-0.5">{step.description}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap, grantedModuleIds }: BasicDashboardProps) => {
   const axiosPrivate = useAxiosPrivate();
   const selectedCompany = useSelector((state: any) => state.company.selectedCompany);
   const { auth } = useAuth();
@@ -107,8 +181,23 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers }: BasicDa
   // ── Derived: lead stats (lead.status: Pending / Contacted / Closed / Rejected) ──
   const leadStats = useMemo(() => {
     const newLeads = leadsRaw.filter((l: any) => (l.status || "Pending") === "Pending").length;
-    const contacted = leadsRaw.filter((l: any) => l.status === "Contacted").length;
-    return { total: leadsRaw.length, newLeads, contacted };
+    return { total: leadsRaw.length, newLeads };
+  }, [leadsRaw]);
+
+  // Lead status donut — shows every stage that actually has leads so the
+  // follow-up workload is visible at a glance.
+  const leadDonut = useMemo(() => {
+    const counts: Record<string, number> = {};
+    leadsRaw.forEach((l: any) => {
+      const status = String(l.status || "Pending").trim();
+      counts[status] = (counts[status] || 0) + 1;
+    });
+    const present = LEAD_STAGES.filter((s) => (counts[s.key] || 0) > 0);
+    return {
+      series: present.map((s) => counts[s.key] || 0),
+      labels: present.map((s) => s.label),
+      colors: present.map((s) => s.color),
+    };
   }, [leadsRaw]);
 
   const orgStats = useMemo(
@@ -116,27 +205,9 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers }: BasicDa
     [activeMembers, totalMembers],
   );
 
-  // ── Visitor type donut ─────────────────────────────────────────────────────
-  const visitorTypeDonut = useMemo(() => {
-    const map: Record<string, number> = {};
-    visitorsRaw.forEach((v: any) => {
-      const raw = String(v.visitorType || v.type || "standard");
-      const type = raw.charAt(0).toUpperCase() + raw.slice(1);
-      map[type] = (map[type] || 0) + 1;
-    });
-    const entries = Object.entries(map);
-    const COLORS = ["#1E3D73", "#80bf01", "#2563EB", "#f59e0b", "#7c3aed"];
-    return {
-      series: entries.map(([, n]) => n),
-      labels: entries.map(([t]) => t),
-      colors: entries.map((_, i) => COLORS[i % COLORS.length]),
-    };
-  }, [visitorsRaw]);
-
-  // ── Lead status donut ──────────────────────────────────────────────────────
-  const leadDonutSeries = [leadStats.newLeads, leadStats.contacted];
-  const leadDonutLabels = ["New Leads", "Contacted"];
-  const leadDonutColors = ["#1E3D73", "#80bf01"];
+  // Nothing logged yet in either feed — show a getting-started checklist
+  // instead of four empty "No data yet" panels.
+  const isNewWorkspace = leadStats.total === 0 && visitorStats.totalCount === 0;
 
   // ── Recent leads ───────────────────────────────────────────────────────────
   const recentLeads = useMemo(
@@ -157,15 +228,43 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers }: BasicDa
     [visitorsRaw],
   );
 
-  // ── Quick links ────────────────────────────────────────────────────────────
-  const quickLinks: QuickLinkItem[] = [
-    { icon: Map, label: "Nomads Listings", description: "Manage nomad space listings", route: "/key-apps/nomad-listings", color: "#059669" },
-    { icon: Globe, label: "Website Builder", description: "Build & publish your site", route: "/key-apps/website-builder", color: "#7c3aed" },
-    { icon: FileText, label: "Website Leads", description: "Manage incoming leads", route: "/key-apps/website-builder/leads", color: "#1E3D73" },
-    { icon: Eye, label: "Visitor Management", description: "Log & track visitors", route: "/visitors/visitor-management", color: "#80bf01" },
-    { icon: Users, label: "Organization", description: "Manage team & departments", route: "/core-modules/organization-management", color: "#0891b2" },
-    { icon: LayoutGrid, label: "Access Grants", description: "Control role permissions", route: "/core-modules/access-grants", color: "#f59e0b" },
-  ];
+  // ── Quick actions — built from what this workspace actually has, not a
+  // hand-picked subset. Walks the real module catalog, keeps only top-level
+  // (non-department-group) items this member is granted, resolves each to
+  // its route/icon via the shared module registry, and drops "dashboard"
+  // (this page) plus anything without a resolvable route (sub-permission
+  // flags like org_tab_users aren't real pages).
+  const quickLinks: QuickLinkItem[] = useMemo(() => {
+    const seenIds = new Set<string>();
+    const candidates: { id: string; label: string }[] = [];
+    for (const section of moduleMap?.sections || []) {
+      for (const item of section.items || []) {
+        const id = String(item?.id || "").trim();
+        if (!id || id === "dashboard" || seenIds.has(id)) continue;
+        if (item.isGroup || (item.tabs && item.tabs.length)) continue;
+        if (!grantedModuleIds.has(id)) continue;
+        seenIds.add(id);
+        candidates.push({ id, label: item.label || id });
+      }
+    }
+
+    const seenRoutes = new Set<string>();
+    const links: QuickLinkItem[] = [];
+    for (const { id, label } of candidates) {
+      const route = BASIC_ROUTE_BY_ID[id];
+      if (!route || seenRoutes.has(route)) continue;
+      seenRoutes.add(route);
+      const copy = BASIC_MODULE_COPY[id];
+      links.push({
+        icon: ICON_BY_ID[id] || LayoutGrid,
+        label,
+        description: copy?.description || "Open this module",
+        route,
+        color: copy?.color || "#1E3D73",
+      });
+    }
+    return links;
+  }, [moduleMap, grantedModuleIds]);
 
   if (visitorsLoading || leadsLoading) {
     return <PlanDashboardSkeleton plan="basic" />;
@@ -173,129 +272,119 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers }: BasicDa
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Upgrade nudge — opens modal for Professional plan */}
+      {/* Plan strip — compact, opens the upgrade modal */}
       <div
         data-tour="dashboard-plan"
         className="flex items-center gap-3 p-4 rounded-xl border-2 border-accent/30 bg-blue-50 cursor-pointer hover:bg-blue-100 transition-colors"
         onClick={onUpgradeClick}
       >
         <Zap size={18} className="text-accent flex-shrink-0" />
-        <div>
-          <p className="text-content font-pmedium text-blue-800">
-            You're on the <strong>Basic Plan</strong> — Upgrade to{" "}
-            <strong>Professional Plan</strong> for Meeting Room Bookings, Ticketing, Sales Modules & more.
-          </p>
-        </div>
+        <p className="text-content font-pmedium text-blue-800 min-w-0 truncate">
+          You're on the <strong>Basic Plan</strong> — Upgrade to{" "}
+          <strong>Professional Plan</strong> for Meeting Room Bookings, Ticketing, Sales Modules & more.
+        </p>
         <span className="ml-auto flex-shrink-0 px-3 py-1 rounded-full text-[10px] font-pmedium uppercase tracking-widest border bg-accent text-white border-accent whitespace-nowrap">
           Upgrade ↑
         </span>
         <ArrowRight size={14} className="text-accent flex-shrink-0" />
       </div>
 
-      {/* Top stat cards */}
+      {/* Today at a glance — one card per key question */}
       <div data-tour="dashboard-overview">
-        <WidgetSection layout={4} title="Overview" border normalCase>
-        <StatCard icon={Eye} label="Visitors Today" value={visitorStats.todayCount} sub={`${visitorStats.checkedIn} currently in`} color="#80bf01" route="/visitors/visitor-management" />
-        <StatCard icon={UserPlus} label="Website Leads" value={leadStats.total} sub={`${leadStats.newLeads} new`} color="#1E3D73" route="/key-apps/website-builder/leads" />
-        <StatCard icon={Users} label="Active Members" value={orgStats.activeMembers} sub={`${orgStats.totalMembers} total members`} color="#0891b2" route="/core-modules/organization-management" />
-        <StatCard icon={Eye} label="All-Time Visitors" value={visitorStats.totalCount} sub="Total logged visitors" color="#7c3aed" route="/visitors/visitor-management" />
+        <WidgetSection layout={3} title="Overview" border normalCase>
+          <StatCard icon={Eye} label="Visitors Today" value={visitorStats.todayCount} sub={`${visitorStats.checkedIn} currently on-site`} color="#80bf01" route="/visitors/visitor-management" />
+          <StatCard icon={UserPlus} label="Website Leads" value={leadStats.total} sub={`${leadStats.newLeads} awaiting follow-up`} color="#1E3D73" route="/key-apps/website-builder/leads" />
+          <StatCard icon={Users} label="Active Members" value={orgStats.activeMembers} sub={`${orgStats.totalMembers} total members`} color="#0891b2" route="/core-modules/organization-management" />
         </WidgetSection>
       </div>
 
-      {/* Quick links */}
+      {/* Quick actions — the four essentials, one row */}
       <div data-tour="dashboard-quick-links">
-        <WidgetSection layout={3} title="Quick Links" border normalCase>
+        <WidgetSection layout={4} title="Quick Actions" border normalCase>
           {quickLinks.map((ql, i) => <QuickLink key={i} {...ql} />)}
         </WidgetSection>
       </div>
 
-      {/* Recent leads + Lead status */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div data-tour="dashboard-recent-leads">
-          <SectionCard title="Recent Leads" linkLabel="View all" linkRoute="/key-apps/website-builder/leads">
-          {recentLeads.length > 0 ? (
-            recentLeads.map((l: any, i: number) => (
-              <RecentItem
-                key={l._id || i}
-                title={l.name || l.fullName || "Lead"}
-                sub={l.email || l.phone || "—"}
-                badge={(l.status || "Pending") === "Pending" ? "New" : l.status}
-                badgeColor={statusBadgeColor(l.status === "Contacted" || l.status === "Closed" ? "active" : "pending")}
-                time={humanRelTime(l.createdAt)}
+      {isNewWorkspace ? (
+        /* First run — one checklist beats four empty "No data yet" panels */
+        <div data-tour="dashboard-getting-started">
+          <GettingStartedCard />
+        </div>
+      ) : (
+        <>
+          {/* Leads — recent enquiries + stage breakdown */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div data-tour="dashboard-recent-leads">
+              <SectionCard title="Recent Leads" linkLabel="View all" linkRoute="/key-apps/website-builder/leads">
+              {recentLeads.length > 0 ? (
+                recentLeads.map((l: any, i: number) => (
+                  <RecentItem
+                    key={l._id || i}
+                    title={l.name || l.fullName || "Lead"}
+                    sub={l.email || l.phone || "—"}
+                    badge={(l.status || "Pending") === "Pending" ? "New" : l.status}
+                    badgeColor={statusBadgeColor(l.status === "Contacted" || l.status === "Closed" ? "active" : "pending")}
+                    time={humanRelTime(l.createdAt)}
+                  />
+                ))
+              ) : (
+                <div className="min-h-48 flex items-center justify-center">
+                  <p className="text-content text-gray-400 text-center">No leads yet — publish your website to start receiving leads.</p>
+                </div>
+              )}
+              </SectionCard>
+            </div>
+
+            <div data-tour="dashboard-lead-status">
+              <DonutWidget
+                title="Lead Status"
+                series={leadDonut.series}
+                labels={leadDonut.labels}
+                colors={leadDonut.colors}
+                centerLabel="Leads"
+                emptyText="No leads yet"
               />
-            ))
-          ) : (
-            <div className="min-h-48 flex items-center justify-center">
-              <p className="text-content text-gray-400 text-center">No leads yet — publish your website to start receiving leads.</p>
             </div>
-          )}
-          </SectionCard>
-        </div>
+          </div>
 
-        <div data-tour="dashboard-lead-status">
-          <DonutWidget
-            title="Lead Status"
-            series={leadDonutSeries}
-            labels={leadDonutLabels}
-            colors={leadDonutColors}
-            centerLabel="Leads"
-            emptyText="No leads yet"
-          />
-        </div>
-      </div>
-
-      {/* Recent visitors + Visitor types */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div data-tour="dashboard-recent-visitors">
-          <SectionCard title="Recent Visitors" linkLabel="View all" linkRoute="/visitors/visitor-management">
-          {recentVisitors.length > 0 ? (
-            recentVisitors.map((v: any, i: number) => {
-              const status = String(v.status || "").toLowerCase();
-              return (
-                <RecentItem
-                  key={v.id || i}
-                  title={v.fullName || v.visitorCode || "Visitor"}
-                  sub={v.purpose || v.visitorType || "—"}
-                  badge={status === "checked_in" ? "Checked In" : status === "checked_out" ? "Checked Out" : status === "pending" ? "Pending" : "Logged"}
-                  badgeColor={statusBadgeColor(status === "checked_in" ? "active" : status === "pending" ? "pending" : "completed")}
-                  time={humanRelTime(v.checkInAt || v.createdAt)}
-                />
-              );
-            })
-          ) : (
-            <div className="min-h-48 flex items-center justify-center">
-              <p className="text-content text-gray-400 text-center">No visitors logged yet.</p>
+          {/* Visitors — recent activity + monthly trend (FY) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div data-tour="dashboard-recent-visitors">
+              <SectionCard title="Recent Visitors" linkLabel="View all" linkRoute="/visitors/visitor-management">
+              {recentVisitors.length > 0 ? (
+                recentVisitors.map((v: any, i: number) => {
+                  const status = String(v.status || "").toLowerCase();
+                  return (
+                    <RecentItem
+                      key={v.id || i}
+                      title={v.fullName || v.visitorCode || "Visitor"}
+                      sub={v.purpose || v.visitorType || "—"}
+                      badge={status === "checked_in" ? "Checked In" : status === "checked_out" ? "Checked Out" : status === "pending" ? "Pending" : "Logged"}
+                      badgeColor={statusBadgeColor(status === "checked_in" ? "active" : status === "pending" ? "pending" : "completed")}
+                      time={humanRelTime(v.checkInAt || v.createdAt)}
+                    />
+                  );
+                })
+              ) : (
+                <div className="min-h-48 flex items-center justify-center">
+                  <p className="text-content text-gray-400 text-center">No visitors logged yet.</p>
+                </div>
+              )}
+              </SectionCard>
             </div>
-          )}
-          </SectionCard>
-        </div>
 
-        <div data-tour="dashboard-visitor-types">
-          <DonutWidget
-            title="Visitor Types"
-            series={visitorTypeDonut.series}
-            labels={visitorTypeDonut.labels}
-            colors={visitorTypeDonut.colors}
-            centerLabel="Visitors"
-            emptyText="No visitor data yet"
-          />
-        </div>
-      </div>
-
-      {/* Monthly visitor bar chart */}
-      <div data-tour="dashboard-visitor-trend" className="border-default rounded-xl overflow-hidden">
-        <div className="p-4 border-b-2 border-borderGray uppercase">
-          <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">Monthly Visitor Trend (FY)</span>
-        </div>
-        <div className="p-2">
-          <BarGraph
-            chartId="basic-monthly-visitors"
-            data={visitorsByMonth}
-            options={visitorBarOptions}
-            height={240}
-          />
-        </div>
-      </div>
+            <div data-tour="dashboard-visitor-trend">
+              <BarWidget
+                title="Monthly Visitor Trend (FY)"
+                chartId="basic-monthly-visitors"
+                series={visitorsByMonth}
+                options={visitorBarOptions}
+                height={260}
+              />
+            </div>
+          </div>
+        </>
+      )}
 
     </div>
   );
