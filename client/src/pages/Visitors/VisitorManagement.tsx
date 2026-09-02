@@ -4186,6 +4186,34 @@ export default function VisitorsManagementPage() {
             <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">Visitor Management</h2>
             <p className="text-xs font-pmedium text-slate-500 mt-1">Daily visitors, walk-in bookings, client conversion, payment proof, and invoice handoff in one front desk unit.</p>
           </div>
+          {(activeTab === 'history' || activeTab === 'bookings' || activeTab === 'clients') && (
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  if (activeTab === 'history') handleExportHistory('pdf');
+                  else if (activeTab === 'bookings') handleExportBookings('pdf');
+                  else handleExportClients('pdf');
+                }}
+                title="Export PDF"
+                className="px-4 py-2.5 bg-white text-[#f10505] rounded-xl font-pmedium text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5"
+              >
+                <FileDown size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (activeTab === 'history') handleExportHistory('csv');
+                  else if (activeTab === 'bookings') handleExportBookings('csv');
+                  else handleExportClients('csv');
+                }}
+                title="Export CSV"
+                className="px-4 py-2.5 bg-white text-[#1fd628] rounded-xl font-pmedium text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5"
+              >
+                <FileSpreadsheet size={14} />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 2. MAIN PILL TABS */}
@@ -4325,34 +4353,6 @@ export default function VisitorsManagementPage() {
                 <div className="relative flex-1 min-w-[160px]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                   <input type="text" placeholder="Search records..." className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400" onChange={(e) => setSearchQuery(e.target.value)} />
-                </div>
-              )}
-              {(activeTab === 'history' || activeTab === 'bookings' || activeTab === 'clients') && (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (activeTab === 'history') handleExportHistory('pdf');
-                      else if (activeTab === 'bookings') handleExportBookings('pdf');
-                      else handleExportClients('pdf');
-                    }}
-                    title="Export PDF"
-                    className="px-4 py-2.5 bg-white text-[#f10505] rounded-xl font-pmedium text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <FileDown size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (activeTab === 'history') handleExportHistory('csv');
-                      else if (activeTab === 'bookings') handleExportBookings('csv');
-                      else handleExportClients('csv');
-                    }}
-                    title="Export CSV"
-                    className="px-4 py-2.5 bg-white text-[#1fd628] rounded-xl font-pmedium text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <FileSpreadsheet size={14} />
-                  </button>
                 </div>
               )}
               <button
