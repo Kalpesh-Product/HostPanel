@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Clock,
   CreditCard,
+  Eye,
   History,
   MapPin,
   Plus,
@@ -22,7 +23,7 @@ import { getStoredTenantCompanyId, getStoredTenantCompanyName, getStoredUser } f
 import { getStoredTenantRole, isTenantAdminRole, isTenantManagerRole } from '@/lib/tenant-session';
 import { getMeetingRoomBookings } from '@/services/meeting-room-bookings';
 import { getResources } from '@/services/resources';
-import { getMyTenantCompany } from '@/services/tenant-companies';
+import { getMyTenantCompany, getMyTenantCompanyVisitorRequests, reviewMyTenantCompanyVisitorRequest } from '@/services/tenant-companies';
 import { getTickets } from '@/services/tickets';
 
 const LOW_CREDIT_WARNING_THRESHOLD = 10;
@@ -136,6 +137,22 @@ function isMeetingRoomResource(resource: Record<string, any>): boolean {
 function isAvailableRoom(resource: Record<string, any>): boolean {
   const status = normalizeId(resource?.status || resource?.resourceStatus || 'active');
   return isMeetingRoomResource(resource) && resource?.isActive !== false && !resource?.isBooked && status !== 'inactive' && status !== 'disabled';
+}
+
+function formatClockTime(value: string | null | undefined): string {
+  if (!value) return '--:--';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '--:--';
+  return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+function getVisitorRequestStatusLabel(visitor: Record<string, any>): string {
+  const status = normalizeId(visitor?.statusKey || visitor?.status || '');
+  if (status.includes('checked_in') || status === 'checked in') return 'Checked In';
+  if (status.includes('checked_out') || status === 'checked out') return 'Checked Out';
+  if (status.includes('approved')) return 'Approved';
+  if (status.includes('rejected') || status.includes('cancelled')) return 'Rejected';
+  return 'Pending Approval';
 }
 
 function getCurrentUserId(user: Record<string, any>): string {
@@ -303,6 +320,81 @@ export default function TenantDashboardPage() {
   ];
 
   const [showCreditAlert, setShowCreditAlert] = useState(false);
+
+  const [visitorRequests, setVisitorRequests] = useState<Record<string, any>[]>([]);
+  const [visitorRequestsLoading, setVisitorRequestsLoading] = useState(false);
+  const [visitorRequestNotice, setVisitorRequestNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [reviewingVisitorRequestId, setReviewingVisitorRequestId] = useState('');
+  const [viewingVisitorRequest, setViewingVisitorRequest] = useState<Record<string, any> | null>(null);
+  const [rejectingVisitorRequest, setRejectingVisitorRequest] = useState<Record<string, any> | null>(null);
+  const [rejectVisitorReason, setRejectVisitorReason] = useState('');
+
+  useEffect(() => {
+    if (!canManageTenant) return undefined;
+    let active = true;
+    setVisitorRequestsLoading(true);
+    getMyTenantCompanyVisitorRequests()
+      .then((response) => {
+        if (!active) return;
+        const list = response?.data?.visitors;
+        setVisitorRequests(Array.isArray(list) ? list : []);
+      })
+      .catch(() => { if (active) setVisitorRequests([]); })
+      .finally(() => { if (active) setVisitorRequestsLoading(false); });
+    return () => { active = false; };
+  }, [canManageTenant]);
+
+  const visibleVisitorRequests = visitorRequests
+    .filter((visitor) => {
+      const key = normalizeId(visitor?.statusKey || visitor?.status || '');
+      return key.includes('pending') || key.includes('approved') || key.includes('checked_in') || key === 'checked in';
+    })
+    .slice(0, 4);
+
+  const handleVisitorRequestDecision = async (visitor: Record<string, any>, decision: 'approved' | 'rejected', reason = '') => {
+    const visitorId = visitor?.id || visitor?.recordId;
+    if (!visitorId) return;
+
+    const rejectionReason = decision === 'rejected' ? reason.trim() : '';
+    if (decision === 'rejected' && !rejectionReason) return;
+
+    setReviewingVisitorRequestId(String(visitorId));
+    setVisitorRequestNotice(null);
+
+    try {
+      await reviewMyTenantCompanyVisitorRequest(String(visitorId), { decision, reason: rejectionReason });
+      const patch = (entry: Record<string, any>) => {
+        const entryId = String(entry.id || entry.recordId || '');
+        if (entryId !== String(visitorId)) return entry;
+        return {
+          ...entry,
+          approvalStatus: decision,
+          statusKey: decision,
+          status: decision === 'approved' ? 'approved' : 'rejected',
+          rejectionReason: decision === 'rejected' ? rejectionReason.trim() : '',
+        };
+      };
+      setVisitorRequests((prev) => prev.map(patch));
+      setViewingVisitorRequest((current) => (current ? patch(current) : current));
+      setVisitorRequestNotice({
+        type: 'success',
+        text: decision === 'approved'
+          ? `${visitor.fullName || 'Visitor'} approved. Frontdesk has been notified.`
+          : `${visitor.fullName || 'Visitor'} rejected. Frontdesk has been notified.`,
+      });
+    } catch (error: any) {
+      setVisitorRequestNotice({ type: 'error', text: error?.response?.data?.message || error?.message || 'Unable to review the visitor right now.' });
+    } finally {
+      setReviewingVisitorRequestId('');
+    }
+  };
+
+  const submitVisitorRejection = async () => {
+    if (!rejectingVisitorRequest || !rejectVisitorReason.trim()) return;
+    await handleVisitorRequestDecision(rejectingVisitorRequest, 'rejected', rejectVisitorReason);
+    setRejectingVisitorRequest(null);
+    setRejectVisitorReason('');
+  };
 
   useEffect(() => {
     let active = true;
@@ -508,6 +600,212 @@ export default function TenantDashboardPage() {
               </div>
             </div>
           </div>
+
+          {/* ── Visitor Requests (managers only) ── */}
+          {canManageTenant && (
+            <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col mb-4" data-tour="tenant-dash-visitor-requests">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="flex items-center gap-2 text-[12px] font-pmedium uppercase tracking-widest text-primary">
+                  <UserCheck size={15} className="text-[#2563EB]" /> Visitor Requests
+                </h2>
+              </div>
+
+              {visitorRequestNotice && (
+                <div className={`mb-3 rounded-xl border px-3 py-2 text-[11px] font-pmedium ${visitorRequestNotice.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
+                  {visitorRequestNotice.text}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {visitorRequestsLoading ? (
+                  <div className="md:col-span-2 flex items-center justify-center py-10">
+                    <p className="text-[12px] font-pmedium text-slate-400">Loading visitor requests...</p>
+                  </div>
+                ) : visibleVisitorRequests.length > 0 ? visibleVisitorRequests.map((visitor) => {
+                  const visitorKey = visitor.recordId || visitor.id;
+                  const statusLabel = getVisitorRequestStatusLabel(visitor);
+                  const isPending = statusLabel === 'Pending Approval';
+                  const isReviewing = Boolean(reviewingVisitorRequestId) && String(visitorKey) === reviewingVisitorRequestId;
+                  return (
+                    <div key={visitorKey} className="flex items-start justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-pmedium text-slate-900 truncate">{visitor.fullName || 'Visitor'}</p>
+                        <p className="mt-0.5 text-[11px] font-pmedium text-slate-500 truncate">{visitor.purpose || 'Visiting'}{visitor.company ? ` • ${visitor.company}` : ''}</p>
+                        <span className={`mt-1.5 inline-flex rounded-full px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-wider ${
+                          statusLabel === 'Pending Approval' ? 'bg-amber-100 text-amber-700' :
+                          statusLabel === 'Approved' ? 'bg-blue-100 text-blue-700' :
+                          statusLabel === 'Checked In' ? 'bg-emerald-100 text-emerald-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>{statusLabel}</span>
+                        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] font-pmedium text-slate-400">
+                          <span>Requested: {formatClockTime(visitor.createdAt)}</span>
+                          <span>Check-In: {formatClockTime(visitor.checkInAt)}</span>
+                          <span>Check-Out: {formatClockTime(visitor.checkOutAt)}</span>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-2">
+                        <button
+                          type="button"
+                          title="View details"
+                          onClick={() => setViewingVisitorRequest(visitor)}
+                          className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-all"
+                        >
+                          <Eye size={13} strokeWidth={2.5} />
+                        </button>
+                        {isPending && (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleVisitorRequestDecision(visitor, 'approved')}
+                              disabled={isReviewing}
+                              className="rounded-md border border-emerald-200 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-emerald-600 hover:bg-emerald-50 disabled:opacity-60"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setRejectingVisitorRequest(visitor); setRejectVisitorReason(''); }}
+                              disabled={isReviewing}
+                              className="rounded-md border border-red-200 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-red-600 hover:bg-red-50 disabled:opacity-60"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }) : (
+                  <div className="md:col-span-2 flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
+                    <p className="text-[12px] font-pmedium text-slate-600">No visitor requests right now.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {viewingVisitorRequest && canManageTenant && (() => {
+            const statusLabel = getVisitorRequestStatusLabel(viewingVisitorRequest);
+            const isPending = statusLabel === 'Pending Approval';
+            const visitorKey = viewingVisitorRequest.recordId || viewingVisitorRequest.id;
+            const isReviewing = Boolean(reviewingVisitorRequestId) && String(visitorKey) === reviewingVisitorRequestId;
+            return (
+              <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-[#0F172A]/70 backdrop-blur-sm" onClick={() => setViewingVisitorRequest(null)}>
+                <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                  <div className="px-5 py-4 bg-slate-50 border-b border-slate-100 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-pmedium text-slate-900 truncate">{viewingVisitorRequest.fullName || 'Visitor'}</p>
+                      <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-wider ${
+                        statusLabel === 'Pending Approval' ? 'bg-amber-100 text-amber-700' :
+                        statusLabel === 'Approved' ? 'bg-blue-100 text-blue-700' :
+                        statusLabel === 'Checked In' ? 'bg-emerald-100 text-emerald-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>{statusLabel}</span>
+                    </div>
+                    <button onClick={() => setViewingVisitorRequest(null)} className="w-8 h-8 shrink-0 bg-white rounded-full flex items-center justify-center text-slate-400 shadow-sm hover:text-red-500 transition-all">
+                      <X size={16} />
+                    </button>
+                  </div>
+                  <div className="px-5 py-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Phone</p>
+                        <p className="mt-0.5 text-xs font-pmedium text-slate-900">{viewingVisitorRequest.phone || 'Not provided'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Email</p>
+                        <p className="mt-0.5 text-xs font-pmedium text-slate-900 truncate">{viewingVisitorRequest.email || 'Not provided'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Company</p>
+                        <p className="mt-0.5 text-xs font-pmedium text-slate-900">{viewingVisitorRequest.company || 'Individual'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Purpose</p>
+                        <p className="mt-0.5 text-xs font-pmedium text-slate-900">{viewingVisitorRequest.purpose || 'Not specified'}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Reason to Meet</p>
+                      <p className="mt-0.5 text-xs font-pmedium text-slate-700 leading-relaxed">{viewingVisitorRequest.reason || 'No reason added.'}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-pmedium text-slate-400 border-t border-slate-100 pt-3">
+                      <span>Requested: {formatClockTime(viewingVisitorRequest.createdAt)}</span>
+                      <span>Check-In: {formatClockTime(viewingVisitorRequest.checkInAt)}</span>
+                      <span>Check-Out: {formatClockTime(viewingVisitorRequest.checkOutAt)}</span>
+                    </div>
+                    {viewingVisitorRequest.rejectionReason ? (
+                      <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2">
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-red-500">Rejection Reason</p>
+                        <p className="mt-0.5 text-xs font-pmedium text-red-700">{viewingVisitorRequest.rejectionReason}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                  {isPending && (
+                    <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => handleVisitorRequestDecision(viewingVisitorRequest, 'approved')}
+                        disabled={isReviewing}
+                        className="flex-1 rounded-xl border border-emerald-200 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-emerald-600 hover:bg-emerald-50 disabled:opacity-60"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setRejectingVisitorRequest(viewingVisitorRequest); setRejectVisitorReason(''); }}
+                        disabled={isReviewing}
+                        className="flex-1 rounded-xl border border-red-200 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-red-600 hover:bg-red-50 disabled:opacity-60"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {rejectingVisitorRequest && canManageTenant && (
+            <div className="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-[#0F172A]/70 backdrop-blur-sm" onClick={() => setRejectingVisitorRequest(null)}>
+              <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                <div className="px-5 py-4 bg-slate-50 border-b border-slate-100 flex items-start justify-between gap-3">
+                  <p className="font-pmedium text-slate-900">Reject {rejectingVisitorRequest.fullName || 'this visitor'}?</p>
+                  <button onClick={() => setRejectingVisitorRequest(null)} className="w-8 h-8 shrink-0 bg-white rounded-full flex items-center justify-center text-slate-400 shadow-sm hover:text-red-500 transition-all">
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="px-5 py-4 space-y-2">
+                  <label className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Reason for rejection</label>
+                  <textarea
+                    autoFocus
+                    rows={3}
+                    value={rejectVisitorReason}
+                    onChange={(e) => setRejectVisitorReason(e.target.value)}
+                    placeholder="Let the front desk know why this request is being rejected"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-pmedium text-slate-900 outline-none transition-all focus:ring-2 focus:ring-red-200 focus:border-red-300 resize-none"
+                  />
+                </div>
+                <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setRejectingVisitorRequest(null)}
+                    className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-500 hover:bg-slate-100"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={submitVisitorRejection}
+                    disabled={!rejectVisitorReason.trim() || Boolean(reviewingVisitorRequestId)}
+                    className="flex-1 rounded-xl bg-red-600 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white hover:bg-red-700 disabled:opacity-60"
+                  >
+                    Confirm Reject
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── Tickets + Team Snapshot + Tenant Summary ── */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">

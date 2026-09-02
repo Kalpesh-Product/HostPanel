@@ -7,26 +7,26 @@
  */
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { BadgeCheck } from "lucide-react";
+import { BadgeCheck, Eye, X } from "lucide-react";
 import { SectionCard } from "./DashboardShared";
-import { useFreshCurrentUser } from "@/hooks/useFreshCurrentUser";
-import { getVisitorManagementOverview, reviewVisitorDecision } from "@/services/visitors";
+import { getMyVisitorRequests, reviewVisitorDecision } from "@/services/visitors";
 
 interface VisitorRecord {
   id?: string;
   recordId?: string;
   name?: string;
   fullName?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  email?: string;
   hostUserId?: string;
   hostName?: string;
   host?: string;
-  hostEmail?: string;
-  hostDepartment?: string;
-  hostDepartments?: string[];
-  hostGroupValue?: string;
-  department?: string;
   company?: string;
+  purpose?: string;
   reason?: string;
+  notes?: string;
   statusKey?: string;
   approvalStatus?: string;
   status?: string;
@@ -48,34 +48,11 @@ function normalizeText(value: unknown): string {
   return String(value || "").trim().toLowerCase();
 }
 
-function toDepartmentName(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (value && typeof value === "object" && "name" in value) {
-    return String((value as { name?: unknown }).name || "");
-  }
-  return "";
-}
-
-function departmentMatches(value = "", departmentKeys: string[] = []): boolean {
-  const normalizedValue = normalizeText(value);
-  if (!normalizedValue) return false;
-  return departmentKeys.some((department) => {
-    const normalizedDepartment = normalizeText(department);
-    return normalizedDepartment && (normalizedValue.includes(normalizedDepartment) || normalizedDepartment.includes(normalizedValue));
-  });
-}
-
-function formatTimeLabel(value: string | null | undefined): string {
-  if (!value) return "Just now";
+function formatClockTime(value: string | null | undefined): string {
+  if (!value) return "--:--";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-  const diffMs = Date.now() - date.getTime();
-  const minute = 60 * 1000;
-  const hour = 60 * minute;
-  const day = 24 * hour;
-  if (diffMs < hour) return `${Math.max(1, Math.floor(diffMs / minute))}m ago`;
-  if (diffMs < day) return `${Math.max(1, Math.floor(diffMs / hour))}h ago`;
-  return `${Math.max(1, Math.floor(diffMs / day))}d ago`;
+  if (Number.isNaN(date.getTime())) return "--:--";
+  return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
 }
 
 function getVisitorStatusLabel(visitor: VisitorRecord): string {
@@ -104,130 +81,67 @@ function getVisitorBadge(status: string) {
   }
 }
 
-function getVisitorTimelineValue(visitor: VisitorRecord): string | null {
-  return visitor?.checkOutAt || visitor?.checkInAt || visitor?.updatedAt || visitor?.createdAt || null;
-}
-
 interface DepartmentVisitorsCardProps {
   department: string;
   title: string;
 }
 
-export const DepartmentVisitorsCard = ({ department, title }: DepartmentVisitorsCardProps) => {
-  const currentUser = useFreshCurrentUser();
+export const DepartmentVisitorsCard = ({ title }: DepartmentVisitorsCardProps) => {
   const queryClient = useQueryClient();
   const [visitorNotice, setVisitorNotice] = useState<NoticeState | null>(null);
   const [reviewingVisitorId, setReviewingVisitorId] = useState("");
+  const [viewingVisitor, setViewingVisitor] = useState<VisitorRecord | null>(null);
+  const [rejectingVisitor, setRejectingVisitor] = useState<VisitorRecord | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
-  const queryKey = useMemo(() => ["dashboard-department-visitors", department], [department]);
+  const queryKey = useMemo(() => ["dashboard-my-visitor-requests"], []);
 
   const { data: visitors = [], isLoading, error } = useQuery({
     queryKey,
     queryFn: async () => {
-      const overview = await getVisitorManagementOverview();
+      const overview = await getMyVisitorRequests();
       const list = (overview as { visitors?: unknown })?.visitors;
       return Array.isArray(list) ? (list as VisitorRecord[]) : [];
     },
     staleTime: 60 * 1000,
   });
 
-  const currentUserIds = useMemo(() => {
-    return [
-      currentUser?.id,
-      currentUser?._id,
-      currentUser?.userId,
-      currentUser?.memberId,
-      currentUser?.workspaceMembership?.userId,
-      currentUser?.workspaceMembership?.memberUserId,
-      currentUser?.workspaceMembership?.memberId,
-      currentUser?.workspaceMembership?.id,
-      currentUser?.workspaceMembership?._id,
-      currentUser?.workspace?.userId,
-      currentUser?.workspace?.memberId,
-    ]
-      .map((value) => String(value || "").trim())
-      .filter(Boolean);
-  }, [currentUser]);
-
-  const currentUserName = useMemo(() => normalizeText(currentUser?.fullName || currentUser?.name || currentUser?.displayName || ""), [currentUser]);
-  const currentUserEmail = useMemo(() => normalizeText(currentUser?.email || ""), [currentUser]);
-  const currentUserDepartments = useMemo(() => {
-    const rawDepartments = [
-      currentUser?.workspaceMembership?.department,
-      ...(Array.isArray(currentUser?.workspaceMembership?.departments) ? currentUser.workspaceMembership.departments.map(toDepartmentName) : []),
-      currentUser?.department,
-      ...(Array.isArray(currentUser?.departments) ? currentUser.departments.map(toDepartmentName) : []),
-      currentUser?.workspace?.department,
-    ];
-    const normalizedDepartments = rawDepartments.map((value) => normalizeText(value)).filter(Boolean);
-    const uniqueDepartments = normalizedDepartments.length > 0 ? Array.from(new Set(normalizedDepartments)) : [department];
-    if (!uniqueDepartments.includes(department)) {
-      uniqueDepartments.push(department);
-    }
-    return uniqueDepartments;
-  }, [currentUser, department]);
-
   const filteredVisitors = useMemo(() => {
     return visitors
-      .filter((visitor) => {
-        const hostUserId = String(visitor?.hostUserId || "").trim();
-        const hostName = normalizeText(visitor?.hostName || visitor?.host || "");
-        const hostEmail = normalizeText(visitor?.hostEmail || "");
-        const hostDepartment = normalizeText(visitor?.department || "");
-        const hostGroupValue = normalizeText(visitor?.hostGroupValue || "");
-        const hostDepartments = Array.isArray(visitor?.hostDepartments)
-          ? visitor.hostDepartments.map((dept) => normalizeText(dept)).filter(Boolean)
-          : [];
-
-        const matchedByUser = hostUserId && currentUserIds.includes(hostUserId);
-        const matchedByName = currentUserName && hostName && (hostName === currentUserName || hostName.includes(currentUserName) || currentUserName.includes(hostName));
-        const matchedByEmail = currentUserEmail && hostEmail && hostEmail === currentUserEmail;
-        const matchedByDepartment = currentUserDepartments.length > 0 && [hostDepartment, hostGroupValue, ...hostDepartments].some((value) => departmentMatches(value, currentUserDepartments));
-
-        return matchedByUser || matchedByName || matchedByEmail || matchedByDepartment;
-      })
       .filter((visitor) => {
         const key = normalizeText(visitor?.statusKey || visitor?.status || "");
         return key.includes("pending") || key.includes("approved") || key.includes("checked_in") || key === "checked in";
       })
       .slice(0, 4);
-  }, [visitors, currentUserDepartments, currentUserEmail, currentUserIds, currentUserName]);
+  }, [visitors]);
 
-  const handleVisitorDecision = async (visitor: VisitorRecord, decision: VisitorDecision) => {
+  const handleVisitorDecision = async (visitor: VisitorRecord, decision: VisitorDecision, reason = "") => {
     const visitorId = visitor?.id || visitor?.recordId;
     if (!visitorId) return;
 
-    const hostUserId = String(visitor?.hostUserId || "").trim();
-    if (!hostUserId || !currentUserIds.includes(hostUserId)) {
-      setVisitorNotice({ type: "error", text: "Only the assigned host can approve or reject this visitor request." });
-      return;
-    }
-
-    let rejectionReason = "";
-    if (decision === "rejected") {
-      rejectionReason = window.prompt(`Reason for rejecting ${visitor.name || "this visitor"}:`, "") || "";
-      if (!rejectionReason.trim()) return;
-    }
+    const rejectionReason = decision === "rejected" ? reason.trim() : "";
+    if (decision === "rejected" && !rejectionReason) return;
 
     setReviewingVisitorId(String(visitorId));
     setVisitorNotice(null);
 
     try {
-      await reviewVisitorDecision(visitorId, { decision, reason: rejectionReason.trim() });
+      await reviewVisitorDecision(visitorId, { decision, reason: rejectionReason });
 
-      queryClient.setQueryData<VisitorRecord[]>(queryKey, (current = []) =>
-        current.map((entry) => {
-          const entryId = String(entry.id || entry.recordId || "");
-          if (entryId !== String(visitorId)) return entry;
-          return {
-            ...entry,
-            approvalStatus: decision,
-            statusKey: decision,
-            status: decision === "approved" ? "approved" : "rejected",
-            rejectionReason: decision === "rejected" ? rejectionReason.trim() : "",
-          };
-        }),
-      );
+      const patch = (entry: VisitorRecord): VisitorRecord => {
+        const entryId = String(entry.id || entry.recordId || "");
+        if (entryId !== String(visitorId)) return entry;
+        return {
+          ...entry,
+          approvalStatus: decision,
+          statusKey: decision,
+          status: decision === "approved" ? "approved" : "rejected",
+          rejectionReason: decision === "rejected" ? rejectionReason.trim() : "",
+        };
+      };
+
+      queryClient.setQueryData<VisitorRecord[]>(queryKey, (current = []) => current.map(patch));
+      setViewingVisitor((current) => (current ? patch(current) : current));
 
       setVisitorNotice({
         type: "success",
@@ -236,16 +150,23 @@ export const DepartmentVisitorsCard = ({ department, title }: DepartmentVisitors
           : `${visitor.name || "Visitor"} rejected. Frontdesk has been notified.`,
       });
     } catch (decisionError) {
-      setVisitorNotice({ type: "error", text: (decisionError as Error)?.message || "Unable to review the visitor right now." });
+      setVisitorNotice({ type: "error", text: (decisionError as { response?: { data?: { message?: string } } })?.response?.data?.message || (decisionError as Error)?.message || "Unable to review the visitor right now." });
     } finally {
       setReviewingVisitorId("");
     }
   };
 
+  const submitRejection = async () => {
+    if (!rejectingVisitor || !rejectReason.trim()) return;
+    await handleVisitorDecision(rejectingVisitor, "rejected", rejectReason);
+    setRejectingVisitor(null);
+    setRejectReason("");
+  };
+
   const visitorError = error ? (error as Error)?.message || "Visitor requests could not be loaded." : "";
 
   return (
-    <SectionCard title={title} linkLabel="View all" linkRoute="/visitors/visitor-management">
+    <SectionCard title={title}>
       <div className="space-y-3">
         {visitorError ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-small font-pmedium text-amber-700">{visitorError}</div>
@@ -258,10 +179,11 @@ export const DepartmentVisitorsCard = ({ department, title }: DepartmentVisitors
         ) : null}
 
         {isLoading ? (
-          <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">Loading live visitor activity...</p></div>
+          <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">Loading visitor activity...</p></div>
         ) : filteredVisitors.length > 0 ? filteredVisitors.map((visitor) => {
           const visitorKey = visitor.recordId || visitor.id;
           const isPending = normalizeText(visitor?.statusKey || visitor?.approvalStatus || visitor?.status).includes("pending");
+          const isReviewing = Boolean(reviewingVisitorId) && String(visitor.id || visitor.recordId || "") === reviewingVisitorId;
           return (
             <div key={visitorKey} className="flex items-start justify-between gap-2 p-3 rounded-xl bg-gray-50 border border-gray-200">
               <div className="flex min-w-0 items-start gap-3">
@@ -270,28 +192,37 @@ export const DepartmentVisitorsCard = ({ department, title }: DepartmentVisitors
                 </div>
                 <div className="min-w-0">
                   <p className="text-content font-pmedium text-gray-900 truncate">{visitor.name || visitor.fullName || "Visitor"}</p>
-                  <p className="text-small text-gray-500 truncate">To meet: {visitor.hostName || title}</p>
                   <div className="mt-1">{getVisitorBadge(getVisitorStatusLabel(visitor))}</div>
+                  <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-pmedium text-gray-400">
+                    <span>Requested: {formatClockTime(visitor.createdAt)}</span>
+                    <span>Check-In: {formatClockTime(visitor.checkInAt)}</span>
+                    <span>Check-Out: {formatClockTime(visitor.checkOutAt)}</span>
+                  </div>
                 </div>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-2">
-                <p className="text-small text-gray-400">{formatTimeLabel(getVisitorTimelineValue(visitor))}</p>
-                {String(visitor?.hostUserId || "").trim() &&
-                currentUserIds.includes(String(visitor?.hostUserId || "").trim()) &&
-                isPending ? (
+                <button
+                  type="button"
+                  title="View details"
+                  onClick={() => setViewingVisitor(visitor)}
+                  className="p-1.5 bg-white border border-gray-200 text-gray-500 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-all"
+                >
+                  <Eye size={13} strokeWidth={2.5} />
+                </button>
+                {String(visitor?.hostUserId || "").trim() && isPending ? (
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => handleVisitorDecision(visitor, "approved")}
-                      disabled={Boolean(reviewingVisitorId) && String(visitor.id || visitor.recordId || "") === reviewingVisitorId}
+                      disabled={isReviewing}
                       className="rounded-md border border-emerald-200 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-emerald-600 hover:bg-emerald-50 disabled:opacity-60"
                     >
                       Accept
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleVisitorDecision(visitor, "rejected")}
-                      disabled={Boolean(reviewingVisitorId) && String(visitor.id || visitor.recordId || "") === reviewingVisitorId}
+                      onClick={() => { setRejectingVisitor(visitor); setRejectReason(""); }}
+                      disabled={isReviewing}
                       className="rounded-md border border-red-200 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-red-600 hover:bg-red-50 disabled:opacity-60"
                     >
                       Reject
@@ -305,6 +236,122 @@ export const DepartmentVisitorsCard = ({ department, title }: DepartmentVisitors
           <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No visitor requests for {title.replace(/ Visitors$/, "")}</p></div>
         )}
       </div>
+
+      {viewingVisitor ? (() => {
+        const isPending = normalizeText(viewingVisitor?.statusKey || viewingVisitor?.approvalStatus || viewingVisitor?.status).includes("pending");
+        const isReviewing = Boolean(reviewingVisitorId) && String(viewingVisitor.id || viewingVisitor.recordId || "") === reviewingVisitorId;
+        return (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-[#0F172A]/70 backdrop-blur-sm" onClick={() => setViewingVisitor(null)}>
+            <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              <div className="px-5 py-4 bg-gray-50 border-b border-gray-100 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-pmedium text-gray-900 truncate">{viewingVisitor.name || viewingVisitor.fullName || "Visitor"}</p>
+                  <div className="mt-1">{getVisitorBadge(getVisitorStatusLabel(viewingVisitor))}</div>
+                </div>
+                <button onClick={() => setViewingVisitor(null)} className="w-8 h-8 shrink-0 bg-white rounded-full flex items-center justify-center text-gray-400 shadow-sm hover:text-red-500 transition-all">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="px-5 py-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Phone</p>
+                    <p className="mt-0.5 text-xs font-pmedium text-gray-900">{viewingVisitor.phone || "Not provided"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Email</p>
+                    <p className="mt-0.5 text-xs font-pmedium text-gray-900 truncate">{viewingVisitor.email || "Not provided"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Company</p>
+                    <p className="mt-0.5 text-xs font-pmedium text-gray-900">{viewingVisitor.company || "Individual"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Purpose</p>
+                    <p className="mt-0.5 text-xs font-pmedium text-gray-900">{viewingVisitor.purpose || "Not specified"}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Reason to Meet</p>
+                  <p className="mt-0.5 text-xs font-pmedium text-gray-700 leading-relaxed">{viewingVisitor.reason || viewingVisitor.notes || "No reason added."}</p>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-pmedium text-gray-400 border-t border-gray-100 pt-3">
+                  <span>Requested: {formatClockTime(viewingVisitor.createdAt)}</span>
+                  <span>Check-In: {formatClockTime(viewingVisitor.checkInAt)}</span>
+                  <span>Check-Out: {formatClockTime(viewingVisitor.checkOutAt)}</span>
+                </div>
+                {viewingVisitor.rejectionReason ? (
+                  <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-red-500">Rejection Reason</p>
+                    <p className="mt-0.5 text-xs font-pmedium text-red-700">{viewingVisitor.rejectionReason}</p>
+                  </div>
+                ) : null}
+              </div>
+              {isPending && (
+                <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => handleVisitorDecision(viewingVisitor, "approved")}
+                    disabled={isReviewing}
+                    className="flex-1 rounded-xl border border-emerald-200 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-emerald-600 hover:bg-emerald-50 disabled:opacity-60"
+                  >
+                    Accept
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setRejectingVisitor(viewingVisitor); setRejectReason(""); }}
+                    disabled={isReviewing}
+                    className="flex-1 rounded-xl border border-red-200 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-red-600 hover:bg-red-50 disabled:opacity-60"
+                  >
+                    Reject
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })() : null}
+
+      {rejectingVisitor ? (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-[#0F172A]/70 backdrop-blur-sm" onClick={() => setRejectingVisitor(null)}>
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 bg-gray-50 border-b border-gray-100 flex items-start justify-between gap-3">
+              <p className="font-pmedium text-gray-900">Reject {rejectingVisitor.name || rejectingVisitor.fullName || "this visitor"}?</p>
+              <button onClick={() => setRejectingVisitor(null)} className="w-8 h-8 shrink-0 bg-white rounded-full flex items-center justify-center text-gray-400 shadow-sm hover:text-red-500 transition-all">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-2">
+              <label className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Reason for rejection</label>
+              <textarea
+                autoFocus
+                rows={3}
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Let the front desk know why this request is being rejected"
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-pmedium text-gray-900 outline-none transition-all focus:ring-2 focus:ring-red-200 focus:border-red-300 resize-none"
+              />
+            </div>
+            <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex gap-2.5">
+              <button
+                type="button"
+                onClick={() => setRejectingVisitor(null)}
+                className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-gray-500 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submitRejection}
+                disabled={!rejectReason.trim() || Boolean(reviewingVisitorId)}
+                className="flex-1 rounded-xl bg-red-600 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white hover:bg-red-700 disabled:opacity-60"
+              >
+                Confirm Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </SectionCard>
   );
 };

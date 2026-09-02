@@ -1167,6 +1167,10 @@ export const routes = createBrowserRouter([
                     element: <VisitorManagement />,
                   },
                   {
+                    path: "visitor-management/frontdesk-action",
+                    element: <VisitorManagement />,
+                  },
+                  {
                     path: "manage-visitors",
                     element: <ManageVisitorLayout />,
                     children: [

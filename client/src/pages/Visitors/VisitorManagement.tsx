@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { City, Country, State } from 'country-state-city';
 import useAuth from '../../hooks/useAuth';
 import useAxiosPrivate from '../../hooks/useAxiosPrivate';
@@ -34,7 +34,7 @@ import {
   Search, Check, X, Eye, Clock, Building, User,
   AlertCircle, ChevronDown, CreditCard, CheckCircle2,
   LogOut, UserPlus, FileText, BadgeCheck, Phone, Mail,
-  CalendarDays, ShieldCheck, ArrowRight, Wallet, Banknote, Sparkles,
+  CalendarDays, ShieldCheck, ArrowRight, ArrowLeft, PlayCircle, Wallet, Banknote, Sparkles,
   XCircle, ShieldAlert, Calendar as CalendarIcon, AlertTriangle, Globe, Smartphone, LayoutGrid,
   Download, Printer, Lock, Home, UserCheck, FileSpreadsheet, FileDown, Tag
 } from 'lucide-react';
@@ -78,6 +78,16 @@ function getWorkspaceClockMinutes(value = new Date(), timeZone = DEFAULT_WORKSPA
   }).formatToParts(value);
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return Number(values.hour || 0) * 60 + Number(values.minute || 0);
+}
+
+const VISITOR_TYPE_LABELS = {
+  standard: 'Standard Visitor',
+  department: 'Department Visitor',
+  tenant: 'Tenant Company Visitor',
+};
+
+function getVisitorTypeLabel(visitor = {}) {
+  return VISITOR_TYPE_LABELS[String(visitor?.visitorType || 'standard').trim().toLowerCase()] || 'Standard Visitor';
 }
 
 function getFlagUrl(isoCode = '') {
@@ -444,8 +454,7 @@ function getStandardVisitorValidationErrors(form = {}, isDepartmentVisitorType =
 
   if (isTenantVisitorType) {
     if (!tenantCompanyName) errors.tenantCompanyName = requiredMessage;
-    if (!hostGroupValue) errors.hostGroupValue = requiredMessage;
-    if (!hostUserId) errors.hostUserId = requiredMessage;
+    else if (!hostUserId) errors.tenantCompanyName = 'This tenant company has no manager assigned yet.';
   }
 
   return errors;
@@ -1032,8 +1041,8 @@ function ValidationSummary({ errors = {} }) {
   return (
     <div data-validation-summary tabIndex={-1} role="alert" aria-live="polite" className="mx-6 mb-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 outline-none focus:ring-2 focus:ring-red-300">
       <p className="flex items-center gap-1.5 text-[10px] font-pmedium uppercase tracking-widest text-red-700"><AlertCircle size={13} /> Complete the following fields</p>
-      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-        {entries.map(([field, message]) => <span key={field} className="text-[10px] font-pmedium text-red-600">• {VALIDATION_FIELD_LABELS[field] || field}: {message}</span>)}
+<div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+        {entries.map((field, message) => <span key={field} className="text-[10px] font-pmedium text-red-600">• {VALIDATION_FIELD_LABELS[field] || field}: {message}</span>)}
       </div>
     </div>
   );
@@ -1041,6 +1050,7 @@ function ValidationSummary({ errors = {} }) {
 
 export default function VisitorsManagementPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { auth } = useAuth();
   const axiosPrivate = useAxiosPrivate();
   const businessHours = useBusinessHours();
@@ -1191,6 +1201,9 @@ export default function VisitorsManagementPage() {
   const [historyYear, setHistoryYear] = useState(String(currentCalendarDate.getFullYear()));
 
   const [isLoggingVisitor, setIsLoggingVisitor] = useState(false);
+  const isFrontdeskPage = location.pathname.endsWith('/frontdesk-action');
+  const frontdeskOpen = isLoggingVisitor || isFrontdeskPage;
+  const navigateBackToManagement = () => navigate('/visitors/visitor-management');
   const [viewingVisitor, setViewingVisitor] = useState(null);
   const [viewingBooking, setViewingBooking] = useState(null);
   const [viewingClient, setViewingClient] = useState(null);
@@ -1232,6 +1245,23 @@ export default function VisitorsManagementPage() {
     visitorAccess.standardTypes.department ||
     visitorAccess.standardTypes.tenant;
 
+  useEffect(() => {
+    if (!isFrontdeskPage) return;
+    setVisitorMode('standard');
+    setWalkInStep(1);
+    setForm(getDefaultVisitorForm());
+    setLastSelectedExistingVisitor(null);
+    setStandardVisitorTouched({});
+    setStandardVisitorSubmitAttempted(false);
+    setTourTouched({});
+    setTourSubmitAttempted(false);
+    setWalkInTouched({});
+    setWalkInSubmitAttempted(false);
+    setVerifiedBooking(null);
+    setBookingConfirmation(null);
+    setShowBookingConfirmationPopup(false);
+  }, [isFrontdeskPage]);
+
   const [walkInStep, setWalkInStep] = useState(1);
   const [availabilityStatus, setAvailabilityStatus] = useState('idle');
   const [extendAvailability, setExtendAvailability] = useState('idle');
@@ -1242,6 +1272,7 @@ export default function VisitorsManagementPage() {
   const [bookingConfirmation, setBookingConfirmation] = useState(null);
   const [showBookingConfirmationPopup, setShowBookingConfirmationPopup] = useState(false);
   const [visitorHostGroups, setVisitorHostGroups] = useState([]);
+  const [visitorTenantCompanies, setVisitorTenantCompanies] = useState([]);
   const [meetingRoomCatalog, setMeetingRoomCatalog] = useState([]);
   const [meetingRoomBookings, setMeetingRoomBookings] = useState([]);
   const [bookingClients, setBookingClients] = useState([]);
@@ -1333,6 +1364,11 @@ export default function VisitorsManagementPage() {
     [visitorHostGroups, form.hostGroupType],
   );
 
+  const selectedTenantCompany = useMemo(
+    () => visitorTenantCompanies.find((company) => company.companyName === form.tenantCompanyName) || null,
+    [visitorTenantCompanies, form.tenantCompanyName],
+  );
+
   const trackedVisitors = useMemo(() => {
     const mergedById = new Map();
 
@@ -1367,6 +1403,56 @@ export default function VisitorsManagementPage() {
       rejected: rows.filter((visitor) => statusKey(visitor).includes('rejected') || statusKey(visitor).includes('cancelled')),
     };
   }, [searchQuery, trackedVisitors]);
+
+  const frontdeskStatCards = useMemo(() => {
+    const statusKey = (visitor) => normalizeText(visitor.status || visitor.statusKey || visitor.approvalStatus || '').replace(/[_-]+/g, ' ');
+    const isTour = (v) => /tour|unit tour/i.test(String(v.purpose || '').trim());
+    const tourVisitors = trackedVisitors.filter(isTour);
+    const tourInProgress = tourVisitors.filter((v) => { const k = statusKey(v); return k.includes('checked in') && !k.includes('checked out'); });
+    const tourUpcoming = tourVisitors.filter((v) => { const k = statusKey(v); return k.includes('pending') || k.includes('awaiting') || k === 'approved'; });
+    const tourCompleted = tourVisitors.filter((v) => { const k = statusKey(v); return k.includes('checked out') || k.includes('completed'); });
+
+    const bookingStatus = (b) => String(b.status || (b.raw && b.raw.status) || '').trim();
+    const inProgress = upcomingBookings.filter((b) => bookingStatus(b) === 'In Progress');
+    const completed = upcomingBookings.filter((b) => bookingStatus(b) === 'Completed');
+    const cancelled = upcomingBookings.filter((b) => bookingStatus(b) === 'Cancelled');
+    const confirmed = upcomingBookings.filter((b) => {
+      const st = normalizeText(b.status || b.paymentStatus || '').replace(/[_-]+/g, ' ').trim();
+      return st === 'confirmed';
+    });
+    const awaitingPayment = upcomingBookings.filter((b) => {
+      const st = normalizeText(b.status || b.paymentStatus || '').replace(/[_-]+/g, ' ').trim();
+      return st === '' || st.includes('pending') || st.includes('awaiting') || st.includes('unpaid');
+    });
+
+    return {
+      standard: [
+        { label: 'Checked-In Now', value: dailyVisitorCollections.checked_in.length, icon: UserCheck, iconBg: 'bg-blue-50 text-blue-600', accent: 'border-l-blue-500' },
+        { label: 'Pending Approval', value: dailyVisitorCollections.pending.length, icon: Clock, iconBg: 'bg-amber-50 text-amber-600', accent: 'border-l-amber-500' },
+        { label: 'Approved / Upcoming', value: dailyVisitorCollections.approved.length, icon: CheckCircle2, iconBg: 'bg-emerald-50 text-emerald-600', accent: 'border-l-emerald-500' },
+        { label: 'Checked Out Today', value: dailyVisitorCollections.checked_out.length, icon: LogOut, iconBg: 'bg-violet-50 text-violet-600', accent: 'border-l-violet-500' },
+      ],
+      tour: [
+        { label: 'Total Tours', value: tourVisitors.length, icon: Building, iconBg: 'bg-indigo-50 text-indigo-600', accent: 'border-l-indigo-500' },
+        { label: 'Tours In Progress', value: tourInProgress.length, icon: UserCheck, iconBg: 'bg-blue-50 text-blue-600', accent: 'border-l-blue-500' },
+        { label: 'Upcoming Tours', value: tourUpcoming.length, icon: Clock, iconBg: 'bg-amber-50 text-amber-600', accent: 'border-l-amber-500' },
+        { label: 'Completed Tours', value: tourCompleted.length, icon: LogOut, iconBg: 'bg-emerald-50 text-emerald-600', accent: 'border-l-emerald-500' },
+      ],
+      walkin_booking: [
+        { label: 'Bookings Today', value: upcomingBookings.length, icon: CalendarDays, iconBg: 'bg-slate-100 text-slate-600', accent: 'border-l-slate-500' },
+        { label: 'In Progress', value: inProgress.length, icon: PlayCircle, iconBg: 'bg-blue-50 text-blue-600', accent: 'border-l-blue-500' },
+        { label: 'Completed', value: completed.length, icon: CheckCircle2, iconBg: 'bg-emerald-50 text-emerald-600', accent: 'border-l-emerald-500' },
+        { label: 'Cancelled', value: cancelled.length, icon: XCircle, iconBg: 'bg-red-50 text-red-600', accent: 'border-l-red-500' },
+      ],
+      verify_booking: [
+        { label: 'Awaiting Payment', value: awaitingPayment.length, icon: ShieldAlert, iconBg: 'bg-amber-50 text-amber-600', accent: 'border-l-amber-500' },
+        { label: 'Confirmed', value: confirmed.length, icon: ShieldCheck, iconBg: 'bg-emerald-50 text-emerald-600', accent: 'border-l-emerald-500' },
+        { label: 'In Progress', value: inProgress.length, icon: UserCheck, iconBg: 'bg-blue-50 text-blue-600', accent: 'border-l-blue-500' },
+        { label: 'Completed', value: completed.length, icon: CheckCircle2, iconBg: 'bg-violet-50 text-violet-600', accent: 'border-l-violet-500' },
+      ],
+    };
+  }, [trackedVisitors, upcomingBookings, dailyVisitorCollections]);
+
   const selectedDailyVisitors = dailyVisitorCollections[dailyStatusTab] || dailyVisitorCollections.all;
 
   useEffect(() => {
@@ -1384,10 +1470,12 @@ export default function VisitorsManagementPage() {
         const hostGroups = Array.isArray(result.hostGroups) ? result.hostGroups : [];
         const employeeRoster = Array.isArray(result.employeeRoster) ? result.employeeRoster : [];
         setVisitorHostGroups(enrichHostGroupsWithRoster(hostGroups, employeeRoster));
-        const nextLiveVisitors = (Array.isArray(result.liveVisitors) ? result.liveVisitors : []).map(normalizeVisitorTrackingEntry);
+        setVisitorTenantCompanies(Array.isArray(result.tenantCompanies) ? result.tenantCompanies : []);
+        const normalizeVisitor = (visitor) => normalizeVisitorTrackingEntry(visitor, workspacePreferences.timezone);
+        const nextLiveVisitors = (Array.isArray(result.liveVisitors) ? result.liveVisitors : []).map(normalizeVisitor);
         setLiveVisitors(nextLiveVisitors);
-        setPendingVisitors((Array.isArray(result.pendingVisitors) ? result.pendingVisitors : []).map(normalizeVisitorTrackingEntry));
-        setApprovedVisitors((Array.isArray(result.approvedVisitors) ? result.approvedVisitors : []).map(normalizeVisitorTrackingEntry));
+        setPendingVisitors((Array.isArray(result.pendingVisitors) ? result.pendingVisitors : []).map(normalizeVisitor));
+        setApprovedVisitors((Array.isArray(result.approvedVisitors) ? result.approvedVisitors : []).map(normalizeVisitor));
         setCheckedInVisitorIds(
           new Set(
             nextLiveVisitors
@@ -1395,7 +1483,7 @@ export default function VisitorsManagementPage() {
               .filter(Boolean),
           ),
         );
-        setVisitorHistory((Array.isArray(result.visitorHistory) ? result.visitorHistory : []).map(normalizeVisitorTrackingEntry));
+        setVisitorHistory((Array.isArray(result.visitorHistory) ? result.visitorHistory : []).map(normalizeVisitor));
         // Populate clients from visitor overview (includes both external-booking + visitor-conversion sources)
         if (Array.isArray(result.clients) && result.clients.length > 0) {
           setBookingClients(result.clients);
@@ -1779,7 +1867,7 @@ export default function VisitorsManagementPage() {
     { header: 'Date', key: 'date' },
     { header: 'Visitor Name', key: 'name' },
     { header: 'Company', key: 'company' },
-    { header: 'Purpose', key: 'purpose' },
+    { header: 'Visitor Type', key: 'visitorTypeLabel' },
     { header: 'Host', key: 'host' },
     { header: 'Check In', key: 'checkIn' },
     { header: 'Check Out', key: 'checkOut' },
@@ -1850,7 +1938,7 @@ export default function VisitorsManagementPage() {
       title,
       `${historyMonth} ${historyYear}`,
       HISTORY_EXPORT_COLUMNS,
-      displayedHistory,
+      displayedHistory.map((row) => ({ ...row, visitorTypeLabel: getVisitorTypeLabel(row) })),
       format,
       'visitor-history'
     );
@@ -3104,7 +3192,7 @@ export default function VisitorsManagementPage() {
       const isDepartmentVisitor = form.standardVisitorType === 'department';
       const isTenantVisitor = form.standardVisitorType === 'tenant';
 
-      if (!isDepartmentVisitor) {
+      if (!isDepartmentVisitor && !isTenantVisitor) {
         setIsSubmittingVisitor(true);
         try {
           const result = await createVisitorLog({
@@ -3120,15 +3208,11 @@ export default function VisitorsManagementPage() {
             company: normalizedCompany,
             visitorCompanyType: form.visitorCompanyType,
             visitorType: form.standardVisitorType,
-            tenantCompanyName: isTenantVisitor ? form.tenantCompanyName : '',
+            tenantCompanyName: '',
             purpose: form.purpose || 'Exploring Services',
             hostName: 'Front Desk',
             reason: form.reason?.trim() || form.purpose || 'General Visit',
             notes: form.reason?.trim() || '',
-            hostRole: isTenantVisitor ? form.hostGroupValue : '',
-            hostUserId: isTenantVisitor ? form.hostUserId || undefined : undefined,
-            meetingTargetType: isTenantVisitor ? 'tenant-role' : '',
-            meetingTargetValue: isTenantVisitor ? form.hostGroupValue : '',
             status: 'checked_in',
           });
 
@@ -3170,14 +3254,17 @@ export default function VisitorsManagementPage() {
             notes: 'Visitor checked in successfully.',
           });
 
+          toast.success('Visitor checked in successfully.');
           setIsLoggingVisitor(false);
           setVerifiedBooking(null);
           setWalkInStep(1);
           setForm(getDefaultVisitorForm());
           setStandardVisitorTouched({});
           setStandardVisitorSubmitAttempted(false);
+          navigateBackToManagement();
+          setActiveTab('daily');
         } catch (error) {
-          alert(error.message || 'Unable to check in visitor right now.');
+          toast.error(error.message || 'Unable to check in visitor right now.');
         } finally {
           setIsSubmittingVisitor(false);
         }
@@ -3185,9 +3272,79 @@ export default function VisitorsManagementPage() {
         return;
       }
 
-      if (!form.hostGroupType || !form.hostGroupValue) return alert('Please choose a role or department.');
-      if (!form.hostUserId) return alert('Please select a present employee.');
-      if (!form.reason.trim()) return alert('Note is required for department visitor.');
+      if (isDepartmentVisitor) {
+        if (!form.hostGroupType || !form.hostGroupValue) return toast.error('Please choose a role or department.');
+        if (!form.hostUserId) return toast.error('Please select a present employee.');
+        if (!form.reason.trim()) return toast.error('Note is required for department visitor.');
+
+        setIsSubmittingVisitor(true);
+
+        try {
+          const result = await createVisitorLog({
+            firstName: form.firstName,
+            lastName: form.lastName,
+            fullName,
+            gender: form.gender,
+            phone: form.phone,
+            email: normalizedEmail,
+            country: form.country,
+            state: form.state,
+            city: form.city,
+            company: normalizedCompany,
+            visitorCompanyType: form.visitorCompanyType,
+            visitorType: form.standardVisitorType,
+            tenantCompanyName: '',
+            purpose: form.purpose,
+            hostGroupType: form.hostGroupType,
+            hostGroupValue: form.hostGroupValue,
+            hostUserId: form.hostUserId || undefined,
+            reason: form.reason || form.purpose || 'Department visit',
+            meetingTargetType: form.hostGroupType,
+            meetingTargetValue: form.hostGroupValue,
+            notes: '',
+          });
+
+          const createdVisitor = result?.visitor || null;
+          if (createdVisitor) {
+            setPendingVisitors((prev) => [
+              createdVisitor,
+              ...prev.filter((entry) => !isSameVisitorEntry(entry, createdVisitor)),
+            ]);
+            setVisitorOverviewRefreshToken((value) => value + 1);
+            toast.success(`Request sent to ${selectedHostEmployee?.fullName || 'the selected employee'}.`);
+          }
+
+          if (Array.isArray(result?.hostGroups) || Array.isArray(result?.employeeRoster)) {
+            setVisitorHostGroups(
+              enrichHostGroupsWithRoster(
+                Array.isArray(result?.hostGroups) ? result.hostGroups : [],
+                Array.isArray(result?.employeeRoster) ? result.employeeRoster : [],
+              ),
+            );
+          }
+
+          setIsLoggingVisitor(false);
+          setVerifiedBooking(null);
+          setWalkInStep(1);
+          setForm(getDefaultVisitorForm());
+          setTourTouched({});
+          setTourSubmitAttempted(false);
+          navigateBackToManagement();
+          setActiveTab('daily');
+        } catch (error) {
+          toast.error(error.message || 'Unable to log visitor right now.');
+        } finally {
+          setIsSubmittingVisitor(false);
+        }
+
+        return;
+      }
+
+      // Tenant Company Visitor — routes to the tenant company's designated
+      // manager for approval on their own dashboard, same pending flow as
+      // a department visitor.
+      if (!form.tenantCompanyName) return toast.error('Please choose a tenant company.');
+      if (!form.hostUserId) return toast.error('This tenant company has no manager assigned yet.');
 
       setIsSubmittingVisitor(true);
 
@@ -3205,14 +3362,12 @@ export default function VisitorsManagementPage() {
           company: normalizedCompany,
           visitorCompanyType: form.visitorCompanyType,
           visitorType: form.standardVisitorType,
-          tenantCompanyName: '',
-          purpose: form.purpose,
-          hostGroupType: form.hostGroupType,
-          hostGroupValue: form.hostGroupValue,
+          tenantCompanyName: form.tenantCompanyName,
+          purpose: form.purpose || 'Exploring Services',
           hostUserId: form.hostUserId || undefined,
-          reason: form.reason || form.purpose || 'Department visit',
-          meetingTargetType: form.hostGroupType,
-          meetingTargetValue: form.hostGroupValue,
+          reason: form.reason?.trim() || form.purpose || 'Tenant company visit',
+          meetingTargetType: 'tenant-role',
+          meetingTargetValue: form.tenantCompanyName,
           notes: '',
         });
 
@@ -3223,26 +3378,19 @@ export default function VisitorsManagementPage() {
             ...prev.filter((entry) => !isSameVisitorEntry(entry, createdVisitor)),
           ]);
           setVisitorOverviewRefreshToken((value) => value + 1);
-          alert(`Request sent to ${selectedHostEmployee?.fullName || 'the selected employee'}.`);
-        }
-
-        if (Array.isArray(result?.hostGroups) || Array.isArray(result?.employeeRoster)) {
-          setVisitorHostGroups(
-            enrichHostGroupsWithRoster(
-              Array.isArray(result?.hostGroups) ? result.hostGroups : [],
-              Array.isArray(result?.employeeRoster) ? result.employeeRoster : [],
-            ),
-          );
+          toast.success(`Request sent to ${selectedTenantCompany?.managerName || 'the tenant company manager'}.`);
         }
 
         setIsLoggingVisitor(false);
         setVerifiedBooking(null);
         setWalkInStep(1);
         setForm(getDefaultVisitorForm());
-        setTourTouched({});
-        setTourSubmitAttempted(false);
+        setStandardVisitorTouched({});
+        setStandardVisitorSubmitAttempted(false);
+        navigateBackToManagement();
+        setActiveTab('daily');
       } catch (error) {
-        alert(error.message || 'Unable to log visitor right now.');
+        toast.error(error.message || 'Unable to log visitor right now.');
       } finally {
         setIsSubmittingVisitor(false);
       }
@@ -3950,9 +4098,87 @@ export default function VisitorsManagementPage() {
   return (
     <>
       <PageFrame>
-      <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+      <div className={`p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px] ${isFrontdeskPage ? 'flex flex-col' : ''}`}>
 
         <div className="flex flex-col gap-4">
+
+        {isFrontdeskPage && (
+          <div className="flex flex-col gap-4">
+            {/* full-page header — mirrors tenant-company view header */}
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={navigateBackToManagement}
+                className="p-2 bg-white border border-slate-200 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-all shadow-sm"><ArrowLeft size={16} /></button>
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                {/* <div className="w-10 h-10 rounded-xl bg-[#0F172A] text-white flex items-center justify-center shadow-sm"><UserPlus size={18} /></div> */}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-title font-pmedium text-primary uppercase gap-1.5">Frontdesk Action</h2>
+                    {/* <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-pmedium uppercase tracking-widest"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Open</span> */}
+                  </div>
+                  <p className="text-xs font-pmedium text-slate-500 mt-1">Front Desk Unit</p>
+                </div>
+              </div>
+              <div className="text-right hidden sm:block shrink-0">
+                <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Logged in as</p>
+                <p className="text-xs font-pmedium text-slate-900">{frontdeskProfile.name} ({frontdeskProfile.role})</p>
+              </div>
+            </div>
+
+            {/* main tabs (pill-style — same design as tenant-company view) */}
+            <div data-tour="frontdesk-tabs" data-active-tab={visitorMode} className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+              <button
+                type="button"
+                disabled={!visitorAccess.modes.standard}
+                title={!visitorAccess.modes.standard ? 'You do not have permission for Standard Visitor.' : undefined}
+                onClick={() => { setVisitorMode('standard'); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); setForm((prev) => ({ ...prev, standardVisitorType: prev.standardVisitorType || 'standard' })); }}
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visitorMode === 'standard' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'} ${!visitorAccess.modes.standard ? 'cursor-not-allowed opacity-60' : ''}`}
+              ><UserCheck size={14} />Standard Visitor</button>
+              <button
+                type="button"
+                disabled={!visitorAccess.modes.tour}
+                title={!visitorAccess.modes.tour ? 'You do not have permission for Unit Tour.' : undefined}
+                onClick={() => { setVisitorMode('tour'); setTourTouched({}); setTourSubmitAttempted(false); }}
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visitorMode === 'tour' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'} ${!visitorAccess.modes.tour ? 'cursor-not-allowed opacity-60' : ''}`}
+              ><Building size={14} />Unit Tour</button>
+              <button
+                type="button"
+                disabled={!visitorAccess.modes.walkin_booking}
+                title={!visitorAccess.modes.walkin_booking ? 'You do not have permission for Walk-in Booking.' : undefined}
+                onClick={() => { setVisitorMode('walkin_booking'); setWalkInTouched({}); setWalkInSubmitAttempted(false); }}
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visitorMode === 'walkin_booking' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'} ${!visitorAccess.modes.walkin_booking ? 'cursor-not-allowed opacity-60' : ''}`}
+              ><CalendarDays size={14} />Walk-in Booking</button>
+              <button
+                type="button"
+                disabled={!visitorAccess.modes.verify_booking}
+                title={!visitorAccess.modes.verify_booking ? 'You do not have permission for Verify Booking ID.' : undefined}
+                onClick={() => { setVisitorMode('verify_booking'); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); }}
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visitorMode === 'verify_booking' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'} ${!visitorAccess.modes.verify_booking ? 'cursor-not-allowed opacity-60' : ''}`}
+              ><ShieldCheck size={14} />Verify Booking</button>
+            </div>
+
+            {/* stat cards — 4 per active tab (tenant-company style) */}
+            <div data-tour="frontdesk-stats" className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
+              {(frontdeskStatCards[visitorMode] || frontdeskStatCards.standard).map((card) => {
+                const Icon = card.icon;
+                const textColor = (card.iconBg.match(/text-\S+/) || [])[0] || 'text-slate-900';
+                return (
+                  <div
+                    key={card.label}
+                    className={`bg-white p-5 rounded-[2rem] border border-slate-100 border-l-4 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.accent}`}
+                  >
+                    <div className="min-w-0">
+                      <p className={`text-[10px] font-pmedium uppercase tracking-widest mb-1 ${textColor}`}>{card.label}</p>
+                      <p className={`text-[15px] font-pmedium ${textColor}`}>{card.value}</p>
+                    </div>
+                    <div className={`p-2 rounded-2xl ${card.iconBg} shrink-0`}><Icon size={16} /></div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {!isFrontdeskPage && (<>
 
         {/* 1. HEADER */}
         <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
@@ -3960,6 +4186,34 @@ export default function VisitorsManagementPage() {
             <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">Visitor Management</h2>
             <p className="text-xs font-pmedium text-slate-500 mt-1">Daily visitors, walk-in bookings, client conversion, payment proof, and invoice handoff in one front desk unit.</p>
           </div>
+          {(activeTab === 'history' || activeTab === 'bookings' || activeTab === 'clients') && (
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  if (activeTab === 'history') handleExportHistory('pdf');
+                  else if (activeTab === 'bookings') handleExportBookings('pdf');
+                  else handleExportClients('pdf');
+                }}
+                title="Export PDF"
+                className="px-4 py-2.5 bg-white text-[#f10505] rounded-xl font-pmedium text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5"
+              >
+                <FileDown size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (activeTab === 'history') handleExportHistory('csv');
+                  else if (activeTab === 'bookings') handleExportBookings('csv');
+                  else handleExportClients('csv');
+                }}
+                title="Export CSV"
+                className="px-4 py-2.5 bg-white text-[#1fd628] rounded-xl font-pmedium text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5"
+              >
+                <FileSpreadsheet size={14} />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 2. MAIN PILL TABS */}
@@ -4101,39 +4355,11 @@ export default function VisitorsManagementPage() {
                   <input type="text" placeholder="Search records..." className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400" onChange={(e) => setSearchQuery(e.target.value)} />
                 </div>
               )}
-              {(activeTab === 'history' || activeTab === 'bookings' || activeTab === 'clients') && (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (activeTab === 'history') handleExportHistory('pdf');
-                      else if (activeTab === 'bookings') handleExportBookings('pdf');
-                      else handleExportClients('pdf');
-                    }}
-                    title="Export PDF"
-                    className="px-4 py-2.5 bg-white text-[#f10505] rounded-xl font-pmedium text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <FileDown size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (activeTab === 'history') handleExportHistory('csv');
-                      else if (activeTab === 'bookings') handleExportBookings('csv');
-                      else handleExportClients('csv');
-                    }}
-                    title="Export CSV"
-                    className="px-4 py-2.5 bg-white text-[#1fd628] rounded-xl font-pmedium text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <FileSpreadsheet size={14} />
-                  </button>
-                </div>
-              )}
               <button
                 type="button"
                 disabled={!canOpenFrontdeskAction}
                 title={!canOpenFrontdeskAction ? 'You do not have permission for frontdesk action tabs.' : undefined}
-                onClick={() => { setVisitorMode('standard'); setWalkInStep(1); setForm(getDefaultVisitorForm()); setLastSelectedExistingVisitor(null); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); setTourTouched({}); setTourSubmitAttempted(false); setWalkInTouched({}); setWalkInSubmitAttempted(false); setVerifiedBooking(null); setBookingConfirmation(null); setIsLoggingVisitor(true); }}
+                onClick={() => navigate('/visitors/visitor-management/frontdesk-action')}
                 className={`inline-flex items-center justify-center gap-1.5 rounded-2xl px-4 py-2.5 text-[10px] font-pmedium shadow-sm transition-all whitespace-nowrap ${
                   canOpenFrontdeskAction
                     ? 'bg-[#2563EB] text-white hover:bg-blue-700 active:scale-95'
@@ -4154,7 +4380,7 @@ export default function VisitorsManagementPage() {
                     <th className="px-5 py-4">Badge ID</th>
                     <th className="px-5 py-4">Visitor Info</th>
                     <th className="px-5 py-4">Date</th>
-                    <th className="px-5 py-4">Purpose</th>
+                    <th className="px-5 py-4">Visitor Type</th>
                     <th className="px-5 py-4">Host</th>
                     <th className="px-5 py-4">Check-In / Out</th>
                     <th className="px-5 py-4 text-center">Status</th>
@@ -4192,7 +4418,7 @@ export default function VisitorsManagementPage() {
                           </div>
                         </td>
                         <td className="px-5 py-4 align-top">
-                          <span className={statusPillClass(vis.purpose)}>{vis.purpose}</span>
+                          <span className={statusPillClass(getVisitorTypeLabel(vis))}>{getVisitorTypeLabel(vis)}</span>
                         </td>
                         <td className="px-5 py-4 align-top">
                           <div className="text-xs font-pmedium text-slate-600 flex items-center gap-1 whitespace-nowrap">
@@ -4508,7 +4734,7 @@ export default function VisitorsManagementPage() {
                     <th className="px-5 py-4">Badge ID</th>
                     <th className="px-5 py-4">Date</th>
                     <th className="px-5 py-4">Visitor Info</th>
-                    <th className="px-5 py-4">Purpose</th>
+                    <th className="px-5 py-4">Visitor Type</th>
                     <th className="px-5 py-4">Host</th>
                     <th className="px-5 py-4">In - Out Time</th>
                     <th className="px-5 py-4 text-center">Status</th>
@@ -4535,7 +4761,7 @@ export default function VisitorsManagementPage() {
                         </div>
                       </td>
                       <td className="px-5 py-4 align-top">
-                        <span className={statusPillClass(vis.purpose)}>{vis.purpose}</span>
+                        <span className={statusPillClass(getVisitorTypeLabel(vis))}>{getVisitorTypeLabel(vis)}</span>
                       </td>
                       <td className="px-5 py-4 align-top">
                         <div className="text-xs font-pmedium text-slate-600 flex items-center gap-1 whitespace-nowrap">
@@ -4583,11 +4809,12 @@ export default function VisitorsManagementPage() {
             </div>
           )}
         </div>
+        </>)}
         </div>
 
         {/* MODAL 1: GRAND UNIFIED "LOG VISITOR & BOOKING" TERMINAL */}
-        {isLoggingVisitor && (<>
-        {visitorMode === 'walkin_booking' && !hasWalkInBookableResources ? (
+        {frontdeskOpen && (<>
+        {visitorMode === 'walkin_booking' && !hasWalkInBookableResources && !isFrontdeskPage ? (
           <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
             <div className="bg-white shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col rounded-[22px] w-full max-w-2xl min-h-[22rem]">
               <div className="p-4 sm:p-5 bg-white border-b border-slate-100 flex items-start justify-between gap-4">
@@ -4596,7 +4823,7 @@ export default function VisitorsManagementPage() {
                   <h2 className="mt-1 text-xl font-pmedium text-primary tracking-tight">Add Meeting Resources First</h2>
                   <p className="mt-1 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest">Front Desk</p>
                 </div>
-                <button type="button" onClick={() => { setIsLoggingVisitor(false); setWalkInStep(1); setVisitorMode('standard'); setWalkInTouched({}); setWalkInSubmitAttempted(false); }} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors shadow-sm border border-slate-200">
+                <button type="button" onClick={() => { navigateBackToManagement(); setWalkInStep(1); setVisitorMode('standard'); setWalkInTouched({}); setWalkInSubmitAttempted(false); }} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors shadow-sm border border-slate-200">
                   <X size={20} strokeWidth={2.5} />
                 </button>
               </div>
@@ -4617,7 +4844,7 @@ export default function VisitorsManagementPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setIsLoggingVisitor(false); setWalkInStep(1); setVisitorMode('standard'); setWalkInTouched({}); setWalkInSubmitAttempted(false); }}
+                  onClick={() => { navigateBackToManagement(); setWalkInStep(1); setVisitorMode('standard'); setWalkInTouched({}); setWalkInSubmitAttempted(false); }}
                   className="mt-3 text-[10px] font-pmedium uppercase tracking-wider text-slate-400 transition-colors hover:text-slate-700"
                 >
                   Close
@@ -4626,9 +4853,10 @@ export default function VisitorsManagementPage() {
             </div>
           </div>
         ) : null}
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-            <div data-frontdesk-form className="bg-white shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col rounded-[22px] w-full max-w-[72rem] h-[78vh]">
+          <div className={isFrontdeskPage ? "flex-1 min-h-[55vh] flex flex-col bg-white rounded-[22px] overflow-hidden" : "fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"}>
+            <div data-frontdesk-form className={isFrontdeskPage ? "bg-white shadow-sm flex flex-col rounded-[22px] w-full flex-1 min-h-0 overflow-hidden" : "bg-white shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col rounded-[22px] w-full max-w-[72rem] h-[78vh]"}>
 
+              {!isFrontdeskPage && (
               <div className="p-3 md:p-3.5 bg-white border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shrink-0">
                 <div>
                   <h2 className="text-primary font-pmedium leading-none flex items-center gap-1.5"><UserPlus size={15} /> Frontdesk Action Terminal</h2>
@@ -4638,26 +4866,27 @@ export default function VisitorsManagementPage() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 xl:grid-cols-4 gap-1.5 w-full md:w-auto bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <div className={`flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm ${isFrontdeskPage ? 'w-full' : 'w-full md:w-auto'}`}>
                   <button
                     type="button"
                     disabled={!visitorAccess.modes.standard}
                     title={!visitorAccess.modes.standard ? 'You do not have permission for Standard Visitor.' : undefined}
                     onClick={() => { setVisitorMode('standard'); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); setForm((prev) => ({ ...prev, standardVisitorType: prev.standardVisitorType || 'standard' })); }}
-                    className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all ${visitorMode === 'standard' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.standard ? 'cursor-not-allowed opacity-60' : ''}`}
+                    className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all inline-flex items-center justify-center gap-2 whitespace-nowrap ${visitorMode === 'standard' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'} ${!visitorAccess.modes.standard ? 'cursor-not-allowed opacity-60' : ''}`}
                   >Standard Visitor</button>
-                  <button type="button" disabled={!visitorAccess.modes.tour} title={!visitorAccess.modes.tour ? 'You do not have permission for Unit Tour.' : undefined} onClick={() => { setVisitorMode('tour'); setTourTouched({}); setTourSubmitAttempted(false); }} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'tour' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.tour ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.tour && <Lock size={11} />} Unit Tour</button>
-                  <button type="button" disabled={!visitorAccess.modes.walkin_booking} title={!visitorAccess.modes.walkin_booking ? 'You do not have permission for Walk-in Booking.' : undefined} onClick={() => { setVisitorMode('walkin_booking'); setWalkInTouched({}); setWalkInSubmitAttempted(false); }} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'walkin_booking' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.walkin_booking ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.walkin_booking && <Lock size={11} />} Walk-in Booking</button>
-                  <button type="button" disabled={!visitorAccess.modes.verify_booking} title={!visitorAccess.modes.verify_booking ? 'You do not have permission for Verify Booking ID.' : undefined} onClick={() => setVisitorMode('verify_booking')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-pmedium uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'verify_booking' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'} ${!visitorAccess.modes.verify_booking ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.verify_booking && <Lock size={11} />} Verify Booking</button>
+                  <button type="button" disabled={!visitorAccess.modes.tour} title={!visitorAccess.modes.tour ? 'You do not have permission for Unit Tour.' : undefined} onClick={() => { setVisitorMode('tour'); setTourTouched({}); setTourSubmitAttempted(false); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all inline-flex items-center justify-center gap-2 whitespace-nowrap ${visitorMode === 'tour' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'} ${!visitorAccess.modes.tour ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.tour && <Lock size={11} />} Unit Tour</button>
+                  <button type="button" disabled={!visitorAccess.modes.walkin_booking} title={!visitorAccess.modes.walkin_booking ? 'You do not have permission for Walk-in Booking.' : undefined} onClick={() => { setVisitorMode('walkin_booking'); setWalkInTouched({}); setWalkInSubmitAttempted(false); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all inline-flex items-center justify-center gap-2 whitespace-nowrap ${visitorMode === 'walkin_booking' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'} ${!visitorAccess.modes.walkin_booking ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.walkin_booking && <Lock size={11} />} Walk-in Booking</button>
+                  <button type="button" disabled={!visitorAccess.modes.verify_booking} title={!visitorAccess.modes.verify_booking ? 'You do not have permission for Verify Booking ID.' : undefined} onClick={() => setVisitorMode('verify_booking')} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all inline-flex items-center justify-center gap-2 whitespace-nowrap ${visitorMode === 'verify_booking' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'} ${!visitorAccess.modes.verify_booking ? 'text-slate-400 bg-slate-200/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.verify_booking && <Lock size={11} />} Verify Booking</button>
                 </div>
               </div>
+              )}
 
               <div className={`flex-1 h-full min-h-0 bg-white ${isCompactMode ? 'grid grid-cols-1' : 'grid grid-cols-1 lg:grid-cols-[0.92fr_1.08fr]'}`}>
 
                 {!isCompactMode && (
                   <div className={`min-h-0 overflow-y-auto p-4 md:p-5 border-r border-gray-100 bg-slate-50/30 ${visitorMode === 'verify_booking' && !verifiedBooking ? 'opacity-50 pointer-events-none grayscale' : 'animate-in fade-in slide-in-from-left-4'}`}>
                     {visitorMode === 'standard' && (
-                      <div className="mb-5 space-y-3 rounded-xl border border-blue-100 bg-white p-3">
+                      <div data-tour="frontdesk-form-standard" className="mb-5 space-y-3 rounded-xl border border-blue-100 bg-white p-3">
                           <div className="grid grid-cols-2 gap-1.5 rounded-lg bg-slate-100 p-1.5">
                           {[
                             ['new', 'New Visitor'],
@@ -4780,16 +5009,16 @@ export default function VisitorsManagementPage() {
                 <div
                   className={`min-h-0 overflow-y-auto p-4 md:p-5 flex flex-col ${isCompactMode
                       ? visitorMode === 'tour'
-                        ? 'w-full h-full max-w-none mx-auto bg-gradient-to-b from-indigo-50 via-white to-white px-0 md:px-0'
+                        ? 'w-full h-full max-w-none mx-auto px-0 md:px-0'
                         : visitorMode === 'walkin_booking'
-                          ? 'w-full h-full max-w-none mx-auto bg-blue-50/30 px-0 md:px-0'
-                          : 'w-full h-full max-w-[92rem] 2xl:max-w-[100rem] mx-auto bg-slate-50 px-0 md:px-2'
+                          ? 'w-full h-full max-w-none mx-auto px-0 md:px-0'
+                          : 'w-full h-full max-w-[92rem] 2xl:max-w-[100rem] mx-auto  px-0 md:px-2'
                       : ''
                     }`}
                 >
 
                   {visitorMode === 'standard' && (
-                    <div className="space-y-5 animate-in fade-in">
+                    <div data-tour="frontdesk-form-standard" className="space-y-5 animate-in fade-in">
 
                       {isCompactMode && (
                         <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
@@ -5040,9 +5269,10 @@ export default function VisitorsManagementPage() {
                             onClick={() => setForm((prev) => ({
                               ...prev,
                               standardVisitorType: type,
-                              hostGroupType: type === 'standard' ? '' : prev.hostGroupType,
-                              hostGroupValue: type === 'standard' ? '' : prev.hostGroupValue,
-                              hostUserId: type === 'standard' ? '' : prev.hostUserId,
+                              hostGroupType: type === 'department' ? prev.hostGroupType : '',
+                              hostGroupValue: type === 'department' ? prev.hostGroupValue : '',
+                              hostUserId: type === 'department' ? prev.hostUserId : '',
+                              tenantCompanyName: type === 'tenant' ? prev.tenantCompanyName : '',
                             }))}
                             className={`rounded-lg px-2.5 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all inline-flex items-center justify-center gap-1 ${locked
                                   ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
@@ -5171,6 +5401,87 @@ export default function VisitorsManagementPage() {
                             </div>
                           </div>
                         </>
+                      ) : form.standardVisitorType === 'tenant' ? (
+                        <>
+                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Purpose</label>
+                              <select
+                                className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                value={form.purpose}
+                                onChange={e => setForm({ ...form, purpose: e.target.value })}
+                              >
+                                <option value="Exploring Services">Exploring Services</option>
+                                <option value="General Visit">General Visit</option>
+                                <option value="Unit Enquiry">Unit Enquiry</option>
+                                <option value="Delivery">Delivery</option>
+                              </select>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Tenant Company <span className="text-red-400">*</span></label>
+                              <select
+                                className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer disabled:cursor-not-allowed ${visibleStandardVisitorErrors.tenantCompanyName ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
+                                value={form.tenantCompanyName}
+                                onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, tenantCompanyName: true }))}
+                                onChange={(e) => {
+                                  const companyName = e.target.value;
+                                  const company = visitorTenantCompanies.find((c) => c.companyName === companyName);
+                                  setForm((prev) => ({
+                                    ...prev,
+                                    tenantCompanyName: companyName,
+                                    hostGroupType: 'tenant',
+                                    hostGroupValue: company?.id || '',
+                                    hostUserId: company?.managerUserId || '',
+                                  }));
+                                }}
+                                disabled={isVisitorOverviewLoading || visitorTenantCompanies.length === 0}
+                              >
+                                <option value="">{visitorTenantCompanies.length === 0 ? 'No tenant companies found' : 'Select a tenant company'}</option>
+                                {visitorTenantCompanies.map((company) => (
+                                  <option key={company.id} value={company.companyName}>{company.companyName}</option>
+                                ))}
+                              </select>
+                              {visibleStandardVisitorErrors.tenantCompanyName ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.tenantCompanyName}</span> : null}
+                            </div>
+                          </div>
+
+                          {form.tenantCompanyName ? (
+                            selectedTenantCompany?.managerUserId ? (
+                              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-2.5">
+                                <UserCheck className="text-slate-500 shrink-0" size={16} />
+                                <p className="text-[11px] font-pmedium text-slate-700">Approving manager: <span className="text-slate-900">{selectedTenantCompany.managerName || 'Assigned manager'}</span></p>
+                              </div>
+                            ) : (
+                              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2.5">
+                                <AlertTriangle className="text-amber-500 shrink-0" size={16} />
+                                <p className="text-[11px] font-pmedium text-amber-700">This tenant company has no manager assigned yet. Assign one in Tenant Companies before routing a visitor here.</p>
+                              </div>
+                            )
+                          ) : null}
+
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Visit Note</label>
+                            <textarea
+                              rows={3}
+                              placeholder="Optional note, e.g. came to see the place or explore services"
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none"
+                              value={form.reason}
+                              onChange={e => setForm({ ...form, reason: e.target.value })}
+                            />
+                          </div>
+
+                          <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-2.5">
+                            <ShieldCheck className="text-blue-500 shrink-0 mt-0.5" size={18} />
+                            <div className="space-y-1">
+                              <p className="text-[10px] font-pmedium text-blue-800 uppercase tracking-widest leading-relaxed">System will notify the tenant company manager for approval.</p>
+                              {visitorOverviewError ? (
+                                <p className="text-[10px] font-medium text-red-600">{visitorOverviewError}</p>
+                              ) : (
+                                <p className="text-[10px] font-pmedium text-blue-700">The visitor is checked in only after the manager approves the request from their dashboard.</p>
+                              )}
+                            </div>
+                          </div>
+                        </>
                       ) : (
                         <div className="space-y-4">
                           <div className="flex flex-col gap-1">
@@ -5205,7 +5516,7 @@ export default function VisitorsManagementPage() {
                   )}
 
                   {visitorMode === 'tour' && (
-                    <div className="space-y-5 animate-in fade-in">
+                    <div data-tour="frontdesk-form-tour" className="space-y-5 animate-in fade-in">
                       <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                         <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
                           <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><User size={16} /></span>
@@ -5401,7 +5712,27 @@ export default function VisitorsManagementPage() {
                   )}
 
                   {visitorMode === 'walkin_booking' && (
-                    <div className="space-y-5 animate-in fade-in">
+                    <div data-tour="frontdesk-form-walkin" className="space-y-5 animate-in fade-in">
+                      {!hasWalkInBookableResources && (
+                        <div className="flex items-start justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-200 bg-white text-amber-600">
+                              <Building size={16} />
+                            </div>
+                            <div>
+                              <p className="text-xs font-pmedium text-amber-900">No meeting resources available for walk-in booking</p>
+                              <p className="mt-0.5 text-[11px] font-pmedium text-amber-700">Add an active Meeting Room or Conference Room under Sales Department &rarr; Resource &amp; Pricing.</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={goToResourcePricing}
+                            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-3.5 py-2 text-[9px] font-pmedium uppercase tracking-wider text-white shadow-sm transition-all hover:bg-blue-700"
+                          >
+                            <Tag size={12} /> Add Resources <ArrowRight size={12} />
+                          </button>
+                        </div>
+                      )}
                       <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                         <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
                           <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><UserPlus size={16} /></span>
@@ -6034,7 +6365,7 @@ export default function VisitorsManagementPage() {
                   )}
 
                   {visitorMode === 'verify_booking' && (
-                    <div className="space-y-2.5 animate-in fade-in h-full flex flex-col bg-gray-50 rounded-lg border border-gray-200 p-2.5 text-[10px]">
+                    <div data-tour="frontdesk-form-verify" className="space-y-2.5 animate-in fade-in h-full flex flex-col bg-gray-50 rounded-lg border border-gray-200 p-2.5 text-[10px]">
                       <h3 className="text-xs font-pmedium text-blue-600 uppercase tracking-widest border-b border-blue-200 pb-2 mb-2 flex items-center gap-2"><Search size={16} /> Verify Booking</h3>
                       <p className="text-[11px] font-pmedium text-slate-500 -mt-1">Ask the visitor for the booking ID from their confirmation email and enter it below to verify the booking.</p>
 
@@ -6128,8 +6459,8 @@ export default function VisitorsManagementPage() {
 
               {activeFormSubmitAttempted && <ValidationSummary errors={activeFormValidationErrors} />}
 
-              <div className={visitorMode === 'walkin_booking' ? 'flex flex-col-reverse items-stretch gap-3 pt-2 shrink-0 px-6 pb-4 sm:flex-row sm:justify-end' : 'flex items-center justify-end gap-3 pt-2 shrink-0 px-6 pb-4'}>
-                <button type="button" onClick={() => { setIsLoggingVisitor(false); setLastSelectedExistingVisitor(null); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setWalkInStep(1); setAvailabilityStatus('idle'); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); setTourTouched({}); setTourSubmitAttempted(false); setWalkInTouched({}); setWalkInSubmitAttempted(false); }} className={visitorMode === 'walkin_booking' ? 'w-full sm:flex-1 px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all' : 'flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all'}>Cancel</button>
+              <div data-tour="frontdesk-footer" className={visitorMode === 'walkin_booking' ? 'flex flex-col-reverse items-stretch gap-3 pt-2 shrink-0 px-6 pb-4 sm:flex-row sm:justify-end' : 'flex items-center justify-end gap-3 pt-2 shrink-0 px-6 pb-4'}>
+                <button type="button" onClick={() => { if (isFrontdeskPage) { navigateBackToManagement(); } else { setIsLoggingVisitor(false); } setLastSelectedExistingVisitor(null); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setWalkInStep(1); setAvailabilityStatus('idle'); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); setTourTouched({}); setTourSubmitAttempted(false); setWalkInTouched({}); setWalkInSubmitAttempted(false); }} className={visitorMode === 'walkin_booking' ? 'w-full sm:flex-1 px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all' : 'flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all'}>Cancel</button>
 
                 {visitorMode === 'standard' && (
                   <button
@@ -6139,12 +6470,12 @@ export default function VisitorsManagementPage() {
                     title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.standard ? 'You do not have access to Standard Visitor tab.' : undefined}
                     className="flex-1 px-8 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    <CheckCircle2 size={14} />{isSubmittingVisitor ? 'SENDING...' : form.standardVisitorType === 'department' ? 'SEND HOST APPROVAL' : 'CHECK IN VISITOR'}
+                    <CheckCircle2 size={14} />{isSubmittingVisitor ? 'SENDING...' : (form.standardVisitorType === 'department' || form.standardVisitorType === 'tenant') ? 'SEND HOST APPROVAL' : 'CHECK IN VISITOR'}
                   </button>
                 )}
                 {visitorMode === 'tour' && (
-                  <button onClick={handleProcessAction} disabled={!visitorAccess.modes.tour || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.tour ? 'You do not have access to Unit Tour tab.' : undefined} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-3 bg-indigo-600 text-white shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-gray-300 disabled:shadow-none">
-                    <Building size={18} /> SYNC LEAD & START TOUR
+                  <button onClick={handleProcessAction} disabled={!visitorAccess.modes.tour || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.tour ? 'You do not have access to Unit Tour tab.' : undefined} className="flex-1 px-8 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                    <Building size={14} /> SYNC LEAD & START TOUR
                   </button>
                 )}
                 {visitorMode === 'walkin_booking' && (
@@ -6162,7 +6493,7 @@ export default function VisitorsManagementPage() {
           </div>
         </>)}
 
-        {isLoggingVisitor && showBookingConfirmationPopup && bookingConfirmation && (
+        {frontdeskOpen && showBookingConfirmationPopup && bookingConfirmation && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-[#0F172A]/85 backdrop-blur-sm">
             <div className="w-full max-w-lg overflow-hidden rounded-[32px] border border-emerald-200 bg-white shadow-2xl">
               <div className="bg-emerald-50 px-6 py-5 border-b border-emerald-100 flex items-start justify-between gap-4">
@@ -6183,6 +6514,7 @@ export default function VisitorsManagementPage() {
                     setBookingConfirmation(null);
                     setIsLoggingVisitor(false);
                     setActiveTab('bookings');
+                    if (isFrontdeskPage) navigateBackToManagement();
                   }}
                   className="w-9 h-9 rounded-full bg-white text-emerald-700 shadow-sm hover:bg-emerald-100 transition-all flex items-center justify-center"
                 >
@@ -6796,7 +7128,11 @@ export default function VisitorsManagementPage() {
                   </div>
                   <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Department</p>
-                    <p className="mt-1.5 text-xs font-pmedium text-gray-900">{viewingVisitor.department || 'General'}</p>
+                    <p className="mt-1.5 text-xs font-pmedium text-gray-900">
+                      {normalizeText(viewingVisitor.visitorType) === 'department'
+                        ? (viewingVisitor.meetingTargetValue ? toTitleCase(viewingVisitor.meetingTargetValue) : 'Unassigned')
+                        : (viewingVisitor.department || 'General')}
+                    </p>
                   </div>
                   <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Visitor Type</p>
@@ -6827,6 +7163,35 @@ export default function VisitorsManagementPage() {
                     <p className="text-base font-pmedium text-red-700">{viewingVisitor.checkOut || formatTimeLabel(viewingVisitor.checkOutAt) || '--:--'}</p>
                   </div>
                 </div>
+
+                {normalizeText(viewingVisitor.visitorType) === 'department' && (() => {
+                  const hostMember = visitorHostGroups
+                    .flatMap((group) => group.members || [])
+                    .find((member) => String(member.userId || member.id || '') === String(viewingVisitor.hostUserId || ''));
+                  const roleType = viewingVisitor.meetingTargetType || '';
+                  const roleValue = viewingVisitor.meetingTargetValue || '';
+                  return (
+                    <div className="rounded-2xl bg-gray-50 border border-gray-100 p-4">
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400 flex items-center gap-1"><User size={12} /> Routed To</p>
+                      <p className="mt-1.5 text-xs font-pmedium text-gray-900">
+                        {hostMember?.fullName || viewingVisitor.host || 'Pending assignment'}
+                        {roleValue ? ` — ${toTitleCase(roleType)}: ${toTitleCase(roleValue)}` : ''}
+                      </p>
+                    </div>
+                  );
+                })()}
+
+                {normalizeText(viewingVisitor.visitorType) === 'tenant' && (() => {
+                  const company = visitorTenantCompanies.find((c) => c.companyName === viewingVisitor.tenantCompanyName);
+                  return (
+                    <div className="rounded-2xl bg-gray-50 border border-gray-100 p-4">
+                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400 flex items-center gap-1"><User size={12} /> Routed To</p>
+                      <p className="mt-1.5 text-xs font-pmedium text-gray-900">
+                        {company?.managerName || viewingVisitor.host || 'Manager not assigned'} — {viewingVisitor.tenantCompanyName || 'Tenant company'}
+                      </p>
+                    </div>
+                  );
+                })()}
 
                 <div className="rounded-2xl bg-gray-50 border border-gray-100 p-4">
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Reason to Meet Host</p>

@@ -7,6 +7,14 @@ export const getVisitorManagementOverview = async () => {
   return unwrap(response);
 };
 
+// Requests routed to the current user (via VisitorLog.hostUser) — a
+// department manager's approval queue on their own dashboard. Lighter
+// than the overview endpoint: only requires workspace membership.
+export const getMyVisitorRequests = async () => {
+  const response = await axiosPrivate.get("/api/v1/visitors/my-requests");
+  return unwrap(response);
+};
+
 export const createVisitorLog = async (payload: Record<string, any>) => {
   const response = await axiosPrivate.post("/api/v1/visitors", payload);
   return unwrap(response);

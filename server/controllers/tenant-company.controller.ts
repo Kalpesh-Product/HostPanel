@@ -17,6 +17,8 @@ import {
   deleteTenantCompanyEmployeeForCurrentUser,
   assignTenantCompanyManagerForCurrentUser,
   uploadTenantCompanyAgreementDocumentsForCurrentUser,
+  getMyTenantCompanyVisitorRequestsForCurrentUser,
+  reviewMyTenantCompanyVisitorRequestForCurrentUser,
   getMyTenantCompanyCreditRequestsForCurrentUser,
   createMyTenantCompanyCreditRequestForCurrentUser,
   submitMyTenantCompanyCreditRequestPaymentForCurrentUser,
@@ -61,6 +63,26 @@ export const getMyTenantCompany = async (req: Request, res: Response, next: Next
     const user = await HostUser.findById(userId).lean().exec();
     const email = String(user?.email || "").trim().toLowerCase();
     const result = await getMyTenantCompanyForCurrentUser(userId, email);
+    return res.status(200).json(result);
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+export const getMyTenantCompanyVisitorRequests = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id || req.user?._id || req.user;
+    const result = await getMyTenantCompanyVisitorRequestsForCurrentUser(userId);
+    return res.status(200).json(result);
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+export const reviewMyTenantCompanyVisitorRequest = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id || req.user?._id || req.user;
+    const result = await reviewMyTenantCompanyVisitorRequestForCurrentUser(userId, req.params.visitorId, req.body);
     return res.status(200).json(result);
   } catch (error: any) {
     next(error);

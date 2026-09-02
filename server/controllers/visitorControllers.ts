@@ -6,8 +6,11 @@ import VisitorLog from "../models/VisitorLog.js";
 import { Client } from "../models/Client.js";
 import { Role } from "../models/Role.js";
 import Department from "../models/Department.js";
+import { TenantCompany } from "../models/TenantCompany.js";
+import TenantEmployee from "../models/TenantEmployee.js";
 import { VISITOR_MEMBER_GRANT_ALIASES, VISITOR_PERMISSION_KEYS } from "../config/visitorPermissionMap.js";
 import { getZonedDateKey, normalizeTimeZone } from "../utils/workspaceLocalization.js";
+import { createNotification } from "../utils/notify.js";
 
 const FRONTDESK_ROLES = new Set(["owner", "founder", "super_admin", "admin", "admin_manager", "manager"]);
 const MODULE_ADMIN_ROLES = new Set(["owner", "founder", "super_admin"]);
@@ -349,6 +352,35 @@ export const getVisitorsOverview = async (req, res, next) => {
       isActive: d.isActive,
     }));
     const hostGroups = buildHostGroups(employeeRoster, activeWorkspaceDepartments);
+
+    const tenantCompanyDocs = await TenantCompany.find({
+      workspaceId: workspace._id,
+      status: { $in: ["Active", "Expiring Soon"] },
+    })
+      .select("companyName managerEmployeeId")
+      .lean()
+      .exec();
+    const managerEmployeeIds = tenantCompanyDocs.map((t) => t.managerEmployeeId).filter(Boolean);
+    const tenantManagers = managerEmployeeIds.length
+      ? await TenantEmployee.find({
+        tenantCompanyId: { $in: tenantCompanyDocs.map((t) => t._id) },
+        id: { $in: managerEmployeeIds },
+      })
+        .select("id name email userId tenantCompanyId")
+        .lean()
+        .exec()
+      : [];
+    const tenantManagerById = new Map(tenantManagers.map((m) => [m.id, m]));
+    const tenantCompanies = tenantCompanyDocs.map((company) => {
+      const manager = company.managerEmployeeId ? tenantManagerById.get(company.managerEmployeeId) : null;
+      return {
+        id: toId(company._id),
+        companyName: company.companyName || "",
+        managerName: manager?.name || "",
+        managerUserId: manager?.userId ? toId(manager.userId) : "",
+      };
+    });
+
     const workspaceTimeZone = normalizeTimeZone(workspace?.preferences?.timezone);
     const todayKey = getWorkspaceDateKey(new Date(), workspaceTimeZone);
     const dailyVisitors = formatted.filter((visitor) => {
@@ -402,6 +434,7 @@ export const getVisitorsOverview = async (req, res, next) => {
         },
         employeeRoster,
         hostGroups,
+        tenantCompanies,
         visitors: formatted,
         liveVisitors,
         approvedVisitors,
@@ -411,6 +444,37 @@ export const getVisitorsOverview = async (req, res, next) => {
         summary: buildSummary(formatted),
         clients: clientsFormatted,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Requests routed to the current workspace member (via VisitorLog.hostUser) —
+// e.g. a department manager's "Standard Visitor > Department Visitor"
+// approval queue on their own dashboard. Deliberately lighter than
+// getVisitorsOverview: only requires workspace membership, not full
+// visitor-management access, since approving a request addressed to you
+// isn't the same as operating the front desk.
+export const getMyVisitorRequests = async (req, res, next) => {
+  try {
+    const workspace = await getCurrentWorkspaceForRequest(req);
+    if (!workspace) return res.status(404).json({ message: "Workspace not found for this user." });
+    const membership = await getWorkspaceMembership(toId(workspace._id), toId(req.user));
+    if (!membership) return res.status(403).json({ message: "You do not have workspace access." });
+
+    const visitors = await VisitorLog.find({
+      workspace: workspace._id,
+      hostUser: toId(req.user),
+    })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean()
+      .exec();
+
+    return res.status(200).json({
+      message: "Visitor requests loaded successfully.",
+      data: { visitors: visitors.map(formatVisitor) },
     });
   } catch (error) {
     next(error);
@@ -547,6 +611,27 @@ export const createVisitor = async (req, res, next) => {
       source: "frontdesk",
     });
 
+    if (!isDirectCheckIn && visitor.hostUser) {
+      createNotification({
+        workspaceId: String(workspace._id),
+        recipientUserId: String(visitor.hostUser),
+        actorUserId: String(req.user),
+        type: "visitor_request",
+        category: "system",
+        title: "New Visitor Approval Request",
+        description: visitor.visitorType === "tenant"
+          ? `${fullName} is requesting to visit ${visitor.tenantCompanyName || "your company"}. Approve or reject from your dashboard.`
+          : `${fullName} is requesting to visit. Approve or reject from your dashboard.`,
+        entityType: "visitor",
+        entityId: String(visitor._id),
+        entityCode: visitor.visitorCode,
+        data: { visitorType: visitor.visitorType, purpose: visitor.purpose },
+        priority: "high",
+        isActionRequired: true,
+        dedupeKey: `visitor-request:${visitor._id}`,
+      });
+    }
+
     return res.status(201).json({
       message: "Visitor logged successfully.",
       data: { visitor: formatVisitor(visitor) },
@@ -562,19 +647,6 @@ export const reviewVisitorDecision = async (req, res, next) => {
     if (!workspace) return res.status(404).json({ message: "Workspace not found for this user." });
     const membership = await getWorkspaceMembership(toId(workspace._id), toId(req.user));
     if (!membership) return res.status(403).json({ message: "You do not have workspace access." });
-    if (
-      !hasVisitorAccess({
-        workspace,
-        membership,
-        permissionKey: VISITOR_PERMISSION_KEYS.actions.reviewVisitor,
-      })
-    ) {
-      return res.status(403).json({ message: "You do not have permission to review visitors." });
-    }
-    const hasFrontdeskPermission = await ensureFrontdeskPermission(toId(workspace._id), toId(req.user));
-    if (!hasFrontdeskPermission) {
-      return res.status(403).json({ message: "You do not have permission to review visitors." });
-    }
 
     const decision = String(req.body?.decision || "").trim().toLowerCase();
     if (!["approved", "rejected"].includes(decision)) {
@@ -583,6 +655,28 @@ export const reviewVisitorDecision = async (req, res, next) => {
 
     const visitor = await VisitorLog.findOne({ _id: req.params.visitorId, workspace: workspace._id });
     if (!visitor) return res.status(404).json({ message: "Visitor record not found." });
+
+    // The employee this visitor was routed to may review their own pending
+    // request without holding broader frontdesk/visitor-management access —
+    // approving a request addressed to you is not the same as operating the
+    // front desk. Anyone else still needs full visitor-review permission.
+    const isAssignedHost = visitor.hostUser && String(visitor.hostUser) === String(toId(req.user));
+    if (!isAssignedHost) {
+      if (
+        !hasVisitorAccess({
+          workspace,
+          membership,
+          permissionKey: VISITOR_PERMISSION_KEYS.actions.reviewVisitor,
+        })
+      ) {
+        return res.status(403).json({ message: "You do not have permission to review visitors." });
+      }
+      const hasFrontdeskPermission = await ensureFrontdeskPermission(toId(workspace._id), toId(req.user));
+      if (!hasFrontdeskPermission) {
+        return res.status(403).json({ message: "You do not have permission to review visitors." });
+      }
+    }
+
     if (visitor.status !== "pending") {
       return res.status(200).json({ message: "Visitor already reviewed.", data: { visitor: formatVisitor(visitor) } });
     }
@@ -591,6 +685,27 @@ export const reviewVisitorDecision = async (req, res, next) => {
     visitor.status = decision === "approved" ? "approved" : "rejected";
     visitor.rejectionReason = decision === "rejected" ? String(req.body?.reason || "").trim() : "";
     await visitor.save();
+
+    if (visitor.createdByUser) {
+      createNotification({
+        workspaceId: String(workspace._id),
+        recipientUserId: String(visitor.createdByUser),
+        actorUserId: String(req.user),
+        type: "visitor_request_decided",
+        category: "system",
+        title: decision === "approved" ? "Visitor Request Approved" : "Visitor Request Rejected",
+        description: decision === "approved"
+          ? `${visitor.fullName}'s visit request was approved. They can now be checked in.`
+          : `${visitor.fullName}'s visit request was rejected.${visitor.rejectionReason ? ` Reason: ${visitor.rejectionReason}` : ""}`,
+        entityType: "visitor",
+        entityId: String(visitor._id),
+        entityCode: visitor.visitorCode,
+        data: { visitorType: visitor.visitorType, decision },
+        priority: "normal",
+        dedupeKey: `visitor-decision:${visitor._id}`,
+        allowSelf: true,
+      });
+    }
 
     return res.status(200).json({
       message: "Visitor decision saved successfully.",

@@ -16,6 +16,8 @@ import {
   updateTenantCompanyEmployeeStatus,
   deleteTenantCompanyEmployee,
   assignTenantCompanyManager,
+  getMyTenantCompanyVisitorRequests,
+  reviewMyTenantCompanyVisitorRequest,
   uploadTenantCompanyAgreementDocuments,
   getMyTenantCompanyCreditRequests,
   createMyTenantCompanyCreditRequest,
@@ -30,6 +32,8 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 
 // Self-service routes for tenant users (must precede /:id routes)
 router.get("/my", getMyTenantCompany);
+router.get("/my/visitor-requests", getMyTenantCompanyVisitorRequests);
+router.patch("/my/visitor-requests/:visitorId", reviewMyTenantCompanyVisitorRequest);
 router.get("/my/credit-requests", getMyTenantCompanyCreditRequests);
 router.post("/my/credit-requests", createMyTenantCompanyCreditRequest);
 router.post("/my/credit-requests/:requestId/payment", upload.single("paymentProof"), submitMyTenantCompanyCreditRequestPayment);
