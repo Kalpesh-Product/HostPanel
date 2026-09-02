@@ -567,6 +567,9 @@ const isBasicPlan = (workspace: any) =>
 const isProfessionalPlan = (workspace: any) =>
   String(workspace?.selectedPlan || "basic").trim().toLowerCase() === "professional";
 
+const isCustomPlan = (workspace: any) =>
+  String(workspace?.selectedPlan || "basic").trim().toLowerCase() === "custom";
+
 const DEFAULT_DEPARTMENT_NAMES = new Set(
   DEFAULT_DEPARTMENTS.map((department) => department.name.trim().toLowerCase()),
 );
@@ -1331,13 +1334,14 @@ export const saveOrganizationDepartment = async (req, res, next) => {
     const existingCustomDepartment = duplicateCandidates.find((department) =>
       isCustomDepartmentName(department?.name),
     );
-    if (!departmentId && existingCustomDepartment) {
+    if (!departmentId && !isCustomPlan(workspace) && existingCustomDepartment) {
       return res.status(409).json({
         message: "Only one custom department can be created. Edit the existing custom department instead.",
       });
     }
     if (
       departmentId &&
+      !isCustomPlan(workspace) &&
       isCustomDepartmentName(name) &&
       existingCustomDepartment &&
       String(existingCustomDepartment._id) !== departmentId
