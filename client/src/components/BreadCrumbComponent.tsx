@@ -871,13 +871,30 @@ const BreadCrumbComponent = () => {
     return true;
   });
 
+  const routeState = (location.state as Record<string, unknown>) || {};
   let breadcrumbs = matchedConfig?.crumbs || buildFallbackCrumbs(location.pathname);
+  const dynamicDepartmentLabel = String(routeState.departmentLabel || "").trim();
+  const dynamicDepartmentId = String(routeState.departmentId || "").trim();
+
+  if (
+    routeState.fromSection === "department-accesses" &&
+    dynamicDepartmentLabel &&
+    breadcrumbs.length > 0 &&
+    location.pathname !== "/department-accesses"
+  ) {
+    const departmentPath = dynamicDepartmentId ? `/department-accesses/${dynamicDepartmentId}` : undefined;
+    breadcrumbs = [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: dynamicDepartmentLabel, path: location.pathname === departmentPath ? undefined : departmentPath },
+      ...(location.pathname === departmentPath ? [] : [{ label: breadcrumbs[breadcrumbs.length - 1].label }]),
+    ];
+  }
 
   // Modules opened from the Add-Ons page keep Add-Ons as their back link
   // instead of the module's home-section trail. Not on the Add-Ons page
   // itself, where that would duplicate its own crumb.
   if (
-    (location.state as Record<string, unknown>)?.fromSection === "add-ons" &&
+    routeState.fromSection === "add-ons" &&
     breadcrumbs.length > 0 &&
     location.pathname !== "/module-sections/add-ons"
   ) {

@@ -53,6 +53,36 @@ const toId = (value) => String(value || "");
 // everyone by default, on top of whatever department/role defaults apply.
 const BASELINE_MODULE_IDS = [...COMMON_MODULE_IDS, ...EXTRA_COMMON_MODULE_IDS];
 
+const VISITOR_MANAGEMENT_MODULE_IDS = ["visitor-management", "visitors-management"];
+const VISITOR_MANAGEMENT_FULL_GRANT_IDS = [
+  ...VISITOR_MANAGEMENT_MODULE_IDS,
+  "visitors_manage_internal_visitors",
+  "visitors_manage_external_clients",
+  "visitors_tab_daily",
+  "visitors_tab_history",
+  "visitors_tab_bookings",
+  "visitors_tab_clients",
+  "visitors_mode_standard",
+  "visitors_mode_workspace_tour",
+  "visitors_mode_walkin_booking",
+  "visitors_mode_verify_booking",
+  "visitors_standard_type_standard",
+  "visitors_standard_type_department",
+  "visitors_standard_type_tenant",
+];
+
+const expandFeatureGrantIds = (moduleIds: string[] = []) => {
+  const expanded = new Set(
+    (Array.isArray(moduleIds) ? moduleIds : [])
+      .map((id) => String(id || "").trim())
+      .filter(Boolean),
+  );
+  if (VISITOR_MANAGEMENT_MODULE_IDS.some((id) => expanded.has(id))) {
+    VISITOR_MANAGEMENT_FULL_GRANT_IDS.forEach((id) => expanded.add(id));
+  }
+  return Array.from(expanded);
+};
+
 const escapeEmailHtml = (value: any) =>
   String(value || "")
     .replace(/&/g, "&amp;")
@@ -366,7 +396,7 @@ const computeDepartmentDefaultModuleIds = async (departmentIds = [], roleBand = 
     const moduleIds = Array.isArray(dept?.moduleIds) ? dept.moduleIds : [];
     for (const id of moduleIds) result.add(id);
   }
-  return Array.from(result);
+  return expandFeatureGrantIds(Array.from(result));
 };
 
 // Union merge — additive only, so manual grants/add-ons already on the
@@ -2550,7 +2580,7 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
         .lean();
       const managerDelegableIds = new Set<string>(BASELINE_MODULE_IDS);
       for (const dept of sharedDepartments) {
-        const moduleIds = Array.isArray(dept?.moduleIds) ? dept.moduleIds : [];
+        const moduleIds = expandFeatureGrantIds(Array.isArray(dept?.moduleIds) ? dept.moduleIds : []);
         for (const id of moduleIds) managerDelegableIds.add(id);
       }
 
@@ -2627,21 +2657,21 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
       ? req.body.addOnModules.map((item) => String(item || "").trim()).filter(Boolean)
       : [];
 
-    const sanitizedNextGrantedModules = nextGrantedModules.filter((moduleId) => {
+    const sanitizedNextGrantedModules = expandFeatureGrantIds(nextGrantedModules.filter((moduleId) => {
       if (moduleId.startsWith("disabled:")) {
         const targetModuleId = String(moduleId.slice("disabled:".length) || "").trim();
         return Boolean(targetModuleId) && allowedModuleKeys.has(normalizeKey(targetModuleId));
       }
       return allowedModuleKeys.has(normalizeKey(moduleId));
-    });
+    }));
 
-    const sanitizedNextAddOnModules = nextAddOnModules.filter((moduleId) => {
+    const sanitizedNextAddOnModules = expandFeatureGrantIds(nextAddOnModules.filter((moduleId) => {
       if (moduleId.startsWith("disabled:")) {
         const targetModuleId = String(moduleId.slice("disabled:".length) || "").trim();
         return Boolean(targetModuleId) && allowedModuleKeys.has(normalizeKey(targetModuleId));
       }
       return allowedModuleKeys.has(normalizeKey(moduleId));
-    });
+    }));
 
     if (managerControllableIds) {
       // Scoped manager edit: replace only the manager-held Common, Extra

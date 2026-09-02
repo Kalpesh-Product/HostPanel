@@ -50,6 +50,19 @@ export interface DashboardAccessResult {
   metrics: { activeMembers: number; totalMembers: number };
 }
 
+const MODULE_ID_EQUIVALENTS: Record<string, string[]> = {
+  "visitor-management": ["visitor-management", "visitors-management"],
+  "visitors-management": ["visitor-management", "visitors-management"],
+};
+
+const getEquivalentModuleIds = (moduleId: string) => {
+  const id = String(moduleId || "").trim();
+  return id ? [id, ...(MODULE_ID_EQUIVALENTS[id] || [])] : [];
+};
+
+const hasEquivalentModuleId = (ids: Set<string>, moduleId: string) =>
+  getEquivalentModuleIds(moduleId).some((id) => ids.has(id));
+
 const normalizeRoleBand = (role: string): RoleBand => {
   const normalized = String(role || "")
     .trim()
@@ -182,7 +195,7 @@ export default function useDashboardAccess(): DashboardAccessResult {
     return {
       plan,
       isLoading: isModuleMapLoading || isOverviewLoading,
-      hasModule: (id: string) => allIds.has(id),
+      hasModule: (id: string) => hasEquivalentModuleId(allIds, id),
       enabledModuleIds: allIds,
       workspaceName: String(data?.workspaceName || ""),
       roleBand: normalizedRoleBand,

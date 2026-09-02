@@ -115,6 +115,7 @@ interface NavNode {
   upgradeLocked?: boolean;
   defaultOpen?: boolean;
   children?: NavNode[];
+  state?: Record<string, unknown>;
 }
 
 interface SidebarProps {
@@ -535,6 +536,19 @@ const normalizeModuleToken = (value = "") =>
     .trim()
     .toLowerCase()
     .replace(/[_\s]+/g, "-");
+
+const MODULE_ID_EQUIVALENTS: Record<string, string[]> = {
+  "visitor-management": ["visitor-management", "visitors-management"],
+  "visitors-management": ["visitor-management", "visitors-management"],
+};
+
+const getEquivalentModuleIds = (moduleId: string) => {
+  const id = String(moduleId || "").trim();
+  return id ? [id, ...(MODULE_ID_EQUIVALENTS[id] || [])] : [];
+};
+
+const hasEquivalentModuleId = (ids: Set<string>, moduleId: string) =>
+  getEquivalentModuleIds(moduleId).some((id) => ids.has(id));
 
 const ORG_CHILD_KEYS = new Set([
   "org-tab-users",
@@ -1327,9 +1341,9 @@ useEffect(() => {
         defaultOpen: false,
         children: department.moduleIds.map((moduleId) => {
           const navigation = moduleNavigation.get(moduleId);
-          const workspaceUnlocked = workspaceEnabledCanonicalIds.has(moduleId);
+          const workspaceUnlocked = hasEquivalentModuleId(workspaceEnabledCanonicalIds, moduleId);
           const roleUnlocked =
-            isFounderRole || isSuperAdmin || roleAllowedModuleIds.has(moduleId);
+            isFounderRole || isSuperAdmin || hasEquivalentModuleId(roleAllowedModuleIds, moduleId);
           const unlocked = workspaceUnlocked && roleUnlocked;
           return {
             id: moduleId,
@@ -1338,6 +1352,12 @@ useEffect(() => {
             route: navigation?.route,
             disabled: !unlocked,
             upgradeLocked: !workspaceUnlocked,
+            state: {
+              fromSection: "department-accesses",
+              departmentId: "custom-department-" + (department.id || normalizeModuleToken(department.name)),
+              departmentLabel: department.name,
+              moduleId,
+            },
             disabledTitle: !unlocked
               ? workspaceUnlocked
                 ? "You do not have access to this module"
@@ -1529,8 +1549,8 @@ useEffect(() => {
     }
   };
 
-  const navigateFromSidebar = (route: string, sectionKey?: string) => {
-    navigate(route, { state: { fromSection: sectionKey }, flushSync: true });
+  const navigateFromSidebar = (route: string, sectionKey?: string, state?: Record<string, unknown>) => {
+    navigate(route, { state: { fromSection: sectionKey, ...(state || {}) }, flushSync: true });
     if (onCloseDrawer) onCloseDrawer();
   };
 
@@ -1547,7 +1567,7 @@ useEffect(() => {
       return;
     }
     if (!item.route) return;
-    navigateFromSidebar(normalizeLegacyRoute(item.route), sectionKey);
+    navigateFromSidebar(normalizeLegacyRoute(item.route), sectionKey, item.state);
   };
 
   return (

@@ -48,7 +48,7 @@ import {
 } from "lucide-react";
 import type { ElementType, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Card from "../../../components/Card";
 import PageFrame from "../../../components/Pages/PageFrame";
 import PrimaryButton from "../../../components/PrimaryButton";
@@ -81,6 +81,7 @@ type LandingCard = {
   upgradeLocked?: boolean;
   disabledTitle?: string;
   helperText?: string;
+  state?: Record<string, unknown>;
 };
 
 type AddOnModuleCard = LandingCard & {
@@ -129,6 +130,8 @@ type WorkspaceModuleTab = {
   route?: string;
   implemented?: boolean;
   unlockedInWorkspace?: boolean;
+  _parentDept?: string;
+  _parentDeptId?: string;
 };
 
 type WorkspaceModuleItem = {
@@ -159,6 +162,12 @@ type RoleAccessContext = {
   role: string;
   grantedModules: string[];
   departmentNames: string[];
+};
+
+type WorkspaceDepartmentAccess = {
+  id: string;
+  name: string;
+  moduleIds: string[];
 };
 
 const MASTER_PANEL_BASE_URL = String(import.meta.env.VITE_MASTER_PANEL_BE_URL || "").trim() || "https://masterpanel.wono.co";
@@ -530,6 +539,33 @@ const DEPARTMENT_LABELS: Record<string, string> = {
 const getUpgradeRequestStorageKey = (companyId: string) =>
   `hostpanel_upgrade_request_status_${companyId}`;
 
+const MODULE_ID_EQUIVALENTS: Record<string, string[]> = {
+  "visitor-management": ["visitor-management", "visitors-management"],
+  "visitors-management": ["visitor-management", "visitors-management"],
+};
+
+const expandEquivalentModuleIds = (ids: Iterable<string>) => {
+  const expanded = new Set<string>();
+  Array.from(ids || []).forEach((raw) => {
+    const id = String(raw || "").trim();
+    if (!id) return;
+    expanded.add(id);
+    (MODULE_ID_EQUIVALENTS[id] || []).forEach((equivalentId) => expanded.add(equivalentId));
+  });
+  return expanded;
+};
+
+const hasEquivalentModuleId = (ids: Set<string>, moduleId: string) => {
+  const equivalents = expandEquivalentModuleIds([moduleId]);
+  return Array.from(equivalents).some((id) => ids.has(id));
+};
+
+const fallbackTitleFromId = (value = "") =>
+  String(value || "")
+    .trim()
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+
 // Shared upgrade-plan modal, also used by the dashboard's PlanBadge.
 export const UpgradePlanModal = ({
   currentPlan,
@@ -753,6 +789,8 @@ export const UpgradePlanModal = ({
 
 const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
   const params = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { auth } = useAuth();
   const axiosPrivate = useAxiosPrivate();
   const [workspaceAccessMap, setWorkspaceAccessMap] = useState<WorkspaceAccessMapState | null>(null);
@@ -762,6 +800,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
     grantedModules: [],
     departmentNames: [],
   });
+  const [workspaceDepartments, setWorkspaceDepartments] = useState<WorkspaceDepartmentAccess[]>([]);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   // Accordion state for the Add-Ons page: everything starts closed, and only
   // one group (and one department inside Department Modules) is open at once.
@@ -787,6 +826,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
         const orgPayload =
           orgResult.status === "fulfilled" ? orgResult.value?.data?.data || {} : {};
         const teamMembers = Array.isArray(orgPayload?.teamMembers) ? orgPayload.teamMembers : [];
+        const departments = Array.isArray(orgPayload?.departments) ? orgPayload.departments : [];
         const currentUserId = String(
           (auth.user as { id?: string; _id?: string } | null)?.id ||
             (auth.user as { id?: string; _id?: string } | null)?._id ||
@@ -805,6 +845,15 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
             );
           }) || null;
         if (!active) return;
+        setWorkspaceDepartments(
+          departments.map((department: any) => ({
+            id: String(department?.id || department?._id || "").trim(),
+            name: String(department?.name || "").trim(),
+            moduleIds: Array.isArray(department?.moduleIds)
+              ? department.moduleIds.map((id: any) => String(id || "").trim()).filter(Boolean)
+              : [],
+          })),
+        );
         setWorkspaceAccessMap({
           selectedPlan: payload?.selectedPlan || "basic",
           enabledModuleIds: Array.isArray(payload?.enabledModuleIds) ? payload.enabledModuleIds : [],
@@ -831,6 +880,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
       } catch {
         if (!active) return;
         setWorkspaceAccessMap(null);
+        setWorkspaceDepartments([]);
         setRoleAccessContext({
           role: String(
             (auth.user as { workspaceMembership?: { role?: string }; role?: string } | null)
@@ -925,7 +975,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
     const hasAnyOrgChild = Array.from(ORG_CHILD_KEYS).some((key) => grantedNormalized.has(key));
 
     if (isFounderRole) {
-      return new Set<string>(canonicalIds);
+      return expandEquivalentModuleIds(canonicalIds);
     }
 
     const allowed = new Set<string>(grantedEnabled);
@@ -938,7 +988,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
       allowed.delete("workspace-settings");
       allowed.delete("workspace-management");
     }
-    return allowed;
+    return expandEquivalentModuleIds(allowed);
   }, [isFounderRole, planLabel, roleAccessContext.grantedModules, workspaceAccessMap?.moduleMap?.sections]);
 
   const workspaceEnabledCanonicalIds = useMemo(() => {
@@ -990,7 +1040,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
       enabledRaw.push("organization-management", "org_tab_users", "org_tab_departments");
     }
 
-    return new Set(
+    return expandEquivalentModuleIds(
       enabledRaw.map(resolveCanonical).map((item) => String(item || "").trim()).filter(Boolean),
     );
   }, [workspaceAccessMap?.enabledModuleIds, workspaceAccessMap?.moduleMap?.sections, workspaceSetup.enabledModuleIds]);
@@ -1009,6 +1059,74 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
     if (!isCardsHydrated) return null;
     return SECTION_FALLBACKS[sectionId];
   }, [isCardsHydrated, matchedWorkspaceSection, sectionId]);
+
+  const moduleDisplayById = useMemo(() => {
+    const map = new Map<string, WorkspaceModuleTab>();
+    const sections = [
+      ...(workspaceAccessMap?.moduleMap?.sections || []),
+      ...Object.values(SECTION_FALLBACKS),
+    ];
+    sections.forEach((moduleSection) => {
+      (Array.isArray(moduleSection?.items) ? moduleSection.items : []).forEach((item) => {
+        const itemId = String(item?.id || "").trim();
+        if (itemId && !map.has(itemId)) map.set(itemId, item);
+        (Array.isArray(item?.tabs) ? item.tabs : []).forEach((tab) => {
+          const tabId = String(tab?.id || "").trim();
+          if (tabId && !map.has(tabId)) map.set(tabId, tab);
+        });
+      });
+    });
+    return map;
+  }, [workspaceAccessMap?.moduleMap?.sections]);
+
+  const selectedDepartmentItem = useMemo(() => {
+    if (!departmentId || sectionId !== "department-accesses") return null;
+    const normalizedDynamicId = departmentId.startsWith("custom-department-")
+      ? departmentId.slice("custom-department-".length)
+      : departmentId;
+    const workspaceDepartment = workspaceDepartments.find(
+      (department) =>
+        department.id === normalizedDynamicId ||
+        normalizeModuleToken(department.name) === normalizedDynamicId,
+    );
+    if (workspaceDepartment) {
+      return {
+        id: departmentId,
+        label: workspaceDepartment.name,
+        tabs: workspaceDepartment.moduleIds.map((moduleId) => ({
+          ...(moduleDisplayById.get(moduleId) || {}),
+          id: moduleId,
+          label: moduleDisplayById.get(moduleId)?.label || fallbackTitleFromId(moduleId),
+        })),
+      };
+    }
+    const sectionItems = Array.isArray(sectionData?.items) ? sectionData.items : [];
+    const mappedDepartment = sectionItems.find(
+      (item) => String(item?.id || "").trim() === departmentId,
+    );
+    return mappedDepartment || null;
+  }, [departmentId, moduleDisplayById, sectionData?.items, sectionId, workspaceDepartments]);
+
+  useEffect(() => {
+    if (!departmentId || sectionId !== "department-accesses" || !selectedDepartmentItem?.label) return;
+    const currentState = (location.state as Record<string, unknown>) || {};
+    if (
+      currentState.fromSection === "department-accesses" &&
+      currentState.departmentId === departmentId &&
+      currentState.departmentLabel === selectedDepartmentItem.label
+    ) {
+      return;
+    }
+    navigate(location.pathname + location.search, {
+      replace: true,
+      state: {
+        ...currentState,
+        fromSection: "department-accesses",
+        departmentId,
+        departmentLabel: selectedDepartmentItem.label,
+      },
+    });
+  }, [departmentId, location.pathname, location.search, location.state, navigate, sectionId, selectedDepartmentItem?.label]);
 
   const cards = useMemo(() => {
     if (sectionId === "add-ons") return [];
@@ -1043,19 +1161,29 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
 
     const items = departmentId && sectionId === "department-accesses"
       ? (() => {
-          const dept = remappedItems.find(i => String(i?.id || "").trim() === departmentId);
+          const dept = selectedDepartmentItem || remappedItems.find(i => String(i?.id || "").trim() === departmentId);
           const tabs = dept && Array.isArray(dept.tabs) ? dept.tabs : [];
-          return tabs.map(t => ({ ...t, _parentDept: dept?.label || departmentId }));
+          return tabs.map(t => ({ ...t, _parentDept: dept?.label || departmentId, _parentDeptId: dept?.id || departmentId }));
         })()
       : remappedItems;
 
     return items
       .map((item): LandingCard | null => {
         const itemId = String(item?.id || "").trim();
-        const itemLabel = String(item?.label || itemId).trim();
+        const itemLabel = String(item?.label || moduleDisplayById.get(itemId)?.label || fallbackTitleFromId(itemId)).trim();
         const Icon = ICON_BY_ID[itemId];
         const iconNode = Icon ? <Icon size={26} /> : undefined;
         const routedItem = normalizeLegacyRoute(String(item?.route || DEFAULT_SECTION_ROUTES[itemId] || "").trim()) || undefined;
+        const parentDepartmentLabel = String(item?._parentDept || "").trim();
+        const parentDepartmentId = String(item?._parentDeptId || "").trim();
+        const departmentRouteState = parentDepartmentLabel
+          ? {
+              fromSection: "department-accesses",
+              departmentId: parentDepartmentId,
+              departmentLabel: parentDepartmentLabel,
+              moduleId: itemId,
+            }
+          : undefined;
 
         if (sectionId === "profile") {
           const profileTab = profilePlanTabs.find((tab) => tab.id === itemId);
@@ -1077,18 +1205,22 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
           const unlockedChildren = tabs.filter((tab) => {
             const tabId = String(tab?.id || "").trim();
             const workspaceUnlocked = isUsingWorkspaceSection
-              ? workspaceEnabledCanonicalIds.has(tabId)
-              : workspaceEnabledCanonicalIds.has(tabId) || enabledIds.has(tabId);
-            const roleUnlocked = roleAllowedModuleIds.has(tabId);
+              ? hasEquivalentModuleId(workspaceEnabledCanonicalIds, tabId)
+              : hasEquivalentModuleId(workspaceEnabledCanonicalIds, tabId) || hasEquivalentModuleId(enabledIds, tabId);
+            const roleUnlocked = hasEquivalentModuleId(roleAllowedModuleIds, tabId);
             return Boolean(workspaceUnlocked && roleUnlocked);
           });
-          const firstRoutedUnlockedChild = unlockedChildren.find((tab) => Boolean(tab?.route));
           const hasUnlockedChildren = unlockedChildren.length > 0;
           return {
             id: itemId,
             title: itemLabel,
             route: hasUnlockedChildren ? `/department-accesses/${itemId}` : undefined,
             icon: iconNode,
+            state: {
+              fromSection: "department-accesses",
+              departmentId: itemId,
+              departmentLabel: itemLabel,
+            },
             isEnabled: hasUnlockedChildren,
             isInteractive: hasUnlockedChildren,
             upgradeLocked: !hasUnlockedChildren,
@@ -1102,9 +1234,9 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
 
         const basicPlanLocked = planLabel === "basic" && BASIC_PLAN_HARD_LOCK_IDS.has(itemId);
         const workspaceUnlocked = isUsingWorkspaceSection
-          ? (workspaceEnabledCanonicalIds.has(itemId) || (sectionId === "common-modules" && enabledIds.has(itemId)))
-          : workspaceEnabledCanonicalIds.has(itemId) || enabledIds.has(itemId);
-        const roleUnlocked = roleAllowedModuleIds.has(itemId);
+          ? (hasEquivalentModuleId(workspaceEnabledCanonicalIds, itemId) || (sectionId === "common-modules" && hasEquivalentModuleId(enabledIds, itemId)))
+          : hasEquivalentModuleId(workspaceEnabledCanonicalIds, itemId) || hasEquivalentModuleId(enabledIds, itemId);
+        const roleUnlocked = hasEquivalentModuleId(roleAllowedModuleIds, itemId);
         const isEnabled = Boolean(workspaceUnlocked && roleUnlocked && !basicPlanLocked);
         const upgradeLocked = Boolean(basicPlanLocked || !workspaceUnlocked);
         return {
@@ -1112,6 +1244,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
           title: itemLabel,
           route: routedItem,
           icon: iconNode,
+          state: departmentRouteState,
           isEnabled,
           isInteractive: Boolean(routedItem),
           upgradeLocked,
@@ -1125,12 +1258,15 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
       })
       .filter(Boolean) as LandingCard[];
   }, [
+    departmentId,
     roleAccessContext.departmentNames,
     enabledIds,
     isUsingWorkspaceSection,
     planLabel,
     roleAllowedModuleIds,
     sectionData,
+    moduleDisplayById,
+    selectedDepartmentItem,
     sectionId,
     roleAccessContext.role,
     workspaceEnabledCanonicalIds,
@@ -1155,8 +1291,8 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
     const isItemUnlocked = (itemId: string) => {
       const basicPlanLocked = planLabel === "basic" && BASIC_PLAN_HARD_LOCK_IDS.has(itemId);
       const workspaceUnlocked =
-        workspaceEnabledCanonicalIds.has(itemId) || enabledIds.has(itemId);
-      const roleUnlocked = roleAllowedModuleIds.has(itemId);
+        hasEquivalentModuleId(workspaceEnabledCanonicalIds, itemId) || hasEquivalentModuleId(enabledIds, itemId);
+      const roleUnlocked = hasEquivalentModuleId(roleAllowedModuleIds, itemId);
       return Boolean(workspaceUnlocked && roleUnlocked && !basicPlanLocked);
     };
 
@@ -1171,6 +1307,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
     const pushModule = (
       item: WorkspaceModuleItem | WorkspaceModuleTab,
       groupLabel: string,
+      departmentContext?: { departmentId: string; departmentLabel: string },
     ) => {
       const itemId = String(item?.id || "").trim();
       if (!itemId) return;
@@ -1185,6 +1322,14 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
         isEnabled: unlocked,
         upgradeLocked: !unlocked,
         route: unlocked ? route : undefined,
+        state: departmentContext
+          ? {
+              fromSection: "department-accesses",
+              departmentId: departmentContext.departmentId,
+              departmentLabel: departmentContext.departmentLabel,
+              moduleId: itemId,
+            }
+          : undefined,
         groupLabel,
         unlocked,
       });
@@ -1210,7 +1355,10 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
     (Array.isArray(deptSection?.items) ? deptSection.items : []).forEach((dept) => {
       const deptId = String(dept?.id || "").trim();
       const deptLabel = String(dept?.label || DEPARTMENT_LABELS[deptId] || deptId).trim();
-      (Array.isArray(dept?.tabs) ? dept.tabs : []).forEach((tab) => pushModule(tab, deptLabel));
+      (Array.isArray(dept?.tabs) ? dept.tabs : []).forEach((tab) => pushModule(tab, deptLabel, {
+        departmentId: deptId,
+        departmentLabel: deptLabel,
+      }));
     });
 
     return entries;
@@ -1273,7 +1421,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
   }, [addOnModules, sectionId]);
 
   const pageTitle = departmentId && sectionId === "department-accesses"
-    ? DEPARTMENT_LABELS[departmentId] || departmentId.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())
+    ? String(selectedDepartmentItem?.label || DEPARTMENT_LABELS[departmentId] || fallbackTitleFromId(departmentId))
     : SECTION_TITLES[sectionId];
 
   return (
@@ -1465,7 +1613,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
                                                   title={card.title}
                                                   icon={card.icon}
                                                   route={card.route}
-                                                  state={{ fromSection: "add-ons" }}
+                                                  state={card.state || { fromSection: "add-ons" }}
                                                 />
                                               );
                                             })}
@@ -1513,7 +1661,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
                     icon={card.icon}
                     route={card.route}
                     fullHeight
-                    state={{ fromSection: sectionId }}
+                    state={card.state || { fromSection: sectionId }}
                   />
                 ) : card.isEnabled ? (
                   <Card

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { City, Country, State } from 'country-state-city';
 import useAuth from '../../hooks/useAuth';
@@ -36,7 +36,7 @@ import {
   LogOut, UserPlus, FileText, BadgeCheck, Phone, Mail,
   CalendarDays, ShieldCheck, ArrowRight, ArrowLeft, PlayCircle, Wallet, Banknote, Sparkles,
   XCircle, ShieldAlert, Calendar as CalendarIcon, AlertTriangle, Globe, Smartphone, LayoutGrid,
-  Download, Printer, Lock, Home, UserCheck, FileSpreadsheet, FileDown, Tag
+  Download, Printer, Lock, Home, UserCheck, FileSpreadsheet, FileDown, Tag, Users
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
 import { VisitorManagementSkeleton } from '../../components/ui/Skeleton';
@@ -1140,9 +1140,34 @@ export default function VisitorsManagementPage() {
       document.removeEventListener('visibilitychange', refresh);
     };
   }, [axiosPrivate, auth?.user?.id, auth?.user?._id, auth?.user?.email]);
-  const hasGrant = (key = '') =>
-    memberGrantedModules.includes(String(key || '').trim().toLowerCase()) ||
-    userPermissions.includes(String(key || '').trim());
+  const hasVisitorManagementModuleGrant =
+    memberGrantedModules.includes('visitor-management') || memberGrantedModules.includes('visitors-management');
+  const visitorManagementFeatureGrantKeys = useMemo(
+    () => new Set([
+      'visitors_manage_internal_visitors',
+      'visitors_manage_external_clients',
+      PERMISSIONS.VISITORS_TAB_DAILY.value,
+      PERMISSIONS.VISITORS_TAB_HISTORY.value,
+      PERMISSIONS.VISITORS_TAB_BOOKINGS.value,
+      PERMISSIONS.VISITORS_TAB_CLIENTS.value,
+      PERMISSIONS.VISITORS_MODE_STANDARD.value,
+      PERMISSIONS.VISITORS_MODE_WORKSPACE_TOUR.value,
+      PERMISSIONS.VISITORS_MODE_WALKIN_BOOKING.value,
+      PERMISSIONS.VISITORS_MODE_VERIFY_BOOKING.value,
+      PERMISSIONS.VISITORS_STANDARD_TYPE_STANDARD.value,
+      PERMISSIONS.VISITORS_STANDARD_TYPE_DEPARTMENT.value,
+      PERMISSIONS.VISITORS_STANDARD_TYPE_TENANT.value,
+    ]),
+    [],
+  );
+  const hasGrant = useCallback((key = '') => {
+    const normalizedKey = String(key || '').trim().toLowerCase();
+    return (
+      (hasVisitorManagementModuleGrant && visitorManagementFeatureGrantKeys.has(normalizedKey)) ||
+      memberGrantedModules.includes(normalizedKey) ||
+      userPermissions.includes(String(key || '').trim())
+    );
+  }, [hasVisitorManagementModuleGrant, memberGrantedModules, userPermissions, visitorManagementFeatureGrantKeys]);
   const visitorAccess = useMemo(
     () => {
       const base = {
@@ -1187,7 +1212,7 @@ export default function VisitorsManagementPage() {
 
       return base;
     },
-    [memberGrantedModules, userPermissions],
+    [hasGrant],
   );
   const [activeTab, setActiveTab] = useState('daily');
   const [dailyStatusTab, setDailyStatusTab] = useState('all');
@@ -1392,8 +1417,20 @@ export default function VisitorsManagementPage() {
     const query = searchQuery.trim().toLowerCase();
     const matchesSearch = (visitor) => [visitor.name, visitor.company, visitor.phone, visitor.email, visitor.purpose, visitor.host, visitor.badgeNo]
       .join(' ').toLowerCase().includes(query);
-    const rows = trackedVisitors.filter(matchesSearch);
     const statusKey = (visitor) => normalizeText(visitor.status || visitor.statusKey || visitor.approvalStatus || '').replace(/[_-]+/g, ' ');
+
+    // Checked-out/rejected/cancelled visitors live in visitorHistory, not in
+    // trackedVisitors — pull in only today's so Daily still shows the day's
+    // full outcome; once the date rolls over they only live in History.
+    const todayKey = getWorkspaceDateKey(new Date(), workspacePreferences.timezone);
+    const todaysHistory = visitorHistory.filter((visitor) => {
+      const key = statusKey(visitor);
+      if (!(key.includes('checked out') || key.includes('rejected') || key.includes('cancelled'))) return false;
+      const relevantDate = visitor.checkOutAt || visitor.updatedAt || visitor.createdAt;
+      return getWorkspaceDateKey(relevantDate, workspacePreferences.timezone) === todayKey;
+    });
+
+    const rows = [...trackedVisitors, ...todaysHistory].filter(matchesSearch);
     return {
       all: rows,
       pending: rows.filter((visitor) => statusKey(visitor).includes('pending') || statusKey(visitor).includes('awaiting')),
@@ -1402,7 +1439,7 @@ export default function VisitorsManagementPage() {
       checked_out: rows.filter((visitor) => statusKey(visitor).includes('checked out')),
       rejected: rows.filter((visitor) => statusKey(visitor).includes('rejected') || statusKey(visitor).includes('cancelled')),
     };
-  }, [searchQuery, trackedVisitors]);
+  }, [searchQuery, trackedVisitors, visitorHistory, workspacePreferences.timezone]);
 
   const frontdeskStatCards = useMemo(() => {
     const statusKey = (visitor) => normalizeText(visitor.status || visitor.statusKey || visitor.approvalStatus || '').replace(/[_-]+/g, ' ');
@@ -1734,45 +1771,6 @@ export default function VisitorsManagementPage() {
     });
   }, [visitorHistory, historyMonth, historyYear, searchQuery]);
 
-  const totalCheckedOutCount = useMemo(
-    () => visitorHistory.filter((visitor) => normalizeText(visitor.status || visitor.statusKey || '').replace(/[_-]+/g, ' ') === 'checked out').length,
-    [visitorHistory],
-  );
-
-  const dailyBookings = useMemo(() => {
-    const todayKey = getWorkspaceDateKey(new Date(), workspacePreferences.timezone);
-    const query = searchQuery.trim().toLowerCase();
-
-    return upcomingBookings
-      .filter((booking) => isExternalMeetingBooking(booking.raw || booking))
-      .filter((booking) => formatDateKey(booking.date || booking.raw?.date) === todayKey)
-      .filter((booking) => {
-        if (!query) {
-          return true;
-        }
-
-        return [
-          booking.id,
-          booking.resource,
-          booking.bookedBy,
-          booking.company,
-          booking.email,
-          booking.phone,
-          booking.paymentStatus,
-          booking.status,
-          booking.sourceReference,
-        ]
-          .join(' ')
-          .toLowerCase()
-          .includes(query);
-      })
-      .sort((left, right) => {
-        const leftValue = `${left.date || ''} ${left.time || ''}`;
-        const rightValue = `${right.date || ''} ${right.time || ''}`;
-        return rightValue.localeCompare(leftValue);
-      });
-  }, [searchQuery, upcomingBookings, workspacePreferences.timezone]);
-
   const bookingCollections = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     const matchesSearch = (booking) => {
@@ -1861,6 +1859,43 @@ export default function VisitorsManagementPage() {
     converted: clientRows.filter((client) => normalizeText(client.source) === 'visitor-conversion'),
   }), [clientRows]);
   const selectedClientRows = clientCollections[clientSourceTab] || clientCollections.all;
+
+  const visitorTabStatCards = useMemo(() => {
+    const historyStatus = (v) => normalizeText(v.status || v.statusKey || '').replace(/[_-]+/g, ' ');
+    const historyCheckedOut = displayedHistory.filter((v) => historyStatus(v).includes('checked out'));
+    const historyCancelled = displayedHistory.filter((v) => historyStatus(v).includes('cancelled'));
+    const historyRejected = displayedHistory.filter((v) => historyStatus(v).includes('rejected'));
+
+    const bookingsPaymentDue = bookingCollections.all.filter((b) => b.paymentStatus === 'Pending Payment');
+    const totalClientValue = clientCollections.all.reduce((sum, client) => sum + Number(client.totalBookedAmount || 0), 0);
+
+    return {
+      daily: [
+        { label: 'Checked-In Now', value: dailyVisitorCollections.checked_in.length, icon: User, iconBg: 'bg-blue-50 text-blue-600', accent: 'border-l-blue-500' },
+        { label: 'Pending Approval', value: dailyVisitorCollections.pending.length, icon: Clock, iconBg: 'bg-amber-50 text-amber-600', accent: 'border-l-amber-500' },
+        { label: 'Approved / Upcoming', value: dailyVisitorCollections.approved.length, icon: CheckCircle2, iconBg: 'bg-emerald-50 text-emerald-600', accent: 'border-l-emerald-500' },
+        { label: 'Checked Out Today', value: dailyVisitorCollections.checked_out.length, icon: LogOut, iconBg: 'bg-violet-50 text-violet-600', accent: 'border-l-violet-500' },
+      ],
+      bookings: [
+        { label: 'Total Bookings', value: bookingCollections.all.length, icon: CalendarDays, iconBg: 'bg-slate-100 text-slate-600', accent: 'border-l-slate-500' },
+        { label: 'In Progress', value: bookingCollections.in_progress.length, icon: PlayCircle, iconBg: 'bg-blue-50 text-blue-600', accent: 'border-l-blue-500' },
+        { label: 'Completed', value: bookingCollections.completed.length, icon: CheckCircle2, iconBg: 'bg-emerald-50 text-emerald-600', accent: 'border-l-emerald-500' },
+        { label: 'Payments Due', value: bookingsPaymentDue.length, icon: Wallet, iconBg: 'bg-amber-50 text-amber-600', accent: 'border-l-amber-500' },
+      ],
+      history: [
+        { label: `Records — ${historyMonth} ${historyYear}`, value: displayedHistory.length, icon: CalendarIcon, iconBg: 'bg-slate-100 text-slate-600', accent: 'border-l-slate-500' },
+        { label: 'Checked Out', value: historyCheckedOut.length, icon: LogOut, iconBg: 'bg-emerald-50 text-emerald-600', accent: 'border-l-emerald-500' },
+        { label: 'Cancelled', value: historyCancelled.length, icon: XCircle, iconBg: 'bg-red-50 text-red-600', accent: 'border-l-red-500' },
+        { label: 'Rejected', value: historyRejected.length, icon: ShieldAlert, iconBg: 'bg-amber-50 text-amber-600', accent: 'border-l-amber-500' },
+      ],
+      clients: [
+        { label: 'Total Clients', value: clientCollections.all.length, icon: Users, iconBg: 'bg-blue-50 text-blue-600', accent: 'border-l-blue-500' },
+        { label: 'Walk-in Clients', value: clientCollections.walk_in.length, icon: User, iconBg: 'bg-amber-50 text-amber-600', accent: 'border-l-amber-500' },
+        { label: 'Converted Visitors', value: clientCollections.converted.length, icon: UserCheck, iconBg: 'bg-emerald-50 text-emerald-600', accent: 'border-l-emerald-500' },
+        { label: 'Total Booked Value', value: formatCurrency(totalClientValue), icon: Wallet, iconBg: 'bg-violet-50 text-violet-600', accent: 'border-l-violet-500' },
+      ],
+    };
+  }, [dailyVisitorCollections, bookingCollections, clientCollections, displayedHistory, historyMonth, historyYear]);
 
   const HISTORY_EXPORT_COLUMNS = [
     { header: 'Badge ID', key: 'badgeNo' },
@@ -4272,24 +4307,24 @@ export default function VisitorsManagementPage() {
           </button>
         </div>
 
-        {/* 3. STATS OVERVIEW */}
+        {/* 3. STATS OVERVIEW — changes with the active tab */}
         <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
-            <div className="min-w-0"><p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Currently Inside</p><p className="text-[15px] font-pmedium text-slate-900">{liveVisitors.filter((v) => normalizeText(v.status || v.statusKey || '').replace(/[_-]+/g, ' ') === 'checked in').length}</p></div>
-            <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><User size={16} /></div>
-          </div>
-          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
-            <div className="min-w-0"><p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Daily Bookings</p><p className="text-[15px] font-pmedium text-slate-900">{dailyBookings.length}</p></div>
-            <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><CalendarDays size={16} /></div>
-          </div>
-          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
-            <div className="min-w-0"><p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Payments Due</p><p className="text-[15px] font-pmedium text-slate-900">{dailyBookings.filter((booking) => booking.paymentStatus === 'Pending Payment').length}</p></div>
-            <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><Wallet size={16} /></div>
-          </div>
-          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-slate-500">
-            <div className="min-w-0"><p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Checked Out</p><p className="text-[15px] font-pmedium text-slate-900">{totalCheckedOutCount}</p></div>
-            <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><LogOut size={16} /></div>
-          </div>
+          {(visitorTabStatCards[activeTab] || visitorTabStatCards.daily).map((card) => {
+            const Icon = card.icon;
+            const textColor = (card.iconBg.match(/text-\S+/) || [])[0] || 'text-slate-900';
+            return (
+              <div
+                key={card.label}
+                className={`bg-white p-5 rounded-[2rem] border border-slate-100 border-l-4 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.accent}`}
+              >
+                <div className="min-w-0">
+                  <p className={`text-[10px] font-pmedium uppercase tracking-widest mb-1 ${textColor}`}>{card.label}</p>
+                  <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
+                </div>
+                <div className={`p-2 rounded-2xl ${card.iconBg} shrink-0`}><Icon size={16} /></div>
+              </div>
+            );
+          })}
         </div>
 
         {/* 4. TABLE WORKSPACE */}
