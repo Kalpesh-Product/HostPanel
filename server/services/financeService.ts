@@ -543,6 +543,8 @@ export async function submitBudgetRequestForDepartmentInternal(input: {
       projectedAmount?: number;
       dueDate?: string;
       description?: string;
+      actualAmount?: number;
+      paymentStatus?: string;
     }>;
   }>;
 }) {
@@ -594,19 +596,25 @@ export async function submitBudgetRequestForDepartmentInternal(input: {
       lastDecisionAtLabel: "",
       decisionHistory: [],
     },
-    monthlyPlan: monthlyPlan.map((m, idx) => ({
-      month: safeString(m.month),
-      monthKey: safeString(m.monthKey || m.month),
-      displayOrder: typeof m.displayOrder === "number" ? m.displayOrder : idx + 1,
-      status: "Upcoming",
-      projectedBudget: safeNumber(m.projectedBudget, 0),
-      allocatedBudget: safeNumber(m.projectedBudget, 0),
-      actualSpent: 0,
-      savings: safeNumber(m.projectedBudget, 0),
-      details: safeString(m.details, ""),
-      title: safeString(m.title, ""),
-      dueDate: safeString(m.dueDate, ""),
-    })),
+    monthlyPlan: monthlyPlan.map((m, idx) => {
+      const monthActualSpent = (Array.isArray(m.expenses) ? m.expenses : []).reduce(
+        (sum, e) => sum + safeNumber(e.actualAmount, 0),
+        0,
+      );
+      return {
+        month: safeString(m.month),
+        monthKey: safeString(m.monthKey || m.month),
+        displayOrder: typeof m.displayOrder === "number" ? m.displayOrder : idx + 1,
+        status: "Upcoming",
+        projectedBudget: safeNumber(m.projectedBudget, 0),
+        allocatedBudget: safeNumber(m.projectedBudget, 0),
+        actualSpent: monthActualSpent,
+        savings: Math.max(0, safeNumber(m.projectedBudget, 0) - monthActualSpent),
+        details: safeString(m.details, ""),
+        title: safeString(m.title, ""),
+        dueDate: safeString(m.dueDate, ""),
+      };
+    }),
     reminders: [],
   };
 
@@ -636,9 +644,9 @@ export async function submitBudgetRequestForDepartmentInternal(input: {
       month: safeString(month.month),
       dueDate: safeString(expense.dueDate, ""),
       projectedAmount: safeNumber(expense.projectedAmount, 0),
-      actualAmount: 0,
-      savings: safeNumber(expense.projectedAmount, 0),
-      paymentStatus: "Planned",
+      actualAmount: safeNumber(expense.actualAmount, 0),
+      savings: Math.max(0, safeNumber(expense.projectedAmount, 0) - safeNumber(expense.actualAmount, 0)),
+      paymentStatus: safeString(expense.paymentStatus, "Planned"),
       sourceRowNumber: 0,
     })),
   );
@@ -674,18 +682,24 @@ export async function submitBudgetRequestForDepartmentInternal(input: {
       lastDecisionAtLabel: "",
       decisionHistory: [],
     },
-    monthlyBreakdown: monthlyPlan.map((m, idx) => ({
-      monthKey: safeString(m.monthKey || m.month),
-      month: safeString(m.month),
-      title: safeString(m.title, ""),
-      amount: safeNumber(m.projectedBudget, 0),
-      note: safeString(m.details, ""),
-      details: safeString(m.details, ""),
-      projectedBudget: safeNumber(m.projectedBudget, 0),
-      actualSpent: 0,
-      savings: safeNumber(m.projectedBudget, 0),
-      expenses: [],
-    })),
+    monthlyBreakdown: monthlyPlan.map((m, idx) => {
+      const monthActualSpent = (Array.isArray(m.expenses) ? m.expenses : []).reduce(
+        (sum, e) => sum + safeNumber(e.actualAmount, 0),
+        0,
+      );
+      return {
+        monthKey: safeString(m.monthKey || m.month),
+        month: safeString(m.month),
+        title: safeString(m.title, ""),
+        amount: safeNumber(m.projectedBudget, 0),
+        note: safeString(m.details, ""),
+        details: safeString(m.details, ""),
+        projectedBudget: safeNumber(m.projectedBudget, 0),
+        actualSpent: monthActualSpent,
+        savings: Math.max(0, safeNumber(m.projectedBudget, 0) - monthActualSpent),
+        expenses: [],
+      };
+    }),
   };
   const annualRequest = existingAnnualRequest || await AnnualFinanceRequest.create(annualRequestPayload);
   if (existingAnnualRequest) {
@@ -701,7 +715,13 @@ export async function submitBudgetRequestForDepartmentInternal(input: {
   plan.approvalFlow = (annualRequest as any).approvalFlow;
   await plan.save();
 
-  return { plan, annualRequest };
+  // Recompute monthlyPlan.actualSpent/savings straight from the persisted
+  // FinanceExpense rows (source of truth) so a re-submitted, already-imported
+  // draft keeps its real actuals instead of the zeroed values plan.save()
+  // above may still be holding in memory.
+  const syncedPlan = await syncMonthlyPlanFromFinanceExpenses(plan._id as mongoose.Types.ObjectId);
+
+  return { plan: syncedPlan || plan, annualRequest };
 }
 
 export async function addMonthlyExpenseInternal(input: {

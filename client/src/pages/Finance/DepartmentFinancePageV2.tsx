@@ -132,6 +132,8 @@ interface DraftExpense {
   projectedAmount: number;
   dueDate: string;
   description: string;
+  actualAmount: number;
+  paymentStatus: string;
 }
 
 interface DraftMonth {
@@ -407,6 +409,8 @@ export function DepartmentFinancePageV2() {
               projectedAmount: Number(expense?.projectedAmount || 0),
               dueDate: String(expense?.dueDate || ''),
               description: String(expense?.description || expense?.details || ''),
+              actualAmount: Number(expense?.actualSpent || expense?.actualAmount || 0),
+              paymentStatus: String(expense?.status || expense?.paymentStatus || 'Planned'),
             })),
           })));
         } else {
@@ -592,7 +596,7 @@ export function DepartmentFinancePageV2() {
     setDraftMonths((prev) =>
       prev.map((m) =>
         m.id === monthId
-          ? { ...m, expenses: [...m.expenses, { id: generateId(), title: '', projectedAmount: 0, dueDate: '', description: '' }] }
+          ? { ...m, expenses: [...m.expenses, { id: generateId(), title: '', projectedAmount: 0, dueDate: '', description: '', actualAmount: 0, paymentStatus: 'Planned' }] }
           : m,
       ),
     );
@@ -652,6 +656,8 @@ export function DepartmentFinancePageV2() {
             projectedAmount: e.projectedAmount,
             dueDate: e.dueDate,
             description: e.description,
+            actualAmount: e.actualAmount,
+            paymentStatus: e.paymentStatus,
           })),
         })),
       });
