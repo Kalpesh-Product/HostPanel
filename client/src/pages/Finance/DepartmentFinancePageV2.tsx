@@ -237,16 +237,30 @@ function getApiErrorMessage(error: any, fallback: string): string {
 export function DepartmentFinancePageV2() {
   const currentUser = getStoredUser();
   const userRole = normalizeUserRole(currentUser?.workspaceMembership?.role || currentUser?.role || '');
-  const storedDepartment =
-    currentUser?.department ||
-    currentUser?.workspaceMembership?.department ||
-    currentUser?.workspaceMembership?.departments?.[0]?.name ||
-    currentUser?.workspaceMembership?.departments?.[0]?.label ||
-    currentUser?.workspaceMembership?.departments?.[0] ||
-    '';
-  const departmentLabel = extractDepartmentLabel(
-    typeof storedDepartment === 'string' ? storedDepartment : storedDepartment?.name || storedDepartment?.label || '',
-  );
+  // A member can belong to more than one department (e.g. one manager
+  // covering both HR and Administration). Build the full list they can act
+  // on instead of always defaulting to whichever department happens to be
+  // first, so the second+ department isn't silently unreachable.
+  const memberDepartments: string[] = (() => {
+    const rawList = currentUser?.workspaceMembership?.departments;
+    const fromList = Array.isArray(rawList)
+      ? rawList
+          .map((d: any) => (typeof d === 'string' ? d : d?.name || d?.label || ''))
+          .filter(Boolean)
+          .map((d: string) => extractDepartmentLabel(d))
+      : [];
+    if (fromList.length > 0) return Array.from(new Set(fromList));
+    const single =
+      currentUser?.department ||
+      currentUser?.workspaceMembership?.department ||
+      '';
+    const label = extractDepartmentLabel(
+      typeof single === 'string' ? single : single?.name || single?.label || '',
+    );
+    return label ? [label] : [];
+  })();
+  const [selectedDepartment, setSelectedDepartment] = useState(memberDepartments[0] || '');
+  const departmentLabel = selectedDepartment || memberDepartments[0] || '';
   const fiscalYearOptions = getFiscalYearOptions();
   // Fiscal month order follows the workspace's FY start month (Jan-start
   // workspaces get jan→dec; the April default keeps apr→mar).
@@ -264,12 +278,7 @@ export function DepartmentFinancePageV2() {
   // action from department members; Finance-side roles and managers of the
   // Finance department still see it.
   const FINANCE_PAYMENT_ROLES = ['owner', 'founder', 'super_admin', 'admin', 'finance_manager', 'finance'];
-  const memberDepartmentNames = (Array.isArray(currentUser?.workspaceMembership?.departments)
-    ? currentUser.workspaceMembership.departments
-    : [storedDepartment]
-  )
-    .map((d: any) => String(typeof d === 'string' ? d : d?.name || d?.label || '').trim().toLowerCase())
-    .filter(Boolean);
+  const memberDepartmentNames = memberDepartments.map((d) => d.trim().toLowerCase()).filter(Boolean);
   const canManagePayments =
     FINANCE_PAYMENT_ROLES.includes(userRole) ||
     (userRole === 'manager' && memberDepartmentNames.some((name) => name.includes('finance')));
@@ -1151,11 +1160,28 @@ export function DepartmentFinancePageV2() {
           <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                
-                {departmentLabel} Finance Management
+                {memberDepartments.length > 1 ? (
+                  <span className="relative inline-flex items-center">
+                    <Building2 size={14} className="absolute left-2.5 text-[#2563EB] pointer-events-none" />
+                    <select
+                      value={departmentLabel}
+                      onChange={(e) => setSelectedDepartment(e.target.value)}
+                      title="You manage more than one department — switch which one you're viewing"
+                      className="pl-7 pr-2 py-1 bg-blue-50/60 hover:bg-blue-50 border border-blue-100 text-primary rounded-lg text-title font-pmedium uppercase outline-none cursor-pointer appearance-none"
+                    >
+                      {memberDepartments.map((dept) => (
+                        <option key={dept} value={dept}>{dept}</option>
+                      ))}
+                    </select>
+                  </span>
+                ) : (
+                  departmentLabel
+                )}
+                {' '}Finance Management
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
                 Track projected budgets, extra requests, and expense history for your department for {selectedFY}.
+                {memberDepartments.length > 1 && ' Use the department switcher above to manage your other department.'}
               </p>
               {financeData?.healthStatus && (
                 <span className={statusPillClass(financeData.healthStatus)}>
