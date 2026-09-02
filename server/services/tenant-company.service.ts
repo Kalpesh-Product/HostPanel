@@ -13,6 +13,8 @@ import TenantCreditRequest from "../models/TenantCreditRequest.js";
 import TenantCreditLedger from "../models/TenantCreditLedger.js";
 import TenantAgreementDocument from "../models/TenantAgreementDocument.js";
 import { Resource } from "../models/Resource.js";
+import VisitorLog from "../models/VisitorLog.js";
+import { createNotification } from "../utils/notify.js";
 import { parseFiscalYearRange } from "../utils/fiscalYear.js";
 
 const TENANT_COMPANIES_SALES_MODULE = "tenant-companies-sales";
@@ -845,6 +847,99 @@ export async function getMyTenantCompanyForCurrentUser(userId, _userEmail) {
     throw err;
   }
   return { tenant: await formatTenantCompany(company) };
+}
+
+function formatTenantVisitorRequest(visitor) {
+  return {
+    id: toId(visitor._id),
+    recordId: toId(visitor._id),
+    fullName: visitor.fullName || "",
+    phone: visitor.phone || "",
+    email: visitor.email || "",
+    company: visitor.company || "",
+    purpose: visitor.purpose || "",
+    reason: visitor.reason || "",
+    tenantCompanyName: visitor.tenantCompanyName || "",
+    status: visitor.status || "pending",
+    statusKey: visitor.status || "pending",
+    approvalStatus: visitor.approvalStatus || "pending",
+    rejectionReason: visitor.rejectionReason || "",
+    checkInAt: visitor.checkInAt || null,
+    checkOutAt: visitor.checkOutAt || null,
+    createdAt: visitor.createdAt || null,
+    updatedAt: visitor.updatedAt || null,
+  };
+}
+
+// Requests routed to this tenant employee (the company's designated manager,
+// via VisitorLog.hostUser) for Standard Visitor > Tenant Company Visitor
+// approval from Visitor Management's Frontdesk Action.
+export async function getMyTenantCompanyVisitorRequestsForCurrentUser(userId) {
+  const { employee, workspaceId } = await resolveTenantEmployeeForCurrentUser(userId);
+  const visitors = await VisitorLog.find({
+    workspace: workspaceId,
+    hostUser: employee.userId,
+    visitorType: "tenant",
+  })
+    .sort({ createdAt: -1 })
+    .limit(50)
+    .lean()
+    .exec();
+  return { visitors: visitors.map(formatTenantVisitorRequest) };
+}
+
+export async function reviewMyTenantCompanyVisitorRequestForCurrentUser(userId, visitorId, input = {}) {
+  const { employee, workspaceId } = await resolveTenantEmployeeForCurrentUser(userId);
+  const decision = String(input.decision || "").trim().toLowerCase();
+  if (!["approved", "rejected"].includes(decision)) {
+    const err = new Error("Decision must be approved or rejected.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const visitor = await VisitorLog.findOne({ _id: visitorId, workspace: workspaceId });
+  if (!visitor) {
+    const err = new Error("Visitor request not found.");
+    err.statusCode = 404;
+    throw err;
+  }
+  if (!visitor.hostUser || String(visitor.hostUser) !== String(employee.userId)) {
+    const err = new Error("This visitor request was not routed to you.");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (visitor.status !== "pending") {
+    return { visitor: formatTenantVisitorRequest(visitor) };
+  }
+
+  visitor.approvalStatus = decision;
+  visitor.status = decision === "approved" ? "approved" : "rejected";
+  visitor.rejectionReason = decision === "rejected" ? normalizeText(input.reason || "") : "";
+  await visitor.save();
+
+  if (visitor.createdByUser) {
+    createNotification({
+      workspaceId: String(workspaceId),
+      recipientUserId: String(visitor.createdByUser),
+      actorUserId: String(employee.userId),
+      type: "visitor_request_decided",
+      category: "system",
+      title: decision === "approved" ? "Visitor Request Approved" : "Visitor Request Rejected",
+      description: decision === "approved"
+        ? `${visitor.fullName}'s visit request was approved. They can now be checked in.`
+        : `${visitor.fullName}'s visit request was rejected.${visitor.rejectionReason ? ` Reason: ${visitor.rejectionReason}` : ""}`,
+      entityType: "visitor",
+      entityId: String(visitor._id),
+      entityCode: visitor.visitorCode,
+      data: { visitorType: visitor.visitorType, decision },
+      priority: "normal",
+      dedupeKey: `visitor-decision:${visitor._id}`,
+      allowSelf: true,
+    });
+  }
+
+  return { visitor: formatTenantVisitorRequest(visitor) };
 }
 
 export async function createTenantCompanyForCurrentUser(userId, input) {

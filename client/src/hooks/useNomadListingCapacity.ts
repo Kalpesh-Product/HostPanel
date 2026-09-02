@@ -106,12 +106,19 @@ export default function useNomadListingCapacity(companyId: string) {
     refetchOnWindowFocus: false,
   });
 
+  // A soft-deleted listing frees its plan slot immediately, so it's
+  // excluded from every quota/type-usage number below — `listings` itself
+  // still includes it (the table needs to render its "Deleted by host" row).
+  const nonDeletedListings = listings.filter(
+    (listing: { isDeleted?: boolean }) => !listing?.isDeleted,
+  );
+
   const limit = PLAN_LIMITS[plan];
-  const used = listings.length;
+  const used = nonDeletedListings.length;
   const remaining = limit === null ? null : Math.max(limit - used, 0);
   const isAtLimit = limit !== null && used >= limit;
   const addedTypes = new Set(
-    listings.map((listing: { companyType?: string }) =>
+    nonDeletedListings.map((listing: { companyType?: string }) =>
       normalizeNomadListingType(listing?.companyType),
     ).filter(Boolean),
   );

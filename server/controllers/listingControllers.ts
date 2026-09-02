@@ -7,10 +7,69 @@ import WorkspaceMember from "../models/WorkspaceMember.js";
 import { deleteFileFromS3ByUrl, uploadFileToS3 } from "../config/s3config.js";
 import { getContinentForCountry } from "../utils/countryContinent.js";
 
+// Same Nomads backend host reviewControllers.ts/leadsControllers.ts already
+// read via REVIEW_API_BASE_URL — reused here rather than a second env var,
+// so switching to a local Nomads backend for dev only means setting it once.
+const NOMADS_API_BASE_URL = `${String(
+  process.env.REVIEW_API_BASE_URL || "https://wono.co",
+).replace(/\/+$/, "")}/api/company`;
+
 const activeListingSubmissions = new Set<string>();
 
 const normalizeListingType = (value: unknown) =>
   String(value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+
+// Shared by every host-facing action that operates on one existing listing
+// (delete, recovery request, ...) — confirms the businessId actually
+// belongs to this host's company before anything touches it, the same way
+// setListingVisibility does inline. Returns either `{ listing }` or
+// `{ error: { status, body } }`, never both.
+const resolveOwnedListing = async (companyId: unknown, businessId: unknown) => {
+  const normalizedCompanyId = String(companyId || "").trim();
+  const normalizedBusinessId = String(businessId || "").trim();
+
+  if (!normalizedCompanyId) {
+    return { error: { status: 400, body: { message: "Company is required" } } };
+  }
+  if (!normalizedBusinessId) {
+    return { error: { status: 400, body: { message: "Business Id missing" } } };
+  }
+
+  const company = await HostCompany.findOne({ companyId: normalizedCompanyId });
+  if (!company) {
+    return { error: { status: 404, body: { message: "Company not found" } } };
+  }
+
+  const effectiveNomadsCompanyId = company.linkedNomadsCompanyId || company.companyId;
+
+  let existingListings = [];
+  try {
+    const listingsResponse = await axios.get(
+      `${NOMADS_API_BASE_URL}/get-listings/${encodeURIComponent(effectiveNomadsCompanyId)}`,
+      { params: { t: Date.now() } },
+    );
+    existingListings = Array.isArray(listingsResponse.data) ? listingsResponse.data : [];
+  } catch (error) {
+    console.error(
+      "Failed to load listings for ownership check:",
+      axios.isAxiosError(error)
+        ? { status: error.response?.status, data: error.response?.data }
+        : error,
+    );
+    return {
+      error: { status: 502, body: { message: "Unable to verify this listing. Please try again." } },
+    };
+  }
+
+  const listing = existingListings.find(
+    (l) => String(l?.businessId || "") === normalizedBusinessId,
+  );
+  if (!listing) {
+    return { error: { status: 404, body: { message: "Listing not found for this company." } } };
+  }
+
+  return { listing, normalizedBusinessId };
+};
 
 // Nomads review records key the rating off `starCount`. Add/Edit forms have
 // historically sent the rating under different keys (`rating` vs `starCount`),
@@ -170,7 +229,7 @@ export const createCompanyListing = async (req, res) => {
     let existingListings = [];
     try {
       const listingsResponse = await axios.get(
-        `https://wono.co/api/company/get-listings/${encodeURIComponent(effectiveNomadsCompanyId)}`,
+        `${NOMADS_API_BASE_URL}/get-listings/${encodeURIComponent(effectiveNomadsCompanyId)}`,
         { params: { t: Date.now() } },
       );
       existingListings = Array.isArray(listingsResponse.data) ? listingsResponse.data : [];
@@ -191,6 +250,11 @@ export const createCompanyListing = async (req, res) => {
         });
       }
     }
+
+    // A deleted listing frees its plan slot immediately — it no longer
+    // counts toward the limit, product-type usage, or the duplicate-city
+    // check, so a host can add a replacement right away.
+    existingListings = existingListings.filter((listing) => !listing?.isDeleted);
 
     if (listingLimit !== null && existingListings.length >= listingLimit) {
       const planName = selectedPlan === "professional" ? "Professional" : "Basic";
@@ -324,7 +388,7 @@ export const createCompanyListing = async (req, res) => {
 
     try {
       const response = await axios.post(
-        "https://wono.co/api/company/create-company",
+        `${NOMADS_API_BASE_URL}/create-company`,
         listingData,
       );
 
@@ -345,7 +409,7 @@ export const createCompanyListing = async (req, res) => {
       if (newBusinessId) {
         try {
           await axios.patch(
-            "https://wono.co/api/company/activate-product",
+            `${NOMADS_API_BASE_URL}/activate-product`,
             { businessId: newBusinessId, status: false },
           );
         } catch (deactivateErr) {
@@ -536,7 +600,7 @@ export const editCompanyListing = async (req, res) => {
     // ---------- REMOTE UPDATE (NO DELETION YET) ----------
     try {
       const response = await axios.patch(
-        "https://wono.co/api/company/update-company",
+        `${NOMADS_API_BASE_URL}/update-company`,
         updateData,
       );
 
@@ -603,7 +667,7 @@ export const activateProduct = async (req, res, next) => {
     }
 
     const response = await axios.patch(
-      "https://wono.co/api/company/activate-product",
+      `${NOMADS_API_BASE_URL}/activate-product`,
       {
         businessId,
         status,
@@ -621,10 +685,168 @@ export const activateProduct = async (req, res, next) => {
   }
 };
 
+// Nomads tracks two independent flags per listing: `isActive` (our team's
+// internal review/approval — "Master Status") and `isPublic` (whether it's
+// actually shown on the public Nomads website — "Host Status"). Only staff
+// could flip isPublic before; this lets a host control it for their own
+// listings, gated so they can only switch it ON once we've activated the
+// listing (turning it OFF is always allowed).
+export const setListingVisibility = async (req, res) => {
+  try {
+    const { businessId, companyId, isPublic } = req.body;
+
+    const normalizedBusinessId = String(businessId || "").trim();
+    if (!normalizedBusinessId) {
+      return res.status(400).json({ message: "Business Id missing" });
+    }
+    if (typeof isPublic !== "boolean") {
+      return res.status(400).json({ message: "isPublic must be true/false" });
+    }
+
+    const normalizedCompanyId = String(companyId || "").trim();
+    if (!normalizedCompanyId) {
+      return res.status(400).json({ message: "Company is required" });
+    }
+
+    const company = await HostCompany.findOne({ companyId: normalizedCompanyId });
+    if (!company) {
+      return res.status(404).json({ message: "Company not found" });
+    }
+
+    const effectiveNomadsCompanyId = company.linkedNomadsCompanyId || company.companyId;
+
+    let existingListings = [];
+    try {
+      const listingsResponse = await axios.get(
+        `${NOMADS_API_BASE_URL}/get-listings/${encodeURIComponent(effectiveNomadsCompanyId)}`,
+        { params: { t: Date.now() } },
+      );
+      existingListings = Array.isArray(listingsResponse.data) ? listingsResponse.data : [];
+    } catch (error) {
+      console.error(
+        "Failed to load listings before visibility toggle:",
+        axios.isAxiosError(error)
+          ? { status: error.response?.status, data: error.response?.data }
+          : error,
+      );
+      return res.status(502).json({
+        message: "Unable to verify this listing. Please try again.",
+      });
+    }
+
+    // Confirms the listing actually belongs to this host's company before
+    // touching it — businessId alone isn't scoped to a company upstream.
+    const listing = existingListings.find(
+      (l) => String(l?.businessId || "") === normalizedBusinessId,
+    );
+    if (!listing) {
+      return res.status(404).json({ message: "Listing not found for this company." });
+    }
+
+    if (isPublic && !listing.isActive) {
+      return res.status(409).json({
+        code: "NOMAD_LISTING_NOT_ACTIVATED",
+        message:
+          "This listing must be activated by our team before you can make it visible on Nomads.",
+      });
+    }
+
+    try {
+      await axios.patch(`${NOMADS_API_BASE_URL}/set-public-status`, {
+        businessId: normalizedBusinessId,
+        isPublic,
+      });
+    } catch (err) {
+      throw err.response?.data || err.message;
+    }
+
+    return res.status(200).json({
+      message: `Listing ${isPublic ? "shown on" : "hidden from"} the Nomads website.`,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message || "Failed to update listing visibility" });
+  }
+};
+
+// Soft delete — gated on Visibility (isPublic), not Master Status
+// (isActive): deleting is a host action, so it's gated on the flag the
+// host themselves controls, not staff's. Nomads enforces the same rule
+// server-side; checking it here too just avoids a round trip.
+export const deleteListing = async (req, res) => {
+  try {
+    const { businessId, companyId } = req.body;
+    const { listing, normalizedBusinessId, error } = await resolveOwnedListing(
+      companyId,
+      businessId,
+    );
+    if (error) return res.status(error.status).json(error.body);
+
+    if (listing.isPublic) {
+      return res.status(409).json({
+        code: "NOMAD_LISTING_PUBLIC",
+        message: "Turn off this listing's visibility before deleting it.",
+      });
+    }
+
+    try {
+      await axios.patch(`${NOMADS_API_BASE_URL}/soft-delete-product`, {
+        businessId: normalizedBusinessId,
+        deletedBy: "host",
+      });
+    } catch (err) {
+      if (err.response?.status) {
+        return res.status(err.response.status).json(err.response.data);
+      }
+      throw err;
+    }
+
+    return res.status(200).json({ message: "Listing deleted." });
+  } catch (error) {
+    res.status(500).json({ message: error.message || "Failed to delete listing" });
+  }
+};
+
+// Host asks staff to restore a listing they deleted — doesn't restore it
+// itself, just flags it so Master Panel's Recover action shows up.
+export const requestNomadListingRecovery = async (req, res) => {
+  try {
+    const { businessId, companyId } = req.body;
+    const { listing, normalizedBusinessId, error } = await resolveOwnedListing(
+      companyId,
+      businessId,
+    );
+    if (error) return res.status(error.status).json(error.body);
+
+    if (!listing.isDeleted) {
+      return res.status(409).json({ message: "This listing isn't deleted." });
+    }
+    if (listing.recoveryRequested) {
+      return res.status(200).json({ message: "Recovery already requested." });
+    }
+
+    try {
+      await axios.patch(`${NOMADS_API_BASE_URL}/request-listing-recovery`, {
+        businessId: normalizedBusinessId,
+      });
+    } catch (err) {
+      if (err.response?.status) {
+        return res.status(err.response.status).json(err.response.data);
+      }
+      throw err;
+    }
+
+    return res.status(200).json({
+      message: "Recovery requested — our team will review it.",
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message || "Failed to request recovery" });
+  }
+};
+
 export const getAllCompanyListings = async (req, res) => {
   try {
     const response = await axios.get(
-      "https://wono.co/api/company/companies",
+      `${NOMADS_API_BASE_URL}/companies`,
     );
 
     if (!response.data) {
@@ -640,7 +862,7 @@ export const getAllCompanyListings = async (req, res) => {
 export const getCompanyListings = async (req, res) => {
   try {
     const response = await axios.get(
-      "https://wono.co/api/company/companies",
+      `${NOMADS_API_BASE_URL}/companies`,
     );
 
     if (!response.data) {
