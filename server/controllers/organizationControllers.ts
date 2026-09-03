@@ -469,6 +469,50 @@ const getRoleBand = (role = "") => {
   return "employee";
 };
 
+// One admin per department (mirrors the one-manager-per-department rule
+// below): an admin may still cover several departments themselves, but a
+// department that already has a different active admin can't take a second
+// one. Returns the names of any requested departments that already have a
+// competing admin, so callers can report exactly which ones conflicted.
+const findDepartmentsWithCompetingAdmin = async ({
+  workspaceId,
+  departmentIds,
+  excludeUserId = null,
+  excludeMemberId = null,
+}: {
+  workspaceId: any;
+  departmentIds: any[];
+  excludeUserId?: any;
+  excludeMemberId?: any;
+}): Promise<string[]> => {
+  if (!Array.isArray(departmentIds) || departmentIds.length === 0) return [];
+  const query: Record<string, any> = {
+    workspace: workspaceId,
+    departments: { $in: departmentIds },
+    isActive: true,
+  };
+  if (excludeMemberId) query._id = { $ne: excludeMemberId };
+  else if (excludeUserId) query.user = { $ne: excludeUserId };
+  const candidates = await WorkspaceMember.find(query)
+    .select("role departments")
+    .populate("role")
+    .populate("departments", "name")
+    .lean()
+    .exec();
+  const requestedIds = new Set(departmentIds.map((id) => String(id)));
+  const conflictingNames = new Set<string>();
+  for (const candidate of candidates) {
+    if (getRoleBand(candidate?.role || "") !== "admin") continue;
+    for (const dept of Array.isArray(candidate.departments) ? candidate.departments : []) {
+      const deptId = String((dept as any)?._id || dept);
+      if (requestedIds.has(deptId)) {
+        conflictingNames.add((dept as any)?.name || deptId);
+      }
+    }
+  }
+  return Array.from(conflictingNames);
+};
+
 // Re-applies baseline + this department's full (manager-band) module set +
 // the org-invite grant to whoever currently manages this department —
 // department.managerUser, plus any member whose role band is "manager" and
@@ -1344,6 +1388,10 @@ export const saveOrganizationDepartment = async (req, res, next) => {
     const employeeUserIds = Array.isArray(req.body?.employeeUserIds)
       ? req.body.employeeUserIds.map((item) => String(item || "").trim()).filter(Boolean)
       : [];
+    // One admin per department, same as the invite/role-change flows.
+    if (adminUserIds.length > 1) {
+      return res.status(400).json({ message: "A department can have only one admin." });
+    }
 
     if (name.length < 2 || name.length > 80) {
       return res.status(400).json({ message: "Department name must contain 2 to 80 characters." });
@@ -1950,6 +1998,19 @@ export const inviteOrganizationMember = async (req, res, next) => {
       }
     }
 
+    if (normalizedInviteRole === "admin") {
+      const conflictingDepartmentNames = await findDepartmentsWithCompetingAdmin({
+        workspaceId: workspace._id,
+        departmentIds: uniqueResolvedDepartmentIds,
+      });
+      if (conflictingDepartmentNames.length > 0) {
+        return res.status(409).json({
+          message: `${conflictingDepartmentNames.join(", ")} already ${
+            conflictingDepartmentNames.length === 1 ? "has" : "have"
+          } an admin assigned.`,
+        });
+      }
+    }
 
     const company = await Company.findById(user.company).lean().exec();
     if (!company) {
@@ -2004,6 +2065,21 @@ export const inviteOrganizationMember = async (req, res, next) => {
       if (hasExistingManager) {
         return res.status(400).json({
           message: "This department already has a manager assigned.",
+        });
+      }
+    }
+
+    if (normalizedInviteRole === "admin") {
+      const conflictingDepartmentNames = await findDepartmentsWithCompetingAdmin({
+        workspaceId: workspace._id,
+        departmentIds: uniqueResolvedDepartmentIds,
+        excludeUserId: targetUser._id,
+      });
+      if (conflictingDepartmentNames.length > 0) {
+        return res.status(400).json({
+          message: `${conflictingDepartmentNames.join(", ")} already ${
+            conflictingDepartmentNames.length === 1 ? "has" : "have"
+          } an admin assigned.`,
         });
       }
     }
@@ -2414,6 +2490,21 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
       ) || competingManagers.some((candidate) => getRoleBand(candidate?.role || "") === "manager");
       if (hasCompetingManager) {
         return res.status(409).json({ message: "This department already has a manager assigned." });
+      }
+    }
+
+    if (nextRoleBand === "admin") {
+      const conflictingDepartmentNames = await findDepartmentsWithCompetingAdmin({
+        workspaceId: workspace._id,
+        departmentIds: resolvedDepartmentIds,
+        excludeMemberId: member._id,
+      });
+      if (conflictingDepartmentNames.length > 0) {
+        return res.status(409).json({
+          message: `${conflictingDepartmentNames.join(", ")} already ${
+            conflictingDepartmentNames.length === 1 ? "has" : "have"
+          } an admin assigned.`,
+        });
       }
     }
 

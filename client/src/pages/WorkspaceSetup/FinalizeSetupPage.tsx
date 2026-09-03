@@ -83,7 +83,7 @@ const PlanCard = ({
       {plan.title}
     </h3>
 
-    <p className="text-[11px] md:text-[10px] lg:text-[10px] text-[#667791] text-center mt-3 min-h-[36px]">
+    <p className="text-[11px] md:text-[10px] lg:text-[10px] font-pmedium text-[#667791] text-center mt-3 min-h-[36px]">
       {plan.subtitle}
     </p>
 
@@ -93,7 +93,7 @@ const PlanCard = ({
 
     <div className="h-px bg-[#d8e0ea] mb-3" />
 
-    <div className="space-y-2 flex-1 rounded-2xl border border-[#dce4ee] bg-[#f7f9fc] px-3 py-2">
+    <div className="space-y-2 flex-1 rounded-2xl border font-pmedium border-[#dce4ee] bg-[#f7f9fc] px-3 py-2">
       {plan.moduleGroups.flatMap((group) => group.items || []).map((item) => (
         <div key={`${plan.key}-${item}`} className="flex items-start gap-2">
           <span className="mt-0.5">
@@ -108,7 +108,7 @@ const PlanCard = ({
     </div>
 
     <div className="h-px bg-[#d8e0ea] mt-3 mb-2" />
-    <p className="text-[11px] text-[#9aa8bc] text-center mb-2">{plan.note}</p>
+    <p className="text-[11px] font-pmedium text-[#9aa8bc] text-center mb-2">{plan.note}</p>
 
     <button
       type="button"
@@ -563,9 +563,9 @@ const FinalizeSetupPage: React.FC = () => {
         </div>
       </div>
 
-      <main className="flex-1 px-4 sm:px-6 lg:px-8 pt-6 md:pt-8 pb-8">
+      <main className="flex-1 px-4 sm:px-6 lg:px-8 pt-8 md:pt-12 pb-8">
         <div className="w-full max-w-[900px] mx-auto">
-          <div className="mb-5 sm:mb-6">
+          <div className="mb-8 sm:mb-10">
             <p className="text-[10px] font-pmedium tracking-[0.22em] text-[#8da0bd] uppercase mb-4">
               Progress
             </p>
@@ -577,8 +577,8 @@ const FinalizeSetupPage: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex flex-col leading-tight">
-                  <span className="text-sm font-bold text-[#233552]">Unit</span>
-                  <span className="text-[11px] text-[#6d9bff] font-semibold">Done</span>
+                  <span className="text-sm font-pmedium text-[#233552]">Business Location</span>
+                  <span className="text-[11px] text-[#6d9bff] font-pmedium">Done</span>
                 </div>
               </div>
 
@@ -586,13 +586,13 @@ const FinalizeSetupPage: React.FC = () => {
 
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-[#dce9ff] flex items-center justify-center">
-                  <div className="w-8 h-8 rounded-full bg-[#2d67f0] text-white text-sm font-bold flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-[#2d67f0] text-white text-sm font-pmedium flex items-center justify-center">
                     2
                   </div>
                 </div>
                 <div className="flex flex-col leading-tight">
-                  <span className="text-sm font-bold text-[#233552]">Finalize Setup</span>
-                  <span className="text-[11px] text-[#6d9bff] font-semibold">
+                  <span className="text-sm font-pmedium text-[#233552]">Finalize Setup</span>
+                  <span className="text-[11px] text-[#6d9bff] font-pmedium">
                     Current step
                   </span>
                 </div>
@@ -600,11 +600,11 @@ const FinalizeSetupPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="mb-4 sm:mb-5 text-center">
-            <h1 className="text-[22px] sm:text-[26px] md:text-[30px] font-bold text-[#111b33] mb-2">
+          <div className="text-center mb-6 sm:mb-7">
+            <h1 className="text-center text-3xl font-play min-h-[3.5rem]">
               FINALIZE YOUR BUSINESS LOCATION SETUP
             </h1>
-            <p className="text-[13px] md:text-[14px] text-[#63738d] max-w-[900px] mx-auto whitespace-nowrap">
+            <p className="text-[13px] md:text-[14px] font-pmedium text-[#63738d] max-w-[900px] mx-auto whitespace-nowrap">
               Review your business location details, confirm the active plan, and finish the setup in one last step.
             </p>
           </div>
@@ -638,13 +638,13 @@ const FinalizeSetupPage: React.FC = () => {
 
             <div className="min-w-0 self-stretch">
               <div className="rounded-[38px] bg-[#eef2f7] p-4 md:p-4 flex h-full min-h-[500px] flex-col shadow-[0_4px_18px_rgba(15,27,53,0.05)] border border-[#d9e1ec]">
-              <p className="text-[16px] font-bold text-[#111b33] mb-1 text-center mt-1">
+              <p className="text-[16px] font-pmedium text-[#111b33] mb-1 text-center mt-1">
                 Business Location Details
               </p>
-              <p className="text-[11px] font-bold text-[#233552] mb-3 text-center">
+              <p className="text-[11px] font-pmedium text-[#233552] mb-3 text-center">
                 Plan Selected : {selectedPlan.toUpperCase()}
               </p>
-              <div className="grid grid-cols-1 auto-rows-auto gap-y-2 flex-1 content-between">
+              <div className="grid grid-cols-1 font-pmedium auto-rows-auto gap-y-2 flex-1 content-between">
                 {workspaceRows.length ? (
                   workspaceRows.map((row) => (
                     <div
@@ -652,8 +652,8 @@ const FinalizeSetupPage: React.FC = () => {
                       className="rounded-2xl border border-[#dce4ee] bg-[#f7f9fc] px-3.5 py-3"
                     >
                       <p className="text-[12.5px] text-[#4f627d] break-words">
-                        <span className="font-bold text-[#1f3553] text-[12px]">{row.label}:</span>{" "}
-                        <span className="font-semibold text-[#1f3553]">
+                        <span className="font-pmedium text-[#1f3553] text-[12px]">{row.label}:</span>{" "}
+                        <span className="font-pmedium text-[#1f3553]">
                           {row.value}
                         </span>
                       </p>
@@ -664,7 +664,7 @@ const FinalizeSetupPage: React.FC = () => {
                 )}
               </div>
               <div className="h-px bg-[#d8e0ea] mt-3 mb-2" />
-              <p className="text-[11px] text-[#9aa8bc] text-center">
+              <p className="text-[11px] font-pmedium text-[#9aa8bc] text-center">
                 You can still edit these details later from unit settings.
               </p>
             </div>
