@@ -505,8 +505,8 @@ const CreateWorkspacePage: React.FC = () => {
                 </div>
               </div>
               <div className="flex flex-col leading-tight">
-                <span className="text-sm font-bold text-[#233552]">Business Location</span>
-                <span className="text-[11px] text-[#6d9bff] font-semibold">
+                <span className="text-sm font-pmedium text-[#233552]">Business Location</span>
+                <span className="text-[11px] text-[#6d9bff] font-pmedium">
                   Current step
                 </span>
               </div>
@@ -515,12 +515,12 @@ const CreateWorkspacePage: React.FC = () => {
             <div className="hidden md:block flex-1 h-px bg-[#2d67f0] mx-4 md:mx-6" />
 
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full border border-[#c8cfda] bg-transparent text-[#c8cfda] text-sm font-bold flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full border border-[#c8cfda] bg-transparent text-[#c8cfda] text-sm font-pmedium flex items-center justify-center">
                 2
               </div>
               <div className="flex flex-col leading-tight">
-                <span className="text-sm font-bold text-[#233552]">Finalize Setup</span>
-                <span className="text-[11px] text-[#9aa8bc] font-semibold">Next</span>
+                <span className="text-sm font-pmedium text-[#233552]">Finalize Setup</span>
+                <span className="text-[11px] text-[#9aa8bc] font-pmedium">Next</span>
               </div>
             </div>
 
@@ -528,10 +528,10 @@ const CreateWorkspacePage: React.FC = () => {
         </div>
 
           <div className="text-center mb-6 sm:mb-7">
-            <h1 className="text-[26px] sm:text-[30px] md:text-[38px] font-bold text-[#111b33] mb-3 sm:mb-4">
+            <h1 className="text-center text-3xl font-play min-h-[3.5rem]">
               CREATE NEW BUSINESS LOCATION
             </h1>
-          <p className="text-sm md:text-[15px] text-[#63738d]">
+          <p className="text-sm md:text-[15px] font-pmedium text-[#63738d]">
             Start with the main identity of your business location. You can still refine and
             expand it after setup.
           </p>
@@ -585,7 +585,7 @@ const CreateWorkspacePage: React.FC = () => {
           <div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5">
               <div className="flex flex-col">
-                <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+                <label className="text-[10px] md:text-xs font-pmedium tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
                   Unit Name{requiredMark}
                 </label>
                 <input
@@ -596,12 +596,12 @@ const CreateWorkspacePage: React.FC = () => {
                   onChange={(e) => setWorkspaceName(e.target.value)}
                   aria-required="true"
                   aria-invalid={isFieldMissing("workspaceName") || workspaceNameStatus === "taken"}
-                  className={`w-full h-[42px] rounded-xl border bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-black text-black focus:outline-none focus:ring-2 ${isFieldMissing("workspaceName") || workspaceNameStatus === "taken" ? "border-rose-500 focus:ring-rose-200" : "border-[#d2d9e5] focus:ring-[#bcd0ff]"}`}
+                  className={`w-full h-[42px] rounded-xl border bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-slate-500 font-pmedium text-slate-700 focus:outline-none focus:ring-2 ${isFieldMissing("workspaceName") || workspaceNameStatus === "taken" ? "border-rose-500 focus:ring-rose-200" : "border-[#d2d9e5] focus:ring-[#bcd0ff]"}`}
                 />
-                {isFieldMissing("workspaceName") ? <p className="mt-1 text-[11px] font-semibold text-rose-600">Unit name is required.</p> : null}
+                {isFieldMissing("workspaceName") ? <p className="mt-1 text-[11px] font-pmedium text-rose-600">Unit name is required.</p> : null}
                 {workspaceNameStatus !== "idle" ? (
                   <p
-                    className={`mt-1 text-[11px] font-semibold ${
+                    className={`mt-1 text-[11px] font-pmedium ${
                       workspaceNameStatus === "available" ? "text-emerald-600" : "text-rose-600"
                     }`}
                   >
@@ -611,7 +611,7 @@ const CreateWorkspacePage: React.FC = () => {
               </div>
 
               <div className="flex flex-col">
-                <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+                <label className="text-[10px] md:text-xs font-pmedium tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
                   Company Name{requiredMark}
                 </label>
                 <input
@@ -623,13 +623,13 @@ const CreateWorkspacePage: React.FC = () => {
                   disabled={isCompanyNameLocked}
                   aria-required="true"
                   aria-invalid={isFieldMissing("businessName")}
-                  className={`w-full h-[42px] rounded-xl border bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-black text-black focus:outline-none focus:ring-2 ${isFieldMissing("businessName") ? "border-rose-500 focus:ring-rose-200" : "border-[#d2d9e5] focus:ring-[#bcd0ff]"}`}
+                  className={`w-full h-[42px] rounded-xl border bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-slate-500 font-pmedium text-slate-700 focus:outline-none focus:ring-2 ${isFieldMissing("businessName") ? "border-rose-500 focus:ring-rose-200" : "border-[#d2d9e5] focus:ring-[#bcd0ff]"}`}
                 />
-                {isFieldMissing("businessName") ? <p className="mt-1 text-[11px] font-semibold text-rose-600">Company name is required.</p> : null}
+                {isFieldMissing("businessName") ? <p className="mt-1 text-[11px] font-pmedium text-rose-600">Company name is required.</p> : null}
               </div>
 
               <div className="flex flex-col">
-                <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+                <label className="text-[10px] md:text-xs font-pmedium tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
                   Brand Name{requiredMark}
                 </label>
                 <input
@@ -640,19 +640,19 @@ const CreateWorkspacePage: React.FC = () => {
                   onChange={(e) => setBrandName(e.target.value)}
                   aria-required="true"
                   aria-invalid={isFieldMissing("brandName")}
-                  className={`w-full h-[42px] rounded-xl border bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-black text-black focus:outline-none focus:ring-2 ${isFieldMissing("brandName") ? "border-rose-500 focus:ring-rose-200" : "border-[#d2d9e5] focus:ring-[#bcd0ff]"}`}
+                  className={`w-full h-[42px] rounded-xl border bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-slate-500 font-pmedium text-slate-700 focus:outline-none focus:ring-2 ${isFieldMissing("brandName") ? "border-rose-500 focus:ring-rose-200" : "border-[#d2d9e5] focus:ring-[#bcd0ff]"}`}
                 />
-                {isFieldMissing("brandName") ? <p className="mt-1 text-[11px] font-semibold text-rose-600">Brand name is required.</p> : null}
+                {isFieldMissing("brandName") ? <p className="mt-1 text-[11px] font-pmedium text-rose-600">Brand name is required.</p> : null}
               </div>
             </div>
-            <p className="text-[13px] text-[#63738d] mt-3">
+            <p className="text-[13px] font-pmedium text-[#63738d] mt-3">
               This is the main name your members will see throughout the platform.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-5">
             <div className="flex flex-col md:col-span-2">
-              <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+              <label className="text-[10px] md:text-xs font-pmedium tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
                 Address{requiredMark}
               </label>
               <input
@@ -663,13 +663,13 @@ const CreateWorkspacePage: React.FC = () => {
                 onChange={(e) => setAddress(e.target.value)}
                 aria-required="true"
                 aria-invalid={isFieldMissing("address")}
-                className={`w-full h-[42px] rounded-xl border bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-black text-black focus:outline-none focus:ring-2 ${isFieldMissing("address") ? "border-rose-500 focus:ring-rose-200" : "border-[#d2d9e5] focus:ring-[#bcd0ff]"}`}
+                className={`w-full h-[42px] rounded-xl border bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-slate-500 font-pmedium text-slate-700 focus:outline-none focus:ring-2 ${isFieldMissing("address") ? "border-rose-500 focus:ring-rose-200" : "border-[#d2d9e5] focus:ring-[#bcd0ff]"}`}
               />
-              {isFieldMissing("address") ? <p className="mt-1 text-[11px] font-semibold text-rose-600">Address is required.</p> : null}
+              {isFieldMissing("address") ? <p className="mt-1 text-[11px] font-pmedium text-rose-600">Address is required.</p> : null}
             </div>
 
             <div className="flex flex-col">
-              <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+              <label className="text-[10px] md:text-xs font-pmedium tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
                 Country{requiredMark}
               </label>
                 <Autocomplete
@@ -718,7 +718,7 @@ const CreateWorkspacePage: React.FC = () => {
                         {...props}
                         key={option.isoCode}
                         // 2. ADDED ${props.className} SO THE MARGIN-BOTTOM ABOVE ACTUALLY APPLIES
-                        className={`${props.className} flex items-center gap-4 text-[13px] text-[#334155]`}
+                        className={`${props.className} flex items-center font-pmedium gap-4 text-[13px] text-[#334155]`}
                       >
                         <img
                           src={getFlagUrl(option.isoCode)}
@@ -726,7 +726,7 @@ const CreateWorkspacePage: React.FC = () => {
                           className="h-4 w-6 shrink-0 rounded-[3px] object-cover shadow-sm"
                           loading="lazy"
                         />
-                        <span className="leading-none tracking-[0.01em]">{option.name}</span>
+                        <span className="leading-none font-pmedium tracking-[0.01em]">{option.name}</span>
                       </li>
                     )}
                 renderInput={(params) => (
@@ -744,8 +744,10 @@ const CreateWorkspacePage: React.FC = () => {
                         height: "42px",
                         borderRadius: "12px",
                         backgroundColor: "#f2f4f8",
-                        fontSize: "10px",
-                        color: "#000000",
+                        fontSize: "13px",
+                        fontFamily: "Poppins-SemiBold",
+                        fontWeight: 700,
+                        color: "#334155",
                         paddingLeft: "6px",
                         paddingRight: "8px",
                         alignItems: "center",
@@ -765,16 +767,20 @@ const CreateWorkspacePage: React.FC = () => {
                       },
                       "& .MuiOutlinedInput-input": {
                         padding: "4px 8px",
+                        fontFamily: "Poppins-SemiBold",
+                        fontWeight: 600,
+                        color: "#334155",
                         "&::placeholder": {
-                          color: "#000000",
+                          color: "#64748b",
                           opacity: 1,
+                          fontFamily: "Poppins-SemiBold",
                         },
                       },
                       "& .MuiInputBase-input.Mui-disabled": {
-                        WebkitTextFillColor: "#334155 !important",
+                        WebkitTextFillColor: "#334155",
                         color: "#334155",
                         opacity: 1,
-                        fontWeight: 500,
+                        fontWeight: 600,
                       },
                       "& .MuiAutocomplete-input": {
                         minWidth: "36px",
@@ -783,11 +789,11 @@ const CreateWorkspacePage: React.FC = () => {
                     InputProps={{
                       ...params.InputProps,
                       startAdornment: selectedCountryOption ? (
-                        <div className="flex items-center gap-2 pl-1">
+                        <div className="flex font-pmedium items-center gap-2 pl-1">
                           <img
                             src={getFlagUrl(selectedCountryOption.isoCode)}
                             alt={`${selectedCountryOption.name} flag`}
-                            className="h-4 w-6 shrink-0 rounded-[2px] object-cover shadow-sm"
+                            className="h-4 w-6 shrink-0 rounded-[2px] font-pmedium object-cover shadow-sm"
                           />
                           {params.InputProps.startAdornment}
                         </div>
@@ -801,7 +807,7 @@ const CreateWorkspacePage: React.FC = () => {
             </div>
 
             <div className="flex flex-col">
-              <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+              <label className="text-[10px] md:text-xs font-pmedium tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
                 State{requiredMark}
               </label>
               <div className="relative">
@@ -812,9 +818,9 @@ const CreateWorkspacePage: React.FC = () => {
                   disabled={!country || isStatesLoading || hasLockedInviteState}
                   aria-required="true"
                   aria-invalid={isFieldMissing("stateName")}
-                  className={`${workspaceSelectClassName} text-black ${isFieldMissing("stateName") ? "border-rose-500 ring-2 ring-rose-200" : ""}`}
+                  className={`${workspaceSelectClassName} text-slate-700 font-pmedium ${isFieldMissing("stateName") ? "border-rose-500 ring-2 ring-rose-200" : ""}`}
                   style={{
-                    WebkitTextFillColor: "#000000",
+                    WebkitTextFillColor: "",
                   }}
                 >
                   <option value="">
@@ -832,13 +838,13 @@ const CreateWorkspacePage: React.FC = () => {
                 </select>
                 <WorkspaceSelectChevron />
               </div>
-              {isFieldMissing("stateName") ? <p className="mt-1 text-[11px] font-semibold text-rose-600">State is required.</p> : null}
+              {isFieldMissing("stateName") ? <p className="mt-1 text-[11px] font-pmedium text-rose-600">State is required.</p> : null}
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-5">
             <div className="flex flex-col">
-              <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+              <label className="text-[10px] md:text-xs font-pmedium tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
                 City{requiredMark}
               </label>
               <div className="relative">
@@ -851,9 +857,9 @@ const CreateWorkspacePage: React.FC = () => {
                   }
                   aria-required="true"
                   aria-invalid={isFieldMissing("city")}
-                  className={`${workspaceSelectClassName} text-black ${isFieldMissing("city") ? "border-rose-500 ring-2 ring-rose-200" : ""}`}
+                  className={`${workspaceSelectClassName} text-slate-700 font-pmedium ${isFieldMissing("city") ? "border-rose-500 ring-2 ring-rose-200" : ""}`}
                   style={{
-                    WebkitTextFillColor: "#000000",
+                    WebkitTextFillColor: "",
                   }}
                 >
                   <option value="">
@@ -871,11 +877,11 @@ const CreateWorkspacePage: React.FC = () => {
                 </select>
                 <WorkspaceSelectChevron />
               </div>
-              {isFieldMissing("city") ? <p className="mt-1 text-[11px] font-semibold text-rose-600">City is required.</p> : null}
+              {isFieldMissing("city") ? <p className="mt-1 text-[11px] font-pmedium text-rose-600">City is required.</p> : null}
             </div>
 
             <div className="flex flex-col">
-              <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+              <label className="text-[10px] md:text-xs font-pmedium tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
                 Type of Vertical{requiredMark}
               </label>
               <div ref={businessTypeDropdownRef} className="relative">
@@ -889,16 +895,16 @@ const CreateWorkspacePage: React.FC = () => {
                     setIsBusinessTypeOpen((prev) => !prev);
                   }}
                   disabled={hasLockedInviteBusinessTypes}
-                  className={`w-full h-[42px] rounded-xl border bg-[#f2f4f8] px-3.5 text-[13px] text-black text-left flex items-center justify-between focus:outline-none focus:ring-2 ${isFieldMissing("businessTypes") ? "border-rose-500 focus:ring-rose-200" : "border-[#d2d9e5] focus:ring-[#bcd0ff]"}`}
+                  className={`w-full h-[42px] rounded-xl border bg-[#f2f4f8] px-3.5 text-[13px] text-slate-700 font-pmedium text-left flex items-center justify-between focus:outline-none focus:ring-2 ${isFieldMissing("businessTypes") ? "border-rose-500 focus:ring-rose-200" : "border-[#d2d9e5] focus:ring-[#bcd0ff]"}`}
                 >
-                  <span className="text-black">
+                  <span className="text-slate-700">
                     {businessTypeLabel}
                   </span>
                   <ChevronDown size={16} className="shrink-0 text-[#8d99ad]" />
                 </button>
 
                 {isBusinessTypeOpen && (
-                  <div className="absolute z-20 mt-1 w-full rounded-xl border border-[#d2d9e5] bg-white shadow-lg p-3 max-h-52 overflow-auto">
+                  <div className="absolute z-20 mt-1 w-full rounded-xl border font-pmedium border-[#d2d9e5] bg-white shadow-lg p-3 max-h-52 overflow-auto">
                     <div className="grid grid-cols-1 gap-y-2">
                       {allBusinessTypes.map((type) => (
                         <label
@@ -918,13 +924,13 @@ const CreateWorkspacePage: React.FC = () => {
                   </div>
                 )}
               </div>
-              {isFieldMissing("businessTypes") ? <p className="mt-1 text-[11px] font-semibold text-rose-600">Select at least one business vertical.</p> : null}
+              {isFieldMissing("businessTypes") ? <p className="mt-1 text-[11px] font-pmedium text-rose-600">Select at least one business vertical.</p> : null}
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-5">
             <div className="flex flex-col">
-              <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+              <label className="text-[10px] md:text-xs font-pmedium tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
                 Timezone{requiredMark}
               </label>
               <div className="relative">
@@ -938,7 +944,7 @@ const CreateWorkspacePage: React.FC = () => {
                     disabled={!country}
                     aria-required="true"
                     aria-invalid={isFieldMissing("timezone")}
-                  className={`${workspaceSelectClassName} text-black ${isFieldMissing("timezone") ? "border-rose-500 ring-2 ring-rose-200" : ""}`}
+                  className={`${workspaceSelectClassName} text-slate-700 font-pmedium ${isFieldMissing("timezone") ? "border-rose-500 ring-2 ring-rose-200" : ""}`}
                 >
                   <option value="">Select timezone</option>
                   {timezoneOptions.map((item) => (
@@ -950,14 +956,14 @@ const CreateWorkspacePage: React.FC = () => {
                 </select>
                 <WorkspaceSelectChevron />
               </div>
-              {isFieldMissing("timezone") ? <p className="mt-1 text-[11px] font-semibold text-rose-600">Timezone is required.</p> : null}
-              <p className="mt-1 text-[11px] text-[#7b8ba3]">
+              {isFieldMissing("timezone") ? <p className="mt-1 text-[11px] font-pmedium text-rose-600">Timezone is required.</p> : null}
+              <p className="mt-1 text-[11px] font-pmedium text-[#7b8ba3]">
                 Used for bookings, attendance, reminders, and reports regardless of the server timezone.
               </p>
             </div>
 
             <div className="flex flex-col">
-              <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+              <label className="text-[10px] md:text-xs font-pmedium tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
                 Currency{requiredMark}
               </label>
               <div className="relative">
@@ -968,7 +974,7 @@ const CreateWorkspacePage: React.FC = () => {
                   disabled={!country}
                   aria-required="true"
                   aria-invalid={isFieldMissing("currency")}
-                  className={`${workspaceSelectClassName} text-black ${isFieldMissing("currency") ? "border-rose-500 ring-2 ring-rose-200" : ""}`}
+                  className={`${workspaceSelectClassName} text-slate-700 font-pmedium ${isFieldMissing("currency") ? "border-rose-500 ring-2 ring-rose-200" : ""}`}
                 >
                   <option value="">Select currency</option>
                   {currencyOptions.map((item) => (
@@ -977,15 +983,15 @@ const CreateWorkspacePage: React.FC = () => {
                 </select>
                 <WorkspaceSelectChevron />
               </div>
-              {isFieldMissing("currency") ? <p className="mt-1 text-[11px] font-semibold text-rose-600">Currency is required.</p> : null}
-              <p className="mt-1 text-[11px] text-[#7b8ba3]">
+              {isFieldMissing("currency") ? <p className="mt-1 text-[11px] font-pmedium text-rose-600">Currency is required.</p> : null}
+              <p className="mt-1 text-[11px] font-pmedium text-[#7b8ba3]">
                 Defaults from the selected country and can be confirmed by the founder.
               </p>
             </div>
           </div>
 
           <div className="pt-5 border-t border-[#e1e6ef] mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <p className="text-[13px] text-[#63738d]">
+            <p className="text-[13px] font-pmedium text-[#63738d]">
               You can update these details later from workspace settings.
             </p>
             <button

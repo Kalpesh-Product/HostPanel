@@ -12,13 +12,13 @@ import useAxiosPrivate from '../../hooks/useAxiosPrivate';
 import PageFrame from '../../components/Pages/PageFrame';
 import { OrganizationSkeleton } from '../../components/ui/Skeleton';
 import {
-  assignOrganizationActingManager,
+  // assignOrganizationActingManager, // ACTING MANAGER: disabled - redundant (super admins already have all access)
   assignOrganizationDepartmentManager,
   cancelOrganizationInvite,
   deleteOrganizationDepartment,
   getOrganizationOverview,
   inviteOrganizationMember,
-  removeOrganizationActingManager,
+  // removeOrganizationActingManager, // ACTING MANAGER: disabled - redundant
   saveOrganizationDepartment,
   toggleOrganizationMemberStatus,
   updateOrganizationMemberRole,
@@ -188,7 +188,7 @@ const getTeamMemberDepartmentHelperText = (role = '') => {
   const normalizedRole = String(role || '').trim().toLowerCase();
 
   if (normalizedRole === 'admin') {
-    return 'Admin can be assigned to multiple departments.';
+    return 'Admin can be assigned to multiple departments, but each department can have only one admin.';
   }
 
   if (normalizedRole === 'manager') {
@@ -276,7 +276,10 @@ export function OrganizationPage() {
   const [showDepartmentModal, setShowDepartmentModal] = useState(false);
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
   const [showAssignManagerModal, setShowAssignManagerModal] = useState(false);
+  const [assignManagerTargetId, setAssignManagerTargetId] = useState('');
+  const [isAssigningManager, setIsAssigningManager] = useState(false);
   const [showTeamMemberModal, setShowTeamMemberModal] = useState(false);
+  const [returnToTeamMemberModal, setReturnToTeamMemberModal] = useState(false);
   
   // Form States
   const [employeeFormData, setEmployeeFormData] = useState({ name: '', email: '' });
@@ -607,7 +610,8 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
   });
   const canInviteSuperAdmin = isFounderRole || isFounderFromTeamRecord;
   const canManageDepartments = isFounderRole || isFounderFromTeamRecord;
-  const canManageActingAssignments = canManageDepartments || currentUserRole === 'super-admin';
+  // ACTING MANAGER: disabled - redundant. See note below.
+  // const canManageActingAssignments = canManageDepartments || currentUserRole === 'super-admin';
   const canRemoveInvitedMemberByAccess = isFounderRole || isFounderFromTeamRecord || currentUserRole === 'super-admin';
   const currentMemberGrantedKeys = new Set(
     (Array.isArray(currentMemberGrantedModuleIds) ? currentMemberGrantedModuleIds : [])
@@ -650,10 +654,11 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
     hasOrgModuleAccess && currentMemberGrantedKeys.has('org-departments-edit');
   const canAssignManagerByAccess =
     hasOrgModuleAccess && currentMemberGrantedKeys.has('org-departments-assign-manager');
-  const canAssignActingManagerByAccess =
-    hasOrgModuleAccess && currentMemberGrantedKeys.has('org-departments-assign-acting-manager');
-  const canRemoveActingManagerByAccess =
-    hasOrgModuleAccess && currentMemberGrantedKeys.has('org-departments-remove-acting-manager');
+  // ACTING MANAGER: disabled - redundant (see note below).
+  // const canAssignActingManagerByAccess =
+  //   hasOrgModuleAccess && currentMemberGrantedKeys.has('org-departments-assign-acting-manager');
+  // const canRemoveActingManagerByAccess =
+  //   hasOrgModuleAccess && currentMemberGrantedKeys.has('org-departments-remove-acting-manager');
   const isBasicPlanWorkspace = workspacePlan === 'basic';
   // Mirrors the backend cap in organizationControllers.ts (isBasicPlan block):
   // Basic plan allows the founder to add exactly one additional user, who must
@@ -707,6 +712,12 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
   const isSingleDepartmentTeamMemberRole = SINGLE_DEPARTMENT_TEAM_MEMBER_ROLES.has(normalizedTeamMemberRole);
   const inviteDepartmentOptions = departments.filter((dept) => isDepartmentAllowedForPlan(workspacePlan, dept.name));
   const enabledDepartmentCount = inviteDepartmentOptions.length;
+  const departmentManagerCount = inviteDepartmentOptions.filter((dept) => Boolean(dept.managerName)).length;
+  const departmentsNeedingManager = inviteDepartmentOptions.filter((dept) => !dept.managerName).length;
+  const departmentMemberCount = inviteDepartmentOptions.reduce(
+    (sum, dept) => sum + (Number(dept.employeeCount) || 0),
+    0,
+  );
   const normalizedEmployeeEmail = String(employeeFormData.email || '').trim().toLowerCase();
   const isEmployeeEmailAlreadyUsed = Boolean(normalizedEmployeeEmail) && teamMembers.some(
     (member) => String(member.email || '').trim().toLowerCase() === normalizedEmployeeEmail,
@@ -772,6 +783,22 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
     const role = normalizeRoleValue(member.role);
     return role === 'manager' || role === 'employee' || role === 'admin' || role === 'admin-manager';
   });
+  // One manager per department: a user who is already the manager of a DIFFERENT
+  // department cannot be assigned as the manager of this one. Only managers and
+  // employees are eligible (admins/super-admins sit above managers and are never
+  // shown as manager options).
+  const managerUserIdsOfOtherDepartments = useMemo(() => {
+    const ids = new Set<string>();
+    const currentDeptId = String(selectedDepartment?.id || selectedDepartment?._id || '').trim();
+    (departments || []).forEach((dept) => {
+      const deptId = String(dept.id || dept._id || '').trim();
+      if (deptId !== currentDeptId) {
+        const managerId = String(dept.managerUserId || dept.managerId || '').trim();
+        if (managerId) ids.add(managerId);
+      }
+    });
+    return ids;
+  }, [departments, selectedDepartment]);
 
   const formatJoinedDate = (value) => {
     if (!value) {
@@ -1008,6 +1035,25 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
     });
     setShowTeamMemberModal(true);
   };
+
+  const handleCreateDepartmentFromTeamMember = () => {
+    if (!canCreateDepartmentByAccess) {
+      toast.error('You do not have access to create a department.');
+      return;
+    }
+    setReturnToTeamMemberModal(true);
+    setShowTeamMemberModal(false);
+    openDepartmentModal(isCustomPlanWorkspace ? null : customWorkspaceDepartment);
+  };
+
+  const handleCloseDepartmentModal = () => {
+    setShowDepartmentModal(false);
+    if (returnToTeamMemberModal) {
+      setReturnToTeamMemberModal(false);
+      setShowTeamMemberModal(true);
+    }
+  };
+
   const handleSendInvite = async () => {
     if (isSendingInvite || isSendingInviteRef.current) return;
     if (isProfessionalPlanWorkspace && professionalPlanLimitReached) {
@@ -1223,81 +1269,108 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
     }
   };
 
-  const handleAssignManagerToDepartment = (managerId, managerName) => {
+  const handleAssignManagerToDepartment = async (managerId) => {
     if (!canAssignManagerByAccess) {
       toast.error('You do not have access to assign department manager.');
       return;
     }
-    if (selectedDepartment) {
-      assignOrganizationDepartmentManager(axiosPrivate, selectedDepartment.id || '', managerId)
-        .then(() => loadOrganization(selectedDepartment.id || ''))
-        .then(() => {
-          setShowAssignManagerModal(false);
-        })
-        .catch((error) => {
-          console.error("Failed to assign manager", error);
-        });
+    if (!selectedDepartment || !managerId) {
+      setIsAssigningManager(false);
+      return;
+    }
+    if (managerUserIdsOfOtherDepartments.has(String(managerId))) {
+      toast.error('This user is already the manager of another department. One manager can be assigned to only one department.');
+      setIsAssigningManager(false);
+      return;
+    }
+    setIsAssigningManager(true);
+    try {
+      await assignOrganizationDepartmentManager(axiosPrivate, selectedDepartment.id || '', managerId);
+      await loadOrganization(selectedDepartment.id || '');
+      setShowAssignManagerModal(false);
+      setAssignManagerTargetId('');
+      toast.success('Department manager assigned successfully.');
+    } catch (error) {
+      console.error("Failed to assign manager", error);
+      toast.error((error as any)?.response?.data?.message || 'Failed to assign department manager.');
+    } finally {
+      setIsAssigningManager(false);
     }
   };
 
-  const handleAssignActingManager = (member) => {
-    if (!canAssignActingManagerByAccess) {
-      toast.error('You do not have access to assign acting manager.');
-      return;
-    }
-    if (!selectedDepartment) {
-      return;
-    }
-
-    const departmentId = selectedDepartment.id || '';
-    if (!departmentId) {
-      return;
-    }
-
-    assignOrganizationActingManager(axiosPrivate, departmentId, {
-      assignedUserId: member.userId || member.id,
-    })
-      .then(() => loadOrganization(departmentId))
-      .catch((error) => {
-        console.error("Failed to assign acting manager", error);
-      });
-  };
-
-  const handleRemoveActingManager = (assignedUserId) => {
-    if (!canRemoveActingManagerByAccess) {
-      toast.error('You do not have access to remove acting manager.');
-      return;
-    }
-    if (!selectedDepartment) {
-      return;
-    }
-
-    const departmentId = selectedDepartment.id || '';
-    if (!departmentId) {
-      return;
-    }
-
-    removeOrganizationActingManager(axiosPrivate, departmentId, assignedUserId)
-      .then(() => loadOrganization(departmentId))
-      .catch((error) => {
-        console.error("Failed to remove acting manager", error);
-      });
-  };
-
-  const actingManagerCandidates = useMemo(() => {
-    return teamMembers.filter((member) => {
-      const normalizedRole = normalizeRoleValue(member.role);
-      const isEligibleRole =
-        isFounderRole
-          ? normalizedRole === 'admin' || normalizedRole === 'super-admin'
-          : normalizedRole === 'admin';
-
-      const normalizedStatus = (member.status || '').toLowerCase();
-      const isEligibleStatus = normalizedStatus !== 'disabled' && normalizedStatus !== 'invited' && normalizedStatus !== 'pending';
-
-      return isEligibleRole && isEligibleStatus;
-    });
-  }, [teamMembers, isFounderRole]);
+  // ==========================================================================
+  // ACTING MANAGER: DISABLED
+  // --------------------------------------------------------------------------
+  // This feature (assigning an "acting manager" to a department) was removed
+  // because it is redundant:
+  //   - Super Admins already get top-level access to ALL departments/modules
+  //     (identical to the founder), so marking one as an acting manager adds
+  //     no access.
+  //   - Admins are already assigned to manage multiple departments via the
+  //     regular manager assignment, so acting-manager adds no new capability.
+  // The backend routes/controllers/model were LEFT INTACT (dormant) to avoid
+  // breaking the organization overview payload. If this is ever needed again,
+  // uncomment the blocks below marked "ACTING MANAGER" (and the matching
+  // service imports at the top of this file).
+  // ==========================================================================
+  // const handleAssignActingManager = (member) => {
+  //   if (!canAssignActingManagerByAccess) {
+  //     toast.error('You do not have access to assign acting manager.');
+  //     return;
+  //   }
+  //   if (!selectedDepartment) {
+  //     return;
+  //   }
+  //
+  //   const departmentId = selectedDepartment.id || '';
+  //   if (!departmentId) {
+  //     return;
+  //   }
+  //
+  //   assignOrganizationActingManager(axiosPrivate, departmentId, {
+  //     assignedUserId: member.userId || member.id,
+  //   })
+  //     .then(() => loadOrganization(departmentId))
+  //     .catch((error) => {
+  //       console.error("Failed to assign acting manager", error);
+  //     });
+  // };
+  //
+  // const handleRemoveActingManager = (assignedUserId) => {
+  //   if (!canRemoveActingManagerByAccess) {
+  //     toast.error('You do not have access to remove acting manager.');
+  //     return;
+  //   }
+  //   if (!selectedDepartment) {
+  //     return;
+  //   }
+  //
+  //   const departmentId = selectedDepartment.id || '';
+  //   if (!departmentId) {
+  //     return;
+  //   }
+  //
+  //   removeOrganizationActingManager(axiosPrivate, departmentId, assignedUserId)
+  //     .then(() => loadOrganization(departmentId))
+  //     .catch((error) => {
+  //       console.error("Failed to remove acting manager", error);
+  //     });
+  // };
+  //
+  // const actingManagerCandidates = useMemo(() => {
+  //   return teamMembers.filter((member) => {
+  //     const normalizedRole = normalizeRoleValue(member.role);
+  //     const isEligibleRole =
+  //       isFounderRole
+  //         ? normalizedRole === 'admin' || normalizedRole === 'super-admin'
+  //         : normalizedRole === 'admin';
+  //
+  //     const normalizedStatus = (member.status || '').toLowerCase();
+  //     const isEligibleStatus = normalizedStatus !== 'disabled' && normalizedStatus !== 'invited' && normalizedStatus !== 'pending';
+  //
+  //     return isEligibleRole && isEligibleStatus;
+  //   });
+  // }, [teamMembers, isFounderRole]);
 
   // --- UI HELPERS ---
   const getRoleIcon = (role) => {
@@ -1396,6 +1469,19 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
       setShowDepartmentModal(false);
       setNewDepartmentForm({ departmentId: '', name: '', description: '', moduleIds: [] });
 
+      if (returnToTeamMemberModal) {
+        setReturnToTeamMemberModal(false);
+        if (savedDepartmentId) {
+          setTeamMemberFormData((current) => ({
+            ...current,
+            departments: [...new Set([...current.departments, savedDepartmentId].filter(Boolean))],
+          }));
+        }
+        setShowTeamMemberModal(true);
+        toast.success('Department created. It is now available to assign in Add User.');
+        return;
+      }
+
       if (editingDepartmentId) {
         setCreatedDepartmentNotice(null);
         toast.success('Custom department and module access updated.');
@@ -1482,6 +1568,8 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
         </div>
 
         {/* 3. STAT CARDS (DESIGN.md 4-col grid with border-left accents) */}
+        {/* Tab-aware: PLATFORM USERS shows user cards, DEPARTMENTS shows dept cards. */}
+        {activeTab === 'users' ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
         <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
           <div className="min-w-0">
@@ -1514,6 +1602,38 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
           <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Building2 size={16}/></div>
         </div>
       </div>
+        ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
+          <div className="min-w-0">
+            <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Departments</p>
+            <p className="text-[15px] font-pmedium text-slate-900">{enabledDepartmentCount}</p>
+          </div>
+          <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><Building2 size={16}/></div>
+        </div>
+        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
+          <div className="min-w-0">
+            <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Managers Assigned</p>
+            <p className="text-[15px] font-pmedium text-slate-900">{departmentManagerCount}</p>
+          </div>
+          <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><UserCheck size={16}/></div>
+        </div>
+        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-rose-500">
+          <div className="min-w-0">
+            <p className="text-[10px] font-pmedium text-rose-600 uppercase tracking-widest mb-1">Need Manager</p>
+            <p className="text-[15px] font-pmedium text-slate-900">{departmentsNeedingManager}</p>
+          </div>
+          <div className="p-2 rounded-2xl bg-rose-50 text-rose-600 shrink-0"><Crown size={16}/></div>
+        </div>
+        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
+          <div className="min-w-0">
+            <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Total Members</p>
+            <p className="text-[15px] font-pmedium text-slate-900">{departmentMemberCount}</p>
+          </div>
+          <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Users size={16}/></div>
+        </div>
+      </div>
+        )}
 
       
 
@@ -1602,7 +1722,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
           <table data-tour="organization-members-table" className="w-full text-left">
             <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
               <tr>
-                <th className="px-5 py-4 text-left">Employee ID</th>
+                <th className="px-5 py-4 text-left w-[150px] whitespace-nowrap">Employee ID</th>
                 <th className="px-5 py-4 text-left">Platform User</th>
                 <th className="px-5 py-4 text-left">Email</th>
                 <th className="px-5 py-4 text-left">Access Role</th>
@@ -1642,7 +1762,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
 
                   return (
                   <tr key={member.id} className={`hover:bg-slate-50/50 transition-colors group ${normalizedRole === 'owner' ? 'bg-slate-50/50' : member.status === 'disabled' ? 'bg-slate-50/50 opacity-75' : ''}`}>
-                    <td className="px-5 py-4">
+                    <td className="px-5 py-4 whitespace-nowrap">
                       <span className="font-pmedium text-slate-800 text-[12px]">{member.employeeId || '-'}</span>
                     </td>
                     <td className="px-5 py-4">
@@ -2019,7 +2139,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
                   <div className={`w-2 h-6 rounded-full ${getDepartmentToneClass(selectedDepartment)}`}></div>
                   <h1 className="text-xl font-pmedium text-slate-900">{normalizeDepartmentLabel(selectedDepartment.name)}</h1>
                 </div>
-                <p className="text-[12px] text-slate-500 max-w-2xl leading-relaxed">{selectedDepartment.description}</p>
+                <p className="text-sm text-slate-500 font-pmedium max-w-2xl leading-relaxed">{selectedDepartment.description}</p>
               </div>
               <div className="flex w-full flex-wrap gap-2.5 md:w-auto">
                 {isCustomDepartmentOption(selectedDepartment) && canManageCustomDepartment ? (
@@ -2038,7 +2158,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
                   </button>
                 ) : null}
                 {canAssignManagerByAccess ? (
-                  <button type="button" onClick={() => setShowAssignManagerModal(true)} className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[11px] font-pmedium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 md:flex-none">
+                  <button type="button" onClick={() => { setAssignManagerTargetId(''); setShowAssignManagerModal(true); }} className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[11px] font-pmedium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 md:flex-none">
                     {selectedDepartment.managerName ? 'Change Manager' : 'Assign Existing'}
                   </button>
                 ) : null}
@@ -2076,7 +2196,9 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
                 <p className="mt-2 text-[9px] font-pmedium text-slate-500">Common modules are added automatically. The manager receives these department modules.</p>
               </div>
             </div>
-            {Array.isArray(selectedDepartment.actingManagers) && selectedDepartment.actingManagers.length > 0 ? (
+            {/* ACTING MANAGER: DISABLED - redundant (see note above). Removed the
+                "Active Acting Managers" card. Backend payload still returns them. */}
+            {/* {Array.isArray(selectedDepartment.actingManagers) && selectedDepartment.actingManagers.length > 0 ? (
               <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
                 <p className="text-[11px] font-pmedium text-blue-600 uppercase tracking-widest mb-3">Active Acting Managers</p>
                 <div className="flex flex-wrap gap-3">
@@ -2101,7 +2223,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
                   ))}
                 </div>
               </div>
-            ) : null}
+            ) : null} */}
           </div>
 
           {/* Dept Employee Table */}
@@ -2264,7 +2386,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
                 </div>
                 <p className="mt-1 text-[11px] font-pmedium text-slate-500">{isEditingCustomDepartment ? 'Update its public name and enable or disable available modules.' : 'Create the one custom department allowed for this workspace and select its modules.'}</p>
               </div>
-              <button type="button" onClick={() => setShowDepartmentModal(false)} disabled={isCreatingDepartment} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:text-slate-700 disabled:opacity-50"><X size={16} /></button>
+              <button type="button" onClick={handleCloseDepartmentModal} disabled={isCreatingDepartment} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:text-slate-700 disabled:opacity-50"><X size={16} /></button>
             </div>
 
             <div className="space-y-5 overflow-y-auto p-5 sm:p-6">
@@ -2326,7 +2448,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
             </div>
 
             <div className="flex gap-2.5 border-t border-slate-100 bg-slate-50 p-4 sm:justify-end sm:p-5">
-              <button type="button" onClick={() => setShowDepartmentModal(false)} disabled={isCreatingDepartment} className="flex-1 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-[12px] font-pmedium text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50 sm:flex-none">Cancel</button>
+              <button type="button" onClick={handleCloseDepartmentModal} disabled={isCreatingDepartment} className="flex-1 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-[12px] font-pmedium text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50 sm:flex-none">Cancel</button>
               <button type="button" onClick={handleCreateDepartmentForFounder} disabled={!canManageCustomDepartment || isCreatingDepartment || newDepartmentForm.name.trim().length < 2 || newDepartmentForm.moduleIds.length === 0} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-5 py-2.5 text-[12px] font-pmedium text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none">
                 {isCreatingDepartment ? <><Loader2 size={15} className="animate-spin" /> Saving...</> : isEditingCustomDepartment ? <><Wrench size={14} /> Save Changes</> : <><Plus size={14} /> Create Department</>}
               </button>
@@ -2344,102 +2466,99 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
           <div className="bg-white rounded-[2.5rem] max-w-lg w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70">
             <div className="p-6 sm:p-8 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-pmedium text-slate-900">Department Leadership</h2>
-                <p className="text-xs text-slate-500 mt-1">Manage primary and acting leadership for {selectedDepartment.name}</p>
+                <h2 className="text-xl font-pmedium text-slate-600">
+                  {selectedDepartment.managerName ? 'Change Manager' : 'Assign Manager'}
+                </h2>
+                <p className="text-xs font-pmedium text-slate-500 mt-1">
+                  Select a manager or employee for {selectedDepartment.name}. One manager per department.
+                </p>
               </div>
               <button onClick={() => setShowAssignManagerModal(false)} className="w-9 h-9 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"><X size={18} /></button>
             </div>
-              <div className="p-6 max-h-[50vh] overflow-y-auto">
-                <div className="mb-6">
-                  <p className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest mb-3">Primary Manager</p>
-                {selectedDepartment.employees?.filter((tm) => ['manager', 'admin', 'super_admin', 'super-admin'].includes(normalizeRoleValue(tm.role)) && tm.status !== 'invited').length === 0 ? (
-                  <div className="text-center py-10">
-                    <Shield size={32} className="mx-auto text-slate-300 mb-3"/>
-                    <p className="text-sm font-pmedium text-slate-600">No department personnel available.</p>
-                    <p className="text-xs text-slate-500 mt-1">Add users to this department first.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {selectedDepartment.employees?.filter((tm) => ['manager', 'admin', 'super_admin', 'super-admin'].includes(normalizeRoleValue(tm.role)) && tm.status !== 'invited').map((manager) => (
-                      <div 
-                        key={manager.id} 
-                        onClick={() => handleAssignManagerToDepartment(manager.userId || manager.id, manager.name)}
-                      className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center gap-4 ${selectedDepartment.managerId === manager.id || selectedDepartment.managerUserId === manager.userId ? 'border-[#2563EB] bg-blue-50/50' : 'border-slate-200 bg-white hover:border-[#2563EB] hover:shadow-sm'}`}
-                    >
-                      <div className={`w-10 h-10 rounded-[10px] flex items-center justify-center text-white font-pmedium text-sm ${selectedDepartment.managerId === manager.id || selectedDepartment.managerUserId === manager.userId ? 'bg-[#2563EB]' : 'bg-slate-300'}`}>
-                        {manager.name?.charAt(0)}
-                      </div>
-                        <div>
-                          <div className="font-pmedium text-slate-900 text-sm">{manager.name}</div>
-                          {manager.employeeId && (
-                            <div className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mt-0.5">
-                              {manager.employeeId}
-                            </div>
-                          )}
-                          <div className="text-[12px] text-slate-500 font-pmedium">{manager.email}</div>
-                        </div>
-                      {(selectedDepartment.managerId === manager.id || selectedDepartment.managerUserId === manager.userId) && <CheckCircle2 className="ml-auto text-[#2563EB]" size={20}/>}
+            <div className="p-6 max-h-[50vh] overflow-y-auto">
+              <p className="text-xs font-pmedium text-slate-500 uppercase tracking-wide mb-3">Select New Manager</p>
+              {(() => {
+                const candidates = selectedDepartment.employees?.filter(
+                  (tm) => ['manager', 'employee'].includes(normalizeRoleValue(tm.role)) && tm.status !== 'invited',
+                ) || [];
+                if (candidates.length === 0) {
+                  return (
+                    <div className="text-center py-10">
+                      <Shield size={32} className="mx-auto text-slate-300 mb-3"/>
+                      <p className="text-sm font-pmedium text-slate-600">No managers or employees available.</p>
+                      <p className="text-xs text-slate-500 mt-1">Add a manager or employee to this department first.</p>
                     </div>
-                  ))}
-                  </div>
-                )}
-                </div>
-
-                {canManageActingAssignments ? (
-                  <div className="border-t border-slate-100 pt-6">
-                    <p className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest mb-3">Acting Managers</p>
-                    <p className="text-xs text-slate-500 leading-relaxed mb-4">
-                      Acting managers get temporary department-manager mode for this department only. Attendance shows department employee records only, and leave requests stay limited to approval actions for this department.
-                    </p>
-                    {actingManagerCandidates.length === 0 ? (
-                      <div className="text-center py-8 rounded-2xl border border-dashed border-slate-200 bg-slate-50">
-                        <Shield size={28} className="mx-auto text-slate-300 mb-3"/>
-                        <p className="text-sm font-pmedium text-slate-600">No eligible acting-manager candidates.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {actingManagerCandidates.map((member) => {
-                          const isAssigned = (selectedDepartment.actingManagers || []).some(
-                            (assignment) => String(assignment.assignedUserId) === String(member.userId || member.id),
-                          );
-
-                          return (
-                            <div
-                              key={`acting-${member.id}`}
-                              className={`p-4 rounded-2xl border transition-all flex items-center gap-4 ${isAssigned ? 'border-blue-200 bg-blue-50/60' : 'border-slate-200 bg-white'}`}
-                            >
-                              <div className={`w-10 h-10 rounded-[10px] flex items-center justify-center text-white font-pmedium text-sm ${isAssigned ? 'bg-[#2563EB]' : 'bg-slate-300'}`}>
-                                {member.name ? member.name.charAt(0) : (member.email ? member.email.charAt(0) : '')}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="font-pmedium text-slate-900 text-sm">{member.name}</div>
-                                <div className="text-[12px] text-slate-500 font-pmedium">{member.email}</div>
-                              </div>
-                              {isAssigned ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveActingManager(member.userId || member.id)}
-                                  className="ml-auto px-3 py-2 rounded-xl bg-red-50 text-red-600 text-[11px] font-pmedium uppercase tracking-widest hover:bg-red-100 transition-colors"
-                                >
-                                  Remove
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => handleAssignActingManager(member)}
-                                  disabled={!canAssignActingManagerByAccess}
-                                  className="ml-auto px-3 py-2 rounded-xl bg-[#2563EB] text-white text-[11px] font-pmedium uppercase tracking-widest hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  Assign
-                                </button>
-                              )}
+                  );
+                }
+                return (
+                  <div className="space-y-3">
+                    {candidates.map((manager) => {
+                      const candidateId = String(manager.userId || manager.id || '').trim();
+                      const isAlreadyManagerHere =
+                        String(selectedDepartment.managerUserId || selectedDepartment.managerId || '').trim() === candidateId;
+                      const isManagerOfAnotherDept = managerUserIdsOfOtherDepartments.has(candidateId);
+                      const isDisabled = isManagerOfAnotherDept;
+                      const isSelected = assignManagerTargetId === manager.userId || assignManagerTargetId === manager.id;
+                      return (
+                        <button
+                          key={manager.id}
+                          type="button"
+                          disabled={isDisabled}
+                          onClick={() => setAssignManagerTargetId(isAlreadyManagerHere ? '' : (manager.userId || manager.id || ''))}
+                          className={`w-full p-4 rounded-2xl border transition-all flex items-center gap-4 text-left ${isDisabled ? 'cursor-not-allowed border-slate-200 bg-slate-100 opacity-60' : isSelected ? 'border-[#2563EB] bg-blue-50/50' : isAlreadyManagerHere ? 'border-blue-200 bg-blue-50/50' : 'border-slate-200 bg-white hover:border-[#2563EB] hover:shadow-sm'}`}
+                        >
+                          <div className={`w-10 h-10 rounded-[10px] flex items-center justify-center text-white font-pmedium text-sm shrink-0 ${isAlreadyManagerHere ? 'bg-[#2563EB]' : isSelected ? 'bg-[#2563EB]' : 'bg-slate-300'}`}>
+                            {manager.name?.charAt(0)}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-pmedium text-slate-900 text-sm flex items-center gap-2">
+                              {manager.name}
+                              {isAlreadyManagerHere && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-wider text-blue-700">Current</span>}
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                            {manager.employeeId && (
+                              <div className="text-xs font-pmedium uppercase tracking-widest text-slate-400 mt-0.5">
+                                {manager.employeeId}
+                              </div>
+                            )}
+                            <div className="text-[12px] text-slate-500 font-pmedium truncate">{manager.email}</div>
+                            {isManagerOfAnotherDept && (
+                              <div className="text-[10px] font-pmedium text-rose-600 mt-1">Already manager of another department</div>
+                            )}
+                          </div>
+                          {isAlreadyManagerHere ? (
+                            <CheckCircle2 className="ml-auto text-blue-500 shrink-0" size={20}/>
+                          ) : isSelected ? (
+                            <CheckCircle2 className="ml-auto text-[#2563EB] shrink-0" size={20}/>
+                          ) : null}
+                        </button>
+                      );
+                    })}
                   </div>
-                ) : null}
+                );
+              })()}
+              {!selectedDepartment.managerName ? (
+                <p className="mt-4 text-[10px] font-pmedium text-slate-500">
+                  Assigning a manager promotes an employee to the manager role. Admins and Super Admins sit above managers and are not shown here.
+                </p>
+              ) : null}
+            </div>
+            <div className="p-5 sm:p-6 border-t border-slate-100 flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowAssignManagerModal(false)}
+                disabled={isAssigningManager}
+                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-[12px] font-pmedium text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAssignManagerToDepartment(assignManagerTargetId)}
+                disabled={isAssigningManager || !assignManagerTargetId}
+                className="flex items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-2.5 text-[12px] font-pmedium text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isAssigningManager ? <><Loader2 size={15} className="animate-spin" /> Saving...</> : 'Save Manager'}
+              </button>
             </div>
           </div>
         </div>
@@ -2695,8 +2814,30 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
                             return employeeRole === 'manager' && employeeStatus !== 'disabled' && !isSameMember;
                           }),
                         );
+                      const hasAssignedAdmin =
+                        Boolean(
+                          (dept.adminUserIds || []).some(
+                            (adminUserId) =>
+                              String(adminUserId) !== String(roleChangeTarget.userId || roleChangeTarget.id || ''),
+                          ),
+                        ) ||
+                        Boolean(
+                          dept.employees?.some((employeeMember) => {
+                            const employeeRole = normalizeRoleValue(employeeMember.role);
+                            const employeeStatus = String(employeeMember.status || '').toLowerCase();
+                            const isSameMember =
+                              String(employeeMember.userId || employeeMember.id || '') ===
+                              String(roleChangeTarget.userId || roleChangeTarget.id || '');
+                            return (
+                              (employeeRole === 'admin' || employeeRole === 'admin-manager') &&
+                              employeeStatus !== 'disabled' &&
+                              !isSameMember
+                            );
+                          }),
+                        );
                       const isManagerDepartmentDisabled = roleChangeForm.role === 'manager' && hasAssignedManager;
-                      const isDepartmentDisabled = !isPlanAllowedDepartment || isManagerDepartmentDisabled;
+                      const isAdminDepartmentDisabled = roleChangeForm.role === 'admin' && hasAssignedAdmin;
+                      const isDepartmentDisabled = !isPlanAllowedDepartment || isManagerDepartmentDisabled || isAdminDepartmentDisabled;
                       return (
                         <button
                           key={dept.id}
@@ -2734,6 +2875,9 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
                             <span className="block text-[12px] font-pmedium">{normalizeDepartmentLabel(dept.name)}</span>
                             {isManagerDepartmentDisabled ? (
                               <span className="mt-0.5 block text-[9px] font-pmedium uppercase tracking-wide text-amber-600">Manager already added</span>
+                            ) : null}
+                            {isAdminDepartmentDisabled ? (
+                              <span className="mt-0.5 block text-[9px] font-pmedium uppercase tracking-wide text-amber-600">Admin already added</span>
                             ) : null}
                             {!isPlanAllowedDepartment ? (
                               <span className="mt-0.5 block text-[9px] font-pmedium uppercase tracking-wide text-slate-500">Custom plan only</span>
@@ -2790,7 +2934,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="p-1.5 bg-[#2563EB] text-white rounded-lg"><UserPlus size={16}/></span>
-                  <h2 className="text-primary lg:text-lg font-pmedium tracking-tight text-slate-800" style={{ fontFamily: "inherit" }}>
+                  <h2 className="text-primary lg:text-lg font-pmedium text-slate-700">
                     Add Platform User
                   </h2>
                 </div>
@@ -2907,7 +3051,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
                     Assign Department
                     <span className="text-[#2563EB] bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">{teamMemberFormData.departments.length} Selected</span>
                   </label>
-                    <p className="text-[11px] text-slate-500 -mt-1">
+                    <p className="text-[11px] font-pmedium text-slate-600 mt-1">
                       {getTeamMemberDepartmentHelperText(teamMemberFormData.role)}
                     </p>
                     {isProfessionalPlanWorkspace && (
@@ -2927,8 +3071,16 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
                           return memberRole === 'manager' && memberStatus !== 'disabled';
                         }),
                       );
+                      const hasAssignedAdmin = Boolean((dept.adminUserIds || []).length > 0) || Boolean(
+                        dept.employees?.some((member) => {
+                          const memberRole = normalizeRoleValue(member.role);
+                          const memberStatus = String(member.status || '').toLowerCase();
+                          return (memberRole === 'admin' || memberRole === 'admin-manager') && memberStatus !== 'disabled';
+                        }),
+                      );
                       const isManagerDepartmentDisabled = normalizedTeamMemberRole === 'manager' && hasAssignedManager;
-                      const isDepartmentDisabled = !isPlanAllowedDepartment || isManagerDepartmentDisabled;
+                      const isAdminDepartmentDisabled = normalizedTeamMemberRole === 'admin' && hasAssignedAdmin;
+                      const isDepartmentDisabled = !isPlanAllowedDepartment || isManagerDepartmentDisabled || isAdminDepartmentDisabled;
                       return (
                         <button
                           key={dept.id}
@@ -2974,6 +3126,11 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
                                 Manager already added
                               </span>
                             )}
+                            {normalizedTeamMemberRole === 'admin' && hasAssignedAdmin && (
+                              <span className="mt-0.5 block text-[9px] font-pmedium uppercase tracking-wide text-amber-600">
+                                Admin already added
+                              </span>
+                            )}
                             {!isPlanAllowedDepartment && (
                               <span className="mt-0.5 block text-[9px] font-pmedium uppercase tracking-wide text-slate-500">
                                 Custom plan only
@@ -2985,7 +3142,21 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
                       );
                     })}
                   </div>
-                  <p className="text-[10px] text-slate-500 -mt-1">
+                  {(isProfessionalPlanWorkspace || isCustomPlanWorkspace) && (
+                    <button
+                      type="button"
+                      onClick={handleCreateDepartmentFromTeamMember}
+                      disabled={!canCreateDepartmentByAccess}
+                      title={!canCreateDepartmentByAccess ? 'You do not have access to create a department.' : isProfessionalPlanWorkspace && customWorkspaceDepartment ? 'Edit the existing custom department' : 'Create a department and assign it to this user'}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-blue-300 bg-blue-50/50 px-3 py-2.5 text-[11px] font-pmedium text-[#2563EB] transition-all hover:border-blue-500 hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400"
+                    >
+                      <Plus size={14} strokeWidth={3} />
+                      {isProfessionalPlanWorkspace && customWorkspaceDepartment
+                        ? 'Edit Custom Department'
+                        : 'Create Department'}
+                    </button>
+                  )}
+                  <p className="text-[10px] font-pmedium text-slate-600 mt-1">
                     {normalizedTeamMemberRole === 'manager' && teamMemberFormData.departments.length === 1
                       ? (() => {
                           const selectedDepartment = departments.find((department) => String(department.id || '') === String(teamMemberFormData.departments[0] || ''));

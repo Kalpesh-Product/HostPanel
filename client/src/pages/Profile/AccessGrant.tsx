@@ -1771,8 +1771,8 @@ export default function AccessGrantsPage() {
             <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl">
               <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-blue-50/30 p-4 sm:p-5">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-blue-600">Access Control</p>
-                  <h2 className="mt-1 truncate text-sm sm:text-base font-pmedium text-slate-900">
+                  <p className="text-base font-pmedium uppercase tracking-wide text-primary">Access Control</p>
+                  <h2 className="mt-1 truncate text-sm sm:text-sm font-pmedium text-slate-700">
                     {canManageAnyAccess ? 'Manage Access' : 'View Access'} - {selectedUser.name}
                   </h2>
                 </div>
@@ -1793,32 +1793,32 @@ export default function AccessGrantsPage() {
                     {getInitials(selectedUser.name)}
                   </div>
                   <div>
-                    <div className="font-pbold text-slate-900 text-[15px]">{selectedUser.name}</div>
-                    <div className="text-[12px] font-pmedium text-slate-500">{selectedUser.email}</div>
+                    <div className="font-pmedium text-slate-700 text-[15px]">{selectedUser.name}</div>
+                    <div className="text-[12px] font-pmedium text-slate-600">{selectedUser.email}</div>
                     <div className="flex items-center gap-2 mt-1">
                       {getRoleBadge(selectedUser.roleGroup)}
-                      <span className="text-xs text-slate-400">• {selectedUser.roleGroup === 'Super-Admin' ? 'All Departments' : selectedUser.department}</span>
+                      <span className="text-xs font-pmedium text-slate-600">• {selectedUser.roleGroup === 'Super-Admin' ? 'All Departments' : selectedUser.department}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                    <h3 className="font-semibold text-slate-700 text-sm uppercase tracking-wider">Available Actions</h3>
+                    <h3 className="font-pmedium text-slate-700 text-sm uppercase ">Available Actions</h3>
 
                     {canEditAccessGrants && (
-                      <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
+                      <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs font-pmedium text-blue-800">
                         To promote, demote, or change this user's role, use Change Role in Organization Management.
                       </div>
                     )}
 
                     {!canEditAccessGrants && (
-                      <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
+                      <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs font-pmedium text-blue-800">
                         Super Admins can add or transfer unit access for employees. Only the workspace founder can promote, demote, or transfer ownership.
                       </div>
                     )}
 
                     {selectedUserLocked && (
-                      <div className="rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-medium text-slate-600">
+                      <div className="rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-pmedium text-slate-600">
                         {selectedUser?.accountDeleted
                           ? 'This account has been deleted. Its access is locked and can no longer be changed.'
                           : 'This user is disabled. Enable their access first to change their role.'}
@@ -1826,7 +1826,7 @@ export default function AccessGrantsPage() {
                     )}
 
                     {userOtherUnitAccessCount > 0 && (
-                      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-pmedium text-amber-800">
                         {selectedUser.name} has access to {userOtherUnitAccessCount} other unit{userOtherUnitAccessCount > 1 ? 's' : ''}. Remove access to the other unit{userOtherUnitAccessCount > 1 ? 's' : ''} first, then this user can be transferred to another unit.
                       </div>
                     )}
@@ -1843,8 +1843,8 @@ export default function AccessGrantsPage() {
                               <ArrowRightLeft className="w-4 h-4 text-indigo-600" />
                             </div>
                             <div>
-                              <div className="font-semibold text-[13px] text-slate-900">Transfer To Another Unit</div>
-                              <div className="text-xs text-slate-500 mt-0.5">Move this user to another linked unit</div>
+                              <div className="font-pmedium text-[13px] text-slate-700">Transfer To Another Unit</div>
+                              <div className="text-xs font-pmedium text-slate-500 mt-0.5">Move this user to another linked unit</div>
                             </div>
                           </div>
                           <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-indigo-500 transition-colors" />
@@ -1864,8 +1864,8 @@ export default function AccessGrantsPage() {
                                 <Users className="w-4 h-4 text-sky-600" />
                               </div>
                               <div>
-                                <div className="font-semibold text-[13px] text-slate-900">Add Another Unit Access</div>
-                                <div className="text-xs text-slate-500 mt-0.5">Keep this user here and add another unit access</div>
+                                <div className="font-pmedium text-[13px] text-slate-700">Add Another Unit Access</div>
+                                <div className="text-xs font-pmedium text-slate-500 mt-0.5">Keep this user here and add another unit access</div>
                               </div>
                             </div>
                             <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-sky-500 transition-colors" />
@@ -1885,8 +1885,8 @@ export default function AccessGrantsPage() {
                                 <UserX className="w-4 h-4 text-red-600" />
                               </div>
                               <div>
-                                <div className="font-semibold text-[13px] text-slate-900">Remove Unit Access</div>
-                                <div className="text-xs text-slate-500 mt-0.5">Founder only - remove one additional unit</div>
+                                <div className="font-pmedium text-[13px] text-slate-700">Remove Unit Access</div>
+                                <div className="text-xs font-pmedium text-slate-500 mt-0.5">Founder only - remove one additional unit</div>
                               </div>
                             </div>
                             <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-red-500 transition-colors" />
@@ -1903,8 +1903,8 @@ export default function AccessGrantsPage() {
             <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl">
               <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-blue-50/30 px-4 py-4 sm:px-5 sm:py-5">
                 <div>
-                  <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-blue-600">Sidebar Access</p>
-                  <h3 className="mt-1 text-base font-pmedium text-slate-900">{memberAccessTarget.name}</h3>
+                  <p className="text-title text-primary font-pmedium uppercase">Sidebar Access</p>
+                  <h3 className="mt-1 text-lg font-pmedium text-slate-900">{memberAccessTarget.name}</h3>
                 </div>
                 <button
                   type="button"
@@ -1921,7 +1921,7 @@ export default function AccessGrantsPage() {
                 isTargetEmployee && normalizeModuleKey(section.key) === 'founder-core-modules' ? null : (
                   <div key={`${section.key}-${section.title}-${sectionIndex}`} className="rounded-xl border border-slate-200 bg-white p-3">
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <h4 className="text-[11px] font-pmedium uppercase tracking-wider text-slate-500">{section.title}</h4>
+                      <h4 className="text-[11px] font-pmedium uppercase tracking-wider text-slate-600">{section.title}</h4>
                       {section.modules.length > 0 ? (
                         <button
                           type="button"
@@ -1965,8 +1965,8 @@ export default function AccessGrantsPage() {
                                         <div className="flex items-center justify-between gap-3">
                                           <div className="flex items-start gap-2">
                                             <div>
-                                              <p className="text-xs font-semibold text-slate-900">{module.label}</p>
-                                              <p className="text-[10px] text-slate-500">{module.description}</p>
+                                              <p className="text-xs font-pmedium text-slate-700">{module.label}</p>
+                                              <p className="text-[10px] font-pmedium text-slate-500">{module.description}</p>
                                             </div>
                                           </div>
                                           <div className="flex items-center gap-1.5">
@@ -1999,8 +1999,8 @@ export default function AccessGrantsPage() {
                                                 <div key={child.id} className="rounded-md border border-slate-100 px-2.5 py-2">
                                                   <div className="flex items-center justify-between gap-3">
                                                     <div>
-                                                      <p className="text-[11px] font-semibold text-slate-800">{child.label}</p>
-                                                      <p className="text-[10px] text-slate-500">{child.description}</p>
+                                                      <p className="text-[11px] font-pmedium text-slate-800">{child.label}</p>
+                                                      <p className="text-[10px] font-pmedium text-slate-500">{child.description}</p>
                                                     </div>
                                                     <div className="flex items-center gap-1.5">
                                                       {hasGrandChildren ? (
@@ -2033,7 +2033,7 @@ export default function AccessGrantsPage() {
                                                           <div key={subtab.id} className="flex items-center justify-between rounded-md border border-slate-100 px-2 py-1.5">
                                                             <div>
                                                               <p className="text-[10px] font-pmedium text-slate-800">{subtab.label}</p>
-                                                              <p className="text-[10px] text-slate-500">{subtab.description}</p>
+                                                              <p className="text-[10px] font-pmedium text-slate-500">{subtab.description}</p>
                                                             </div>
                                                             <Switch
                                                               checked={subtabChecked}
@@ -2071,8 +2071,8 @@ export default function AccessGrantsPage() {
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex items-start gap-2">
                                 <div>
-                                  <p className="text-xs font-semibold text-slate-900">{module.label}</p>
-                                  <p className="text-[10px] text-slate-500">{module.description}</p>
+                                  <p className="text-xs font-pmedium text-slate-700">{module.label}</p>
+                                  <p className="text-[10px] font-pmedium text-slate-500">{module.description}</p>
                                 </div>
                               </div>
                               <div className="flex items-center gap-1.5">
@@ -2192,10 +2192,10 @@ export default function AccessGrantsPage() {
           {showWorkspaceRemoveDialog && selectedUser && (
             <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#0F172A]/40 p-4 backdrop-blur-sm">
               <div className="my-6 w-full max-w-md overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl">
-                <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-red-50/40 p-4 sm:p-5">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/40 p-4 sm:p-5">
                   <div>
-                    <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-red-600">Remove Unit Access</p>
-                    <h2 className="mt-1 text-sm font-pmedium text-slate-900">Remove access for {selectedUser.name}</h2>
+                    <p className="text-base font-pmedium uppercase tracking-wide text-primary">Remove Unit Access</p>
+                    <h2 className="mt-1 text-sm font-pmedium text-slate-600">Remove access for {selectedUser.name}</h2>
                   </div>
                   <button
                     type="button"
@@ -2211,11 +2211,11 @@ export default function AccessGrantsPage() {
 
                 <div className="space-y-3 bg-white p-4 sm:p-5">
                   <div>
-                    <label className="mb-2 block text-[10px] font-pmedium uppercase tracking-wider text-slate-400">
+                    <label className="mb-2 block text-xs font-pmedium uppercase tracking-wider text-slate-400">
                       Units to remove
                     </label>
                     {removableWorkspaceOptions.length > 0 ? (
-                      <div className="max-h-60 space-y-2 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-3">
+                      <div className="max-h-60 mb-3 space-y-2 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-3">
                         {removableWorkspaceOptions.map((item) => {
                           const isChecked = workspaceRemoveTargetIds.includes(String(item.id));
                           return (
@@ -2258,14 +2258,14 @@ export default function AccessGrantsPage() {
                       </div>
                     )}
                     {selectedUser.workspaceAccesses?.some((access) => access?.isMain === true) ? (
-                      <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800">
+                      <div className="rounded-2xl font-pmedium border border-sky-100 bg-sky-50 px-4 py-3 text-sm font-medium text-slate-600">
                         The Main unit badge marks the unit the user was first added to — its access cannot
                         be removed. Transfer the user to another unit to change their main unit.
                       </div>
                     ) : null}
                   </div>
 
-                  <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
+                  <div className="rounded-2xl font-pmedium border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-slate-600">
                     This removes access to the selected additional units only. The user's current-unit access remains active and can never be removed here.
                   </div>
                 </div>
@@ -2298,8 +2298,8 @@ export default function AccessGrantsPage() {
               <div className="my-6 w-full max-w-md overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl">
                 <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-sky-50/40 p-4 sm:p-5">
                   <div>
-                    <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-sky-600">Unit Access</p>
-                    <h2 className="mt-1 text-sm font-pmedium text-slate-900">Add access for {selectedUser.name}</h2>
+                    <p className="text-base font-pmedium uppercase tracking-wide text-primary">Unit Access</p>
+                    <h2 className="mt-1 text-sm font-pmedium text-slate-700">Add access for {selectedUser.name}</h2>
                   </div>
                   <button
                     onClick={() => setShowWorkspaceLinkDialog(false)}
@@ -2311,16 +2311,16 @@ export default function AccessGrantsPage() {
 
                 <div className="space-y-3 bg-white p-4 sm:p-5">
                   <div className="rounded-[0.9rem] border border-slate-100 bg-white p-3 shadow-sm">
-                    <p className="text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Current units</p>
+                    <p className="text-xs font-pmedium uppercase tracking-wider text-slate-500">Current units</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {(selectedUser.workspaceAccesses || []).map((access) => (
                         <span
                           key={access.id}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600"
+                          className="inline-flex items-center gap-2.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-pmedium text-slate-600"
                         >
                           {access.workspaceName}
                           {access.isMain ? (
-                            <span className="rounded-full bg-[#2563EB] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+                            <span className="rounded-full bg-[#2563EB] px-1.5 py-0.5 text-[9px] font-pmedium uppercase tracking-wider text-white">
                               Main
                             </span>
                           ) : null}
@@ -2330,7 +2330,7 @@ export default function AccessGrantsPage() {
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Units to add access</label>
+                    <label className="mb-2 block text-xs font-pmedium uppercase tracking-wider text-slate-500">Units to add access</label>
                     {linkWorkspaceOptions.length > 0 ? (
                       <div className="max-h-60 space-y-2 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-3">
                         {linkWorkspaceOptions.map((item) => {
@@ -2338,7 +2338,7 @@ export default function AccessGrantsPage() {
                           return (
                             <label
                               key={item.id}
-                              className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-pmedium text-slate-700 transition-colors ${
+                              className={`flex items-center mb-2 gap-3 rounded-xl border px-3 py-2.5 text-sm font-pmedium text-slate-700 transition-colors ${
                                 isChecked ? 'border-blue-200 bg-blue-50/60' : 'border-slate-100 hover:bg-slate-50'
                               }`}
                             >
@@ -2357,11 +2357,11 @@ export default function AccessGrantsPage() {
                                 className="h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
                               />
                               <span className="min-w-0">
-                                <span className="block truncate text-[13px] font-semibold text-slate-800">
+                                <span className="block truncate text-xs font-pmedium text-slate-600">
                                   {item.workspaceName}
                                 </span>
                                 {item.location ? (
-                                  <span className="mt-0.5 block truncate text-[11px] text-slate-400">
+                                  <span className="mt-0.5 block font-pmedium truncate text-[11px] text-slate-500">
                                     {item.location}
                                   </span>
                                 ) : null}
@@ -2378,7 +2378,7 @@ export default function AccessGrantsPage() {
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Link Note</label>
+                    <label className="mb-2 block text-xs font-pmedium uppercase tracking-wider text-slate-500">Link Note</label>
                     <textarea
                       rows={3}
                       value={workspaceLinkForm.note}
@@ -2389,13 +2389,13 @@ export default function AccessGrantsPage() {
                         }))
                       }
                       placeholder="Optional note for this access grant..."
-                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+                      className="w-full rounded-2xl border font-pmedium border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
                     />
                   </div>
 
-                  <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800">
+                  {/* <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800">
                     The same login, role, departments, employee profile, attendance, and leave data will stay shared across all selected workspaces.
-                  </div>
+                  </div> */}
                 </div>
 
                 <div className="flex justify-end gap-2 border-t border-slate-100/60 bg-white p-3 sm:p-3.5">
@@ -2423,8 +2423,8 @@ export default function AccessGrantsPage() {
             <div className="my-6 w-full max-w-lg overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl">
               <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-indigo-50/40 p-4 sm:p-5">
                 <div>
-                  <p className="text-[10px] font-pmedium uppercase tracking-[0.3em] text-indigo-600">Unit Transfer</p>
-                  <h2 className="mt-1 text-sm font-pmedium text-slate-900">Transfer {selectedUser.name}</h2>
+                  <p className="text-base font-pmedium uppercase tracking-wide text-primary">Unit Transfer</p>
+                  <h2 className="mt-1 text-sm font-pmedium text-slate-700">Transfer {selectedUser.name}</h2>
                 </div>
                 <button
                   onClick={() => setShowWorkspaceTransferDialog(false)}
@@ -2436,17 +2436,17 @@ export default function AccessGrantsPage() {
 
               <div className="max-h-[calc(100vh-13rem)] space-y-3 overflow-y-auto bg-white p-4 sm:p-5">
                 <div className="rounded-[0.9rem] border border-slate-100 bg-white p-3 shadow-sm">
-                  <p className="text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Current assignment</p>
+                  <p className="text-xs font-pmedium uppercase tracking-wider text-slate-500">Current assignment</p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-semibold text-slate-900">{selectedUser.name}</span>
+                    <span className="text-sm font-pmedium text-slate-700">{selectedUser.name}</span>
                     {getRoleBadge(selectedUser.roleGroup)}
-                    <span className="text-[10px] font-pmedium text-slate-500">{selectedUser.department}</span>
+                    <span className="text-sm font-pmedium text-slate-500">{selectedUser.department}</span>
                   </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-1">
                   <div>
-                    <label className="mb-2 block text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Target Unit</label>
+                    <label className="mb-2 block text-xs font-pmedium uppercase tracking-wider text-slate-500">Target Unit</label>
                     <div className="relative">
                       <select
                         value={workspaceTransferForm.targetWorkspaceId}
@@ -2477,7 +2477,7 @@ export default function AccessGrantsPage() {
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Role After Transfer</label>
+                    <label className="mb-2 block text-xs font-pmedium uppercase tracking-wider text-slate-500">Role After Transfer</label>
                     <div className="relative">
                       <select
                         value={workspaceTransferForm.role}
@@ -2510,7 +2510,7 @@ export default function AccessGrantsPage() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Department After Transfer</label>
+                  <label className="mb-2 block text-xs font-pmedium uppercase tracking-wider text-slate-500">Department After Transfer</label>
                   {isSuperAdminTransferRole ? (
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-500">
                       All Departments
@@ -2571,14 +2571,14 @@ export default function AccessGrantsPage() {
                     </div>
                   )}
                   {selectedTransferWorkspace?.location ? (
-                    <p className="mt-2 text-xs font-medium text-slate-500">
+                    <p className="mt-2 text-xs font-pmedium text-slate-500">
                       New location: {selectedTransferWorkspace.location}
                     </p>
                   ) : null}
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Transfer Note</label>
+                  <label className="mb-2 block text-xs font-pmedium uppercase tracking-wider text-slate-500">Transfer Note</label>
                   <textarea
                     rows={3}
                     value={workspaceTransferForm.note}
@@ -2589,11 +2589,11 @@ export default function AccessGrantsPage() {
                       }))
                     }
                     placeholder="Optional note for this transfer..."
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+                    className="w-full rounded-2xl border font-pmedium border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
                   />
                 </div>
 
-                <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs font-pmedium text-slate-600">
                   The user will keep the same email and password. After transfer, they will sign in to the new workspace with the updated role and department shown here.
                 </div>
               </div>
@@ -2659,7 +2659,7 @@ export default function AccessGrantsPage() {
                       <select
                         value={transferTargetUserId || eligibleOwnershipCandidates[0]?.id || ''}
                         onChange={(event) => setTransferTargetUserId(event.target.value)}
-                        className="w-full rounded-xl border border-slate-100/60 bg-slate-50/50 px-4 py-2.5 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+                        className="w-full rounded-xl border font-pmedium text-slate-700 border-slate-100/60 bg-slate-50/50 px-4 py-2.5 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
                       >
                         {eligibleOwnershipCandidates.map((member) => (
                           <option key={member.id} value={member.id}>
@@ -2669,21 +2669,21 @@ export default function AccessGrantsPage() {
                       </select>
                     </div>
 
-                    {transferTargetUser ? (
+                    {/* {transferTargetUser ? (
                       <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                        <p className="text-sm font-semibold text-blue-900">{transferTargetUser.name}</p>
-                        <p className="mt-1 text-xs font-medium text-blue-700">
+                        <p className="text-sm font-pmedium text-blue-900">{transferTargetUser.name}</p>
+                        <p className="mt-1 text-xs font-pmedium text-blue-700">
                           {transferTargetUser.roleGroup} ({transferTargetUser.email})
                         </p>
                       </div>
-                    ) : null}
+                    ) : null} */}
 
                     <div className="space-y-2">
                       <div>
                         <p className="text-xs font-pmedium uppercase tracking-wider text-slate-500">
                           Linked Units
                         </p>
-                        <p className="mt-1 text-xs text-slate-400">
+                        <p className="mt-1 text-xs font-pmedium text-slate-500">
                           Every linked unit is included — the new Owner takes over all of them.
                         </p>
                       </div>
@@ -2702,7 +2702,7 @@ export default function AccessGrantsPage() {
                                 {linkedWorkspace.workspaceName || 'Workspace'}
                                 {isCurrentUnit ? ' (Current)' : ''}
                               </span>
-                              <span className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
+                              <span className="mt-0.5 flex items-center gap-2 text-xs font-pmedium text-slate-500">
                                 {linkedWorkspace.location || 'Location not set'}
                                 {linkedWorkspaceStatus ? (
                                   <span
@@ -2728,7 +2728,7 @@ export default function AccessGrantsPage() {
                       </p>
                     ) : null}
 
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs font-pmedium text-slate-500">
                       Current Founder: {ownerName}
                     </p>
                   </>
@@ -2738,13 +2738,13 @@ export default function AccessGrantsPage() {
                       <div className="flex items-start gap-3">
                         <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
                         <div className="space-y-2">
-                          <p className="text-sm font-semibold text-amber-900">
+                          <p className="text-sm font-pmedium text-slate-600">
                             Final warning before ownership transfer
                           </p>
-                          <p className="text-sm leading-relaxed text-amber-800">
+                          <p className="text-12px font-pmedium leading-relaxed text-slate-600">
                             The Ownership will be transferred to <b>{transferTargetUser?.name || 'the selected user'}</b> in all these units. They will own every unit below, and the current Owner ({ownerName}) will remain in them only as a linked Super Admin.
                           </p>
-                          <p className="text-xs font-medium text-amber-700">
+                          <p className="text-12px font-pmedium text-amber-900">
                             New Owner: {transferTargetUser?.name || 'Unknown user'} - {transferTargetUser?.roleGroup || 'Super-Admin'} ({transferTargetUser?.email || 'Email unavailable'})
                           </p>
                         </div>
@@ -2752,7 +2752,7 @@ export default function AccessGrantsPage() {
                     </div>
 
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-[10px] font-pmedium uppercase tracking-wider text-slate-400">
+                      <p className="text-[10px] font-pmedium uppercase tracking-wider text-slate-500">
                         Units included
                       </p>
                       <div className="mt-2 flex flex-wrap gap-2">
@@ -2761,7 +2761,7 @@ export default function AccessGrantsPage() {
                           return (
                             <span
                               key={item.id}
-                              className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                              className={`rounded-full border px-3 py-1 text-xs font-pmedium ${
                                 linkedWorkspaceStatus === 'Deleted'
                                   ? 'border-rose-200 bg-rose-50 text-rose-600'
                                   : linkedWorkspaceStatus === 'Disabled'
@@ -2777,7 +2777,7 @@ export default function AccessGrantsPage() {
                       </div>
                     </div>
 
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs font-pmedium text-slate-500">
                       The new Owner can later remove the former Owner's additional unit access from Access Grants.
                     </p>
                   </div>
