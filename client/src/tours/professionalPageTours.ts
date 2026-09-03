@@ -279,6 +279,23 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
     matches: exact("/department-accesses/sales-department/resource-pricing"),
   },
   {
+    id: "professional-frontdesk-action",
+    version: 1,
+    title: "Frontdesk Action",
+    description: "Handle every front-desk task from one page — log a standard visitor, run a unit tour, create a walk-in meeting-room booking, or verify an online booking ID. This guide follows whichever workflow is open; switch tabs and replay it to tour the others.",
+    replayHint: true,
+    steps: [
+      { selector: '[data-tour="frontdesk-tabs"]', title: "Choose a workflow", description: "Standard Visitor logs a guest at the desk, Unit Tour starts a guided property tour, Walk-in Booking reserves a meeting room for a client, and Verify Booking confirms an online booking ID before entry." },
+      { selector: '[data-tour="frontdesk-stats"]', title: "Today at a glance", description: "Four summary cards describe the open workflow. Standard Visitor counts checked-in, pending, approved, and checked-out guests; the other tabs show their own relevant totals and they update every time you switch tabs." },
+      { selector: '[data-tour="frontdesk-form-standard"]', tabPage: "standard", title: "Log the visitor", description: "Choose New Visitor or search an existing one, fill the personal and visit details, then select the visitor type and payment settings before submitting to check the visitor in and print the badge." },
+      { selector: '[data-tour="frontdesk-form-tour"]', tabPage: "tour", title: "Start the tour", description: "Capture the prospect's contact information, location, and client profile and requirements, then submit to sync the lead and begin the unit tour with an optional follow-up date." },
+      { selector: '[data-tour="frontdesk-form-walkin"]', tabPage: "walkin_booking", title: "Create the booking", description: "Enter the client details, pick the room and capacity, set the schedule so conflicts are flagged, then review pricing and payment before confirming the walk-in booking." },
+      { selector: '[data-tour="frontdesk-form-verify"]', tabPage: "verify_booking", title: "Verify the booking", description: "Type the booking ID from the confirmation email, press FETCH, review the matched booking and its payment status, collect any amount due, then confirm entry." },
+      { selector: '[data-tour="frontdesk-footer"]', title: "Confirm or cancel", description: "Cancel returns to visitor management. The right-hand action submits whichever workflow is open and prints the badge once the visitor is checked in." },
+    ],
+    matches: exact("/visitors/visitor-management/frontdesk-action"),
+  },
+  {
     id: "professional-sales-architecture",
     version: PROFESSIONAL_TOUR_VERSION,
     title: "Sales Architecture",

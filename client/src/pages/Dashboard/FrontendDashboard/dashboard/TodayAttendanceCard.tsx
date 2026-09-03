@@ -205,22 +205,22 @@ const TodayAttendanceCard = () => {
           <div className="flex items-center gap-3">
             <div className={`rounded-2xl p-3 ${statusConfig.bg} ${statusConfig.color}`}><StatusIcon size={21} /></div>
             <div>
-              <p className="text-small font-pmedium uppercase tracking-widest text-slate-400">Today's Attendance</p>
+              <p className="text-xs font-pmedium uppercase text-slate-500">Today's Attendance</p>
               <p className="text-subtitle font-pmedium text-slate-900">{statusConfig.label}</p>
             </div>
           </div>
 
           <div className="grid flex-1 grid-cols-3 gap-2 xl:max-w-2xl">
             <div className="rounded-xl border border-slate-100 bg-white px-3 py-2.5">
-              <p className="text-small text-slate-400">Total Time</p>
+              <p className="text-small font-pmedium uppercase text-slate-400">Total Time</p>
               <p className="text-content font-pmedium text-slate-900">{formatSeconds(liveTimes.totalSeconds)}</p>
             </div>
             <div className="rounded-xl border border-slate-100 bg-white px-3 py-2.5">
-              <p className="text-small text-slate-400">Total Break</p>
+              <p className="text-small font-pmedium uppercase text-slate-400">Total Break</p>
               <p className="text-content font-pmedium text-amber-600">{formatSeconds(liveTimes.breakSeconds)}</p>
             </div>
             <div className="rounded-xl border border-slate-100 bg-white px-3 py-2.5">
-              <p className="text-small text-slate-400">Working Hours</p>
+              <p className="text-small font-pmedium uppercase text-slate-400">Working Hours</p>
               <p className="text-content font-pmedium text-emerald-600">{formatSeconds(liveTimes.workedSeconds)}</p>
             </div>
           </div>

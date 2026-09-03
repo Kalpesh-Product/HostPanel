@@ -747,7 +747,7 @@ export default function TenantMeetingRoomBookingPage() {
                                 <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-100 flex items-center gap-1"><Users size={11} /> {room.capacity} people</span>
                                 <span className="px-2 py-1 rounded-md bg-slate-50 border border-slate-100 flex items-center gap-1"><Clock size={11} /> {getRoomRateLabel(room)}</span>
                               </div>
-                              <div className="space-y-1.5 text-[11px] font-pregular text-slate-600">
+                              <div className="space-y-1.5 text-[11px] font-pmedium text-slate-600">
                                 <div className="flex items-start gap-1.5"><CheckCircle2 size={12} className="text-emerald-500 mt-0.5 shrink-0" /><span>Available for booking</span></div>
                                 {room.description && (
                                   <div className="flex items-start gap-1.5 line-clamp-2"><AlertCircle size={12} className="text-slate-400 mt-0.5 shrink-0" /><span>{room.description}</span></div>

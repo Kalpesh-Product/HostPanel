@@ -6,7 +6,7 @@ import PageFrame from "../../../components/Pages/PageFrame";
 import { useNavigate } from "react-router-dom";
 import useAuth from "../../../hooks/useAuth";
 import { toast } from "sonner";
-import { CheckCircle2, Edit3, Eye, Layers, ListChecks, Plus, Search, Target, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Edit3, Eye, Globe, Layers, ListChecks, Loader2, Plus, RotateCcw, Search, Target, Trash2, XCircle } from "lucide-react";
 import { statusPillClass } from '../../../lib/status-pill';
 import useNomadListingCapacity, {
   normalizeNomadListingType,
@@ -26,6 +26,11 @@ export default function NomadListingsOverview() {
 
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  // Mirrors UnitManagementPage's delete-confirmation modal design: a real
+  // confirm dialog for the delete itself, and a separate "you can't yet"
+  // dialog when Master Status is still active.
+  const [deletingListing, setDeletingListing] = useState(null);
+  const [blockedDeleteListing, setBlockedDeleteListing] = useState(null);
 
   const companyId = user?.effectiveNomadsCompanyId || user?.companyId || "";
   const ownCompanyId = user?.companyId || "";
@@ -51,6 +56,82 @@ export default function NomadListingsOverview() {
     },
   });
 
+  // "Master Status" (isActive) is our team's review flag, set from Master
+  // Panel. "Host Status" (isPublic) is this toggle — whether the host wants
+  // the listing actually shown on the Nomads website. Turning it on only
+  // works once Master Status is active; the server enforces that too.
+  const { mutate: toggleVisibility, isPending: isTogglingVisibility } = useMutation({
+    mutationFn: async ({ businessId, isPublic }) => {
+      const res = await axios.patch("/api/listings/set-listing-visibility", {
+        businessId,
+        companyId,
+        isPublic,
+      });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data?.message || "Visibility updated");
+      void refetchListings();
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to update visibility");
+    },
+  });
+
+  // Soft delete — only allowed while Master Status is inactive. Deleting
+  // frees the listing's plan slot immediately, so it stops counting toward
+  // the limit/type-usage the moment this succeeds (useNomadListingCapacity
+  // already excludes isDeleted listings from those counts).
+  const { mutate: deleteListingMutate, isPending: isDeleting } = useMutation({
+    mutationFn: async ({ businessId }) => {
+      const res = await axios.patch("/api/listings/delete-listing", {
+        businessId,
+        companyId,
+      });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data?.message || "Listing deleted");
+      setDeletingListing(null);
+      void refetchListings();
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to delete listing");
+    },
+  });
+
+  const { mutate: requestRecovery, isPending: isRequestingRecovery } = useMutation({
+    mutationFn: async ({ businessId }) => {
+      const res = await axios.patch("/api/listings/request-listing-recovery", {
+        businessId,
+        companyId,
+      });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data?.message || "Recovery requested");
+      void refetchListings();
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to request recovery");
+    },
+  });
+
+  const handleDeleteClick = (item) => {
+    // Gated on Visibility (isPublic) — the host's own toggle — not Master
+    // Status, which is staff's flag and shouldn't block a host action.
+    if (item.isPublic) {
+      setBlockedDeleteListing(item);
+      return;
+    }
+    setDeletingListing(item);
+  };
+
+  const handleConfirmDeleteListing = () => {
+    if (!deletingListing) return;
+    deleteListingMutate({ businessId: deletingListing.businessId });
+  };
+
   const {
     listings,
     limit,
@@ -61,23 +142,29 @@ export default function NomadListingsOverview() {
     limitMessage,
     typeLimit,
     usedTypes,
+    refetchListings,
   } = useNomadListingCapacity(companyId);
 
-  const activeListings = listings.filter((l) => l.isActive).length;
-  const inactiveListings = listings.filter((l) => !l.isActive).length;
+  // Deleted listings are excluded here too — they're not really "inactive",
+  // they're gone (until recovered), and already don't count toward the plan
+  // limit (totalListings, from the hook's `used`).
+  const nonDeletedListings = listings.filter((l) => !l.isDeleted);
+  const activeListings = nonDeletedListings.filter((l) => l.isActive).length;
+  const inactiveListings = nonDeletedListings.filter((l) => !l.isActive).length;
+  const deletedListings = listings.filter((l) => l.isDeleted).length;
 
   // Distinct product types among the host's own existing listings — the
   // set staff can be asked to activate a subset of.
   const availableTypes = useMemo(() => {
     const seen = new Map();
-    listings.forEach((l) => {
+    nonDeletedListings.forEach((l) => {
       const normalized = normalizeNomadListingType(l?.companyType);
       if (normalized && !seen.has(normalized)) {
         seen.set(normalized, l.companyType);
       }
     });
     return Array.from(seen.entries()).map(([normalized, label]) => ({ normalized, label }));
-  }, [listings]);
+  }, [nonDeletedListings]);
 
   const toggleRequestedType = (normalized) => {
     setRequestedTypes((prev) => {
@@ -104,6 +191,7 @@ export default function NomadListingsOverview() {
       result = result.filter(
         (l) =>
           l.companyName?.toLowerCase()?.includes(q) ||
+          l.companyTitle?.toLowerCase()?.includes(q) ||
           l.companyType?.toLowerCase()?.includes(q) ||
           l.city?.toLowerCase()?.includes(q) ||
           l.country?.toLowerCase()?.includes(q),
@@ -327,23 +415,25 @@ export default function NomadListingsOverview() {
 
               {/* Table */}
               <div className="overflow-x-auto flex-1">
-                <table data-tour="nomad-table" className="w-full text-left min-w-[700px]">
+                <table data-tour="nomad-table" className="w-full text-left min-w-[1180px]">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
-                      <th className="px-5 py-4">Sr No</th>
-                      <th className="px-5 py-4">Company Name</th>
-                      <th className="px-5 py-4">Type</th>
-                      <th className="px-5 py-4">Country</th>
-                      <th className="px-5 py-4">State</th>
-                      <th className="px-5 py-4">City</th>
-                      <th className="px-5 py-4">Status</th>
-                      <th className="px-5 py-4 text-center">Action</th>
+                      <th className="px-5 py-4 whitespace-nowrap">Sr No</th>
+                      <th className="px-5 py-4 whitespace-nowrap">Company Name</th>
+                      <th className="px-5 py-4 whitespace-nowrap">Title</th>
+                      <th className="px-5 py-4 whitespace-nowrap">Type</th>
+                      <th className="px-5 py-4 whitespace-nowrap">Country</th>
+                      <th className="px-5 py-4 whitespace-nowrap">State</th>
+                      <th className="px-5 py-4 whitespace-nowrap">City</th>
+                      <th className="px-5 py-4 whitespace-nowrap">Master Status</th>
+                      <th className="px-5 py-4 whitespace-nowrap">Visibility</th>
+                      <th className="px-5 py-4 text-center whitespace-nowrap">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
                     {filteredListings.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-5 py-16 text-center">
+                        <td colSpan={10} className="px-5 py-16 text-center">
                           <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-400 mx-auto"><Target size={28} /></div>
                           <p className="text-slate-400 font-pmedium">No listings found.</p>
                         </td>
@@ -351,10 +441,10 @@ export default function NomadListingsOverview() {
                     ) : (
                       filteredListings.map((item, idx) => (
                         <tr key={item._id || idx} className="hover:bg-slate-50/50 transition-colors group">
-                          <td className="px-5 py-4">
+                          <td className="px-5 py-4 whitespace-nowrap">
                             <span className="text-[12px] font-pmedium text-slate-400">{idx + 1}</span>
                           </td>
-                          <td className="px-5 py-4">
+                          <td className="px-5 py-4 whitespace-nowrap">
                             <div className="flex items-center gap-2.5">
                               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-[9px] font-pmedium text-white shadow-sm">
                                 {getInitials(item.companyName)}
@@ -364,42 +454,119 @@ export default function NomadListingsOverview() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-5 py-4">
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <span className="text-[12px] font-pmedium text-slate-600">{item.companyTitle || "—"}</span>
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
                             <span className="text-[12px] font-pmedium text-slate-600 capitalize">{item.companyType || "—"}</span>
                           </td>
-                          <td className="px-5 py-4">
+                          <td className="px-5 py-4 whitespace-nowrap">
                             <span className="text-[12px] font-pmedium text-slate-600">{item.country || "—"}</span>
                           </td>
-                          <td className="px-5 py-4">
+                          <td className="px-5 py-4 whitespace-nowrap">
                             <span className="text-[12px] font-pmedium text-slate-600">{item.state || "—"}</span>
                           </td>
-                          <td className="px-5 py-4">
+                          <td className="px-5 py-4 whitespace-nowrap">
                             <span className="text-[12px] font-pmedium text-slate-600">{item.city || "—"}</span>
                           </td>
-                          <td className="px-5 py-4">
+                          <td className="px-5 py-4 whitespace-nowrap">
                             <span className={statusPillClass(item.isActive ? "Active" : "Inactive")}>
                               {item.isActive ? "Active" : "Inactive"}
                             </span>
                           </td>
-                          <td className="px-5 py-4">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => handleView(item)}
-                                title="View listing"
-                                className="p-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800 rounded-lg transition-all"
-                              >
-                                <Eye size={15} strokeWidth={2.5} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleEdit(item)}
-                                title="Edit listing"
-                                className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
-                              >
-                                <Edit3 size={15} strokeWidth={2.5} />
-                              </button>
-                            </div>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <span
+                              className={`${statusPillClass(item.isPublic ? "Active" : "Inactive")}`}
+                              title={
+                                !item.isActive
+                                  ? "Waiting on our team's review"
+                                  : item.isPublic
+                                    ? "Visible on the Nomads website"
+                                    : "Hidden from the Nomads website"
+                              }
+                            >
+                              {item.isPublic ? "Active" : "Inactive"}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            {item.isDeleted ? (
+                              <div className="flex items-center justify-center gap-2">
+                                {/* <span className="text-[11px] font-pmedium text-slate-400 whitespace-nowrap">
+                                  Deleted by host
+                                </span> */}
+                                {item.recoveryRequested ? (
+                                  <span className="px-2.5 py-1.5 rounded-lg text-[11px] font-pmedium uppercase tracking-wide bg-amber-50 text-amber-700 whitespace-nowrap">
+                                    Recovery requested
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    disabled={isRequestingRecovery}
+                                    onClick={() => requestRecovery({ businessId: item.businessId })}
+                                    title="Ask our team to restore this listing"
+                                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-pmedium uppercase tracking-wide bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap"
+                                  >
+                                    <RotateCcw size={13} strokeWidth={2.5} /> Request Recovery
+                                  </button>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleView(item)}
+                                  title="View listing"
+                                  className="p-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800 rounded-lg transition-all"
+                                >
+                                  <Eye size={15} strokeWidth={2.5} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleEdit(item)}
+                                  title="Edit listing"
+                                  className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
+                                >
+                                  <Edit3 size={15} strokeWidth={2.5} />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={!item.isActive || isTogglingVisibility}
+                                  onClick={() =>
+                                    toggleVisibility({
+                                      businessId: item.businessId,
+                                      isPublic: !item.isPublic,
+                                    })
+                                  }
+                                  title={
+                                    !item.isActive
+                                      ? "Waiting on our team's review — you can control visibility once this listing is activated"
+                                      : item.isPublic
+                                        ? "Visible on the Nomads website — click to hide it"
+                                        : "Hidden from the Nomads website — click to show it"
+                                  }
+                                  className={`p-1.5 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                                    item.isPublic
+                                      ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+                                      : "bg-slate-100 text-slate-400 hover:bg-slate-200"
+                                  }`}
+                                >
+                                  <Globe size={15} strokeWidth={2.5} />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isDeleting}
+                                  onClick={() => handleDeleteClick(item)}
+                                  title={
+                                    item.isPublic
+                                      ? "Turn off visibility before deleting it"
+                                      : "Delete this listing"
+                                  }
+                                  className="p-1.5 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-700"
+                                >
+                                  <Trash2 size={15} strokeWidth={2.5} />
+                                </button>
+                              </div>
+                            )}
                           </td>
                         </tr>
                       ))
@@ -411,6 +578,93 @@ export default function NomadListingsOverview() {
           )}
         </div>
       </PageFrame>
+
+      {blockedDeleteListing ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
+            <div className="flex items-start gap-3">
+              <div className="rounded-2xl bg-amber-50 p-2 text-amber-600 shrink-0">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-[14px] font-pmedium text-slate-950">
+                  Turn off visibility to delete this listing
+                </p>
+                <p className="mt-1 text-[12px] font-pmedium text-slate-500">
+                  {blockedDeleteListing.companyTitle || blockedDeleteListing.companyName || "This listing"} is
+                  still visible on the Nomads website. Turn its visibility off first — that's your call,
+                  not our team's — then you can delete it.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setBlockedDeleteListing(null)}
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-[12px] font-pmedium text-slate-600 transition hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isTogglingVisibility}
+                onClick={() => {
+                  toggleVisibility(
+                    { businessId: blockedDeleteListing.businessId, isPublic: false },
+                    { onSuccess: () => setBlockedDeleteListing(null) },
+                  );
+                }}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-[12px] font-pmedium text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isTogglingVisibility ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {isTogglingVisibility ? "Turning off..." : "Turn Off Visibility"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {deletingListing ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
+            <div className="flex items-start gap-3">
+              <div className="rounded-2xl bg-rose-50 p-2 text-rose-600 shrink-0">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-[14px] font-pmedium text-slate-950">
+                  Delete {deletingListing.companyTitle || deletingListing.companyName || "this listing"}?
+                </p>
+                <p className="mt-1 text-[12px] font-pmedium text-slate-500">
+                  It won't be visible anywhere and stops counting toward your plan right away. You can
+                  request recovery from our team afterward if you change your mind.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isDeleting) setDeletingListing(null);
+                }}
+                disabled={isDeleting}
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-[12px] font-pmedium text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteListing}
+                disabled={isDeleting}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 text-[12px] font-pmedium text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                {isDeleting ? "Deleting..." : "Delete Listing"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

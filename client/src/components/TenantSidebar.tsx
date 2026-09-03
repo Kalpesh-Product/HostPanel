@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { ElementType } from "react";
 import {
   ChevronDown,
-  ChevronRight,
+  ChevronUp,
   LayoutDashboard,
   CalendarCheck,
   Clock,
@@ -10,7 +10,6 @@ import {
   Ticket,
   User,
   LogOut,
-  Building2,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSidebar } from "../context/SideBarContext";
@@ -56,31 +55,34 @@ const NavItem = ({
   isRed,
   isActive,
 }: NavItemProps) => {
-  const isTopLevel = depth === 0;
-  // Collapsed icon-only buttons get rounded-md; everything else (hover + active) gets rounded-full
-  const shapeClass = (collapsed && isTopLevel) ? "rounded-md" : "rounded-full";
-
   return (
     <button
       type="button"
-      className={`w-full flex items-center justify-between py-2.5 px-3 my-1.5 select-none ${shapeClass} transition-colors ${
-        isActive ? "bg-gray-200 text-gray-900" : "text-gray-700 hover:bg-gray-200"
+      aria-label={collapsed ? label : undefined}
+      className={`group relative flex w-full items-center rounded-md text-left transition-all hover:bg-white ${
+        collapsed ? "h-10 justify-center gap-0 p-0" : "gap-2 px-3 py-2.5"
+      } ${
+        isActive ? "bg-white text-black shadow-sm" : "text-black/80"
       } ${isRed ? "text-red-500 hover:text-red-600" : ""} cursor-pointer`}
-      style={{ paddingLeft: `${depth * 1.25 + 0.75}rem` }}
+      style={collapsed ? undefined : { paddingLeft: `${depth * 1.25 + 0.75}rem` }}
       onClick={onClick}
     >
-      <span className="flex items-center gap-3 min-w-0">
-        {Icon && (
-          <Icon
-            size={collapsed || isTopLevel ? 16 : 15}
-            className={isRed ? "text-red-500" : "text-gray-500"}
-          />
-        )}
-        {!collapsed && (
-          <span className="text-[12px] font-pmedium truncate uppercase">{label}</span>
-        )}
-      </span>
-      {!collapsed && hasChildren && (isOpen ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />)}
+      {Icon && (
+        <Icon
+          size={18}
+          className={`shrink-0 ${isRed ? "text-red-500" : isActive ? "text-accent" : "text-black/80"}`}
+        />
+      )}
+      {!collapsed && (
+        <span className={`truncate font-['Poppins'] text-xs font-medium ${isActive ? "font-semibold" : ""}`}>
+          {label}
+        </span>
+      )}
+      {!collapsed && hasChildren && (
+        isOpen
+          ? <ChevronUp size={16} className="ml-auto shrink-0 text-black/50" />
+          : <ChevronDown size={16} className="ml-auto shrink-0 text-black/50" />
+      )}
     </button>
   );
 };
@@ -156,7 +158,7 @@ const SECTION_ABBR: Record<string, string> = {
   tenant: "TNT",
 };
 
-const TenantSidebar = ({ drawerOpen, onCloseDrawer }: TenantSidebarProps) => {
+const TenantSidebar = ({ onCloseDrawer }: TenantSidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isSidebarOpen } = useSidebar();
@@ -190,53 +192,38 @@ const TenantSidebar = ({ drawerOpen, onCloseDrawer }: TenantSidebarProps) => {
     <div
       className={`${
         collapsed ? "w-16" : "w-64"
-      } h-[90vh] bg-[#f1f5f9] flex flex-col border-r border-gray-200 shadow-sm overflow-hidden transition-all duration-100`}
+      } h-[90vh] bg-[#efefef] flex flex-col border-r border-black/10 overflow-hidden transition-all duration-300`}
     >
-      <div className="flex-1 overflow-y-auto px-2 py-2 space-y-5 hideScrollBar">
-        {/* Tenant section */}
-        <div>
-          {!collapsed ? (
-            <div className="flex items-center justify-center px-3 mb-2">
-              <div className="h-px bg-gray-300 flex-1" />
-              <span className="text-[10px] font-pbold text-gray-500 tracking-wider px-2">Tenant</span>
-              <div className="h-px bg-gray-300 flex-1" />
-            </div>
-          ) : (
-            <div className="px-2 pt-1 pb-2">
-              <div className="text-[10px] font-pbold tracking-wider text-gray-500 uppercase text-center">
-                {SECTION_ABBR.tenant}
+      <div className="flex-1 overflow-y-auto pb-3 space-y-0 hideScrollBar">
+        <div className="px-4 pt-3">
+          <div className="border-t border-black/10 pt-2">
+            {!collapsed ? (
+              <div className="font-['Poppins'] text-xs font-semibold uppercase tracking-wide text-black/80">
+                Tenant
               </div>
-              <div className="mt-2 h-px bg-gray-300" />
+            ) : (
+              <div className="space-y-1">
+                <div className="text-[10px] font-pbold tracking-wide text-black/80 uppercase text-center">
+                  {SECTION_ABBR.tenant}
+                </div>
+              </div>
+            )}
+            <div className="space-y-1">
+              {visibleNavNodes.map((item) => (
+                <NavGroup
+                  key={item.id}
+                  item={item}
+                  collapsed={collapsed}
+                  pathname={location.pathname}
+                  onNavigate={onNavigate}
+                />
+              ))}
             </div>
-          )}
-          <div className="space-y-1">
-            {visibleNavNodes.map((item) => (
-              <NavGroup
-                key={item.id}
-                item={item}
-                collapsed={collapsed}
-                pathname={location.pathname}
-                onNavigate={onNavigate}
-              />
-            ))}
           </div>
         </div>
 
-        {/* General section */}
-        <div>
-          {!collapsed ? (
-            <div className="flex items-center justify-center px-3 mb-2">
-              <div className="h-px bg-gray-300 flex-1" />
-              <span className="text-[10px] font-pbold text-gray-500 tracking-wider px-2">General</span>
-              <div className="h-px bg-gray-300 flex-1" />
-            </div>
-          ) : (
-            <div className="px-2 pt-1 pb-2">
-              <div className="text-[10px] font-pbold tracking-wider text-gray-500 uppercase text-center">GEN</div>
-              <div className="mt-2 h-px bg-gray-300" />
-            </div>
-          )}
-          <div className="space-y-1">
+        <div className="px-4 pt-2">
+          <div className="border-t border-black/10 pt-2 space-y-1">
             {generalData.map((item) => (
               <NavGroup
                 key={item.id}

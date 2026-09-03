@@ -4,6 +4,7 @@ import {
   checkInVisitor,
   checkOutVisitor,
   createVisitor,
+  getMyVisitorRequests,
   getVisitorsOverview,
   listVisitors,
   reviewVisitorDecision,
@@ -12,6 +13,7 @@ import {
 const router = Router();
 
 router.get("/overview", getVisitorsOverview);
+router.get("/my-requests", getMyVisitorRequests);
 router.get("/", listVisitors);
 router.post("/", createVisitor);
 router.patch("/:visitorId/decision", reviewVisitorDecision);

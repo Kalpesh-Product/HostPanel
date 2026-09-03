@@ -66,24 +66,7 @@ import {
   CalendarPlus,
   SlidersHorizontal,
   LayoutGrid,
-  Puzzle,
-  Megaphone,
-  Palette,
-  Scale,
-  BadgeCheck,
-  PenLine,
   Factory,
-  Stethoscope,
-  FlaskConical,
-  GraduationCap,
-  Truck,
-  Cog,
-  Target,
-  Briefcase,
-  Layers,
-  Blocks,
-  School,
-  Shapes,
   UsersRound,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -101,6 +84,7 @@ import {
   isModuleLockedForPlan,
 } from "../utils/workspacePlanAccess";
 import { normalizeLegacyRoute } from "../utils/legacyRouteMap";
+import { resolveDepartmentIcon } from "../utils/departmentIcons";
 
 type PlanType = "basic" | "professional" | "custom";
 
@@ -115,6 +99,7 @@ interface NavNode {
   upgradeLocked?: boolean;
   defaultOpen?: boolean;
   children?: NavNode[];
+  state?: Record<string, unknown>;
 }
 
 interface SidebarProps {
@@ -465,60 +450,6 @@ const ICON_BY_ID: Record<string, ElementType> = {
   logout: LogOut,
 };
 
-const DEPT_ICON_KEYWORDS: Array<{ keywords: string[]; icon: ElementType }> = [
-  { keywords: ["hr", "human resource", "people", "talent", "workforce"], icon: Users },
-  { keywords: ["finance", "account", "money", "budget", "billing", "payroll", "treasury"], icon: WalletCards },
-  { keywords: ["sales", "revenue", "business development"], icon: Target },
-  { keywords: ["market", "marketing", "brand", "pr", "growth", "communications"], icon: Megaphone },
-  { keywords: ["legal", "law", "compliance", "contract", "paralegal", "audit"], icon: Scale },
-  { keywords: ["it", "tech", "software", "engineer", "engineering", "development", "devops", "data"], icon: Server },
-  { keywords: ["design", "creative", "ui", "ux", "visual", "graphic"], icon: Palette },
-  { keywords: ["customer", "support", "success", "care", "helpdesk", "service"], icon: Headphones },
-  { keywords: ["operations", "ops", "general", "administration", "office"], icon: Cog },
-  { keywords: ["security", "safety", "guard", "vigilance"], icon: ShieldCheck },
-  { keywords: ["quality", "qa", "testing", "assurance", "inspection"], icon: BadgeCheck },
-  { keywords: ["logistics", "supply", "procurement", "purchase", "inventory", "warehouse", "delivery"], icon: Truck },
-  { keywords: ["maintenance", "facility", "housekeep", "cleaning", "repair", "estate"], icon: Wrench },
-  { keywords: ["research", "r&d", "rd", "innovation", "lab", "analytics"], icon: FlaskConical },
-  { keywords: ["content", "writing", "editorial", "copy", "document", "publication"], icon: PenLine },
-  { keywords: ["production", "manufacturing", "factory", "plant"], icon: Factory },
-  { keywords: ["health", "medical", "clinical", "wellness", "nursing"], icon: Stethoscope },
-  { keywords: ["education", "training", "learning", "academy", "school", "development"], icon: GraduationCap },
-];
-
-const DEPT_ICON_POOL: ElementType[] = [
-  Building2,
-  Store,
-  Briefcase,
-  Landmark,
-  Layers,
-  Blocks,
-  Puzzle,
-  Factory,
-  School,
-  Shapes,
-  Boxes,
-  Package,
-];
-
-const hashString = (value: string) => {
-  let hash = 0;
-  for (let i = 0; i < value.length; i += 1) {
-    hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
-  }
-  return hash;
-};
-
-const resolveDepartmentIcon = (name: string): ElementType => {
-  const normalized = String(name || "").trim().toLowerCase();
-  if (!normalized) return Building2;
-  const matched = DEPT_ICON_KEYWORDS.find((entry) =>
-    entry.keywords.some((keyword) => normalized.includes(keyword)),
-  );
-  if (matched) return matched.icon;
-  return DEPT_ICON_POOL[hashString(normalized) % DEPT_ICON_POOL.length];
-};
-
 const BASIC_PLAN_HARD_LOCK_IDS = new Set([
   "unit-settings",
   "unit-management",
@@ -535,6 +466,19 @@ const normalizeModuleToken = (value = "") =>
     .trim()
     .toLowerCase()
     .replace(/[_\s]+/g, "-");
+
+const MODULE_ID_EQUIVALENTS: Record<string, string[]> = {
+  "visitor-management": ["visitor-management", "visitors-management"],
+  "visitors-management": ["visitor-management", "visitors-management"],
+};
+
+const getEquivalentModuleIds = (moduleId: string) => {
+  const id = String(moduleId || "").trim();
+  return id ? [id, ...(MODULE_ID_EQUIVALENTS[id] || [])] : [];
+};
+
+const hasEquivalentModuleId = (ids: Set<string>, moduleId: string) =>
+  getEquivalentModuleIds(moduleId).some((id) => ids.has(id));
 
 const ORG_CHILD_KEYS = new Set([
   "org-tab-users",
@@ -1327,9 +1271,9 @@ useEffect(() => {
         defaultOpen: false,
         children: department.moduleIds.map((moduleId) => {
           const navigation = moduleNavigation.get(moduleId);
-          const workspaceUnlocked = workspaceEnabledCanonicalIds.has(moduleId);
+          const workspaceUnlocked = hasEquivalentModuleId(workspaceEnabledCanonicalIds, moduleId);
           const roleUnlocked =
-            isFounderRole || isSuperAdmin || roleAllowedModuleIds.has(moduleId);
+            isFounderRole || isSuperAdmin || hasEquivalentModuleId(roleAllowedModuleIds, moduleId);
           const unlocked = workspaceUnlocked && roleUnlocked;
           return {
             id: moduleId,
@@ -1338,6 +1282,12 @@ useEffect(() => {
             route: navigation?.route,
             disabled: !unlocked,
             upgradeLocked: !workspaceUnlocked,
+            state: {
+              fromSection: "department-accesses",
+              departmentId: "custom-department-" + (department.id || normalizeModuleToken(department.name)),
+              departmentLabel: department.name,
+              moduleId,
+            },
             disabledTitle: !unlocked
               ? workspaceUnlocked
                 ? "You do not have access to this module"
@@ -1529,8 +1479,8 @@ useEffect(() => {
     }
   };
 
-  const navigateFromSidebar = (route: string, sectionKey?: string) => {
-    navigate(route, { state: { fromSection: sectionKey }, flushSync: true });
+  const navigateFromSidebar = (route: string, sectionKey?: string, state?: Record<string, unknown>) => {
+    navigate(route, { state: { fromSection: sectionKey, ...(state || {}) }, flushSync: true });
     if (onCloseDrawer) onCloseDrawer();
   };
 
@@ -1547,7 +1497,7 @@ useEffect(() => {
       return;
     }
     if (!item.route) return;
-    navigateFromSidebar(normalizeLegacyRoute(item.route), sectionKey);
+    navigateFromSidebar(normalizeLegacyRoute(item.route), sectionKey, item.state);
   };
 
   return (

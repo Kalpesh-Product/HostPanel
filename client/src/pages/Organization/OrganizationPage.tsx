@@ -689,10 +689,11 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
   const isCustomPlanWorkspace = workspacePlan === 'custom';
   const canManageCustomDepartment =
     (isProfessionalPlanWorkspace || isCustomPlanWorkspace) && canManageDepartments && canCreateDepartmentByAccess;
-  const customWorkspaceDepartment = departments.find((department) =>
+  const customWorkspaceDepartments = departments.filter((department) =>
     isCustomDepartmentOption(department) && !String(department.id || department._id || '').startsWith('virtual-'),
-  ) || null;
-  const canCreateCustomDepartment = canManageCustomDepartment && !customWorkspaceDepartment;
+  );
+  const customWorkspaceDepartment = customWorkspaceDepartments[0] || null;
+  const canCreateCustomDepartment = canManageCustomDepartment && (isCustomPlanWorkspace || !customWorkspaceDepartment);
   const isEditingCustomDepartment = Boolean(newDepartmentForm.departmentId);
   // Department availability (Basic: none, Founder/Super Admin only; Professional:
   // Sales + Technology plus workspace-created departments; Custom: full catalog) lives in workspacePlanAccess.ts
@@ -1348,8 +1349,8 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
     }
 
     const editingDepartmentId = String(newDepartmentForm.departmentId || '').trim();
-    if (!editingDepartmentId && customWorkspaceDepartment) {
-      toast.error('Only one custom department can be created. Edit the existing custom department instead.');
+    if (!editingDepartmentId && !isCustomPlanWorkspace && customWorkspaceDepartment) {
+      toast.error('Professional allows one custom department. Edit the existing custom department instead.');
       return;
     }
 
@@ -1900,20 +1901,22 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
               <p className="mt-1 text-xs font-pmedium text-slate-500">
                 {isProfessionalPlanWorkspace
                   ? 'Professional includes Sales and Technology, plus one editable custom department.'
-                  : 'Review department leadership, team members, and the core modules assigned to each department.'}
+                  : isCustomPlanWorkspace
+                    ? 'Create as many departments as needed and assign shared department-access modules to each.'
+                    : 'Review department leadership, team members, and the core modules assigned to each department.'}
               </p>
             </div>
             {canCreateDepartmentByAccess ? (
               <button
                 type="button"
                 data-tour="organization-create-department"
-                title={customWorkspaceDepartment ? 'Edit the custom department and its modules' : canCreateCustomDepartment ? 'Create the one allowed custom department' : 'Department management is unavailable.'}
+                title={isCustomPlanWorkspace ? 'Create a custom department and choose its modules' : customWorkspaceDepartment ? 'Edit the custom department and its modules' : canCreateCustomDepartment ? 'Create the one allowed custom department' : 'Department management is unavailable.'}
                 disabled={!canManageCustomDepartment}
-                onClick={() => openDepartmentModal(customWorkspaceDepartment)}
+                onClick={() => openDepartmentModal(isCustomPlanWorkspace ? null : customWorkspaceDepartment)}
                 className="flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
               >
-                {customWorkspaceDepartment ? <Wrench size={13} /> : <Plus size={13} strokeWidth={3} />}
-                {customWorkspaceDepartment ? 'EDIT CUSTOM DEPARTMENT' : 'CREATE DEPARTMENT'}
+                {!isCustomPlanWorkspace && customWorkspaceDepartment ? <Wrench size={13} /> : <Plus size={13} strokeWidth={3} />}
+                {!isCustomPlanWorkspace && customWorkspaceDepartment ? 'EDIT CUSTOM DEPARTMENT' : 'CREATE DEPARTMENT'}
               </button>
             ) : null}
           </div>
@@ -2267,7 +2270,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
             <div className="space-y-5 overflow-y-auto p-5 sm:p-6">
               {!canManageCustomDepartment ? (
                 <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-[11px] font-pmedium text-amber-800">
-                  <Lock size={16} className="mt-0.5 shrink-0" /> The founder can manage one custom department on Professional and Custom plans.
+                  <Lock size={16} className="mt-0.5 shrink-0" /> The founder can manage custom departments on Professional and Custom plans.
                 </div>
               ) : null}
 
@@ -2288,7 +2291,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Core Modules *</p>
-                    <p className="mt-1 text-[10px] font-pmedium text-slate-400">Enable or disable any available department module. Professional combines the available Sales and Technology modules here.</p>
+                    <p className="mt-1 text-[10px] font-pmedium text-slate-400">Enable any available shared department-access module for this department.</p>
                   </div>
                   <span className="w-fit rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[9px] font-pmedium text-blue-700">{newDepartmentForm.moduleIds.length} Selected</span>
                 </div>
@@ -2317,7 +2320,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
                 <Shield size={16} className="mt-0.5 shrink-0 text-[#2563EB]" />
                 <div>
                   <p className="text-[10px] font-pmedium text-blue-900">Access after saving</p>
-                  <p className="mt-1 text-[10px] font-pmedium leading-relaxed text-blue-700">Founder and Super Admin keep full workspace visibility. Invite the one department manager from Add User; that manager receives common modules plus the core modules selected here. Employees can then be added to the same department.</p>
+                  <p className="mt-1 text-[10px] font-pmedium leading-relaxed text-blue-700">Founder and Super Admin keep full workspace visibility. Department managers receive common modules plus the modules selected here. Employees can then be added to the same department.</p>
                 </div>
               </div>
             </div>
