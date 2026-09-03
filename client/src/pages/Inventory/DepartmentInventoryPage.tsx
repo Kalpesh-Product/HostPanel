@@ -10,11 +10,16 @@ import {
   Search, Plus, X, Package, TrendingDown, TrendingUp, RefreshCw, Box, History, User,
   AlertTriangle, ShieldCheck, ArrowUpDown, ArrowUp, ArrowDown, Filter, Pencil, Wrench,
   Eye, ArrowRightLeft, Building2, UploadCloud, Info, Loader2, FileSpreadsheet, ChevronDown,
+  Download,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageFrame from '@/components/Pages/PageFrame';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
+import { createReport } from '@/services/reports';
+import { downloadReportFile } from '@/utils/report-download';
+import ExportReportModal, { type ExportParams } from '@/components/ExportReportModal';
+import ReportExportButton from '@/components/ReportExportButton';
 
 interface InventoryItem {
   recordId?: string;
@@ -329,6 +334,7 @@ function TablePageSkeleton() {
 }
 
 export function DepartmentInventoryPage() {
+  const [showExportModal, setShowExportModal] = useState(false);
   const storedUser = getStoredUser();
   const normalizedRole = String(storedUser?.workspaceMembership?.role || storedUser?.role || '').trim().toLowerCase();
   const roleBand = getRoleBand(normalizedRole);
@@ -537,6 +543,24 @@ export function DepartmentInventoryPage() {
   const totalStock = processedInventory.reduce((acc, i) => acc + (i.totalQuantity || 0), 0);
   const availableStock = processedInventory.reduce((acc, i) => acc + (i.availableQuantity || 0), 0);
   const lowStockItems = processedInventory.filter((i) => (i.availableQuantity || 0) <= LOW_STOCK_THRESHOLD && (i.availableQuantity || 0) > 0).length;
+
+  const handleExportReport = async ({ format, dataWindow, period, reportMonth }: ExportParams) => {
+    if (!processedInventory.length) throw new Error('There are no inventory records to export.');
+    const reportFormat = format === 'Excel' ? 'Excel' : 'PDF';
+    const response = await createReport({
+      title: `${deptLabel} Inventory`, department: deptLabel, category: 'Other', dataWindow, reportMonth,
+      period, generatedBy: 'Department Manager', format: reportFormat,
+      description: `${deptLabel} inventory export for the current filtered view.`, sourceType: 'inventory',
+      sourceRef: `department-inventory-${normalizeDepartmentKey(deptLabel)}`,
+      reportRows: processedInventory.map((item, index) => ({
+        label: `${index + 1}. ${item.name}`,
+        value: `Code: ${item.inventoryCode || '-'} | Category: ${item.category || '-'} | Total: ${item.totalQuantity || 0} | Available: ${item.availableQuantity || 0} | Allocated: ${item.allocatedQuantity || 0} | Location: ${item.location || '-'}`,
+      })), monthlyData: [],
+    });
+    await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
+    window.dispatchEvent(new Event('reports:refresh'));
+    setSuccessMessage(`${reportFormat} inventory report downloaded and saved to Reports.`);
+  };
 
   const handleAddItem = async () => {
     if (!newItem.name || !newItem.quantity) return;
@@ -776,6 +800,7 @@ export function DepartmentInventoryPage() {
               </h2>
             </div>
             <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+              <ReportExportButton onClick={() => setShowExportModal(true)} />
               {roleBand !== 'employee' && (
                 <button
                   onClick={() => setIsUpdateModalOpen(true)}
@@ -1688,6 +1713,17 @@ export function DepartmentInventoryPage() {
         )}
 
       </AnimatePresence>
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title={`Export ${deptLabel} Inventory`}
+        department={deptLabel}
+        category="Other"
+        sourceRef={`department-inventory-${normalizeDepartmentKey(deptLabel)}`}
+        reportTitle={`${deptLabel} Inventory`}
+        defaultDataWindow="Annual"
+        onExport={handleExportReport}
+      />
     </div>
   );
 }

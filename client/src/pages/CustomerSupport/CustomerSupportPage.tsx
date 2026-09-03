@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2, Eye, ExternalLink, FileDown, FileSpreadsheet, FileText, Plus, Pencil, Trash2 } from "lucide-react";
+import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2, Eye, ExternalLink, Download, FileText, Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
@@ -8,6 +8,9 @@ import PageFrame from "../../components/Pages/PageFrame";
 import ThreeDotMenu from "../../components/ThreeDotMenu";
 import { statusPillClass } from "../../lib/status-pill";
 import { createReport } from "../../services/reports";
+import ExportReportModal, { type ExportParams } from "@/components/ExportReportModal";
+import ReportExportButton from "@/components/ReportExportButton";
+import { isDateInExportPeriod } from '@/utils/export-period';
 import { downloadReportFile } from "../../utils/report-download";
 import { CustomerSupportSkeleton } from "../../components/ui/Skeleton";
 import { getStoredUser } from "../../lib/auth-session";
@@ -168,6 +171,7 @@ export default function CustomerSupportPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [isExportingReport, setIsExportingReport] = useState("");
+  const [showExportModal, setShowExportModal] = useState(false);
   const draftStorageKey = useMemo(getSupportDraftKey, []);
 
   const draftTicket = useMemo<SupportTicket | null>(() => savedDraft ? ({
@@ -446,17 +450,19 @@ export default function CustomerSupportPage() {
     }
   };
 
-  const handleExportIssues = async (format = "PDF") => {
-    const reportFormat = String(format).toLowerCase() === "excel" ? "Excel" : "PDF";
-    const exportableList = filteredList.filter(ticket => ticket.status !== "Draft");
+  const handleExportIssues = async ({ format, dataWindow, period, reportMonth, dateFrom, dateTo }: ExportParams) => {
+    const reportFormat = format === "Excel" ? "Excel" : "PDF";
+    const exportableList = filteredList
+      .filter(ticket => ticket.status !== "Draft")
+      .filter(ticket => isDateInExportPeriod(ticket.requestedAt || ticket.createdAt || ticket.updatedAt, { dateFrom, dateTo }));
     if (!exportableList.length) { toast.error("There are no submitted issues to export."); return; }
     setIsExportingReport(reportFormat);
     try {
       const response = await createReport({
         title: activeTab === "resolved" ? "Customer Support Issue History" : "Customer Support Issues Raised",
-        department: "Customer Support", category: "Other", dataWindow: "Custom",
-        reportMonth: new Date().toISOString().slice(0, 7),
-        period: activeTab === "resolved" ? "Issue History" : "Issues Raised",
+        department: "Customer Support", category: "Other", dataWindow,
+        reportMonth,
+        period: period || (activeTab === "resolved" ? "Issue History" : "Issues Raised"),
         generatedBy: "Customer Support", format: reportFormat,
         description: `Customer support ${activeTab === "resolved" ? "issue history" : "raised issues"} export.`,
         sourceType: "custom", sourceRef: activeTab === "resolved" ? "customer-support-history" : "customer-support-raised",
@@ -466,7 +472,7 @@ export default function CustomerSupportPage() {
         })),
         monthlyData: [],
       });
-      if (reportFormat === "PDF") await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       toast.success(`${reportFormat} support report saved to Reports.`);
       window.dispatchEvent(new Event("reports:refresh"));
     } catch (error: any) { toast.error(error?.response?.data?.message || "Failed to export support issues."); }
@@ -501,16 +507,7 @@ export default function CustomerSupportPage() {
             <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
               {showReportExports && (
                 <>
-                  <button type="button" onClick={() => handleExportIssues("PDF")} disabled={Boolean(isExportingReport)} title="Export PDF" aria-label="Export support issues as PDF"
-                    className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:cursor-not-allowed disabled:opacity-50">
-                    <FileDown size={16} className="text-red-500" aria-hidden="true" />
-                    <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
-                  </button>
-                  <button type="button" onClick={() => handleExportIssues("Excel")} disabled={Boolean(isExportingReport)} title="Export Excel" aria-label="Export support issues as Excel"
-                    className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-50">
-                    <FileSpreadsheet size={16} className="text-emerald-500" aria-hidden="true" />
-                    <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
-                  </button>
+                  <ReportExportButton onClick={() => setShowExportModal(true)} isExporting={Boolean(isExportingReport)} aria-label="Export support issues" />
                 </>
               )}
             </div>
@@ -1158,6 +1155,19 @@ export default function CustomerSupportPage() {
           </div>
         </div>
       )}
+
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Export Support Issues"
+        subtitle="Select format and date range to export."
+        department="Customer Support"
+        category="Other"
+        sourceRef={activeTab === "resolved" ? "customer-support-history" : "customer-support-raised"}
+        reportTitle={activeTab === "resolved" ? "Customer Support Issue History" : "Customer Support Issues Raised"}
+        defaultDataWindow="Custom"
+        onExport={handleExportIssues}
+      />
     </div>
   );
 }

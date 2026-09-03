@@ -12,7 +12,7 @@ import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
 import {
   Search, ChevronDown, X, Eye, ShieldCheck,
-  CheckCircle2, Wrench, Box, ArrowRightLeft, MapPin, Building2,FileSpreadsheet,FileDown,
+  CheckCircle2, Wrench, Box, ArrowRightLeft, MapPin, Building2,FileSpreadsheet, Download,
   Filter, Plus, Monitor, Server, Cloud, Briefcase, User, Package, Pencil, AlertTriangle, Loader2, ImageIcon, FileText,
   UploadCloud, Info,
 } from 'lucide-react';
@@ -22,6 +22,8 @@ import { exportRowsAsCsv, exportRowsAsPdf, rowsToReportRows, type ExportColumn }
 import { downloadReportFile } from '@/utils/report-download';
 import { createReport } from '@/services/reports';
 import { toast } from 'sonner';
+import ExportReportModal, { type ExportParams } from '@/components/ExportReportModal';
+import ReportExportButton from '@/components/ReportExportButton';
 
 interface Member {
   userId?: string;
@@ -398,6 +400,7 @@ export function AssetsPage() {
   const location = useLocation();
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [activeModule, setActiveModule] = useState<'assets' | 'requests'>('assets');
+  const [showExportModal, setShowExportModal] = useState(false);
   const storedUser = getStoredUser();
   const rawUserName: string = storedUser?.fullName || 'Founder';
   const isOwnerProfile = (storedUser?.role || 'owner') === 'owner';
@@ -1290,7 +1293,7 @@ export function AssetsPage() {
 
   // Server-side report pipeline: file is generated on the backend, stored in
   // S3 and archived in the Reports module (same as Finance/HR exports).
-  const handleExportAssets = async (format: 'PDF' | 'Excel') => {
+  const handleExportAssets = async ({ format, dataWindow, period, reportMonth }: ExportParams) => {
     const rows = displayedAssets.map((asset) => ({
       ...asset,
       quantity: asset.quantity,
@@ -1307,8 +1310,9 @@ export function AssetsPage() {
         title: 'Assets Report',
         department: 'General',
         category: 'Other',
-        dataWindow: 'Custom',
-        period: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+        dataWindow,
+        reportMonth,
+        period: period || new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
         description: `Asset inventory export (${rows.length} assets).`,
         format,
         sourceType: 'assets',
@@ -1366,6 +1370,7 @@ function AssetsSkeleton() {
   if (activeModule === 'requests') return <AssetRequestsPanel onShowAssets={() => setActiveModule('assets')} />;
 
   return (
+    <>
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-pmedium text-[12px]">
       <PageFrame>
         {isInitialLoading && <AssetsSkeleton />}
@@ -1396,20 +1401,7 @@ function AssetsSkeleton() {
                                   <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-[#2563EB] text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
                                 </button>
                               )}
-                              <button
-                                type="button"
-                                onClick={() => handleExportAssets('PDF')}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-                                <FileDown size={16} className="text-red-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleExportAssets('Excel')}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-                                <FileSpreadsheet size={16} className="text-emerald-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
-                              </button>
+                              <ReportExportButton onClick={() => setShowExportModal(true)} />
 
                             </div>
 
@@ -2348,5 +2340,19 @@ function AssetsSkeleton() {
         </div>
       )}
     </div>
+
+    <ExportReportModal
+      isOpen={showExportModal}
+      onClose={() => setShowExportModal(false)}
+      title="Export Assets Report"
+      subtitle="Select format and date range to export."
+      department="General"
+      category="Other"
+      sourceRef="assets-page"
+      reportTitle={`Assets Report - ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`}
+      defaultDataWindow="Custom"
+      onExport={handleExportAssets}
+    />
+    </>
   );
 }

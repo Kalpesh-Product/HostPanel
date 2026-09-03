@@ -5,7 +5,7 @@ import {
   CheckCircle2, XCircle, MapPin, Building, Calendar,
   UserCheck, UserPlus, ChevronDown, ChevronRight, Mail, Phone, ExternalLink,
   History, ToggleRight, ToggleLeft, DollarSign, GraduationCap, Eye,
-  Target, Award, Clock, Loader2, Globe, UploadCloud, FileSpreadsheet, FileDown, Pencil,
+  Target, Award, Clock, Loader2, Globe, UploadCloud, FileSpreadsheet, Download, Pencil,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -15,6 +15,8 @@ import PageFrame from "@/components/Pages/PageFrame";
 import { HRRecruitmentSkeleton } from "@/components/ui/Skeleton";
 import { createReport } from "@/services/reports";
 import { downloadReportFile } from "@/utils/report-download";
+import ExportReportModal, { type ExportParams } from "@/components/ExportReportModal";
+import ReportExportButton from "@/components/ReportExportButton";
 import {
   createRecruitmentCandidate,
   bulkUploadRecruitmentJobOpenings,
@@ -1010,6 +1012,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState("jobs");
+  const [showExportModal, setShowExportModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
@@ -1179,49 +1182,30 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
     ].join(" | "),
   }));
 
-  const handleExportRecruitmentPDF = async () => {
+  const handleExportRecruitment = async ({ format, dataWindow, period, reportMonth }: ExportParams) => {
+    const reportFormat = format === "Excel" ? "Excel" : "PDF";
     try {
       const response = await createReport({
         title: "Recruitment Job Openings",
         department: "HR",
-        category: "HR",
-        dataWindow: "All",
-        reportMonth: new Date().toISOString().slice(0, 7),
-        period: new Date().toISOString().slice(0, 7),
+        category: "Employee",
+        dataWindow,
+        reportMonth,
+        period: period || new Date().toISOString().slice(0, 7),
         generatedBy: "HR",
-        format: "PDF",
+        format: reportFormat,
         description: `Recruitment openings report - ${jobOpenings.length} jobs`,
         sourceType: "custom",
         sourceRef: "hr-recruitment-jobs",
         reportRows: buildRecruitmentReportRows(),
       });
-      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
-      window.dispatchEvent(new Event("reports:refresh"));
-    } catch (error: any) {
-      setErrorMessage(error?.message || "Failed to export recruitment PDF.");
-    }
-  };
-
-  const handleExportRecruitmentExcel = async () => {
-    try {
-      const response = await createReport({
-        title: "Recruitment Job Openings",
-        department: "HR",
-        category: "HR",
-        dataWindow: "All",
-        reportMonth: new Date().toISOString().slice(0, 7),
-        period: new Date().toISOString().slice(0, 7),
-        generatedBy: "HR",
-        format: "Excel",
-        description: `Recruitment openings report - ${jobOpenings.length} jobs`,
-        sourceType: "custom",
-        sourceRef: "hr-recruitment-jobs",
-        reportRows: buildRecruitmentReportRows(),
+      await downloadReportFile(response?.data?.download?.url, {
+        openInNewTab: false,
+        ...(reportFormat === "Excel" ? { fileName: `${new Date().toISOString().slice(0, 10)}_Recruitment_Jobs.xlsx` } : {}),
       });
-      await downloadReportFile(response?.data?.download?.url, { fileName: `${new Date().toISOString().slice(0, 10)}_Recruitment_Jobs.xlsx` });
       window.dispatchEvent(new Event("reports:refresh"));
     } catch (error: any) {
-      setErrorMessage(error?.message || "Failed to export recruitment Excel.");
+      setErrorMessage(error?.message || `Failed to export recruitment ${reportFormat}.`);
     }
   };
 
@@ -1553,25 +1537,10 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
                   </span>
                 </button>
                 
-                <button
-                  data-tour="hr-recruit-export-btns"
-                  onClick={handleExportRecruitmentPDF}
-                  className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm"
-                >
-                  <FileDown size={16} className="text-red-500" />
-                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">
-                    PDF
-                  </span>
-                </button>
-                <button
-                  onClick={handleExportRecruitmentExcel}
-                  className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm"
-                >
-                  <FileSpreadsheet size={16} className="text-emerald-500" />
-                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">
-                    Excel
-                  </span>
-                </button>
+                <ReportExportButton
+                  data-tour="hr-recruit-export-btn"
+                  onClick={() => setShowExportModal(true)}
+                />
                 
               </div>
             )}
@@ -2072,6 +2041,19 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
         setForm={setNewJob}
         departments={DEPARTMENTS}
         mode={editingJobCode ? "edit" : "create"}
+      />
+
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Export Recruitment Job Openings"
+        subtitle="Select format and date range to export."
+        department="HR"
+        category="HR"
+        sourceRef="hr-recruitment-jobs"
+        reportTitle="Recruitment Job Openings"
+        defaultDataWindow="Annual"
+        onExport={handleExportRecruitment}
       />
     </div>
   );

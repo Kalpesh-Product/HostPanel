@@ -4,6 +4,7 @@ import {
   Search, Plus, Eye, CheckCircle2, Clock, AlertCircle,
   Calendar, User, FileText, X, AlertTriangle, Paperclip,
   MessageSquare, Building2, Filter, Reply, CheckSquare, Shield, Wrench, ChevronDown,
+  Download,
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
 import {
@@ -24,6 +25,11 @@ import { getAssets } from '../../services/assets';
 import { axiosPrivate } from '../../utils/axios';
 import { statusPillClass } from '../../lib/status-pill';
 import { getWorkspacePlan, isDepartmentAllowedForPlan } from '../../utils/workspacePlanAccess';
+import ExportReportModal, { type ExportParams } from '../../components/ExportReportModal';
+import ReportExportButton from '@/components/ReportExportButton';
+import { createReport } from '../../services/reports';
+import { downloadReportFile } from '../../utils/report-download';
+import { isDateInExportPeriod } from '../../utils/export-period';
 
 // import { getWorkspaceMembers } from '@/services/auth';
 // import { getAssets } from '@/services/assets';
@@ -656,6 +662,7 @@ export function TicketsPage() {
   const [issueSuggestionsLoading, setIssueSuggestionsLoading] = useState(false);
   const [assetOptions, setAssetOptions] = useState([]);
   const [tickets, setTickets] = useState([]);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [optimisticTicketBackups, setOptimisticTicketBackups] = useState({});
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 3, hasNextPage: false });
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -1676,6 +1683,26 @@ export function TicketsPage() {
     });
   }, [tickets, activeTab, searchQuery, selectedDeptFilter, statusFilter, currentUserId, isManagerTicketProfile, isAdminTicketProfile, isEmployeeTicketProfile, currentUserDepartmentKeys, adminAssignedDepartments, showTenantCompanyTicketsTab]);
 
+  const handleExportReport = async (params: ExportParams) => {
+    const exportTickets = displayedTickets.filter((ticket: any) =>
+      isDateInExportPeriod(ticket.createdAt || ticket.raisedAt || ticket.date, params),
+    );
+    if (!exportTickets.length) throw new Error('There are no tickets in the selected period.');
+    const reportFormat = params.format === 'Excel' ? 'Excel' : 'PDF';
+    const response = await createReport({
+      title: 'Tickets', department: 'General', category: 'Ticket', dataWindow: params.dataWindow,
+      reportMonth: params.reportMonth, period: params.period, generatedBy: storedUser?.fullName || storedUser?.name || 'User',
+      format: reportFormat, description: 'Tickets from the current filtered workspace view.', sourceType: 'custom',
+      sourceRef: `tickets-${activeTab}`,
+      reportRows: exportTickets.map((ticket: any, index: number) => ({
+        label: `${index + 1}. ${ticket.ticketCode || ticket.title || ticket.subject || 'Ticket'}`,
+        value: `Department: ${ticket.department || '-'} | Priority: ${ticket.priority || '-'} | Status: ${ticket.status || '-'} | Raised By: ${ticket.raisedBy || ticket.createdByName || '-'} | Date: ${ticket.createdAt || ticket.raisedAt || ticket.date || '-'}`,
+      })), monthlyData: [],
+    });
+    await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
+    window.dispatchEvent(new Event('reports:refresh'));
+  };
+
   const hasMoreTickets = Boolean(pagination?.hasNextPage);
 
   const handleLoadMoreTickets = () => {
@@ -2049,6 +2076,7 @@ export function TicketsPage() {
                       : 'Founder God-Mode: Monitor escalations globally, track resolutions, and manage incident assignments.'}
                 </p>
               </div>
+              <ReportExportButton onClick={() => setShowExportModal(true)} />
             </div>
 
             {errorMessage ? (
@@ -2923,6 +2951,17 @@ export function TicketsPage() {
             setIsRepairLogModalOpen(false);
             setRepairLogSourceTicket(null);
           }}
+        />
+        <ExportReportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          title="Export Tickets"
+          department="General"
+          category="Ticket"
+          sourceRef={`tickets-${activeTab}`}
+          reportTitle="Tickets"
+          defaultDataWindow="Monthly"
+          onExport={handleExportReport}
         />
 
       </PageFrame>

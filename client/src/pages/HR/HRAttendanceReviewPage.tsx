@@ -3,12 +3,17 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Search, Eye, X, Clock, CheckCircle2, XCircle, AlertCircle,
   AlertTriangle, Users, Building2, ChevronDown, Calendar,
-  Filter, Check, Ban, Loader2, User, MapPin, Navigation, Coffee, Settings, Edit3, Plus, Trash2,
+  Filter, Check, Ban, Loader2, User, MapPin, Navigation, Coffee, Settings, Edit3, Plus, Trash2, Download,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import PageFrame from "@/components/Pages/PageFrame";
 import { HRAttendanceReviewSkeleton } from "@/components/ui/Skeleton";
+import { createReport } from "@/services/reports";
+import { downloadReportFile } from "@/utils/report-download";
+import ExportReportModal, { type ExportParams } from "@/components/ExportReportModal";
+import ReportExportButton from "@/components/ReportExportButton";
+import { isDateInExportPeriod } from '@/utils/export-period';
 import { getEmployeeManagementOverview } from "@/services/hr";
 import {
   getHrAttendanceReview,
@@ -513,6 +518,7 @@ export default function HRAttendanceReviewPage() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("attendance-master");
+  const [showExportModal, setShowExportModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilterMode, setDateFilterMode] = useState<Record<string, "today" | "month" | "custom">>({
@@ -749,6 +755,63 @@ export default function HRAttendanceReviewPage() {
     }
     return list;
   }, [corrections, statusFilter, searchQuery]);
+
+  const handleExportReport = async ({ format, dataWindow, period, reportMonth, dateFrom, dateTo }: ExportParams) => {
+    const reportFormat = format === "Excel" ? "Excel" : "PDF";
+    const isMaster = activeTab === "attendance-master";
+    const exportRows = isMaster
+      ? filteredAttendance.filter((record) => isDateInExportPeriod(record.date, { dateFrom, dateTo })).map((record, index) => ({
+          label: `${index + 1}. ${record.employeeName || record.employeeId || "Employee"}${record.date ? ` (${record.date})` : ""}`,
+          value: [
+            `Department: ${record.department || "-"}`,
+            `Status: ${record.status || "-"}`,
+            record.checkIn ? `Check In: ${record.checkIn}` : "",
+            record.checkOut ? `Check Out: ${record.checkOut}` : "",
+            `Hours: ${record.totalHours ?? record.workingHours ?? "-"}`,
+            record.isLate ? "Late" : "",
+            record.isEarlyDeparture ? "Early Departure" : "",
+            record.source ? `Source: ${record.source}` : "",
+          ].filter(Boolean).join(" | "),
+        }))
+      : filteredCorrections.filter((correction) => isDateInExportPeriod(correction.date || correction.submittedOn, { dateFrom, dateTo })).map((correction, index) => ({
+          label: `${index + 1}. ${correction.employeeName || correction.employeeId || "Employee"}${correction.date ? ` (${correction.date})` : ""}`,
+          value: [
+            `Department: ${correction.department || "-"}`,
+            `Type: ${correction.type || "-"}`,
+            `Status: ${correction.status || "-"}`,
+            `Requested: ${correction.requestedCheckIn || correction.originalCheckIn || "-"} → ${correction.requestedCheckOut || correction.originalCheckOut || "-"}`,
+            correction.reason ? `Reason: ${correction.reason}` : "",
+            correction.submittedOn ? `Submitted: ${correction.submittedOn}` : "",
+            correction.rejectionReason ? `Rejected: ${correction.rejectionReason}` : "",
+          ].filter(Boolean).join(" | "),
+        }));
+    if (exportRows.length === 0) {
+      toast.error("There are no records to export.");
+      return;
+    }
+    try {
+      const response = await createReport({
+        title: isMaster ? "Attendance Review" : "Attendance Corrections",
+        department: "HR",
+        category: "Other",
+        dataWindow,
+        reportMonth,
+        period: period || `${rangeFrom} to ${rangeTo}`,
+        generatedBy: "HR Manager",
+        format: reportFormat,
+        description: `${isMaster ? "Attendance records" : "Correction requests"} for ${rangeFrom} to ${rangeTo}.`,
+        sourceType: "attendance-summary",
+        sourceRef: "hr-attendance-review",
+        reportRows: exportRows,
+        monthlyData: [],
+      });
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
+      window.dispatchEvent(new Event("reports:refresh"));
+      toast.success(`${reportFormat} attendance report saved to Reports.`);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to export attendance report.");
+    }
+  };
 
   /* Handle correction action */
   const handleCorrectionAction = async (correctionId: string, action: "approved" | "rejected", reason?: string) => {
@@ -1095,6 +1158,7 @@ export default function HRAttendanceReviewPage() {
                 Monitor employee attendance and manage correction requests.
               </p>
             </div>
+            <ReportExportButton onClick={() => setShowExportModal(true)} />
           </div>
 
           <div data-tour="hr-attendance-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
@@ -1668,6 +1732,19 @@ export default function HRAttendanceReviewPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title={activeTab === "attendance-master" ? "Export Attendance Report" : "Export Attendance Corrections"}
+        subtitle="Select format and date range to export."
+        department="HR"
+        category="Other"
+        sourceRef="hr-attendance-review"
+        reportTitle={activeTab === "attendance-master" ? "Attendance Review" : "Attendance Corrections"}
+        defaultDataWindow="Monthly"
+        onExport={handleExportReport}
+      />
     </div>
   );
 }

@@ -2,8 +2,8 @@ import React, { useState, useMemo, useEffect } from "react";
 import {
   Search, Check, X, Eye, CheckCircle2, XCircle, Ban,
   CalendarClock, Calendar, UserCheck, Clock, ShieldAlert,
-  FileText, FileSpreadsheet, FileDown, Building, Users,
-  Loader2, Plus, Tags, WalletCards, ChevronDown, Pencil, Trash2, MapPin, Upload,
+  FileText, FileSpreadsheet, Building, Users,
+  Loader2, Plus, Tags, WalletCards, ChevronDown, Pencil, Trash2, MapPin, Upload, Download,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -16,6 +16,9 @@ import { getTeamAttendance } from "@/services/attendance";
 import { getEmployeeManagementOverview } from "@/services/hr";
 import { createReport } from "@/services/reports";
 import { downloadReportFile } from "@/utils/report-download";
+import ExportReportModal, { type ExportParams } from "@/components/ExportReportModal";
+import ReportExportButton from "@/components/ReportExportButton";
+import { isDateInExportPeriod } from '@/utils/export-period';
 import { statusPillClass } from '../../lib/status-pill';
 
 /* ───────────────────────────── Types ───────────────────────────── */
@@ -351,6 +354,7 @@ function buildEmployeeLeaveExportRows(employee: Record<string, unknown>) {
 export default function HRLeaveRequestsProcessingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("requests");
+  const [showExportModal, setShowExportModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("All Departments");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -778,24 +782,25 @@ export default function HRLeaveRequestsProcessingPage() {
     }),
   [employeeRoster]);
 
-  async function handleExportReport(format = "PDF") {
-    const reportFormat = format.toLowerCase() === "excel" ? "Excel" : "PDF";
-    if (!activeReportRows.length) { toast.error("No leave records to export."); return; }
+  async function handleExportReport({ format, dataWindow, period, reportMonth, dateFrom, dateTo }: ExportParams) {
+    const reportFormat = format === "Excel" ? "Excel" : "PDF";
+    const periodRows = activeReportRows.filter((row) => isDateInExportPeriod(row.startDate || row.createdAt || row.updatedAt, { dateFrom, dateTo }));
+    if (!periodRows.length) { toast.error("No leave records to export for the selected period."); return; }
     setIsExportingReport(reportFormat);
     try {
       const response = await createReport({
         title: `${managerProfile.name} - ${activeReportScopeLabel}`,
         department: departmentFilter === "All Departments" ? "HR" : departmentFilter,
-        category: "Other", dataWindow: "Custom",
-        reportMonth: new Date().toISOString().slice(0, 7),
-        period: activeReportScopeLabel, generatedBy: managerProfile.name,
+        category: "Other", dataWindow,
+        reportMonth,
+        period: period || activeReportScopeLabel, generatedBy: managerProfile.name,
         format: reportFormat,
         description: `${activeReportScopeLabel} for ${departmentFilter}${searchQuery ? ` filtered by ${searchQuery}` : ""}.`,
         sourceType: "custom", sourceRef: `leave-requests-${activeTab}`,
-        reportRows: buildLeaveExportRows(activeReportRows, activeReportScopeLabel, departmentFilter, searchQuery),
+        reportRows: buildLeaveExportRows(periodRows, activeReportScopeLabel, departmentFilter, searchQuery),
         monthlyData: [],
       });
-      if (reportFormat === "PDF") await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       const id = response?.data?.report?.recordId;
       toast.success("Leave report saved to Reports.");
       navigate(id ? `/dashboard/hr/report?reportId=${id}` : "/dashboard/hr/report");
@@ -822,7 +827,7 @@ export default function HRLeaveRequestsProcessingPage() {
         reportRows: buildEmployeeLeaveExportRows(employee),
         monthlyData: [],
       });
-      if (reportFormat === "PDF") await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       const id = response?.data?.report?.recordId;
       toast.success("Employee leave report saved to Reports.");
       navigate(id ? `/dashboard/hr/report?reportId=${id}` : "/dashboard/hr/report");
@@ -1089,6 +1094,7 @@ export default function HRLeaveRequestsProcessingPage() {
   if (isLoading) return <HRLeaveRequestsProcessingSkeleton />;
 
   return (
+    <>
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
         <div className="flex flex-col gap-4">
@@ -1104,20 +1110,7 @@ export default function HRLeaveRequestsProcessingPage() {
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <button
-                type="button"
-                onClick={() => void handleExportReport('PDF')}
-                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-                <FileDown size={16} className="text-red-500"/>
-                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleExportReport('Excel')}
-                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-                <FileSpreadsheet size={16} className="text-emerald-500"/>
-                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
-              </button>
+              <ReportExportButton onClick={() => setShowExportModal(true)} />
             </div>
           </div>
 
@@ -2077,5 +2070,19 @@ export default function HRLeaveRequestsProcessingPage() {
         )}
       </AnimatePresence>
     </div>
+
+    <ExportReportModal
+      isOpen={showExportModal}
+      onClose={() => setShowExportModal(false)}
+      title="Export Leave Report"
+      subtitle="Select format and date range to export."
+      department={departmentFilter === "All Departments" ? "HR" : departmentFilter}
+      category="Other"
+      sourceRef={`leave-requests-${activeTab}`}
+      reportTitle={`${managerProfile.name} - ${activeReportScopeLabel}`}
+      defaultDataWindow="Custom"
+      onExport={handleExportReport}
+    />
+    </>
   );
 }

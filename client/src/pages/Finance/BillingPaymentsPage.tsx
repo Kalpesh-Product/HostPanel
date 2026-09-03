@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import {
   Receipt, Building2, Calendar, CreditCard, CheckCircle2,
   XCircle, Search, FileText, ArrowRight, X, Clock, Eye,
-  PieChart, Users, LayoutGrid, FileCheck, Send, Banknote, Globe, User, FileDown, FileSpreadsheet
+  PieChart, Users, LayoutGrid, FileCheck, Send, Banknote, Globe, User, Download
 } from 'lucide-react';
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { createReport } from '@/services/reports';
@@ -30,6 +30,9 @@ import { downloadReportFile } from '@/utils/report-download';
 import { getStoredUser } from '@/lib/auth-session';
 import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions, getFiscalYearStartMonth } from '@/features/finance/utils/fiscalYear';
 import PageFrame from '@/components/Pages/PageFrame';
+import ExportReportModal, { type ExportParams } from '@/components/ExportReportModal';
+import ReportExportButton from '@/components/ReportExportButton';
+import { isDateInExportPeriod } from '@/utils/export-period';
 
 /* ───────────────────── Types ───────────────────── */
 
@@ -486,6 +489,7 @@ export function BillingPaymentsPage() {
   ).trim();
 
   const [activeTab, setActiveTab] = useState('tenant');
+  const [showExportModal, setShowExportModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
 
@@ -888,57 +892,66 @@ export function BillingPaymentsPage() {
 
   /* ── Export handler ── */
 
-  const handleExportActiveReport = async (format = 'PDF') => {
+  const handleExportActiveReport = async ({ format, dataWindow, period, reportMonth, dateFrom, dateTo }: ExportParams) => {
     const reportFormat = String(format).toLowerCase() === 'excel' ? 'Excel' : 'PDF';
     const fiscalYearLabel = selectedFY || DEFAULT_FISCAL_YEAR;
-    const reportMonth = new Date().toISOString().slice(0, 7);
+    const exportPeriodLabel = period || `${fiscalYearLabel} Ledger`;
+    const filterPeriod = (rows: any[], fields: string[]) => rows.filter((row) => {
+      const value = fields.map((field) => row?.[field]).find(Boolean);
+      return isDateInExportPeriod(value, { dateFrom, dateTo });
+    });
+    const periodTenantBills = filterPeriod(visibleTenantBills, ['dueDate', 'invoiceDate', 'createdAt', 'updatedAt']);
+    const periodBookings = filterPeriod(visibleBookings, ['date', 'bookingDate', 'createdAt']);
+    const periodPayrollHistory = filterPeriod(payrollData?.history || [], ['sentToFinanceAt', 'processedOn', 'createdAt']);
+    const periodExtraCredits = filterPeriod(visibleExtraCredits, ['requestedAt', 'createdAt', 'updatedAt']);
+    const periodTransactions = filterPeriod(transactionHistory, ['date', 'paidAt', 'createdAt']);
 
     const reportConfigByTab: Record<string, any> = {
       tenant: {
         title: `Billing - Tenant Security Deposits - ${fiscalYearLabel}`,
-        period: `${fiscalYearLabel} Tenant Deposits`,
-        description: `Tenant security deposit report for ${fiscalYearLabel}.`,
+        period: `${exportPeriodLabel} Tenant Deposits`,
+        description: `Tenant security deposit report for ${exportPeriodLabel}.`,
         sourceRef: 'finance-tenant-deposits',
-        reportRows: buildTenantBillingReportRows(visibleTenantBills, { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }),
-        hasData: visibleTenantBills.length > 0,
+        reportRows: buildTenantBillingReportRows(periodTenantBills, { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }),
+        hasData: periodTenantBills.length > 0,
       },
       bookings: {
         title: `Billing - Meeting Room Bookings - ${fiscalYearLabel}`,
-        period: `${fiscalYearLabel} Bookings`,
-        description: `Meeting room booking invoice report for ${fiscalYearLabel}.`,
+        period: `${exportPeriodLabel} Bookings`,
+        description: `Meeting room booking invoice report for ${exportPeriodLabel}.`,
         sourceRef: 'finance-booking-invoices',
-        reportRows: buildBookingReportRows(visibleBookings, { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }),
-        hasData: visibleBookings.length > 0,
+        reportRows: buildBookingReportRows(periodBookings, { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }),
+        hasData: periodBookings.length > 0,
       },
       payroll: {
         title: `Billing - Payroll - ${fiscalYearLabel}`,
-        period: `${fiscalYearLabel} Payroll`,
-        description: `Payroll report for ${fiscalYearLabel}.`,
+        period: `${exportPeriodLabel} Payroll`,
+        description: `Payroll report for ${exportPeriodLabel}.`,
         sourceRef: 'finance-payroll',
-        reportRows: buildPayrollReportRows(filteredPayrollEmployees, selectedPayrollCycle, payrollData?.history || [], { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }),
-        hasData: filteredPayrollEmployees.length > 0,
+        reportRows: buildPayrollReportRows(filteredPayrollEmployees, selectedPayrollCycle, periodPayrollHistory, { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }),
+        hasData: filteredPayrollEmployees.length > 0 || periodPayrollHistory.length > 0,
       },
       extraCredits: {
         title: `Billing - Extra Credit Requests - ${fiscalYearLabel}`,
-        period: `${fiscalYearLabel} Extra Credits`,
-        description: `Extra credit request report for ${fiscalYearLabel}.`,
+        period: `${exportPeriodLabel} Extra Credits`,
+        description: `Extra credit request report for ${exportPeriodLabel}.`,
         sourceRef: 'finance-extra-credits',
-        reportRows: buildExtraCreditReportRows(visibleExtraCredits, { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }),
-        hasData: visibleExtraCredits.length > 0,
+        reportRows: buildExtraCreditReportRows(periodExtraCredits, { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }),
+        hasData: periodExtraCredits.length > 0,
       },
       history: {
         title: `Billing - Transaction History - ${fiscalYearLabel}`,
-        period: `${fiscalYearLabel} Transactions`,
-        description: `Transaction history report for ${fiscalYearLabel}.`,
+        period: `${exportPeriodLabel} Transactions`,
+        description: `Transaction history report for ${exportPeriodLabel}.`,
         sourceRef: 'finance-transaction-history',
-        reportRows: buildHistoryReportRows(transactionHistory, { fiscalYear: selectedFY, searchQuery, currency: workspacePreferences.currency }),
-        hasData: transactionHistory.length > 0,
+        reportRows: buildHistoryReportRows(periodTransactions, { fiscalYear: selectedFY, searchQuery, currency: workspacePreferences.currency }),
+        hasData: periodTransactions.length > 0,
       },
     };
 
     const selectedReport = reportConfigByTab[activeTab];
     if (!selectedReport?.hasData) {
-      toast.error(`No ${activeReportLabel.toLowerCase()} data to export for ${fiscalYearLabel}.`);
+      toast.error(`No ${activeReportLabel.toLowerCase()} data to export for ${exportPeriodLabel}.`);
       return;
     }
 
@@ -947,7 +960,7 @@ export function BillingPaymentsPage() {
         title: selectedReport.title,
         department: 'Finance',
         category: 'Financial',
-        dataWindow: 'Annual',
+        dataWindow,
         reportMonth,
         period: selectedReport.period,
         generatedBy: currentUserName,
@@ -993,20 +1006,7 @@ export function BillingPaymentsPage() {
                   ))}
                 </select>
               </div>
-                              <button
-                                type="button"
-                                onClick={() => void handleExportActiveReport('PDF')}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-                                <FileDown size={16} className="text-red-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => void handleExportActiveReport('Excel')}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-                                <FileSpreadsheet size={16} className="text-emerald-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
-                              </button>
+                              <ReportExportButton onClick={() => setShowExportModal(true)} />
             </div>
           </div>
 
@@ -1697,6 +1697,18 @@ export function BillingPaymentsPage() {
         </div>
       )}
 
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Export Billing & Payments Report"
+        subtitle="Select format and date range to export."
+        department="Finance"
+        category="Financial"
+        sourceRef={({ tenant: 'finance-tenant-deposits', bookings: 'finance-booking-invoices', payroll: 'finance-payroll', extraCredits: 'finance-extra-credits', history: 'finance-transaction-history' } as Record<string, string>)[activeTab] || 'finance-billing'}
+        reportTitle={`Billing ${activeReportLabel} - ${selectedFY || DEFAULT_FISCAL_YEAR}`}
+        defaultDataWindow="Annual"
+        onExport={handleExportActiveReport}
+      />
     </div>
   );
 }

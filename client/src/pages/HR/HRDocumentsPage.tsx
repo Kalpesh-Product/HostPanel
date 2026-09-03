@@ -3,9 +3,14 @@ import {
   Calendar, CheckCircle2, Clock, Download, Eye, FileText,
   FolderClosed, Search, UserCheck, X, XCircle,
 } from "lucide-react";
+import { toast } from "sonner";
 import { getEmployeeDocumentsVault } from "@/services/hr";
 import PageFrame from "@/components/Pages/PageFrame";
 import { HRDocumentsSkeleton } from "@/components/ui/Skeleton";
+import { createReport } from "@/services/reports";
+import { downloadReportFile } from "@/utils/report-download";
+import ExportReportModal, { type ExportParams } from "@/components/ExportReportModal";
+import ReportExportButton from "@/components/ReportExportButton";
 
 /* ───────────────────────────── Types ───────────────────────────── */
 
@@ -185,6 +190,7 @@ export default function HRDocumentsPage(): React.ReactElement {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [activeTab, setActiveTab] = useState<"active" | "inactive">("active");
+  const [showExportModal, setShowExportModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("All Departments");
   const [viewingDocsFor, setViewingDocsFor] = useState<VaultEmployee | null>(null);
@@ -251,6 +257,46 @@ export default function HRDocumentsPage(): React.ReactElement {
     });
   }, [documentRecords, activeTab, departmentFilter, searchQuery]);
 
+  const handleExportReport = async ({ format, dataWindow, period, reportMonth }: ExportParams) => {
+    const reportFormat = format === "Excel" ? "Excel" : "PDF";
+    const exportRows = displayedRecords.map((record, index) => ({
+      label: `${index + 1}. ${record.name} (${record.employeeNumber || record.id || "-"})`,
+      value: [
+        `Department: ${record.department || "-"}`,
+        `Role: ${record.role || "-"}`,
+        `Status: ${record.status || "-"}`,
+        `Documents: ${record.documentCount}`,
+        record.documents.length > 0 ? `Files: ${record.documents.map((doc) => doc.name).join(", ")}` : "",
+      ].filter(Boolean).join(" | "),
+    }));
+    if (exportRows.length === 0) {
+      toast.error("There are no document records to export.");
+      return;
+    }
+    try {
+      const response = await createReport({
+        title: activeTab === "active" ? "Active Employee Documents" : "Inactive Employee Documents",
+        department: "HR",
+        category: "Other",
+        dataWindow,
+        reportMonth,
+        period: period || "Current view",
+        generatedBy: "HR",
+        format: reportFormat,
+        description: `Employee document vault listing (${activeTab === "active" ? "active" : "inactive"} employees).`,
+        sourceType: "custom",
+        sourceRef: "hr-documents-vault",
+        reportRows: exportRows,
+        monthlyData: [],
+      });
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
+      window.dispatchEvent(new Event("reports:refresh"));
+      toast.success(`${reportFormat} document vault report saved to Reports.`);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to export document vault report.");
+    }
+  };
+
   const cardValues = useMemo(() => {
     const inactiveCount = documentRecords.filter((e) => INACTIVE_STATUSES.has(e.statusKey)).length;
     return {
@@ -284,6 +330,7 @@ export default function HRDocumentsPage(): React.ReactElement {
                 Manage and view employee documents securely.
               </p>
             </div>
+            <ReportExportButton onClick={() => setShowExportModal(true)} />
           </div>
 
           {errorMessage && (
@@ -580,6 +627,19 @@ export default function HRDocumentsPage(): React.ReactElement {
           </div>
         </div>
       )}
+
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Export Document Vault"
+        subtitle="Select format and date range to export."
+        department="HR"
+        category="Other"
+        sourceRef="hr-documents-vault"
+        reportTitle="Employee Document Vault"
+        defaultDataWindow="Annual"
+        onExport={handleExportReport}
+      />
     </div>
   );
 }

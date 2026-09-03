@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   AlertTriangle, ArrowRight, Building2, CheckCircle2,
-  FileDown, FileSpreadsheet, LayoutGrid, Map as MapIcon, Monitor, PieChart,
-  Presentation, Search, Users, X, Building, CreditCard,
+  FileDown, FileSpreadsheet, LayoutGrid, Map as MapIcon, Monitor, PieChart, Download,
+    Presentation, Search, Users, X, Building, CreditCard,
   CalendarClock, Clock, AlertCircle, Briefcase, Wrench, Eye, XCircle,
   DoorOpen, MoveRight, RotateCcw, Filter, Lock, Loader2
 } from "lucide-react";
@@ -12,6 +12,8 @@ import { useFreshCurrentUser } from "../../../hooks/useFreshCurrentUser";
 import useDashboardAccess from "../../../hooks/useDashboardAccess";
 import { canExportReports } from "../../../utils/workspacePlanAccess";
 import { createReport } from "../../../services/reports";
+import ExportReportModal, { type ExportParams } from "../../../components/ExportReportModal";
+import ReportExportButton from "@/components/ReportExportButton";
 import { assignResource, getResources, releaseResourceAssignment } from "../../../services/resources";
 import { getTenantCompanies } from "../../../services/tenant-companies";
 import { getVirtualOffices } from "../../../services/virtual-offices";
@@ -273,6 +275,7 @@ export default function SalesArchitecturePage() {
   const [primaryId, setPrimaryId] = useState("");
   const [saving, setSaving] = useState(false);
   const [isExporting, setIsExporting] = useState("");
+  const [showExportModal, setShowExportModal] = useState(false);
   const [viewMode, setViewMode] = useState("map");
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("architecture");
@@ -645,16 +648,16 @@ export default function SalesArchitecturePage() {
   const canOpenAssign = assignableIds.length > 0 && !saving;
   const canSave = canOpenAssign && Boolean(selectedCompanyId);
 
-  const handleExport = async (fmt = "PDF") => {
-    const f = String(fmt).toLowerCase() === "excel" ? "Excel" : "PDF";
+  const handleExport = async ({ format, dataWindow, period, reportMonth }: ExportParams) => {
+    const f = format === "Excel" ? "Excel" : "PDF";
     if (filtered.length === 0) { toast.error("No architecture data to export."); return; }
     setIsExporting(f);
     try {
       const response = await createReport({
         title: `Sales Architecture - ${selectedBuilding}`,
-        department: "Sales", category: "Other", dataWindow: "Custom",
-        reportMonth: new Date().toISOString().slice(0, 7),
-        period: `${selectedBuilding} Floor ${selectedFloor}`,
+        department: "Sales", category: "Other", dataWindow,
+        reportMonth,
+        period: period || `${selectedBuilding} Floor ${selectedFloor}`,
         generatedBy: currentUserName,
         format: f,
         description: `Architecture report for ${selectedBuilding} Floor ${selectedFloor} ${selectedWing !== "All" ? `Wing ${selectedWing}` : ""}.`,
@@ -662,7 +665,7 @@ export default function SalesArchitecturePage() {
         reportRows: buildExportRows({ building: selectedBuilding, floor: selectedFloor, wing: selectedWing, resources: filtered, searchQuery: query }),
         monthlyData: [],
       });
-      if (f === "PDF") await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       const rid = response?.data?.report?.recordId;
       window.dispatchEvent(new Event("reports:refresh"));
       toast.success("Architecture report saved.");
@@ -1770,22 +1773,7 @@ export default function SalesArchitecturePage() {
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
                {showReportExports && (
-                 <>
-                   <button
-                                type="button"
-                                 onClick={() => void handleExport('PDF')}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-                                <FileDown size={16} className="text-red-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
-                              </button>
-                              <button
-                                type="button"
-                                 onClick={() => void handleExport('Excel')}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-                                <FileSpreadsheet size={16} className="text-emerald-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
-                              </button>
-                 </>
+                  <ReportExportButton onClick={() => setShowExportModal(true)} />
                )}
             </div>
           </div>
@@ -2301,6 +2289,19 @@ export default function SalesArchitecturePage() {
           </div>
         )}
       </PageFrame>
+
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Export Sales Architecture"
+        subtitle="Select format and date range to export."
+        department="Sales"
+        category="Other"
+        sourceRef="sales-architecture"
+        reportTitle={`Sales Architecture - ${selectedBuilding}`}
+        defaultDataWindow="Custom"
+        onExport={handleExport}
+      />
     </div>
   );
 }

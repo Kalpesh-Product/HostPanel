@@ -23,8 +23,7 @@ import {
   FileWarning,
   Bell,
   DollarSign,
-  FileDown,
-  FileSpreadsheet,
+  Download,
   MessageSquare,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -37,6 +36,9 @@ import { downloadReportFile } from '@/utils/report-download';
 import { getStoredUser } from '@/lib/auth-session';
 import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions } from '@/features/finance/utils/fiscalYear';
 import PageFrame from '@/components/Pages/PageFrame';
+import ExportReportModal, { type ExportParams } from '@/components/ExportReportModal';
+import ReportExportButton from '@/components/ReportExportButton';
+import { isDateInExportPeriod, isMonthInExportPeriod } from '@/utils/export-period';
 import { formatFinancePaymentStatus } from '@/features/finance/utils/paymentStatus';
 import { ApprovalFlowBadges, hasApprovalProgress } from '@/components/finance/ApprovalFlowBadges';
 
@@ -952,6 +954,7 @@ export function ExpensesBudgetPage() {
   }, []);
 
   const [activeTab, setActiveTab] = useState('estimated');
+  const [showExportModal, setShowExportModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [deptFilter, setDeptFilter] = useState('All');
 
@@ -1290,48 +1293,72 @@ export function ExpensesBudgetPage() {
 
   /* ── Export handler ── */
 
-  const handleExportActiveFinanceReport = async (format = 'PDF') => {
+  const handleExportActiveFinanceReport = async ({ format, dataWindow, period, reportMonth, dateFrom, dateTo }: ExportParams) => {
     const reportFormat = String(format).toLowerCase() === 'excel' ? 'Excel' : 'PDF';
     const fiscalYearLabel = selectedFY || DEFAULT_FISCAL_YEAR;
-    const reportMonth = new Date().toISOString().slice(0, 7);
+    const exportPeriodLabel = period || `${fiscalYearLabel} Projected Budget`;
+    const periodEstimatedBudgets = visibleEstimatedBudgets
+      .map((budget) => ({
+        ...budget,
+        monthlyBreakdown: Array.isArray(budget.monthlyBreakdown)
+          ? budget.monthlyBreakdown.filter((month: MonthlyBreakdown) => isMonthInExportPeriod(
+              (month as any).monthKey || month.month || month.title,
+              selectedFY,
+              { dateFrom, dateTo },
+            ))
+          : [],
+      }))
+      .filter((budget) => budget.monthlyBreakdown.length > 0);
+    const periodExtraBudgets = visibleExtraBudgets.filter((request) => {
+      const value = (request as any).date || (request as any).createdAt || (request as any).monthKey || request.month;
+      return /\d{4}/.test(String(value || ''))
+        ? isDateInExportPeriod(value, { dateFrom, dateTo })
+        : isMonthInExportPeriod(value, selectedFY, { dateFrom, dateTo });
+    });
+    const periodLedger = visibleLedger.filter((entry) => {
+      const value = (entry as any).date || (entry as any).createdAt || (entry as any).monthKey || entry.monthTitle || entry.month;
+      return /\d{4}/.test(String(value || ''))
+        ? isDateInExportPeriod(value, { dateFrom, dateTo })
+        : isMonthInExportPeriod(value, selectedFY, { dateFrom, dateTo });
+    });
 
     const reportConfigByTab: Record<string, any> = {
       estimated: {
         title: `Finance - Projected Budget - ${fiscalYearLabel}`,
-        period: `${fiscalYearLabel} Projected Budget`,
-        description: `Projected budget report for ${fiscalYearLabel}, including monthly expense plans and vendor details.`,
+        period: `${exportPeriodLabel} Projected Budget`,
+        description: `Projected budget report for ${exportPeriodLabel}, including monthly expense plans and vendor details.`,
         sourceRef: 'finance-project-budget',
-        reportRows: buildProjectedBudgetReportRows(visibleEstimatedBudgets, selectedFY, deptFilter, formatCurrency),
-        monthlyData: visibleEstimatedBudgets.flatMap((budget) =>
+        reportRows: buildProjectedBudgetReportRows(periodEstimatedBudgets, selectedFY, deptFilter, formatCurrency),
+        monthlyData: periodEstimatedBudgets.flatMap((budget) =>
           Array.isArray(budget.monthlyBreakdown)
             ? budget.monthlyBreakdown.map((month: MonthlyBreakdown) => ({ month: month.month || month.title || '', metric: `${budget.department || 'Department'} projected`, value: formatCurrency(month.projectedBudget ?? month.amount ?? month.projectedTotal ?? 0) }))
             : []
         ),
-        hasData: visibleEstimatedBudgets.length > 0,
+        hasData: periodEstimatedBudgets.length > 0,
       },
       extra: {
         title: `Finance - Extra Budget Requests - ${fiscalYearLabel}`,
-        period: `${fiscalYearLabel} Extra Requests`,
-        description: `Extra budget request report for ${fiscalYearLabel}, including approval flow and reason details.`,
+        period: `${exportPeriodLabel} Extra Requests`,
+        description: `Extra budget request report for ${exportPeriodLabel}, including approval flow and reason details.`,
         sourceRef: 'finance-extra-budget-requests',
-        reportRows: buildExtraBudgetReportRows(visibleExtraBudgets, selectedFY, deptFilter, formatCurrency),
-        monthlyData: visibleExtraBudgets.map((request) => ({ month: request.month || request.date || '', metric: request.department || 'Extra Request', value: formatCurrency(request.requested || 0) })),
-        hasData: visibleExtraBudgets.length > 0,
+        reportRows: buildExtraBudgetReportRows(periodExtraBudgets, selectedFY, deptFilter, formatCurrency),
+        monthlyData: periodExtraBudgets.map((request) => ({ month: request.month || request.date || '', metric: request.department || 'Extra Request', value: formatCurrency(request.requested || 0) })),
+        hasData: periodExtraBudgets.length > 0,
       },
       ledger: {
         title: `Finance - Expense History - ${fiscalYearLabel}`,
-        period: `${fiscalYearLabel} Expense History`,
-        description: `Expense history report for ${fiscalYearLabel}, including vendor, invoice, and payment details.`,
+        period: `${exportPeriodLabel} Expense History`,
+        description: `Expense history report for ${exportPeriodLabel}, including vendor, invoice, and payment details.`,
         sourceRef: 'finance-expense-history',
-        reportRows: buildExpenseHistoryReportRows(visibleLedger, selectedFY, deptFilter, searchQuery, formatCurrency),
-        monthlyData: visibleLedger.map((entry) => ({ month: entry.monthTitle || entry.month || '', metric: entry.department || 'Expense', value: formatCurrency(entry.amount || 0) })),
-        hasData: visibleLedger.length > 0,
+        reportRows: buildExpenseHistoryReportRows(periodLedger, selectedFY, deptFilter, searchQuery, formatCurrency),
+        monthlyData: periodLedger.map((entry) => ({ month: entry.monthTitle || entry.month || '', metric: entry.department || 'Expense', value: formatCurrency(entry.amount || 0) })),
+        hasData: periodLedger.length > 0,
       },
     };
 
     const selectedReport = reportConfigByTab[activeTab] || reportConfigByTab.estimated;
     if (!selectedReport.hasData) {
-      toast.error(`There is no ${activeFinanceReportLabel.toLowerCase()} data to export for ${fiscalYearLabel}.`);
+      toast.error(`There is no ${activeFinanceReportLabel.toLowerCase()} data to export for ${exportPeriodLabel}.`);
       return;
     }
 
@@ -1340,7 +1367,7 @@ export function ExpensesBudgetPage() {
         title: selectedReport.title,
         department: 'Finance',
         category: 'Financial',
-        dataWindow: 'Annual',
+        dataWindow,
         reportMonth,
         period: selectedReport.period,
         generatedBy: currentUserName,
@@ -1405,20 +1432,7 @@ export function ExpensesBudgetPage() {
                   ))}
                 </select>
               </div>
-              <button
-                                type="button"
-                                onClick={() => void handleExportActiveFinanceReport('PDF')}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-                                <FileDown size={16} className="text-red-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => void handleExportActiveFinanceReport('Excel')}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-                                <FileSpreadsheet size={16} className="text-emerald-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
-                              </button>
+              <ReportExportButton onClick={() => setShowExportModal(true)} />
                               <button
                                 type="button"
                                 onClick={() => setShowHistoricalImport(true)}
@@ -2359,6 +2373,18 @@ export function ExpensesBudgetPage() {
         </div>
       )}
 
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Export Expenses & Budget Report"
+        subtitle="Select format and date range to export."
+        department="Finance"
+        category="Financial"
+        sourceRef={({ estimated: 'finance-project-budget', extra: 'finance-extra-budget-requests', ledger: 'finance-expense-history' } as Record<string, string>)[activeTab] || 'finance-project-budget'}
+        reportTitle={`Expenses & Budget ${activeFinanceReportLabel} - ${selectedFY || DEFAULT_FISCAL_YEAR}`}
+        defaultDataWindow="Annual"
+        onExport={handleExportActiveFinanceReport}
+      />
     </div>
   );
 }

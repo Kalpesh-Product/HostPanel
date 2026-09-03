@@ -14,6 +14,7 @@ import {
   User,
   FileText,
   Loader2,
+  Download,
 } from "lucide-react";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useAuth from "../../hooks/useAuth";
@@ -24,6 +25,11 @@ import {
   getRepairLogOptions,
 } from "../../services/repair-logs";
 import PageFrame from "../../components/Pages/PageFrame";
+import { createReport } from "../../services/reports";
+import { downloadReportFile } from "../../utils/report-download";
+import ExportReportModal, { type ExportParams } from "../../components/ExportReportModal";
+import ReportExportButton from "@/components/ReportExportButton";
+import { isDateInExportPeriod } from '@/utils/export-period';
 
 type RepairLog = {
   _id: string;
@@ -155,6 +161,7 @@ export default function RepairLogsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [activeTab, setActiveTab] = useState(isManager ? "team-active" : "my-work");
+  const [showExportModal, setShowExportModal] = useState(false);
   const [selectedLog, setSelectedLog] = useState<RepairLog | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -229,6 +236,51 @@ export default function RepairLogsPage() {
       return matchesTab && matchesStatus && matchesSearch(log, searchQuery);
     });
   }, [activeTab, currentUserId, currentUserName, logs, searchQuery, statusFilter]);
+
+  const handleExportReport = async ({ format, dataWindow, period, reportMonth, dateFrom, dateTo }: ExportParams) => {
+    const reportFormat = format === "Excel" ? "Excel" : "PDF";
+    const exportRows = visibleLogs
+      .filter((log) => isDateInExportPeriod(log.createdAt || log.requestedAt || log.updatedAt, { dateFrom, dateTo }))
+      .map((log, index) => ({
+      label: `${index + 1}. ${log.assetName || log.assetCode || "Asset"}${log.repairLogCode ? ` (${log.repairLogCode})` : ""}`,
+      value: [
+        `Asset Code: ${log.assetCode || "-"}`,
+        `Issue Type: ${log.issueType || "-"}`,
+        `Description: ${log.issueDescription || "-"}`,
+        `Requested By: ${log.requestedBy || "-"}`,
+        `Assigned To: ${log.assignedTo || "-"}`,
+        `Status: ${log.status || "-"}`,
+        `Created: ${formatDate(log.createdAt)}`,
+        log.sourceTicketCode ? `Ticket: ${log.sourceTicketCode}` : "",
+      ].filter(Boolean).join(" | "),
+      }));
+    if (exportRows.length === 0) {
+      toast.error("There are no repair logs to export.");
+      return;
+    }
+    try {
+      const response = await createReport({
+        title: "Maintenance Repair Logs",
+        department: "Maintenance",
+        category: "Other",
+        dataWindow,
+        reportMonth,
+        period: period || "Current view",
+        generatedBy: currentUserName || "Maintenance Manager",
+        format: reportFormat,
+        description: `Maintenance repair work orders for the current view (${activeTab}).`,
+        sourceType: "custom",
+        sourceRef: "maintenance-repair-logs",
+        reportRows: exportRows,
+        monthlyData: [],
+      });
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
+      window.dispatchEvent(new Event("reports:refresh"));
+      toast.success(`${reportFormat} repair log report saved to Reports.`);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || e?.message || "Failed to export repair log report.");
+    }
+  };
 
   const allDepartmentLogs = useMemo(() => logs, [logs]);
 
@@ -389,6 +441,7 @@ export default function RepairLogsPage() {
               <h1 className="text-title font-pmedium text-primary uppercase">Repair Logs</h1>
               <p className="text-xs font-pmedium text-slate-500 mt-1">Maintenance Department &bull; Repair work orders</p>
             </div>
+            <ReportExportButton onClick={() => setShowExportModal(true)} />
           </div>
 
           {/* Pill Tabs */}
@@ -828,6 +881,19 @@ export default function RepairLogsPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Export Repair Logs"
+        subtitle="Select format and date range to export."
+        department="Maintenance"
+        category="RepairLogs"
+        sourceRef="maintenance-repair-logs"
+        reportTitle="Maintenance Repair Logs"
+        defaultDataWindow="Monthly"
+        onExport={handleExportReport}
+      />
     </div>
   );
 }

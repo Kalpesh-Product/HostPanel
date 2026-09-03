@@ -4,6 +4,11 @@ import PageFrame from '@/components/Pages/PageFrame';
 import { HousekeepingSkeleton } from '@/components/ui/Skeleton';
 import { formatTime12h } from '@/utils/time';
 import WebsiteFormField from '@/components/WebsiteFormField';
+import ExportReportModal, { type ExportParams } from '@/components/ExportReportModal';
+import ReportExportButton from '@/components/ReportExportButton';
+import { createReport } from '@/services/reports';
+import { downloadReportFile } from '@/utils/report-download';
+import { isDateInExportPeriod } from '@/utils/export-period';
 import {
   bulkUploadHousekeepingWorkbook,
   completeHousekeepingTask,
@@ -301,6 +306,7 @@ class HousekeepingErrorBoundary extends React.Component<ErrorBoundaryProps, Erro
 // -- Inner Page Component ---------------------------------------------------
 
 function HousekeepingPageInner() {
+  const [showExportModal, setShowExportModal] = useState(false);
   const [activeTab, setActiveTab] = useState('scheduled');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
@@ -404,6 +410,27 @@ function HousekeepingPageInner() {
     [activeStaff],
   );
   const selectedStaff = presentStaff.find((item) => item.id === taskForm.assigneeEmployeeProfileId);
+
+  const handleExportReport = async (params: ExportParams) => {
+    const visibleTasks = activeTab === 'scheduled' ? manualTasks : activeTab === 'auto' ? bookingTasks : historyTasks;
+    const exportTasks = visibleTasks.filter((task) => isDateInExportPeriod(getDateValue(task), params));
+    if (!exportTasks.length) throw new Error('There are no housekeeping tasks in the selected period.');
+    const reportFormat = params.format === 'Excel' ? 'Excel' : 'PDF';
+    const response = await createReport({
+      title: 'Housekeeping Tasks', department: 'Administration', category: 'Task',
+      dataWindow: params.dataWindow, reportMonth: params.reportMonth, period: params.period,
+      generatedBy: 'Administration Manager', format: reportFormat,
+      description: 'Housekeeping tasks for the selected tab and reporting period.',
+      sourceType: 'custom', sourceRef: `housekeeping-${activeTab}`,
+      reportRows: exportTasks.map((task, index) => ({
+        label: `${index + 1}. ${task.taskName || task.taskCode || 'Task'}`,
+        value: `Area: ${task.area || task.roomName || '-'} | Assigned: ${task.assignedTo || '-'} | Status: ${task.status || '-'} | Date: ${getDateValue(task) || '-'}`,
+      })), monthlyData: [],
+    });
+    await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
+    window.dispatchEvent(new Event('reports:refresh'));
+    setBulkUploadMessage(`${reportFormat} housekeeping report downloaded and saved to Reports.`);
+  };
   async function saveTask(event: React.FormEvent): Promise<void> {
     event.preventDefault();
     try {
@@ -604,6 +631,10 @@ function HousekeepingPageInner() {
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              <ReportExportButton
+                onClick={() => setShowExportModal(true)}
+                aria-label="Export housekeeping report"
+              />
               <button
                 type="button"
                 onClick={() => { setBulkUploadMessage(''); setBulkUploadFile(null); setIsBulkUploadModalOpen(true); }}
@@ -1068,6 +1099,17 @@ function HousekeepingPageInner() {
             </div>
           </div>
         ) : null}
+        <ExportReportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          title="Export Housekeeping"
+          department="Administration"
+          category="Task"
+          sourceRef={`housekeeping-${activeTab}`}
+          reportTitle="Housekeeping Tasks"
+          defaultDataWindow="Monthly"
+          onExport={handleExportReport}
+        />
       </div>
     </AppShell>
   );

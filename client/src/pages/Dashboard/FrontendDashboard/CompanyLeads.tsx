@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useMemo, useState } from "react";
 import {
-  CheckCircle2, Eye, FileDown, FileSpreadsheet, FileText, Mail, Phone, Search, Sparkles, Target, Users, X,
+  CheckCircle2, Eye, Download, FileText, Mail, Phone, Search, Sparkles, Target, Users, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -13,6 +13,9 @@ import { canExportReports } from "../../../utils/workspacePlanAccess";
 import PageFrame from "../../../components/Pages/PageFrame";
 import { statusPillClass } from '../../../lib/status-pill';
 import { createReport } from "../../../services/reports";
+import ExportReportModal, { type ExportParams } from "../../../components/ExportReportModal";
+import ReportExportButton from "@/components/ReportExportButton";
+import { isDateInExportPeriod } from '@/utils/export-period';
 import { downloadReportFile } from "../../../utils/report-download";
 import { WebsiteLeadsSkeleton } from "../../../components/ui/Skeleton";
 
@@ -41,6 +44,7 @@ export default function CompanyLeads({ leadScope = "website" }) {
   const [stageFilter, setStageFilter] = useState("All");
   const [selectedLeadId, setSelectedLeadId] = useState(null);
   const [isExportingReport, setIsExportingReport] = useState("");
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const workspaceId = selectedCompany?.workspaceId || auth?.user?.primaryWorkspace || auth?.user?.workspaceMembership?.workspace || auth?.user?.workspaceId || "";
   const companyId = selectedCompany?.companyId || auth?.user?.companyId || "";
@@ -134,23 +138,24 @@ export default function CompanyLeads({ leadScope = "website" }) {
     [leads, selectedLeadId],
   );
 
-  const handleExportReport = async (format = "PDF") => {
-    const reportFormat = String(format).toLowerCase() === "excel" ? "Excel" : "PDF";
-    if (!visibleLeads.length) { toast.error(`There are no ${pageTitle.toLowerCase()} to export.`); return; }
+  const handleExportReport = async ({ format, dataWindow, period, reportMonth, dateFrom, dateTo }: ExportParams) => {
+    const reportFormat = format === "Excel" ? "Excel" : "PDF";
+    const exportLeads = visibleLeads.filter((lead) => isDateInExportPeriod(lead.recievedDate || lead.receivedDate || lead.createdAt || lead.updatedAt, { dateFrom, dateTo }));
+    if (!exportLeads.length) { toast.error(`There are no ${pageTitle.toLowerCase()} to export for the selected period.`); return; }
     setIsExportingReport(reportFormat);
     try {
       const response = await createReport({
-        title: `${pageTitle} Report`, department: "Sales", category: "Other", dataWindow: "Custom",
-        reportMonth: new Date().toISOString().slice(0, 7), period: pageTitle,
+        title: `${pageTitle} Report`, department: "Sales", category: "Other", dataWindow,
+        reportMonth, period: period || pageTitle,
         generatedBy: auth?.user?.fullName || auth?.user?.name || (isNomadsLeads ? "Nomads Team" : "Website Team"), format: reportFormat,
         description: pageDescription, sourceType: "custom", sourceRef: isNomadsLeads ? "nomads-leads" : "website-leads",
-        reportRows: visibleLeads.slice(0, 100).map((lead, index) => ({
+        reportRows: exportLeads.slice(0, 100).map((lead, index) => ({
           label: `${index + 1}. ${lead.fullName || leadLabel}`,
           value: [lead.mobileNumber || "No phone", lead.email || "No email", lead.source || (isNomadsLeads ? "Nomad" : "Website"), lead.productType || lead.vertical || "No product", lead.hostPanelStatus || "Pending", formatDateLabel(lead.recievedDate || lead.receivedDate || lead.createdAt)].join(" | "),
         })),
         monthlyData: [],
       });
-      if (reportFormat === "PDF") await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       toast.success(`${reportFormat} report saved to Reports.`);
       window.dispatchEvent(new Event("reports:refresh"));
     } catch (error) { toast.error(error?.message || `Failed to export ${pageTitle.toLowerCase()} report.`); }
@@ -187,16 +192,7 @@ export default function CompanyLeads({ leadScope = "website" }) {
             <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
               {showReportExports && (
                 <>
-                  <button type="button" onClick={() => handleExportReport("PDF")} disabled={Boolean(isExportingReport)} title="Export PDF" aria-label={`Export ${pageTitle.toLowerCase()} as PDF`}
-                    className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:cursor-not-allowed disabled:opacity-50">
-                    <FileDown size={16} className="text-red-500" aria-hidden="true" />
-                    <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
-                  </button>
-                  <button type="button" onClick={() => handleExportReport("Excel")} disabled={Boolean(isExportingReport)} title="Export Excel" aria-label={`Export ${pageTitle.toLowerCase()} as Excel`}
-                    className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-50">
-                    <FileSpreadsheet size={16} className="text-emerald-500" aria-hidden="true" />
-                    <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
-                  </button>
+                  <ReportExportButton onClick={() => setShowExportModal(true)} isExporting={Boolean(isExportingReport)} aria-label={`Export ${pageTitle.toLowerCase()}`} />
                 </>
               )}
             </div>
@@ -494,6 +490,19 @@ export default function CompanyLeads({ leadScope = "website" }) {
 
         </div>
       </PageFrame>
+
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title={`Export ${pageTitle}`}
+        subtitle="Select format and date range to export."
+        department="Sales"
+        category="Other"
+        sourceRef={isNomadsLeads ? "nomads-leads" : "website-leads"}
+        reportTitle={`${pageTitle} Report`}
+        defaultDataWindow="Custom"
+        onExport={handleExportReport}
+      />
     </div>
   );
 }

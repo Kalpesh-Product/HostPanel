@@ -3,7 +3,7 @@ import {
   BadgeCheck, Building2, CalendarDays, CheckCircle2,
   ChevronRight, Mail, Phone, RotateCcw, Eye,
   Search, ShieldCheck, Sparkles, Target, User, X,
-  Briefcase, DollarSign, Home, Clock, Tag, FileDown, FileSpreadsheet,
+  Briefcase, DollarSign, Home, Clock, Tag, Download,
   FileText, Users, XCircle, History,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -12,6 +12,9 @@ import { useFreshCurrentUser } from "../../../hooks/useFreshCurrentUser";
 import useDashboardAccess from "../../../hooks/useDashboardAccess";
 import { canExportReports } from "../../../utils/workspacePlanAccess";
 import { createReport } from "../../../services/reports";
+import ExportReportModal, { type ExportParams } from "./../../../components/ExportReportModal";
+import ReportExportButton from "@/components/ReportExportButton";
+import { isDateInExportPeriod } from '@/utils/export-period';
 import { getSalesTourLeads, getWebsiteLeads, updateWebsiteLeadHostStatus } from "../../../services/sales-leads";
 import { getUnitTourLeads } from "../../../services/visitors";
 import { downloadReportFile } from "../../../utils/report-download";
@@ -157,6 +160,7 @@ export default function LeadsManagementPage() {
   const [leadStages, setLeadStages] = useState({});
   const [selectedLeadId, setSelectedLeadId] = useState(null);
   const [isExportingReport, setIsExportingReport] = useState("");
+  const [showExportModal, setShowExportModal] = useState(false);
   const [mainTab, setMainTab] = useState("website-leads");
   const [websiteLeads, setWebsiteLeads] = useState([]);
   const [websiteLeadStages, setWebsiteLeadStages] = useState({});
@@ -358,10 +362,11 @@ export default function LeadsManagementPage() {
     [normalizedWebsiteLeads, selectedWebsiteLeadId],
   );
 
-  const handleExportReport = async (format = "PDF") => {
-    const reportFormat = String(format).toLowerCase() === "excel" ? "Excel" : "PDF";
+  const handleExportReport = async ({ format, dataWindow, period, reportMonth, dateFrom, dateTo }: ExportParams) => {
+    const reportFormat = format === "Excel" ? "Excel" : "PDF";
     const isWebsite = mainTab === "website-leads";
-    const exportData = isWebsite ? visibleWebsiteLeads : visibleLeads;
+    const exportData = (isWebsite ? visibleWebsiteLeads : visibleLeads)
+      .filter((lead) => isDateInExportPeriod(lead.recievedDate || lead.receivedDate || lead.createdAt || lead.updatedAt, { dateFrom, dateTo }));
     if (!exportData.length) { toast.error("There are no leads to export."); return; }
     const departmentLabel = "Sales";
     const searchLabel = searchQuery.trim() || "All";
@@ -369,15 +374,15 @@ export default function LeadsManagementPage() {
     setIsExportingReport(reportFormat);
     try {
       const response = await createReport({
-        title: isWebsite ? "All Website & Nomad Leads Report" : "Sales Leads Management Report", department: departmentLabel, category: "Other", dataWindow: "Custom",
-        reportMonth: new Date().toISOString().slice(0, 7), period: "Leads Management", generatedBy: currentUserName,
+        title: isWebsite ? "All Website & Nomad Leads Report" : "Sales Leads Management Report", department: departmentLabel, category: "Other", dataWindow,
+        reportMonth, period: period || "Leads Management", generatedBy: currentUserName,
         format: reportFormat,
         description: `${isWebsite ? "Website and Nomad leads" : "Sales leads"} export for ${departmentLabel}${stageLabel !== "All" ? `, stage ${stageLabel}` : ""}${searchQuery.trim() ? `, filtered by ${searchQuery.trim()}` : ""}.`,
         sourceType: "custom", sourceRef: isWebsite ? "website-leads" : "sales-leads-management",
         reportRows: buildLeadReportRows(exportData, { stageFilter: stageLabel, searchQuery: searchLabel }, pipelineStats),
         monthlyData: [],
       });
-      if (reportFormat === "PDF") await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       const createdReportId = response?.data?.report?.recordId;
       toast.success(reportFormat === "PDF" ? "Report saved to Reports." : "Report saved to Reports. Preview it before downloading.");
       navigate(createdReportId ? `/dashboard/reports?reportId=${createdReportId}` : "/dashboard/reports");
@@ -406,16 +411,7 @@ export default function LeadsManagementPage() {
           <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
             {showReportExports && (
               <>
-                <button type="button" onClick={() => handleExportReport("PDF")} disabled={Boolean(isExportingReport)} title="Export PDF" aria-label="Export leads as PDF"
-                  className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:cursor-not-allowed disabled:opacity-50">
-                  <FileDown size={16} className="text-red-500" aria-hidden="true" />
-                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
-                </button>
-                <button type="button" onClick={() => handleExportReport("Excel")} disabled={Boolean(isExportingReport)} title="Export Excel" aria-label="Export leads as Excel"
-                  className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-50">
-                  <FileSpreadsheet size={16} className="text-emerald-500" aria-hidden="true" />
-                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
-                </button>
+                <ReportExportButton onClick={() => setShowExportModal(true)} isExporting={Boolean(isExportingReport)} aria-label="Export leads" />
               </>
             )}
             {/* <button
@@ -1037,6 +1033,19 @@ export default function LeadsManagementPage() {
 
         </div>
       </PageFrame>
+
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title={mainTab === "website-leads" ? "Export Website & Nomad Leads" : "Export Sales Leads"}
+        subtitle="Select format and date range to export."
+        department="Sales"
+        category="Other"
+        sourceRef={mainTab === "website-leads" ? "website-leads" : "sales-leads-management"}
+        reportTitle={mainTab === "website-leads" ? "All Website & Nomad Leads Report" : "Sales Leads Management Report"}
+        defaultDataWindow="Custom"
+        onExport={handleExportReport}
+      />
     </div>
   );
 }

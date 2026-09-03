@@ -13,8 +13,7 @@ import {
   ChevronRight,
   Eye,
   FileText,
-  FileSpreadsheet,
-  FileDown,
+  Download,
   LayoutGrid,
   Monitor,
   MapPin,
@@ -38,6 +37,9 @@ import { formatWorkspaceCurrency, getWorkspaceDateKey, getWorkspaceTime } from '
 import { getMeetingRoomBookings, updateMeetingRoomBooking } from '@/services/meeting-room-bookings';
 import { getTenantCompanies } from '@/services/tenant-companies';
 import { createReport } from '@/services/reports';
+import ExportReportModal, { type ExportParams } from '@/components/ExportReportModal';
+import ReportExportButton from '@/components/ReportExportButton';
+import { isDateInExportPeriod } from '@/utils/export-period';
 import { downloadReportFile } from '@/utils/report-download';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -930,6 +932,8 @@ export default function BookingsPage() {
   const [savingBookingUpdate, setSavingBookingUpdate] = useState(false);
   const [bookingUpdateError, setBookingUpdateError] = useState('');
   const [isExportingReport, setIsExportingReport] = useState('');
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showBookingExportModal, setShowBookingExportModal] = useState(false);
   const [masterCalendarMonth, setMasterCalendarMonth] = useState(() => new Date().getMonth());
   const [masterCalendarYear, setMasterCalendarYear] = useState(() => new Date().getFullYear());
   const [masterCalendarRoom, setMasterCalendarRoom] = useState('All Rooms');
@@ -1424,9 +1428,13 @@ export default function BookingsPage() {
     ] as StatItem[];
   }, [activeScope, externalRows, historyRows, internalTopManagementRows, departmentScopedRows, tenantRows]);
 
-  const handleExportBookingsReport = async (format = 'PDF') => {
-    const reportFormat = String(format).toLowerCase() === 'excel' ? 'Excel' : 'PDF';
-    if (visibleRows.length === 0) {
+  const handleExportBookingsReport = async ({ format, dataWindow, period, reportMonth, dateFrom, dateTo }: ExportParams) => {
+    const reportFormat = format === 'Excel' ? 'Excel' : 'PDF';
+    const exportRows = visibleRows.filter((booking) => isDateInExportPeriod(
+      (booking as any).date || (booking as any).bookingDate || (booking as any).startDate || (booking as any).createdAt,
+      { dateFrom, dateTo },
+    ));
+    if (exportRows.length === 0) {
       alert('No booking rows are available for export.');
       return;
     }
@@ -1438,15 +1446,15 @@ export default function BookingsPage() {
         title: `Administration ${scopeLabel}`,
         department: 'Administration',
         category: 'Other',
-        dataWindow: 'Custom',
-        reportMonth: new Date().toISOString().slice(0, 7),
-        period: scopeLabel,
+        dataWindow,
+        reportMonth,
+        period: period || scopeLabel,
         generatedBy: (storedUser as any)?.fullName || (storedUser as any)?.name || 'Administration Manager',
         format: reportFormat,
         description: 'Administration bookings export for the current filtered view.',
         sourceType: 'custom',
         sourceRef: `administration-bookings-${activeScope}`,
-        reportRows: buildBookingExportRows(visibleRows, scopeLabel, {
+        reportRows: buildBookingExportRows(exportRows, scopeLabel, {
           activeTab,
           resourceFilter,
           bookingTypeFilter,
@@ -1455,9 +1463,7 @@ export default function BookingsPage() {
         monthlyData: [],
       });
 
-      if (reportFormat === 'PDF') {
-        await downloadReportFile((response as any)?.data?.download?.url, { openInNewTab: false });
-      }
+      await downloadReportFile((response as any)?.data?.download?.url, { openInNewTab: false });
 
       window.dispatchEvent(new Event('reports:refresh'));
 
@@ -1469,7 +1475,7 @@ export default function BookingsPage() {
     }
   };
 
-  const handleExportBookingReport = async (booking: Record<string, unknown> | null = null, format = 'PDF') => {
+  const handleExportBookingReport = async (booking: Record<string, unknown> | null = null, format = 'PDF', opts: { dataWindow?: string, period?: string, reportMonth?: string } = {}) => {
     if (!booking) return;
 
     const reportFormat = String(format).toLowerCase() === 'excel' ? 'Excel' : 'PDF';
@@ -1479,9 +1485,9 @@ export default function BookingsPage() {
         title: `${booking.resourceName || booking.companyName || 'Booking'} Details`,
         department: 'Administration',
         category: 'Other',
-        dataWindow: 'Custom',
-        reportMonth: new Date().toISOString().slice(0, 7),
-        period: 'Booking Detail',
+        dataWindow: opts.dataWindow || 'Custom',
+        reportMonth: opts.reportMonth || new Date().toISOString().slice(0, 7),
+        period: opts.period || 'Booking Detail',
         generatedBy: (storedUser as any)?.fullName || (storedUser as any)?.name || 'Administration Manager',
         format: reportFormat,
         description: `${booking.resourceName || booking.companyName || 'Booking'} detail report.`,
@@ -1491,9 +1497,7 @@ export default function BookingsPage() {
         monthlyData: [],
       });
 
-      if (reportFormat === 'PDF') {
-        await downloadReportFile((response as any)?.data?.download?.url, { openInNewTab: false });
-      }
+      await downloadReportFile((response as any)?.data?.download?.url, { openInNewTab: false });
 
       window.dispatchEvent(new Event('reports:refresh'));
 
@@ -1697,6 +1701,7 @@ export default function BookingsPage() {
   };
 
   return (
+    <>
     <AppShell>
       <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
         {loadingInternal ? (
@@ -1722,20 +1727,7 @@ export default function BookingsPage() {
                   <CalendarDays size={16} />
                   <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-blue-500 text-white px-1.5 py-0.5 rounded">CALENDAR</span>
                 </button>
-                 <button
-                                type="button"
-                                onClick={() => handleExportBookingsReport('PDF')}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-                                <FileDown size={16} className="text-red-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleExportBookingsReport('Excel')}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-                                <FileSpreadsheet size={16} className="text-emerald-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
-                              </button>
+                 <ReportExportButton onClick={() => setShowExportModal(true)} />
 
               </div>
             </div>
@@ -2008,18 +2000,6 @@ export default function BookingsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleExportBookingReport(viewingDetails as unknown as Record<string, unknown>, 'PDF')}
-                  disabled={Boolean(isExportingReport)}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-700 transition-colors hover:border-blue-200 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
-                >PDF</button>
-                <button
-                  type="button"
-                  onClick={() => handleExportBookingReport(viewingDetails as unknown as Record<string, unknown>, 'Excel')}
-                  disabled={Boolean(isExportingReport)}
-                  className="rounded-xl bg-[#2563EB] px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >Excel</button>
                 <button
                   type="button"
                   onClick={() => setViewingDetails(null)}
@@ -2489,6 +2469,33 @@ export default function BookingsPage() {
         </div>
       )}
     </AppShell>
+
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Export Bookings"
+        subtitle="Select format and date range to export."
+        department="Administration"
+        category="Other"
+        sourceRef={`administration-bookings-${activeScope}`}
+        reportTitle={`Administration ${scopeTabs.find((tab) => tab.key === activeScope)?.label || 'Bookings'}`}
+        defaultDataWindow="Custom"
+        onExport={handleExportBookingsReport}
+      />
+
+      <ExportReportModal
+        isOpen={showBookingExportModal}
+        onClose={() => setShowBookingExportModal(false)}
+        title="Export Booking Report"
+        subtitle="Select format to export this booking."
+        department="Administration"
+        category="Other"
+        sourceRef={String((viewingDetails as any)?.bookingCode || (viewingDetails as any)?.id || '').trim()}
+        reportTitle={`${(viewingDetails as any)?.resourceName || (viewingDetails as any)?.companyName || 'Booking'} Details`}
+        defaultDataWindow="Annual"
+        onExport={({ format, dataWindow, period, reportMonth }: ExportParams) => handleExportBookingReport(viewingDetails as unknown as Record<string, unknown>, format, { dataWindow, period, reportMonth })}
+      />
+    </>
   );
 }
 

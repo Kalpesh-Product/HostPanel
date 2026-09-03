@@ -5,7 +5,7 @@ import {
   Building, Search, Plus, Eye, Edit, CalendarDays, LayoutGrid,
   CheckCircle2, AlertTriangle, XCircle, Mail, Phone, Clock,
   CreditCard, X, ArrowRight, Save, RefreshCw, Briefcase,
-  FileText, FileDown, FileSpreadsheet, UserPlus, Download, UploadCloud,
+  FileText, UserPlus, Download, UploadCloud,
   Users, History, MapPin, Building2, Loader2, Tag
 } from 'lucide-react';
 import {
@@ -32,6 +32,8 @@ import useDashboardAccess from '../../../hooks/useDashboardAccess';
 import useWorkspacePreferences from '../../../hooks/useWorkspacePreferences';
 import { canExportReports } from '../../../utils/workspacePlanAccess';
 import { createReport } from '../../../services/reports';
+import ExportReportModal, { type ExportParams } from "../../../components/ExportReportModal";
+import ReportExportButton from "@/components/ReportExportButton";
 import { downloadReportFile } from '../../../utils/report-download';
 import PageFrame from '../../../components/Pages/PageFrame';
 import { SalesTenantCompaniesSkeleton } from '../../../components/ui/SalesPageSkeletons';
@@ -766,6 +768,7 @@ export default function TenantCompaniesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingReport, setIsExportingReport] = useState('');
+  const [showExportModal, setShowExportModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
@@ -1851,8 +1854,8 @@ export default function TenantCompaniesPage() {
   // Companies list now loads 25-at-a-time via infinite scroll (server-side
   // search/status/package filtering), so `tenants` only holds what's been
   // scrolled into view — export needs the complete matching set regardless.
-  const handleExportCompaniesReport = async (format = 'PDF') => {
-    const reportFormat = String(format).toLowerCase() === 'excel' ? 'Excel' : 'PDF';
+  const handleExportCompaniesReport = async ({ format, dataWindow, period, reportMonth }: ExportParams) => {
+    const reportFormat = format === 'Excel' ? 'Excel' : 'PDF';
     setIsExportingReport(reportFormat);
 
     try {
@@ -1872,9 +1875,9 @@ export default function TenantCompaniesPage() {
         title: 'Sales Tenant Companies',
         department: 'Sales',
         category: 'Other',
-        dataWindow: 'Custom',
-        reportMonth: new Date().toISOString().slice(0, 7),
-        period: 'Tenant Companies',
+        dataWindow,
+        reportMonth,
+        period: period || 'Tenant Companies',
         generatedBy: currentUserName,
         format: reportFormat,
         description: 'Sales tenant companies listing and contract summary.',
@@ -1888,9 +1891,7 @@ export default function TenantCompaniesPage() {
         monthlyData: [],
       });
 
-      if (reportFormat === 'PDF') {
-        await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
-      }
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
 
       const createdReportId = response?.data?.report?.recordId;
       window.dispatchEvent(new Event('reports:refresh'));
@@ -1926,9 +1927,7 @@ export default function TenantCompaniesPage() {
         monthlyData: [],
       });
 
-      if (reportFormat === 'PDF') {
-        await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
-      }
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
 
       const createdReportId = response?.data?.report?.recordId;
       window.dispatchEvent(new Event('reports:refresh'));
@@ -3085,22 +3084,7 @@ export default function TenantCompaniesPage() {
                               <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-500 text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
                             </button>
               {showReportExports && (
-                <>
-                  <button
-                                type="button"
-                                onClick={() => void handleExportCompaniesReport('PDF')}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-                                <FileDown size={16} className="text-red-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => void handleExportCompaniesReport('Excel')}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-                                <FileSpreadsheet size={16} className="text-emerald-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
-                              </button>
-                </>
+                <ReportExportButton onClick={() => setShowExportModal(true)} />
               )}
             </div>
           </div>
@@ -4593,30 +4577,6 @@ export default function TenantCompaniesPage() {
                    </div>
                  </div>
                  <div className="flex items-center gap-2">
-                   {showReportExports && (
-                     <>
-                       <button
-                type="button"
-                onClick={() => handleExportCompaniesReport('PDF')}
-                disabled={Boolean(isExportingReport)}
-                title="Export PDF"
-                className="px-4 py-2.5 bg-white text-[#f10505] rounded-xl font-pmedium text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <FileDown size={14} /> {isExportingReport === 'PDF' ? 'Exporting...' : ''}
-
-              </button>
-              <button
-                type="button"
-                onClick={() => handleExportCompaniesReport('Excel')}
-                disabled={Boolean(isExportingReport)}
-                title="Export Excel"
-                className="px-4 py-2.5 bg-[#ffffff] text-[#1fd628] rounded-xl font-pmedium text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <FileSpreadsheet size={14} /> {isExportingReport === 'Excel' ? 'Exporting...' : ''}
-
-              </button>
-                     </>
-                   )}
                    <button onClick={() => {setActiveModal(null); setSelectedTenant(null); setAgreementFiles([]);}} className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-red-500 transition-all"><X size={16}/></button>
                  </div>
               </div>
@@ -5170,6 +5130,19 @@ export default function TenantCompaniesPage() {
         */}
         </PageFrame>
       </div>
+
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Export Tenant Companies"
+        subtitle="Select format and date range to export."
+        department="Sales"
+        category="Other"
+        sourceRef="sales-tenant-companies"
+        reportTitle="Sales Tenant Companies"
+        defaultDataWindow="Custom"
+        onExport={handleExportCompaniesReport}
+      />
     </>
   );
 }

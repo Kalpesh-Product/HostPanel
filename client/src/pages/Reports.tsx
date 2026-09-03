@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   FileText, Search, ChevronDown, Download, Eye, Calendar,
-  FileDown, FileSpreadsheet, X, Layers, UserCheck
+  FileDown, X, Layers, UserCheck
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { downloadReport, getReports, getReportsFiltered } from '@/services/reports';
 import { ReportsSkeleton } from '@/components/ui/Skeleton';
 import { downloadReportFile } from '@/utils/report-download';
 import PageFrame from '@/components/Pages/PageFrame';
+import ReportExportButton from '@/components/ReportExportButton';
 
 const REPORTS_PAGE_SIZE = 50;
 
@@ -275,13 +276,19 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
       setIsLoadingDepartmentReports(true);
       setErrorMessage('');
       try {
-        const queryDepartment = selectedDownloadDepartment === 'All Departments' ? '' : selectedDownloadDepartment;
-        const response = await getReportsFiltered({
-          department: queryDepartment,
-          dataWindow: selectedDownloadDataWindow,
-        });
+        const filters = {
+          ...(selectedDownloadDepartment === 'All Departments' ? {} : { department: selectedDownloadDepartment }),
+          ...(selectedDownloadDataWindow === 'all' ? {} : { dataWindow: selectedDownloadDataWindow }),
+        };
+        const firstResponse = await getReportsFiltered({ ...filters, page: 1, limit: 100 });
         if (!isMounted) return;
-        const loaded: Report[] = Array.isArray(response?.data?.reports) ? response.data.reports : [];
+        const loaded: Report[] = Array.isArray(firstResponse?.data?.reports) ? firstResponse.data.reports : [];
+        const totalPages = Math.max(Number(firstResponse?.data?.pagination?.totalPages) || 1, 1);
+        for (let page = 2; page <= totalPages; page += 1) {
+          const response = await getReportsFiltered({ ...filters, page, limit: 100 });
+          if (!isMounted) return;
+          if (Array.isArray(response?.data?.reports)) loaded.push(...response.data.reports);
+        }
         setDepartmentReports(loaded);
         setSelectedDepartmentReportId(loaded[0]?.recordId || '');
       } catch (error: any) {
@@ -382,18 +389,7 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
             View, preview and download structured department reports.
           </p>
         </div>
-        <div className="flex items-center gap-1.5">
-          <button onClick={() => openDownloadPicker('PDF')}
-            className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-            <FileDown size={16} className="text-red-500"/>
-            <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
-          </button>
-          <button onClick={() => openDownloadPicker('Excel')}
-            className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 hover:text-emerald-600 transition-all active:scale-95 shadow-sm">
-            <FileSpreadsheet size={16} className="text-emerald-500"/>
-            <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
-          </button>
-        </div>
+        <ReportExportButton onClick={() => openDownloadPicker('PDF')} />
       </div>
 
       <div data-tour="reports-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">

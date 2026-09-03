@@ -28,6 +28,11 @@ import {
 } from 'lucide-react';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
+import { toast } from 'sonner';
+import { createReport } from '@/services/reports';
+import { downloadReportFile } from '@/utils/report-download';
+import ExportReportModal, { type ExportParams } from '@/components/ExportReportModal';
+import ReportExportButton from '@/components/ReportExportButton';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -551,6 +556,7 @@ function ResourceManagementPageInner() {
   const [floorFilter, setFloorFilter] = useState('All Floors');
   const [wingFilter, setWingFilter] = useState('All Wings');
   const [statusFilter, setStatusFilter] = useState('All Status');
+  const [showExportModal, setShowExportModal] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -630,6 +636,49 @@ function ResourceManagementPageInner() {
         return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
       });
   }, [resources, searchQuery, categoryFilter, floorFilter, wingFilter, statusFilter]);
+
+  const handleExportReport = async ({ format, dataWindow, period, reportMonth }: ExportParams) => {
+    const reportFormat = format === 'Excel' ? 'Excel' : 'PDF';
+    const exportRows = filteredResources.map((resource, index) => ({
+      label: `${index + 1}. ${resource.name || resource.resourceCode || 'Resource'}`,
+      value: [
+        `Code: ${resource.resourceCode || resource.id || '-'}`,
+        `Type: ${resource.type || resource.resourceCategory || '-'}`,
+        `Category: ${resource.resourceCategory || '-'}`,
+        `Location: ${[resource.floor, resource.wing].filter(Boolean).join(', ') || resource.location || '-'}`,
+        `Status: ${resource.status || '-'}`,
+        resource.capacity ? `Capacity: ${resource.capacity}` : '',
+        resource.pricePerHour ? `Per Hour: ${wsMoney(resource.pricePerHour)}` : '',
+        resource.pricePerDay ? `Per Day: ${wsMoney(resource.pricePerDay)}` : '',
+      ].filter(Boolean).join(' | '),
+    }));
+    if (exportRows.length === 0) {
+      toast.error('There are no resources to export.');
+      return;
+    }
+    try {
+      const response = await createReport({
+        title: 'Resource Management',
+        department: 'Administration',
+        category: 'Inventory',
+        dataWindow,
+        reportMonth,
+        period: period || 'Current view',
+        generatedBy: 'Admin',
+        format: reportFormat,
+        description: 'Registered workspace resources for the current filtered view.',
+        sourceType: 'inventory',
+        sourceRef: 'admin-resources',
+        reportRows: exportRows,
+        monthlyData: [],
+      });
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
+      window.dispatchEvent(new Event('reports:refresh'));
+      toast.success(`${reportFormat} resource report saved to Reports.`);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to export resource report.');
+    }
+  };
 
   const stats: Stats = useMemo(
     () => ({
@@ -943,6 +992,7 @@ function ResourceManagementPageInner() {
                 Manage floor-by-floor inventory for open desks, cabin desks, meeting rooms, conference rooms, and virtual offices.
               </p>
             </div>
+            <ReportExportButton onClick={() => setShowExportModal(true)} />
           </div>
 
           {errorMessage ? (
@@ -1920,11 +1970,22 @@ function ResourceManagementPageInner() {
           </div>
         ) : null}
       </div>
+
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Export Resources"
+        subtitle="Select format and date range to export."
+        department="Administration"
+        category="Inventory"
+        sourceRef="admin-resources"
+        reportTitle="Resource Management"
+        defaultDataWindow="Annual"
+        onExport={handleExportReport}
+      />
     </AppShell>
   );
 }
-
-// ── Exported Page Component ────────────────────────────────────────────────
 
 export default function ResourceManagementPage() {
   return (

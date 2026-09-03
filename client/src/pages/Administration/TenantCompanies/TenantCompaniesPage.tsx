@@ -6,6 +6,8 @@ import PageFrame from '@/components/Pages/PageFrame';
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { toast } from 'sonner';
 import { createReport } from '@/services/reports';
+import ExportReportModal, { type ExportParams } from '@/components/ExportReportModal';
+import ReportExportButton from '@/components/ReportExportButton';
 import {
   getAllTenantCompanies,
   getTenantCompanies,
@@ -34,8 +36,7 @@ import {
   XCircle,
   Save,
   FileText,
-  FileDown,
-  FileSpreadsheet,
+  Download,
   Loader2,
 } from 'lucide-react';
 import { downloadReportFile } from '@/utils/report-download';
@@ -847,6 +848,7 @@ export default function AdministrationTenantCompaniesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingReport, setIsExportingReport] = useState<string>('');
+  const [showExportModal, setShowExportModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
@@ -1057,8 +1059,8 @@ export default function AdministrationTenantCompaniesPage() {
   // The list now loads 25-at-a-time via infinite scroll (server-side
   // search/status/package filtering), so `companies` only holds what's been
   // scrolled into view — export needs the complete matching set regardless.
-  const handleExportCompaniesReport = async (format: string = 'PDF') => {
-    const reportFormat = String(format).toLowerCase() === 'excel' ? 'Excel' : 'PDF';
+  const handleExportCompaniesReport = async ({ format, dataWindow, period, reportMonth }: ExportParams) => {
+    const reportFormat = format === 'Excel' ? 'Excel' : 'PDF';
     setIsExportingReport(reportFormat);
     try {
       const exportResponse = await getAllTenantCompanies({
@@ -1078,9 +1080,9 @@ export default function AdministrationTenantCompaniesPage() {
         title: 'Administration Tenant Companies',
         department: 'Administration',
         category: 'Other',
-        dataWindow: 'Custom',
-        reportMonth: new Date().toISOString().slice(0, 7),
-        period: 'Tenant Companies',
+        dataWindow,
+        reportMonth,
+        period: period || 'Tenant Companies',
         generatedBy: 'Administration Manager',
         format: reportFormat,
         description: 'Administration tenant companies listing and contract summary.',
@@ -1098,9 +1100,7 @@ export default function AdministrationTenantCompaniesPage() {
         })),
         monthlyData: [],
       });
-      if (reportFormat === 'PDF') {
-        await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
-      }
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       window.dispatchEvent(new Event('reports:refresh'));
       toast.success(reportFormat === 'PDF' ? 'Tenant companies report saved to Reports.' : 'Tenant companies report saved to Reports. Preview it before downloading.');
     } catch (error) {
@@ -1130,9 +1130,7 @@ export default function AdministrationTenantCompaniesPage() {
         reportRows: buildTenantCompanyExportRows(company),
         monthlyData: [],
       });
-      if (reportFormat === 'PDF') {
-        await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
-      }
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       window.dispatchEvent(new Event('reports:refresh'));
       toast.success(reportFormat === 'PDF' ? 'Company report saved to Reports.' : 'Company report saved to Reports. Preview it before downloading.');
     } catch (error) {
@@ -1226,6 +1224,7 @@ export default function AdministrationTenantCompaniesPage() {
   if (isLoading) return <TablePageSkeleton />;
 
   return (
+    <>
     <AppShell>
       <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
         <PageFrame>
@@ -1238,20 +1237,7 @@ export default function AdministrationTenantCompaniesPage() {
               <p className="text-xs font-pmedium text-slate-500 mt-1">Manage client contracts, allocations and company profiles.</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-                              <button
-                                type="button"
-                                onClick={() => handleExportCompaniesReport('PDF')}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-                                <FileDown size={16} className="text-red-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleExportCompaniesReport('Excel')}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-                                <FileSpreadsheet size={16} className="text-emerald-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
-                              </button>
+                              <ReportExportButton onClick={() => setShowExportModal(true)} />
                             </div>
           </div>
 
@@ -1760,5 +1746,19 @@ export default function AdministrationTenantCompaniesPage() {
           </div>
         )}
     </AppShell>
+
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Export Tenant Companies"
+        subtitle="Select format and date range to export."
+        department="Administration"
+        category="Other"
+        sourceRef="administration-tenant-companies"
+        reportTitle="Administration Tenant Companies"
+        defaultDataWindow="Custom"
+        onExport={handleExportCompaniesReport}
+      />
+    </>
   );
 }

@@ -8,8 +8,8 @@ import { axiosPrivate } from '@/utils/axios';
 import { normalizeDepartmentKey } from '@/utils/user-helpers';
 import {
   Search, X, Package, ShieldCheck, ChevronDown, History, Eye, ArrowRightLeft, Building2,
-  FileSpreadsheet, FileDown, Filter, Plus, ArrowUpDown, ArrowUp, ArrowDown, Pencil, RefreshCw,
-  AlertTriangle, TrendingDown, TrendingUp, Wrench, UploadCloud, Info, Loader2,
+  FileSpreadsheet, Filter, Plus, ArrowUpDown, ArrowUp, ArrowDown, Pencil, RefreshCw,
+  AlertTriangle, TrendingDown, TrendingUp, Wrench, UploadCloud, Info, Loader2, Download,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageFrame from '@/components/Pages/PageFrame';
@@ -17,6 +17,8 @@ import { toast } from 'sonner';
 import { createReport } from '@/services/reports';
 import { downloadReportFile } from '@/utils/report-download';
 import { rowsToReportRows, type ExportColumn } from '@/utils/exportTable';
+import ExportReportModal, { type ExportParams } from '@/components/ExportReportModal';
+import ReportExportButton from '@/components/ReportExportButton';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
 
@@ -335,6 +337,7 @@ function TablePageSkeleton({ rows = 5 }: { rows?: number }) {
 
 export function InventoryPage() {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [showExportModal, setShowExportModal] = useState(false);
   const storedUser = getStoredUser();
   const normalizedRole = String(storedUser?.workspaceMembership?.role || storedUser?.role || '').trim().toLowerCase();
   const roleBand = getRoleBand(normalizedRole);
@@ -823,7 +826,7 @@ export function InventoryPage() {
     { header: 'Total Value', key: 'totalValue' },
   ];
 
-  const handleExportInventory = async (format: 'PDF' | 'Excel') => {
+  const handleExportInventory = async ({ format, dataWindow, period, reportMonth }: ExportParams) => {
     if (inventory.length === 0) {
       toast.error('No inventory items to export.');
       return;
@@ -833,8 +836,9 @@ export function InventoryPage() {
         title: 'Inventory Report',
         department: 'General',
         category: 'Other',
-        dataWindow: 'Custom',
-        period: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+        dataWindow,
+        reportMonth,
+        period: period || new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
         description: `Inventory stock export (${inventory.length} items).`,
         format,
         sourceType: 'inventory',
@@ -854,6 +858,7 @@ export function InventoryPage() {
   };
 
   return (
+    <>
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
         <div className="flex flex-col gap-4">
@@ -882,24 +887,7 @@ export function InventoryPage() {
                   <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-[#2563EB] text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => handleExportInventory('PDF')}
-                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm"
-                title="Export PDF"
-              >
-                <FileDown size={16} className="text-red-500"/>
-                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleExportInventory('Excel')}
-                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm"
-                title="Export Excel"
-              >
-                <FileSpreadsheet size={16} className="text-emerald-500"/>
-                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
-              </button>
+              <ReportExportButton onClick={() => setShowExportModal(true)} />
             </div>
           </div>
 
@@ -1805,5 +1793,19 @@ export function InventoryPage() {
         )}
       </AnimatePresence>
     </div>
+
+    <ExportReportModal
+      isOpen={showExportModal}
+      onClose={() => setShowExportModal(false)}
+      title="Export Inventory Report"
+      subtitle="Select format and date range to export."
+      department="General"
+      category="Other"
+      sourceRef="inventory-page"
+      reportTitle={`Inventory Report - ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`}
+      defaultDataWindow="Custom"
+      onExport={handleExportInventory}
+    />
+    </>
   );
 }

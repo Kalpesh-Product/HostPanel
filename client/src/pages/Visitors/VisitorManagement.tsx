@@ -36,12 +36,14 @@ import {
   LogOut, UserPlus, FileText, BadgeCheck, Phone, Mail,
   CalendarDays, ShieldCheck, ArrowRight, Wallet, Banknote, Sparkles,
   XCircle, ShieldAlert, Calendar as CalendarIcon, AlertTriangle, Globe, Smartphone, LayoutGrid,
-  Download, Printer, Lock, Home, UserCheck, FileSpreadsheet, FileDown, Tag
+  Download, Printer, Lock, Home, UserCheck, Tag
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
 import { VisitorManagementSkeleton } from '../../components/ui/Skeleton';
 import { statusPillClass } from '../../lib/status-pill';
 import { rowsToReportRows } from '../../utils/exportTable';
+import ExportReportModal, { type ExportParams } from '@/components/ExportReportModal';
+import ReportExportButton from '@/components/ReportExportButton';
 
 function formatTimeLabel(value, timeZone = DEFAULT_WORKSPACE_TIMEZONE) {
   if (!value) return '';
@@ -1180,6 +1182,7 @@ export default function VisitorsManagementPage() {
     [memberGrantedModules, userPermissions],
   );
   const [activeTab, setActiveTab] = useState('daily');
+  const [showExportModal, setShowExportModal] = useState(false);
   const [dailyStatusTab, setDailyStatusTab] = useState('all');
   const [bookingStatusTab, setBookingStatusTab] = useState('upcoming');
   const [clientSourceTab, setClientSourceTab] = useState('all');
@@ -1846,7 +1849,7 @@ export default function VisitorsManagementPage() {
       return;
     }
     const title = `Visitor History — ${historyMonth} ${historyYear}`;
-    void exportViaReportService(
+    return exportViaReportService(
       title,
       `${historyMonth} ${historyYear}`,
       HISTORY_EXPORT_COLUMNS,
@@ -1866,7 +1869,7 @@ export default function VisitorsManagementPage() {
       sourceLabel: normalizeText(client.source) === 'visitor-conversion' ? 'Converted' : 'Walk-in',
       totalValueLabel: formatCurrency(client.totalBookedAmount || 0),
     }));
-    void exportViaReportService(
+    return exportViaReportService(
       `Booking Clients Report — ${toTitleCase(clientSourceTab)}`,
       clientSourceTab,
       CLIENT_EXPORT_COLUMNS,
@@ -1885,7 +1888,7 @@ export default function VisitorsManagementPage() {
       ...bkg,
       totalValueLabel: formatCurrency(bkg.totalAmount || bkg.amountDue || 0),
     }));
-    void exportViaReportService(
+    return exportViaReportService(
       `Meeting Room Bookings Report — ${toTitleCase(bookingStatusTab)}`,
       bookingStatusTab,
       BOOKING_EXPORT_COLUMNS,
@@ -3960,6 +3963,9 @@ export default function VisitorsManagementPage() {
             <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">Visitor Management</h2>
             <p className="text-xs font-pmedium text-slate-500 mt-1">Daily visitors, walk-in bookings, client conversion, payment proof, and invoice handoff in one front desk unit.</p>
           </div>
+          {(activeTab === 'history' || activeTab === 'bookings' || activeTab === 'clients') && (
+            <ReportExportButton onClick={() => setShowExportModal(true)} />
+          )}
         </div>
 
         {/* 2. MAIN PILL TABS */}
@@ -4099,34 +4105,6 @@ export default function VisitorsManagementPage() {
                 <div className="relative flex-1 min-w-[160px]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                   <input type="text" placeholder="Search records..." className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400" onChange={(e) => setSearchQuery(e.target.value)} />
-                </div>
-              )}
-              {(activeTab === 'history' || activeTab === 'bookings' || activeTab === 'clients') && (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (activeTab === 'history') handleExportHistory('pdf');
-                      else if (activeTab === 'bookings') handleExportBookings('pdf');
-                      else handleExportClients('pdf');
-                    }}
-                    title="Export PDF"
-                    className="px-4 py-2.5 bg-white text-[#f10505] rounded-xl font-pmedium text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <FileDown size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (activeTab === 'history') handleExportHistory('csv');
-                      else if (activeTab === 'bookings') handleExportBookings('csv');
-                      else handleExportClients('csv');
-                    }}
-                    title="Export CSV"
-                    className="px-4 py-2.5 bg-white text-[#1fd628] rounded-xl font-pmedium text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <FileSpreadsheet size={14} />
-                  </button>
                 </div>
               )}
               <button
@@ -7253,6 +7231,23 @@ export default function VisitorsManagementPage() {
           </div>
         )}
       </div>
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title={`Export ${activeTab === 'history' ? 'Visitor History' : activeTab === 'bookings' ? 'Bookings' : 'Clients'}`}
+        subtitle="Select the export format."
+        department="General"
+        category="Other"
+        sourceRef={`visitor-management-${activeTab}`}
+        reportTitle={activeTab === 'history' ? 'Visitor History' : activeTab === 'bookings' ? 'Visitor Bookings' : 'Visitor Clients'}
+        defaultDataWindow="Annual"
+        onExport={async ({ format }: ExportParams) => {
+          const exportFormat = format === 'PDF' ? 'pdf' : 'csv';
+          if (activeTab === 'history') await handleExportHistory(exportFormat);
+          else if (activeTab === 'bookings') await handleExportBookings(exportFormat);
+          else await handleExportClients(exportFormat);
+        }}
+      />
       </PageFrame>
     </>
   );

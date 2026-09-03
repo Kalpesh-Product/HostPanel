@@ -20,6 +20,11 @@ import {
 } from "@/services/hr";
 import { generatePayrollPayslip, sendPayrollPayslip } from "@/services/finance";
 import { toast } from "sonner";
+import { createReport } from "@/services/reports";
+import { downloadReportFile } from "@/utils/report-download";
+import ExportReportModal, { type ExportParams } from "@/components/ExportReportModal";
+import ReportExportButton from "@/components/ReportExportButton";
+import { isDateInExportPeriod } from '@/utils/export-period';
 import {
   canAccessFinanceDashboard,
   getStoredUser,
@@ -1018,6 +1023,7 @@ export default function HRPayrollPage() {
 
   const [adjustment, setAdjustment] = useState<AdjustmentForm>({ type: "bonus", amount: "", reason: "" });
   const [isProcessingPayslip, setIsProcessingPayslip] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [selectedPayslipTemplate, setSelectedPayslipTemplate] = useState<PayslipTemplateId>("modern-blue");
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isTemplateConfirmationOpen, setIsTemplateConfirmationOpen] = useState(false);
@@ -1210,6 +1216,69 @@ export default function HRPayrollPage() {
     (sum, emp) => sum + (emp.financials?.benefits || 0) + (emp.financials?.hrBonus || 0),
     0,
   );
+
+  const handleExportPayroll = async ({ format, dataWindow, period, reportMonth, dateFrom, dateTo }: ExportParams) => {
+    const reportFormat = format === "Excel" ? "Excel" : "PDF";
+    const periodPayrollHistory = payrollHistory.filter((record) => isDateInExportPeriod(
+      record.sentToFinanceAt || record.processedOn || `${record.month || selectedMonth} 1, ${record.year || selectedYear}`,
+      { dateFrom, dateTo },
+    ));
+    const masterFallsInPeriod = isDateInExportPeriod(`${selectedMonth} 1, ${selectedYear}`, { dateFrom, dateTo });
+    const exportRows = activeTab === "history"
+      ? periodPayrollHistory.map((record, index) => {
+          const recordEmployees = Array.isArray(record.employees) ? record.employees : [];
+          const paidCount = recordEmployees.filter((e) =>
+            String(e.financials?.paymentStatus || e.payment?.status || "").toLowerCase() === "paid"
+          ).length;
+          const label = record.monthLabel || record.displayMonth || `Month ${record.month}`;
+          return {
+            label: `${index + 1}. ${label} Payroll`,
+            value: [
+              record.status || "",
+              record.totalEmployees ? `Employees: ${record.totalEmployees}` : "",
+              `Paid: ${paidCount}`,
+              Number(record.totalAmount || 0) > 0 ? `Total: ${formatCurrency(Number(record.totalAmount), recordEmployees[0]?.financials?.currency || recordEmployees[0]?.salaryPackage?.currency || payrollCurrency)}` : "",
+              `Handed Off: ${record.sentToFinanceAt || record.processedOn ? formatPayrollHistoryDate(record.sentToFinanceAt || record.processedOn, payrollTimeZone) : "-"}`,
+            ].filter(Boolean).join(" | "),
+          };
+        })
+      : (masterFallsInPeriod ? filteredMaster : []).map((emp) => ({
+          label: `${emp.id || "EMP"} - ${emp.name}`,
+          value: [
+            `Role: ${emp.role || "-"}`,
+            `Dept: ${emp.department || "-"}`,
+            `CTC: ${formatCurrency(emp.salaryPackage?.annualCtc || emp.salaryPackage?.grossAnnual, emp.salaryPackage?.currency || payrollCurrency)}`,
+            `Net: ${formatCurrency(emp.financials?.netSalary, emp.financials?.currency || payrollCurrency)}`,
+            `Status: ${String(emp.financials?.paymentStatus || emp.payment?.status || payrollStatus)}`,
+          ].join(" | "),
+        }));
+    if (exportRows.length === 0) {
+      toast.error("There are no payroll records to export.");
+      return;
+    }
+    try {
+      const response = await createReport({
+        title: activeTab === "history" ? "Payroll History" : `Payroll Master - ${selectedMonth} ${selectedYear}`,
+        department: "HR",
+        category: "Other",
+        dataWindow,
+        reportMonth,
+        period: period || `${selectedMonth} ${selectedYear}`,
+        generatedBy: (getStoredUser() as any)?.workspaceMembership?.fullName || (getStoredUser() as any)?.fullName || "HR Manager",
+        format: reportFormat,
+        description: `${activeTab === "history" ? "Payroll history" : `Payroll master for ${selectedMonth} ${selectedYear}`} export for the current filtered view.`,
+        sourceType: "department-roster",
+        sourceRef: `hr-payroll-${activeTab}`,
+        reportRows: exportRows,
+        monthlyData: [],
+      });
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
+      window.dispatchEvent(new Event("reports:refresh"));
+      toast.success(`${reportFormat} payroll report saved to Reports.`);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to export payroll report.");
+    }
+  };
 
   const openPayrollHandoffModal = (mode = "prepare") => {
     setHandoffMode(mode);
@@ -1480,6 +1549,7 @@ export default function HRPayrollPage() {
               </p>
             </div>
 
+            <ReportExportButton onClick={() => setShowExportModal(true)} />
           </div>
 
           {/* Error message */}
@@ -1974,6 +2044,19 @@ export default function HRPayrollPage() {
         onGeneratePayslip={handleGeneratePayslip}
         onSendPayslip={handleSendPayrollPayslip}
         workspaceTemplateId={workspacePayslipTemplate}
+      />
+
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title={activeTab === "history" ? "Export Payroll History" : "Export Payroll Master"}
+        subtitle="Select format and date range to export."
+        department="HR"
+        category="Other"
+        sourceRef={`hr-payroll-${activeTab}`}
+        reportTitle={activeTab === "history" ? "Payroll History" : `Payroll Master - ${selectedMonth} ${selectedYear}`}
+        defaultDataWindow="Monthly"
+        onExport={handleExportPayroll}
       />
     </div>
   );

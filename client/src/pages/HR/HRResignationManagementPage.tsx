@@ -17,11 +17,15 @@ import {
   UserMinus,
   X,
   XCircle,
+  Download,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { createReport } from "@/services/reports";
+import ExportReportModal, { type ExportParams } from "@/components/ExportReportModal";
+import ReportExportButton from "@/components/ReportExportButton";
+import { isDateInExportPeriod } from '@/utils/export-period';
 import { HRResignationManagementSkeleton } from "@/components/ui/Skeleton";
 import { getStoredUser, normalizeUserRole } from "@/lib/auth-session";
 import {
@@ -298,6 +302,7 @@ export function HRResignationManagementPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isExportingReport, setIsExportingReport] = useState("");
+  const [showExportModal, setShowExportModal] = useState(false);
   const [overview, setOverview] = useState<ResignationManagementOverview>(defaultOverview);
   const [activeTab, setActiveTab] = useState("requests");
   const [searchQuery, setSearchQuery] = useState("");
@@ -400,10 +405,11 @@ export function HRResignationManagementPage() {
     }
   }
 
-  async function handleExportReport(format = "PDF") {
-    const reportFormat = String(format).toLowerCase() === "excel" ? "Excel" : "PDF";
-    if (!activeReportRows.length) {
-      toast.error("There are no resignation records to export.");
+  async function handleExportReport({ format, dataWindow, period, reportMonth, dateFrom, dateTo }: ExportParams) {
+    const reportFormat = format === "Excel" ? "Excel" : "PDF";
+    const periodRows = activeReportRows.filter((row) => isDateInExportPeriod(row.createdAt, { dateFrom, dateTo }));
+    if (!periodRows.length) {
+      toast.error("There are no resignation records to export for the selected period.");
       return;
     }
     setIsExportingReport(reportFormat);
@@ -415,20 +421,18 @@ export function HRResignationManagementPage() {
         title: reportTitle,
         department: deptLabel === "All Departments" ? "HR" : deptLabel,
         category: "Other",
-        dataWindow: "Custom",
-        reportMonth: new Date().toISOString().slice(0, 7),
-        period: activeReportScopeLabel,
+        dataWindow,
+        reportMonth,
+        period: period || activeReportScopeLabel,
         generatedBy: managerProfile.name,
         format: reportFormat,
         description,
         sourceType: "custom",
         sourceRef: `exit-management-${activeTab}`,
-        reportRows: buildResignationExportRows(activeReportRows, activeReportScopeLabel, deptLabel, searchQuery),
+        reportRows: buildResignationExportRows(periodRows, activeReportScopeLabel, deptLabel, searchQuery),
         monthlyData: [],
       });
-      if (reportFormat === "PDF") {
-        await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
-      }
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       const createdReportId = response?.data?.report?.recordId;
       toast.success(reportFormat === "PDF" ? "Resignation report saved to Reports." : "Resignation report saved to Reports. Preview it before downloading.");
       navigate(createdReportId ? `/dashboard/hr/report?reportId=${createdReportId}` : "/dashboard/hr/report");
@@ -461,9 +465,7 @@ export function HRResignationManagementPage() {
         reportRows: buildResignationRequestExportRows(request),
         monthlyData: [],
       });
-      if (reportFormat === "PDF") {
-        await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
-      }
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
       const createdReportId = response?.data?.report?.recordId;
       toast.success(reportFormat === "PDF" ? "Resignation request report saved to Reports." : "Resignation request report saved to Reports. Preview it before downloading.");
       navigate(createdReportId ? `/dashboard/hr/report?reportId=${createdReportId}` : "/dashboard/hr/report");
@@ -647,20 +649,7 @@ export function HRResignationManagementPage() {
               <p className="text-xs font-pmedium text-slate-500 mt-1">Core Module | Review & manage employee offboarding</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              {/* <button
-                type="button"
-                onClick={handleExportPDF}
-                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-                <FileDown size={16} className="text-red-500"/>
-                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
-              </button> */}
-              {/* <button
-                type="button"
-                onClick={handleExportExcel}
-                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-                <FileSpreadsheet size={16} className="text-emerald-500"/>
-                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
-              </button> */}
+              <ReportExportButton onClick={() => setShowExportModal(true)} />
             </div>
           </div>
 
@@ -1272,6 +1261,19 @@ export function HRResignationManagementPage() {
           </div>
         )}
       </AnimatePresence>
+
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Export Resignation Report"
+        subtitle="Select format and date range to export."
+        department={departmentFilter === "All Departments" ? "HR" : departmentFilter}
+        category="Other"
+        sourceRef={`exit-management-${activeTab}`}
+        reportTitle={`${managerProfile.name} - ${activeReportScopeLabel}`}
+        defaultDataWindow="Custom"
+        onExport={handleExportReport}
+      />
     </div>
   );
 }

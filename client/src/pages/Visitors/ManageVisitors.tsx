@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Download } from "lucide-react";
 import AgTable from "../../components/AgTable";
 import PrimaryButton from "../../components/PrimaryButton";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -17,12 +18,18 @@ import { toast } from "sonner";
 import ThreeDotMenu from "../../components/ThreeDotMenu";
 import PageFrame from "../../components/Pages/PageFrame";
 import YearWiseTable from "../../components/Tables/YearWiseTable";
+import { createReport } from "../../services/reports";
+import { downloadReportFile } from "../../utils/report-download";
+import ExportReportModal, { type ExportParams } from "../../components/ExportReportModal";
+import ReportExportButton from "@/components/ReportExportButton";
+import { isDateInExportPeriod } from '@/utils/export-period';
 
 const ManageVisitors = () => {
   const axios = useAxiosPrivate();
   const [modalMode, setModalMode] = useState("view");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedVisitor, setSelectedVisitor] = useState(null);
+  const [showExportModal, setShowExportModal] = useState(false);
   const { setValue, handleSubmit, reset, control } = useForm();
   
   const { data: visitorsData = [], isPending: isVisitorsData } = useQuery({
@@ -118,9 +125,65 @@ const ManageVisitors = () => {
     },
   ];
 
+  const handleExportReport = async ({ format, dataWindow, period, reportMonth, dateFrom, dateTo }: ExportParams) => {
+    const reportFormat = format === "Excel" ? "Excel" : "PDF";
+    const exportRows = (visitorsData || [])
+      .filter((m) => m.visitorFlag !== "Client")
+      .filter((item) => isDateInExportPeriod(item.checkIn || item.createdAt || item.updatedAt, { dateFrom, dateTo }))
+      .map((item, index) => ({
+        label: `${index + 1}. ${item.firstName || ""} ${item.lastName || ""}`.trim() || "Visitor",
+        value: [
+          `Email: ${item.email || "-"}`,
+          `Phone: ${item.phoneNumber || "-"}`,
+          `Purpose: ${item.purposeOfVisit || "-"}`,
+          `To Meet: ${item?.toMeet?.firstName || ""} ${item?.toMeet?.lastName || ""}`.trim() || "To Meet: -",
+          `Check In: ${item.checkIn || "-"}`,
+          `Check Out: ${item.checkOut || "-"}`,
+        ].join(" | "),
+      }));
+    if (exportRows.length === 0) {
+      toast.error("There are no visitors to export.");
+      return;
+    }
+    try {
+      const response = await createReport({
+        title: "Visitors",
+        department: "Front Office",
+        category: "Other",
+        dataWindow,
+        reportMonth,
+        period: period || "Current view",
+        generatedBy: "Manager",
+        format: reportFormat,
+        description: "Visitor check-in details for the current view.",
+        sourceType: "visitors",
+        sourceRef: "manage-visitors",
+        reportRows: exportRows,
+        monthlyData: [],
+      });
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
+      window.dispatchEvent(new Event("reports:refresh"));
+      toast.success(`${reportFormat} visitors report saved to Reports.`);
+    } catch (error) {
+      toast.error(error?.message || "Failed to export visitors report.");
+    }
+  };
+
   return (
     <div>
       <PageFrame>
+        <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+          <div>
+            <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
+              Visitors
+            </h2>
+            <p className="text-xs font-pmedium text-slate-500 mt-1">
+              Monitor visitor check-ins and manage visit records.
+            </p>
+          </div>
+          <ReportExportButton onClick={() => setShowExportModal(true)} />
+        </div>
+
         <YearWiseTable
           dateColumn={"checkIn"}
           search
@@ -145,6 +208,19 @@ const ManageVisitors = () => {
           columns={visitorsColumns}
         />
       </PageFrame>
+
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Export Visitors"
+        subtitle="Select format and date range to export."
+        department="Front Office"
+        category="Other"
+        sourceRef="manage-visitors"
+        reportTitle="Visitors"
+        defaultDataWindow="Monthly"
+        onExport={handleExportReport}
+      />
 
       <MuiModal
         open={isModalOpen}

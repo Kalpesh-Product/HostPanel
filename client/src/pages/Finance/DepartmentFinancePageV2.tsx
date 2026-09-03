@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, Wallet, TrendingDown, TrendingUp, AlertCircle,
   Send, Plus, Eye, Receipt, UserPlus, UploadCloud,
-  CheckCircle2, Clock, Check, Loader2, X, FileText, FileWarning, Search, FileDown, FileSpreadsheet, Calendar, Pencil, MessageSquare
+  CheckCircle2, Clock, Check, Loader2, X, FileText, FileWarning, Search, FileDown, FileSpreadsheet, Calendar, Pencil, MessageSquare, Download
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useLocation } from 'react-router-dom';
@@ -31,6 +31,9 @@ import { formatFinancePaymentStatus } from '@/features/finance/utils/paymentStat
 import { statusPillClass } from '@/lib/status-pill';
 import { ApprovalFlowBadges, hasApprovalProgress } from '@/components/finance/ApprovalFlowBadges';
 import PageFrame from '@/components/Pages/PageFrame';
+import ExportReportModal, { type ExportParams } from '@/components/ExportReportModal';
+import ReportExportButton from '@/components/ReportExportButton';
+import { isMonthInExportPeriod } from '@/utils/export-period';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency, getWorkspaceCurrencySymbol } from '@/lib/workspaceLocalization';
 
@@ -284,6 +287,7 @@ export function DepartmentFinancePageV2() {
     (userRole === 'manager' && memberDepartmentNames.some((name) => name.includes('finance')));
 
   const [selectedFY, setSelectedFY] = useState(DEFAULT_FISCAL_YEAR);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [activeTab, setActiveTab] = useState('projected');
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
@@ -1042,11 +1046,17 @@ export function DepartmentFinancePageV2() {
     }
   };
 
-  const handleGenerateReport = async (format: string = 'PDF') => {
+  const handleGenerateReport = async ({ format, dataWindow, period, reportMonth, dateFrom, dateTo }: ExportParams) => {
     const reportFormat = String(format).toLowerCase() === 'excel' ? 'Excel' : 'PDF';
     const fiscalYearLabel = selectedFY || '';
+    const exportPeriodLabel = period || `${fiscalYearLabel} Department Finance`;
 
-    const expenseRows = monthlyExpenses.flatMap((month) =>
+    const periodMonths = monthlyExpenses.filter((month) => isMonthInExportPeriod(
+      (month as any).monthKey || month.month || month.title,
+      selectedFY,
+      { dateFrom, dateTo },
+    ));
+    const expenseRows = periodMonths.flatMap((month) =>
       month.expenses.map((expense) => ({
         label: `${month.month || month.title || ''} — ${expense.title}`,
         value: `Projected: ${formatCurrency(expense.projectedAmount)} | Actual: ${formatCurrency(expense.actualSpent)} | Status: ${expense.paymentStatus || expense.status}`,
@@ -1059,7 +1069,7 @@ export function DepartmentFinancePageV2() {
     const reportRows = [...expenseRows, ...vendorRows];
 
     if (!reportRows.length) {
-      toast.error(`There is no ${departmentLabel} finance data to export for ${fiscalYearLabel}.`);
+      toast.error(`There is no ${departmentLabel} finance data to export for ${exportPeriodLabel}.`);
       return;
     }
 
@@ -1068,16 +1078,16 @@ export function DepartmentFinancePageV2() {
         title: `${departmentLabel} Finance - ${fiscalYearLabel}`,
         department: departmentLabel,
         category: 'Financial',
-        dataWindow: 'Annual',
-        reportMonth: new Date().toISOString().slice(0, 7),
-        period: `${fiscalYearLabel} Department Finance`,
+        dataWindow,
+        reportMonth,
+        period: exportPeriodLabel,
         generatedBy: (currentUser?.name as string) || 'Department Manager',
         format: reportFormat,
-        description: `Department finance report for ${departmentLabel}, fiscal year ${fiscalYearLabel}.`,
+        description: `Department finance report for ${departmentLabel}, period ${exportPeriodLabel}.`,
         sourceType: 'custom',
         sourceRef: 'department-finance',
         reportRows,
-        monthlyData: monthlyExpenses.map((month) => ({
+        monthlyData: periodMonths.map((month) => ({
           month: month.month || month.title || '',
           metric: `${departmentLabel} projected`,
           value: formatCurrency(month.projectedAmount),
@@ -1203,24 +1213,7 @@ export function DepartmentFinancePageV2() {
                 <UploadCloud size={15} />
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-[#2563EB] text-white px-1.5 py-0.5 rounded">Bulk Upload</span>
               </button>
-              <button
-                onClick={() => handleGenerateReport('PDF')}
-                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-rose-50 hover:border-rose-200 text-slate-500 transition-all active:scale-95 shadow-sm"
-                title="PDF"
-                aria-label="PDF"
-              >
-                <FileDown size={15} />
-                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-rose-500 text-white px-1.5 py-0.5 rounded">PDF</span>
-              </button>
-              <button
-                onClick={() => handleGenerateReport('Excel')}
-                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm"
-                title="Excel"
-                aria-label="Excel"
-              >
-                <FileSpreadsheet size={15} />
-                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">Excel</span>
-              </button>
+              <ReportExportButton onClick={() => setShowExportModal(true)} />
             </div>
           </div>
 
@@ -2764,6 +2757,19 @@ export function DepartmentFinancePageV2() {
           </div>
         </div>
       )}
+
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title={`Export ${departmentLabel} Finance Report`}
+        subtitle="Select format and date range to export."
+        department={departmentLabel}
+        category="Financial"
+        sourceRef="department-finance"
+        reportTitle={`${departmentLabel} Finance - ${selectedFY || DEFAULT_FISCAL_YEAR}`}
+        defaultDataWindow="Annual"
+        onExport={handleGenerateReport}
+      />
     </div>
   );
 }

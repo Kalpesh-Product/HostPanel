@@ -3,8 +3,14 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Search, ChevronDown, Clock, Users, Building,
   Eye, Plus, X, CheckCircle2, AlertCircle, CalendarClock, XCircle, ChevronLeft, ChevronRight, Calendar as CalIcon, Building2,
-  AlertTriangle, Briefcase, UserCheck, CreditCard, DollarSign, Phone, Mail, FileText, BarChart3, UserPlus, Globe, Tag, ArrowRight
+  AlertTriangle, Briefcase, UserCheck, CreditCard, DollarSign, Phone, Mail, FileText, BarChart3, UserPlus, Globe, Tag, ArrowRight, Download
 } from 'lucide-react';
+import { toast } from 'sonner';
+import { createReport } from '@/services/reports';
+import { downloadReportFile } from '@/utils/report-download';
+import ExportReportModal, { type ExportParams } from '@/components/ExportReportModal';
+import ReportExportButton from '@/components/ReportExportButton';
+import { isDateInExportPeriod } from '@/utils/export-period';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageFrame from '../../components/Pages/PageFrame';
 import { formatTime12h } from '../../utils/time';
@@ -2482,6 +2488,7 @@ export function MeetingRoomsPage() {
 
   // --------- MAIN BOOKING TABS ---------
   const [mainBookingTab, setMainBookingTab] = useState<'my_bookings' | 'internal_booking' | 'external_booking' | 'tenant_bookings'>('my_bookings');
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // --------- EXTERNAL BOOKINGS LIST FILTERS (Tasks 18/19) ---------
   const [externalSearchQuery, setExternalSearchQuery] = useState('');
@@ -2896,6 +2903,56 @@ export function MeetingRoomsPage() {
         return (b.startTime || '').localeCompare(a.startTime || '');
       });
   }, [allBookings, mainBookingTab, activeTab, externalSearchQuery, externalPaymentFilter, externalStatusFilter, bookingDateFrom, bookingDateTo]);
+
+  const handleExportReport = async ({ format, dataWindow, period, reportMonth, dateFrom, dateTo }: ExportParams) => {
+    const reportFormat = format === 'Excel' ? 'Excel' : 'PDF';
+    const isExternal = mainBookingTab === 'external_booking';
+    const rows = (isExternal ? externalDisplayedBookings : displayedBookings)
+      .filter((booking) => isDateInExportPeriod(booking.date || (booking as any).bookingDate || (booking as any).createdAt, { dateFrom, dateTo }));
+    const exportRows = rows.map((booking, index) => {
+      const displayStatus = getBookingDisplayStatus(booking);
+      return {
+        label: `${index + 1}. ${isExternal ? (getExternalClientName(booking) || 'External Client') : (booking.roomName || 'Meeting Room')}`,
+        value: [
+          isExternal ? `Client: ${getExternalClientName(booking) || '-'}` : `Room: ${booking.roomName || '-'}`,
+          `Date: ${booking.date || '-'}`,
+          `Time: ${booking.startTime || '-'} - ${booking.endTime || '-'}`,
+          `Purpose: ${booking.purpose || '-'}`,
+          `Booked By: ${booking.bookedByName || '-'}`,
+          `Status: ${displayStatus || '-'}`,
+          isExternal && (booking as any).bookingCode ? `Code: ${(booking as any).bookingCode}` : '',
+          isExternal && (booking as any).paymentStatus ? `Payment: ${(booking as any).paymentStatus}` : '',
+          (booking as any).attendees ? `Attendees: ${(booking as any).attendees}` : '',
+        ].filter(Boolean).join(' | '),
+      };
+    });
+    if (exportRows.length === 0) {
+      toast.error('There are no meeting bookings to export.');
+      return;
+    }
+    try {
+      const response = await createReport({
+        title: 'Meeting Room Bookings',
+        department: 'Administration',
+        category: 'Other',
+        dataWindow,
+        reportMonth,
+        period: period || `Current view (${bookingDateFrom || 'all'} to ${bookingDateTo || 'all'})`,
+        generatedBy: managerProfile.name || 'Admin',
+        format: reportFormat,
+        description: `${isExternal ? 'External' : 'Internal'} meeting room bookings for the current view.`,
+        sourceType: 'custom',
+        sourceRef: 'meeting-rooms-page',
+        reportRows: exportRows,
+        monthlyData: [],
+      });
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
+      window.dispatchEvent(new Event('reports:refresh'));
+      toast.success(`${reportFormat} meeting booking report saved to Reports.`);
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to export meeting booking report.');
+    }
+  };
 
   const memberDirectoryById = useMemo(() => {
     const directory = new Map();
@@ -4383,10 +4440,14 @@ export function MeetingRoomsPage() {
                     onClick={() => setShowTenantBookingDialog(true)}
                     className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-pmedium text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-indigo-700 active:scale-95"
                   >
-                    <Building2 size={14} strokeWidth={3} /> TENANT BOOKING
-                  </button>
+<Building2 size={14} strokeWidth={3} /> TENANT BOOKING
+                    </button>
                 )}
               </div> */}
+
+              {!isInitialLoading && (
+                <ReportExportButton onClick={() => setShowExportModal(true)} />
+              )}
             </div>
 
             {errorMessage ? (
@@ -8057,6 +8118,19 @@ export function MeetingRoomsPage() {
         workspaceId={workspaceId}
         managerName={managerProfile.name}
         onSuccess={reloadBookings}
+      />
+
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Export Meeting Bookings"
+        subtitle="Select format and date range to export."
+        department="Administration"
+        category="Other"
+        sourceRef="meeting-rooms-page"
+        reportTitle="Meeting Room Bookings"
+        defaultDataWindow="Monthly"
+        onExport={handleExportReport}
       />
 
     </div>

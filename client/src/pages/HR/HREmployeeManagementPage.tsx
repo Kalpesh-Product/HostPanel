@@ -5,7 +5,7 @@ import * as XLSX from "xlsx";
 import {
   Users, Search, UserPlus, Shield, Mail, Phone, Building, Briefcase,
   CheckCircle2, Key, Lock, X, Power, MailOpen, Calendar, FileText,
-  FileSpreadsheet, UploadCloud, Download, FileDown, Plus, Filter, AlertCircle,
+  FileSpreadsheet, UploadCloud, Download, Plus, Filter, AlertCircle,
   Eye, Edit3, Clock, UserCheck, UserX, Loader2, ChevronDown, ArrowLeft,
   ChevronRight, AlertTriangle, XCircle, Camera, Save, Ban,
   Settings, Info, Send,
@@ -28,6 +28,8 @@ import {
 import { getRecruitmentOverview } from "@/services/recruitment";
 import { createReport } from "@/services/reports";
 import { downloadReportFile } from "@/utils/report-download";
+import ExportReportModal, { type ExportParams } from "@/components/ExportReportModal";
+import ReportExportButton from "@/components/ReportExportButton";
 import { getCountries, getStates, getCities, getCountryIsoCode } from "@/utils/locationApi";
 import { parsePhoneNumberFromString } from "libphonenumber-js/max";
 import type { CountryCode } from "libphonenumber-js";
@@ -1365,6 +1367,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   const addFormContainerRef = useRef<HTMLFormElement | null>(null);
   const editFormContainerRef = useRef<HTMLFormElement | null>(null);
   const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [bulkSpreadsheetName, setBulkSpreadsheetName] = useState("");
   const [bulkSpreadsheetRows, setBulkSpreadsheetRows] = useState<Record<string, unknown>[]>([]);
   const [bulkImportSummary, setBulkImportSummary] = useState<BulkImportSummary | null>(null);
@@ -1465,7 +1468,8 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     await submitAddForm(true);
   };
 
-  const handleExportPDF = async () => {
+  const handleExportEmployees = async ({ format, dataWindow, period, reportMonth }: ExportParams) => {
+    const reportFormat = String(format).toLowerCase() === 'excel' ? 'Excel' : 'PDF';
     try {
       const reportRows = visibleEmployees.map((emp) => ({
         label: emp.name || emp.email,
@@ -1475,46 +1479,25 @@ export default function HREmployeeManagementPage(): React.ReactElement {
         title: "Company Management Report",
         department: "HR",
         category: "HR",
-        dataWindow: "All",
-        reportMonth: new Date().toISOString().slice(0, 7),
-        period: new Date().toISOString().slice(0, 7),
+        dataWindow,
+        reportMonth,
+        period: period || new Date().toISOString().slice(0, 7),
         generatedBy: (currentUser?.name as string) || "Admin",
-        format: "PDF",
+        format: reportFormat,
         description: `Employee report — ${visibleEmployees.length} employees`,
         sourceType: "custom",
         sourceRef: "hr-employee-management",
         reportRows,
       });
-      if (response?.data?.download) await downloadReportFile(response.data.download.url, { openInNewTab: true });
+      if (response?.data?.download) {
+        await downloadReportFile(response.data.download.url, {
+          fileName: reportFormat === 'Excel' ? `${new Date().toISOString().slice(0, 10)}_Employees.xlsx` : undefined,
+          openInNewTab: false,
+        });
+      }
       window.dispatchEvent(new Event("reports:refresh"));
-      toast.success("PDF report saved.");
-    } catch { toast.error("Failed to export PDF."); }
-  };
-
-  const handleExportExcel = async () => {
-    try {
-      const reportRows = visibleEmployees.map((emp) => ({
-        label: emp.name || emp.email,
-        value: `ID: ${emp.employeeId || emp.employeeNumber} | Email: ${emp.email} | Dept: ${emp.department} | Role: ${emp.role} | Status: ${emp.status}`,
-      }));
-      const response = await createReport({
-        title: "Company Management Report",
-        department: "HR",
-        category: "HR",
-        dataWindow: "All",
-        reportMonth: new Date().toISOString().slice(0, 7),
-        period: new Date().toISOString().slice(0, 7),
-        generatedBy: (currentUser?.name as string) || "Admin",
-        format: "Excel",
-        description: `Employee report — ${visibleEmployees.length} employees`,
-        sourceType: "custom",
-        sourceRef: "hr-employee-management",
-        reportRows,
-      });
-      await downloadReportFile(response?.data?.download?.url, { fileName: `${new Date().toISOString().slice(0, 10)}_Employees.xlsx` });
-      window.dispatchEvent(new Event("reports:refresh"));
-      toast.success("Excel report saved.");
-    } catch { toast.error("Failed to export Excel."); }
+      toast.success(`${reportFormat} report saved.`);
+    } catch { toast.error(`Failed to export ${reportFormat}.`); }
   };
 
   /* ───────────────────── Add Form Field Handlers ───────────────────── */
@@ -2416,20 +2399,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 <UploadCloud size={13} /> 
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-500 text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
               </button>
-              <button
-               type="button"
-               onClick={() => void handleExportPDF()}
-               className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-             <FileDown size={16} className="text-red-500"/>
-               <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleExportExcel()}
-                  className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-                  <FileSpreadsheet size={16} className="text-emerald-500"/>
-                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
-                </button>
+              <ReportExportButton onClick={() => setShowExportModal(true)} />
             </div>
           </div>
 
@@ -4301,6 +4271,18 @@ export default function HREmployeeManagementPage(): React.ReactElement {
         document.body,
       )}
 
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Export Company Management Report"
+        subtitle="Select format and date range to export."
+        department="HR"
+        category="HR"
+        sourceRef="hr-employee-management"
+        reportTitle="Company Management Report"
+        defaultDataWindow="Annual"
+        onExport={handleExportEmployees}
+      />
     </div>
   );
 }

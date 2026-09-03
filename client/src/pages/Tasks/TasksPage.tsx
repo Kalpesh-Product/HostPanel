@@ -2,9 +2,15 @@ import React, { useEffect, useState, useMemo, type FormEvent } from 'react';
 import {
   Search, Plus, Eye, CheckCircle2, Clock, AlertCircle,
   Calendar, User, FileText, X, AlertTriangle, Paperclip,
-  MessageSquare,   Building2, Filter
+  MessageSquare,   Building2, Filter, Download
 } from 'lucide-react';
 import PageFrame from '@/components/Pages/PageFrame';
+import { toast } from 'sonner';
+import { createReport } from '@/services/reports';
+import { downloadReportFile } from '@/utils/report-download';
+import ExportReportModal, { type ExportParams } from '@/components/ExportReportModal';
+import ReportExportButton from '@/components/ReportExportButton';
+import { isDateInExportPeriod } from '@/utils/export-period';
 import {
   canAccessAdminDashboard,
   canAccessAdministrationDashboard,
@@ -830,6 +836,7 @@ export function TasksPage() {
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
@@ -1459,6 +1466,50 @@ export function TasksPage() {
     });
   }, [tasks, activeTab, searchQuery, selectedDeptFilter, statusFilter, isDepartmentManagerProfile, isAdminTaskProfile, currentUserId, adminAssignedDepartments]);
 
+  const handleExportReport = async ({ format, dataWindow, period, reportMonth, dateFrom, dateTo }: ExportParams) => {
+    const reportFormat = format === 'Excel' ? 'Excel' : 'PDF';
+    const exportRows = displayedTasks
+      .filter((task) => isDateInExportPeriod(task.createdAt || task.assignedAt || task.dueDate, { dateFrom, dateTo }))
+      .map((task, index) => ({
+      label: `${index + 1}. ${task.title || 'Untitled Task'}`,
+      value: [
+        `Department: ${task.department || '-'}`,
+        `Priority: ${task.priority || '-'}`,
+        `Status: ${task.status || '-'}`,
+        `Assignee: ${task.assignee || 'Unassigned'}`,
+        `Raised By: ${task.raisedBy || '-'}`,
+        task.dueDate ? `Due: ${task.dueDate}` : '',
+        task.progress != null ? `Progress: ${task.progress}%` : '',
+      ].filter(Boolean).join(' | '),
+      }));
+    if (exportRows.length === 0) {
+      toast.error('There are no tasks to export.');
+      return;
+    }
+    try {
+      const response = await createReport({
+        title: 'Task Management',
+        department: 'Admin',
+        category: 'Other',
+        dataWindow,
+        reportMonth,
+        period: period || 'Current view',
+        generatedBy: profile.name || 'Admin',
+        format: reportFormat,
+        description: `Tasks for the current view (${activeTab}).`,
+        sourceType: 'custom',
+        sourceRef: 'tasks-page',
+        reportRows: exportRows,
+        monthlyData: [],
+      });
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
+      window.dispatchEvent(new Event('reports:refresh'));
+      toast.success(`${reportFormat} task report saved to Reports.`);
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to export task report.');
+    }
+  };
+
   const statsBase = useMemo(() => {
     return tasks.filter(t => {
       const matchesTab = getTaskMatchesActiveTab(t);
@@ -1791,6 +1842,7 @@ export function TasksPage() {
                       : 'Track task routing across all departments and manage workloads.'}
                 </p>
               </div>
+              <ReportExportButton onClick={() => setShowExportModal(true)} />
             </div>
 
             {errorMessage ? (
@@ -1922,8 +1974,8 @@ export function TasksPage() {
                     onClick={() => setIsAssignModalOpen(true)}
                     className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                   >
-                    <Plus size={13} strokeWidth={3} /> ASSIGN TASK
-                  </button>
+<Plus size={13} strokeWidth={3} /> ASSIGN TASK
+                    </button>
                 </div>
               </div>
 
@@ -2542,6 +2594,19 @@ export function TasksPage() {
         </div>
       )}
     </PageFrame>
+
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Export Tasks"
+        subtitle="Select format and date range to export."
+        department="Admin"
+        category="Other"
+        sourceRef="tasks-page"
+        reportTitle="Task Management"
+        defaultDataWindow="Annual"
+        onExport={handleExportReport}
+      />
     </div>
   );
 }

@@ -3,13 +3,15 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { createResource, getResources, updateResource } from '../../../services/resources';
 import { createPricingPackage, deletePricingPackage, getPricingPackages, updatePricingPackage } from '../../../services/pricing-packages';
 import { toast } from 'sonner';
-import { AlertTriangle, Building2,View, CheckCircle2, ChevronDown, Clock, Download, Edit2, Eye, FileDown, FileSpreadsheet, FileText, LayoutGrid, Loader2, Monitor, Plus, Search, Save, Tag, Trash, UploadCloud, Users, X, XCircle } from 'lucide-react';
+import { AlertTriangle, Building2,View, CheckCircle2, ChevronDown, Clock, Download, Edit2, Eye, FileText, LayoutGrid, Loader2, Monitor, Plus, Search, Save, Tag, Trash, UploadCloud, Users, X, XCircle } from 'lucide-react';
 import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
 import useDashboardAccess from '../../../hooks/useDashboardAccess';
 import { canExportReports } from '../../../utils/workspacePlanAccess';
 import useAxiosPrivate from '../../../hooks/useAxiosPrivate';
 import { formatTime12h } from '../../../utils/time';
 import { createReport } from '../../../services/reports';
+import ExportReportModal, { type ExportParams } from '../../../components/ExportReportModal';
+import ReportExportButton from '@/components/ReportExportButton';
 import { downloadReportFile } from '../../../utils/report-download';
 import PageFrame from '../../../components/Pages/PageFrame';
 import { ResourcePricingSkeleton } from '../../../components/ui/SalesPageSkeletons';
@@ -594,6 +596,8 @@ export default function PricingPackagesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingReport, setIsExportingReport] = useState('');
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showPackageExportModal, setShowPackageExportModal] = useState(false);
   const [activeTab, setActiveTab] = useState('resource');
   const [searchQuery, setSearchQuery] = useState('');
   const [resourceCategoryFilter, setResourceCategoryFilter] = useState('All Categories');
@@ -1532,8 +1536,8 @@ export default function PricingPackagesPage() {
     setResourceStatusFilter('All Status');
   };
 
-  const handleExportPackagesReport = async (format = 'PDF') => {
-    const reportFormat = String(format).toLowerCase() === 'excel' ? 'Excel' : 'PDF';
+  const handleExportPackagesReport = async ({ format, dataWindow, period, reportMonth }: ExportParams) => {
+    const reportFormat = format === 'Excel' ? 'Excel' : 'PDF';
     const sourceItems = activeTab === 'resource' ? filteredResources : filteredPackages;
 
     if (sourceItems.length === 0) {
@@ -1563,9 +1567,9 @@ export default function PricingPackagesPage() {
         title: `Sales ${scopeLabel}`,
         department: 'Sales',
         category: 'Other',
-        dataWindow: 'Custom',
-        reportMonth: new Date().toISOString().slice(0, 7),
-        period: scopeLabel,
+        dataWindow,
+        reportMonth,
+        period: period || scopeLabel,
         generatedBy: currentUserName,
         format: reportFormat,
         description: `Sales ${scopeLabel.toLowerCase()} export for the current filtered view.`,
@@ -1575,9 +1579,7 @@ export default function PricingPackagesPage() {
         monthlyData: [],
       });
 
-      if (reportFormat === 'PDF') {
-        await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
-      }
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
 
       const createdReportId = response?.data?.report?.recordId;
       window.dispatchEvent(new Event('reports:refresh'));
@@ -1590,10 +1592,10 @@ export default function PricingPackagesPage() {
     }
   };
 
-  const handleExportPackageReport = async (item, format = 'PDF') => {
+  const handleExportPackageReport = async (item, format, opts = {}) => {
     if (!item) return;
 
-    const reportFormat = String(format).toLowerCase() === 'excel' ? 'Excel' : 'PDF';
+    const reportFormat = format === 'Excel' ? 'Excel' : 'PDF';
     setIsExportingReport(reportFormat);
 
     try {
@@ -1601,9 +1603,9 @@ export default function PricingPackagesPage() {
         title: `${item.name || 'Package'} Report`,
         department: 'Sales',
         category: 'Other',
-        dataWindow: 'Custom',
-        reportMonth: new Date().toISOString().slice(0, 7),
-        period: item.category === 'Tenant' ? 'Tenant Package Profile' : 'Membership Package Profile',
+        dataWindow: opts.dataWindow || 'Custom',
+        reportMonth: opts.reportMonth || new Date().toISOString().slice(0, 7),
+        period: opts.period || (item.category === 'Tenant' ? 'Tenant Package Profile' : 'Membership Package Profile'),
         generatedBy: currentUserName,
         format: reportFormat,
         description: `${item.name || 'Package'} pricing and configuration summary.`,
@@ -1613,9 +1615,7 @@ export default function PricingPackagesPage() {
         monthlyData: [],
       });
 
-      if (reportFormat === 'PDF') {
-        await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
-      }
+      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
 
       const createdReportId = response?.data?.report?.recordId;
       window.dispatchEvent(new Event('reports:refresh'));
@@ -1689,26 +1689,7 @@ export default function PricingPackagesPage() {
               </>
             ) : null}
             {showReportExports && (
-              <>
-                <div data-tour="resource-pricing-export-btns" className="flex items-center gap-2">
-                <button
-                                type="button"
-                                onClick={() => handleExportPackagesReport('PDF')}
-                                disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm disabled:cursor-not-allowed disabled:opacity-60">
-                                <FileDown size={16} className="text-red-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleExportPackagesReport('Excel')}
-                                disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm disabled:cursor-not-allowed disabled:opacity-60">
-                                <FileSpreadsheet size={16} className="text-emerald-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
-                              </button>
-                </div>
-              </>
+              <ReportExportButton onClick={() => setShowExportModal(true)} isExporting={Boolean(isExportingReport)} />
             )}
           </div>
         </div>
@@ -2229,12 +2210,6 @@ export default function PricingPackagesPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {isViewingPackage && showReportExports ? (
-                    <>
-                      <button type="button" onClick={() => handleExportPackageReport(selectedPackage, 'PDF')} disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'} className="w-10 h-10 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 shadow-sm hover:text-red-500 hover:bg-red-50 transition-colors" title="Download PDF"><FileDown size={16} /></button>
-                      <button type="button" onClick={() => handleExportPackageReport(selectedPackage, 'Excel')} disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'} className="w-10 h-10 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 shadow-sm hover:text-emerald-600 hover:bg-emerald-50 transition-colors" title="Download Excel"><FileSpreadsheet size={16} /></button>
-                    </>
-                  ) : null}
                   <button type="button" onClick={closeModal} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm"><X size={18} strokeWidth={2.5} /></button>
                 </div>
               </div>
@@ -3384,6 +3359,32 @@ export default function PricingPackagesPage() {
           </div>
         ) : null}
       </PageFrame>
+
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title={activeTab === 'resource' ? 'Export Resources' : 'Export Packages'}
+        subtitle="Select format and date range to export."
+        department="Sales"
+        category="Other"
+        sourceRef={`sales-pricing-${activeTab}`}
+        reportTitle={`Sales ${activeTab === 'resource' ? 'Resource Pricing' : 'Tenant Packages'}`}
+        defaultDataWindow="Custom"
+        onExport={handleExportPackagesReport}
+      />
+
+      <ExportReportModal
+        isOpen={showPackageExportModal}
+        onClose={() => setShowPackageExportModal(false)}
+        title="Export Package Report"
+        subtitle="Select format to export this package."
+        department="Sales"
+        category="Other"
+        sourceRef={String(((selectedPackage || {}).recordId || (selectedPackage || {}).id || (selectedPackage || {}).packageCode || (selectedPackage || {}).name || '')).trim()}
+        reportTitle={`${((selectedPackage || {}).name || 'Package')} Report`}
+        defaultDataWindow="Annual"
+        onExport={({ format, dataWindow, period, reportMonth }: ExportParams) => handleExportPackageReport(selectedPackage, format, { dataWindow, period, reportMonth })}
+      />
     </div>
   );
 }

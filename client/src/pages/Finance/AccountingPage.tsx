@@ -6,8 +6,7 @@ import {
   BarChart3,
   Building2,
   Calendar,
-  FileDown,
-  FileSpreadsheet,
+  Download,
   Lock,
   Receipt,
   Search,
@@ -23,6 +22,9 @@ import { getMeetingRoomBookings } from '@/services/meeting-room-bookings';
 import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions, getFiscalYearStartMonth } from '@/features/finance/utils/fiscalYear';
 import { downloadReportFile } from '@/utils/report-download';
 import PageFrame from '@/components/Pages/PageFrame';
+import ExportReportModal, { type ExportParams } from '@/components/ExportReportModal';
+import ReportExportButton from '@/components/ReportExportButton';
+import { isDateInExportPeriod } from '@/utils/export-period';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
 
@@ -303,6 +305,7 @@ export default function AccountingPage(): React.ReactElement {
   const [activeTab, setActiveTab] = useState('ledger');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFiscalYear, setSelectedFiscalYear] = useState(DEFAULT_FISCAL_YEAR);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(String(DEFAULT_MONTH));
   const [selectedYear, setSelectedYear] = useState(String(DEFAULT_YEAR));
   const [ledgerFilter, setLedgerFilter] = useState('All Types');
@@ -612,41 +615,46 @@ export default function AccountingPage(): React.ReactElement {
   }, [ledgerFilter, searchQuery, displayLedger]);
 
   const handleExportAccountingReport = useCallback(
-    async (format: string = 'PDF') => {
+    async ({ format, dataWindow, period, reportMonth, dateFrom, dateTo }: ExportParams) => {
       const reportFormat = String(format).toLowerCase() === 'excel' ? 'Excel' : 'PDF';
-      const reportMonth = new Date().toISOString().slice(0, 7);
       const fiscalYearLabel = selectedFiscalYear || DEFAULT_FISCAL_YEAR;
+      const exportPeriodLabel = period || `${fiscalYearLabel} Ledger`;
+      const periodLedger = displayLedger.filter((entry) => isDateInExportPeriod(entry.date, { dateFrom, dateTo }));
+      const periodRevenue = periodLedger.filter((entry) => String(entry.type).toLowerCase() === 'revenue').reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+      const periodExpenses = periodLedger.filter((entry) => String(entry.type).toLowerCase() !== 'revenue').reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
       const getReportConfig = () => {
         if (activeTab === 'ledger') {
           return {
             title: `Accounting Ledger - ${fiscalYearLabel}`,
-            period: `${fiscalYearLabel} Ledger`,
-            description: `Accounting ledger export for ${fiscalYearLabel}.`,
+            period: exportPeriodLabel,
+            description: `Accounting ledger export for ${exportPeriodLabel || fiscalYearLabel}.`,
             sourceRef: 'accounting-ledger',
             reportRows: [
               { label: 'Report Scope', value: 'Ledger' },
               { label: 'Fiscal Year', value: fiscalYearLabel },
-              { label: 'Record Count', value: String(displayLedger.length) },
-              { label: 'Revenue', value: money(totalRevenue) },
-              { label: 'Expenses', value: money(totalExpenses) },
-              { label: 'Net Profit', value: money(netProfitVal) },
-              ...displayLedger.map((entry, index) => ({
+              { label: 'Period', value: exportPeriodLabel },
+              { label: 'Record Count', value: String(periodLedger.length) },
+              { label: 'Revenue', value: money(periodRevenue) },
+              { label: 'Expenses', value: money(periodExpenses) },
+              { label: 'Net Profit', value: money(periodRevenue - periodExpenses) },
+              ...periodLedger.map((entry, index) => ({
                 label: `${index + 1}. ${entry.date} | ${entry.type} | ${entry.source}`,
                 value: [`Entity: ${entry.entity}`, `Department: ${entry.dept}`, `Amount: ${money(entry.amount)}`, `Ref: ${entry.ref}`, entry.status ? `Status: ${entry.status}` : ''].filter(Boolean).join(' | '),
               })),
             ],
-            monthlyData: displayLedger.map((entry) => ({ month: entry.date || '', metric: entry.entity || entry.source || 'Ledger Entry', value: money(entry.amount || 0) })),
+            monthlyData: periodLedger.map((entry) => ({ month: entry.date || '', metric: entry.entity || entry.source || 'Ledger Entry', value: money(entry.amount || 0) })),
           };
         }
         if (activeTab === 'departments') {
           return {
             title: `Accounting Departments - ${fiscalYearLabel}`,
-            period: `${fiscalYearLabel} Department Spend`,
-            description: `Department spending summary for ${fiscalYearLabel}.`,
+            period: `${exportPeriodLabel} Department Spend`,
+            description: `Department spending summary for ${exportPeriodLabel}.`,
             sourceRef: 'accounting-departments',
             reportRows: [
               { label: 'Report Scope', value: 'Departments' },
               { label: 'Fiscal Year', value: fiscalYearLabel },
+              { label: 'Period', value: exportPeriodLabel },
               { label: 'Department Count', value: String(departmentRows.length) },
               { label: 'Total Assigned', value: money(departmentRows.reduce((s, d) => s + Number(d.assigned || 0), 0)) },
               { label: 'Total Used', value: money(departmentExpenses) },
@@ -660,12 +668,13 @@ export default function AccountingPage(): React.ReactElement {
         }
         return {
           title: `Accounting P&L - ${fiscalYearLabel}`,
-          period: `${fiscalYearLabel} Profit & Loss`,
-          description: `Profit and loss summary for ${fiscalYearLabel}.`,
+          period: `${exportPeriodLabel} Profit & Loss`,
+          description: `Profit and loss summary for ${exportPeriodLabel}.`,
           sourceRef: 'accounting-pnl',
           reportRows: [
             { label: 'Report Scope', value: 'Profit & Loss' },
             { label: 'Fiscal Year', value: fiscalYearLabel },
+            { label: 'Period', value: exportPeriodLabel },
             { label: 'Revenue', value: money(pnlData.revenueTotal) },
             { label: 'COGS', value: money(pnlData.cogsTotal) },
             { label: 'Gross Profit', value: money(pnlData.grossProfit) },
@@ -673,18 +682,18 @@ export default function AccountingPage(): React.ReactElement {
             { label: 'Net Profit', value: money(pnlData.netProfit) },
             { label: 'Margin', value: `${pnlData.margin}%` },
           ],
-          monthlyData: displayLedger.map((entry) => ({ month: entry.date || '', metric: entry.type || 'P&L Entry', value: money(entry.amount || 0) })),
+            monthlyData: periodLedger.map((entry) => ({ month: entry.date || '', metric: entry.type || 'P&L Entry', value: money(entry.amount || 0) })),
         };
       };
       const selectedReport = getReportConfig();
       if (!selectedReport.reportRows.length) {
-        toast.error(`There is no ${activeAccountingReportLabel.toLowerCase()} data to export for ${fiscalYearLabel}.`);
+        toast.error(`There is no ${activeAccountingReportLabel.toLowerCase()} data to export for ${exportPeriodLabel}.`);
         return;
       }
       try {
         const response = await createReport({
           title: selectedReport.title, department: 'Finance', category: 'Financial',
-          dataWindow: 'Annual', reportMonth, period: selectedReport.period,
+          dataWindow, reportMonth, period: selectedReport.period,
           generatedBy: 'Accounting Team', format: reportFormat,
           description: selectedReport.description, sourceType: 'custom',
           sourceRef: selectedReport.sourceRef, reportRows: selectedReport.reportRows,
@@ -728,20 +737,7 @@ export default function AccountingPage(): React.ReactElement {
                   ))}
                 </select>
               </div>
-                              <button
-                                type="button"
-                                onClick={() => void handleExportAccountingReport('PDF')}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-                                <FileDown size={16} className="text-red-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => void handleExportAccountingReport('Excel')}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
-                                <FileSpreadsheet size={16} className="text-emerald-500"/>
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
-                              </button>
+                              <ReportExportButton onClick={() => setShowExportModal(true)} />
             </div>
           </div>
 
@@ -992,6 +988,19 @@ export default function AccountingPage(): React.ReactElement {
 
         </div>
       </PageFrame>
+
+      <ExportReportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Export Accounting Report"
+        subtitle="Select format and date range to export."
+        department="Finance"
+        category="Financial"
+        sourceRef={activeTab === 'ledger' ? 'accounting-ledger' : activeTab === 'departments' ? 'accounting-departments' : 'accounting-pnl'}
+        reportTitle={`Accounting ${activeAccountingReportLabel} - ${selectedFiscalYear || DEFAULT_FISCAL_YEAR}`}
+        defaultDataWindow="Annual"
+        onExport={handleExportAccountingReport}
+      />
     </div>
   );
 }
