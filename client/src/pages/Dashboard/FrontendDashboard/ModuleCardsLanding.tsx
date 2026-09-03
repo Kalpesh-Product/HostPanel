@@ -58,6 +58,7 @@ import { getProfileTabItemsForPlan } from "../../Profile/profileAccess";
 import { getUpgradePlanOptions } from "../../WorkspaceSetup/workspaceSetupPlans";
 import { getEnabledModuleIdsForPlan, getWorkspaceCount } from "../../../utils/workspacePlanAccess";
 import { normalizeLegacyRoute } from "../../../utils/legacyRouteMap";
+import { resolveDepartmentIcon } from "../../../utils/departmentIcons";
 import { toast } from "sonner";
 
 type PlanType = "basic" | "professional" | "custom";
@@ -536,6 +537,19 @@ const DEPARTMENT_LABELS: Record<string, string> = {
   "it-department": "IT Department",
 };
 
+// Workspace-created departments matching these names are the built-in ones
+// (already rendered as their own static cards below) — anything else is a
+// custom department that should get its own dynamic card.
+const DEFAULT_WORKSPACE_DEPARTMENT_NAMES = new Set([
+  "hr",
+  "administration",
+  "sales",
+  "finance",
+  "maintenance",
+  "technology",
+  "it",
+]);
+
 const getUpgradeRequestStorageKey = (companyId: string) =>
   `hostpanel_upgrade_request_status_${companyId}`;
 
@@ -565,6 +579,18 @@ const fallbackTitleFromId = (value = "") =>
     .trim()
     .replace(/[-_]+/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
+
+// A custom department id is "custom-department-<mongo id>" — title-casing
+// that just turns the raw id into ugly hex text. Until the real name loads,
+// show a generic placeholder instead of exposing the id.
+const departmentTitleFallback = (value = "") => {
+  const trimmed = String(value || "").trim();
+  const withoutPrefix = trimmed.startsWith("custom-department-")
+    ? trimmed.slice("custom-department-".length)
+    : trimmed;
+  if (/^[a-f0-9]{12,}$/i.test(withoutPrefix)) return "Department";
+  return fallbackTitleFromId(trimmed);
+};
 
 // Shared upgrade-plan modal, also used by the dashboard's PlanBadge.
 export const UpgradePlanModal = ({
@@ -921,6 +947,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
   );
   const currentRole = normalizeRole(roleAccessContext.role);
   const isFounderRole = currentRole === "founder" || currentRole === "owner";
+  const isSuperAdmin = currentRole === "super_admin";
   const upgradePlanCards = getUpgradePlanOptions(planLabel as PlanType);
 
   const roleAllowedModuleIds = useMemo(() => {
@@ -1079,6 +1106,17 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
     return map;
   }, [workspaceAccessMap?.moduleMap?.sections]);
 
+  const routeStateDepartmentLabel = useMemo(() => {
+    const currentState = (location.state as Record<string, unknown>) || {};
+    if (
+      currentState.fromSection === "department-accesses" &&
+      currentState.departmentId === departmentId
+    ) {
+      return String(currentState.departmentLabel || "").trim();
+    }
+    return "";
+  }, [departmentId, location.state]);
+
   const selectedDepartmentItem = useMemo(() => {
     if (!departmentId || sectionId !== "department-accesses") return null;
     const normalizedDynamicId = departmentId.startsWith("custom-department-")
@@ -1104,8 +1142,62 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
     const mappedDepartment = sectionItems.find(
       (item) => String(item?.id || "").trim() === departmentId,
     );
-    return mappedDepartment || null;
-  }, [departmentId, moduleDisplayById, sectionData?.items, sectionId, workspaceDepartments]);
+    if (mappedDepartment) return mappedDepartment;
+    // The org-overview fetch that resolves custom department names hasn't
+    // finished yet. If the click that got us here already knew the name
+    // (sidebar, another card, a breadcrumb link), use it immediately instead
+    // of falling back to the raw department id while we wait.
+    if (routeStateDepartmentLabel) {
+      return { id: departmentId, label: routeStateDepartmentLabel, tabs: [] };
+    }
+    return null;
+  }, [departmentId, moduleDisplayById, routeStateDepartmentLabel, sectionData?.items, sectionId, workspaceDepartments]);
+
+  // Custom departments created in Organization Management aren't part of the
+  // static catalogue, so they don't come back from the workspace module map.
+  // Turn them into cards here from the same org-overview fetch that backs
+  // the sidebar's dynamic department section, so a newly created department
+  // shows up on this page without a separate change per department.
+  const customDepartmentItems = useMemo(() => {
+    if (sectionId !== "department-accesses" || departmentId) return [];
+    const assignedDepartmentNames = new Set(
+      roleAccessContext.departmentNames
+        .map((name) => String(name || "").trim().toLowerCase())
+        .filter(Boolean),
+    );
+    const canSeeDepartmentAccess =
+      isFounderRole ||
+      isSuperAdmin ||
+      currentRole === "admin" ||
+      currentRole === "manager" ||
+      assignedDepartmentNames.size > 0;
+    if (!canSeeDepartmentAccess) return [];
+    return workspaceDepartments
+      .filter((department) => {
+        const normalizedName = department.name.trim().toLowerCase();
+        if (!normalizedName || DEFAULT_WORKSPACE_DEPARTMENT_NAMES.has(normalizedName)) return false;
+        return (
+          isFounderRole ||
+          isSuperAdmin ||
+          currentRole === "admin" ||
+          currentRole === "manager" ||
+          assignedDepartmentNames.has(normalizedName)
+        );
+      })
+      .map((department) => ({
+        id: "custom-department-" + (department.id || normalizeModuleToken(department.name)),
+        label: department.name,
+        tabs: department.moduleIds.map((moduleId) => ({ id: moduleId })),
+      }));
+  }, [
+    currentRole,
+    departmentId,
+    isFounderRole,
+    isSuperAdmin,
+    roleAccessContext.departmentNames,
+    sectionId,
+    workspaceDepartments,
+  ]);
 
   useEffect(() => {
     if (!departmentId || sectionId !== "department-accesses" || !selectedDepartmentItem?.label) return;
@@ -1165,13 +1257,17 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
           const tabs = dept && Array.isArray(dept.tabs) ? dept.tabs : [];
           return tabs.map(t => ({ ...t, _parentDept: dept?.label || departmentId, _parentDeptId: dept?.id || departmentId }));
         })()
-      : remappedItems;
+      : sectionId === "department-accesses"
+        ? [...remappedItems, ...customDepartmentItems]
+        : remappedItems;
 
     return items
       .map((item): LandingCard | null => {
         const itemId = String(item?.id || "").trim();
         const itemLabel = String(item?.label || moduleDisplayById.get(itemId)?.label || fallbackTitleFromId(itemId)).trim();
-        const Icon = ICON_BY_ID[itemId];
+        const Icon =
+          ICON_BY_ID[itemId] ||
+          (itemId.startsWith("custom-department-") ? resolveDepartmentIcon(itemLabel) : undefined);
         const iconNode = Icon ? <Icon size={26} /> : undefined;
         const routedItem = normalizeLegacyRoute(String(item?.route || DEFAULT_SECTION_ROUTES[itemId] || "").trim()) || undefined;
         const parentDepartmentLabel = String(item?._parentDept || "").trim();
@@ -1260,6 +1356,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
   }, [
     departmentId,
     roleAccessContext.departmentNames,
+    customDepartmentItems,
     enabledIds,
     isUsingWorkspaceSection,
     planLabel,
@@ -1421,7 +1518,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
   }, [addOnModules, sectionId]);
 
   const pageTitle = departmentId && sectionId === "department-accesses"
-    ? String(selectedDepartmentItem?.label || DEPARTMENT_LABELS[departmentId] || fallbackTitleFromId(departmentId))
+    ? String(selectedDepartmentItem?.label || DEPARTMENT_LABELS[departmentId] || departmentTitleFallback(departmentId))
     : SECTION_TITLES[sectionId];
 
   return (

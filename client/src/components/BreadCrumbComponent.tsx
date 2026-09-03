@@ -4,6 +4,7 @@ import { matchPath, useLocation, useNavigate } from "react-router-dom";
 type Crumb = {
   label: string;
   path?: string;
+  state?: Record<string, unknown>;
 };
 
 type BreadcrumbMatcher = {
@@ -839,10 +840,17 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
   },
 ];
 
-const toTitleCase = (value: string) =>
-  decodeURIComponent(value)
-    .replace(/[-_]/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+const toTitleCase = (value: string) => {
+  const decoded = decodeURIComponent(value);
+  // A "custom-department-<mongo id>" segment falls back here only while the
+  // department's real name hasn't loaded yet — title-casing the raw id would
+  // just show hex text, so show a generic placeholder instead.
+  const withoutCustomDeptPrefix = decoded.startsWith("custom-department-")
+    ? decoded.slice("custom-department-".length)
+    : decoded;
+  if (/^[a-f0-9]{12,}$/i.test(withoutCustomDeptPrefix)) return "Department";
+  return decoded.replace(/[-_]/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+};
 
 const buildFallbackCrumbs = (pathname: string): Crumb[] => {
   const segments = pathname.split("/").filter(Boolean);
@@ -883,9 +891,18 @@ const BreadCrumbComponent = () => {
     location.pathname !== "/department-accesses"
   ) {
     const departmentPath = dynamicDepartmentId ? `/department-accesses/${dynamicDepartmentId}` : undefined;
+    const departmentCrumbState = {
+      fromSection: "department-accesses",
+      departmentId: dynamicDepartmentId,
+      departmentLabel: dynamicDepartmentLabel,
+    };
     breadcrumbs = [
       { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
-      { label: dynamicDepartmentLabel, path: location.pathname === departmentPath ? undefined : departmentPath },
+      {
+        label: dynamicDepartmentLabel,
+        path: location.pathname === departmentPath ? undefined : departmentPath,
+        state: location.pathname === departmentPath ? undefined : departmentCrumbState,
+      },
       ...(location.pathname === departmentPath ? [] : [{ label: breadcrumbs[breadcrumbs.length - 1].label }]),
     ];
   }
@@ -916,7 +933,7 @@ const BreadCrumbComponent = () => {
         key={`${crumb.label}-${index}`}
         underline="hover"
         color="inherit"
-        onClick={() => navigate(crumb.path!)}
+        onClick={() => navigate(crumb.path!, crumb.state ? { state: crumb.state } : undefined)}
         style={{ cursor: "pointer" }}
       >
         {crumb.label}
