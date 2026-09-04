@@ -6426,15 +6426,15 @@ export default function VisitorsManagementPage() {
                           <div className="grid grid-cols-3 gap-3 text-sm">
                             <div className="rounded-xl bg-gray-50 p-3">
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Booking ID</p>
-                              <p className="mt-1 font-black text-gray-900">{verifiedBooking.id}</p>
+                              <p className="mt-1 font-pmedium text-slate-900">{verifiedBooking.id}</p>
                             </div>
                             <div className="rounded-xl bg-gray-50 p-3">
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Attendees</p>
-                              <p className="mt-1 font-black text-gray-900">{verifiedBooking.attendees || '1'}</p>
+                              <p className="mt-1 font-pmedium text-slate-900">{verifiedBooking.attendees || '1'}</p>
                             </div>
                             <div className="rounded-xl bg-gray-50 p-3">
                               <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Payment Mode</p>
-                              <p className="mt-1 font-bold text-gray-900">{verifiedBooking.paymentMode || (verifiedBooking.isPaid ? 'Pre-paid' : 'Not set')}</p>
+                              <p className="mt-1 font-pmedium text-slate-900">{verifiedBooking.paymentMode || (verifiedBooking.isPaid ? 'Pre-paid' : 'Not set')}</p>
                             </div>
                           </div>
 
@@ -6587,20 +6587,20 @@ export default function VisitorsManagementPage() {
         {isExtendModalOpen && extendingBooking && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-[#0F172A]/80 backdrop-blur-sm">
             <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden flex flex-col animate-in zoom-in duration-200">
-              <div className="p-6 md:p-8 bg-indigo-600 text-white flex justify-between items-center shrink-0">
+              <div className="p-6 md:p-8 bg-blue-600 text-white flex justify-between items-center shrink-0">
                 <div>
                   <h2 className="text-xl font-pmedium flex items-center gap-2"><Clock size={20} /> Extend Booking</h2>
-                  <p className="text-[10px] font-pmedium text-indigo-200 uppercase tracking-widest mt-1">{extendingBooking.resource} • {extendingBooking.bookedBy}</p>
+                  <p className="text-[10px] font-pmedium text-blue-200 uppercase tracking-widest mt-1">{extendingBooking.resource} • {extendingBooking.bookedBy}</p>
                 </div>
                 <button onClick={() => { setIsExtendModalOpen(false); setExtendAvailability('idle'); }} className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-red-500 transition-all"><X size={16} /></button>
               </div>
 
               <form onSubmit={handleExtendBooking} className="p-6 md:p-8 overflow-y-auto flex-1 bg-white space-y-6">
 
-                <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex justify-between items-center">
+                <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex justify-between items-center">
                   <div>
-                    <p className="text-[10px] font-pmedium text-indigo-400 uppercase tracking-widest mb-0.5">Current End Time</p>
-                    <p className="text-lg font-black text-indigo-900">{extendingBooking.time.split(' - ')[1].replace(' (Extended)', '')}</p>
+                    <p className="text-[10px] font-pmedium text-blue-400 uppercase tracking-widest mb-0.5">Current End Time</p>
+                    <p className="text-lg font-pmedium text-blue-900">{extendingBooking.time.split(' - ')[1].replace(' (Extended)', '')}</p>
                   </div>
                   <ArrowRight size={20} className="text-indigo-300" />
                   <div className="text-right">
@@ -6609,7 +6609,7 @@ export default function VisitorsManagementPage() {
                       const startTime = extendingBooking?.raw?.startTime || extendingBooking?.startTime || '';
                       const startMinutes = timeToMinutes(startTime);
                       return startMinutes == null ? undefined : minutesToTime(startMinutes + WALK_IN_MIN_DURATION_MINUTES);
-                    })()} className="w-28 px-3 py-2 bg-white border border-gray-200 rounded-lg font-bold text-gray-900 focus:border-indigo-500 outline-none cursor-pointer" value={extendForm.newEndTime} onChange={e => { setExtendForm({ ...extendForm, newEndTime: e.target.value }); setExtendAvailability('idle'); }} />
+                    })()} className="w-33 px-3 py-2 text-[16px] bg-white border border-gray-200 rounded-lg font-pmedium text-gray-900 focus:border-indigo-500 outline-none cursor-pointer" value={extendForm.newEndTime} onChange={e => { setExtendForm({ ...extendForm, newEndTime: e.target.value }); setExtendAvailability('idle'); }} />
                   </div>
                 </div>
 
@@ -6620,7 +6620,7 @@ export default function VisitorsManagementPage() {
                 )}
 
                 {extendAvailability === 'checking' && (
-                  <div className="w-full py-3.5 bg-gray-100 text-gray-500 rounded-xl font-black text-xs flex items-center justify-center gap-2 animate-pulse">
+                  <div className="w-full py-3.5 bg-gray-100 text-gray-500 rounded-xl font-pmedium text-xs flex items-center justify-center gap-2 animate-pulse">
                     Checking conflicts...
                   </div>
                 )}
@@ -6629,7 +6629,7 @@ export default function VisitorsManagementPage() {
                   <div className="w-full p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 animate-in shake">
                     <AlertCircle size={16} className="text-red-500 mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-xs font-black text-red-700">Extension Blocked</p>
+                      <p className="text-xs font-pmedium text-red-700">Extension Blocked</p>
                       <p className="text-[10px] font-pmedium text-red-600 mt-1">Another booking conflicts with this extension window (including the 5-minute cleanup buffer).</p>
                     </div>
                   </div>
@@ -6639,15 +6639,15 @@ export default function VisitorsManagementPage() {
                   <div className="animate-in fade-in slide-in-from-bottom-4 space-y-3.5">
                     <div className="bg-gray-50 border border-gray-200 p-4 rounded-xl">
                       <p className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest mb-3">Extra Charges Calculation</p>
-                      <div className="flex justify-between text-xs font-bold text-gray-600 mb-2">
+                      <div className="flex justify-between text-xs font-pmedium text-gray-600 mb-2">
                         <span>Extra Hours ({extendPricing.extraHours}h)</span>
                         <span>{formatCurrency(extendPricing.base)}</span>
                       </div>
-                      <div className="flex justify-between text-xs font-bold text-gray-600 mb-3 pb-3 border-b border-gray-200">
+                      <div className="flex justify-between text-xs font-pmedium text-gray-600 mb-3 pb-3 border-b border-gray-200">
                         <span>{getTaxDisplayLabel(taxConfig)}{taxConfig.priceIncludesTax ? ' (included)' : ''}</span>
                         <span>{formatCurrency(extendPricing.gst)}</span>
                       </div>
-                      <div className="flex justify-between text-lg font-black text-gray-900">
+                      <div className="flex justify-between text-lg font-pmedium text-gray-900">
                         <span>Total Extra Due</span>
                         <span>{formatCurrency(extendPricing.total)}</span>
                       </div>
@@ -6668,7 +6668,7 @@ export default function VisitorsManagementPage() {
 
                 <div className="pt-2 flex gap-3">
                   <button type="button" onClick={() => { setIsExtendModalOpen(false); setExtendAvailability('idle'); }} className="flex-1 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-xs">CANCEL</button>
-                  <button type="submit" disabled={extendAvailability !== 'available'} className="flex-1 py-3.5 bg-indigo-600 text-white rounded-xl font-pmedium shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all text-xs flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <button type="submit" disabled={extendAvailability !== 'available'} className="flex-1 py-3.5 bg-blue-600 text-white rounded-xl font-pmedium shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all text-xs flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                     COLLECT & EXTEND <CheckCircle2 size={16} />
                   </button>
                 </div>

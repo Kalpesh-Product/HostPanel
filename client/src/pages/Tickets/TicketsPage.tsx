@@ -4,7 +4,7 @@ import {
   Search, Plus, Eye, CheckCircle2, Clock, AlertCircle,
   Calendar, User, FileText, X, AlertTriangle, Paperclip,
   MessageSquare, Building2, Filter, Reply, CheckSquare, Shield, Wrench, ChevronDown,
-  Download, Maximize2, Loader2, UserPlus, Save, Pencil, Trash2,
+  Download, Maximize2, Loader2, UserPlus, Save, Pencil, Trash2, Lock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import PageFrame from '../../components/Pages/PageFrame';
@@ -614,6 +614,18 @@ export function TicketsPage() {
     // Older tickets may not have requesterUserId, so retain a name fallback only
     // when there is no authoritative requester ID on the ticket.
     return isCurrentUserName(ticket?.submittedBy);
+  }
+
+  // The raiser owns the final call on a resolved ticket — they either close
+  // it (confirming the fix) or raise a follow-up (it's not actually fixed).
+  // The assignee's part ends at marking it Resolved.
+  function isRaiserViewOfTicket(ticket) {
+    return (
+      activeTab === 'my_raised' ||
+      activeTab === 'my_raised_tickets' ||
+      isMyRaisedTicket(ticket) ||
+      isEmployeeRaisedTicket(ticket)
+    );
   }
 
   function isDepartmentTicket(ticket) {
@@ -2201,7 +2213,14 @@ export function TicketsPage() {
       return;
     }
 
-    if (!canCurrentUserChangeTicketStatus(viewingTicket)) {
+    // Resolving is the assignee's call (they did the work); closing is the
+    // raiser's call (they confirm the fix actually worked).
+    if (newStatus === 'Closed') {
+      if (!isRaiserViewOfTicket(viewingTicket)) {
+        setErrorMessage('Only the ticket raiser can close this ticket.');
+        return;
+      }
+    } else if (!canCurrentUserChangeTicketStatus(viewingTicket)) {
       setErrorMessage('Only the assigned assignee can update ticket status.');
       return;
     }
@@ -2448,12 +2467,13 @@ export function TicketsPage() {
             </div>
 
             {/* 3. STATS CARDS (matching meetings page exactly) */}
-            <div data-tour="tickets-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+            <div data-tour="tickets-summary" className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 shrink-0">
               {[
                 { key: 'total', label: 'Total Tickets', value: statsBase.length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', icon: AlertCircle, iconClass: 'bg-slate-50 text-slate-600' },
                 { key: 'open', label: 'Open (Raised)', value: statsBase.filter(t => t.status === 'Open').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', icon: AlertTriangle, iconClass: 'bg-amber-50 text-amber-600' },
                 { key: 'progress', label: 'In Progress', value: statsBase.filter(t => t.status === 'In Progress').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', icon: Clock, iconClass: 'bg-blue-50 text-blue-600' },
                 { key: 'resolved', label: 'Resolved', value: statsBase.filter(t => t.status === 'Resolved').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', icon: CheckCircle2, iconClass: 'bg-emerald-50 text-emerald-600' },
+                { key: 'closed', label: 'Closed', value: statsBase.filter(t => t.status === 'Closed').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-slate-500', icon: Lock, iconClass: 'bg-slate-50 text-slate-600' },
               ].map((card) => {
                 const Icon = card.icon;
                 const labelToneClass = card.cardClass.includes('border-l')
@@ -3219,7 +3239,7 @@ export function TicketsPage() {
                 )}
 
                 {/* Raise Follow Up (If Owner raised it, and it was resolved but still broken) */}
-                {((activeTab === 'my_raised' || activeTab === 'my_raised_tickets') || isMyRaisedTicket(viewingTicket) || isEmployeeRaisedTicket(viewingTicket)) && viewingTicket.status === 'Resolved' && (
+                {isRaiserViewOfTicket(viewingTicket) && viewingTicket.status === 'Resolved' && (
                   <div className="bg-red-50 border border-red-100 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-in slide-in-from-bottom-4">
                     <div className="w-full sm:w-auto">
                       <h4 className="font-pmedium text-red-900 text-[14px]">Issue Not Fixed?</h4>
@@ -3231,11 +3251,11 @@ export function TicketsPage() {
                   </div>
                 )}
 
-                {canCurrentUserChangeTicketStatus(viewingTicket) && viewingTicket.status === 'Resolved' && (
+                {isRaiserViewOfTicket(viewingTicket) && viewingTicket.status === 'Resolved' && (
                   <div className="bg-slate-50 border border-slate-200 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
                     <div className="w-full sm:w-auto">
                       <h4 className="font-pmedium text-slate-900 text-[14px]">Close Ticket</h4>
-                      <p className="text-[11px] text-slate-600 font-pmedium mt-0.5">Mark this resolved ticket as formally closed.</p>
+                      <p className="text-[11px] text-slate-600 font-pmedium mt-0.5">Confirm the fix worked and close this ticket for good.</p>
                     </div>
                     <button onClick={() => handleUpdateStatus('Closed')} className="px-5 py-3 bg-slate-900 border border-slate-900 text-white hover:bg-black rounded-xl font-pmedium text-[11px] uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto">
                       <CheckSquare size={14} strokeWidth={2.5} /> Close Ticket

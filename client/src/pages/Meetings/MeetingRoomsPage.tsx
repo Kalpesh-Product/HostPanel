@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Search, ChevronDown, Clock, Users, Building,
   Eye, Plus, X, CheckCircle2, AlertCircle, CalendarClock, XCircle, ChevronLeft, ChevronRight, Calendar as CalIcon, Building2,
-  AlertTriangle, Briefcase, UserCheck, CreditCard, DollarSign, Phone, Mail, FileText, BarChart3, UserPlus, Globe, Tag, ArrowRight, Download
+  AlertTriangle, Briefcase, UserCheck, CreditCard, DollarSign, Phone, Mail, FileText, BarChart3, UserPlus, Globe, Tag, ArrowRight, Download, User
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { createReport } from '@/services/reports';
@@ -792,6 +792,8 @@ interface ClientDetailsTabProps {
   setClientErrors: (e: Record<string, string>) => void;
   setErrorMessage: (m: string) => void;
   setActiveDialogTab: (tab: 'client' | 'booking') => void;
+  hideSearch?: boolean;
+  onClientCreated?: (client: ExternalClient) => void;
 }
 
 function ClientDetailsTab({
@@ -810,6 +812,8 @@ function ClientDetailsTab({
   setClientErrors,
   setErrorMessage,
   setActiveDialogTab,
+  hideSearch = false,
+  onClientCreated,
 }: ClientDetailsTabProps) {
   const [isConfirming, setIsConfirming] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -899,6 +903,7 @@ function ClientDetailsTab({
         setClientErrors({ ...clientErrors, general: 'Please select or create a client.' });
         return;
       }
+      if (onClientCreated) onClientCreated(selectedClient);
       setActiveDialogTab('booking');
       return;
     }
@@ -933,6 +938,7 @@ function ClientDetailsTab({
         company: newClientForm.company.trim() || undefined,
       });
       setSelectedClient(created);
+      if (onClientCreated) onClientCreated(created);
       setClientErrors({});
       setActiveDialogTab('booking');
     } catch (err: any) {
@@ -949,7 +955,7 @@ function ClientDetailsTab({
     <div className="flex flex-col gap-4">
 
       {/* ── Selected client display ── */}
-      {selectedClient && (
+      {selectedClient && !hideSearch && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
             <p className="text-[13px] font-pmedium text-emerald-800">{selectedClient.name}</p>
@@ -972,8 +978,8 @@ function ClientDetailsTab({
         </div>
       )}
 
-      {/* ── Search input (shown when no client selected) ── */}
-      {!selectedClient && clientMode === 'search' && (
+      {/* ── Search input (shown when no client selected and not hideSearch) ── */}
+      {!selectedClient && clientMode === 'search' && !hideSearch && (
         <div className="relative">
           <div className="relative">
             <Search
@@ -1020,7 +1026,7 @@ function ClientDetailsTab({
       )}
 
       {/* ── "Add New Client" button ── */}
-      {!selectedClient && clientMode === 'search' && (
+      {!selectedClient && clientMode === 'search' && !hideSearch && (
         <button
           type="button"
           onClick={handleAddNew}
@@ -1032,7 +1038,7 @@ function ClientDetailsTab({
       )}
 
       {/* ── Inline new client form ── */}
-      {clientMode === 'new' && !selectedClient && (
+      {(clientMode === 'new' || hideSearch) && !selectedClient && (
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">
@@ -1173,6 +1179,7 @@ function ExternalBookingDialog({
 
   // ── Tab navigation ──────────────────────────────────────────────────────────
   const [activeDialogTab, setActiveDialogTab] = useState<'client' | 'booking'>('client');
+  const [clientSubTab, setClientSubTab] = useState<'existing' | 'new'>('existing');
 
   // ── Client state ────────────────────────────────────────────────────────────
   const [clientMode, setClientMode] = useState<'search' | 'new'>('search');
@@ -1181,6 +1188,13 @@ function ExternalBookingDialog({
   const [selectedClient, setSelectedClient] = useState<ExternalClient | null>(null);
   const [newClientForm, setNewClientForm] = useState({ name: '', email: '', phone: '', company: '' });
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
+
+  // ── Existing clients list state ─────────────────────────────────────────────
+  const [allClients, setAllClients] = useState<ExternalClient[]>([]);
+  const [isLoadingClients, setIsLoadingClients] = useState(false);
+  const [existingClientSearch, setExistingClientSearch] = useState('');
+  const [isEditingClient, setIsEditingClient] = useState(false);
+  const [editedClient, setEditedClient] = useState({ name: '', email: '', phone: '', company: '' });
 
   // ── Booking state ───────────────────────────────────────────────────────────
   const [bookingForm, setBookingForm] = useState({
@@ -1308,15 +1322,38 @@ function ExternalBookingDialog({
     return suggestions.slice(0, 6); // show max 6 chips
   }, [externalSlotConflict, allBookings, bookingForm.resourceName, bookingForm.date, bookingForm.startTime, bookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES]);
 
+  // Fetch all clients when dialog opens
+  useEffect(() => {
+    if (!open || !workspaceId) return;
+    let cancelled = false;
+    (async () => {
+      setIsLoadingClients(true);
+      try {
+        const results = await getExternalClients(workspaceId);
+        if (!cancelled) setAllClients(Array.isArray(results) ? results : []);
+      } catch {
+        if (!cancelled) setAllClients([]);
+      } finally {
+        if (!cancelled) setIsLoadingClients(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, workspaceId]);
+
   // Reset all state when dialog closes
   const handleClose = () => {
     setActiveDialogTab('client');
+    setClientSubTab('existing');
     setClientMode('search');
     setClientSearch('');
     setClientSearchResults([]);
     setSelectedClient(null);
     setNewClientForm({ name: '', email: '', phone: '', company: '' });
     setClientErrors({});
+    setAllClients([]);
+    setExistingClientSearch('');
+    setIsEditingClient(false);
+    setEditedClient({ name: '', email: '', phone: '', company: '' });
     setBookingForm({
       resourceId: '',
       resourceName: '',
@@ -1400,13 +1437,13 @@ function ExternalBookingDialog({
         bookingType: 'External',
         roomId,
         roomName: room.name,
-        bookedByName: selectedClient.name,
-        bookedForName: selectedClient.name,
+        bookedByName: editedClient.name || selectedClient.name,
+        bookedForName: editedClient.name || selectedClient.name,
         // Client contact — needed for the confirmation email recipient and so
         // the booking detail view can show the client's phone/email/company.
-        bookedByEmail: selectedClient.email || '',
-        bookedByPhone: selectedClient.phone || '',
-        clientCompany: selectedClient.company || '',
+        bookedByEmail: editedClient.email || selectedClient.email || '',
+        bookedByPhone: editedClient.phone || selectedClient.phone || '',
+        clientCompany: editedClient.company || selectedClient.company || '',
         externalClientId: selectedClient._id,
         start,
         end,
@@ -1525,38 +1562,257 @@ function ExternalBookingDialog({
                 })}
               </div>
 
-              {/* Tab content placeholders */}
+              {/* Tab content */}
               {activeDialogTab === 'client' && (
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4">
-                  <div className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
-                    <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><UserPlus size={16} /></span>
-                    <span className="text-[12px] font-pmedium uppercase tracking-[0.16em] text-slate-900">Client Details</span>
+                  {/* Sub-tabs: Existing Clients | New User */}
+                  <div className="flex bg-slate-100/60 p-1 rounded-xl border border-slate-200/50">
+                    {(['existing', 'new'] as const).map((sub) => {
+                      const label = sub === 'existing' ? 'Existing Clients' : 'New User';
+                      const isActive = clientSubTab === sub;
+                      return (
+                        <button
+                          key={sub}
+                          type="button"
+                          onClick={() => {
+                            setClientSubTab(sub);
+                            setClientErrors({});
+                          }}
+                          className={`flex-1 py-2 rounded-xl text-[11px] font-pmedium uppercase tracking-widest transition-all
+                            ${isActive ? 'bg-[#2563EB] text-white shadow-sm' : 'text-[#0F172A] hover:bg-slate-200/70 hover:text-slate-900'}
+                          `}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
                   </div>
-                  <ClientDetailsTab
-                    workspaceId={workspaceId}
-                    clientMode={clientMode}
-                    setClientMode={setClientMode}
-                    clientSearch={clientSearch}
-                    setClientSearch={setClientSearch}
-                    clientSearchResults={clientSearchResults}
-                    setClientSearchResults={setClientSearchResults}
-                    selectedClient={selectedClient}
-                    setSelectedClient={setSelectedClient}
-                    newClientForm={newClientForm}
-                    setNewClientForm={setNewClientForm}
-                    clientErrors={clientErrors}
-                    setClientErrors={setClientErrors}
-                    setErrorMessage={setErrorMessage}
-                    setActiveDialogTab={setActiveDialogTab}
-                  />
+
+                  {/* Existing Clients sub-tab */}
+                  {clientSubTab === 'existing' && (
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                        <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Users size={16} /></span>
+                        <span className="text-[12px] font-pmedium uppercase tracking-[0.16em] text-slate-900">Select a Client</span>
+                      </div>
+
+                      {/* Search filter */}
+                      <div className="relative">
+                        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={existingClientSearch}
+                          onChange={(e) => setExistingClientSearch(e.target.value)}
+                          placeholder="Filter clients by name, email, or phone…"
+                          className="w-full px-4 py-3 pl-9 bg-slate-50 border-2 border-transparent rounded-2xl font-pmedium text-[13px] text-[#0F172A] placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all"
+                        />
+                      </div>
+
+                      {/* Loading state */}
+                      {isLoadingClients && (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                          <span className="ml-2 text-[12px] text-slate-500">Loading clients…</span>
+                        </div>
+                      )}
+
+                      {/* Clients list */}
+                      {!isLoadingClients && allClients.length === 0 && (
+                        <div className="text-center py-8">
+                          <p className="text-[12px] text-slate-400">No existing clients found.</p>
+                          <p className="text-[11px] text-slate-400 mt-1">Switch to "New User" to create one.</p>
+                        </div>
+                      )}
+
+                      {!isLoadingClients && allClients.length > 0 && (
+                        <div className="flex flex-col gap-1.5 max-h-[320px] overflow-y-auto">
+                          {allClients
+                            .filter((c) => {
+                              if (!existingClientSearch.trim()) return true;
+                              const q = existingClientSearch.toLowerCase();
+                              return (
+                                c.name?.toLowerCase().includes(q) ||
+                                c.email?.toLowerCase().includes(q) ||
+                                c.phone?.includes(q) ||
+                                c.company?.toLowerCase().includes(q)
+                              );
+                            })
+                            .map((client) => (
+                              <button
+                                key={client._id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedClient(client);
+                                  setEditedClient({
+                                    name: client.name || '',
+                                    email: client.email || '',
+                                    phone: client.phone || '',
+                                    company: client.company || '',
+                                  });
+                                  setClientErrors({});
+                                  setActiveDialogTab('booking');
+                                }}
+                                className={`w-full text-left px-4 py-3 rounded-xl border transition-all
+                                  ${selectedClient?._id === client._id
+                                    ? 'border-blue-300 bg-blue-50'
+                                    : 'border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300'}
+                                `}
+                              >
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="flex flex-col gap-0.5 min-w-0">
+                                    <p className="text-[13px] font-pmedium text-[#0F172A] truncate">{client.name}</p>
+                                    <p className="text-[11px] text-slate-500 truncate">
+                                      {client.email}
+                                      {client.phone ? ` · ${client.phone}` : ''}
+                                      {client.company ? ` · ${client.company}` : ''}
+                                    </p>
+                                  </div>
+                                  <span className="text-[10px] font-pmedium text-blue-600 uppercase tracking-wider shrink-0">Select</span>
+                                </div>
+                              </button>
+                            ))}
+                          {allClients.filter((c) => {
+                            if (!existingClientSearch.trim()) return true;
+                            const q = existingClientSearch.toLowerCase();
+                            return (
+                              c.name?.toLowerCase().includes(q) ||
+                              c.email?.toLowerCase().includes(q) ||
+                              c.phone?.includes(q) ||
+                              c.company?.toLowerCase().includes(q)
+                            );
+                          }).length === 0 && existingClientSearch.trim() && (
+                            <p className="text-[11px] text-slate-400 text-center py-4">
+                              No clients match "{existingClientSearch}". Try a different search.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* New User sub-tab */}
+                  {clientSubTab === 'new' && (
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                        <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><UserPlus size={16} /></span>
+                        <span className="text-[12px] font-pmedium uppercase tracking-[0.16em] text-slate-900">New Client Details</span>
+                      </div>
+                      <ClientDetailsTab
+                        workspaceId={workspaceId}
+                        clientMode={clientMode}
+                        setClientMode={setClientMode}
+                        clientSearch={clientSearch}
+                        setClientSearch={setClientSearch}
+                        clientSearchResults={clientSearchResults}
+                        setClientSearchResults={setClientSearchResults}
+                        selectedClient={selectedClient}
+                        setSelectedClient={setSelectedClient}
+                        newClientForm={newClientForm}
+                        setNewClientForm={setNewClientForm}
+                        clientErrors={clientErrors}
+                        setClientErrors={setClientErrors}
+                        setErrorMessage={setErrorMessage}
+                        setActiveDialogTab={setActiveDialogTab}
+                        hideSearch
+                        onClientCreated={(client) => {
+                          setSelectedClient(client);
+                          setEditedClient({
+                            name: client.name || '',
+                            email: client.email || '',
+                            phone: client.phone || '',
+                            company: client.company || '',
+                          });
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
-              {activeDialogTab === 'booking' && (
+              {activeDialogTab === 'booking' && selectedClient && (
                 <div className="booking-tab-content rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4">
-                  <div className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
-                    <span className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700 shrink-0"><CalIcon size={16} /></span>
-                    <span className="text-[12px] font-pmedium uppercase tracking-[0.16em] text-slate-900">Booking Details</span>
+                  {/* Editable Client Details — top of booking tab */}
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                      <div className="flex items-center gap-2.5">
+                        <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700 shrink-0"><User size={16} /></span>
+                        <span className="text-[12px] font-pmedium uppercase tracking-[0.16em] text-slate-900">Client Details</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingClient(!isEditingClient)}
+                        className="text-[11px] font-pmedium text-blue-600 hover:text-blue-800 transition-colors uppercase tracking-wider"
+                      >
+                        {isEditingClient ? 'Done' : 'Edit'}
+                      </button>
+                    </div>
+
+                    {isEditingClient ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">Name</label>
+                          <input
+                            type="text"
+                            value={editedClient.name}
+                            onChange={(e) => setEditedClient({ ...editedClient, name: e.target.value })}
+                            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-[13px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">Email</label>
+                          <input
+                            type="email"
+                            value={editedClient.email}
+                            onChange={(e) => setEditedClient({ ...editedClient, email: e.target.value })}
+                            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-[13px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">Phone</label>
+                          <input
+                            type="tel"
+                            value={editedClient.phone}
+                            onChange={(e) => setEditedClient({ ...editedClient, phone: e.target.value })}
+                            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-[13px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">Company</label>
+                          <input
+                            type="text"
+                            value={editedClient.company}
+                            onChange={(e) => setEditedClient({ ...editedClient, company: e.target.value })}
+                            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-[13px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Name</p>
+                          <p className="text-[13px] font-pmedium text-[#0F172A]">{selectedClient.name}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Email</p>
+                          <p className="text-[13px] font-pmedium text-[#0F172A]">{selectedClient.email || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Phone</p>
+                          <p className="text-[13px] font-pmedium text-[#0F172A]">{selectedClient.phone || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Company</p>
+                          <p className="text-[13px] font-pmedium text-[#0F172A]">{selectedClient.company || '—'}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Booking Details */}
+                  <div className="border-t border-slate-200/80 pt-4">
+                    <div className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2 mb-4">
+                      <span className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700 shrink-0"><CalIcon size={16} /></span>
+                      <span className="text-[12px] font-pmedium uppercase tracking-[0.16em] text-slate-900">Booking Details</span>
+                    </div>
                   {/* Booking Details — two-column grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
@@ -2189,6 +2445,7 @@ function ExternalBookingDialog({
                     </div>
                   </div>
                 </div>
+              </div>
               )}
             </div>
 
@@ -2275,6 +2532,28 @@ export function MeetingRoomsPage() {
   const canViewCompanyBookings = isOwnerProfile || isSuperAdminProfile;
   // Founder/Super Admin see the company scope. Pure admins keep their assigned-department scope.
   const isAssignedDeptProfile = isAdminProfile && !isOwnerProfile && !isSuperAdminProfile;
+  // External Booking / Tenant Bookings tabs are restricted to Founder, Super Admin,
+  // Administration/Sales managers, and any user (including a scoped admin) whose
+  // own department assignment is Administration or Sales.
+  const ownDepartmentNames = [
+    ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments : []),
+    storedUser?.workspaceMembership?.department,
+    storedUser?.department,
+    storedUser?.workspace?.department,
+  ].filter(Boolean);
+  const isInAdministrationOrSalesDept = ownDepartmentNames.some((department) => {
+    const normalized = (department || '').toString().trim().toLowerCase().replace(/[\s_]+/g, '-');
+    return (
+      normalized === 'administration' || normalized === 'admin' || normalized.startsWith('admin-') || normalized.includes('administration-department') ||
+      normalized === 'sales' || normalized.startsWith('sales-') || normalized.includes('sales-crm') || normalized.includes('sales-team')
+    );
+  });
+  const canAccessExternalAndTenantTabs =
+    isOwnerProfile ||
+    isSuperAdminProfile ||
+    isAdministrationManagerProfile ||
+    isSalesManagerProfile ||
+    isInAdministrationOrSalesDept;
   const currentUserId = String(
     storedUser?.workspaceMembership?.userId ||
     storedUser?.workspaceMembership?.memberUserId ||
@@ -3779,34 +4058,21 @@ export function MeetingRoomsPage() {
 
   const internalBookingEligibleParticipants = useMemo(() => {
     const hostId = internalBookingForm.bookedForUserId;
-    const hostDept = (internalBookingForm.department || '').trim().toLowerCase();
     if (!hostId) return [];
 
-    // Find the host member to check their role
-    const hostMember = workspaceMembers.find((m: any) => resolveMemberUserId(m) === hostId);
-    const hostRole = normalize((hostMember as any)?.role || '');
-    const hostIsManagement = hostRole === 'owner' || hostRole === 'founder' || hostRole === 'super_admin' || hostRole === 'super-admin' || hostRole === 'admin';
-
+    // Internal bookings are company-wide: whichever department/role is booked
+    // for, every workspace member (including the booker themself) is eligible
+    // to be invited — only the host (already the primary attendee) and
+    // external/tenant members are excluded.
     return workspaceMembers.filter((member: any) => {
       const memberId = resolveMemberUserId(member);
       if (!memberId) return false;
       if (memberId === hostId) return false;
-      if (memberId === currentUserId) return false;
       const role = normalize(member.role);
       if (role === 'external' || role === 'tenant') return false;
-
-      // Management host → show all non-external, non-tenant members
-      if (hostIsManagement) return true;
-
-      // Department host → show only members in same department
-      if (!hostDept) return false;
-      const depts = Array.isArray(member.departments)
-        ? member.departments.map((d: any) => normalize(d)).filter(Boolean)
-        : [];
-      const singleDept = normalize(member.department);
-      return depts.includes(hostDept) || singleDept === hostDept;
+      return true;
     });
-  }, [workspaceMembers, internalBookingForm.bookedForUserId, internalBookingForm.department, currentUserId]);
+  }, [workspaceMembers, internalBookingForm.bookedForUserId]);
 
   const canCreateInternalBooking = useMemo(() => {
     return workspaceMembers.some((member: any) => {
@@ -4482,8 +4748,12 @@ export function MeetingRoomsPage() {
               {[
                 { key: 'my_bookings', label: 'My Bookings', tour: 'meetings-tab-my-bookings' },
                 { key: 'internal_booking', label: 'Internal Booking', tour: 'meetings-tab-internal' },
-                { key: 'external_booking', label: 'External Booking', tour: 'meetings-tab-external' },
-                { key: 'tenant_bookings', label: 'Tenant Bookings', tour: 'meetings-tab-tenant' },
+                ...(canAccessExternalAndTenantTabs
+                  ? [
+                    { key: 'external_booking', label: 'External Booking', tour: 'meetings-tab-external' },
+                    { key: 'tenant_bookings', label: 'Tenant Bookings', tour: 'meetings-tab-tenant' },
+                  ]
+                  : []),
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -7689,7 +7959,7 @@ export function MeetingRoomsPage() {
                             </div>
                           ) : internalBookingEligibleParticipants.length === 0 ? (
                             <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-[12px] font-pmedium text-slate-400">
-                              No inviteable participants found in this department.
+                              No inviteable participants found.
                             </div>
                           ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
