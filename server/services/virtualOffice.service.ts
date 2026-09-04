@@ -6,6 +6,8 @@ import HostUser from "../models/HostUser.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Workspace from "../models/Workspace.js";
 import Department from "../models/Department.js";
+import { assertFinancePaymentActor, getActorName } from "./tenantRentService.js";
+import { postIncomeEntry } from "./incomeLedgerService.js";
 
 const VIRTUAL_OFFICE_SALES_MODULE = "virtual-office-sales";
 const ADMIN_ROLES = new Set(["owner", "super_admin", "founder"]);
@@ -694,3 +696,168 @@ export async function recordRentPaymentForCurrentUser(userId, recordId, input = 
   await record.save();
   return { record: formatRecord(record.toObject()) };
 }
+
+// ============================================================================
+// Finance-facing: virtual office rent snapshot (Billing & Payments → Virtual Office)
+// ============================================================================
+
+function formatVORentDate(value) {
+  const date = toDateOrNull(value);
+  if (!date) return "";
+  return new Intl.DateTimeFormat("en-IN", { month: "short", day: "2-digit", year: "numeric" }).format(date);
+}
+
+// The billing cycle "now" falls inside, plus how much of it has been paid.
+function buildVOCurrentPeriod(record, now = new Date()) {
+  const period = getCurrentBillingPeriod(record.rentDate, now);
+  if (!period) return null;
+  const monthlyRent = Math.max(0, Number(record.monthlyRent || 0));
+  const payments = Array.isArray(record.paymentRecords) ? record.paymentRecords : [];
+  const paidAmount = payments.reduce((sum, p) => {
+    const pStart = toDateOrNull(p.periodStart) || toDateOrNull(p.paymentDate);
+    const pEnd = toDateOrNull(p.periodEnd) || toDateOrNull(p.paymentDate);
+    const overlaps = pStart && pEnd
+      && pStart.getTime() <= period.periodEnd.getTime()
+      && pEnd.getTime() >= period.periodStart.getTime();
+    return sum + (overlaps && p.status === "Paid" ? Number(p.amount || 0) : 0);
+  }, 0);
+  const status = monthlyRent > 0 && paidAmount >= monthlyRent
+    ? "Paid"
+    : paidAmount > 0 ? "Partially Paid" : "Due";
+  // Unpaid → this cycle's rent date; paid → the next cycle's rent date.
+  const nextDueDate = status === "Paid"
+    ? new Date(period.periodStart.getFullYear(), period.periodStart.getMonth() + 1, period.periodStart.getDate())
+    : period.periodStart;
+  return {
+    periodStart: period.periodStart,
+    periodEnd: period.periodEnd,
+    monthLabel: new Intl.DateTimeFormat("en-IN", { month: "short", year: "numeric" }).format(period.periodStart),
+    dueDateLabel: formatVORentDate(nextDueDate),
+    paidAmount,
+    dueAmount: Math.max(0, monthlyRent - paidAmount),
+    status,
+  };
+}
+
+export async function listVirtualOfficeRentForWorkspace(workspaceId, query = {}) {
+  // Keeps rentStatus live (Active ↔ Overdue) without a background job.
+  await syncOverdueRentStatuses({ workspaceId });
+  const now = new Date();
+
+  const records: any[] = await VirtualOffice.find({ workspaceId, status: { $ne: "Cancelled" } })
+    .sort({ createdAt: -1 })
+    .limit(300)
+    .lean()
+    .exec();
+
+  const formatted = records.map((record) => ({
+    id: record._id?.toString?.() || "",
+    recordCode: record.recordCode || "",
+    clientName: normalizeText(record.clientName || record.brandName || ""),
+    serviceName: normalizeText(record.serviceName || ""),
+    monthlyRent: Math.max(0, Number(record.monthlyRent || 0)),
+    rentDate: record.rentDate || null,
+    rentDateLabel: formatVORentDate(record.rentDate),
+    rentStatus: record.rentStatus || "Active",
+    currentPeriod: buildVOCurrentPeriod(record, now),
+    termStart: record.termStart || null,
+    termEnd: record.termEnd || null,
+    paymentRecords: Array.isArray(record.paymentRecords) ? record.paymentRecords : [],
+  }));
+
+  const sum = (list: any[]) => list.reduce((acc: number, r: any) => acc + (Number(r) || 0), 0);
+  return {
+    records: formatted,
+    summary: {
+      total: formatted.length,
+      paid: formatted.filter((r) => r.currentPeriod?.status === "Paid").length,
+      due: formatted.filter((r) => r.currentPeriod?.status === "Due").length,
+      partiallyPaid: formatted.filter((r) => r.currentPeriod?.status === "Partially Paid").length,
+      overdue: formatted.filter((r) => r.rentStatus === "Overdue").length,
+      monthlyExpected: sum(formatted.map((r) => r.monthlyRent)),
+      outstanding: sum(formatted.filter((r) => r.currentPeriod && r.currentPeriod.status !== "Paid").map((r) => r.currentPeriod.dueAmount)),
+    },
+  };
+}
+
+export async function markVirtualOfficeRentPaidForWorkspace(input: {
+  workspaceId: any;
+  userId: any;
+  recordId: string;
+  body?: any;
+}) {
+  const { workspaceId, userId, recordId, body = {} } = input;
+  // Segregation of duties: recording rent payments is finance-only, even
+  // though Sales owns the virtual office record itself.
+  await assertFinancePaymentActor(workspaceId, userId);
+
+  const record: any = await VirtualOffice.findById(recordId).exec();
+  ensureExists(record, workspaceId);
+
+  const now = new Date();
+  const period = getCurrentBillingPeriod(record.rentDate, now);
+  if (!period) {
+    throw Object.assign(new Error("This virtual office has no rent due date set, so there is no open billing period."), { statusCode: 409 });
+  }
+
+  const monthlyRent = Math.max(0, Number(record.monthlyRent || 0));
+  const paymentRecords = Array.isArray(record.paymentRecords) ? [...record.paymentRecords] : [];
+  const paidForPeriod = paymentRecords.reduce((sum, p) => {
+    const pStart = toDateOrNull(p.periodStart) || toDateOrNull(p.paymentDate);
+    const pEnd = toDateOrNull(p.periodEnd) || toDateOrNull(p.paymentDate);
+    const overlaps = pStart && pEnd
+      && pStart.getTime() <= period.periodEnd.getTime()
+      && pEnd.getTime() >= period.periodStart.getTime();
+    return sum + (overlaps && p.status === "Paid" ? Number(p.amount || 0) : 0);
+  }, 0);
+  if (monthlyRent > 0 && paidForPeriod >= monthlyRent) {
+    throw Object.assign(new Error("This billing period's rent is already fully paid."), { statusCode: 409 });
+  }
+
+  const actorName = await getActorName(userId);
+  const amount = Math.max(0, Number(body?.amount || (monthlyRent - paidForPeriod)));
+  if (!(amount > 0) || paidForPeriod + amount > monthlyRent) {
+    throw Object.assign(new Error("Payment amount must be positive and cannot exceed the remaining rent."), { statusCode: 409 });
+  }
+  const originalRentStatus = record.rentStatus;
+  const paymentId = new mongoose.Types.ObjectId().toString();
+  paymentRecords.push({
+    paymentId,
+    periodStart: period.periodStart,
+    periodEnd: period.periodEnd,
+    monthLabel: new Intl.DateTimeFormat("en-IN", { month: "short", year: "numeric" }).format(period.periodStart),
+    amount,
+    status: "Paid",
+    transactionId: normalizeText(body?.transactionId || ""),
+    paymentDate: now,
+    paymentMethod: normalizeText(body?.paymentMethod || ""),
+    notes: normalizeText(body?.notes || `Marked paid by ${actorName || "finance"} from Billing & Payments.`),
+  });
+  record.paymentRecords = paymentRecords;
+  // Same live-status rule as the Sales-side payment recording.
+  if (paidForPeriod + amount >= monthlyRent) record.rentStatus = "Active";
+
+  await record.save();
+  try {
+      const periodKey = `${period.periodStart.getFullYear()}-${String(period.periodStart.getMonth() + 1).padStart(2, "0")}`;
+      const periodLabel = new Intl.DateTimeFormat("en-IN", { month: "short", year: "numeric" }).format(period.periodStart);
+      await postIncomeEntry({
+        workspaceId, source: "virtual-office-rent",
+        // Multiple instalments in one period are separate revenue events.
+        referredId: `${String(record._id || recordId)}:${paymentId}`,
+        periodKey, periodLabel, entityName: normalizeText(record.clientName || record.brandName || ""),
+        amount, postedById: userId, postedByName: actorName,
+        note: `Virtual office rent paid for ${periodLabel}.`,
+      });
+  } catch (error) {
+    await VirtualOffice.updateOne(
+      { _id: record._id, workspaceId, "paymentRecords.paymentId": paymentId },
+      { $pull: { paymentRecords: { paymentId } }, $set: { rentStatus: originalRentStatus } },
+    );
+    throw error;
+  }
+
+  return { record: formatRecord(record.toObject()), message: "Virtual office rent marked as paid." };
+}
+
+

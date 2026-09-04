@@ -25,6 +25,8 @@ import {
   updateTenantCompanyCreditRequest,
   confirmTenantCreditRequestPayment,
   getPendingPaymentVerifications,
+  getMyTenantCompanyRent,
+  submitMyTenantCompanyRentPayment,
 } from "../controllers/tenant-company.controller.js";
 
 const router = express.Router();
@@ -37,6 +39,10 @@ router.patch("/my/visitor-requests/:visitorId", reviewMyTenantCompanyVisitorRequ
 router.get("/my/credit-requests", getMyTenantCompanyCreditRequests);
 router.post("/my/credit-requests", createMyTenantCompanyCreditRequest);
 router.post("/my/credit-requests/:requestId/payment", upload.single("paymentProof"), submitMyTenantCompanyCreditRequestPayment);
+
+// Tenant rent (self-service) — must precede /:id routes
+router.get("/my/rent", getMyTenantCompanyRent);
+router.post("/my/rent/:rentId/payment", upload.single("paymentProof"), submitMyTenantCompanyRentPayment);
 
 // Pending payment verifications (must precede /:id routes)
 router.get("/pending-payments", getPendingPaymentVerifications);

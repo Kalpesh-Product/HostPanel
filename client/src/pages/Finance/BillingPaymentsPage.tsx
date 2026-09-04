@@ -4,7 +4,8 @@ import { toast } from 'sonner';
 import {
   Receipt, Building2, Calendar, CreditCard, CheckCircle2,
   XCircle, Search, FileText, ArrowRight, X, Clock, Eye,
-  PieChart, Users, LayoutGrid, FileCheck, Send, Banknote, Globe, User, Download
+  PieChart, Users, LayoutGrid, FileCheck, Send, Banknote, Globe, User, Download,
+  ReceiptIndianRupee,
 } from 'lucide-react';
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { createReport } from '@/services/reports';
@@ -18,6 +19,12 @@ import {
   processPayrollPayment,
   resetTenantSecurityDepositInvoice,
   sendTenantSecurityDepositInvoice,
+  getTenantRentRecords,
+  markTenantRentPaid,
+  returnTenantRentProof,
+  getVirtualOfficeRentRecords,
+  markVirtualOfficeRentPaid,
+  getFinanceIncomeLedger,
 } from '@/services/finance';
 import {
   generateMeetingRoomInvoice,
@@ -35,6 +42,68 @@ import ReportExportButton from '@/components/ReportExportButton';
 import { isDateInExportPeriod } from '@/utils/export-period';
 
 /* ───────────────────── Types ───────────────────── */
+
+interface TenantRentRecord {
+  id: string;
+  recordId?: string;
+  tenantCode?: string;
+  companyName: string;
+  periodKey?: string;
+  periodLabel?: string;
+  dueDate?: string | null;
+  dueDateLabel?: string;
+  amount: number;
+  status: string;
+  displayStatus?: string;
+  isOverdue?: boolean;
+  paymentProof?: { fileName?: string; fileUrl?: string; mimeType?: string; size?: string };
+  transactionReference?: string;
+  submittedByName?: string;
+  submittedAt?: string | null;
+  verifiedByName?: string;
+  verifiedAt?: string | null;
+  paidAt?: string | null;
+  rejection?: { reason?: string; rejectedByName?: string; rejectedAt?: string | null };
+  paymentWindowStart?: string | null;
+  paymentWindowEnd?: string | null;
+  paymentWindowLabel?: string;
+  isWithinPaymentWindow?: boolean;
+  canSubmitProof?: boolean;
+  actionHistory?: Array<{ action?: string; status?: string; note?: string; actorName?: string; at?: string }>;
+}
+
+interface VirtualOfficeRentRecord {
+  id: string;
+  recordCode?: string;
+  clientName?: string;
+  serviceName?: string;
+  monthlyRent?: number;
+  rentDate?: string | null;
+  rentDateLabel?: string;
+  rentStatus?: string;
+  currentPeriod?: {
+    periodStart?: string | null;
+    periodEnd?: string | null;
+    monthLabel?: string;
+    dueDateLabel?: string;
+    paidAmount?: number;
+    dueAmount?: number;
+    status?: string;
+  } | null;
+  termStart?: string | null;
+  termEnd?: string | null;
+  paymentRecords?: Array<{
+    periodStart?: string | null;
+    periodEnd?: string | null;
+    monthLabel?: string;
+    amount?: number;
+    status?: string;
+    transactionId?: string;
+    paymentDate?: string | null;
+    paymentMethod?: string;
+    notes?: string;
+  }>;
+}
 
 interface TenantBillingRecord {
   id: string;
@@ -323,6 +392,75 @@ function buildBookingReportRows(records: any[] = [], filters: Record<string, any
   return rows.slice(0, 200);
 }
 
+function buildTenantRentReportRows(records: any[] = [], filters: Record<string, any> = {}): Array<{ label: string; value: string }> {
+  const rows: Array<{ label: string; value: string }> = [
+    { label: 'Report Scope', value: 'Tenant Rent (Monthly Receivables)' },
+    { label: 'Record Count', value: String(records.length) },
+    { label: 'Fiscal Year', value: filters.fiscalYear || DEFAULT_FISCAL_YEAR },
+    { label: 'Status Filter', value: filters.statusFilter || 'All' },
+    { label: 'Search Filter', value: filters.searchQuery || 'All' },
+  ];
+  records.forEach((record: any, index: number) => {
+    rows.push({
+      label: `${index + 1}. ${record.companyName || 'Tenant'} | ${record.periodLabel || record.periodKey || 'Period'}`,
+      value: [
+        `Tenant Code: ${record.tenantCode || '-'}`,
+        `Rent ID: ${record.id || '-'}`,
+        record.dueDateLabel ? `Due Date: ${record.dueDateLabel}` : '',
+        `Amount: ${formatCurrency(record.amount || 0, filters.currency)}`,
+        `Status: ${record.displayStatus || record.status || 'Due'}`,
+        record.transactionReference ? `Transaction Ref: ${record.transactionReference}` : 'Transaction Ref: -',
+        record.submittedByName ? `Proof Submitted By: ${record.submittedByName}` : 'Proof: Not Submitted',
+        record.verifiedByName ? `Verified By: ${record.verifiedByName}` : '',
+      ].filter(Boolean).join(' | '),
+    });
+  });
+  return rows.slice(0, 200);
+}
+
+function buildVirtualOfficeRentReportRows(records: any[] = [], filters: Record<string, any> = {}): Array<{ label: string; value: string }> {
+  const rows: Array<{ label: string; value: string }> = [
+    { label: 'Report Scope', value: 'Virtual Office Rent (Current Billing Periods)' },
+    { label: 'Record Count', value: String(records.length) },
+    { label: 'Fiscal Year', value: filters.fiscalYear || DEFAULT_FISCAL_YEAR },
+    { label: 'Status Filter', value: filters.statusFilter || 'All' },
+    { label: 'Search Filter', value: filters.searchQuery || 'All' },
+  ];
+  records.forEach((record: any, index: number) => {
+    rows.push({
+      label: `${index + 1}. ${record.clientName || 'Virtual Office'} | ${record.recordCode || ''}`,
+      value: [
+        `Service: ${record.serviceName || '-'}`,
+        `Monthly Rent: ${formatCurrency(record.monthlyRent || 0, filters.currency)}`,
+        `Rent Due Date (anchor): ${record.rentDateLabel || '-'}`,
+        record.currentPeriod ? `Current Period: ${record.currentPeriod.monthLabel} (${record.currentPeriod.status})` : 'Current Period: -',
+        record.currentPeriod ? `Paid This Period: ${formatCurrency(record.currentPeriod.paidAmount || 0, filters.currency)}` : '',
+        record.currentPeriod ? `Due This Period: ${formatCurrency(record.currentPeriod.dueAmount || 0, filters.currency)}` : '',
+        record.currentPeriod?.dueDateLabel ? `Due Date: ${record.currentPeriod.dueDateLabel}` : '',
+        `Rent Status: ${record.rentStatus || 'Active'}`,
+      ].filter(Boolean).join(' | '),
+    });
+  });
+  return rows.slice(0, 200);
+}
+
+function getRentStatusBadge(status = '') {
+  const normalized = String(status).trim().toLowerCase();
+  if (normalized === 'paid') {
+    return <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[9px] font-pmedium uppercase tracking-wider">Paid</span>;
+  }
+  if (normalized === 'proof submitted') {
+    return <span className="px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 text-[9px] font-pmedium uppercase tracking-wider">Proof Submitted</span>;
+  }
+  if (normalized === 'overdue') {
+    return <span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 text-[9px] font-pmedium uppercase tracking-wider">Overdue</span>;
+  }
+  if (normalized === 'partially paid') {
+    return <span className="px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-700 text-[9px] font-pmedium uppercase tracking-wider">Partially Paid</span>;
+  }
+  return <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-[9px] font-pmedium uppercase tracking-wider">Due</span>;
+}
+
 function buildPayrollReportRows(records: any[] = [], cycle: PayrollCycle | null = null, payrollCycleHistory: any[] = [], filters: Record<string, any> = {}): Array<{ label: string; value: string }> {
   const rows: Array<{ label: string; value: string }> = [
     { label: 'Report Scope', value: 'Payroll' },
@@ -494,6 +632,9 @@ export function BillingPaymentsPage() {
   const [statusFilter, setStatusFilter] = useState('All');
 
   const [tenantBills, setTenantBills] = useState<TenantBillingRecord[]>([]);
+  const [rentRecords, setRentRecords] = useState<TenantRentRecord[]>([]);
+  const [voRecords, setVoRecords] = useState<VirtualOfficeRentRecord[]>([]);
+  const [incomeEntries, setIncomeEntries] = useState<TransactionEntry[]>([]);
   const [bookingRecords, setBookingRecords] = useState<BookingRecord[]>([]);
   const [payrollData, setPayrollData] = useState<PayrollSnapshotData | null>(null);
   const [extraCreditRequests, setExtraCreditRequests] = useState<ExtraCreditRequest[]>([]);
@@ -511,6 +652,10 @@ export function BillingPaymentsPage() {
   }, [payrollData, selectedFY]);
 
   const [viewingTenantBill, setViewingTenantBill] = useState<TenantBillingRecord | null>(null);
+  const [viewingRent, setViewingRent] = useState<TenantRentRecord | null>(null);
+  const [viewingVo, setViewingVo] = useState<VirtualOfficeRentRecord | null>(null);
+  const [showRentReturn, setShowRentReturn] = useState(false);
+  const [rentReturnNote, setRentReturnNote] = useState('');
   const [viewingBooking, setViewingBooking] = useState<BookingRecord | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<PayrollEmployee | null>(null);
   const [viewingExtraCredit, setViewingExtraCredit] = useState<ExtraCreditRequest | null>(null);
@@ -519,6 +664,8 @@ export function BillingPaymentsPage() {
 
   const tabs = [
     { key: 'tenant', label: 'TENANT SECURITY DEPOSITS', icon: Building2 },
+    { key: 'rent', label: 'TENANT RENT', icon: ReceiptIndianRupee },
+    { key: 'virtualOffice', label: 'VIRTUAL OFFICE', icon: Building2 },
     { key: 'bookings', label: 'MEETING ROOM BOOKINGS', icon: Calendar },
     { key: 'payroll', label: 'PAYROLL', icon: Users },
     { key: 'extraCredits', label: 'EXTRA CREDIT REQUESTS', icon: CreditCard },
@@ -535,11 +682,14 @@ export function BillingPaymentsPage() {
       setErrorMessage('');
 
       try {
-        const [billingRes, bookingRes, payrollRes, creditRes] = await Promise.allSettled([
+        const [billingRes, bookingRes, payrollRes, creditRes, rentRes, voRes, incomeRes] = await Promise.allSettled([
           getTenantBillingSnapshot({ fiscalYear: selectedFY }),
           getMeetingRoomBookings({ fiscalYear: selectedFY }),
           getPayrollSnapshot(),
           getTenantCompanies({ fiscalYear: selectedFY }),
+          getTenantRentRecords(),
+          getVirtualOfficeRentRecords(),
+          getFinanceIncomeLedger(),
         ]);
 
         if (!alive) return;
@@ -583,6 +733,35 @@ export function BillingPaymentsPage() {
         if (bookingRes.status === 'rejected') setErrorMessage((prev) => prev || 'Failed to load bookings.');
         if (payrollRes.status === 'rejected') setErrorMessage((prev) => prev || 'Failed to load payroll.');
         if (creditRes.status === 'rejected') setErrorMessage((prev) => prev || 'Failed to load credit requests.');
+        if (rentRes.status === 'fulfilled') {
+          const data = rentRes.value?.data?.data || rentRes.value?.data || rentRes.value || {};
+          setRentRecords(Array.isArray(data) ? data : Array.isArray(data?.records) ? data.records : []);
+        } else {
+          setErrorMessage((prev) => prev || 'Failed to load tenant rent.');
+        }
+
+        if (voRes.status === 'fulfilled') {
+          const data = voRes.value?.data?.data || voRes.value?.data || voRes.value || {};
+          setVoRecords(Array.isArray(data) ? data : Array.isArray(data?.records) ? data.records : []);
+        } else {
+          setErrorMessage((prev) => prev || 'Failed to load virtual office rent.');
+        }
+
+        if (incomeRes.status === 'fulfilled') {
+          const data = incomeRes.value?.data?.data || incomeRes.value?.data || incomeRes.value || {};
+          const entries = Array.isArray(data) ? data : Array.isArray(data?.entries) ? data.entries : [];
+          setIncomeEntries(entries.map((entry: any) => ({
+            id: `income-${entry?.id || `${entry?.source}-${entry?.periodKey}`}`,
+            type: entry?.source === 'virtual-office-rent' ? 'Virtual Office Rent' : 'Tenant Rent',
+            entity: entry?.entityName || (entry?.source === 'virtual-office-rent' ? 'Virtual Office' : 'Tenant Company'),
+            amount: Number(entry?.amount || 0),
+            date: entry?.postedAt || '',
+            ref: entry?.periodLabel || entry?.periodKey || '',
+            details: entry?.note || '',
+          })));
+        } else {
+          setErrorMessage((prev) => prev || 'Failed to load income ledger.');
+        }
       } catch (error: any) {
         if (!alive) return;
         setErrorMessage(error?.message || 'Failed to load billing & payments data.');
@@ -646,9 +825,42 @@ export function BillingPaymentsPage() {
     });
   }, [extraCreditRequests, statusFilter, searchQuery]);
 
+  const visibleRentRecords = useMemo(() => {
+    return rentRecords.filter((rent) => {
+      if (statusFilter !== 'All') {
+        if (statusFilter === 'Overdue') {
+          if (!rent.isOverdue) return false;
+        } else if (rent.status !== statusFilter) {
+          return false;
+        }
+      }
+      if (!searchQuery) return true;
+      const haystack = [rent.companyName, rent.tenantCode, rent.id, rent.periodLabel, rent.periodKey, rent.transactionReference].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(searchQuery.toLowerCase());
+    });
+  }, [rentRecords, statusFilter, searchQuery]);
+
+  const visibleVoRecords = useMemo(() => {
+    return voRecords.filter((vo) => {
+      if (statusFilter !== 'All') {
+        if (statusFilter === 'Overdue') {
+          if (vo.rentStatus !== 'Overdue') return false;
+        } else if (vo.currentPeriod?.status !== statusFilter) {
+          return false;
+        }
+      }
+      if (!searchQuery) return true;
+      const haystack = [vo.clientName, vo.recordCode, vo.serviceName].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(searchQuery.toLowerCase());
+    });
+  }, [voRecords, statusFilter, searchQuery]);
+
   const transactionHistory = useMemo(
-    () => buildTransactionHistoryFeed(tenantBills, bookingRecords, payablePayrollEmployees, extraCreditRequests),
-    [tenantBills, bookingRecords, payablePayrollEmployees, extraCreditRequests],
+    () => [
+      ...incomeEntries,
+      ...buildTransactionHistoryFeed(tenantBills, bookingRecords, payablePayrollEmployees, extraCreditRequests),
+    ].sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()),
+    [tenantBills, bookingRecords, payablePayrollEmployees, extraCreditRequests, incomeEntries],
   );
 
   const statCards = useMemo(() => {
@@ -711,14 +923,34 @@ export function BillingPaymentsPage() {
           { key: 'empty2', label: '', value: '', icon: PieChart },
         ];
       }
+      case 'rent': {
+        const outstanding = rentRecords.filter((r) => r.status !== 'Paid');
+        return [
+          { key: 'rentOutstanding', label: 'Outstanding', value: formatCurrency(outstanding.reduce((sum, r) => sum + (r.amount || 0), 0)), isCurrency: true, icon: ReceiptIndianRupee },
+          { key: 'rentDue', label: 'Due', value: String(rentRecords.filter((r) => r.status === 'Due').length), icon: Clock },
+          { key: 'rentProof', label: 'Proof Submitted', value: String(rentRecords.filter((r) => r.status === 'Proof Submitted').length), icon: FileText },
+          { key: 'rentPaid', label: 'Paid', value: String(rentRecords.filter((r) => r.status === 'Paid').length), icon: CheckCircle2 },
+        ];
+      }
+      case 'virtualOffice': {
+        const outstanding = voRecords.reduce((sum, v) => sum + (v.currentPeriod && v.currentPeriod.status !== 'Paid' ? (v.currentPeriod.dueAmount || 0) : 0), 0);
+        return [
+          { key: 'voOutstanding', label: 'Outstanding', value: formatCurrency(outstanding), isCurrency: true, icon: Building2 },
+          { key: 'voDue', label: 'Due', value: String(voRecords.filter((v) => v.currentPeriod?.status === 'Due').length), icon: Clock },
+          { key: 'voPartial', label: 'Partially Paid', value: String(voRecords.filter((v) => v.currentPeriod?.status === 'Partially Paid').length), icon: FileText },
+          { key: 'voPaid', label: 'Paid', value: String(voRecords.filter((v) => v.currentPeriod?.status === 'Paid').length), icon: CheckCircle2 },
+        ];
+      }
       default:
         return [];
     }
-  }, [activeTab, tenantBills, bookingRecords, payablePayrollEmployees, extraCreditRequests, transactionHistory, formatCurrency]);
+  }, [activeTab, tenantBills, rentRecords, voRecords, bookingRecords, payablePayrollEmployees, extraCreditRequests, transactionHistory, formatCurrency]);
 
   const activeReportLabel = (() => {
     switch (activeTab) {
       case 'tenant': return 'Tenant Security Deposits';
+      case 'rent': return 'Tenant Rent';
+      case 'virtualOffice': return 'Virtual Office Rent';
       case 'bookings': return 'Meeting Room Bookings';
       case 'payroll': return 'Payroll';
       case 'extraCredits': return 'Extra Credit Requests';
@@ -890,6 +1122,68 @@ export function BillingPaymentsPage() {
     }
   };
 
+  /* ── Handlers: Tenant Rent ── */
+
+  const handleMarkRentPaid = async (rent: TenantRentRecord) => {
+    if (isProcessingAction) return;
+    setIsProcessingAction(true);
+    try {
+      await markTenantRentPaid(rent.id);
+      setRentRecords((prev) => prev.map((r) => (r.id === rent.id ? { ...r, status: 'Paid', displayStatus: 'Paid', isOverdue: false, verifiedAt: new Date().toISOString() } : r)));
+      if (viewingRent?.id === rent.id) setViewingRent((prev) => prev ? { ...prev, status: 'Paid', displayStatus: 'Paid', isOverdue: false } : null);
+      toast.success(`Rent marked as paid for ${rent.companyName} (${rent.periodLabel || rent.periodKey}).`);
+      window.dispatchEvent(new Event('finance:snapshot-updated'));
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to mark rent as paid.');
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
+  const handleReturnRentProof = async (rent: TenantRentRecord) => {
+    if (isProcessingAction || !rentReturnNote.trim()) return;
+    setIsProcessingAction(true);
+    try {
+      await returnTenantRentProof(rent.id, { reason: rentReturnNote.trim() });
+      setRentRecords((prev) => prev.map((r) => (r.id === rent.id ? { ...r, status: 'Due', displayStatus: 'Due', rejection: { reason: rentReturnNote.trim(), rejectedByName: currentUserName, rejectedAt: new Date().toISOString() } } : r)));
+      if (viewingRent?.id === rent.id) setViewingRent((prev) => prev ? { ...prev, status: 'Due', displayStatus: 'Due' } : null);
+      toast.success(`Payment proof returned for ${rent.companyName} (${rent.periodLabel || rent.periodKey}).`);
+      setShowRentReturn(false);
+      setRentReturnNote('');
+      window.dispatchEvent(new Event('finance:snapshot-updated'));
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to return payment proof.');
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
+  /* ── Handlers: Virtual Office Rent ── */
+
+  const handleMarkVoPaid = async (vo: VirtualOfficeRentRecord) => {
+    if (isProcessingAction) return;
+    setIsProcessingAction(true);
+    try {
+      await markVirtualOfficeRentPaid(vo.id);
+      setVoRecords((prev) => prev.map((v) => (v.id === vo.id
+        ? {
+          ...v,
+          currentPeriod: v.currentPeriod ? { ...v.currentPeriod, status: 'Paid', paidAmount: v.monthlyRent, dueAmount: 0 } : v.currentPeriod,
+          rentStatus: v.rentStatus === 'Overdue' ? 'Active' : v.rentStatus,
+        }
+        : v)));
+      if (viewingVo?.id === vo.id) setViewingVo((prev) => prev
+        ? { ...prev, currentPeriod: prev.currentPeriod ? { ...prev.currentPeriod, status: 'Paid', paidAmount: prev.monthlyRent, dueAmount: 0 } : prev.currentPeriod }
+        : null);
+      toast.success(`Rent marked as paid for ${vo.clientName} (${vo.currentPeriod?.monthLabel || 'current period'}).`);
+      window.dispatchEvent(new Event('finance:snapshot-updated'));
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to mark virtual office rent as paid.');
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
   /* ── Export handler ── */
 
   const handleExportActiveReport = async ({ format, dataWindow, period, reportMonth, dateFrom, dateTo }: ExportParams) => {
@@ -905,6 +1199,8 @@ export function BillingPaymentsPage() {
     const periodPayrollHistory = filterPeriod(payrollData?.history || [], ['sentToFinanceAt', 'processedOn', 'createdAt']);
     const periodExtraCredits = filterPeriod(visibleExtraCredits, ['requestedAt', 'createdAt', 'updatedAt']);
     const periodTransactions = filterPeriod(transactionHistory, ['date', 'paidAt', 'createdAt']);
+    const periodRentRecords = filterPeriod(visibleRentRecords, ['dueDate', 'submittedAt', 'paidAt', 'createdAt']);
+    const periodVoRecords = filterPeriod(visibleVoRecords, ['rentDate', 'createdAt']);
 
     const reportConfigByTab: Record<string, any> = {
       tenant: {
@@ -938,6 +1234,22 @@ export function BillingPaymentsPage() {
         sourceRef: 'finance-extra-credits',
         reportRows: buildExtraCreditReportRows(periodExtraCredits, { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }),
         hasData: periodExtraCredits.length > 0,
+      },
+      rent: {
+        title: `Billing - Tenant Rent - ${fiscalYearLabel}`,
+        period: `${exportPeriodLabel} Tenant Rent`,
+        description: `Tenant monthly rent receivables report for ${exportPeriodLabel}.`,
+        sourceRef: 'finance-tenant-rent',
+        reportRows: buildTenantRentReportRows(periodRentRecords, { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }),
+        hasData: periodRentRecords.length > 0,
+      },
+      virtualOffice: {
+        title: `Billing - Virtual Office Rent - ${fiscalYearLabel}`,
+        period: `${exportPeriodLabel} Virtual Office Rent`,
+        description: `Virtual office current billing period rent report for ${exportPeriodLabel}.`,
+        sourceRef: 'finance-virtual-office-rent',
+        reportRows: buildVirtualOfficeRentReportRows(periodVoRecords, { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }),
+        hasData: periodVoRecords.length > 0,
       },
       history: {
         title: `Billing - Transaction History - ${fiscalYearLabel}`,
@@ -1024,25 +1336,29 @@ export function BillingPaymentsPage() {
           )}
 
           {/* ── Pill Tabs (DESIGN.md: pill-style with blue active bg) ── */}
-          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveTab(tab.key)}
-                      className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
-                    activeTab === tab.key
-                      ? 'bg-[#2563EB] text-white shadow-sm'
-                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-                  }`}
-                >
-                  <Icon size={14} className="shrink-0" />
-                  {tab.label}
-                </button>
-              );
-            })}
+          <div className="mb-3 overflow-x-auto overscroll-x-contain rounded-2xl border border-slate-100 bg-white p-1 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex min-w-max flex-nowrap gap-1.5" role="tablist" aria-label="Billing and payment sections">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`flex min-w-[8.5rem] flex-none items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all sm:min-w-[10rem] ${
+                      activeTab === tab.key
+                        ? 'bg-[#2563EB] text-white shadow-sm'
+                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                  >
+                    <Icon size={14} className="shrink-0" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* ── Stat Cards (DESIGN.md: border-l-4 accent per card, tab-aware) ── */}
@@ -1076,12 +1392,30 @@ export function BillingPaymentsPage() {
                   onChange={(e) => setStatusFilter(e.target.value)}
                 >
                   <option>All</option>
-                  <option>Paid</option>
-                  <option>Pending</option>
-                  <option>Generated</option>
-                  <option>Sent</option>
-                  <option>Failed</option>
-                  <option>Rejected</option>
+                  {activeTab === 'rent' ? (
+                    <>
+                      <option>Due</option>
+                      <option>Proof Submitted</option>
+                      <option>Paid</option>
+                      <option>Overdue</option>
+                    </>
+                  ) : activeTab === 'virtualOffice' ? (
+                    <>
+                      <option>Paid</option>
+                      <option>Due</option>
+                      <option>Partially Paid</option>
+                      <option>Overdue</option>
+                    </>
+                  ) : (
+                    <>
+                      <option>Paid</option>
+                      <option>Pending</option>
+                      <option>Generated</option>
+                      <option>Sent</option>
+                      <option>Failed</option>
+                      <option>Rejected</option>
+                    </>
+                  )}
                 </select>
                 <div className="relative min-w-[200px] flex-1">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -1146,6 +1480,117 @@ export function BillingPaymentsPage() {
                       )) : (
                         <tr>
                           <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-semibold">No tenant billing records found.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </>
+                )}
+
+                {activeTab === 'rent' && (
+                  <>
+                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                      <tr>
+                        <th className="px-6 py-5">Tenant</th>
+                        <th className="px-6 py-5">Period</th>
+                        <th className="px-6 py-5 hidden sm:table-cell">Due Date</th>
+                        <th className="px-6 py-5">Amount</th>
+                        <th className="px-6 py-5 hidden md:table-cell">Proof</th>
+                        <th className="px-6 py-5 text-center">Status</th>
+                        <th className="px-6 py-5 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100/60">
+                      {visibleRentRecords.length > 0 ? visibleRentRecords.map((rent) => (
+                        <tr key={rent.recordId || rent.id} className="hover:bg-blue-50/30 transition-all">
+                          <td className="px-6 py-5">
+                            <p className="font-black text-slate-900 text-xs sm:text-sm flex items-center gap-1.5"><Building2 size={13} className="text-slate-400" /> {rent.companyName}</p>
+                            <p className="text-[9px] font-semibold text-slate-400">{rent.tenantCode || rent.id}</p>
+                          </td>
+                          <td className="px-6 py-5 font-bold text-slate-700 text-xs">{rent.periodLabel || rent.periodKey || '-'}</td>
+                          <td className="px-6 py-5 hidden sm:table-cell text-xs font-bold text-slate-700">{rent.dueDateLabel || '-'}</td>
+                          <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">{formatCurrency(rent.amount || 0)}</td>
+                          <td className="px-6 py-5 hidden md:table-cell">
+                            {rent.paymentProof?.fileUrl ? (
+                              <a href={rent.paymentProof.fileUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-pmedium text-blue-600 hover:text-blue-800 inline-flex items-center gap-1">
+                                <FileText size={11} /> View
+                              </a>
+                            ) : (
+                              <span className="text-[9px] font-bold text-slate-400 uppercase">Not Submitted</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-5 text-center">{getRentStatusBadge(rent.isOverdue ? 'Overdue' : rent.status)}</td>
+                          <td className="px-6 py-5 text-center">
+                            <button
+                              onClick={() => setViewingRent(rent)}
+                              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto"
+                            >
+                              <Eye size={10} /> View
+                            </button>
+                          </td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan={7} className="px-6 py-16 text-center text-slate-400 font-semibold">No tenant rent records found.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </>
+                )}
+
+                {activeTab === 'virtualOffice' && (
+                  <>
+                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                      <tr>
+                        <th className="px-6 py-5">Client</th>
+                        <th className="px-6 py-5 hidden sm:table-cell">Current Period</th>
+                        <th className="px-6 py-5 hidden sm:table-cell">Due Date</th>
+                        <th className="px-6 py-5">Monthly Rent</th>
+                        <th className="px-6 py-5 hidden md:table-cell">Paid / Due</th>
+                        <th className="px-6 py-5 text-center">Status</th>
+                        <th className="px-6 py-5 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100/60">
+                      {visibleVoRecords.length > 0 ? visibleVoRecords.map((vo) => (
+                        <tr key={vo.id} className="hover:bg-blue-50/30 transition-all">
+                          <td className="px-6 py-5">
+                            <p className="font-black text-slate-900 text-xs sm:text-sm flex items-center gap-1.5"><Building2 size={13} className="text-slate-400" /> {vo.clientName || '—'}</p>
+                            <p className="text-[9px] font-semibold text-slate-400">{vo.recordCode}{vo.serviceName ? ` · ${vo.serviceName}` : ''}</p>
+                          </td>
+                          <td className="px-6 py-5 hidden sm:table-cell text-xs font-bold text-slate-700">{vo.currentPeriod?.monthLabel || '—'}</td>
+                          <td className="px-6 py-5 hidden sm:table-cell text-xs font-bold text-slate-700">{vo.currentPeriod?.dueDateLabel || vo.rentDateLabel || '—'}</td>
+                          <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">{formatCurrency(vo.monthlyRent || 0)}</td>
+                          <td className="px-6 py-5 hidden md:table-cell">
+                            <p className="text-[10px] font-pmedium text-emerald-600">Paid: {formatCurrency(vo.currentPeriod?.paidAmount || 0)}</p>
+                            <p className="text-[10px] font-pmedium text-rose-500">Due: {formatCurrency(vo.currentPeriod?.dueAmount || 0)}</p>
+                          </td>
+                          <td className="px-6 py-5 text-center">{getRentStatusBadge(vo.currentPeriod?.status || vo.rentStatus || 'Due')}</td>
+                          <td className="px-6 py-5 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              {vo.currentPeriod && vo.currentPeriod.status !== 'Paid' && (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleMarkVoPaid(vo)}
+                                  disabled={isProcessingAction}
+                                  title={vo.currentPeriod.status === 'Partially Paid' ? 'Mark the remaining amount as paid' : 'Mark this period as paid'}
+                                  className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-[9px] font-bold uppercase tracking-wider shadow-sm hover:bg-emerald-700 transition-all disabled:opacity-60 inline-flex items-center gap-1"
+                                >
+                                  <CheckCircle2 size={10} /> Mark Paid
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setViewingVo(vo)}
+                                className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-pmedium uppercase transition-all shadow-sm inline-flex items-center gap-1"
+                              >
+                                <Eye size={10} /> View
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan={7} className="px-6 py-16 text-center text-slate-400 font-semibold">No virtual office rent records found.</td>
                         </tr>
                       )}
                     </tbody>
@@ -1448,6 +1893,228 @@ export function BillingPaymentsPage() {
         </div>
       )}
 
+      {/* ── View Tenant Rent Modal ── */}
+      {viewingRent && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
+              <div>
+                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-emerald-500/20 text-emerald-300 border-emerald-400/30 mb-2 inline-block">Tenant Rent</span>
+                <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1"><Building2 size={20} /> {viewingRent.companyName}</h2>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">{viewingRent.tenantCode || 'Tenant'} · {viewingRent.periodLabel || viewingRent.periodKey} · {viewingRent.id}</p>
+              </div>
+              <button onClick={() => { setViewingRent(null); setShowRentReturn(false); setRentReturnNote(''); }} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
+              <div className="px-6 sm:px-8 py-5 grid grid-cols-2 sm:grid-cols-3 gap-4 border-b border-gray-100 bg-white">
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:p-5">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-600">Rent Amount</p>
+                  <p className="text-xl font-black text-blue-900 mt-1">{formatCurrency(viewingRent.amount || 0)}</p>
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Due Date</p>
+                  <p className="text-lg font-black text-gray-900 mt-1">{viewingRent.dueDateLabel || '-'}</p>
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Status</p>
+                  <p className="text-lg font-black text-gray-900 mt-1">{viewingRent.isOverdue ? 'Overdue' : viewingRent.status}</p>
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Transaction Reference</p>
+                  <p className="text-xs font-black text-gray-900 mt-1 break-all">{viewingRent.transactionReference || '—'}</p>
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Submitted By</p>
+                  <p className="text-xs font-black text-gray-900 mt-1">{viewingRent.submittedByName || '—'}</p>
+                  <p className="text-[10px] font-pmedium text-gray-400">{viewingRent.submittedAt ? new Date(viewingRent.submittedAt).toLocaleString() : ''}</p>
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Verified By</p>
+                  <p className="text-xs font-black text-gray-900 mt-1">{viewingRent.verifiedByName || '—'}</p>
+                  <p className="text-[10px] font-pmedium text-gray-400">{viewingRent.paidAt ? new Date(viewingRent.paidAt).toLocaleString() : ''}</p>
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Payment Window</p>
+                  <p className="text-xs font-black text-gray-900 mt-1">{viewingRent.paymentWindowLabel || '—'}</p>
+                  <p className="text-[10px] font-pmedium text-gray-400">{viewingRent.isWithinPaymentWindow ? 'Open — tenant can submit proof' : 'Closed — finance records manually'}</p>
+                </div>
+              </div>
+
+              <div className="px-6 sm:px-8 py-5 space-y-3">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><FileText size={13} /></div>
+                    <div className="min-w-0">
+                      <p className="text-[12px] font-pmedium text-slate-900 truncate">{viewingRent.paymentProof?.fileName || 'No payment proof submitted'}</p>
+                      <p className="text-[10px] font-pregular text-slate-500">Proof of payment uploaded by the tenant</p>
+                    </div>
+                  </div>
+                  {viewingRent.paymentProof?.fileUrl && (
+                    <button type="button" onClick={() => window.open(viewingRent.paymentProof?.fileUrl, '_blank', 'noopener,noreferrer')} className="px-4 py-2 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-primary/95 transition-all shrink-0 flex items-center gap-1.5">
+                      <Eye size={12} /> View Proof
+                    </button>
+                  )}
+                </div>
+
+                {viewingRent.rejection?.reason && (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-amber-600">Last Returned Reason</p>
+                    <p className="text-xs font-semibold text-amber-800 mt-1">{viewingRent.rejection.reason}{viewingRent.rejection.rejectedByName ? ` — ${viewingRent.rejection.rejectedByName}` : ''}</p>
+                  </div>
+                )}
+
+                {showRentReturn && viewingRent.status === 'Proof Submitted' && (
+                  <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 space-y-2">
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-rose-600">Return proof to tenant (reason required)</p>
+                    <textarea
+                      value={rentReturnNote}
+                      onChange={(e) => setRentReturnNote(e.target.value)}
+                      rows={2}
+                      placeholder="e.g. Amount mismatch with the invoice"
+                      className="w-full px-3 py-2 bg-white border border-rose-200 rounded-xl text-xs font-medium outline-none focus:border-rose-400"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button type="button" onClick={() => { setShowRentReturn(false); setRentReturnNote(''); }} className="px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium text-[10px] uppercase tracking-widest">Cancel</button>
+                      <button type="button" disabled={isProcessingAction || !rentReturnNote.trim()} onClick={() => void handleReturnRentProof(viewingRent)} className="px-4 py-2 bg-rose-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-widest disabled:opacity-60 flex items-center gap-1.5">
+                        <XCircle size={12} /> Return Proof
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {Array.isArray(viewingRent.actionHistory) && viewingRent.actionHistory.length > 0 && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">Audit Trail</p>
+                    <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                      {viewingRent.actionHistory.slice().reverse().map((entry, idx: number) => (
+                        <div key={idx} className="flex items-start gap-2 text-[11px]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5 shrink-0" />
+                          <p className="text-slate-600">
+                            <span className="font-pmedium text-slate-800">{entry.actorName || 'System'}</span> — {entry.note || entry.action}
+                            <span className="text-slate-400"> ({entry.at ? new Date(entry.at).toLocaleString() : ''})</span>
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            </div>
+            <div className="px-6 sm:px-8 py-4 bg-white border-t border-slate-100 flex flex-wrap justify-end gap-2 shrink-0">
+              {viewingRent.status !== 'Paid' && (
+                <button
+                  type="button"
+                  onClick={() => void handleMarkRentPaid(viewingRent)}
+                  disabled={isProcessingAction}
+                  className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-emerald-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                >
+                  <CheckCircle2 size={12} /> {isProcessingAction ? 'Processing...' : 'Mark as Paid'}
+                </button>
+              )}
+              {viewingRent.status === 'Proof Submitted' && !showRentReturn && (
+                <button
+                  type="button"
+                  onClick={() => setShowRentReturn(true)}
+                  disabled={isProcessingAction}
+                  className="px-5 py-2.5 bg-white border border-rose-200 text-rose-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-rose-50 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                >
+                  <XCircle size={12} /> Return Proof
+                </button>
+              )}
+              {viewingRent.status === 'Paid' && (
+                <span className="px-4 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 font-pmedium text-[10px] uppercase tracking-wider flex items-center gap-1.5"><CheckCircle2 size={12} /> Payment verified</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── View Virtual Office Rent Modal ── */}
+      {viewingVo && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
+              <div>
+                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-violet-500/20 text-violet-300 border-violet-400/30 mb-2 inline-block">Virtual Office Rent</span>
+                <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1"><Building2 size={20} /> {viewingVo.clientName || 'Virtual Office'}</h2>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">{viewingVo.recordCode}{viewingVo.serviceName ? ` · ${viewingVo.serviceName}` : ''}</p>
+              </div>
+              <button onClick={() => setViewingVo(null)} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
+              <div className="px-6 sm:px-8 py-5 grid grid-cols-2 sm:grid-cols-3 gap-4 border-b border-gray-100 bg-white">
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:p-5">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-600">Monthly Rent</p>
+                  <p className="text-xl font-black text-blue-900 mt-1">{formatCurrency(viewingVo.monthlyRent || 0)}</p>
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Current Period</p>
+                  <p className="text-lg font-black text-gray-900 mt-1">{viewingVo.currentPeriod?.monthLabel || '—'}</p>
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Period Status</p>
+                  <p className="text-lg font-black text-gray-900 mt-1">{viewingVo.currentPeriod?.status || '—'}</p>
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Rent Due Date (recurring)</p>
+                  <p className="text-xs font-black text-gray-900 mt-1">{viewingVo.rentDateLabel || '—'}</p>
+                </div>
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 sm:p-5">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">Paid This Period</p>
+                  <p className="text-xs font-black text-emerald-900 mt-1">{formatCurrency(viewingVo.currentPeriod?.paidAmount || 0)}</p>
+                </div>
+                <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 sm:p-5">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-rose-500">Due This Period</p>
+                  <p className="text-xs font-black text-rose-900 mt-1">{formatCurrency(viewingVo.currentPeriod?.dueAmount || 0)}</p>
+                </div>
+              </div>
+
+              <div className="px-6 sm:px-8 py-5 space-y-3">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">Payment History</p>
+                  {(viewingVo.paymentRecords || []).length > 0 ? (
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                      {viewingVo.paymentRecords.slice().reverse().map((p, idx: number) => (
+                        <div key={idx} className="flex items-start justify-between gap-3 text-[11px] border-b border-slate-50 pb-1.5 last:border-0">
+                          <div>
+                            <p className="font-pmedium text-slate-800">{p.monthLabel || 'Period'} · {formatCurrency(p.amount || 0)} · {p.status}</p>
+                            <p className="text-slate-400">{p.paymentDate ? new Date(p.paymentDate).toLocaleString() : ''}{p.transactionId ? ` · Ref: ${p.transactionId}` : ''}{p.notes ? ` · ${p.notes}` : ''}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-slate-400 font-semibold">No rent payments recorded yet.</p>
+                  )}
+                </div>
+
+              </div>
+            </div>
+            <div className="px-6 sm:px-8 py-4 bg-white border-t border-slate-100 flex flex-wrap justify-end gap-2 shrink-0">
+              {viewingVo.currentPeriod && viewingVo.currentPeriod.status !== 'Paid' && (
+                <button
+                  type="button"
+                  onClick={() => void handleMarkVoPaid(viewingVo)}
+                  disabled={isProcessingAction}
+                  className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-emerald-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                >
+                  <CheckCircle2 size={12} /> {isProcessingAction ? 'Processing...' : `Mark ${viewingVo.currentPeriod.monthLabel || 'This Period'} as Paid`}
+                </button>
+              )}
+              {viewingVo.currentPeriod?.status === 'Paid' && (
+                <span className="px-4 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 font-pmedium text-[10px] uppercase tracking-wider flex items-center gap-1.5"><CheckCircle2 size={12} /> This period is fully paid</span>
+              )}
+              {!viewingVo.currentPeriod && (
+                <span className="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-500 font-pmedium text-[10px] uppercase tracking-wider flex items-center gap-1.5">
+                  <Clock size={12} /> No active billing period{viewingVo.rentDateLabel ? ` — rent due starts ${viewingVo.rentDateLabel}` : ''}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── View Booking Modal ── */}
       {viewingBooking && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
@@ -1704,7 +2371,7 @@ export function BillingPaymentsPage() {
         subtitle="Select format and date range to export."
         department="Finance"
         category="Financial"
-        sourceRef={({ tenant: 'finance-tenant-deposits', bookings: 'finance-booking-invoices', payroll: 'finance-payroll', extraCredits: 'finance-extra-credits', history: 'finance-transaction-history' } as Record<string, string>)[activeTab] || 'finance-billing'}
+        sourceRef={({ tenant: 'finance-tenant-deposits', rent: 'finance-tenant-rent', virtualOffice: 'finance-virtual-office-rent', bookings: 'finance-booking-invoices', payroll: 'finance-payroll', extraCredits: 'finance-extra-credits', history: 'finance-transaction-history' } as Record<string, string>)[activeTab] || 'finance-billing'}
         reportTitle={`Billing ${activeReportLabel} - ${selectedFY || DEFAULT_FISCAL_YEAR}`}
         defaultDataWindow="Annual"
         onExport={handleExportActiveReport}

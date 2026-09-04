@@ -16,6 +16,13 @@ import { Resource } from "../models/Resource.js";
 import VisitorLog from "../models/VisitorLog.js";
 import { createNotification } from "../utils/notify.js";
 import { parseFiscalYearRange } from "../utils/fiscalYear.js";
+import TenantRent from "../models/TenantRent.js";
+import {
+  ensureCurrentMonthRentRecordForCompany,
+  formatTenantRentRecord,
+  resolveTenantMonthlyRent,
+  getRentPaymentWindow,
+} from "./tenantRentService.js";
 
 const TENANT_COMPANIES_SALES_MODULE = "tenant-companies-sales";
 const TENANT_COMPANIES_ADMIN_MODULE = "tenant-companies-admin";
@@ -955,6 +962,8 @@ export async function createTenantCompanyForCurrentUser(userId, input) {
   const tenantNumber = await getNextTenantNumber(access.workspaceId);
   const tenantCode = buildTenantCode(tenantNumber);
   const contractStart = input.contractStart ? new Date(input.contractStart) : null;
+  const parsedRentDueDate = input.billingDetails?.rentDueDate ? new Date(input.billingDetails.rentDueDate) : null;
+  const validRentDueDate = parsedRentDueDate && !Number.isNaN(parsedRentDueDate.getTime()) ? parsedRentDueDate : null;
   const contractDurationMonths = Math.max(0, Number(input.contractDurationMonths || 0));
   const contractEnd = contractStart && contractDurationMonths > 0
     ? buildContractEndDate(contractStart, contractDurationMonths)
@@ -1014,6 +1023,12 @@ export async function createTenantCompanyForCurrentUser(userId, input) {
       totalContractAmount: Math.max(0, Number(input.billingDetails?.totalContractAmount || 0)),
       securityDepositAmount: Math.max(0, Number(input.billingDetails?.securityDepositAmount || 0)),
       securityDepositPaidStatus: normalizeText(input.billingDetails?.securityDepositPaidStatus || "Pending") === "Paid" ? "Paid" : "Pending",
+      rentDueDate: validRentDueDate,
+      rentDueDay: Math.min(31, Math.max(1, Math.round(
+        validRentDueDate
+          ? validRentDueDate.getUTCDate()
+          : (Number(input.billingDetails?.rentDueDay) || 1),
+      ))),
     },
     pocDetails: {
       localPocName: normalizeText(input.pocDetails?.localPocName || ""),
@@ -1061,6 +1076,14 @@ export async function createTenantCompanyForCurrentUser(userId, input) {
     },
     space: { floor: "", seats: [], assignedDate: null },
   });
+
+  // Generate the current month's rent receivable right away so Finance sees
+  // it immediately — the scheduler covers subsequent months.
+  try {
+    await ensureCurrentMonthRentRecordForCompany(company);
+  } catch (rentError: any) {
+    console.error("Failed to generate first rent record for tenant:", rentError?.message || rentError);
+  }
 
   return {
     tenant: await formatTenantCompany(company),
@@ -1126,8 +1149,29 @@ export async function updateTenantCompanyForCurrentUser(userId, tenantCompanyId,
     delete company.agreementDetails.nextIncrement;
   }
 
+  if (company.billingDetails) {
+    const parsedRentDueDate = company.billingDetails.rentDueDate ? new Date(company.billingDetails.rentDueDate) : null;
+    if (parsedRentDueDate && !Number.isNaN(parsedRentDueDate.getTime())) {
+      company.billingDetails.rentDueDate = parsedRentDueDate;
+      // The picked date's day-of-month is the recurring rent anchor.
+      company.billingDetails.rentDueDay = Math.min(31, Math.max(1, parsedRentDueDate.getUTCDate()));
+    } else {
+      const rentDueDay = Math.round(Number(company.billingDetails.rentDueDay ?? 1));
+      company.billingDetails.rentDueDay = Number.isFinite(rentDueDay)
+        ? Math.min(31, Math.max(1, rentDueDay))
+        : 1;
+    }
+  }
+
   company.status = deriveTenantStatus(company.contractEnd);
   await company.save();
+
+  // Contract or rent terms may have changed — refresh this month's receivable.
+  try {
+    await ensureCurrentMonthRentRecordForCompany(company);
+  } catch (rentError: any) {
+    console.error("Failed to refresh rent record for tenant:", rentError?.message || rentError);
+  }
 
   return {
     tenant: await formatTenantCompany(company),
@@ -1172,7 +1216,27 @@ export async function renewTenantCompanyForCurrentUser(userId, tenantCompanyId, 
     company.billingDetails = { ...bd, securityDepositPaidStatus: "Pending" };
   }
 
+  if (company.billingDetails) {
+    const parsedRentDueDate = company.billingDetails.rentDueDate ? new Date(company.billingDetails.rentDueDate) : null;
+    if (parsedRentDueDate && !Number.isNaN(parsedRentDueDate.getTime())) {
+      company.billingDetails.rentDueDate = parsedRentDueDate;
+      company.billingDetails.rentDueDay = Math.min(31, Math.max(1, parsedRentDueDate.getUTCDate()));
+    } else {
+      const rentDueDay = Math.round(Number(company.billingDetails.rentDueDay ?? 1));
+      company.billingDetails.rentDueDay = Number.isFinite(rentDueDay)
+        ? Math.min(31, Math.max(1, rentDueDay))
+        : 1;
+    }
+  }
+
   await company.save();
+
+  // Renewal may have moved the contract into a new period — refresh rent.
+  try {
+    await ensureCurrentMonthRentRecordForCompany(company);
+  } catch (rentError: any) {
+    console.error("Failed to refresh rent record after renewal:", rentError?.message || rentError);
+  }
 
   return {
     tenant: await formatTenantCompany(company),
@@ -1721,6 +1785,147 @@ export async function submitMyTenantCompanyCreditRequestPaymentForCurrentUser(us
   return {
     creditRequest: request,
     message: "Payment proof submitted successfully.",
+  };
+}
+
+// ============================================================================
+// Tenant rent (self-service)
+// ============================================================================
+
+export async function getMyTenantCompanyRentForCurrentUser(userId) {
+  const { tenantCompanyId } = await resolveTenantEmployeeForCurrentUser(userId);
+
+  const [company, records] = await Promise.all([
+    TenantCompany.findById(tenantCompanyId).lean(),
+    TenantRent.find({ tenantCompanyId }).sort({ dueDate: -1 }).limit(120).lean().exec(),
+  ]);
+  if (!company) {
+    const err = new Error("Tenant company not found.");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const now = new Date();
+  const rentRecords = (records || []).map((record) => formatTenantRentRecord(record, now));
+
+  return {
+    company: {
+      id: company._id?.toString?.() || "",
+      companyName: company.companyName || "",
+      tenantCode: company.tenantCode || "",
+      monthlyRent: resolveTenantMonthlyRent(company),
+      rentDueDate: company?.billingDetails?.rentDueDate || null,
+      rentDueDay: Math.min(31, Math.max(1, Math.round(Number(company?.billingDetails?.rentDueDay) || 1))),
+    },
+    rentRecords,
+    message: "Tenant rent records loaded successfully.",
+  };
+}
+
+export async function submitMyTenantCompanyRentPaymentForCurrentUser(userId, rentId, input = {}, file) {
+  if (!file?.buffer?.length) {
+    const err = new Error("Payment proof screenshot is required.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const user = await HostUser.findById(userId).lean();
+
+  // Use tenant-specific resolver (not workspace membership) — same as the
+  // credit-request payment submission.
+  const employee = await TenantEmployee.findOne({
+    status: "Active",
+    $or: [
+      { userId: user?._id },
+      { email: normalizeText(user?.email || "").toLowerCase() },
+    ],
+  }).lean();
+
+  if (!employee) {
+    const err = new Error("No active tenant employee record found for your account.");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const tenantRole = getTenantRoleKey(employee.role).toLowerCase();
+  const canManage = ["tenant-admin", "admin", "manager"].some((r) => tenantRole.includes(r));
+  if (!canManage) {
+    const err = new Error("Only tenant admins and managers can submit rent payments.");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const rent = await TenantRent.findOne({ tenantCompanyId: employee.tenantCompanyId, id: rentId });
+  if (!rent) {
+    const err = new Error("Rent record not found.");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (rent.status === "Paid") {
+    const err = new Error("This rent is already marked as paid.");
+    err.statusCode = 409;
+    throw err;
+  }
+  if (rent.status !== "Due" && rent.status !== "Proof Submitted") {
+    const err = new Error("This rent record is not open for payment submission.");
+    err.statusCode = 409;
+    throw err;
+  }
+
+  // Payment window: proof can only be submitted between (dueDate - 5 days)
+  // and (dueDate + 5 days). Outside the window finance records the payment.
+  const paymentWindow = getRentPaymentWindow(rent.dueDate);
+  if (paymentWindow && !paymentWindow.isWithin) {
+    const fmt = (d: Date) => d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    const nowDate = new Date();
+    const message = nowDate < paymentWindow.start
+      ? `The payment window for this rent opens on ${fmt(paymentWindow.start)} (due ${fmt(new Date(rent.dueDate))}). Please submit your payment proof within that window.`
+      : `The payment window for this rent closed on ${fmt(paymentWindow.end)}. Please contact finance — payments outside the window are recorded manually.`;
+    const err = new Error(message);
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // Upload the payment proof to S3 (mirrors the credit-request proof upload).
+  const timestamp = Date.now();
+  const safeName = (file.originalname || "rent-payment-proof").replace(/[^a-zA-Z0-9._-]/g, "_");
+  const route = `tenant-companies/${employee.workspaceId}/${employee.tenantCompanyId}/rent/${rent.id || rentId}/${timestamp}-${safeName}`;
+  let s3Result;
+  try {
+    s3Result = await uploadFileToS3(route, file);
+  } catch {
+    s3Result = { id: route, url: "" };
+  }
+
+  const now = new Date();
+  rent.status = "Proof Submitted";
+  rent.transactionReference = normalizeText(input?.transactionReference || "");
+  rent.paymentProof = {
+    fileName: file.originalname || "rent-payment-proof",
+    fileUrl: s3Result.url || "",
+    publicId: s3Result.id || route,
+    mimeType: file.mimetype || "",
+    size: file.size ? String(file.size) : "",
+  };
+  rent.submittedById = userId;
+  rent.submittedByName = normalizeText(user?.name || user?.fullName || "");
+  rent.submittedAt = now;
+  rent.rejection = { reason: "", rejectedById: null, rejectedByName: "", rejectedAt: null };
+  rent.actionHistory.push({
+    action: "PAYMENT_SUBMITTED",
+    status: "Proof Submitted",
+    note: normalizeText(input?.transactionReference ? `Transaction reference: ${input.transactionReference}` : "Payment proof uploaded."),
+    actorUserId: userId,
+    actorName: normalizeText(user?.name || ""),
+    at: now,
+  });
+
+  await rent.save();
+
+  return {
+    rentRecord: formatTenantRentRecord(rent.toObject(), now),
+    message: "Rent payment proof submitted. Awaiting finance verification.",
   };
 }
 

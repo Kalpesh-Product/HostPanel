@@ -51,6 +51,7 @@ import { seedSystemRoles } from "./config/seedRoles.js";
 import { migrateHolidayEntryIndexes } from "./models/Holiday.js";
 import { startBookingReminderScheduler } from "./services/bookingReminderService.js";
 import { startAttendanceAutoCheckoutScheduler } from "./services/attendanceService.js";
+import { startTenantRentScheduler } from "./services/tenantRentService.js";
 import inventoryRoutes from "./routes/inventoryRoutes.js";
 import maintenanceRoutes from "./routes/maintenanceRoutes.js";
 import housekeepingRoutes from "./routes/housekeepingRoutes.js";
@@ -103,6 +104,9 @@ const startServer = async () => {
 
     // Auto clocks-out anyone still checked in past workspace-local midnight.
     startAttendanceAutoCheckoutScheduler();
+
+    // Materializes each month's tenant rent receivable (Billing & Payments → Tenant Rent).
+    startTenantRentScheduler();
 
     app.listen(PORT, () => {
       console.log(`Server is running on PORT ${PORT}`);

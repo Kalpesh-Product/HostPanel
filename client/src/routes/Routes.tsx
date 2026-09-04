@@ -136,6 +136,7 @@ import TenantDashboardPage from "../pages/tenant/TenantDashboardPage";
 import TenantMeetingRoomBookingPage from "../pages/tenant/TenantMeetingRoomBookingPage";
 import TenantBookingHistoryPage from "../pages/tenant/TenantBookingHistoryPage";
 import TenantBuyCreditsPage from "../pages/tenant/TenantBuyCreditsPage";
+import TenantRentPaymentsPage from "../pages/tenant/TenantRentPaymentsPage";
 import TenantTicketsPage from "../pages/tenant/TenantTicketsPage";
 import { InventoryPage } from "../pages/Inventory/InventoryPage";
 import { DepartmentInventoryPage } from "../pages/Inventory/DepartmentInventoryPage";
@@ -453,6 +454,7 @@ export const routes = createBrowserRouter([
                       { path: "meeting-room-booking", element: <TenantMeetingRoomBookingPage /> },
                       { path: "booking-history", element: <TenantBookingHistoryPage /> },
                       { path: "buy-credits", element: <TenantBuyCreditsPage /> },
+                      { path: "rent-payments", element: <TenantRentPaymentsPage /> },
                       { path: "tickets", element: <TenantTicketsPage /> },
                       { path: "profile", element: <Navigate to="/profile/my-profile" replace /> },
                     ],

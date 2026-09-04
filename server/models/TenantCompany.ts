@@ -70,6 +70,12 @@ const tenantBillingDetailsSchema = new Schema(
     totalContractAmount: { type: Number, default: 0, min: 0 },
     securityDepositAmount: { type: Number, default: 0, min: 0 },
     securityDepositPaidStatus: { type: String, default: "Pending", trim: true, enum: ["Pending", "Paid"] },
+    // "Rent Due Date" — the FIRST monthly rent due date picked in the Sales
+    // wizard (date picker). Its day-of-month is the recurring rent anchor
+    // (same semantics as VirtualOffice.rentDate); rentDueDay is kept as the
+    // derived day the rent engine uses.
+    rentDueDate: { type: Date, default: null },
+    rentDueDay: { type: Number, default: 1, min: 1, max: 31 },
   },
   { _id: false },
 );
