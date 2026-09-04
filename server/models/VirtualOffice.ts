@@ -13,6 +13,7 @@ const virtualOfficePocSchema = new Schema(
 
 const virtualOfficeRentPaymentSchema = new Schema(
   {
+    paymentId: { type: String, default: "", trim: true, maxlength: 80 },
     periodStart: { type: Date, default: null },
     periodEnd: { type: Date, default: null },
     monthLabel: { type: String, default: "", trim: true, maxlength: 40 },

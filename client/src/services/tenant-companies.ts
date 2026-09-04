@@ -133,6 +133,23 @@ export const submitMyTenantCompanyCreditRequestPayment = async (requestId: strin
   });
 };
 
+// --- Tenant Rent (monthly rent receivables) ---
+
+export const getMyTenantRent = async () => {
+  return axiosPrivate.get("/api/v1/tenant-companies/my/rent");
+};
+
+export const submitMyTenantRentPayment = async (rentId: string, payload: { paymentProof: File; transactionReference?: string }) => {
+  const formData = new FormData();
+  formData.append("paymentProof", payload.paymentProof);
+  if (payload.transactionReference) {
+    formData.append("transactionReference", payload.transactionReference);
+  }
+  return axiosPrivate.post(`/api/v1/tenant-companies/my/rent/${rentId}/payment`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+};
+
 export const getPendingPaymentVerifications = async () => {
   return axiosPrivate.get("/api/v1/tenant-companies/pending-payments");
 };

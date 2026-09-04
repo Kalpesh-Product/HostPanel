@@ -1390,6 +1390,7 @@ export default function TenantCompaniesPage() {
     addOnCredits: { purchasedCredits: '', remainingCredits: '' },
     billingDetails: {
       securityDepositPaidStatus: 'Pending',
+      rentDueDate: '',
     },
     creditsUsed: 0,
     notes: '',
@@ -2989,6 +2990,11 @@ export default function TenantCompaniesPage() {
         ratePerCredit: String(tenant.creditConfiguration?.ratePerCredit ?? tenant.ratePerCredit ?? 10),
       },
       billingDetails: {
+        // Preserve saved billing fields (incl. rentDueDate/rentDueDay) —
+        // rebuilding only securityDepositPaidStatus wiped the rent due date
+        // from the form, so reopened edits showed empty and date changes
+        // could never reach the server.
+        ...(tenant.billingDetails || {}),
         securityDepositPaidStatus: tenant.billingDetails?.securityDepositPaidStatus || 'Pending',
       },
       addOnCredits: {
@@ -3683,6 +3689,16 @@ export default function TenantCompaniesPage() {
                           value={formatCurrency(billingSummary.securityDepositAmount)}
                           readOnly
                         />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Rent Due Date</label>
+                        <input
+                          type="date"
+                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                          value={String(companyForm.billingDetails?.rentDueDate || '').slice(0, 10)}
+                          onChange={(e) => updateCompanySection('billingDetails', 'rentDueDate', e.target.value)}
+                        />
+                        <p className="text-[9px] font-pregular text-slate-400">First rent due date — rent then recurs on this day every month (short months use the last day).</p>
                       </div>
                       <div className="space-y-1 md:col-span-2">
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Security Deposit Paid</label>

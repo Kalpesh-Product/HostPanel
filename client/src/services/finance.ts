@@ -160,6 +160,42 @@ export const resetTenantSecurityDepositInvoice = async (tenantId: string) => {
   return unwrap(response);
 };
 
+// --- Tenant Rent (monthly receivables) ---
+
+export const getTenantRentRecords = async (params?: Record<string, any>) => {
+  const response = await axiosPrivate.get("/api/finance/tenant-rent", { params });
+  return unwrap(response);
+};
+
+export const markTenantRentPaid = async (rentId: string, payload: Record<string, any> = {}) => {
+  const response = await axiosPrivate.patch(`/api/finance/tenant-rent/${rentId}/mark-paid`, payload);
+  return unwrap(response);
+};
+
+export const returnTenantRentProof = async (rentId: string, payload: Record<string, any> = {}) => {
+  const response = await axiosPrivate.patch(`/api/finance/tenant-rent/${rentId}/return-proof`, payload);
+  return unwrap(response);
+};
+
+// --- Virtual Office Rent (current billing periods) ---
+
+export const getVirtualOfficeRentRecords = async (params?: Record<string, any>) => {
+  const response = await axiosPrivate.get("/api/finance/virtual-office-rent", { params });
+  return unwrap(response);
+};
+
+export const markVirtualOfficeRentPaid = async (recordId: string, payload: Record<string, any> = {}) => {
+  const response = await axiosPrivate.patch(`/api/finance/virtual-office-rent/${recordId}/mark-paid`, payload);
+  return unwrap(response);
+};
+
+// --- Income Ledger (append-only revenue register; feeds Accounting/P&L + History) ---
+
+export const getFinanceIncomeLedger = async (params?: Record<string, any>) => {
+  const response = await axiosPrivate.get("/api/finance/income-ledger", { params });
+  return unwrap(response);
+};
+
 export const getPayrollSnapshot = async (params?: Record<string, any>) => {
   const response = await axiosPrivate.get("/api/finance/payroll/snapshot", { params });
   return unwrap(response);

@@ -786,6 +786,13 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/dashboard/tenant/rent-payments",
+    crumbs: [
+      { label: SECTION_LABELS.tenantPortal, path: "/dashboard/tenant" },
+      { label: "Rent Payments" },
+    ],
+  },
+  {
     pattern: "/dashboard/tenant/tickets",
     crumbs: [
       { label: SECTION_LABELS.tenantPortal, path: "/dashboard/tenant" },

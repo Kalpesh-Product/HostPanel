@@ -7,6 +7,7 @@ import {
   CalendarCheck,
   Clock,
   HandCoins,
+  ReceiptIndianRupee,
   Ticket,
   User,
   LogOut,
@@ -146,6 +147,7 @@ const tenantNavNodes: NavNode[] = [
   { id: "tenant-meeting-room-booking", label: "Meeting Room Booking", icon: CalendarCheck, route: "/dashboard/tenant/meeting-room-booking" },
   { id: "tenant-booking-history", label: "Booking History", icon: Clock, route: "/dashboard/tenant/booking-history" },
   { id: "tenant-buy-credits", label: "Buy Credits", icon: HandCoins, route: "/dashboard/tenant/buy-credits", rolesAllowed: ["manager", "admin"] },
+  { id: "tenant-rent-payments", label: "Rent Payments", icon: ReceiptIndianRupee, route: "/dashboard/tenant/rent-payments", rolesAllowed: ["manager", "admin"] },
   { id: "tenant-tickets", label: "Tickets", icon: Ticket, route: "/dashboard/tenant/tickets" },
 ];
 

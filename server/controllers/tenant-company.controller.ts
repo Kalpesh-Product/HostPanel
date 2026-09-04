@@ -25,6 +25,8 @@ import {
   updateTenantCompanyCreditRequestForCurrentUser,
   confirmTenantCreditRequestPaymentForCurrentUser,
   getPendingPaymentVerificationsForCurrentUser,
+  getMyTenantCompanyRentForCurrentUser,
+  submitMyTenantCompanyRentPaymentForCurrentUser,
 } from "../services/tenant-company.service.js";
 
 export const getTenantCompanySectors = async (req: Request, res: Response, next: NextFunction) => {
@@ -94,6 +96,26 @@ export const createTenantCompany = async (req: Request, res: Response, next: Nex
     const userId = req.user?.id || req.user?._id || req.user;
     const result = await createTenantCompanyForCurrentUser(userId, req.body);
     return res.status(201).json(result);
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+export const getMyTenantCompanyRent = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id || req.user?._id || req.user;
+    const result = await getMyTenantCompanyRentForCurrentUser(userId);
+    return res.status(200).json(result);
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+export const submitMyTenantCompanyRentPayment = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id || req.user?._id || req.user;
+    const result = await submitMyTenantCompanyRentPaymentForCurrentUser(userId, req.params.rentId, req.body, req.file);
+    return res.status(200).json(result);
   } catch (error: any) {
     next(error);
   }

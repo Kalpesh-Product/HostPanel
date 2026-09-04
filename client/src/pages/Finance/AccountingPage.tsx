@@ -17,7 +17,7 @@ import {
 import { toast } from 'sonner';
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { createReport } from '@/services/reports';
-import { getFinanceSnapshot, getPayrollSnapshot, getTenantBillingSnapshot } from '@/services/finance';
+import { getFinanceSnapshot, getPayrollSnapshot, getTenantBillingSnapshot, getFinanceIncomeLedger } from '@/services/finance';
 import { getMeetingRoomBookings } from '@/services/meeting-room-bookings';
 import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions, getFiscalYearStartMonth } from '@/features/finance/utils/fiscalYear';
 import { downloadReportFile } from '@/utils/report-download';
@@ -314,11 +314,13 @@ export default function AccountingPage(): React.ReactElement {
     tenantBills: Record<string, unknown>[];
     payroll: Record<string, unknown>;
     bookings: Record<string, unknown>[];
+    incomeEntries: Record<string, unknown>[];
   }>({
     finance: {},
     tenantBills: [],
     payroll: {},
     bookings: [],
+    incomeEntries: [],
   });
 
   const activeAccountingReportLabel = activeTab === 'ledger' ? 'Ledger' : activeTab === 'departments' ? 'Departments' : 'P&L';
@@ -328,17 +330,24 @@ export default function AccountingPage(): React.ReactElement {
       setIsRefreshing(true);
       setLoadError('');
       try {
-        const [financeRes, tenantRes, payrollRes, bookingRes] = await Promise.all([
+        const [financeRes, tenantRes, payrollRes, bookingRes, incomeRes] = await Promise.all([
           getFinanceSnapshot(fiscalYear),
           getTenantBillingSnapshot({ fiscalYear }),
           getPayrollSnapshot({ month: Number(payrollMonth), year: Number(payrollYear) }),
           getMeetingRoomBookings({ fiscalYear }),
+          getFinanceIncomeLedger({ fiscalYear }),
         ]);
+        const incomeData = (incomeRes as Record<string, unknown>)?.entries
+          ? { entries: (incomeRes as Record<string, unknown>).entries as Record<string, unknown>[] }
+          : Array.isArray(incomeRes as unknown[])
+            ? { entries: incomeRes as unknown[] as Record<string, unknown>[] }
+            : { entries: [] };
         setData({
           finance: (financeRes as Record<string, unknown>) || {},
           tenantBills: Array.isArray((tenantRes as Record<string, unknown>)?.tenantBills) ? (tenantRes as Record<string, unknown>).tenantBills as Record<string, unknown>[] : [],
           payroll: (payrollRes as Record<string, unknown>) || {},
           bookings: Array.isArray((bookingRes as Record<string, unknown>)?.bookings) ? (bookingRes as Record<string, unknown>).bookings as Record<string, unknown>[] : [],
+          incomeEntries: incomeData.entries || [],
         });
       } catch (error: unknown) {
         const message = (error as Error)?.message || 'Failed to load accounting data.';
@@ -406,6 +415,29 @@ export default function AccountingPage(): React.ReactElement {
         amount,
         ref: (booking?.invoiceNumber as string) || (booking?.bookingCode as string) || (booking?.id as string),
         status: (booking?.invoiceStatus as string) || (booking?.financeStatus as string) || (booking?.paymentStatus as string) || 'Booked',
+      }));
+    });
+
+    // Income ledger — auto-posted when Finance marks tenant rent / virtual-office
+    // rent as paid. Feeds the P&L's income lines ("Tenant Rent", "Virtual Office Rent").
+    (data.incomeEntries || []).forEach((entry) => {
+      const postedAt = (entry?.postedAt || entry?.createdAt) as string | undefined;
+      if (!withinSelectedFiscalYear(postedAt)) return;
+      const amount = Number(entry?.amount || 0);
+      if (amount <= 0) return;
+      const source = String(entry?.source || '');
+      const isVo = source === 'virtual-office-rent';
+      rows.push(ledgerRow({
+        id: (entry?.id as string) || `rent-income-${source}-${String(entry?.periodKey || '')}`,
+        date: postedAt,
+        type: 'Income',
+        source: isVo ? 'Virtual Office Rent' : 'Tenant Rent',
+        entity: (entry?.entityName as string) || (isVo ? 'Virtual Office' : 'Tenant Company'),
+        dept: isVo ? 'Billing' : 'Sales',
+        amount,
+        ref: (entry?.periodLabel as string) || (entry?.periodKey as string) || '',
+        status: 'Confirmed',
+        periodKey: (entry?.periodKey as string) || '',
       }));
     });
 

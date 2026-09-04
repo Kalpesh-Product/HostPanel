@@ -28,6 +28,12 @@ import {
   sendPayslip,
   listVendors,
   createVendorQuick,
+  getTenantRentRecords,
+  markTenantRentPaid,
+  returnTenantRentProof,
+  getVirtualOfficeRentRecords,
+  markVirtualOfficeRentPaid,
+  getIncomeLedgerRecords,
 } from "../controllers/financeController.js";
 
 const router = express.Router();
@@ -55,6 +61,18 @@ router.patch("/tenant-billing/:tenantCompanyId", markTenantSecurityDepositPaid);
 router.post("/tenant-billing/:tenantCompanyId/invoice/generate", generateTenantSecurityDepositInvoice);
 router.post("/tenant-billing/:tenantCompanyId/invoice/send", sendTenantSecurityDepositInvoice);
 router.post("/tenant-billing/:tenantCompanyId/invoice/reset", resetTenantSecurityDepositInvoice);
+
+// Tenant rent receivables (monthly) — list for the finance tab + verify/close.
+router.get("/tenant-rent", getTenantRentRecords);
+router.patch("/tenant-rent/:rentId/mark-paid", markTenantRentPaid);
+router.patch("/tenant-rent/:rentId/return-proof", returnTenantRentProof);
+
+// Virtual office rent — snapshot of each contract's current billing period.
+router.get("/virtual-office-rent", getVirtualOfficeRentRecords);
+router.patch("/virtual-office-rent/:recordId/mark-paid", markVirtualOfficeRentPaid);
+
+// Income ledger — append-only revenue register read by Accounting/P&L & History.
+router.get("/income-ledger", getIncomeLedgerRecords);
 
 router.post("/approval/decision", applyFinanceApprovalDecision);
 
