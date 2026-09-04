@@ -50,6 +50,13 @@ const supportTicketSchema = new mongoose.Schema(
       id: { type: String, default: "" },
       url: { type: String, default: "" },
     },
+    images: [
+      {
+        id: { type: String, default: "" },
+        url: { type: String, default: "" },
+        name: { type: String, default: "" },
+      },
+    ],
     resolutionMessage: { type: String, trim: true, default: "" },
     resolutionAttachment: {
       id: { type: String, default: "" },

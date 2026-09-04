@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, type FormEvent } from 'react';
 import {
   Search, Plus, Eye, CheckCircle2, Clock, AlertCircle,
   Calendar, User, FileText, X, AlertTriangle, Paperclip,
-  MessageSquare,   Building2, Filter, Download
+  MessageSquare, Filter, Download, Pencil
 } from 'lucide-react';
 import PageFrame from '@/components/Pages/PageFrame';
 import { toast } from 'sonner';
@@ -35,8 +35,11 @@ import {
   uploadTaskAttachments,
   updateTask,
 } from '@/services/tasks';
+import { getTaskTypes, createTaskType } from '@/services/taskTypes';
 import { TasksSkeleton } from '@/components/ui/Skeleton';
 import { statusPillClass } from '../../lib/status-pill';
+import AttachmentDropzone from '@/components/AttachmentDropzone';
+import humanDate from '@/utils/humanDateForamt';
 
 const TASKS_PAGE_SIZE = 50;
 
@@ -68,6 +71,7 @@ interface TaskAttachment {
 interface Task {
   id?: string;
   _id?: string;
+  taskCode?: string;
   title: string;
   description?: string;
   type?: string;
@@ -84,6 +88,7 @@ interface Task {
   comments: TaskComment[];
   attachments?: TaskAttachment[];
   completionNote?: string;
+  createdAt?: string;
 }
 
 interface TaskForm {
@@ -95,6 +100,21 @@ interface TaskForm {
   assigneeUserId: string;
   priority: string;
   dueDate: string;
+}
+
+interface TaskTypeOption {
+  id: string;
+  name: string;
+  workflowKind: 'progress' | 'approval';
+  isSystem?: boolean;
+}
+
+interface EditTaskForm {
+  type: string;
+  priority: string;
+  dueDate: string;
+  title: string;
+  description: string;
 }
 
 interface Pagination {
@@ -123,13 +143,19 @@ export function TasksPage() {
   const isAdminProfile = normalizedRole === 'admin';
   const isAdminTaskProfile = canAccessAdminDashboard(storedUser) || isAdminProfile;
   const isElevatedTaskProfile = isOwnerProfile || isSuperAdminProfile || isAdminTaskProfile;
-  const isHrTaskProfile = !isElevatedTaskProfile && canAccessHRDashboard(storedUser);
-  const isAdministrationTaskProfile = !isElevatedTaskProfile && canAccessAdministrationDashboard(storedUser);
-  const isSalesTaskProfile = !isElevatedTaskProfile && canAccessSalesDashboard(storedUser);
-  const isFinanceTaskProfile = !isElevatedTaskProfile && canAccessFinanceDashboard(storedUser);
-  const isTechTaskProfile = !isElevatedTaskProfile && canAccessTechDashboard(storedUser);
-  const isITTaskProfile = !isElevatedTaskProfile && canAccessITDashboard(storedUser);
-  const isMaintenanceTaskProfile = !isElevatedTaskProfile && canAccessMaintenanceDashboard(storedUser);
+  // Some workspaces assign department managers a custom per-department role
+  // name (e.g. "HR Manager"), which canAccessXDashboard's role-string check
+  // already covers. Others use one generic "manager" role plus a
+  // workspaceMembership.departments array to say which department(s) they
+  // manage — canAccessXDashboard alone can't see that, so isGenericManagerOfDepartment
+  // (defined below, hoisted) covers it too.
+  const isHrTaskProfile = !isElevatedTaskProfile && (canAccessHRDashboard(storedUser) || isGenericManagerOfDepartment(isHrDepartmentName));
+  const isAdministrationTaskProfile = !isElevatedTaskProfile && (canAccessAdministrationDashboard(storedUser) || isGenericManagerOfDepartment(isAdministrationDepartmentName));
+  const isSalesTaskProfile = !isElevatedTaskProfile && (canAccessSalesDashboard(storedUser) || isGenericManagerOfDepartment(isSalesDepartmentName));
+  const isFinanceTaskProfile = !isElevatedTaskProfile && (canAccessFinanceDashboard(storedUser) || isGenericManagerOfDepartment(isFinanceDepartmentName));
+  const isTechTaskProfile = !isElevatedTaskProfile && (canAccessTechDashboard(storedUser) || isGenericManagerOfDepartment(isTechDepartmentName));
+  const isITTaskProfile = !isElevatedTaskProfile && (canAccessITDashboard(storedUser) || isGenericManagerOfDepartment(isITDepartmentName));
+  const isMaintenanceTaskProfile = !isElevatedTaskProfile && (canAccessMaintenanceDashboard(storedUser) || isGenericManagerOfDepartment(isMaintenanceDepartmentName));
   const isDepartmentManagerProfile =
     isHrTaskProfile ||
     isAdministrationTaskProfile ||
@@ -150,7 +176,7 @@ export function TasksPage() {
   const profile = {
     name: displayUserName,
     role: storedUser?.role || 'owner',
-    dept: actingContext?.departmentName || (isOwnerProfile ? 'Founder' : isSuperAdminProfile ? 'Super Admin' : (storedUser?.workspaceMembership?.departments?.[0] || 'Executive')),
+    dept: actingContext?.departmentName || (isOwnerProfile ? 'Founder' : isSuperAdminProfile ? 'Super Admin' : (getOwnDepartmentNames()[0] || 'Executive')),
   };
   const currentUserId: string = storedUser?.id || storedUser?._id || '';
 
@@ -252,6 +278,26 @@ export function TasksPage() {
       .trim()
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '');
+  }
+
+  // The server sends workspaceMembership.departments as [{ _id, name }]
+  // (see authControllers.ts), not plain strings — extract the names here so
+  // every department-name check below works regardless of whether a given
+  // department manager was set up with a custom per-department role name or
+  // the generic "manager" role scoped via this array.
+  function getOwnDepartmentNames(): string[] {
+    const raw = storedUser?.workspaceMembership?.departments;
+    const list = Array.isArray(raw) ? raw : [];
+    return list
+      .map((department: any) => (typeof department === 'string' ? department : department?.name))
+      .filter(Boolean);
+  }
+
+  function isGenericManagerOfDepartment(matchesDepartmentName: (value: string) => boolean): boolean {
+    if (normalizedRole !== 'manager') {
+      return false;
+    }
+    return getOwnDepartmentNames().some((name) => matchesDepartmentName(name));
   }
 
   function shouldShowDepartmentOption(department: string): boolean {
@@ -421,7 +467,7 @@ export function TasksPage() {
       return 'Finance';
     }
     if (isTechDepartmentName(value)) {
-      return 'Tech';
+      return 'Technology';
     }
     if (isITDepartmentName(value)) {
       return 'IT';
@@ -432,17 +478,27 @@ export function TasksPage() {
     return (value || '').toString().trim();
   }
 
+  // Resolves a task's workflow behavior (progress slider vs approve/reject)
+  // from the dynamic Task Type list, falling back to the legacy hardcoded
+  // "Approval" check so tasks still render correctly before taskTypes loads.
+  function getWorkflowKindForType(typeName: string): 'progress' | 'approval' {
+    const normalized = (typeName || '').trim().toLowerCase();
+    const match = taskTypes.find((t) => t.name.trim().toLowerCase() === normalized);
+    if (match) {
+      return match.workflowKind;
+    }
+    return normalized === 'approval' ? 'approval' : 'progress';
+  }
+
   function getHrDepartments(): string[] {
-    const departments = Array.isArray(storedUser?.workspaceMembership?.departments)
-      ? storedUser.workspaceMembership.departments.filter(Boolean)
-      : [];
+    const departments = getOwnDepartmentNames();
     const hrDepartments = departments.filter((department: string) => isHrDepartmentName(department));
     return hrDepartments.length > 0 ? hrDepartments : ['HR'];
   }
 
   function getAdministrationDepartments(): string[] {
     const departments = [
-      ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments : []),
+      ...getOwnDepartmentNames(),
       storedUser?.workspaceMembership?.department,
       storedUser?.department,
       storedUser?.workspace?.department,
@@ -453,7 +509,7 @@ export function TasksPage() {
 
   function getSalesDepartments(): string[] {
     const departments = [
-      ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments : []),
+      ...getOwnDepartmentNames(),
       storedUser?.workspaceMembership?.department,
       storedUser?.department,
       storedUser?.workspace?.department,
@@ -464,7 +520,7 @@ export function TasksPage() {
 
   function getFinanceDepartments(): string[] {
     const departments = [
-      ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments : []),
+      ...getOwnDepartmentNames(),
       storedUser?.workspaceMembership?.department,
       storedUser?.department,
       storedUser?.workspace?.department,
@@ -475,7 +531,7 @@ export function TasksPage() {
 
   function getTechDepartments(): string[] {
     const departments = [
-      ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments : []),
+      ...getOwnDepartmentNames(),
       storedUser?.workspaceMembership?.department,
       storedUser?.department,
       storedUser?.workspace?.department,
@@ -486,7 +542,7 @@ export function TasksPage() {
 
   function getITDepartments(): string[] {
     const departments = [
-      ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments : []),
+      ...getOwnDepartmentNames(),
       storedUser?.workspaceMembership?.department,
       storedUser?.department,
       storedUser?.workspace?.department,
@@ -497,7 +553,7 @@ export function TasksPage() {
 
   function getMaintenanceDepartments(): string[] {
     const departments = [
-      ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments : []),
+      ...getOwnDepartmentNames(),
       storedUser?.workspaceMembership?.department,
       storedUser?.department,
       storedUser?.workspace?.department,
@@ -508,7 +564,7 @@ export function TasksPage() {
 
   function getEmployeeDepartments(): string[] {
     const departments = [
-      ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments : []),
+      ...getOwnDepartmentNames(),
       storedUser?.workspaceMembership?.department,
       storedUser?.department,
       storedUser?.workspace?.department,
@@ -535,7 +591,7 @@ export function TasksPage() {
 
   function getAdminDepartments(): string[] {
     const departments = [
-      ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments : []),
+      ...getOwnDepartmentNames(),
       storedUser?.workspaceMembership?.department,
       storedUser?.department,
     ].filter(Boolean);
@@ -593,7 +649,7 @@ export function TasksPage() {
   );
 
   const adminAssignedDepartmentKeys = useMemo(
-    () => new Set(adminAssignedDepartments.map((department: string) => normalizeDepartmentKey(department)).filter(Boolean)),
+    () => new Set(adminAssignedDepartments.map((department: string) => normalizeDepartmentKey(getCanonicalDepartmentLabel(department))).filter(Boolean)),
     [adminAssignedDepartments],
   );
 
@@ -603,6 +659,18 @@ export function TasksPage() {
       return true;
     }
     return isCurrentUserName(task?.assignee || '');
+  }
+
+  // Only the person who raised a task may edit its details.
+  // Only the raiser can edit, and only before anyone has accepted it — once
+  // accepted, the task's details are locked in (matches the server-side
+  // guard in updateTask).
+  function canEditTask(task: Task): boolean {
+    const raisedByUserId = task?.raisedByUserId ? String(task.raisedByUserId) : '';
+    if (!raisedByUserId || !currentUserId || raisedByUserId !== String(currentUserId)) {
+      return false;
+    }
+    return task?.status === 'Pending';
   }
 
   function isOwnerRaisedTask(task: Task): boolean {
@@ -621,10 +689,6 @@ export function TasksPage() {
     }
     const raisedBy = normalizeDepartmentKey(stripRoleSuffix(task?.raisedBy || ''));
     return raisedBy.includes('superadmin');
-  }
-
-  function isOwnerOrSuperAdminRaisedTask(task: Task): boolean {
-    return isOwnerRaisedTask(task) || isSuperAdminRaisedTask(task);
   }
 
   function isAdminDepartmentTask(task: Task): boolean {
@@ -662,32 +726,47 @@ export function TasksPage() {
     return isTaskAssignedToCurrentUser(task);
   }
 
-  function isDepartmentScopedTask(task: Task): boolean {
-    if (!task?.department) {
+  // Tasks I raised and handed to someone else (not myself) — the "My
+  // Assigned Tasks" tab content for Super Admin (Founder/Admin/Manager each
+  // have their own more specific version of this already).
+  function isRaisedByCurrentUserToOthers(task: Task): boolean {
+    const raisedByUserId = task?.raisedByUserId ? String(task.raisedByUserId) : '';
+    const assignedUserId = task?.assigneeUserId ? String(task.assigneeUserId) : '';
+    if (!currentUserId || raisedByUserId !== String(currentUserId)) {
       return false;
     }
-    return !isTopManagementDepartmentName(task.department);
+    return Boolean(assignedUserId && assignedUserId !== String(currentUserId));
   }
 
-  function isOwnerDepartmentTask(task: Task): boolean {
-    if (!isOwnerProfile) {
-      return false;
-    }
-    return isDepartmentScopedTask(task) && !isOwnerRaisedTask(task);
-  }
-
+  // Unassigned covers both "not yet accepted" (Pending) and "accepted but
+  // not yet handed to a specific person" (In Progress, accept and assign
+  // are now two separate steps) — a task stays visible/manageable to the
+  // department the whole time until someone is actually assigned.
   function isQueueTask(task: Task): boolean {
     const queueTask = !task?.assigneeUserId && /^unassigned$/i.test(task?.assignee || '');
-    return queueTask && (task?.status || '').toLowerCase() === 'pending';
+    const status = (task?.status || '').toLowerCase();
+    return queueTask && (status === 'pending' || status === 'in progress');
   }
 
-  function isDepartmentTask(task: Task): boolean {
+  // Department-match only, no status requirement — used to decide who can
+  // accept/assign a department's queue tasks, independent of where a given
+  // task currently sits in that Pending -> In Progress (unassigned) -> In
+  // Progress (assigned) lifecycle.
+  function isManagedDepartmentTask(task: Task): boolean {
     if (!isDepartmentManagerProfile) {
       return false;
     }
-    const taskKey = normalizeDepartmentKey(task?.department!);
-    const departmentKeys = getManagedDepartments().map((department: string) => normalizeDepartmentKey(department));
-    if (!departmentKeys.includes(taskKey)) {
+    // Canonicalize both sides — a task's department and the manager's own
+    // department string can be spelled differently ("Technology" vs "Tech")
+    // while referring to the same department; raw string equality here
+    // silently hid tasks from the manager who should see them.
+    const taskKey = normalizeDepartmentKey(getCanonicalDepartmentLabel(task?.department!));
+    const departmentKeys = getManagedDepartments().map((department: string) => normalizeDepartmentKey(getCanonicalDepartmentLabel(department)));
+    return Boolean(taskKey) && departmentKeys.includes(taskKey);
+  }
+
+  function isDepartmentTask(task: Task): boolean {
+    if (!isManagedDepartmentTask(task)) {
       return false;
     }
     return isQueueTask(task);
@@ -700,16 +779,13 @@ export function TasksPage() {
     return isQueueTask(task);
   }
 
-  function isEmployeeDepartmentTask(task: Task): boolean {
+  function isManagedEmployeeDepartmentTask(task: Task): boolean {
     if (!isEmployeeTaskProfile) {
       return false;
     }
-    const taskKey = normalizeDepartmentKey(task?.department!);
-    const departmentKeys = getEmployeeDepartments().map((department: string) => normalizeDepartmentKey(department));
-    if (!taskKey || !departmentKeys.includes(taskKey)) {
-      return false;
-    }
-    return isQueueTask(task);
+    const taskKey = normalizeDepartmentKey(getCanonicalDepartmentLabel(task?.department!));
+    const departmentKeys = getEmployeeDepartments().map((department: string) => normalizeDepartmentKey(getCanonicalDepartmentLabel(department)));
+    return Boolean(taskKey) && departmentKeys.includes(taskKey);
   }
 
   function isDepartmentMyTask(task: Task): boolean {
@@ -755,83 +831,87 @@ export function TasksPage() {
     return true;
   }
 
-  function isCompanyTask(task: Task): boolean {
-    return !isMyAssignedTask(task);
-  }
-
   function getTaskMatchesActiveTab(task: Task): boolean {
     if (isAdminTaskProfile) {
-      if (activeTab === 'assigned_dept_tasks') {
-        return isAdminDepartmentTask(task);
+      if (activeTab === 'my_tasks') {
+        return isAdminSuperAdminTask(task);
       }
-      if (activeTab === 'my_assigned') {
+      if (activeTab === 'my_assigned_tasks') {
         return isAdminCreatedTask(task);
       }
-      if (activeTab === 'from_super_admin') {
-        return isAdminSuperAdminTask(task);
+      if (activeTab === 'assigned_dept_tasks') {
+        return isAdminDepartmentTask(task);
       }
       return false;
     }
 
     if (isDepartmentManagerProfile) {
-      if (activeTab === 'department_tasks') {
-        return isDepartmentQueueTask(task);
-      }
       if (activeTab === 'my_tasks') {
         return isDepartmentMyTask(task);
       }
-      if (activeTab === 'my_assigned') {
+      if (activeTab === 'my_assigned_tasks') {
         return isDepartmentAssignedToEmployeesTask(task);
+      }
+      if (activeTab === 'department_tasks') {
+        // Every task in the department, whoever it ends up assigned to —
+        // not just the still-unassigned queue — so the whole department can
+        // see status and progress on everything, not only what's pending.
+        return isManagedDepartmentTask(task);
       }
       return false;
     }
 
     if (isEmployeeTaskProfile) {
-      if (activeTab === 'department_tasks') {
-        return isEmployeeDepartmentTask(task);
-      }
-      if (activeTab === 'my_assigned') {
+      if (activeTab === 'my_tasks') {
         return isMyAssignedTask(task);
       }
+      if (activeTab === 'department_tasks') {
+        return isManagedEmployeeDepartmentTask(task);
+      }
       return false;
     }
 
+    // Founder: nothing outranks them, so there's no "My Tasks" tab — just
+    // what they raised and handed off, and every task in the company.
     if (isOwnerProfile) {
-      if (activeTab === 'department_tasks') {
-        return isOwnerDepartmentTask(task);
-      }
-      if (activeTab === 'my_assigned') {
+      if (activeTab === 'my_assigned_tasks') {
         return isOwnerRaisedTask(task);
       }
+      if (activeTab === 'company_tasks') {
+        return true;
+      }
       return false;
     }
 
-    if (activeTab === 'all') {
-      return isCompanyTask(task);
+    if (isSuperAdminProfile) {
+      if (activeTab === 'my_tasks') {
+        return isTaskAssignedToCurrentUser(task);
+      }
+      if (activeTab === 'my_assigned_tasks') {
+        return isRaisedByCurrentUserToOthers(task);
+      }
+      if (activeTab === 'company_tasks') {
+        return true;
+      }
+      return false;
     }
-    if (activeTab === 'my_assigned') {
-      return isMyAssignedTask(task);
-    }
-    if (activeTab === 'from_owner') {
-      return isOwnerOrSuperAdminRaisedTask(task) || (isSuperAdminProfile && isQueueTask(task));
-    }
+
     return false;
   }
 
-  const canDelegateDepartmentQueueTask = ['manager', 'admin', 'hr_manager', 'hr', 'admin_manager', 'finance_manager', 'tech_manager', 'it_manager', 'maintenance_manager', 'super_admin'].includes(normalizedRole);
 
   // --- STATE ---
   const [activeTab, setActiveTab] = useState<string>(() => {
-    if (isOwnerProfile) {
-      return 'my_assigned';
+    if (isOwnerProfile || isSuperAdminProfile) {
+      return 'company_tasks';
     }
     if (isAdminTaskProfile) {
-      return 'from_super_admin';
+      return 'assigned_dept_tasks';
     }
-    if (isDepartmentManagerProfile) {
-      return 'my_tasks';
+    if (isDepartmentManagerProfile || isEmployeeTaskProfile) {
+      return 'department_tasks';
     }
-    return 'my_assigned';
+    return 'my_tasks';
   });
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('All');
@@ -847,14 +927,32 @@ export function TasksPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [completionNote, setCompletionNote] = useState('');
   const [completionFiles, setCompletionFiles] = useState<File[]>([]);
+  const [selectedApprovalAction, setSelectedApprovalAction] = useState<'Approved' | 'Rejected' | ''>('');
   const [assignmentFiles, setAssignmentFiles] = useState<File[]>([]);
+  const [assignmentFilesError, setAssignmentFilesError] = useState('');
   const [hrQueueAssigneeUserId, setHrQueueAssigneeUserId] = useState('');
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Form State
-  const initialTaskForm: TaskForm = { title: '', description: '', type: 'Standard', department: '', assignee: '', assigneeUserId: '', priority: 'Medium', dueDate: '' };
+  const initialTaskForm: TaskForm = { title: '', description: '', type: '', department: '', assignee: '', assigneeUserId: '', priority: '', dueDate: '' };
   const [taskForm, setTaskForm] = useState<TaskForm>(initialTaskForm);
+
+  const [taskTypes, setTaskTypes] = useState<TaskTypeOption[]>([]);
+  const [isAddingTaskType, setIsAddingTaskType] = useState(false);
+  const [newTaskTypeName, setNewTaskTypeName] = useState('');
+  const [newTaskTypeWorkflowKind, setNewTaskTypeWorkflowKind] = useState<'progress' | 'approval'>('progress');
+  const [isSavingTaskType, setIsSavingTaskType] = useState(false);
+
+  const [routingMode, setRoutingMode] = useState<'department' | 'role'>('department');
+  const [selectedRole, setSelectedRole] = useState('');
+  const [assignTarget, setAssignTarget] = useState<'self' | 'others' | ''>('');
+
+  const initialEditForm: EditTaskForm = { type: '', priority: '', dueDate: '', title: '', description: '' };
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editForm, setEditForm] = useState<EditTaskForm>(initialEditForm);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const [orgData, setOrgData] = useState<Record<string, Member[]>>({});
   const [superAdminMembers, setSuperAdminMembers] = useState<Member[]>([]);
@@ -943,11 +1041,17 @@ export function TasksPage() {
     isSuperAdminProfile,
   ]);
 
+  // The "Admin" pseudo-department is a top-management escalation shortcut, not
+  // a real Department document — it's offered via "Route via Role" instead
+  // (see getAssignableRoleOptions) so the real Department dropdown only ever
+  // lists actual departments. taskFilterDepartments (used by the list filter)
+  // keeps "Admin" so tasks routed there before this change stay filterable.
   const taskRouteDepartments = useMemo(() => {
+    const withoutPlatformAdmin = taskFilterDepartments.filter((dept) => !isPlatformAdminDepartmentName(dept));
     if (isOwnerProfile || isSuperAdminProfile) {
-      return orderDepartmentOptions(taskFilterDepartments, true);
+      return orderDepartmentOptions(withoutPlatformAdmin, true);
     }
-    return taskFilterDepartments;
+    return withoutPlatformAdmin;
   }, [taskFilterDepartments, isOwnerProfile, isSuperAdminProfile]);
 
   const normalizedDepartmentMembers = useMemo(() => {
@@ -996,31 +1100,6 @@ export function TasksPage() {
     }
 
     return true;
-  }
-
-  function getPreferredAssigneeForDepartment(department: string): Member | null {
-    const members = getMembersForDepartment(department).filter(isEligibleAssigneeForCurrentProfile);
-
-    if (isPlatformAdminDepartmentName(department)) {
-      return adminAssignableMembers[0] || null;
-    }
-
-    if (members.length === 0) {
-      if (isSuperAdminProfile && normalizeRoleValue(department) === 'super_admin') {
-        return superAdminMembers[0] || adminAssignableMembers[0] || null;
-      }
-      return null;
-    }
-
-    if (isAdminTaskProfile) {
-      return members[0];
-    }
-
-    if (isSuperAdminProfile && normalizeRoleValue(department) === 'super_admin') {
-      return superAdminMembers[0] || adminAssignableMembers[0] || members[0];
-    }
-
-    return members[0];
   }
 
   const assigneeOptions = useMemo(() => {
@@ -1107,6 +1186,85 @@ export function TasksPage() {
     isDepartmentManagerProfile,
   ]);
 
+  // "Route via Role" — an alternative to picking a department first, for
+  // targeting a role (e.g. any Admin/Manager/Employee) directly. Strictly
+  // downward only: a role can never be assigned to anyone at or above its
+  // own rank (getRolePriority, same ranking assigneeOptions' permission
+  // checks above already use). Department Managers don't get Role mode at
+  // all — Department mode already covers everything they're allowed to do
+  // (route within their own managed department), so a Role picker would
+  // only ever offer "Employee" with no added value.
+  const ROLE_ROUTE_OPTIONS: { value: string; label: string }[] = [
+    { value: 'super_admin', label: 'Super Admin' },
+    { value: 'admin', label: 'Admin' },
+    { value: 'manager', label: 'Manager' },
+    { value: 'employee', label: 'Employee' },
+  ];
+
+  function getAssignableRoleOptions(): { value: string; label: string }[] {
+    if (isDepartmentManagerProfile || isEmployeeTaskProfile) {
+      return [];
+    }
+    const creatorPriority = isOwnerProfile
+      ? getRolePriority('owner')
+      : isSuperAdminProfile
+        ? getRolePriority('super_admin')
+        : isAdminTaskProfile
+          ? getRolePriority('admin')
+          : 0;
+    return ROLE_ROUTE_OPTIONS.filter((option) => getRolePriority(option.value) < creatorPriority);
+  }
+
+  function getMembersByRole(role: string): Member[] {
+    const normalizedTarget = normalizeRoleValue(role);
+    if (normalizedTarget === 'super_admin') {
+      return superAdminMembers;
+    }
+    if (normalizedTarget === 'admin') {
+      return adminAssignableMembers;
+    }
+    return Object.values(memberDirectoryById).filter((member) => {
+      const memberRole = normalizeRoleValue(member?.role || '');
+      if (normalizedTarget === 'manager') {
+        return memberRole === 'manager' || memberRole.endsWith('_manager');
+      }
+      return memberRole === normalizedTarget;
+    });
+  }
+
+  const roleAssigneeOptions = useMemo(() => {
+    if (routingMode !== 'role' || !selectedRole) {
+      return [];
+    }
+    return getMembersByRole(selectedRole);
+  }, [routingMode, selectedRole, superAdminMembers, adminAssignableMembers, memberDirectoryById]);
+
+  function handleSelectRoleAssignee(member: Member | null) {
+    if (!member) {
+      setTaskForm((current) => ({ ...current, department: '', assignee: '', assigneeUserId: '' }));
+      return;
+    }
+    const normalizedTarget = normalizeRoleValue(selectedRole);
+    // Admin/Super Admin are represented by the existing pseudo-department
+    // machinery (isPlatformAdminDepartmentName / normalizeRoleValue ===
+    // 'super_admin'), which is what the department-scoped queue filters
+    // already understand. Manager/Employee use the member's real department
+    // so departmentId resolves to a real Department document server-side.
+    const resolvedDepartment =
+      normalizedTarget === 'super_admin'
+        ? 'Super Admin'
+        : normalizedTarget === 'admin'
+          ? 'Admin'
+          : (member.departments && member.departments[0]) || '';
+
+    setTaskForm((current) => ({
+      ...current,
+      department: resolvedDepartment,
+      assignee: member.name || '',
+      assigneeUserId: member.id || '',
+    }));
+  }
+
   useEffect(() => {
     if (!isAssignModalOpen || !taskForm.department) {
       return;
@@ -1168,12 +1326,11 @@ export function TasksPage() {
       if (currentDepartment === nextDepartment) {
         return current;
       }
-      const nextAssignee = getPreferredAssigneeForDepartment(nextDepartment);
       return {
         ...current,
         department: nextDepartment,
-        assignee: nextAssignee?.name || '',
-        assigneeUserId: nextAssignee?.id || '',
+        assignee: '',
+        assigneeUserId: '',
       };
     });
   }, [
@@ -1186,37 +1343,58 @@ export function TasksPage() {
     currentUserId,
   ]);
 
-  const queueAssigneeOptions = useMemo(() => {
-    const canHandleQueueTask = (
-      (isDepartmentManagerProfile && viewingTask && isDepartmentQueueTask(viewingTask)) ||
-      (isSuperAdminProfile && viewingTask && isQueueTask(viewingTask))
-    );
-    if (!canHandleQueueTask || !viewingTask) {
+  // Department-match eligibility for the (separate, post-accept) Assign
+  // step — independent of task status, so it stays available for the whole
+  // Pending -> accepted-but-unassigned -> assigned lifecycle.
+  function canManageQueueForTask(task: Task | null): boolean {
+    if (!task) return false;
+    if (isSuperAdminProfile) return true;
+    if (isAdminTaskProfile) {
+      const taskDepartmentKey = normalizeDepartmentKey(getCanonicalDepartmentLabel(task.department!));
+      return Boolean(taskDepartmentKey) && adminAssignedDepartmentKeys.has(taskDepartmentKey);
+    }
+    if (isDepartmentManagerProfile) return isManagedDepartmentTask(task);
+    if (isEmployeeTaskProfile) return isManagedEmployeeDepartmentTask(task);
+    return false;
+  }
+
+  // Who can be assigned this task — always includes the current viewer
+  // (assigning to self is never compulsory, but always allowed), plus
+  // whoever else they're permitted to hand it to.
+  const assignCandidateOptions = useMemo(() => {
+    if (!viewingTask || !canManageQueueForTask(viewingTask)) {
       return [];
     }
     const departmentMembers = getMembersForDepartment(viewingTask.department!);
-    return departmentMembers
+    const others = departmentMembers
       .filter((member) => member?.id && String(member.id) !== String(currentUserId))
       .filter((member) => {
         const role = normalizeRoleValue(member?.role || '');
         if (isSuperAdminProfile) {
           return role === 'employee' || role === 'manager' || role === 'admin' || role.endsWith('_manager');
         }
-        return role === 'employee';
+        // Admin can assign to the department's manager or its employees;
+        // a department manager can only assign to its employees; an
+        // employee has no one else to hand it to.
+        if (isAdminTaskProfile) {
+          return role === 'employee' || role === 'manager' || role.endsWith('_manager');
+        }
+        if (isDepartmentManagerProfile) {
+          return role === 'employee';
+        }
+        return false;
       });
-  }, [isDepartmentManagerProfile, isSuperAdminProfile, viewingTask, currentUserId, orgData, normalizedDepartmentMembers]);
+    const self: Member = { id: currentUserId, name: profile.name, role: normalizedRole };
+    return [self, ...others];
+  }, [viewingTask, isSuperAdminProfile, isAdminTaskProfile, isDepartmentManagerProfile, isEmployeeTaskProfile, currentUserId, orgData, normalizedDepartmentMembers, adminAssignedDepartmentKeys]);
 
   useEffect(() => {
-    const canHandleQueueTask = (
-      (isDepartmentManagerProfile && viewingTask && isDepartmentQueueTask(viewingTask)) ||
-      (isSuperAdminProfile && viewingTask && isQueueTask(viewingTask))
-    );
-    if (!viewingTask || !canHandleQueueTask) {
+    if (!viewingTask || !canManageQueueForTask(viewingTask)) {
       setHrQueueAssigneeUserId('');
       return;
     }
     setHrQueueAssigneeUserId(currentUserId || '');
-  }, [viewingTask, isDepartmentManagerProfile, isSuperAdminProfile, currentUserId]);
+  }, [viewingTask, isDepartmentManagerProfile, isAdminTaskProfile, isSuperAdminProfile, isEmployeeTaskProfile, currentUserId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1250,6 +1428,26 @@ export function TasksPage() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
+    async function loadTaskTypes() {
+      try {
+        const response = await getTaskTypes();
+        if (!isMounted) return;
+        setTaskTypes(Array.isArray(response?.taskTypes) ? response.taskTypes : []);
+      } catch {
+        // Task Type dropdown falls back to the built-in Standard/Approval defaults.
+      }
+    }
+
+    loadTaskTypes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     const timerId = setInterval(async () => {
       try {
         const response = await getTasks({ page: 1, limit: tasks.length || TASKS_PAGE_SIZE });
@@ -1267,10 +1465,12 @@ export function TasksPage() {
     if (!viewingTask) {
       setCompletionNote('');
       setCompletionFiles([]);
+      setSelectedApprovalAction('');
       return;
     }
     setCompletionNote(viewingTask.completionNote || '');
     setCompletionFiles([]);
+    setSelectedApprovalAction('');
   }, [viewingTask?.id]);
 
   useEffect(() => {
@@ -1522,12 +1722,6 @@ export function TasksPage() {
     });
   }, [tasks, activeTab, selectedDeptFilter, isDepartmentManagerProfile, isAdminTaskProfile, currentUserId, adminAssignedDepartments]);
 
-  const pendingFromOwnerCount = useMemo(() => {
-    return tasks.filter((task) => {
-      return isOwnerOrSuperAdminRaisedTask(task) && task.status === 'Pending';
-    }).length;
-  }, [tasks]);
-
   const hasMoreTasks = Boolean(pagination?.hasNextPage);
 
   const handleLoadMoreTasks = async () => {
@@ -1591,10 +1785,87 @@ export function TasksPage() {
       setIsAssignModalOpen(false);
       setTaskForm(initialTaskForm);
       setAssignmentFiles([]);
+      setAssignmentFilesError('');
+      setRoutingMode('department');
+      setSelectedRole('');
+      setAssignTarget('');
+      setIsAddingTaskType(false);
+      setNewTaskTypeName('');
+      setNewTaskTypeWorkflowKind('progress');
     } catch (error: any) {
       setErrorMessage(error.message || 'Unable to create task right now.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleCreateTaskType = async () => {
+    const trimmedName = newTaskTypeName.trim();
+    if (!trimmedName) return;
+
+    try {
+      setIsSavingTaskType(true);
+      const response = await createTaskType({ name: trimmedName, workflowKind: newTaskTypeWorkflowKind });
+      const created: TaskTypeOption | undefined = response?.taskType;
+      if (created) {
+        setTaskTypes((prev) => (prev.some((t) => t.id === created.id) ? prev : [...prev, created]));
+        setTaskForm((current) => ({ ...current, type: created.name }));
+      }
+      setIsAddingTaskType(false);
+      setNewTaskTypeName('');
+      setNewTaskTypeWorkflowKind('progress');
+      setErrorMessage('');
+    } catch (error: any) {
+      setErrorMessage(error.message || 'Unable to add task type.');
+    } finally {
+      setIsSavingTaskType(false);
+    }
+  };
+
+  function openEditTask(task: Task) {
+    setEditingTask(task);
+    setEditForm({
+      type: task.type || '',
+      priority: task.priority || '',
+      dueDate: task.dueDate || '',
+      title: task.title || '',
+      description: task.description || '',
+    });
+    setIsEditModalOpen(true);
+  }
+
+  function closeEditModal() {
+    setIsEditModalOpen(false);
+    setEditingTask(null);
+    setEditForm(initialEditForm);
+  }
+
+  const handleEditTask = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingTask?.id) return;
+
+    try {
+      setIsSavingEdit(true);
+      const response = await updateTask(editingTask.id, {
+        type: editForm.type,
+        priority: editForm.priority,
+        dueDate: editForm.dueDate,
+        title: editForm.title,
+        description: editForm.description,
+      });
+      const updatedTask: Task = response?.task;
+      if (updatedTask) {
+        setTasks((prev) => prev.map((task) => (task.id === updatedTask.id ? updatedTask : task)));
+        if (viewingTask?.id === updatedTask.id) {
+          setViewingTask(updatedTask);
+        }
+      }
+      setErrorMessage('');
+      closeEditModal();
+    } catch (error: any) {
+      setErrorMessage(error.message || 'Unable to update task.');
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -1673,6 +1944,36 @@ export function TasksPage() {
       setErrorMessage('');
     } catch (error: any) {
       setErrorMessage(error.message || 'Unable to accept task.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Separate from accepting — hands an already-accepted (or still-pending)
+  // task to a specific person. Not compulsory to be the person doing this;
+  // whoever accepted it can assign it to themselves or anyone else eligible.
+  const handleAssignQueueTask = async () => {
+    if (!viewingTask || !hrQueueAssigneeUserId) return;
+    const selected = assignCandidateOptions.find((member) => String(member.id) === String(hrQueueAssigneeUserId));
+    if (!selected) return;
+
+    try {
+      setIsSaving(true);
+      const response = await updateTask(viewingTask.id!, {
+        assigneeUserId: selected.id,
+        assignee: selected.name || '',
+      });
+      const updatedTask: Task = response?.task;
+
+      if (!updatedTask) {
+        return;
+      }
+
+      setTasks((prev) => prev.map((task) => (task.id === updatedTask.id ? updatedTask : task)));
+      setViewingTask(updatedTask);
+      setErrorMessage('');
+    } catch (error: any) {
+      setErrorMessage(error.message || 'Unable to assign task.');
     } finally {
       setIsSaving(false);
     }
@@ -1793,34 +2094,6 @@ export function TasksPage() {
     );
   };
 
-  const handleAssignmentFilesChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const incoming = Array.from(event.target.files || []);
-    if (incoming.length === 0) {
-      return;
-    }
-    setAssignmentFiles((current) => {
-      const merged = [...current];
-      incoming.forEach((file) => {
-        const exists = merged.some(
-          (item) => item.name === file.name && item.size === file.size,
-        );
-        if (!exists) {
-          merged.push(file);
-        }
-      });
-      return merged.slice(0, 10);
-    });
-    event.target.value = '';
-  };
-
-  const removeAssignmentFile = (fileToRemove: File) => {
-    setAssignmentFiles((current) =>
-      current.filter(
-        (file) => !(file.name === fileToRemove.name && file.size === fileToRemove.size),
-      ),
-    );
-  };
-
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
@@ -1853,57 +2126,43 @@ export function TasksPage() {
 
             {/* 2. MAIN TABS (Pill-Style Navigation) */}
             <div data-tour="tasks-page-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-              {isOwnerProfile ? (
-                <>
-                  <button onClick={() => { setActiveTab('my_assigned'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'my_assigned' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                    My Tasks
-                  </button>
-                  <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'department_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                    Department Tasks
-                  </button>
-                </>
-              ) : isAdminTaskProfile ? (
-                <>
-                  <button onClick={() => { setActiveTab('from_super_admin'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'from_super_admin' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                    My Tasks
-                  </button>
-                  <button onClick={() => { setActiveTab('assigned_dept_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'assigned_dept_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                    Assigned Dept Tasks
-                  </button>
-                  <button onClick={() => { setActiveTab('my_assigned'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'my_assigned' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                    My Assigned Tasks
-                  </button>
-                </>
-              ) : isDepartmentManagerProfile ? (
-                <>
-                  <button onClick={() => { setActiveTab('my_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'my_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                    My Tasks
-                  </button>
-                  <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'department_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                    Department Tasks
-                  </button>
-                  <button onClick={() => { setActiveTab('my_assigned'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'my_assigned' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                    My Assigned Tasks
-                  </button>
-                </>
-              ) : isEmployeeTaskProfile ? (
-                <>
-                  <button onClick={() => { setActiveTab('my_assigned'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'my_assigned' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                    My Tasks
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button onClick={() => { setActiveTab('my_assigned'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'my_assigned' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                    My Tasks
-                  </button>
-                  {isSuperAdminProfile ? (
-                    <button onClick={() => { setActiveTab('from_owner'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'from_owner' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                      My Tasks (Founder) {pendingFromOwnerCount > 0 && <span className="ml-1.5 px-1.5 py-0.5 rounded-md bg-white/20 text-white flex items-center gap-1"><span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>{pendingFromOwnerCount}</span>}
-                    </button>
-                  ) : null}
-                </>
-              )}
+              {(
+                isOwnerProfile
+                  ? [
+                    { key: 'company_tasks', label: 'Company Tasks' },
+                    { key: 'my_assigned_tasks', label: 'My Assigned Tasks' },
+                  ]
+                  : isSuperAdminProfile
+                    ? [
+                      { key: 'company_tasks', label: 'Company Tasks' },
+                      { key: 'my_tasks', label: 'My Tasks' },
+                      { key: 'my_assigned_tasks', label: 'My Assigned Tasks' },
+                    ]
+                    : isAdminTaskProfile
+                      ? [
+                        { key: 'assigned_dept_tasks', label: 'Assigned Dept Tasks' },
+                        { key: 'my_tasks', label: 'My Tasks' },
+                        { key: 'my_assigned_tasks', label: 'My Assigned Tasks' },
+                      ]
+                      : isDepartmentManagerProfile
+                        ? [
+                          { key: 'department_tasks', label: 'Department Tasks' },
+                          { key: 'my_tasks', label: 'My Tasks' },
+                          { key: 'my_assigned_tasks', label: 'My Assigned Tasks' },
+                        ]
+                        : [
+                          { key: 'department_tasks', label: 'Department Tasks' },
+                          { key: 'my_tasks', label: 'My Tasks' },
+                        ]
+              ).map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => { setActiveTab(tab.key); setStatusFilter('All'); }}
+                  className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === tab.key ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
 
             {/* 3. STAT CARDS */}
@@ -1985,12 +2244,15 @@ export function TasksPage() {
                 <table data-tour="tasks-page-table" className="hidden lg:table w-full text-left">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
-                      <th className="px-5 py-4">Task Details</th>
-                      <th className="px-5 py-4">Type / Dept</th>
-                      <th className="px-5 py-4">Routing & Assignment</th>
-                      <th className="px-5 py-4">Status & Priority</th>
+                      <th className="px-5 py-4">Task Title</th>
+                      <th className="px-5 py-4">Type</th>
+                      <th className="px-5 py-4">Assigned To</th>
+                      <th className="px-5 py-4">Dept</th>
+                      <th className="px-5 py-4">Priority</th>
+                      <th className="px-5 py-4">Submitted On</th>
                       <th className="px-5 py-4">Due Date</th>
-                      <th className="px-5 py-4 text-center">Action</th>
+                      <th className="px-5 py-4">Status</th>
+                      <th className="px-5 py-4 text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
@@ -2005,52 +2267,47 @@ export function TasksPage() {
                                 <Paperclip size={12} className="inline ml-2 text-[#2563EB]" />
                               )}
                             </div>
-                            <div className="text-[11px] sm:text-[12px] text-slate-500 mt-1 line-clamp-2">{task.description}</div>
                           </td>
                           <td className="px-5 py-4 align-top">
-                            <div className="flex flex-col items-start gap-1.5">
-                              <span className={statusPillClass(task.type)}>{task.type}</span>
-                              <span className={statusPillClass(getCanonicalDepartmentLabel(task.department!))}>{getCanonicalDepartmentLabel(task.department!)}</span>
-                            </div>
+                            <span className="text-[12px] sm:text-[13px] font-pmedium text-slate-700">{task.type}</span>
                           </td>
                           <td className="px-5 py-4 align-top">
-                            <div className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A] min-w-[200px]">
-                              <span className={statusPillClass("Raised By:")}>Raised By:</span>
-                              {formatPersonLabel(task.raisedBy!, task.raisedByDept)}
-                            </div>
-                            <div className="text-[12px] sm:text-[13px] font-pmedium text-[#2563EB] min-w-[200px] mt-2.5">
-                              <span className={statusPillClass("Assigned To:")}>Assigned To:</span>
-                              {getAssigneeDisplayLabel(task)}
-                            </div>
+                            <span className="text-[12px] sm:text-[13px] font-pmedium text-slate-700">{task.assignee === 'Unassigned' ? 'Department' : getAssigneeDisplayLabel(task)}</span>
                           </td>
                           <td className="px-5 py-4 align-top">
-                            <div className="flex flex-col gap-2">
-                              {getStatusBadge(task.status)}
-                              {getPriorityBadge(task.priority)}
-                              {task.type === 'Standard' && task.status !== 'Completed' && (
-                                <div className="w-full bg-slate-200/60 rounded-full h-1.5 mt-1.5 max-w-[100px] shadow-inner">
-                                  <div className="bg-[#2563EB] h-1.5 rounded-full" style={{ width: `${task.progress}%` }} />
-                                </div>
-                              )}
-                            </div>
+                            <span className="text-[12px] sm:text-[13px] font-pmedium text-slate-700">{getCanonicalDepartmentLabel(task.department!)}</span>
                           </td>
                           <td className="px-5 py-4 align-top">
-                            <div className="flex flex-col items-start gap-1.5">
-                              <span className="font-pmedium text-slate-700 text-[12px] sm:text-[13px]">{task.dueDate}</span>
-                              {isTaskOverdue && (
-                                <span className={statusPillClass("Overdue")}>Overdue
-                                </span>
-                              )}
-                            </div>
+                            <span className="text-[12px] sm:text-[13px] font-pmedium text-slate-700">{task.priority}</span>
+                          </td>
+                          <td className="px-5 py-4 align-top">
+                            <span className="font-pmedium text-slate-700 text-[12px] sm:text-[13px]">{humanDate(task.createdAt)}</span>
+                          </td>
+                          <td className="px-5 py-4 align-top">
+                            <span className="font-pmedium text-slate-700 text-[12px] sm:text-[13px]">{humanDate(task.dueDate)}</span>
+                          </td>
+                          <td className="px-5 py-4 align-top">
+                            {getStatusBadge(task.status)}
                           </td>
                           <td className="px-5 py-4 align-top text-center">
-                            <button
-                              onClick={() => setViewingTask(task)}
-                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
-                              title="View"
-                            >
-                              <Eye size={15} strokeWidth={2.5} />
-                            </button>
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => setViewingTask(task)}
+                                className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
+                                title="View"
+                              >
+                                <Eye size={15} strokeWidth={2.5} />
+                              </button>
+                              {canEditTask(task) && (
+                                <button
+                                  onClick={() => openEditTask(task)}
+                                  className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
+                                  title="Edit"
+                                >
+                                  <Pencil size={15} strokeWidth={2.5} />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -2065,47 +2322,51 @@ export function TasksPage() {
                     return (
                       <div key={task.id} className={`bg-white border p-4 sm:p-5 rounded-[20px] shadow-sm flex flex-col gap-3 transition-all ${isTaskOverdue ? 'border-red-200 bg-red-50/10' : 'border-slate-200/60'}`}>
                         <div className="flex justify-between items-start gap-3">
-                          <div className="flex-1 flex flex-col gap-1.5">
-                            <span className={statusPillClass(task.type)}>{task.type}</span>
-                            <h3 className="font-semibold text-[#0F172A] text-[13px] sm:text-[14px]">
-                              {task.title}
-                              {task.attachments && task.attachments.length > 0 && <Paperclip size={12} className="inline ml-1 text-[#2563EB]" />}
-                            </h3>
-                            <p className="text-[12px] text-slate-500 line-clamp-2">{task.description}</p>
-                          </div>
+                          <h3 className="flex-1 font-semibold text-[#0F172A] text-[13px] sm:text-[14px]">
+                            {task.title}
+                            {task.attachments && task.attachments.length > 0 && <Paperclip size={12} className="inline ml-1 text-[#2563EB]" />}
+                          </h3>
                           <div className="flex flex-col items-end gap-1 shrink-0">
                             {getStatusBadge(task.status)}
-                            {getPriorityBadge(task.priority)}
+                            <span className="text-[11px] font-semibold text-slate-700">{task.priority}</span>
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100 mt-1">
                           <div>
-                            <span className={statusPillClass("Raised By")}>Raised By</span>
-                            <span className="text-[11px] font-semibold text-[#0F172A] truncate block" title={task.raisedBy}>{task.raisedBy!.split(' ')[0]}</span>
+                            <span className="text-[9px] text-slate-400 uppercase font-pmedium tracking-widest block">Type</span>
+                            <span className="text-[11px] font-semibold text-[#0F172A] truncate block">{task.type}</span>
                           </div>
                           <div>
-                            <span className={statusPillClass("Assigned To")}>Assigned To</span>
-                            <span className="text-[11px] font-semibold text-[#2563EB] truncate block" title={task.assignee}>{task.assignee!.split(' ')[0]}</span>
+                            <span className="text-[9px] text-slate-400 uppercase font-pmedium tracking-widest block">Dept</span>
+                            <span className="text-[11px] font-semibold text-[#0F172A] truncate block">{getCanonicalDepartmentLabel(task.department!)}</span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-[9px] text-slate-400 uppercase font-pmedium tracking-widest block">Assigned To</span>
+                            <span className="text-[11px] font-semibold text-[#0F172A] truncate block">{task.assignee === 'Unassigned' ? 'Department' : getAssigneeDisplayLabel(task)}</span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] text-slate-400 uppercase font-pmedium tracking-widest block">Submitted On</span>
+                            <span className="text-[11px] font-semibold text-[#0F172A] truncate block">{humanDate(task.createdAt)}</span>
                           </div>
                         </div>
-                        {task.type === 'Standard' && task.status !== 'Completed' && (
-                          <div className="w-full bg-slate-200/60 rounded-full h-1.5 shadow-inner mt-1">
-                            <div className="bg-[#2563EB] h-1.5 rounded-full" style={{ width: `${task.progress}%` }} />
-                          </div>
-                        )}
                         <div className="flex justify-between items-center mt-1 border-t border-slate-100/60 pt-3">
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-slate-700 text-[11px] sm:text-[12px] flex items-center gap-1.5"><Calendar size={12} /> {task.dueDate}</span>
-                            {isTaskOverdue && (
-                              <span className={statusPillClass("Overdue")}>Overdue</span>
+                          <span className="font-semibold text-slate-700 text-[11px] sm:text-[12px] flex items-center gap-1.5"><Calendar size={12} /> {humanDate(task.dueDate)}</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setViewingTask(task)}
+                              className="px-3 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5"
+                            >
+                              <Eye size={14} strokeWidth={2} /> View
+                            </button>
+                            {canEditTask(task) && (
+                              <button
+                                onClick={() => openEditTask(task)}
+                                className="px-3 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5"
+                              >
+                                <Pencil size={14} strokeWidth={2} /> Edit
+                              </button>
                             )}
                           </div>
-                          <button
-                            onClick={() => setViewingTask(task)}
-                            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5"
-                          >
-                            <Eye size={14} strokeWidth={2} /> View
-                          </button>
                         </div>
                       </div>
                     );
@@ -2159,148 +2420,239 @@ export function TasksPage() {
                         : 'Assign work across departments safely'}
                     </p>
                   </div>
-                  <button onClick={() => setIsAssignModalOpen(false)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm">
+                  <button onClick={() => { setIsAssignModalOpen(false); setTaskForm(initialTaskForm); setAssignmentFiles([]); setAssignmentFilesError(''); setRoutingMode('department'); setSelectedRole(''); setAssignTarget(''); setIsAddingTaskType(false); setNewTaskTypeName(''); setNewTaskTypeWorkflowKind('progress'); }} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm">
                     <X size={18} strokeWidth={2.5} />
                   </button>
                 </div>
 
-                <form onSubmit={handleAssignTask} className="p-5 sm:p-6 md:p-8 overflow-y-auto flex-1 space-y-5 sm:space-y-6 custom-scrollbar bg-slate-50/50">
+                <form onSubmit={handleAssignTask} className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Task Type *</label>
-                      <select required className="w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all" value={taskForm.type} onChange={e => setTaskForm({ ...taskForm, type: e.target.value })}>
-                        <option value="Standard">Standard Execution</option>
-                        <option value="Approval">Formal Approval Request</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Priority</label>
-                      <select className="w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all" value={taskForm.priority} onChange={e => setTaskForm({ ...taskForm, priority: e.target.value })}>
-                        <option value="Low">Low</option>
-                        <option value="Medium">Medium</option>
-                        <option value="High">High</option>
-                      </select>
-                    </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Assign To <span className="text-red-400">*</span></label>
+                    <select required className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={assignTarget} onChange={e => {
+                      const next = e.target.value as 'self' | 'others' | '';
+                      setAssignTarget(next);
+                      if (next === 'self') {
+                        setTaskForm((current) => ({
+                          ...current,
+                          department: getOwnDepartmentNames()[0] || profile.dept || '',
+                          assignee: profile.name,
+                          assigneeUserId: currentUserId,
+                        }));
+                      } else {
+                        setRoutingMode('department');
+                        setSelectedRole('');
+                        setTaskForm((current) => ({ ...current, department: '', assignee: '', assigneeUserId: '' }));
+                      }
+                    }}>
+                      <option value="" disabled>Select Assign Type</option>
+                      <option value="self">Self</option>
+                      {!isEmployeeTaskProfile && <option value="others">Others</option>}
+                    </select>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Task Title *</label>
-                    <input required type="text" placeholder="e.g. Audit Q3 Finances" className="w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none transition-all placeholder: placeholder:text-slate-400" value={taskForm.title} onChange={e => setTaskForm({ ...taskForm, title: e.target.value })} />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Details & Instructions</label>
-                    <textarea required rows={3} placeholder="Detailed instructions..." className="w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-pmedium text-slate-700 focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none resize-none transition-all placeholder:text-slate-400" value={taskForm.description} onChange={e => setTaskForm({ ...taskForm, description: e.target.value })} />
-                  </div>
-
-                  {/* Routing & Workload Control */}
-                  <div className="grid grid-cols-1 gap-5 bg-white p-5 sm:p-6 rounded-[20px] sm:rounded-[24px] border border-slate-100 shadow-sm">
-                    <h4 className="text-[11px] font-bold text-[#0F172A] uppercase tracking-wider border-b border-slate-100 pb-3 flex items-center gap-2">
-                      <User size={16} strokeWidth={2} /> Routing & Workload Control
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                      <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><FileText size={16} /></span>
+                      <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Task Details</span>
                     </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 mt-1">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Route to Department *</label>
-                        <select required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all" value={taskForm.department} onChange={e => {
-                          const nextDepartment = e.target.value;
-                          const defaultMember = getPreferredAssigneeForDepartment(nextDepartment);
-
-                          setTaskForm((current) => ({
-                            ...current,
-                            department: nextDepartment,
-                            assignee: defaultMember?.name || '',
-                            assigneeUserId: defaultMember?.id || '',
-                          }));
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Task Type <span className="text-red-400">*</span></label>
+                        <select required className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={isAddingTaskType ? '__new__' : taskForm.type} onChange={e => {
+                          if (e.target.value === '__new__') {
+                            setIsAddingTaskType(true);
+                            return;
+                          }
+                          setIsAddingTaskType(false);
+                          setTaskForm({ ...taskForm, type: e.target.value });
                         }}>
-                          <option value="">Select Department</option>
-                          {taskRouteDepartments.map(dept => <option key={dept} value={dept}>{dept}</option>)}
+                          <option value="" disabled>Select Type</option>
+                          {(taskTypes.length > 0 ? taskTypes : [{ id: 'standard', name: 'Standard', workflowKind: 'progress' as const }, { id: 'approval', name: 'Approval', workflowKind: 'approval' as const }]).map(t => (
+                            <option key={t.id} value={t.name}>{t.name}</option>
+                          ))}
+                          <option value="__new__">+ Add New Type</option>
                         </select>
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Assignee (Checks Workload)</label>
-                        <select required={isAdminTaskProfile || isTopManagementDepartmentName(taskForm.department)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all disabled:opacity-50 disabled:bg-slate-100" disabled={!taskForm.department} value={taskForm.assigneeUserId || ''} onChange={e => {
-                          const selected = assigneeOptions.find((member) => member.id === e.target.value) || null;
-                          setTaskForm({
-                            ...taskForm,
-                            assignee: selected?.id === 'owner' ? 'Founder' : (selected?.name || ''),
-                            assigneeUserId: selected?.id === 'owner' ? 'owner' : (selected?.id || ''),
-                          });
-                        }}>
-                          {isTopManagementDepartmentName(taskForm.department) || isDepartmentManagerProfile
-                            ? <option value="">Select Assignee</option>
-                            : <option value="">Unassigned (Queue)</option>}
-                          {taskForm.department && assigneeOptions.map(member => {
-                            const pending = getPendingTaskCount(member.name || '');
-                            const empRole = resolveDisplayRole([member.role || '']);
-                            return (
-                              <option key={member.id} value={member.id}>
-                                {member.name} ({empRole}) {pending > 0 ? `(${pending} tasks pending)` : `(Available)`}
-                              </option>
-                            );
-                          })}
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Priority <span className="text-red-400">*</span></label>
+                        <select required className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={taskForm.priority} onChange={e => setTaskForm({ ...taskForm, priority: e.target.value })}>
+                          <option value="" disabled>Select Priority</option>
+                          <option value="Low">Low</option>
+                          <option value="Medium">Medium</option>
+                          <option value="High">High</option>
                         </select>
-                        {taskForm.department && normalizeRoleValue(taskForm.department) === 'super_admin' && superAdminMembers.length === 0 ? (
-                          <p className="text-[10px] font-pmedium text-red-600 mt-2">No active Super Admin member found in this workspace.</p>
-                        ) : null}
-                        {isAdminTaskProfile && taskForm.department && assigneeOptions.length === 0 ? (
-                          <p className="text-[10px] font-pmedium text-red-600 mt-2">
-                            No assigned-department managers or employees found for "{taskForm.department}".
-                          </p>
-                        ) : null}
-                        {!isAdminTaskProfile && taskForm.department && assigneeOptions.length === 0 ? (
-                          <p className="text-[10px] font-pmedium text-red-600 mt-2">
-                            No members matched for department "{taskForm.department}".
-                          </p>
-                        ) : null}
-                        {taskForm.assignee && getPendingTaskCount(taskForm.assignee) >= 3 && (
-                          <p className="text-[10px] font-pmedium text-amber-600 inline-flex items-center gap-1.5 mt-2 bg-amber-50 px-2 py-1 rounded border border-amber-100"><AlertTriangle size={12} /> High workload detected.</p>
-                        )}
                       </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Deadline *</label>
-                    <input required type="date" className="w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all" value={taskForm.dueDate} onChange={e => setTaskForm({ ...taskForm, dueDate: e.target.value })} />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Reference Files (Optional)</label>
-                    <input
-                      type="file"
-                      multiple
-                      onChange={handleAssignmentFilesChange}
-                      className="block w-full text-[12px] text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-[11px] file:font-pmedium file:uppercase file:tracking-wider file:text-blue-700 hover:file:bg-blue-100"
-                    />
-                    {assignmentFiles.length > 0 ? (
-                      <div className="space-y-2 mt-2">
-                        {assignmentFiles.map((file) => (
-                          <div key={`${file.name}-${file.size}`} className="flex items-center justify-between gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2">
-                            <div className="min-w-0 flex items-center gap-2">
-                              <Paperclip size={12} className="text-[#2563EB] shrink-0" />
-                              <span className="text-[12px] font-semibold text-slate-700 truncate">{file.name}</span>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span className={statusPillClass(formatFileSize(file.size))}>{formatFileSize(file.size)}</span>
-                              <button
-                                type="button"
-                                onClick={() => removeAssignmentFile(file)}
-                                className="w-6 h-6 rounded-md bg-white border border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200 flex items-center justify-center"
-                              >
-                                <X size={12} />
-                              </button>
+                      {isAddingTaskType && (
+                        <div className="sm:col-span-2 bg-blue-50/60 border border-blue-100 rounded-lg p-3 space-y-3">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">New Type Name</label>
+                            <input type="text" placeholder="e.g. Client Escalation" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={newTaskTypeName} onChange={e => setNewTaskTypeName(e.target.value)} />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Behavior</label>
+                            <div className="flex gap-2">
+                              <button type="button" onClick={() => setNewTaskTypeWorkflowKind('progress')} className={`flex-1 px-3 py-2 rounded-lg text-[11px] font-pmedium border transition-all ${newTaskTypeWorkflowKind === 'progress' ? 'bg-[#2563EB] text-white border-[#2563EB]' : 'bg-white text-slate-600 border-slate-200'}`}>Progress-tracked</button>
+                              <button type="button" onClick={() => setNewTaskTypeWorkflowKind('approval')} className={`flex-1 px-3 py-2 rounded-lg text-[11px] font-pmedium border transition-all ${newTaskTypeWorkflowKind === 'approval' ? 'bg-[#2563EB] text-white border-[#2563EB]' : 'bg-white text-slate-600 border-slate-200'}`}>Approval-based</button>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    ) : null}
+                          <div className="flex gap-2 justify-end pt-1">
+                            <button type="button" onClick={() => { setIsAddingTaskType(false); setNewTaskTypeName(''); setNewTaskTypeWorkflowKind('progress'); }} className="px-3 py-2 text-[11px] font-pmedium text-slate-500 hover:text-slate-700">Cancel</button>
+                            <button type="button" disabled={!newTaskTypeName.trim() || isSavingTaskType} onClick={handleCreateTaskType} className="px-4 py-2 bg-[#2563EB] text-white rounded-lg text-[11px] font-pmedium disabled:opacity-50">{isSavingTaskType ? 'Saving...' : 'Save Type'}</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Deadline <span className="text-red-400">*</span></label>
+                      <input required type="date" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={taskForm.dueDate} onChange={e => setTaskForm({ ...taskForm, dueDate: e.target.value })} />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Task Title <span className="text-red-400">*</span></label>
+                      <input required type="text" placeholder="e.g. Audit Q3 Finances" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={taskForm.title} onChange={e => setTaskForm({ ...taskForm, title: e.target.value })} />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Details & Instructions</label>
+                      <textarea required rows={4} placeholder="Detailed instructions..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-400" value={taskForm.description} onChange={e => setTaskForm({ ...taskForm, description: e.target.value })} />
+                    </div>
                   </div>
 
-                  <div className="pt-4 sm:pt-6 flex gap-3 sm:gap-4 border-t border-slate-200/60 flex-col-reverse sm:flex-row">
-                    <button type="button" onClick={() => setIsAssignModalOpen(false)} className="w-full sm:flex-1 py-3 sm:py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">CANCEL</button>
-                    <button disabled={isSaving} type="submit" className="w-full sm:flex-[2] py-3 sm:py-3.5 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
-                      {isSaving ? 'CREATING...' : 'CREATE TASK'} <Plus size={16} strokeWidth={2.5} />
+                  {assignTarget === 'others' && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                    <h4 className="flex items-center justify-between border-b border-slate-200/80 pb-2 flex-wrap gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><User size={16} /></span>
+                        <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Routing & Workload Control</span>
+                      </div>
+                      <div className="flex bg-slate-100 rounded-lg p-1">
+                        <button type="button" onClick={() => { setRoutingMode('department'); setSelectedRole(''); setTaskForm(current => ({ ...current, department: '', assignee: '', assigneeUserId: '' })); }} className={`px-3 py-1.5 rounded-md text-[10px] font-pmedium uppercase tracking-wider transition-all ${routingMode === 'department' ? 'bg-white text-[#2563EB] shadow-sm' : 'text-slate-500'}`}>Department</button>
+                        {getAssignableRoleOptions().length > 0 && (
+                          <button type="button" onClick={() => { setRoutingMode('role'); setSelectedRole(''); setTaskForm(current => ({ ...current, department: '', assignee: '', assigneeUserId: '' })); }} className={`px-3 py-1.5 rounded-md text-[10px] font-pmedium uppercase tracking-wider transition-all ${routingMode === 'role' ? 'bg-white text-[#2563EB] shadow-sm' : 'text-slate-500'}`}>Role</button>
+                        )}
+                      </div>
+                    </h4>
+                    {routingMode === 'department' ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Route to Department <span className="text-red-400">*</span></label>
+                          <select required className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={taskForm.department} onChange={e => {
+                            const nextDepartment = e.target.value;
+
+                            // Picking a department defaults to the Unassigned
+                            // queue rather than auto-selecting a person — the
+                            // department manager (or an eligible member) picks
+                            // it up from there.
+                            setTaskForm((current) => ({
+                              ...current,
+                              department: nextDepartment,
+                              assignee: '',
+                              assigneeUserId: '',
+                            }));
+                          }}>
+                            <option value="">Select Department</option>
+                            {taskRouteDepartments.map(dept => <option key={dept} value={dept}>{dept}</option>)}
+                          </select>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Assignee (Checks Workload)</label>
+                          <select required={isAdminTaskProfile || isTopManagementDepartmentName(taskForm.department)} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer disabled:opacity-50 disabled:bg-slate-100" disabled={!taskForm.department} value={taskForm.assigneeUserId || ''} onChange={e => {
+                            const selected = assigneeOptions.find((member) => member.id === e.target.value) || null;
+                            setTaskForm({
+                              ...taskForm,
+                              assignee: selected?.id === 'owner' ? 'Founder' : (selected?.name || ''),
+                              assigneeUserId: selected?.id === 'owner' ? 'owner' : (selected?.id || ''),
+                            });
+                          }}>
+                            {isTopManagementDepartmentName(taskForm.department) || isDepartmentManagerProfile
+                              ? <option value="">Select Assignee</option>
+                              : <option value="">Unassigned (Queue)</option>}
+                            {taskForm.department && assigneeOptions.map(member => {
+                              const pending = getPendingTaskCount(member.name || '');
+                              const empRole = resolveDisplayRole([member.role || '']);
+                              return (
+                                <option key={member.id} value={member.id}>
+                                  {member.name} ({empRole}) {pending > 0 ? `(${pending} tasks pending)` : `(Available)`}
+                                </option>
+                              );
+                            })}
+                          </select>
+                          {taskForm.department && normalizeRoleValue(taskForm.department) === 'super_admin' && superAdminMembers.length === 0 ? (
+                            <p className="text-[10px] font-pmedium text-red-600 mt-1">No active Super Admin member found in this workspace.</p>
+                          ) : null}
+                          {isAdminTaskProfile && taskForm.department && assigneeOptions.length === 0 ? (
+                            <p className="text-[10px] font-pmedium text-red-600 mt-1">
+                              No assigned-department managers or employees found for "{taskForm.department}".
+                            </p>
+                          ) : null}
+                          {!isAdminTaskProfile && taskForm.department && assigneeOptions.length === 0 ? (
+                            <p className="text-[10px] font-pmedium text-red-600 mt-1">
+                              No members matched for department "{taskForm.department}".
+                            </p>
+                          ) : null}
+                          {taskForm.assignee && getPendingTaskCount(taskForm.assignee) >= 3 && (
+                            <p className="text-[10px] font-pmedium text-amber-600 inline-flex items-center gap-1.5 mt-1 bg-amber-50 px-2 py-1 rounded border border-amber-100"><AlertTriangle size={12} /> High workload detected.</p>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Route to Role <span className="text-red-400">*</span></label>
+                          <select required className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={selectedRole} onChange={e => {
+                            setSelectedRole(e.target.value);
+                            handleSelectRoleAssignee(null);
+                          }}>
+                            <option value="">Select Role</option>
+                            {getAssignableRoleOptions().map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                          </select>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Assignee (Checks Workload)</label>
+                          <select required className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer disabled:opacity-50 disabled:bg-slate-100" disabled={!selectedRole} value={taskForm.assigneeUserId || ''} onChange={e => {
+                            const selected = roleAssigneeOptions.find((member) => member.id === e.target.value) || null;
+                            handleSelectRoleAssignee(selected);
+                          }}>
+                            <option value="">Select Assignee</option>
+                            {roleAssigneeOptions.map(member => {
+                              const pending = getPendingTaskCount(member.name || '');
+                              return (
+                                <option key={member.id} value={member.id}>
+                                  {member.name} {pending > 0 ? `(${pending} tasks pending)` : `(Available)`}
+                                </option>
+                              );
+                            })}
+                          </select>
+                          {selectedRole && roleAssigneeOptions.length === 0 ? (
+                            <p className="text-[10px] font-pmedium text-red-600 mt-1">No members found with this role.</p>
+                          ) : null}
+                          {taskForm.assignee && getPendingTaskCount(taskForm.assignee) >= 3 && (
+                            <p className="text-[10px] font-pmedium text-amber-600 inline-flex items-center gap-1.5 mt-1 bg-amber-50 px-2 py-1 rounded border border-amber-100"><AlertTriangle size={12} /> High workload detected.</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  )}
+
+                  <AttachmentDropzone
+                    files={assignmentFiles}
+                    onFilesChange={setAssignmentFiles}
+                    error={assignmentFilesError}
+                    onErrorChange={setAssignmentFilesError}
+                    label="Reference Files (Optional)"
+                  />
+
+                  <div className="pt-4 sm:pt-6 flex gap-3 border-t border-slate-200/60 flex-col-reverse sm:flex-row sm:justify-end">
+                    <button type="button" onClick={() => { setIsAssignModalOpen(false); setTaskForm(initialTaskForm); setAssignmentFiles([]); setAssignmentFilesError(''); setRoutingMode('department'); setSelectedRole(''); setAssignTarget(''); setIsAddingTaskType(false); setNewTaskTypeName(''); setNewTaskTypeWorkflowKind('progress'); }} className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase">CANCEL</button>
+                    <button
+                      type="submit"
+                      disabled={isSaving}
+                      className="w-full sm:w-auto px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-primary/95 active:scale-95 transition-all uppercase flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {isSaving ? 'CREATING...' : 'CREATE TASK'} <Plus size={13} strokeWidth={3} />
                     </button>
                   </div>
                 </form>
@@ -2312,41 +2664,82 @@ export function TasksPage() {
           {/* MODAL 2: VIEW & UPDATE TASK */}
           {/* ======================================================= */}
           {viewingTask && (
-            <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-              <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-2xl h-[92vh] sm:h-auto sm:max-h-[95vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300">
-                <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0"></div>
-
-                <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-start shrink-0 relative">
-                  <div className="pr-10">
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-3">
-                      <span className={statusPillClass(viewingTask.type)}>{viewingTask.type}</span>
-                      {getPriorityBadge(viewingTask.priority)}
-                      {getStatusBadge(viewingTask.status)}
+            <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3">
+              <div className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+                <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white">
+                      <FileText size={18} />
                     </div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] leading-tight pr-2">{viewingTask.title}</h2>
-                    <p className="text-[10px] sm:text-[11px] font-bold text-[#2563EB] uppercase tracking-wider mt-2.5 flex items-center gap-1.5"><Building2 size={14} /> {getCanonicalDepartmentLabel(viewingTask.department!)} Dept | ID: {viewingTask.id}</p>
+                    <div className="min-w-0">
+                      <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">{viewingTask.title}</h2>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        {getStatusBadge(viewingTask.status)}
+                        {getPriorityBadge(viewingTask.priority)}
+                        <span className="text-[10px] font-pmedium text-slate-500">{viewingTask.taskCode || viewingTask.id}</span>
+                      </div>
+                    </div>
                   </div>
-                  <button onClick={() => setViewingTask(null)} className="absolute top-5 sm:top-6 md:top-8 right-5 sm:right-6 md:right-8 w-10 h-10 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 shadow-sm transition-all shrink-0"><X size={18} strokeWidth={2.5} /></button>
+                  <button onClick={() => setViewingTask(null)} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"><X size={16} /></button>
                 </div>
 
-                <div className="p-5 sm:p-6 md:p-8 space-y-6 overflow-y-auto flex-1 custom-scrollbar bg-slate-50/50">
+                <div className="p-5 sm:p-6 space-y-5 overflow-y-auto bg-white">
 
                   <div>
-                    <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5"><FileText size={14} /> Description</p>
-                    <p className="text-[13px] sm:text-[14px] font-medium text-[#0F172A] leading-relaxed bg-white p-4 sm:p-5 rounded-xl border border-slate-200/60 shadow-sm">{viewingTask.description}</p>
+                    <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                      <FileText size={14} /> Task Information
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Type</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{viewingTask.type}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Department</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{getCanonicalDepartmentLabel(viewingTask.department!)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Raised By</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{formatPersonLabel(viewingTask.raisedBy || '', viewingTask.raisedByDept)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Assigned To</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{getAssigneeDisplayLabel(viewingTask)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Due Date</p>
+                        <p className="text-[12px] font-pmedium text-slate-900 flex items-center gap-1.5">
+                          {humanDate(viewingTask.dueDate)}
+                          {isOverdue(viewingTask.dueDate!, viewingTask.status) && (
+                            <span className={statusPillClass("Overdue")}>Overdue</span>
+                          )}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Submitted On</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{humanDate(viewingTask.createdAt)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                      <FileText size={14} /> Description
+                    </h3>
+                    <p className="text-[12px] font-pmedium text-slate-900 leading-relaxed bg-slate-50/60 p-4 rounded-2xl border border-slate-100">{viewingTask.description}</p>
                   </div>
 
                   {(viewingTask.completionNote || (viewingTask.attachments || []).length > 0) ? (
-                    <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200/60 shadow-sm space-y-3">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
                       {viewingTask.completionNote ? (
                         <div>
-                          <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-400 uppercase tracking-wider mb-1.5">Completion Message</p>
-                          <p className="text-[12px] sm:text-[13px] font-medium text-slate-700 leading-relaxed">{viewingTask.completionNote}</p>
+                          <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1.5">Completion Message</p>
+                          <p className="text-[12px] font-pmedium text-slate-900 leading-relaxed">{viewingTask.completionNote}</p>
                         </div>
                       ) : null}
                       {(viewingTask.attachments || []).length > 0 ? (
                         <div>
-                          <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-400 uppercase tracking-wider mb-2">Attached Documents</p>
+                          <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-2">Attached Documents</p>
                           <div className="space-y-2">
                             {(viewingTask.attachments || []).map((attachment, index) => (
                               <div key={`${attachment.name}-${index}`} className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
@@ -2376,98 +2769,60 @@ export function TasksPage() {
                     </div>
                   ) : null}
 
-                  <div className="grid grid-cols-2 gap-4 sm:gap-6 bg-white p-5 rounded-[20px] sm:rounded-[24px] border border-slate-200/60 shadow-sm">
-                    <div>
-                      <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-2">Raised By</p>
-                      <div className="flex items-center gap-2.5 sm:gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center text-[10px] sm:text-[11px] font-bold border border-blue-100 shadow-sm shrink-0">{getInitials(viewingTask.raisedBy || '')}</div>
-                        <div className="min-w-0">
-                          <span className="font-semibold text-[#0F172A] text-[12px] sm:text-[13px] block truncate">{viewingTask.raisedBy}</span>
-                          {!viewingTask.raisedBy?.includes('(Owner)') ? (
-                            <span className={statusPillClass(viewingTask.raisedByDept)}>{viewingTask.raisedByDept}</span>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-2">Assigned To</p>
-                      <div className="flex items-center gap-2.5 sm:gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-[10px] sm:text-[11px] font-bold border border-indigo-100 shadow-sm shrink-0">{getInitials(viewingTask.assignee || '')}</div>
-                        <div className="min-w-0">
-                          <span className="font-semibold text-[#0F172A] text-[12px] sm:text-[13px] block truncate">{getAssigneeDisplayLabel(viewingTask)}</span>
-                          {viewingTask.assignee !== 'Unassigned' && (
-                            <span className={statusPillClass(getPendingTaskCount(viewingTask.assignee || ''))}>{getPendingTaskCount(viewingTask.assignee || '')} Current Tasks</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-span-2 border-t border-slate-100 pt-4 sm:pt-5 mt-1 sm:mt-2 flex justify-between items-center">
-                      <div>
-                        <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5"><Calendar size={12} /> Deadline</p>
-                        <p className="font-bold text-[#0F172A] text-[13px] sm:text-[14px]">{viewingTask.dueDate}</p>
-                      </div>
-                      {isOverdue(viewingTask.dueDate!, viewingTask.status) && (
-                        <span className={statusPillClass("Overdue")}>Overdue</span>
-                      )}
-                    </div>
-                  </div>
-
                   {/* PROGRESS SLIDER OR APPROVAL ACTIONS */}
-                  <div className="bg-white border border-slate-200/60 p-5 rounded-[20px] sm:rounded-[24px] shadow-sm">
-                    <h3 className="text-[10px] sm:text-[11px] font-pmedium text-slate-400 uppercase tracking-wider mb-4 sm:mb-5">Task Status / Progress</h3>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                      <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Clock size={16} /></span>
+                      <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Task Status / Progress</span>
+                    </h4>
 
+                    {/* Step 1: Accept — a plain claim, no assignee decision yet. */}
                     {viewingTask.status === "Pending" && !isOwnerProfile ? (
-                      ((isDepartmentManagerProfile && isDepartmentTask(viewingTask)) || (isSuperAdminProfile && isQueueTask(viewingTask))) ? (
-                        <div className="mb-4 space-y-3">
-                          <div>
-                            <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Accept as</label>
-                            <select
-                              className="mt-1.5 w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all"
-                              value={hrQueueAssigneeUserId || ''}
-                              onChange={(e) => setHrQueueAssigneeUserId(e.target.value)}
-                            >
-                              <option value={currentUserId || ''}>Self</option>
-                              {canDelegateDepartmentQueueTask && queueAssigneeOptions.length > 0 ? (
-                                <>
-                                  {queueAssigneeOptions.map((member) => {
-                                    const memberRole = resolveDisplayRole([member.role || '']);
-                                    return (
-                                      <option key={member.id} value={member.id}>
-                                        {member.name} ({memberRole})
-                                      </option>
-                                    );
-                                  })}
-                                </>
-                              ) : null}
-                            </select>
-                            <p className="text-[10px] font-pmedium text-slate-500 mt-2">
-                              Select yourself to take it, or choose a department member to assign it after acceptance.
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => handleAcceptTask(
-                              hrQueueAssigneeUserId && String(hrQueueAssigneeUserId) !== String(currentUserId)
-                                ? { assigneeUserId: hrQueueAssigneeUserId }
-                                : {},
-                            )}
-                            disabled={isSaving}
-                            className="w-full py-3 sm:py-3.5 rounded-xl font-pmedium text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
-                          >
-                            {isSaving ? 'STARTING...' : 'Accept & Start'}
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => handleAcceptTask()}
-                          disabled={isSaving}
-                          className="w-full mb-4 py-3 sm:py-3.5 rounded-xl font-pmedium text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
-                        >
-                          {isSaving ? 'STARTING...' : 'Accept & Start Task'}
-                        </button>
-                      )
+                      <button
+                        onClick={() => handleAcceptTask()}
+                        disabled={isSaving}
+                        className="w-full mb-4 py-3 sm:py-3.5 rounded-xl font-pmedium text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {isSaving ? 'ACCEPTING...' : 'Accept Task'}
+                      </button>
                     ) : null}
 
-                    {viewingTask.status === "In Progress" && !isOwnerProfile ? (
+                    {/* Step 2: Assign — separate action, once accepted. Not
+                        compulsory to assign to self; any eligible member works. */}
+                    {viewingTask.status === "In Progress" && !viewingTask.assigneeUserId && !isOwnerProfile && canManageQueueForTask(viewingTask) ? (
+                      <div className="mb-4 space-y-3">
+                        <div>
+                          <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Assign to</label>
+                          <select
+                            className="mt-1.5 w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all"
+                            value={hrQueueAssigneeUserId || ''}
+                            onChange={(e) => setHrQueueAssigneeUserId(e.target.value)}
+                          >
+                            {assignCandidateOptions.map((member) => {
+                              const isSelf = String(member.id) === String(currentUserId);
+                              const memberRole = resolveDisplayRole([member.role || '']);
+                              return (
+                                <option key={member.id} value={member.id}>
+                                  {isSelf ? `${member.name} (You)` : `${member.name} (${memberRole})`}
+                                </option>
+                              );
+                            })}
+                          </select>
+                          <p className="text-[10px] font-pmedium text-slate-500 mt-2">
+                            Accepted — now assign it to yourself or a teammate.
+                          </p>
+                        </div>
+                        <button
+                          onClick={handleAssignQueueTask}
+                          disabled={isSaving || !hrQueueAssigneeUserId}
+                          className="w-full py-3 sm:py-3.5 rounded-xl font-pmedium text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {isSaving ? 'ASSIGNING...' : 'Assign Task'}
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {viewingTask.status === "In Progress" && !isOwnerProfile && isTaskAssignedToCurrentUser(viewingTask) ? (
                       <div className="mb-4 space-y-3">
                         <div>
                           <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Completion Message (Optional)</label>
@@ -2522,7 +2877,7 @@ export function TasksPage() {
                       </div>
                     ) : null}
 
-                    {viewingTask.type === "Standard" ? (
+                    {getWorkflowKindForType(viewingTask.type || '') === 'progress' ? (
                       <div>
                         <div className="flex justify-between mb-3">
                           <span className="text-[12px] sm:text-[13px] font-semibold text-slate-700">Completion</span>
@@ -2536,22 +2891,52 @@ export function TasksPage() {
                           disabled={!canEditTaskStatus || !isCurrentUserName(viewingTask.assignee || '')}
                         />
                       </div>
+                    ) : (viewingTask.status === "Approved" || viewingTask.status === "Rejected") ? (
+                      <div className={`py-3 sm:py-3.5 rounded-xl font-pmedium text-[11px] sm:text-[12px] uppercase tracking-wider flex justify-center items-center gap-2 border ${viewingTask.status === "Approved" ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-red-50 border-red-200 text-red-700"}`}>
+                        {viewingTask.status === "Approved" ? <CheckCircle2 size={16} strokeWidth={2.5} /> : <X size={16} strokeWidth={2.5} />}
+                        Final Decision: {viewingTask.status} — this cannot be changed
+                      </div>
                     ) : (
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <button onClick={() => handleApprovalAction("Approved")} disabled={!canEditTaskStatus || !isCurrentUserName(viewingTask.assignee || '')} className={`flex-1 py-3 sm:py-3.5 rounded-xl font-pmedium text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${viewingTask.status === "Approved" ? "bg-emerald-50 border border-emerald-200 text-emerald-700" : "bg-white border border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-700 hover:bg-emerald-50"}`}>
-                          <CheckCircle2 size={16} strokeWidth={2.5} /> Formally Approve
+                      <div className="space-y-3">
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedApprovalAction("Approved")}
+                            disabled={!canEditTaskStatus || !isCurrentUserName(viewingTask.assignee || '')}
+                            className={`flex-1 py-3 sm:py-3.5 rounded-xl font-pmedium text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${selectedApprovalAction === "Approved" ? "bg-emerald-50 border border-emerald-200 text-emerald-700" : "bg-white border border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-700 hover:bg-emerald-50"}`}
+                          >
+                            <CheckCircle2 size={16} strokeWidth={2.5} /> Formally Approve
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedApprovalAction("Rejected")}
+                            disabled={!canEditTaskStatus || !isCurrentUserName(viewingTask.assignee || '')}
+                            className={`flex-1 py-3 sm:py-3.5 rounded-xl font-pmedium text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${selectedApprovalAction === "Rejected" ? "bg-red-50 border border-red-200 text-red-700" : "bg-white border border-slate-200 text-slate-600 hover:border-red-300 hover:text-red-700 hover:bg-red-50"}`}
+                          >
+                            <X size={16} strokeWidth={2.5} /> Reject / Revise
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => selectedApprovalAction && handleApprovalAction(selectedApprovalAction)}
+                          disabled={!selectedApprovalAction || isSaving || !canEditTaskStatus || !isCurrentUserName(viewingTask.assignee || '')}
+                          className="w-full py-3 sm:py-3.5 rounded-xl font-pmedium text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isSaving ? 'SUBMITTING...' : 'Submit Decision'}
                         </button>
-                        <button onClick={() => handleApprovalAction("Rejected")} disabled={!canEditTaskStatus || !isCurrentUserName(viewingTask.assignee || '')} className={`flex-1 py-3 sm:py-3.5 rounded-xl font-pmedium text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${viewingTask.status === "Rejected" ? "bg-red-50 border border-red-200 text-red-700" : "bg-white border border-slate-200 text-slate-600 hover:border-red-300 hover:text-red-700 hover:bg-red-50"}`}>
-                          <X size={16} strokeWidth={2.5} /> Reject / Revise
-                        </button>
+                        <p className="text-[10px] font-pmedium text-slate-500">
+                          Select Approve or Reject, then submit — this is final and cannot be changed afterward.
+                        </p>
                       </div>
                     )}
                   </div>
 
                   {/* COMMENTS & ACTIVITY FEED */}
-                  <div>
-                    <h3 className="text-[10px] sm:text-[11px] font-bold text-[#0F172A] uppercase tracking-wider mb-4 sm:mb-5 flex items-center gap-2"><MessageSquare size={16} strokeWidth={2.5} className="text-[#2563EB]" /> Internal Comments</h3>
-                    <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-5">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                      <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><MessageSquare size={16} /></span>
+                      <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Internal Comments</span>
+                    </h4>
+                    <div className="space-y-3 sm:space-y-4">
                       {viewingTask.comments.length === 0 && (
                         <div className="border border-dashed border-slate-200 bg-slate-50/50 rounded-xl p-6 text-center">
                           <p className="text-[12px] font-medium text-slate-400">No activity yet. Leave a note below.</p>
@@ -2587,6 +2972,87 @@ export function TasksPage() {
                   </div>
 
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* ======================================================= */}
+          {/* MODAL 3: EDIT TASK */}
+          {/* ======================================================= */}
+          {isEditModalOpen && editingTask && (
+            <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+              <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-2xl h-[92vh] sm:h-auto sm:max-h-[95vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300">
+                <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0"></div>
+
+                <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
+                  <div>
+                    <h2 className="text-xl sm:text-2xl font-pmedium text-primary flex items-center gap-2">
+                      <div className="bg-blue-50 text-blue-600 p-2 rounded-xl">
+                        <Pencil size={20} strokeWidth={2.5} />
+                      </div>
+                      Edit Task
+                    </h2>
+                    <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">
+                      Update the task details below
+                    </p>
+                  </div>
+                  <button onClick={closeEditModal} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm">
+                    <X size={18} strokeWidth={2.5} />
+                  </button>
+                </div>
+
+                <form onSubmit={handleEditTask} className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                      <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><FileText size={16} /></span>
+                      <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Task Details</span>
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Task Type <span className="text-red-400">*</span></label>
+                        <select required className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={editForm.type} onChange={e => setEditForm({ ...editForm, type: e.target.value })}>
+                          {(taskTypes.length > 0 ? taskTypes : [{ id: 'standard', name: 'Standard', workflowKind: 'progress' as const }, { id: 'approval', name: 'Approval', workflowKind: 'approval' as const }]).map(t => (
+                            <option key={t.id} value={t.name}>{t.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Priority <span className="text-red-400">*</span></label>
+                        <select required className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={editForm.priority} onChange={e => setEditForm({ ...editForm, priority: e.target.value })}>
+                          <option value="Low">Low</option>
+                          <option value="Medium">Medium</option>
+                          <option value="High">High</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Deadline <span className="text-red-400">*</span></label>
+                      <input required type="date" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={editForm.dueDate} onChange={e => setEditForm({ ...editForm, dueDate: e.target.value })} />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Task Title <span className="text-red-400">*</span></label>
+                      <input required type="text" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={editForm.title} onChange={e => setEditForm({ ...editForm, title: e.target.value })} />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Details & Instructions</label>
+                      <textarea required rows={4} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-400" value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} />
+                    </div>
+                  </div>
+
+                  <div className="pt-4 sm:pt-6 flex gap-3 border-t border-slate-200/60 flex-col-reverse sm:flex-row sm:justify-end">
+                    <button type="button" onClick={closeEditModal} className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase">CANCEL</button>
+                    <button
+                      type="submit"
+                      disabled={isSavingEdit}
+                      className="w-full sm:w-auto px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-primary/95 active:scale-95 transition-all uppercase flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {isSavingEdit ? 'SAVING...' : 'SAVE CHANGES'} <Pencil size={13} strokeWidth={3} />
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           )}

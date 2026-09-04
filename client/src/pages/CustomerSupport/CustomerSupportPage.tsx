@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2, Eye, ExternalLink, Download, FileText, Plus, Pencil, Trash2 } from "lucide-react";
+import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2, Eye, ExternalLink, Download, FileText, Plus, Pencil, Trash2, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
@@ -43,6 +43,7 @@ type SupportTicket = {
   workspaceName: string;
   pageUrl: string;
   image: { id: string; url: string };
+  images: { id: string; url: string; name?: string }[];
   resolutionMessage: string;
   resolutionAttachment: { id: string; url: string };
   resolvedAt: string | null;
@@ -92,12 +93,21 @@ const openSupportDraftDatabase = () =>
 const readSupportDraftAttachment = async (draftKey: string) => {
   const database = await openSupportDraftDatabase();
   try {
-    return await new Promise<File | null>((resolve, reject) => {
+    return await new Promise<File[]>((resolve, reject) => {
       const request = database
         .transaction(SUPPORT_DRAFT_DB_STORE, "readonly")
         .objectStore(SUPPORT_DRAFT_DB_STORE)
         .get(draftKey);
-      request.onsuccess = () => resolve(request.result instanceof File ? request.result : null);
+      request.onsuccess = () => {
+        const stored = request.result;
+        if (Array.isArray(stored)) {
+          resolve(stored.filter((entry) => entry instanceof File));
+        } else if (stored instanceof File) {
+          resolve([stored]);
+        } else {
+          resolve([]);
+        }
+      };
       request.onerror = () => reject(request.error);
     });
   } finally {
@@ -105,13 +115,13 @@ const readSupportDraftAttachment = async (draftKey: string) => {
   }
 };
 
-const writeSupportDraftAttachment = async (draftKey: string, file: File | null) => {
+const writeSupportDraftAttachment = async (draftKey: string, files: File[]) => {
   const database = await openSupportDraftDatabase();
   try {
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction(SUPPORT_DRAFT_DB_STORE, "readwrite");
       const store = transaction.objectStore(SUPPORT_DRAFT_DB_STORE);
-      if (file) store.put(file, draftKey);
+      if (files && files.length) store.put(files, draftKey);
       else store.delete(draftKey);
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
@@ -153,7 +163,8 @@ export default function CustomerSupportPage() {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editPageUrl, setEditPageUrl] = useState("");
-  const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [editImageFiles, setEditImageFiles] = useState<File[]>([]);
+  const [editAttachmentError, setEditAttachmentError] = useState("");
   const [supportData, setSupportData] = useState<SupportPayload>({
     raised: [],
     history: [],
@@ -167,7 +178,8 @@ export default function CustomerSupportPage() {
   const [description, setDescription] = useState("");
   const [pageUrl, setPageUrl] = useState("");
   const [followUpDescription, setFollowUpDescription] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [attachmentError, setAttachmentError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [isExportingReport, setIsExportingReport] = useState("");
@@ -192,6 +204,7 @@ export default function CustomerSupportPage() {
     workspaceName: "",
     pageUrl: String(savedDraft.pageUrl || ""),
     image: { id: "", url: "" },
+    images: [],
     resolutionMessage: "",
     resolutionAttachment: { id: "", url: "" },
     resolvedAt: null,
@@ -265,7 +278,8 @@ export default function CustomerSupportPage() {
     setTitle("");
     setDescription("");
     setPageUrl("");
-    setImageFile(null);
+    setImageFiles([]);
+    setAttachmentError("");
   };
 
   const restoreDraft = async () => {
@@ -279,7 +293,8 @@ export default function CustomerSupportPage() {
         setDescription(String(draft.description || ""));
         setPageUrl(String(draft.pageUrl || ""));
       }
-      setImageFile(await readSupportDraftAttachment(draftStorageKey));
+      const storedFiles = await readSupportDraftAttachment(draftStorageKey);
+      setImageFiles(storedFiles);
     } catch {
       toast.error("The saved ticket draft could not be restored.");
     }
@@ -291,7 +306,7 @@ export default function CustomerSupportPage() {
   };
 
   const saveDraft = async () => {
-    if (!title.trim() && !description.trim() && !pageUrl.trim() && !imageFile) {
+    if (!title.trim() && !description.trim() && !pageUrl.trim() && !imageFiles.length) {
       toast.error("Add ticket details before saving a draft.");
       return;
     }
@@ -305,7 +320,7 @@ export default function CustomerSupportPage() {
         savedAt: new Date().toISOString(),
       };
       localStorage.setItem(draftStorageKey, JSON.stringify(draft));
-      await writeSupportDraftAttachment(draftStorageKey, imageFile);
+      await writeSupportDraftAttachment(draftStorageKey, imageFiles);
       setSavedDraft(draft);
       setIsCreateModalOpen(false);
       toast.success("Ticket saved as draft. It has not been submitted.");
@@ -323,7 +338,7 @@ export default function CustomerSupportPage() {
     } catch {
       // The ticket is already submitted; draft cleanup is best effort only.
     }
-    void writeSupportDraftAttachment(draftStorageKey, null).catch(() => undefined);
+    void writeSupportDraftAttachment(draftStorageKey, []).catch(() => undefined);
   };
 
   const removeDraft = async () => {
@@ -331,7 +346,7 @@ export default function CustomerSupportPage() {
     if (!window.confirm("Remove this ticket draft? This cannot be undone.")) return;
 
       setIsRemovingDraft(true);
-      await writeSupportDraftAttachment(draftStorageKey, null);
+      await writeSupportDraftAttachment(draftStorageKey, []);
       localStorage.removeItem(draftStorageKey);
       setSavedDraft(null);
       resetCreateForm();
@@ -341,6 +356,45 @@ export default function CustomerSupportPage() {
     } finally {
       setIsRemovingDraft(false);
     }
+  };
+
+  const ALLOWED_ATTACHMENT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/csv'];
+  const MAX_ATTACHMENTS = 5;
+  const MAX_ATTACHMENT_SIZE_MB = 5;
+
+  const handleAttachmentFilesSelected = (fileList: FileList | null) => {
+    const incoming = Array.from(fileList || []);
+    if (!incoming.length) return;
+
+    const accepted: File[] = [];
+    let error = "";
+
+    for (const file of incoming) {
+      if (!ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
+        error = "Only PNG, JPG, WEBP, PDF or CSV files are allowed.";
+        continue;
+      }
+      if (file.size > MAX_ATTACHMENT_SIZE_MB * 1024 * 1024) {
+        error = `Each file must be under ${MAX_ATTACHMENT_SIZE_MB}MB.`;
+        continue;
+      }
+      accepted.push(file);
+    }
+
+    setImageFiles((current) => {
+      const combined = [...current, ...accepted];
+      if (combined.length > MAX_ATTACHMENTS) {
+        error = `You can attach up to ${MAX_ATTACHMENTS} files.`;
+        return combined.slice(0, MAX_ATTACHMENTS);
+      }
+      return combined;
+    });
+    setAttachmentError(error);
+  };
+
+  const removeAttachmentFile = (index: number) => {
+    setImageFiles((current) => current.filter((_, i) => i !== index));
+    setAttachmentError("");
   };
 
   const submitTicket = async (event: FormEvent<HTMLFormElement>) => {
@@ -353,7 +407,7 @@ export default function CustomerSupportPage() {
       formData.append("title", title.trim());
       formData.append("description", description.trim());
       if (pageUrl.trim()) formData.append("pageUrl", pageUrl.trim());
-      if (imageFile) formData.append("image", imageFile);
+      imageFiles.forEach((file) => formData.append("images", file));
 
       await axios.post(SUPPORT_TICKETS_API, formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -419,7 +473,8 @@ export default function CustomerSupportPage() {
     setEditTitle(ticket.title || "");
     setEditDescription(ticket.description || "");
     setEditPageUrl(ticket.pageUrl || "");
-    setEditImageFile(null);
+    setEditImageFiles([]);
+    setEditAttachmentError("");
     setIsEditModalOpen(true);
   };
 
@@ -433,7 +488,7 @@ export default function CustomerSupportPage() {
       formData.append("title", editTitle.trim());
       formData.append("description", editDescription.trim());
       formData.append("pageUrl", editPageUrl.trim());
-      if (editImageFile) formData.append("image", editImageFile);
+      editImageFiles.forEach((file) => formData.append("images", file));
 
       await axios.patch(`${SUPPORT_TICKETS_API}/${selectedTicket.id}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -448,6 +503,41 @@ export default function CustomerSupportPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleEditAttachmentFilesSelected = (fileList: FileList | null) => {
+    const incoming = Array.from(fileList || []);
+    if (!incoming.length) return;
+
+    const accepted: File[] = [];
+    let error = "";
+
+    for (const file of incoming) {
+      if (!ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
+        error = "Only PNG, JPG, WEBP, PDF or CSV files are allowed.";
+        continue;
+      }
+      if (file.size > MAX_ATTACHMENT_SIZE_MB * 1024 * 1024) {
+        error = `Each file must be under ${MAX_ATTACHMENT_SIZE_MB}MB.`;
+        continue;
+      }
+      accepted.push(file);
+    }
+
+    setEditImageFiles((current) => {
+      const combined = [...current, ...accepted];
+      if (combined.length > MAX_ATTACHMENTS) {
+        error = `You can attach up to ${MAX_ATTACHMENTS} files.`;
+        return combined.slice(0, MAX_ATTACHMENTS);
+      }
+      return combined;
+    });
+    setEditAttachmentError(error);
+  };
+
+  const removeEditAttachmentFile = (index: number) => {
+    setEditImageFiles((current) => current.filter((_, i) => i !== index));
+    setEditAttachmentError("");
   };
 
   const handleExportIssues = async ({ format, dataWindow, period, reportMonth, dateFrom, dateTo }: ExportParams) => {
@@ -778,33 +868,52 @@ export default function CustomerSupportPage() {
                   />
                   <p className="text-[10px] font-medium text-slate-400">Paste the page you were on when the issue happened, so our team can see exactly what you saw.</p>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="issue-image" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Image Upload</label>
-                  <label
-                    htmlFor="issue-image"
-                    className="w-full border-2 border-dashed border-slate-200 rounded-lg p-4 flex items-center justify-center gap-2 text-[12px] font-pmedium text-slate-500 cursor-pointer hover:border-[#2563EB] hover:bg-blue-50/50 transition-colors"
-                  >
-                    <Upload size={16} />
-                    {imageFile ? imageFile.name : "Choose an image file"}
-                  </label>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Attachments</label>
                   <input
                     id="issue-image"
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp,application/pdf,text/csv"
+                    multiple
                     className="hidden"
                     onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      setImageFile(file || null);
+                      handleAttachmentFilesSelected(event.target.files);
+                      event.target.value = "";
                     }}
                   />
-                  {imageFile && (
-                    <button
-                      type="button"
-                      onClick={() => setImageFile(null)}
-                      className="flex items-center justify-center gap-1.5 mt-1 px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-600 text-[10px] font-pmedium uppercase tracking-wider hover:bg-red-100 transition-colors"
-                    >
-                      <X size={12} /> Remove image
-                    </button>
+                  <label
+                    htmlFor="issue-image"
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      handleAttachmentFilesSelected(event.dataTransfer.files);
+                    }}
+                    className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-white hover:bg-slate-50 hover:border-[#2563EB] transition-colors cursor-pointer group"
+                  >
+                    <div className="w-12 h-12 bg-blue-50 rounded-full shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                      <Paperclip className="text-[#2563EB]" size={20} />
+                    </div>
+                    <p className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A]">Upload screenshot or document</p>
+                    <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1">PNG, JPG, WEBP, PDF or CSV up to {MAX_ATTACHMENT_SIZE_MB}MB, max {MAX_ATTACHMENTS} files</p>
+                  </label>
+                  {attachmentError ? (
+                    <p className="text-[10px] sm:text-[11px] text-red-500 font-pmedium">{attachmentError}</p>
+                  ) : null}
+                  {imageFiles.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {imageFiles.map((file, index) => (
+                        <div key={`${file.name}-${index}`} className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg pl-2.5 pr-1.5 py-1 text-[11px] font-pmedium max-w-[220px]">
+                          <span className="truncate">{file.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeAttachmentFile(index)}
+                            className="shrink-0 w-4 h-4 flex items-center justify-center rounded-full hover:bg-blue-100 text-blue-500"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
@@ -909,8 +1018,22 @@ export default function CustomerSupportPage() {
                     <p className="text-[12px] font-pmedium text-slate-900 whitespace-pre-wrap max-h-24 overflow-y-auto">{selectedTicket.description || "—"}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Issue Attachment</p>
-                    {selectedTicket.image?.url ? (
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Issue Attachment{((selectedTicket.images?.length || 0) > 1) ? "s" : ""}</p>
+                    {(selectedTicket.images && selectedTicket.images.length > 0) ? (
+                      <div className="flex flex-wrap gap-2">
+                        {selectedTicket.images.map((image, index) => (
+                          <a
+                            key={`${image.id}-${index}`}
+                            href={image.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-[10px] font-pmedium tracking-wide hover:bg-blue-100 transition-colors"
+                          >
+                            <ExternalLink size={11} /> {image.name || `Attachment ${index + 1}`}
+                          </a>
+                        ))}
+                      </div>
+                    ) : selectedTicket.image?.url ? (
                       <a href={selectedTicket.image.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-[10px] font-pmedium tracking-wide hover:bg-blue-100 transition-colors">
                         <ExternalLink size={11} /> View Uploaded Image
                       </a>
@@ -1103,33 +1226,52 @@ export default function CustomerSupportPage() {
                     className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
                   />
                 </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="edit-issue-image" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Image Upload</label>
-                  <label
-                    htmlFor="edit-issue-image"
-                    className="w-full border-2 border-dashed border-slate-200 rounded-lg p-4 flex items-center justify-center gap-2 text-[12px] font-pmedium text-slate-500 cursor-pointer hover:border-[#2563EB] hover:bg-blue-50/50 transition-colors"
-                  >
-                    <Upload size={16} />
-                    {editImageFile ? editImageFile.name : selectedTicket.image?.url ? "Replace uploaded image" : "Choose an image file"}
-                  </label>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Attachments</label>
                   <input
                     id="edit-issue-image"
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp,application/pdf,text/csv"
+                    multiple
                     className="hidden"
                     onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      setEditImageFile(file || null);
+                      handleEditAttachmentFilesSelected(event.target.files);
+                      event.target.value = "";
                     }}
                   />
-                  {editImageFile && (
-                    <button
-                      type="button"
-                      onClick={() => setEditImageFile(null)}
-                      className="flex items-center justify-center gap-1.5 mt-1 px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-600 text-[10px] font-pmedium uppercase tracking-wider hover:bg-red-100 transition-colors"
-                    >
-                      <X size={12} /> Remove image
-                    </button>
+                  <label
+                    htmlFor="edit-issue-image"
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      handleEditAttachmentFilesSelected(event.dataTransfer.files);
+                    }}
+                    className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-white hover:bg-slate-50 hover:border-[#2563EB] transition-colors cursor-pointer group"
+                  >
+                    <div className="w-12 h-12 bg-blue-50 rounded-full shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                      <Paperclip className="text-[#2563EB]" size={20} />
+                    </div>
+                    <p className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A]">Upload screenshot or document</p>
+                    <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1">PNG, JPG, WEBP, PDF or CSV up to {MAX_ATTACHMENT_SIZE_MB}MB, max {MAX_ATTACHMENTS} files</p>
+                  </label>
+                  {editAttachmentError ? (
+                    <p className="text-[10px] sm:text-[11px] text-red-500 font-pmedium">{editAttachmentError}</p>
+                  ) : null}
+                  {editImageFiles.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {editImageFiles.map((file, index) => (
+                        <div key={`${file.name}-${index}`} className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg pl-2.5 pr-1.5 py-1 text-[11px] font-pmedium max-w-[220px]">
+                          <span className="truncate">{file.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeEditAttachmentFile(index)}
+                            className="shrink-0 w-4 h-4 flex items-center justify-center rounded-full hover:bg-blue-100 text-blue-500"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>

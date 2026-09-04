@@ -2,7 +2,9 @@
 import mongoose from "mongoose";
 import { Task } from "../models/Task.js";
 import { Department } from "../models/Department.js";
-import { createNotification } from "../utils/notify.js";
+import HostUser from "../models/HostUser.js";
+import WorkspaceMember from "../models/WorkspaceMember.js";
+import { createNotification, notifyMultipleRecipients } from "../utils/notify.js";
 import { uploadFileToS3 } from "../config/s3config.js";
 
 const getCurrentWorkspaceId = (req) => {
@@ -21,15 +23,14 @@ const getCurrentUserId = (req) => {
   return req.user?._id || req.user?.id || req.user || null;
 };
 
-const getCurrentUserName = (req) => {
-  const user = req.user || {};
-  return (
-    user.fullName ||
-    [user.firstName, user.lastName].filter(Boolean).join(" ") ||
-    user.name ||
-    user.email ||
-    "A team member"
-  );
+// req.user is just the raw user id (see verifyJwt), not a populated
+// document — this must look the name up rather than read it off req.user
+// directly, or it always falls through to the "A team member" fallback.
+const getCurrentUserName = async (req) => {
+  const userId = getCurrentUserId(req);
+  if (!userId) return "A team member";
+  const user = await HostUser.findById(userId).select("name email").lean().exec();
+  return user?.name || user?.email || "A team member";
 };
 
 // Lean queries bypass mongoose toJSON transforms, so documents reach the
@@ -223,6 +224,39 @@ export async function createTask(req, res, next) {
         isActionRequired: true,
         dedupeKey: `task-assigned:${doc._id}:${assigneeUserId}`,
       });
+    } else if (resolvedDepartmentId) {
+      // Routed to a department queue with no specific person yet — let
+      // every member of that department (admin/manager/employee) know a
+      // new task has arrived so any of them can accept and assign it.
+      const departmentMembers = await WorkspaceMember.find({
+        workspace: workspaceId,
+        departments: resolvedDepartmentId,
+        isActive: true,
+      })
+        .select("user")
+        .lean();
+      const recipientIds = departmentMembers
+        .map((member) => String(member.user))
+        .filter((id) => id !== String(userId));
+
+      if (recipientIds.length > 0) {
+        notifyMultipleRecipients(recipientIds, {
+          workspaceId,
+          actorUserId: userId,
+          type: "task_department_queue",
+          category: "task",
+          title: "New Task for Your Department",
+          description: `Task ${doc.taskCode} "${doc.title}" was assigned by ${doc.raisedBy} and is waiting to be accepted.`,
+          entityType: "task",
+          entityId: String(doc._id),
+          entityCode: doc.taskCode,
+          targetUrl: TASKS_ROUTE_URL,
+          data: { taskCode: doc.taskCode, title: doc.title, priority: doc.priority, dueDate: doc.dueDate },
+          priority: doc.priority === "High" ? "high" : "normal",
+          isActionRequired: true,
+          dedupeKey: `task-dept-queue:${doc._id}`,
+        });
+      }
     }
 
     return res.status(201).json({ message: "Task created successfully", data: { task: serializeTask(doc) } });
@@ -346,6 +380,30 @@ export async function updateTask(req, res, next) {
       .exec();
 
     const update = sanitizeTaskUpdate(req.body);
+
+    // Task detail fields (title/description/type/priority/dueDate) can only
+    // be edited while the task is still Pending — once someone has accepted
+    // it, its details are locked in.
+    const DETAIL_FIELDS = ["title", "description", "type", "priority", "dueDate"];
+    const isEditingDetails = DETAIL_FIELDS.some((field) => Object.prototype.hasOwnProperty.call(update, field));
+    if (isEditingDetails && existingTask && existingTask.status !== "Pending") {
+      return res
+        .status(409)
+        .json({ message: "This task has already been accepted and its details can no longer be edited." });
+    }
+
+    // An Approval-type task's Approved/Rejected decision is final — once
+    // made, the status can't be flipped to something else.
+    const TERMINAL_APPROVAL_STATUSES = ["Approved", "Rejected"];
+    if (
+      Object.prototype.hasOwnProperty.call(update, "status") &&
+      existingTask &&
+      TERMINAL_APPROVAL_STATUSES.includes(existingTask.status)
+    ) {
+      return res
+        .status(409)
+        .json({ message: "A final decision has already been made on this task and cannot be changed." });
+    }
 
     // Workspace-scoped, not owner-restricted: assignees update progress and
     // raisers act on approval requests from the task drawer.
@@ -579,11 +637,16 @@ export async function acceptTask(req, res, next) {
     const existingTask = await Task.findOne({ _id: taskId, workspaceId }).lean().exec();
     if (!existingTask) return res.status(404).json({ message: "Task not found" });
 
-    // Only the assignee (or the task's owner) can accept it.
+    // The current assignee or the task's owner (raiser) can always accept.
+    // An unassigned task (routed to a department queue, not a specific
+    // person) has no assignee yet, so it must also be acceptable by anyone
+    // workspace-scoped who can see it — the client already limits who sees
+    // the Accept UI to eligible department members (manager/admin/employee).
     const isAssignee =
       existingTask.assigneeUserId && String(existingTask.assigneeUserId) === String(userId);
     const isOwner = existingTask.ownerId && String(existingTask.ownerId) === String(userId);
-    if (!isAssignee && !isOwner) {
+    const isUnassignedQueueTask = !existingTask.assigneeUserId;
+    if (!isAssignee && !isOwner && !isUnassignedQueueTask) {
       return res.status(403).json({ message: "Only the assigned user can accept this task" });
     }
 
@@ -594,9 +657,13 @@ export async function acceptTask(req, res, next) {
         .json({ message: `Task is already ${existingTask.status.toLowerCase()} and cannot be accepted` });
     }
 
+    // Accepting is just a claim — it does not decide who does the work.
+    // Assigning a queue task to someone (self or a teammate) is a
+    // deliberately separate step, done afterward via PATCH /api/tasks/:id.
     const now = new Date();
+    const acceptedByName = await getCurrentUserName(req);
     const update = {
-      acceptedBy: getCurrentUserName(req),
+      acceptedBy: acceptedByName,
       acceptedByUserId: userId,
       acceptedAt: now,
       startedAt: existingTask.startedAt || now,
@@ -703,7 +770,7 @@ export async function completeTask(req, res, next) {
         type: "task_completed",
         category: "task",
         title: "Task Completed",
-        description: `Task ${task.taskCode} "${task.title}" was marked completed by ${getCurrentUserName(req)}.`,
+        description: `Task ${task.taskCode} "${task.title}" was marked completed by ${await getCurrentUserName(req)}.`,
         entityType: "task",
         entityId: String(task._id),
         entityCode: task.taskCode,

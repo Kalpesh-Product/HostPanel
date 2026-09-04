@@ -4,9 +4,11 @@ import {
   Search, Plus, Eye, CheckCircle2, Clock, AlertCircle,
   Calendar, User, FileText, X, AlertTriangle, Paperclip,
   MessageSquare, Building2, Filter, Reply, CheckSquare, Shield, Wrench, ChevronDown,
-  Download,
+  Download, Maximize2, Loader2, UserPlus, Save, Pencil, Trash2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import PageFrame from '../../components/Pages/PageFrame';
+import AttachmentDropzone from '../../components/AttachmentDropzone';
 import {
   canAccessAdminDashboard,
   canAccessAdministrationDashboard,
@@ -19,7 +21,7 @@ import {
   getStoredActingManagerContext,
   getStoredUser,
 } from '../../lib/auth-session';
-import { createTicket, getTickets, updateTicket } from '../../services/tickets';
+import { createTicket, getTickets, updateTicket, getTicketIssueSuggestions, createTicketIssue, recordTicketIssueUsage } from '../../services/tickets';
 import { getOrganizationOverview } from '../../services/organization';
 import { getAssets } from '../../services/assets';
 import { axiosPrivate } from '../../utils/axios';
@@ -36,6 +38,75 @@ import { isDateInExportPeriod } from '../../utils/export-period';
 // import { createTicket, getTicketIssueSuggestions, getTickets, updateTicket } from '@/services/tickets';
 
 const TICKETS_PAGE_SIZE = 50;
+
+const TICKET_DRAFT_KEY_PREFIX = 'hostpanel_ticket_draft';
+const TICKET_DRAFT_DB_NAME = 'hostpanel-ticket-drafts';
+const TICKET_DRAFT_DB_STORE = 'attachments';
+
+const getTicketDraftKey = () => {
+  const user = getStoredUser();
+  const workspaceId =
+    user?.workspaceMembership?.workspace ||
+    user?.primaryWorkspace ||
+    user?.workspaceId ||
+    'workspace';
+  const userId = user?._id || user?.id || user?.email || 'user';
+  return `${TICKET_DRAFT_KEY_PREFIX}:${workspaceId}:${userId}`;
+};
+
+const openTicketDraftDatabase = () =>
+  new Promise((resolve, reject) => {
+    const request = indexedDB.open(TICKET_DRAFT_DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(TICKET_DRAFT_DB_STORE)) {
+        request.result.createObjectStore(TICKET_DRAFT_DB_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+
+const readTicketDraftAttachment = async (draftKey) => {
+  const database = await openTicketDraftDatabase();
+  try {
+    return await new Promise((resolve, reject) => {
+      const request = database
+        .transaction(TICKET_DRAFT_DB_STORE, 'readonly')
+        .objectStore(TICKET_DRAFT_DB_STORE)
+        .get(draftKey);
+      request.onsuccess = () => {
+        const stored = request.result;
+        if (Array.isArray(stored)) {
+          resolve(stored.filter((entry) => entry instanceof File));
+        } else if (stored instanceof File) {
+          resolve([stored]);
+        } else {
+          resolve([]);
+        }
+      };
+      request.onerror = () => reject(request.error);
+    });
+  } finally {
+    database.close();
+  }
+};
+
+const writeTicketDraftAttachment = async (draftKey, files) => {
+  const database = await openTicketDraftDatabase();
+  try {
+    await new Promise((resolve, reject) => {
+      const transaction = database.transaction(TICKET_DRAFT_DB_STORE, 'readwrite');
+      const store = transaction.objectStore(TICKET_DRAFT_DB_STORE);
+      if (files && files.length) store.put(files, draftKey);
+      else store.delete(draftKey);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+  } finally {
+    database.close();
+  }
+};
 
 function TicketsSkeleton() {
   return (
@@ -366,11 +437,19 @@ export function TicketsPage() {
   // Tickets itself is a Professional/Custom module. Do not repeat the plan
   // lookup here: staff workspace lookups can briefly fall back to "basic" and
   // hide this tab even after the parent module access check has allowed entry.
+  //
+  // Tenant Company tickets are only relevant to the Administration
+  // department's chain (its admin/manager/employees) plus founder/super
+  // admin — a manager or employee of any other department never sees this
+  // tab, regardless of role.
+  const isInAdministrationDepartment = currentUserDepartmentKeys.has('administration');
+  const isAdminOverAdministrationDepartment = isAdminTicketProfile &&
+    getAdminDepartments().some((department) => normalizeRoleValue(department) === 'administration');
   const showTenantCompanyTicketsTab =
     isOwnerProfile ||
     isSuperAdminProfile ||
-    isAdminTicketProfile ||
-    isManagerTicketProfile;
+    isAdminOverAdministrationDepartment ||
+    ((isManagerTicketProfile || isEmployeeTicketProfile) && isInAdministrationDepartment);
 
   function getAdminDepartments() {
     const departments = [
@@ -606,7 +685,44 @@ export function TicketsPage() {
     return !assigneeId && /queue$/i.test(assignedTo) && ticket?.status === 'Open';
   }
 
-  const canDelegateDepartmentQueueTicket = ['manager', 'admin', 'hr_manager', 'hr', 'admin_manager', 'finance_manager', 'tech_manager', 'it_manager', 'maintenance_manager', 'owner', 'super_admin'].includes(normalizedRole);
+  function canAcceptDepartmentTicket(ticket) {
+    if (!ticket || ticket.status !== 'Open') {
+      return false;
+    }
+    // The raiser never accepts their own ticket.
+    if (isMyRaisedTicket(ticket)) {
+      return false;
+    }
+    // Every ticket needs an accept step regardless of who raised it — including
+    // tickets raised by the founder/owner/super admin to a department.
+    // Only the destination department's manager / admin / employees can accept.
+    if (isManagerTicketProfile && isDepartmentQueueTicket(ticket)) {
+      return true;
+    }
+    if (isAdminTicketProfile && isAdminDepartmentQueueTicket(ticket)) {
+      return true;
+    }
+    if (isEmployeeTicketProfile && isEmployeeDepartmentTaskTicket(ticket)) {
+      return true;
+    }
+    return false;
+  }
+
+  function canAssignDepartmentQueueTicket(ticket) {
+    if (!ticket) {
+      return false;
+    }
+    // Assignment is a one-time action: once the ticket has a real assignee,
+    // nobody — including that assignee — sees the assign controls again;
+    // everyone just sees the read-only "Assigned To" line instead.
+    if (ticket.assigneeUserId) {
+      return false;
+    }
+    // Only the person who accepted the ticket gets the one-time chance to
+    // route it to a department member (or keep it with themselves).
+    const acceptedById = ticket.acceptedByUserId ? String(ticket.acceptedByUserId) : '';
+    return Boolean(acceptedById && currentUserId && acceptedById === String(currentUserId));
+  }
 
   // --- STATE ---
   const [activeTab, setActiveTab] = useState(() => (
@@ -620,12 +736,16 @@ export function TicketsPage() {
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [viewingTicket, setViewingTicket] = useState(null);
+  const [zoomedAttachment, setZoomedAttachment] = useState(null);
   const [isRepairLogModalOpen, setIsRepairLogModalOpen] = useState(false);
   const [repairLogSourceTicket, setRepairLogSourceTicket] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [savedDraft, setSavedDraft] = useState(null);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isRemovingDraft, setIsRemovingDraft] = useState(false);
 
   // Resolution State 
   const [showResolvePrompt, setShowResolvePrompt] = useState(false);
@@ -637,16 +757,122 @@ export function TicketsPage() {
     title: '',
     description: '',
     department: '',
-    assignee: '',
-    assigneeUserId: '',
-    priority: 'Medium',
     assetId: '',
-    dueDate: '',
   };
   const [ticketForm, setTicketForm] = useState(initialForm);
+  const [selectedIssueId, setSelectedIssueId] = useState('');
+  const [selectedIssue, setSelectedIssue] = useState(null);
+  const [isCustomIssue, setIsCustomIssue] = useState(false);
+  const [customIssueTitle, setCustomIssueTitle] = useState('');
+  const [showIssuePicker, setShowIssuePicker] = useState(false);
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [attachmentError, setAttachmentError] = useState('');
-  const attachmentInputRef = useRef<HTMLInputElement>(null);
+
+  function resetCreateForm() {
+    setTicketForm(initialForm);
+    setAttachmentFiles([]);
+    setAttachmentError('');
+    setSelectedIssueId('');
+    setSelectedIssue(null);
+    setIsCustomIssue(false);
+    setCustomIssueTitle('');
+    setShowIssuePicker(false);
+  }
+
+  const draftStorageKey = useMemo(getTicketDraftKey, []);
+
+  // Mirrors the customer-support module's draft pattern: a locally-saved
+  // draft is loaded on mount (not just when the create modal opens) so it
+  // can be shown as its own "Draft" row in the ticket list.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(draftStorageKey);
+      setSavedDraft(raw ? JSON.parse(raw) : null);
+    } catch (e) {
+      setSavedDraft(null);
+    }
+  }, [draftStorageKey]);
+
+  async function restoreDraft() {
+    resetCreateForm();
+    try {
+      const raw = localStorage.getItem(draftStorageKey);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved && typeof saved === 'object') {
+          setSavedDraft(saved);
+          setTicketForm((current) => ({
+            ...current,
+            title: typeof saved.title === 'string' ? saved.title : '',
+            description: typeof saved.description === 'string' ? saved.description : '',
+            department: typeof saved.department === 'string' ? saved.department : '',
+            assetId: typeof saved.assetId === 'string' ? saved.assetId : '',
+          }));
+        }
+      }
+      const storedFiles = await readTicketDraftAttachment(draftStorageKey);
+      setAttachmentFiles(storedFiles);
+    } catch (e) {
+      toast.error('The saved ticket draft could not be restored.');
+    }
+  }
+
+  function openCreateModal() {
+    setIsCreateModalOpen(true);
+    void restoreDraft();
+  }
+
+  async function saveDraft() {
+    if (!ticketForm.title.trim() && !ticketForm.description.trim() && !ticketForm.department && !attachmentFiles.length) {
+      toast.error('Add ticket details before saving a draft.');
+      return;
+    }
+
+    try {
+      setIsSavingDraft(true);
+      const draft = {
+        title: ticketForm.title || '',
+        description: ticketForm.description || '',
+        department: ticketForm.department || '',
+        assetId: ticketForm.assetId || '',
+        savedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(draftStorageKey, JSON.stringify(draft));
+      await writeTicketDraftAttachment(draftStorageKey, attachmentFiles);
+      setSavedDraft(draft);
+      setIsCreateModalOpen(false);
+      toast.success('Ticket saved as draft. It has not been submitted.');
+    } catch (e) {
+      toast.error('Failed to save the ticket draft.');
+    } finally {
+      setIsSavingDraft(false);
+    }
+  }
+
+  function clearDraft() {
+    setSavedDraft(null);
+    try {
+      localStorage.removeItem(draftStorageKey);
+    } catch (_) {}
+    void writeTicketDraftAttachment(draftStorageKey, []).catch(() => undefined);
+  }
+
+  async function removeDraft() {
+    if (!window.confirm('Remove this ticket draft? This cannot be undone.')) return;
+
+    try {
+      setIsRemovingDraft(true);
+      await writeTicketDraftAttachment(draftStorageKey, []);
+      localStorage.removeItem(draftStorageKey);
+      setSavedDraft(null);
+      resetCreateForm();
+      toast.success('Ticket draft removed.');
+    } catch (e) {
+      toast.error('Failed to remove the ticket draft.');
+    } finally {
+      setIsRemovingDraft(false);
+    }
+  }
 
   const [orgData, setOrgData] = useState({});
   const [workspaceDepartmentNames, setWorkspaceDepartmentNames] = useState([]);
@@ -850,7 +1076,7 @@ export function TicketsPage() {
       return adminAssignedDepartmentKeys.has(ticketDepartmentKey) || currentTeamKeys.has(ticketDepartmentKey);
     }
 
-    return isManagerTicketProfile && currentTeamKeys.has(ticketDepartmentKey);
+    return (isManagerTicketProfile || isEmployeeTicketProfile) && currentTeamKeys.has(ticketDepartmentKey);
   }
 
   function isAdminDepartmentTicket(ticket) {
@@ -963,13 +1189,17 @@ export function TicketsPage() {
     [assetOptions, ticketForm.assetId],
   );
 
-  const ticketQueueAssigneeOptions = useMemo(() => {
-    const isAccessibleQueueTicket =
-      (isManagerTicketProfile && viewingTicket && isDepartmentQueueTicket(viewingTicket)) ||
-      (isAdminTicketProfile && viewingTicket && isAdminDepartmentQueueTicket(viewingTicket)) ||
-      ((isOwnerProfile || isSuperAdminProfile) && viewingTicket && isDepartmentQueueTicket(viewingTicket));
+  // Accepting a ticket sets it to "In Progress" and assigns it to the accepter,
+  // so the assignable-member list can't require "Open" + unassigned (that only
+  // matches queue tickets nobody has accepted yet). Reuse the same
+  // can-assign check that gates the "Assign To" UI block itself, so the
+  // dropdown is never rendered empty for a ticket someone is allowed to assign.
+  const isAccessibleAssignTicket = Boolean(
+    viewingTicket && viewingTicket.status === 'In Progress' && canAssignDepartmentQueueTicket(viewingTicket)
+  );
 
-    if (!isAccessibleQueueTicket) {
+  const ticketQueueAssigneeOptions = useMemo(() => {
+    if (!isAccessibleAssignTicket) {
       return [];
     }
 
@@ -991,51 +1221,16 @@ export function TicketsPage() {
 
       return memberRole === 'employee';
     });
-  }, [isManagerTicketProfile, isAdminTicketProfile, isOwnerProfile, isSuperAdminProfile, viewingTicket, currentUserId, memberDirectory, specialRoutingAssignees]);
-
-  const ticketQueueAcceptanceOptions = useMemo(() => {
-    const isAccessibleQueueTicket =
-      (isManagerTicketProfile && viewingTicket && isDepartmentQueueTicket(viewingTicket)) ||
-      (isAdminTicketProfile && viewingTicket && isAdminDepartmentQueueTicket(viewingTicket)) ||
-      ((isOwnerProfile || isSuperAdminProfile) && viewingTicket && isDepartmentQueueTicket(viewingTicket));
-
-    if (!isAccessibleQueueTicket) {
-      return [];
-    }
-
-    return ticketQueueAssigneeOptions.filter((member) => {
-      const memberUserId = member?.userId ? String(member.userId) : '';
-      const memberRole = normalizeRoleValue(member?.role || '');
-
-      if (memberUserId && currentUserId && memberUserId === String(currentUserId)) {
-        return false;
-      }
-
-      if (isAdminTicketProfile) {
-        return memberRole.includes('manager') || memberRole === 'employee';
-      }
-
-      if (isOwnerProfile || isSuperAdminProfile) {
-        return memberRole === 'employee' || memberRole === 'manager' || memberRole === 'admin' || memberRole.endsWith('_manager');
-      }
-
-      return memberRole === 'employee';
-    });
-  }, [isManagerTicketProfile, isAdminTicketProfile, isOwnerProfile, isSuperAdminProfile, viewingTicket, currentUserId, ticketQueueAssigneeOptions]);
+  }, [isAccessibleAssignTicket, isAdminTicketProfile, isOwnerProfile, isSuperAdminProfile, viewingTicket, currentUserId, memberDirectory, specialRoutingAssignees]);
 
   useEffect(() => {
-    const isAccessibleQueueTicket =
-      (isManagerTicketProfile && viewingTicket && isDepartmentQueueTicket(viewingTicket)) ||
-      (isAdminTicketProfile && viewingTicket && isAdminDepartmentQueueTicket(viewingTicket)) ||
-      ((isOwnerProfile || isSuperAdminProfile) && viewingTicket && isDepartmentQueueTicket(viewingTicket));
-
-    if (!viewingTicket || !isAccessibleQueueTicket) {
+    if (!isAccessibleAssignTicket) {
       setTicketQueueAssigneeUserId('');
       return;
     }
 
     setTicketQueueAssigneeUserId(currentUserId || '');
-  }, [viewingTicket, isManagerTicketProfile, isAdminTicketProfile, isOwnerProfile, isSuperAdminProfile, currentUserId]);
+  }, [isAccessibleAssignTicket, viewingTicket, currentUserId]);
 
   function getAssigneeOptionsForDepartment(department) {
     if (!department) {
@@ -1225,6 +1420,8 @@ export function TicketsPage() {
       dueDate: ticket.dueDate || '',
       created: formatCreatedLabel(ticket.createdAt),
       updated: formatUpdatedLabel(ticket.updatedAt),
+      acceptedAt: formatCreatedLabel(ticket.acceptedAt),
+      assignedAt: formatCreatedLabel(ticket.assignedAt),
       resolutionNote: ticket.resolutionNote || '',
       hasRepairLog: Boolean(ticket.hasRepairLog || ticket.repairLogCode || ticket.repairLogId),
       repairLogCode: ticket.repairLogCode || '',
@@ -1308,16 +1505,41 @@ export function TicketsPage() {
     };
   }
 
-  function applyIssueSuggestion(issue) {
+  function selectSavedIssue(issue) {
     if (!issue) {
       return;
     }
 
+    setSelectedIssue(issue);
+    setSelectedIssueId(String(issue._id || issue.id || ''));
+    setIsCustomIssue(false);
+    // Selecting an issue closes the dropdown, leaving just the title visible.
+    // The user adds the detailed description below.
+    setShowIssuePicker(false);
     setTicketForm((current) => ({
       ...current,
       title: issue.title || current.title,
-      description: current.description?.trim() ? current.description : (issue.description || current.description),
+      description: current.description,
     }));
+  }
+
+  function useCustomIssue() {
+    setSelectedIssue(null);
+    setSelectedIssueId('');
+    setIsCustomIssue(true);
+    setShowIssuePicker(true);
+  }
+
+  function selectSavedOrContinue() {
+    setIsCustomIssue(false);
+    setSelectedIssue(null);
+    setSelectedIssueId('');
+    setShowIssuePicker(true);
+  }
+
+  function changeIssue() {
+    setIsCustomIssue(false);
+    setShowIssuePicker(true);
   }
 
   function applyOptimisticTicketPatch(recordId, patch) {
@@ -1582,7 +1804,7 @@ export function TicketsPage() {
     };
   }, []); // Empty deps — runs once on mount (storedUser is stabilized via useState)
 
-  // Mock Issue suggestions
+  // Load saved issues for the selected department from the DB catalog
   useEffect(() => {
     if (!isCreateModalOpen || !ticketForm.department) {
       setIssueSuggestions([]);
@@ -1591,24 +1813,25 @@ export function TicketsPage() {
     }
 
     let isMounted = true;
+    setIssueSuggestionsLoading(true);
 
-    const timerId = window.setTimeout(() => {
-      if (!isMounted) return;
-
-      const mockSuggestions = [
-        { title: `${ticketForm.department} Request - Resource Provisioning`, description: "Standard request for new unit resources or software licenses.", department: ticketForm.department, departmentKey: ticketForm.department.toLowerCase() },
-        { title: `${ticketForm.department} Support - Incident Reporting`, description: "Reporting a physical or digital interruption affecting department activity.", department: ticketForm.department, departmentKey: ticketForm.department.toLowerCase() },
-        { title: `${ticketForm.department} Help - Query & Clarification`, description: "General questions concerning corporate policies or task assignments.", department: ticketForm.department, departmentKey: ticketForm.department.toLowerCase() },
-      ];
-      setIssueSuggestions(mockSuggestions);
-      setIssueSuggestionsLoading(false);
-    }, 200);
+    getTicketIssueSuggestions({ department: ticketForm.department })
+      .then((data) => {
+        if (!isMounted) return;
+        const savedIssues = Array.isArray(data) ? data : data?.issues || [];
+        setIssueSuggestions(savedIssues);
+      })
+      .catch(() => {
+        if (isMounted) setIssueSuggestions([]);
+      })
+      .finally(() => {
+        if (isMounted) setIssueSuggestionsLoading(false);
+      });
 
     return () => {
       isMounted = false;
-      window.clearTimeout(timerId);
     };
-  }, [isCreateModalOpen, ticketForm.department, ticketForm.title]);
+  }, [isCreateModalOpen, ticketForm.department]);
 
   // Load real assets from API when create modal opens
   useEffect(() => {
@@ -1641,8 +1864,43 @@ export function TicketsPage() {
   }, [isCreateModalOpen]);
 
   // --- LOGIC & HANDLERS ---
+
+  // A locally-saved draft is shown as its own "Draft" row — but only in the
+  // one tab that represents "tickets I raised" for the current role, never
+  // in a department/queue tab (it isn't a real ticket yet, so nobody else
+  // should see it as something to accept/assign).
+  const isViewingRaisedTab =
+    (isAdminTicketProfile && activeTab === 'my_assigned_tickets') ||
+    (isManagerTicketProfile && activeTab === 'my_raised') ||
+    (isEmployeeTicketProfile && activeTab === 'my_raised_tickets') ||
+    (!isAdminTicketProfile && !isManagerTicketProfile && !isEmployeeTicketProfile && activeTab === 'my_raised');
+
+  const draftTicket = useMemo(() => {
+    if (!savedDraft) {
+      return null;
+    }
+
+    return normalizeTicket({
+      recordId: 'local-ticket-draft',
+      id: 'DRAFT',
+      ticketCode: 'DRAFT',
+      title: String(savedDraft.title || '').trim() || 'Untitled ticket',
+      description: String(savedDraft.description || ''),
+      department: savedDraft.department || '',
+      status: 'Draft',
+      priority: 'Medium',
+      submittedBy: displayUserName,
+      submittedByDept: profile.dept,
+      requesterUserId: currentUserId,
+      assignedTo: '',
+      createdAt: savedDraft.savedAt || new Date().toISOString(),
+      updatedAt: savedDraft.savedAt || new Date().toISOString(),
+      attachments: [],
+    });
+  }, [savedDraft, displayUserName, currentUserId]);
+
   const displayedTickets = useMemo(() => {
-    return tickets.filter((t) => {
+    const filtered = tickets.filter((t) => {
       const submittedByMe = (() => {
         return isMyRaisedTicket(t);
       })();
@@ -1659,7 +1917,8 @@ export function TicketsPage() {
         if (activeTab === 'my_tickets') matchesTab = isDepartmentMyTicket(t);
         if (activeTab === 'my_raised') matchesTab = submittedByMe;
       } else if (isEmployeeTicketProfile) {
-        if (activeTab === 'department_tasks') matchesTab = isEmployeeDepartmentTaskTicket(t);
+        if (activeTab === 'department_tasks') matchesTab = isEmployeeDepartmentTaskTicket(t) && (!showTenantCompanyTicketsTab || !isTenantCompanyTicketVisibleToCurrentTeam(t));
+        if (activeTab === 'tenant_company_tickets' && showTenantCompanyTicketsTab) matchesTab = isTenantCompanyTicketVisibleToCurrentTeam(t);
         if (activeTab === 'my_tickets') matchesTab = isEmployeeMyTicket(t);
         if (activeTab === 'my_raised_tickets') matchesTab = isEmployeeRaisedTicket(t);
       } else {
@@ -1681,7 +1940,21 @@ export function TicketsPage() {
 
       return matchesTab && matchesDept && matchesStatus && matchesSearch;
     });
-  }, [tickets, activeTab, searchQuery, selectedDeptFilter, statusFilter, currentUserId, isManagerTicketProfile, isAdminTicketProfile, isEmployeeTicketProfile, currentUserDepartmentKeys, adminAssignedDepartments, showTenantCompanyTicketsTab]);
+
+    if (!isViewingRaisedTab || !draftTicket) {
+      return filtered;
+    }
+
+    const draftMatchesDept = selectedDeptFilter === 'All'
+      ? true
+      : normalizeRoleValue(draftTicket.department) === normalizeRoleValue(selectedDeptFilter);
+    const draftMatchesStatus = statusFilter === 'All' ? true : draftTicket.status === statusFilter;
+    const draftMatchesSearch = draftTicket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      draftTicket.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      draftTicket.submittedBy.toLowerCase().includes(searchQuery.toLowerCase());
+
+    return (draftMatchesDept && draftMatchesStatus && draftMatchesSearch) ? [draftTicket, ...filtered] : filtered;
+  }, [tickets, activeTab, searchQuery, selectedDeptFilter, statusFilter, currentUserId, isManagerTicketProfile, isAdminTicketProfile, isEmployeeTicketProfile, currentUserDepartmentKeys, adminAssignedDepartments, showTenantCompanyTicketsTab, isViewingRaisedTab, draftTicket]);
 
   const handleExportReport = async (params: ExportParams) => {
     const exportTickets = displayedTickets.filter((ticket: any) =>
@@ -1728,7 +2001,8 @@ export function TicketsPage() {
         if (activeTab === 'my_tickets') matchesTab = isDepartmentMyTicket(t);
         if (activeTab === 'my_raised') matchesTab = submittedByMe;
       } else if (isEmployeeTicketProfile) {
-        if (activeTab === 'department_tasks') matchesTab = isEmployeeDepartmentTaskTicket(t);
+        if (activeTab === 'department_tasks') matchesTab = isEmployeeDepartmentTaskTicket(t) && (!showTenantCompanyTicketsTab || !isTenantCompanyTicketVisibleToCurrentTeam(t));
+        if (activeTab === 'tenant_company_tickets' && showTenantCompanyTicketsTab) matchesTab = isTenantCompanyTicketVisibleToCurrentTeam(t);
         if (activeTab === 'my_tickets') matchesTab = isEmployeeMyTicket(t);
         if (activeTab === 'my_raised_tickets') matchesTab = isEmployeeRaisedTicket(t);
       } else {
@@ -1744,48 +2018,14 @@ export function TicketsPage() {
     });
   }, [tickets, activeTab, selectedDeptFilter, currentUserId, isManagerTicketProfile, isAdminTicketProfile, isEmployeeTicketProfile, currentUserDepartmentKeys, adminAssignedDepartments, showTenantCompanyTicketsTab]);
 
-  const ALLOWED_ATTACHMENT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/csv'];
-  const MAX_ATTACHMENTS = 5;
-  const MAX_ATTACHMENT_SIZE_MB = 5;
-
-  const handleAttachmentFilesSelected = (fileList) => {
-    const incoming = Array.from(fileList || []);
-    if (!incoming.length) return;
-
-    const accepted = [];
-    let error = '';
-
-    for (const file of incoming) {
-      if (!ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
-        error = 'Only PNG, JPG, WEBP, PDF or CSV files are allowed.';
-        continue;
-      }
-      if (file.size > MAX_ATTACHMENT_SIZE_MB * 1024 * 1024) {
-        error = `Each file must be under ${MAX_ATTACHMENT_SIZE_MB}MB.`;
-        continue;
-      }
-      accepted.push(file);
-    }
-
-    setAttachmentFiles((current) => {
-      const combined = [...current, ...accepted];
-      if (combined.length > MAX_ATTACHMENTS) {
-        error = `You can attach up to ${MAX_ATTACHMENTS} files.`;
-        return combined.slice(0, MAX_ATTACHMENTS);
-      }
-      return combined;
-    });
-    setAttachmentError(error);
-  };
-
-  const removeAttachmentFile = (index) => {
-    setAttachmentFiles((current) => current.filter((_, i) => i !== index));
-    setAttachmentError('');
-  };
-
   // Form Handlers
   const handleCreateTicket = async (e) => {
     e.preventDefault();
+
+    if (!ticketForm.department) {
+      setErrorMessage('Please choose a target department.');
+      return;
+    }
 
     const requiresAssetSnapshot = requiresAssetSnapshotDepartment(ticketForm.department);
     const selectedAsset = requiresAssetSnapshot
@@ -1796,53 +2036,61 @@ export function TicketsPage() {
       return;
     }
 
-    if (!ticketForm.dueDate) {
-      setErrorMessage('Please choose a due date.');
+    if (!ticketForm.title.trim()) {
+      setErrorMessage('Please choose or enter an issue.');
       return;
     }
-
-    const queueSelection = isQueueSelection(ticketForm.assignee, ticketForm.assigneeUserId);
-    const selectedAssignee = queueSelection
-      ? null
-      : assigneeOptions.find((option) => {
-        const optionUserId = String(option.userId || option.id || '');
-        const selectedUserId = String(ticketForm.assigneeUserId || '');
-        return optionUserId && selectedUserId && optionUserId === selectedUserId;
-      }) || null;
-
-    if (
-      selectedAssignee?.userId &&
-      currentUserId &&
-      String(selectedAssignee.userId) === String(currentUserId)
-    ) {
-      setErrorMessage('You cannot raise a ticket to yourself.');
-      return;
-    }
-
-    if (!queueSelection && !selectedAssignee && ticketForm.department) {
-      setErrorMessage('No valid assignee is available for the selected department.');
+    if (!ticketForm.description.trim()) {
+      setErrorMessage('Please add an issue description.');
       return;
     }
 
     setIsSaving(true);
+    setErrorMessage('');
+
+    // If a custom issue was typed, persist it into the catalog (best effort —
+    // the ticket still gets created even if saving the issue fails).
+    if (isCustomIssue && customIssueTitle.trim()) {
+      try {
+        const created = await createTicketIssue({
+          department: ticketForm.department,
+          title: customIssueTitle.trim(),
+          description: ticketForm.description.trim(),
+        });
+        const savedIssue = Array.isArray(created) ? created[0] : created;
+        if (savedIssue?._id || savedIssue?.id) {
+          setSelectedIssueId(String(savedIssue._id || savedIssue.id));
+          setSelectedIssue(savedIssue);
+        }
+      } catch {
+        // non-fatal: ignore catalog save errors
+      }
+    }
+
+    // Record usage for the selected saved issue so it floats to the top later.
+    if (selectedIssueId) {
+      try {
+        await recordTicketIssueUsage({
+          issueId: selectedIssueId,
+          department: ticketForm.department,
+          title: ticketForm.title.trim(),
+        });
+      } catch {
+        // non-fatal
+      }
+    }
 
     const ticketPayload = {
-      title: ticketForm.title,
-      description: buildTicketDescription(ticketForm.description, selectedAsset),
+      title: ticketForm.title.trim(),
+      description: buildTicketDescription(ticketForm.description.trim(), selectedAsset),
       department: ticketForm.department,
-      assignedTo: queueSelection
-        ? getQueueAssigneeLabel(ticketForm.department)
-        : (selectedAssignee?.name || ticketForm.assignee),
-      assigneeUserId: queueSelection
-        ? undefined
-        : (selectedAssignee?.userId || ticketForm.assigneeUserId || undefined),
-      priority: ticketForm.priority,
+      assignedTo: getQueueAssigneeLabel(ticketForm.department),
+      assigneeUserId: undefined,
       assetId: selectedAsset ? String(selectedAsset.recordId || '') : '',
       assetCode: selectedAsset ? String(selectedAsset.assetCode || '') : '',
       assetName: selectedAsset ? String(selectedAsset.assetName || selectedAsset.name || '') : '',
       assetDepartment: selectedAsset ? String(selectedAsset.department || '') : '',
       assetAssignedTo: selectedAsset ? String(selectedAsset.assignedTo || '') : '',
-      dueDate: ticketForm.dueDate,
       status: 'Open',
       submittedBy: displayUserName,
       submittedByDept: profile.dept,
@@ -1852,11 +2100,9 @@ export function TicketsPage() {
       const createdTicket = await createTicket(ticketPayload, attachmentFiles);
       setTickets((current) => [normalizeTicket(createdTicket), ...current]);
       setPagination((current) => ({ ...current, total: current.total + 1 }));
-      setErrorMessage('');
       setIsCreateModalOpen(false);
-      setTicketForm(initialForm);
-      setAttachmentFiles([]);
-      setAttachmentError('');
+      clearDraft();
+      resetCreateForm();
     } catch (error) {
       setErrorMessage(error?.response?.data?.message || 'Unable to create the ticket. Please try again.');
     } finally {
@@ -1864,22 +2110,21 @@ export function TicketsPage() {
     }
   };
 
-  const handleAcceptTicket = async (payload = {}) => {
+  const handleAcceptTicket = async () => {
     if (!viewingTicket?.recordId) {
       return;
     }
 
     const recordId = viewingTicket.recordId;
 
-    const targetUserId = payload?.assigneeUserId || currentUserId;
-    const targetMember = memberDirectory.find(m => String(m.userId) === String(targetUserId));
-    const targetName = targetMember ? targetMember.name : displayUserName;
-
+    // Accepting only records who accepted it and moves it to "In Progress" —
+    // it deliberately leaves assigneeUserId/assignedTo untouched so the
+    // one-time "Assign To" step (shown only to the accepter) still has an
+    // unassigned ticket to work with. Setting an assignee here would make the
+    // ticket look "already assigned" and hide that step immediately.
     const updatedTicket = {
       ...viewingTicket,
       status: 'In Progress',
-      assigneeUserId: targetUserId,
-      assignedTo: targetName,
       acceptedBy: displayUserName,
       acceptedByUserId: currentUserId,
       updatedAt: new Date().toISOString(),
@@ -1904,8 +2149,6 @@ export function TicketsPage() {
       if (backendTicketId) {
         await updateTicket(backendTicketId, {
           status: 'In Progress',
-          assigneeUserId: targetUserId,
-          assignedTo: targetName,
           acceptedBy: displayUserName,
           acceptedByUserId: currentUserId,
         });
@@ -1913,6 +2156,43 @@ export function TicketsPage() {
     } catch (error) {
       console.error('Failed to accept ticket on server:', error);
       setErrorMessage(error?.response?.data?.message || 'Failed to accept ticket. Changes saved locally.');
+    }
+  };
+
+  const handleAssignTicket = async (assignToUserId) => {
+    if (!viewingTicket?.recordId || !assignToUserId) {
+      return;
+    }
+
+    const recordId = viewingTicket.recordId;
+    const targetMember = memberDirectory.find((m) => String(m.userId) === String(assignToUserId));
+    const targetName = targetMember ? targetMember.name : displayUserName;
+
+    const updatedTicket = {
+      ...viewingTicket,
+      assigneeUserId: assignToUserId,
+      assignedTo: targetName,
+      assignedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const normalized = normalizeTicket(updatedTicket);
+
+    setTickets((current) => current.map((ticket) => (ticket.recordId === recordId ? normalized : ticket)));
+    setViewingTicket(normalized);
+    setErrorMessage('');
+
+    try {
+      const backendTicketId = viewingTicket._id || viewingTicket.recordId;
+      if (backendTicketId) {
+        await updateTicket(backendTicketId, {
+          assigneeUserId: assignToUserId,
+          assignedTo: targetName,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to assign ticket on server:', error);
+      setErrorMessage(error?.response?.data?.message || 'Failed to assign ticket. Changes saved locally.');
     }
   };
 
@@ -2047,6 +2327,7 @@ export function TicketsPage() {
       case 'in progress': return <span className={statusPillClass("In Progress")}>In Progress</span>;
       case 'open': return <span className={statusPillClass("Open (Raised)")}>Open (Raised)</span>;
       case 'closed': return <span className={statusPillClass("Closed")}>Closed</span>;
+      case 'draft': return <span className={statusPillClass("Draft")}>Draft</span>;
       default: return null;
     }
   };
@@ -2109,7 +2390,7 @@ export function TicketsPage() {
               ) : isManagerTicketProfile ? (
                 <>
                   <button data-tour="tickets-tab-department" onClick={() => { setActiveTab('department_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'department_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                    Department
+                    Department Tickets
                   </button>
                   {showTenantCompanyTicketsTab && (
                     <button data-tour="tickets-tab-tenant-company" onClick={() => { setActiveTab('tenant_company_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'tenant_company_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
@@ -2132,6 +2413,11 @@ export function TicketsPage() {
                       <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-pmedium leading-none ml-1">{tickets.filter(t => isEmployeeDepartmentTaskTicket(t) && t.status === 'Open').length}</span>
                     )}
                   </button>
+                  {showTenantCompanyTicketsTab && (
+                    <button data-tour="tickets-tab-tenant-company" onClick={() => { setActiveTab('tenant_company_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'tenant_company_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                      Tenant Company
+                    </button>
+                  )}
                   <button data-tour="tickets-tab-my-assigned" onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned
                   </button>
@@ -2229,7 +2515,7 @@ export function TicketsPage() {
                   </div>
                   <button
                     data-tour="tickets-raise-btn"
-                    onClick={() => { setTicketForm(initialForm); setAttachmentFiles([]); setAttachmentError(''); setIsCreateModalOpen(true); }}
+                    onClick={openCreateModal}
                     className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                   >
                     <Plus size={13} strokeWidth={3} /> RAISE TICKET
@@ -2241,28 +2527,35 @@ export function TicketsPage() {
               <div className="overflow-x-auto flex-1 [&::-webkit-scrollbar]:hidden bg-white/20">
 
                 {/* Desktop Table */}
-                <table data-tour="tickets-table" className="hidden lg:table w-full text-left">
+                <table data-tour="tickets-table" className="hidden lg:table w-full min-w-max text-left">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
-                      <th className="px-5 py-4">Ticket Details</th>
-                      <th className="px-5 py-4">Routing & Assignment</th>
-                      <th className="px-5 py-4">Priority</th>
+                      <th className="px-5 py-4">Ticket ID</th>
+                      <th className="px-5 py-4">Ticket Type</th>
+                      <th className="px-5 py-4">Raised To</th>
+                      <th className="px-5 py-4">Raised By</th>
+                      <th className="px-5 py-4">Raised On</th>
                       <th className="px-5 py-4">Status</th>
-                      <th className="px-5 py-4">Updated</th>
-                      <th className="px-5 py-4 text-center">Action</th>
+                      <th className="px-5 py-4 text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
                     {displayedTickets.map((ticket) => (
                       <tr key={ticket.id} className="hover:bg-[#E0E7FF]/30 transition-all group">
-                        <td className="px-5 sm:px-6 py-4 sm:py-5 align-top max-w-[250px] xl:max-w-[400px]">
-                          <span className="text-[10px] font-pmedium text-slate-600 mb-1.5 inline-block">{ticket.id}</span>
+                        <td className="px-5 sm:px-6 py-4 sm:py-5 align-top">
+                          <span className="text-[12px] font-pmedium text-slate-600">{ticket.id}</span>
+                        </td>
+                        <td className="px-5 sm:px-6 py-4 sm:py-5 align-top whitespace-nowrap">
                           <div className="font-pmedium text-[#0F172A] text-[13px] sm:text-[14px]" title={ticket.title}>{ticket.title}</div>
-                          <div className="text-[11px] sm:text-[12px] text-slate-500 mt-1 line-clamp-2">{ticket.description}</div>
                         </td>
                         <td className="px-5 sm:px-6 py-4 sm:py-5 align-top">
-                          <div className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A] min-w-[200px]">
-                            <span className={statusPillClass("Raised By:")}>Raised By:</span>
+                          <div className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A] min-w-[140px]">
+                            
+                            {ticket.department || '-'}
+                          </div>
+                        </td>
+                        <td className="px-5 sm:px-6 py-4 sm:py-5 align-top">
+                          <div className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A] min-w-[180px]">
                             {formatPersonLabel(ticket.submittedBy, ticket.submittedByDept)}
                             {getSubmittedByBadgeLabel(ticket.submittedByDept) ? (
                               <span className={statusPillClass(getSubmittedByBadgeLabel(ticket.submittedByDept))}>
@@ -2275,36 +2568,47 @@ export function TicketsPage() {
                               </span>
                             ) : null}
                           </div>
-                          <div className="text-[12px] sm:text-[13px] font-pmedium text-[#2563EB] min-w-[200px] mt-2.5">
-                            <span className={statusPillClass("Sent To:")}>Sent To:</span>
-                            <Building2 size={12} className="inline mr-1 -mt-0.5" />
-                            {ticket.department} {ticket.assignedTo !== ticket.department + ' Queue' ? `→ ${ticket.assignedTo}` : ''}
-                          </div>
-                          {ticket.acceptedBy && (
-                            <div className="text-[10px] font-pmedium text-slate-500 mt-2 flex items-center gap-1">
-                              <User size={10} /> Accepted By: {ticket.acceptedBy}
-                            </div>
-                          )}
                         </td>
-                        <td className="px-5 sm:px-6 py-4 sm:py-5 align-top">{getPriorityBadge(ticket.priority)}</td>
+                        <td className="px-5 sm:px-6 py-4 sm:py-5 align-top font-pmedium text-[12px] text-slate-500">{ticket.created}</td>
                         <td className="px-5 sm:px-6 py-4 sm:py-5 align-top">
                           {getStatusBadge(ticket.status)}
-                          {ticket.status === 'Resolved' && ticket.resolutionNote && (
+                          {/* {ticket.status === 'Resolved' && ticket.resolutionNote && (
                             <p className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest mt-1.5 flex items-center gap-1">
                               <FileText size={10} strokeWidth={2.5} /> Note Attached
                             </p>
-                          )}
+                          )} */}
                         </td>
-                        <td className="px-5 sm:px-6 py-4 sm:py-5 align-top font-pmedium text-[12px] text-slate-500">{ticket.updated}</td>
                         <td className="px-5 sm:px-6 py-4 sm:py-5 align-top text-center">
-                          <button
-                            onClick={() => setViewingTicket(ticket)}
-                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 mx-auto"
-                            aria-label={`View details for ${ticket.id || ticket.title}`}
-                            title="View details"
-                          >
-                            <Eye size={15} strokeWidth={2.5} aria-hidden="true" />
-                          </button>
+                          {ticket.status === 'Draft' ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={openCreateModal}
+                                className="p-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                                aria-label="Edit ticket draft"
+                                title="Edit draft"
+                              >
+                                <Pencil size={15} strokeWidth={2.5} aria-hidden="true" />
+                              </button>
+                              <button
+                                onClick={() => void removeDraft()}
+                                disabled={isRemovingDraft}
+                                className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 disabled:cursor-not-allowed disabled:opacity-50"
+                                aria-label="Remove ticket draft"
+                                title="Remove draft"
+                              >
+                                <Trash2 size={15} strokeWidth={2.5} aria-hidden="true" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setViewingTicket(ticket)}
+                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 mx-auto"
+                              aria-label={`View details for ${ticket.id || ticket.title}`}
+                              title="View details"
+                            >
+                              <Eye size={15} strokeWidth={2.5} aria-hidden="true" />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -2319,19 +2623,17 @@ export function TicketsPage() {
                       <div key={ticket.id} className={`bg-white border p-4 rounded-[20px] shadow-sm flex flex-col gap-3 transition-all ${isTicketOpen ? 'border-amber-200 bg-amber-50/10' : 'border-slate-200/60'}`}>
                         <div className="flex justify-between items-start gap-3">
                           <div className="flex-1 flex flex-col gap-1.5">
-                            <span className="font-pmedium text-[10px] text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded w-max border border-blue-100">{ticket.id}</span>
+                            <span className="font-pmedium text-[10px] text-slate-500">{ticket.id}</span>
                             <h3 className="font-pmedium text-[#0F172A] text-[13px] sm:text-[14px]">
                               {ticket.title}
                             </h3>
-                            <p className="text-[12px] text-slate-500 line-clamp-2">{ticket.description}</p>
                           </div>
                           <div className="flex flex-col items-end gap-1 shrink-0">
                             {getStatusBadge(ticket.status)}
-                            {getPriorityBadge(ticket.priority)}
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 bg-slate-55 p-3 rounded-xl border border-slate-100 mt-1">
+                        <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100 mt-1">
                           <div>
                             <span className={statusPillClass("Raised By")}>Raised By</span>
                             <span className="text-[11px] font-pmedium text-[#0F172A] truncate block" title={ticket.submittedBy}>{formatPersonLabel(ticket.submittedBy, ticket.submittedByDept)}</span>
@@ -2340,39 +2642,48 @@ export function TicketsPage() {
                                 {getSubmittedByBadgeLabel(ticket.submittedByDept)}
                               </span>
                             ) : null}
-                            {getCompanyBadgeLabel(ticket) ? (
-                              <span className={statusPillClass("Tenant •")}>
-                                Tenant • {getCompanyBadgeLabel(ticket)}
-                              </span>
-                            ) : null}
                           </div>
                           <div>
-                            <span className={statusPillClass("Routed To")}>Routed To</span>
-                            <span className="text-[11px] font-pmedium text-[#2563EB] truncate block" title={ticket.department}>{ticket.department} {ticket.assignedTo !== ticket.department + ' Queue' ? `→ ${ticket.assignedTo.split(' ')[0]}` : ''}</span>
+                            <span className={statusPillClass("Raised To")}>Raised To</span>
+                            <span className="text-[11px] font-pmedium text-[#2563EB] truncate block" title={ticket.department}>{ticket.department}</span>
+                          </div>
+                          <div>
+                            <span className={statusPillClass("Raised On")}>Raised On</span>
+                            <span className="text-[11px] font-pmedium text-slate-600 truncate block" title={ticket.created}>{ticket.created}</span>
                           </div>
                         </div>
 
-                        {ticket.acceptedBy && (
-                          <div className="flex items-center gap-1.5 bg-indigo-50/50 p-2 rounded-lg border border-indigo-100/50 mt-1">
-                            <span className="text-[10px] sm:text-[11px] font-pmedium text-indigo-700 flex items-center gap-1.5"><User size={12} strokeWidth={2.5} /> Accepted By: {ticket.acceptedBy}</span>
-                          </div>
-                        )}
-
-                        <div className="flex justify-between items-center mt-1 border-t border-slate-100/60 pt-3">
-                          <div className="flex flex-col">
-                            <span className="font-pmedium text-slate-700 text-[11px] sm:text-[12px] flex items-center gap-1.5"><Clock size={12} /> {ticket.updated}</span>
-                            {ticket.status === 'Resolved' && ticket.resolutionNote && (
-                              <span className={statusPillClass("Note Attached")}>Note Attached</span>
-                            )}
-                          </div>
-                          <button
-                            onClick={() => setViewingTicket(ticket)}
-                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
-                            aria-label={`View details for ${ticket.id || ticket.title}`}
-                            title="View details"
-                          >
-                            <Eye size={15} strokeWidth={2.5} aria-hidden="true" />
-                          </button>
+                        <div className="flex justify-end items-center gap-1 mt-1 border-t border-slate-100/60 pt-3">
+                          {ticket.status === 'Draft' ? (
+                            <>
+                              <button
+                                onClick={openCreateModal}
+                                className="p-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                                aria-label="Edit ticket draft"
+                                title="Edit draft"
+                              >
+                                <Pencil size={15} strokeWidth={2.5} aria-hidden="true" />
+                              </button>
+                              <button
+                                onClick={() => void removeDraft()}
+                                disabled={isRemovingDraft}
+                                className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 disabled:cursor-not-allowed disabled:opacity-50"
+                                aria-label="Remove ticket draft"
+                                title="Remove draft"
+                              >
+                                <Trash2 size={15} strokeWidth={2.5} aria-hidden="true" />
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => setViewingTicket(ticket)}
+                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                              aria-label={`View details for ${ticket.id || ticket.title}`}
+                              title="View details"
+                            >
+                              <Eye size={15} strokeWidth={2.5} aria-hidden="true" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -2411,93 +2722,70 @@ export function TicketsPage() {
                   </h2>
                   <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">Request technical or facility assistance</p>
                 </div>
-                <button onClick={() => { setIsCreateModalOpen(false); setAttachmentFiles([]); setAttachmentError(''); }} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm"><X size={18} strokeWidth={2.5} /></button>
+                <button onClick={() => { setIsCreateModalOpen(false); resetCreateForm(); }} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm"><X size={18} strokeWidth={2.5} /></button>
               </div>
 
               <form onSubmit={handleCreateTicket} className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                   <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
                     <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Building2 size={16} /></span>
-                    <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Routing & Assignment</span>
+                    <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Target Department</span>
                   </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {requiresAssetSnapshotDepartment(ticketForm.department) && (
-                      <div className="flex flex-col gap-1 sm:col-span-2">
-                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Related Asset <span className="text-red-400">*</span></label>
-                        <select
-                          required
-                          className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer"
-                          value={ticketForm.assetId}
-                          onChange={(e) => {
-                            const nextAssetId = e.target.value;
-                            setTicketForm({
-                              ...ticketForm,
-                              assetId: nextAssetId,
-                            });
-                          }}
-                        >
-                          <option value="">Select Asset</option>
-                          {assetOptions.map((asset) => (
-                            <option key={asset.recordId || asset.id || asset.assetCode} value={asset.recordId || asset.id || asset.assetCode}>
-                              {asset.assetName || asset.name} ({asset.assetCode || asset.id}){asset.department ? ` - ${asset.department}` : ''}
-                            </option>
-                          ))}
-                        </select>
-                        {selectedTicketAsset ? (
-                          <p className="text-[10px] font-pmedium text-slate-400">
-                            {selectedTicketAsset.assetName || selectedTicketAsset.name} will be tagged on this ticket and the repair log.
-                          </p>
-                        ) : (
-                          <p className="text-[10px] font-pmedium text-slate-400">
-                            Select the assigned asset only for IT or Maintenance issue reports.
-                          </p>
-                        )}
-                      </div>
-                    )}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Target Department <span className="text-red-400">*</span></label>
+                    <select required className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={ticketForm.department} onChange={e => {
+                      const nextDepartment = e.target.value;
 
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Due Date <span className="text-red-400">*</span></label>
-                      <input
-                        required
-                        type="date"
-                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                        value={ticketForm.dueDate}
-                        onChange={(e) => setTicketForm({ ...ticketForm, dueDate: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Target Department <span className="text-red-400">*</span></label>
-                      <select required className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={ticketForm.department} onChange={e => {
-                        const nextDepartment = e.target.value;
-
-                        setTicketForm({
-                          ...ticketForm,
-                          department: nextDepartment,
-                          assetId: requiresAssetSnapshotDepartment(nextDepartment) ? ticketForm.assetId : '',
-                          assignee: '',
-                          assigneeUserId: '',
-                        });
-                      }}>
-                        <option value="">Select Dept</option>
-                        {ticketCreateDepartments.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
-                      </select>
-                    </div>
-                    <div className="flex flex-col gap-1 sm:col-span-2">
-                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Direct Assignee (Optional)</label>
-                      <select className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer disabled:opacity-50" disabled={!ticketForm.department} value={ticketForm.assigneeUserId || ''} onChange={e => {
-                        const selected = assigneeOptions.find(option => option.userId === e.target.value || option.id === e.target.value) || null;
-                        setTicketForm({
-                          ...ticketForm,
-                          assignee: selected?.name || '',
-                          assigneeUserId: selected?.userId || '',
-                        });
-                      }}>
-                        {!isSpecialRoutingDepartment(ticketForm.department) && <option value="">Dept General Queue</option>}
-                        {assigneeOptions.map(option => <option key={option.id} value={option.userId || option.id}>{option.label}</option>)}
-                      </select>
-                    </div>
+                      setTicketForm({
+                        ...ticketForm,
+                        department: nextDepartment,
+                        title: '',
+                        description: '',
+                        assetId: '',
+                      });
+                      setSelectedIssueId('');
+                      setSelectedIssue(null);
+                      setIsCustomIssue(false);
+                      setCustomIssueTitle('');
+                      setShowIssuePicker(Boolean(nextDepartment));
+                    }}>
+                      <option value="">Select Dept</option>
+                      {ticketCreateDepartments.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
+                    </select>
                   </div>
+                  {requiresAssetSnapshotDepartment(ticketForm.department) && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Related Asset <span className="text-red-400">*</span></label>
+                      <select
+                        required
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer"
+                        value={ticketForm.assetId}
+                        onChange={(e) => {
+                          const nextAssetId = e.target.value;
+                          setTicketForm({
+                            ...ticketForm,
+                            assetId: nextAssetId,
+                          });
+                        }}
+                      >
+                        <option value="">Select Asset</option>
+                        {assetOptions.map((asset) => (
+                          <option key={asset.recordId || asset.id || asset.assetCode} value={asset.recordId || asset.id || asset.assetCode}>
+                            {asset.assetName || asset.name} ({asset.assetCode || asset.id}){asset.department ? ` - ${asset.department}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {selectedTicketAsset ? (
+                        <p className="text-[10px] font-pmedium text-slate-400">
+                          {selectedTicketAsset.assetName || selectedTicketAsset.name} will be tagged on this ticket and the repair log.
+                        </p>
+                      ) : (
+                        <p className="text-[10px] font-pmedium text-slate-400">
+                          Select the assigned asset only for IT or Maintenance issue reports.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
@@ -2506,66 +2794,121 @@ export function TicketsPage() {
                   <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Issue Details</span>
                 </h4>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Priority <span className="text-red-400">*</span></label>
-                  <select className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={ticketForm.priority} onChange={e => setTicketForm({ ...ticketForm, priority: e.target.value })}>
-                    <option value="Low">Low</option>
-                    <option value="Medium">Medium</option>
-                    <option value="High">High</option>
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Issue Title <span className="text-red-400">*</span></label>
-                  <input required type="text" placeholder="e.g. Server configuration needs approval" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={ticketForm.title} onChange={e => setTicketForm({ ...ticketForm, title: e.target.value })} />
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Select Issue</label>
                   {ticketForm.department ? (
-                    <div className="rounded-2xl border border-blue-100 bg-white shadow-sm overflow-hidden">
-                      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-blue-50/40">
-                        <div>
-                          <p className="text-[10px] font-pmedium text-blue-700 uppercase tracking-widest">
-                            Issues for {ticketForm.department}
-                          </p>
-                          <p className="text-[11px] text-slate-500">
-                            Pick a saved issue or keep typing your own.
-                          </p>
-                        </div>
-                        {issueSuggestionsLoading ? (
-                          <span className={statusPillClass("Searching...")}>Searching...</span>
-                        ) : (
-                          <span className={statusPillClass(issueSuggestions.length)}>
-                            {issueSuggestions.length} saved
-                          </span>
-                        )}
-                      </div>
-                      <div className="max-h-52 overflow-y-auto divide-y divide-slate-100">
-                        {issueSuggestions.length > 0 ? (
-                          issueSuggestions.map((issue) => (
-                            <button
-                              key={`${issue.departmentKey}-${issue.title}`}
-                              type="button"
-                              onClick={() => applyIssueSuggestion(issue)}
-                              className="w-full text-left px-4 py-3 hover:bg-blue-50/70 transition-colors"
-                            >
-                              <div className="flex items-start justify-between gap-4">
-                                <div className="min-w-0">
-                                  <p className="text-[13px] font-pmedium text-[#0F172A] truncate">{issue.title}</p>
-                                  <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">
-                                    {issue.description || 'Use this as a starting point for the issue details.'}
-                                  </p>
-                                </div>
-                                <span className={statusPillClass(issue.department)}>
-                                  {issue.department}
-                                </span>
-                              </div>
-                            </button>
-                          ))
-                        ) : (
-                          <div className="px-4 py-4 text-[12px] text-slate-400">
-                            Type a few words to search saved issues, or continue with a new issue title.
+                    <>
+                      {!showIssuePicker && ticketForm.title.trim() && !isCustomIssue ? (
+                        <div className="rounded-2xl border border-blue-100 bg-white shadow-sm p-4 flex items-center justify-between gap-3">
+                          <div className="min-w-0 flex items-center gap-2">
+                            <CheckCircle2 size={16} className="text-[#2563EB] shrink-0" />
+                            <p className="text-[13px] font-pmedium text-[#0F172A] truncate">{ticketForm.title}</p>
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  ) : null}
+                          <button
+                            type="button"
+                            onClick={changeIssue}
+                            className="shrink-0 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 text-[10px] font-pmedium uppercase tracking-wider hover:bg-slate-100 transition-colors"
+                          >
+                            Change
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="rounded-2xl border border-blue-100 bg-white shadow-sm overflow-hidden">
+                          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-blue-50/40">
+                            <div>
+                              <p className="text-[10px] font-pmedium text-blue-700 uppercase tracking-widest">
+                                Issues for {ticketForm.department}
+                              </p>
+                              <p className="text-[11px] text-slate-500">
+                                Pick a saved issue or add a new custom issue.
+                              </p>
+                            </div>
+                            {issueSuggestionsLoading ? (
+                              <span className={statusPillClass("Searching...")}>Searching...</span>
+                            ) : (
+                              <span className={statusPillClass(issueSuggestions.length)}>
+                                {issueSuggestions.length} saved
+                              </span>
+                            )}
+                          </div>
+                          <div className="max-h-52 overflow-y-auto divide-y divide-slate-100">
+                            {isCustomIssue ? (
+                              <div className="px-4 py-3">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1 block">Custom Issue *</label>
+                                <input
+                                  autoFocus
+                                  type="text"
+                                  placeholder="Type a new issue for this department"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                                  value={customIssueTitle}
+                                  onChange={(e) => {
+                                    setCustomIssueTitle(e.target.value);
+                                    setTicketForm({ ...ticketForm, title: e.target.value });
+                                  }}
+                                />
+                                <p className="text-[10px] font-medium text-slate-400 mt-1.5">This issue will be saved for future tickets in {ticketForm.department}.</p>
+                              </div>
+                            ) : (
+                              <>
+                                {issueSuggestions.length > 0 ? (
+                                  issueSuggestions.map((issue) => {
+                                    const issueId = String(issue._id || issue.id || '');
+                                    const isSelected = !isCustomIssue && selectedIssueId && issueId && issueId === selectedIssueId;
+                                    return (
+                                      <button
+                                        key={`${issue.departmentKey}-${issue.title}-${issueId}`}
+                                        type="button"
+                                        onClick={() => selectSavedIssue(issue)}
+                                        className={`w-full text-left px-4 py-3 transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-blue-50/70'}`}
+                                      >
+                                        <div className="flex items-start justify-between gap-4">
+                                          <div className="min-w-0 flex items-center gap-2">
+                                            {isSelected && <CheckCircle2 size={14} className="text-[#2563EB] shrink-0" />}
+                                            <div className="min-w-0">
+                                              <p className="text-[13px] font-pmedium text-[#0F172A] truncate">{issue.title}</p>
+                                            </div>
+                                          </div>
+                                          {issue.source !== 'seed' && (
+                                            <span className={statusPillClass(issue.source === 'custom' ? 'Custom' : issue.department)}>
+                                              {issue.source === 'custom' ? 'Custom' : issue.department}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </button>
+                                    );
+                                  })
+                                ) : (
+                                  <div className="px-4 py-4 text-[12px] text-slate-400">
+                                    No saved issues yet. Add a custom issue below.
+                                  </div>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={useCustomIssue}
+                                  className="w-full text-left px-4 py-3 hover:bg-blue-50/70 transition-colors border-t border-slate-100 text-blue-700 text-[12px] font-pmedium flex items-center gap-2"
+                                >
+                                  <Plus size={14} /> Add a custom issue
+                                </button>
+                              </>
+                            )}
+                          </div>
+                          {isCustomIssue && (
+                            <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-t border-slate-100">
+                              <button
+                                type="button"
+                                onClick={selectSavedOrContinue}
+                                className="text-[11px] font-pmedium text-slate-500 hover:text-slate-700"
+                              >
+                                ← Back to saved issues
+                              </button>
+                              <span className="text-[10px] text-slate-400">Custom issue</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-[12px] text-slate-400">Choose a target department first.</p>
+                  )}
                 </div>
 
                 <div className="flex flex-col gap-1">
@@ -2574,61 +2917,22 @@ export function TicketsPage() {
                 </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Attachments</label>
-                  <input
-                    ref={attachmentInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,application/pdf,text/csv"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => {
-                      handleAttachmentFilesSelected(e.target.files);
-                      e.target.value = '';
-                    }}
-                  />
-                  <div
-                    onClick={() => attachmentInputRef.current?.click()}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      handleAttachmentFilesSelected(e.dataTransfer.files);
-                    }}
-                    className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-white hover:bg-slate-50 hover:border-[#2563EB] transition-colors cursor-pointer group"
-                  >
-                    <div className="w-12 h-12 bg-blue-50 rounded-full shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                      <Paperclip className="text-[#2563EB]" size={20} />
-                    </div>
-                    <p className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A]">Upload screenshot or document</p>
-                    <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1">PNG, JPG, WEBP, PDF or CSV up to {MAX_ATTACHMENT_SIZE_MB}MB, max {MAX_ATTACHMENTS} files</p>
-                  </div>
-                  {attachmentError ? (
-                    <p className="text-[10px] sm:text-[11px] text-red-500 font-pmedium">{attachmentError}</p>
-                  ) : null}
-                  {attachmentFiles.length > 0 && (
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      {attachmentFiles.map((file, index) => (
-                        <div key={`${file.name}-${index}`} className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg pl-2.5 pr-1.5 py-1 text-[11px] font-pmedium max-w-[220px]">
-                          <span className="truncate">{file.name}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeAttachmentFile(index)}
-                            className="shrink-0 w-4 h-4 flex items-center justify-center rounded-full hover:bg-blue-100 text-blue-500"
-                          >
-                            <X size={12} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <AttachmentDropzone
+                  files={attachmentFiles}
+                  onFilesChange={setAttachmentFiles}
+                  error={attachmentError}
+                  onErrorChange={setAttachmentError}
+                  label="Attachments"
+                />
 
-                <div className="pt-4 sm:pt-6 flex gap-3 border-t border-slate-200/60 flex-col-reverse sm:flex-row sm:justify-end">
-                  <button type="button" onClick={() => { setIsCreateModalOpen(false); setAttachmentFiles([]); setAttachmentError(''); }} className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase">CANCEL</button>
+                <div className="pt-4 sm:pt-6 flex gap-3 border-t border-slate-200/60 flex-col sm:flex-row">
+                  <button type="button" onClick={() => void saveDraft()} disabled={isSavingDraft} className="flex-1 px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-70">
+                    <Save size={13} /> {isSavingDraft ? 'SAVING...' : 'SAVE DRAFT'}
+                  </button>
                   <button
                     type="submit"
                     disabled={isSaving}
-                    className="w-full sm:w-auto px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-primary/95 active:scale-95 transition-all uppercase flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="flex-1 px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-primary/95 active:scale-95 transition-all uppercase flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     {isSaving ? 'SUBMITTING...' : 'SUBMIT TICKET'} <Plus size={13} strokeWidth={3} />
                   </button>
@@ -2662,7 +2966,7 @@ export function TicketsPage() {
                     </div>
                   </div>
                 </div>
-                <button onClick={() => { setViewingTicket(null); setShowResolvePrompt(false); }} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"><X size={16} /></button>
+                <button onClick={() => { setViewingTicket(null); setShowResolvePrompt(false); setZoomedAttachment(null); }} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"><X size={16} /></button>
               </div>
 
               <div className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1 bg-white">
@@ -2672,9 +2976,24 @@ export function TicketsPage() {
                     <FileText size={14} /> Issue Details
                   </h3>
                   <div className="grid grid-cols-1 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
-                    <div>
-                      <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1 flex items-center gap-1"><Calendar size={10} /> Raised On</p>
-                      <p className="text-[12px] font-pmedium text-slate-900">{viewingTicket.created}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1 flex items-center gap-1"><Calendar size={10} /> Raised On</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{viewingTicket.created}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1 flex items-center gap-1"><User size={10} /> Raised By</p>
+                        <p className="text-[12px] font-pmedium text-slate-900 wrap-break-word">{viewingTicket.submittedBy}</p>
+                        {getSubmittedByBadgeLabel(viewingTicket.submittedByDept) ? (
+                          <span className={statusPillClass(getSubmittedByBadgeLabel(viewingTicket.submittedByDept))}>
+                            {getSubmittedByBadgeLabel(viewingTicket.submittedByDept)}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1 flex items-center gap-1"><Building2 size={10} /> Raised To</p>
+                        <p className="text-[12px] font-pmedium text-[#2563EB] wrap-break-word">{viewingTicket.department || '-'}</p>
+                      </div>
                     </div>
                     <div>
                       <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Issue Description</p>
@@ -2682,20 +3001,47 @@ export function TicketsPage() {
                     </div>
                     {Array.isArray(viewingTicket.attachments) && viewingTicket.attachments.length > 0 && (
                       <div>
-                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Attachments</p>
-                        <div className="flex flex-wrap gap-2 mt-1">
-                          {viewingTicket.attachments.map((attachment, index) => (
-                            <a
-                              key={attachment.id || `${attachment.url}-${index}`}
-                              href={attachment.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg px-2.5 py-1.5 text-[11px] font-pmedium hover:border-[#2563EB] hover:text-[#2563EB] transition-colors max-w-[220px]"
-                            >
-                              <Paperclip size={12} className="shrink-0" />
-                              <span className="truncate">{attachment.name || 'Attachment'}</span>
-                            </a>
-                          ))}
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-2">
+                          Attachments ({viewingTicket.attachments.length})
+                        </p>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                          {viewingTicket.attachments.map((attachment, index) => {
+                            const lower = String(attachment.name || attachment.url || '').toLowerCase();
+                            const isImage = /\.(png|jpe?g|webp|gif|bmp|svg|avif|heic)$/.test(lower);
+                            if (isImage) {
+                              return (
+                                <button
+                                  key={attachment.id || `${attachment.url}-${index}`}
+                                  type="button"
+                                  onClick={() => setZoomedAttachment(attachment)}
+                                  className="group relative aspect-square overflow-hidden rounded-xl border border-slate-200 bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                                  title="Click to zoom"
+                                >
+                                  <img
+                                    src={attachment.url}
+                                    alt={attachment.name || `Attachment ${index + 1}`}
+                                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                    loading="lazy"
+                                  />
+                                  <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/30">
+                                    <Maximize2 size={18} className="text-white opacity-0 transition-opacity group-hover:opacity-100" />
+                                  </span>
+                                </button>
+                              );
+                            }
+                            return (
+                              <a
+                                key={attachment.id || `${attachment.url}-${index}`}
+                                href={attachment.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg px-2.5 py-2 text-[11px] font-pmedium hover:border-[#2563EB] hover:text-[#2563EB] transition-colors max-w-[220px]"
+                              >
+                                <Paperclip size={12} className="shrink-0" />
+                                <span className="truncate">{attachment.name || 'Attachment'}</span>
+                              </a>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -2714,43 +3060,31 @@ export function TicketsPage() {
                   </div>
                 )}
 
-                {/* Routing Meta Info */}
+                {/* Accepted & Assigned */}
                 <div>
                   <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
-                    <User size={14} /> Routing & People
+                    <User size={14} /> Accepted & Assigned
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
                     <div className="min-w-0">
-                      <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Raised By</p>
-                      <p className="text-[12px] font-pmedium text-slate-900 wrap-break-word">{viewingTicket.submittedBy}</p>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {!viewingTicket.submittedBy?.includes('(Owner)') ? (
-                          <span className={statusPillClass(viewingTicket.submittedByDept)}>{viewingTicket.submittedByDept}</span>
-                        ) : null}
-                        {getCompanyBadgeLabel(viewingTicket) ? (
-                          <span className={statusPillClass("Tenant •")}>
-                            Tenant • {getCompanyBadgeLabel(viewingTicket)}
-                          </span>
-                        ) : null}
-                        {getSubmittedByBadgeLabel(viewingTicket.submittedByDept) ? (
-                          <span className={statusPillClass(getSubmittedByBadgeLabel(viewingTicket.submittedByDept))}>
-                            {getSubmittedByBadgeLabel(viewingTicket.submittedByDept)}
-                          </span>
-                        ) : null}
-                      </div>
+                      <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Accepted By</p>
+                      <p className="text-[12px] font-pmedium text-slate-900 wrap-break-word">{viewingTicket.acceptedBy || 'Not accepted yet'}</p>
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Assigned To</p>
-                      <p className="text-[12px] font-pmedium text-slate-900 wrap-break-word">{viewingTicket.assignedTo}</p>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        <span className={statusPillClass(viewingTicket.department)}>{viewingTicket.department}</span>
-                      </div>
+                      <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Accepted On</p>
+                      <p className="text-[12px] font-pmedium text-slate-900 wrap-break-word">{viewingTicket.acceptedAt || '—'}</p>
                     </div>
-                    {viewingTicket.acceptedBy && (
-                      <div className="sm:col-span-2">
-                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Currently Accepted By</p>
-                        <p className="text-[12px] font-pmedium text-slate-900 wrap-break-word">{viewingTicket.acceptedBy}</p>
-                      </div>
+                    {(viewingTicket.assigneeUserId || (viewingTicket.assignedTo && !/queue$/i.test(String(viewingTicket.assignedTo ?? '').trim()))) && (
+                      <>
+                        <div className="min-w-0">
+                          <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Assigned To</p>
+                          <p className="text-[12px] font-pmedium text-slate-900 wrap-break-word">{viewingTicket.assignedTo || 'Unassigned'}</p>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Assigned On</p>
+                          <p className="text-[12px] font-pmedium text-slate-900 wrap-break-word">{viewingTicket.assignedAt || '—'}</p>
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
@@ -2788,64 +3122,66 @@ export function TicketsPage() {
                 {/* ================= ACTIONS AREA ================= */}
 
                 {/* 1. Action - Accept Ticket (Automatically sets to In Progress) */}
-                {(isManagerTicketProfile && isDepartmentQueueTicket(viewingTicket) && viewingTicket.status === 'Open') ||
-                  (isAdminTicketProfile && isAdminDepartmentQueueTicket(viewingTicket) && viewingTicket.status === 'Open') ||
-                  ((isOwnerProfile || isSuperAdminProfile) && isDepartmentQueueTicket(viewingTicket) && viewingTicket.status === 'Open') ||
-                  (isEmployeeTicketProfile && isEmployeeDepartmentTaskTicket(viewingTicket) && viewingTicket.status === 'Open') ? (
-                  <div className="bg-amber-50 border border-amber-200 p-4 sm:p-5 rounded-2xl flex flex-col gap-4 shadow-sm animate-in slide-in-from-bottom-4">
+                {canAcceptDepartmentTicket(viewingTicket) ? (
+                  <div className="bg-amber-50 border border-amber-200 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-in slide-in-from-bottom-4">
                     <div>
-                      <h4 className="font-pmedium text-amber-900 text-[14px]">
-                        Accept Department Ticket
-                      </h4>
+                      <h4 className="font-pmedium text-amber-900 text-[14px]">Accept Ticket</h4>
                       <p className="text-[11px] text-amber-700 font-pmedium mt-0.5">
-                        {isEmployeeTicketProfile
-                          ? 'Accept this ticket for yourself only.'
-                          : 'Accept for yourself or assign it directly to a department member.'}
+                        Accepting this ticket will move it to "In Progress". You can assign it to someone afterwards.
                       </p>
                     </div>
-                    {isEmployeeTicketProfile ? null : (
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Accept as</label>
-                        <select
-                          className="w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all"
-                          value={ticketQueueAssigneeUserId || ''}
-                          onChange={(e) => setTicketQueueAssigneeUserId(e.target.value)}
-                        >
-                          <option value={currentUserId || ''}>Self</option>
-                          {canDelegateDepartmentQueueTicket ? (
-                            ticketQueueAcceptanceOptions.map((member) => (
-                              <option key={member.id} value={member.userId || member.id}>
-                                {member.name} ({member.role})
-                              </option>
-                            ))
-                          ) : null}
-                        </select>
-                      </div>
-                    )}
                     <button
-                      onClick={() => handleAcceptTicket(
-                        isEmployeeTicketProfile
-                          ? {}
-                          : (
-                            ticketQueueAssigneeUserId && String(ticketQueueAssigneeUserId) !== String(currentUserId)
-                              ? { assigneeUserId: ticketQueueAssigneeUserId }
-                              : {}
-                          ),
-                      )}
+                      onClick={() => handleAcceptTicket()}
                       disabled={isSaving}
-                      className="w-full py-3 sm:py-3.5 rounded-xl font-pmedium text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="px-6 py-3.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-pmedium text-[11px] uppercase tracking-wider transition-colors shadow-sm w-full sm:w-auto flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      {isSaving ? 'STARTING...' : 'Accept Ticket'}
+                      {isSaving ? <><Loader2 size={15} className="animate-spin" /> Accepting...</> : 'Accept Ticket'}
                     </button>
                   </div>
-                ) : isMyReceivedTicket(viewingTicket) && viewingTicket.status === 'Open' && (
+                ) : isMyReceivedTicket(viewingTicket) && viewingTicket.status === 'Open' && !isMyRaisedTicket(viewingTicket) && (
                   <div className="bg-amber-50 border border-amber-200 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-in slide-in-from-bottom-4">
                     <div>
                       <h4 className="font-pmedium text-amber-900 text-[14px]">Acknowledge Ticket</h4>
-                      <p className="text-[11px] text-amber-700 font-pmedium mt-0.5">Accepting this will move it to "In Progress".</p>
+                      <p className="text-[11px] text-amber-700 font-pmedium mt-0.5">Accepting this will move it to "In Progress". You can assign it afterwards.</p>
                     </div>
-                    <button onClick={() => handleAcceptTicket()} className="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-pmedium text-[11px] tracking-wider transition-colors shadow-sm w-full sm:w-auto uppercase">
+                    <button onClick={() => handleAcceptTicket()} disabled={isSaving} className="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-pmedium text-[11px] tracking-wider transition-colors shadow-sm w-full sm:w-auto uppercase disabled:opacity-60 disabled:cursor-not-allowed">
                       ACCEPT TICKET
+                    </button>
+                  </div>
+                )}
+
+                {/* 1b. Action - Assign Ticket (shows after acceptance for everyone) */}
+                {canAssignDepartmentQueueTicket(viewingTicket) && viewingTicket.status === 'In Progress' && (
+                  <div className="bg-indigo-50 border border-indigo-200 p-4 sm:p-5 rounded-2xl flex flex-col gap-4 shadow-sm animate-in slide-in-from-bottom-4">
+                    <div>
+                      <h4 className="font-pmedium text-indigo-900 text-[14px] flex items-center gap-2"><UserPlus size={15} /> Assign To</h4>
+                      <p className="text-[11px] text-indigo-700 font-pmedium mt-0.5">
+                        Route this ticket to a department member, or keep it with yourself.
+                      </p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Assign To</label>
+                      <select
+                        className="w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all"
+                        value={ticketQueueAssigneeUserId || currentUserId || ''}
+                        onChange={(e) => setTicketQueueAssigneeUserId(e.target.value)}
+                      >
+                        <option value={currentUserId || ''}>Keep with self</option>
+                        {ticketQueueAssigneeOptions.map((member) => (
+                          (String(member.userId) !== String(currentUserId)) && (
+                            <option key={member.id} value={member.userId || member.id}>
+                              Assign to {member.name} ({member.role})
+                            </option>
+                          )
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      onClick={() => handleAssignTicket(ticketQueueAssigneeUserId || currentUserId)}
+                      disabled={isSaving}
+                      className="w-full py-3 sm:py-3.5 rounded-xl font-pmedium text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {isSaving ? 'ASSIGNING...' : 'Assign Ticket'}
                     </button>
                   </div>
                 )}
@@ -2874,8 +3210,8 @@ export function TicketsPage() {
                       value={resolutionMessage} onChange={e => setResolutionMessage(e.target.value)}
                     />
                     <div className="flex flex-col-reverse sm:flex-row gap-3">
-                      <button onClick={() => setShowResolvePrompt(false)} className="px-5 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium text-[11px] uppercase tracking-wider hover:bg-slate-50 w-full sm:w-auto">Cancel</button>
-                      <button onClick={confirmResolution} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-pmedium text-[11px] uppercase tracking-wider shadow-[0_4px_12px_rgba(5,150,105,0.2)] transition-all">
+                      <button onClick={() => setShowResolvePrompt(false)} className="flex-1 px-5 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium text-[11px] uppercase tracking-wider hover:bg-slate-50 w-full sm:w-auto">Cancel</button>
+                      <button onClick={confirmResolution} className="flex-1 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-pmedium text-[11px] uppercase tracking-wider shadow-[0_4px_12px_rgba(5,150,105,0.2)] transition-all">
                         CONFIRM RESOLUTION
                       </button>
                     </div>
@@ -2940,6 +3276,37 @@ export function TicketsPage() {
                 )}
 
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Zoom Attachment Popup */}
+        {zoomedAttachment && (
+          <div
+            className="fixed inset-0 z-[120] bg-[#0F172A]/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-8"
+            onClick={() => setZoomedAttachment(null)}
+          >
+            <button
+              onClick={() => setZoomedAttachment(null)}
+              className="absolute top-4 right-4 w-10 h-10 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full flex items-center justify-center text-white transition-colors z-10"
+              aria-label="Close"
+            >
+              <X size={18} />
+            </button>
+            <div className="max-w-full max-h-full flex flex-col items-center gap-3" onClick={(e) => e.stopPropagation()}>
+              <figure className="max-h-full overflow-auto rounded-2xl border border-white/20 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+                <img
+                  src={zoomedAttachment.url}
+                  alt={zoomedAttachment.name || 'Attachment'}
+                  className="max-w-full max-h-[80vh] object-contain sm:object-scale-down block cursor-zoom-out"
+                  onClick={() => setZoomedAttachment(null)}
+                />
+                {zoomedAttachment.name ? (
+                  <figcaption className="px-4 py-2.5 border-t border-slate-100 text-[11px] font-pmedium text-slate-500 truncate text-center">
+                    {zoomedAttachment.name}
+                  </figcaption>
+                ) : null}
+              </figure>
             </div>
           </div>
         )}

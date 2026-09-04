@@ -56,6 +56,7 @@ import maintenanceRoutes from "./routes/maintenanceRoutes.js";
 import housekeepingRoutes from "./routes/housekeepingRoutes.js";
 import itRoutes from "./routes/itRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js";
+import taskTypeRoutes from "./routes/taskTypeRoutes.js";
 import financeRoutes from "./routes/financeRoutes.js";
 import departmentDocumentRoutes from "./routes/departmentDocumentRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
@@ -165,6 +166,7 @@ app.use("/api/inventory", verifyJwt, blockWriteIfImpersonating, inventoryRoutes)
 app.use("/api/housekeeping", verifyJwt, blockWriteIfImpersonating, housekeepingRoutes);
 app.use("/api/maintenance", verifyJwt, blockWriteIfImpersonating, maintenanceRoutes);
 app.use("/api/tasks", verifyJwt, blockWriteIfImpersonating, taskRoutes);
+app.use("/api/task-types", verifyJwt, blockWriteIfImpersonating, taskTypeRoutes);
 app.use("/api/finance", verifyJwt, blockWriteIfImpersonating, financeRoutes);
 app.use("/api/department-documents", verifyJwt, blockWriteIfImpersonating, departmentDocumentRoutes);
 app.use("/api/hr", verifyJwt, blockWriteIfImpersonating, hrRoutes);

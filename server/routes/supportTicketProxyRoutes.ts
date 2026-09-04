@@ -11,7 +11,7 @@ import {
 const router = Router();
 
 router.get("/", getSupportTicketsProxy);
-router.post("/", upload.single("image"), createSupportTicketProxy);
+router.post("/", upload.array("images", 5), createSupportTicketProxy);
 router.patch("/:ticketId/close", closeSupportTicketProxy);
 router.post("/:ticketId/follow-up", followUpSupportTicketProxy);
 
