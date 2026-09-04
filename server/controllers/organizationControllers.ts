@@ -513,6 +513,34 @@ const findDepartmentsWithCompetingAdmin = async ({
   return Array.from(conflictingNames);
 };
 
+// One manager per department: true when a DIFFERENT active member already
+// holds the manager band there. A disabled manager no longer occupies the
+// slot — this only ever looks at the live, active WorkspaceMember roster,
+// never department.managerUser (which keeps pointing at the last holder
+// even after they're disabled).
+const departmentHasCompetingManager = async ({
+  workspaceId,
+  departmentId,
+  excludeUserId = null,
+  excludeMemberId = null,
+}: {
+  workspaceId: any;
+  departmentId: any;
+  excludeUserId?: any;
+  excludeMemberId?: any;
+}): Promise<boolean> => {
+  if (!departmentId) return false;
+  const query: Record<string, any> = {
+    workspace: workspaceId,
+    departments: departmentId,
+    isActive: true,
+  };
+  if (excludeMemberId) query._id = { $ne: excludeMemberId };
+  else if (excludeUserId) query.user = { $ne: excludeUserId };
+  const candidates = await WorkspaceMember.find(query).select("role").populate("role").lean().exec();
+  return candidates.some((candidate) => getRoleBand(candidate?.role || "") === "manager");
+};
+
 // Re-applies baseline + this department's full (manager-band) module set +
 // the org-invite grant to whoever currently manages this department —
 // department.managerUser, plus any member whose role band is "manager" and
@@ -1692,6 +1720,12 @@ export const assignOrganizationDepartmentManager = async (req, res, next) => {
       }
     }
     await membership.save();
+    // Without this, the HR module's EmployeeProfile mirror never learns about
+    // the new manager's role/department change made here — it would keep
+    // showing their old role and department, making this department look
+    // unoccupied to anything (like the one-manager-per-department check)
+    // that reads EmployeeProfile instead of WorkspaceMember.
+    await ensureEmployeeProfileForMember({ workspace, member: membership });
 
     return res.status(200).json({ message: "Department manager assigned successfully." });
   } catch (error) {
@@ -1721,7 +1755,7 @@ export const toggleOrganizationMemberStatus = async (req, res, next) => {
     const member = await WorkspaceMember.findOne({
       _id: req.params.memberId,
       workspace: workspace._id,
-    });
+    }).populate("role");
     if (!member) {
       return res.status(404).json({ message: "Member not found." });
     }
@@ -1768,6 +1802,45 @@ export const toggleOrganizationMemberStatus = async (req, res, next) => {
           message:
             "This account has been deleted and cannot be re-enabled. Only its access can be disabled.",
         });
+      }
+    }
+
+    // Re-enabling a manager/admin whose department slot was already taken
+    // by someone else while they were disabled would put two active people
+    // in the same one-per-department role. Block it — the founder has to
+    // disable the replacement (or move this member) before bringing the
+    // original back.
+    if (nextIsActive && !member.isActive) {
+      const memberRoleBand = getRoleBand(member.role);
+      const memberDepartmentIds = (Array.isArray(member.departments) ? member.departments : []).map(
+        (d) => (d as any)?._id || d,
+      );
+      if (memberRoleBand === "manager" && memberDepartmentIds.length > 0) {
+        const hasCompetingManager = await departmentHasCompetingManager({
+          workspaceId: workspace._id,
+          departmentId: memberDepartmentIds[0],
+          excludeMemberId: member._id,
+        });
+        if (hasCompetingManager) {
+          return res.status(409).json({
+            message:
+              "Someone else is already the active manager of this member's department. Disable that manager, or reassign this member, before re-enabling them.",
+          });
+        }
+      }
+      if (memberRoleBand === "admin" && memberDepartmentIds.length > 0) {
+        const conflictingDepartmentNames = await findDepartmentsWithCompetingAdmin({
+          workspaceId: workspace._id,
+          departmentIds: memberDepartmentIds,
+          excludeMemberId: member._id,
+        });
+        if (conflictingDepartmentNames.length > 0) {
+          return res.status(409).json({
+            message: `${conflictingDepartmentNames.join(", ")} already ${
+              conflictingDepartmentNames.length === 1 ? "has" : "have"
+            } an active admin. Disable that admin, or reassign this member, before re-enabling them.`,
+          });
+        }
       }
     }
 
@@ -1975,24 +2048,10 @@ export const inviteOrganizationMember = async (req, res, next) => {
       }
     }
     if (normalizedInviteRole === "manager") {
-      const managerDepartmentId = uniqueResolvedDepartmentIds[0];
-      const targetDepartment = await Department.findOne({
-        _id: managerDepartmentId,
+      const hasExistingManager = await departmentHasCompetingManager({
         workspaceId: workspace._id,
-      })
-        .select("managerUser")
-        .lean();
-      const existingDepartmentManagers = await WorkspaceMember.find({
-        workspace: workspace._id,
-        departments: managerDepartmentId,
-        isActive: true,
-      })
-        .select("role")
-        .populate("role")
-        .lean()
-        .exec();
-      const hasExistingManager = Boolean(targetDepartment?.managerUser)
-        || existingDepartmentManagers.some((member) => getRoleBand(member?.role || "") === "manager");
+        departmentId: uniqueResolvedDepartmentIds[0],
+      });
       if (hasExistingManager) {
         return res.status(409).json({ message: "This department already has a manager assigned." });
       }
@@ -2039,29 +2098,11 @@ export const inviteOrganizationMember = async (req, res, next) => {
     const isExistingRegisteredUser = false;
 
     if (normalizedInviteRole === "manager") {
-      const managerDepartmentId = uniqueResolvedDepartmentIds[0];
-      const targetDepartment = await Department.findOne({
-        _id: managerDepartmentId,
+      const hasExistingManager = await departmentHasCompetingManager({
         workspaceId: workspace._id,
-      })
-        .select("managerUser")
-        .lean();
-
-      const existingDepartmentManagers = await WorkspaceMember.find({
-        workspace: workspace._id,
-        departments: managerDepartmentId,
-        isActive: true,
-        user: { $ne: targetUser._id },
-      })
-        .select("role")
-        .populate("role")
-        .lean()
-        .exec();
-
-      const hasExistingManager = Boolean(
-        targetDepartment?.managerUser && String(targetDepartment.managerUser) !== String(targetUser._id),
-      ) || existingDepartmentManagers.some((member) => getRoleBand(member?.role || "") === "manager");
-
+        departmentId: uniqueResolvedDepartmentIds[0],
+        excludeUserId: targetUser._id,
+      });
       if (hasExistingManager) {
         return res.status(400).json({
           message: "This department already has a manager assigned.",
@@ -2474,20 +2515,11 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
     }
 
     if (nextRoleBand === "manager") {
-      const managerDepartmentId = resolvedDepartmentIds[0];
-      const targetDepartment = await Department.findOne({
-        _id: managerDepartmentId,
+      const hasCompetingManager = await departmentHasCompetingManager({
         workspaceId: workspace._id,
-      }).select("managerUser").lean();
-      const competingManagers = await WorkspaceMember.find({
-        workspace: workspace._id,
-        departments: managerDepartmentId,
-        isActive: true,
-        _id: { $ne: member._id },
-      }).select("role").populate("role").lean();
-      const hasCompetingManager = Boolean(
-        targetDepartment?.managerUser && String(targetDepartment.managerUser) !== String(member.user),
-      ) || competingManagers.some((candidate) => getRoleBand(candidate?.role || "") === "manager");
+        departmentId: resolvedDepartmentIds[0],
+        excludeMemberId: member._id,
+      });
       if (hasCompetingManager) {
         return res.status(409).json({ message: "This department already has a manager assigned." });
       }

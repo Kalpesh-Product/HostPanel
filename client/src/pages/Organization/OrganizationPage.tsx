@@ -2801,40 +2801,34 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
                       const departmentId = String(dept.id || '').trim();
                       const isPlanAllowedDepartment = isDepartmentAllowedForPlan(workspacePlan, dept.name);
                       const isSelected = departmentId ? roleChangeForm.departments.includes(departmentId) : false;
-                      const hasAssignedManager =
-                        (Boolean(String(dept.managerUserId || dept.managerId || '').trim()) &&
-                          String(dept.managerUserId || dept.managerId || '') !== String(roleChangeTarget.userId || roleChangeTarget.id || '')) ||
-                        Boolean(
-                          dept.employees?.some((employeeMember) => {
-                            const employeeRole = normalizeRoleValue(employeeMember.role);
-                            const employeeStatus = String(employeeMember.status || '').toLowerCase();
-                            const isSameMember =
-                              String(employeeMember.userId || employeeMember.id || '') ===
-                              String(roleChangeTarget.userId || roleChangeTarget.id || '');
-                            return employeeRole === 'manager' && employeeStatus !== 'disabled' && !isSameMember;
-                          }),
-                        );
-                      const hasAssignedAdmin =
-                        Boolean(
-                          (dept.adminUserIds || []).some(
-                            (adminUserId) =>
-                              String(adminUserId) !== String(roleChangeTarget.userId || roleChangeTarget.id || ''),
-                          ),
-                        ) ||
-                        Boolean(
-                          dept.employees?.some((employeeMember) => {
-                            const employeeRole = normalizeRoleValue(employeeMember.role);
-                            const employeeStatus = String(employeeMember.status || '').toLowerCase();
-                            const isSameMember =
-                              String(employeeMember.userId || employeeMember.id || '') ===
-                              String(roleChangeTarget.userId || roleChangeTarget.id || '');
-                            return (
-                              (employeeRole === 'admin' || employeeRole === 'admin-manager') &&
-                              employeeStatus !== 'disabled' &&
-                              !isSameMember
-                            );
-                          }),
-                        );
+                      // Only an ACTIVE occupant blocks the slot — dept.managerUserId/
+                      // adminUserIds keep pointing at whoever last held the role even
+                      // after they're disabled, so those raw ids are ignored here in
+                      // favor of dept.employees' live status per member.
+                      const hasAssignedManager = Boolean(
+                        dept.employees?.some((employeeMember) => {
+                          const employeeRole = normalizeRoleValue(employeeMember.role);
+                          const employeeStatus = String(employeeMember.status || '').toLowerCase();
+                          const isSameMember =
+                            String(employeeMember.userId || employeeMember.id || '') ===
+                            String(roleChangeTarget.userId || roleChangeTarget.id || '');
+                          return employeeRole === 'manager' && employeeStatus !== 'disabled' && !isSameMember;
+                        }),
+                      );
+                      const hasAssignedAdmin = Boolean(
+                        dept.employees?.some((employeeMember) => {
+                          const employeeRole = normalizeRoleValue(employeeMember.role);
+                          const employeeStatus = String(employeeMember.status || '').toLowerCase();
+                          const isSameMember =
+                            String(employeeMember.userId || employeeMember.id || '') ===
+                            String(roleChangeTarget.userId || roleChangeTarget.id || '');
+                          return (
+                            (employeeRole === 'admin' || employeeRole === 'admin-manager') &&
+                            employeeStatus !== 'disabled' &&
+                            !isSameMember
+                          );
+                        }),
+                      );
                       const isManagerDepartmentDisabled = roleChangeForm.role === 'manager' && hasAssignedManager;
                       const isAdminDepartmentDisabled = roleChangeForm.role === 'admin' && hasAssignedAdmin;
                       const isDepartmentDisabled = !isPlanAllowedDepartment || isManagerDepartmentDisabled || isAdminDepartmentDisabled;
@@ -3064,14 +3058,18 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
                       const departmentId = String(dept.id || '').trim();
                       const isPlanAllowedDepartment = isDepartmentAllowedForPlan(workspacePlan, dept.name);
                       const isSelected = departmentId ? teamMemberFormData.departments.includes(departmentId) : false;
-                      const hasAssignedManager = Boolean(String(dept.managerUserId || dept.managerId || '').trim()) || Boolean(
+                      // Only an ACTIVE occupant blocks the slot — dept.managerUserId/
+                      // adminUserIds keep pointing at whoever last held the role even
+                      // after they're disabled, so those raw ids are ignored here in
+                      // favor of dept.employees' live status per member.
+                      const hasAssignedManager = Boolean(
                         dept.employees?.some((member) => {
                           const memberRole = normalizeRoleValue(member.role);
                           const memberStatus = String(member.status || '').toLowerCase();
                           return memberRole === 'manager' && memberStatus !== 'disabled';
                         }),
                       );
-                      const hasAssignedAdmin = Boolean((dept.adminUserIds || []).length > 0) || Boolean(
+                      const hasAssignedAdmin = Boolean(
                         dept.employees?.some((member) => {
                           const memberRole = normalizeRoleValue(member.role);
                           const memberStatus = String(member.status || '').toLowerCase();

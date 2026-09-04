@@ -447,6 +447,7 @@ export function AttendancePage() {
   const [viewingMonth, setViewingMonth] = useState<string | null>(null);
   const [viewingDay, setViewingDay] = useState<string | null>(null);
   const [dayRecords, setDayRecords] = useState<AttendanceRecord[]>([]);
+  const [dayViewRecords, setDayViewRecords] = useState<AttendanceRecord[]>([]);
 
   const [viewingCorrection, setViewingCorrection] = useState<any>(null);
   const [showCorrectionForm, setShowCorrectionForm] = useState(false);
@@ -953,7 +954,7 @@ export function AttendancePage() {
     setViewingDay(date);
     const records = activeTab === 'my-attendance' ? myRecords : allRecords;
     const filtered = records.filter((r) => r.date === date);
-    setDayRecords(filtered);
+    setDayViewRecords(filtered);
   };
 
   // getTeamAttendance (allRecords) deliberately excludes the signed-in user
@@ -1301,7 +1302,7 @@ export function AttendancePage() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
                     Daily Target <span className="text-slate-700 font-pbold normal-case tracking-normal">{formatSeconds(dailyTargetSeconds)}</span>
-                    {assignedShiftName && <span className="ml-2 text-blue-600">• {assignedShiftName} ({attendanceSettings.workingHoursStart}–{attendanceSettings.workingHoursEnd})</span>}
+                    {assignedShiftName && <span className="ml-2 text-blue-600">• {assignedShiftName} ({formatTime12h(attendanceSettings.workingHoursStart)} – {formatTime12h(attendanceSettings.workingHoursEnd)})</span>}
                   </p>
                   <p className={`text-[10px] font-pmedium uppercase tracking-widest ${targetReached ? 'text-emerald-600' : 'text-blue-600'}`}>
                     {targetReached ? 'Target completed' : `${targetPercentage}% complete`}
@@ -2033,11 +2034,11 @@ export function AttendancePage() {
                 <button onClick={() => setViewingDay(null)} className="p-2 bg-white rounded-full shadow-sm hover:scale-110 transition-transform"><X size={18} /></button>
               </div>
               <div className="p-6 overflow-y-auto flex-1">
-                {dayRecords.length === 0 ? (
+                {dayViewRecords.length === 0 ? (
                   <div className="text-center py-8 text-slate-400 font-pmedium">No records for this day.</div>
                 ) : (
                   <div className="space-y-3">
-                    {dayRecords.map((record, idx) => (
+                    {dayViewRecords.map((record, idx) => (
                       <div key={idx} className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
                         <div className="flex justify-between items-start mb-1">
                           <div>

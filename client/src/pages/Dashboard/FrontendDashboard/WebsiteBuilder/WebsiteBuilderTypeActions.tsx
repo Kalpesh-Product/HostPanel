@@ -69,7 +69,7 @@ const isSameCompanyTemplate = ({
 
 const WebsiteBuilderActionsSkeleton = () => (
   <div
-    className="flex flex-col gap-4 p-4"
+    className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]"
     role="status"
     aria-label="Checking website availability"
     aria-busy="true"
@@ -429,7 +429,7 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
   }
 
   return (
-    <div className="p-4 flex flex-col gap-4">
+    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
         <div className="flex flex-col gap-5">
           <div>

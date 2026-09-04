@@ -169,7 +169,25 @@ const DEFAULT_DEPARTMENT_OPTIONS = [
   "Technology",
   "IT",
 ];
-const ALLOWED_DEPARTMENT_OPTIONS = new Set(DEFAULT_DEPARTMENT_OPTIONS.map((department) => department.toLowerCase()));
+// filterValidDepartments only accepted this fixed catalog, so a custom
+// department created in Organization Management (anything outside these 7
+// names) silently disappeared everywhere in this module — the picker, the
+// employee list, bulk import. loadEmployees calls registerKnownDepartments
+// with the workspace's real department list on every load so this catalog
+// grows to match Organization Management's, instead of staying frozen.
+let KNOWN_DEPARTMENT_OPTIONS: string[] = [...DEFAULT_DEPARTMENT_OPTIONS];
+
+function registerKnownDepartments(names: string[] = []): void {
+  const seen = new Set(KNOWN_DEPARTMENT_OPTIONS.map((name) => name.toLowerCase()));
+  names.forEach((name) => {
+    const trimmed = String(name || "").trim();
+    if (!trimmed) return;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    KNOWN_DEPARTMENT_OPTIONS.push(trimmed);
+  });
+}
 
 const WORK_MODE_OPTIONS = ["remote", "office", "hybrid"];
 const EMPLOYMENT_TYPE_OPTIONS = [
@@ -316,8 +334,8 @@ function filterValidDepartments(departments: string[] = []): string[] {
   return departments
     .filter(Boolean)
     .map((d) => String(d).trim())
-    .map((d) => DEFAULT_DEPARTMENT_OPTIONS.find((option) => option.toLowerCase() === d.toLowerCase()) || "")
-    .filter((d) => Boolean(d) && ALLOWED_DEPARTMENT_OPTIONS.has(d.toLowerCase()))
+    .map((d) => KNOWN_DEPARTMENT_OPTIONS.find((option) => option.toLowerCase() === d.toLowerCase()) || "")
+    .filter(Boolean)
     .filter((d) => {
       const key = d.toLowerCase();
       if (seen.has(key)) return false;
@@ -491,6 +509,37 @@ function normalizeEmployeeStatusKey(value: string = ""): string {
   if (v === "left" || v === "resigned" || v === "fired") return "terminated";
   if (v === "disabled") return "inactive";
   return "pending";
+}
+
+// Mirrors organizationControllers.ts's getRoleBand — "admin_manager" governs
+// identically to "admin", it's just stored under a different role name.
+function getEmployeeRoleBand(employee: Pick<Employee, "rawRole" | "role">): "manager" | "admin" | "other" {
+  const key = String(employee.rawRole || employee.role || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (key === "manager") return "manager";
+  if (key === "admin" || key === "admin_manager") return "admin";
+  return "other";
+}
+
+// One manager / one admin per department (same rule as Organization
+// Management): a disabled or terminated employee no longer occupies their
+// old department's slot, so only currently-active roster entries count.
+function computeDepartmentRoleOccupancy(
+  employees: Employee[],
+  excludeEmployeeId: string = "",
+): { managerDepartments: Set<string>; adminDepartments: Set<string> } {
+  const managerDepartments = new Set<string>();
+  const adminDepartments = new Set<string>();
+  employees.forEach((employee) => {
+    if (excludeEmployeeId && String(employee.id) === String(excludeEmployeeId)) return;
+    if (employee.statusKey === "inactive" || employee.statusKey === "terminated") return;
+    const band = getEmployeeRoleBand(employee);
+    if (band === "manager") {
+      employee.departments.forEach((department) => managerDepartments.add(department));
+    } else if (band === "admin") {
+      employee.departments.forEach((department) => adminDepartments.add(department));
+    }
+  });
+  return { managerDepartments, adminDepartments };
 }
 
 function mapRoleLabelToValue(role: string): string {
@@ -975,12 +1024,14 @@ function DepartmentCheckboxDropdown({
   onToggle,
   error,
   note,
+  disabledDepartments,
 }: {
   departments: string[];
   selectedDepartments: string[];
   onToggle: (department: string, isChecked: boolean) => void;
   error?: string;
   note: string;
+  disabledDepartments?: Set<string>;
 }): React.ReactElement {
   const [open, setOpen] = useState(false);
   const selectedCount = selectedDepartments.length;
@@ -1013,15 +1064,25 @@ function DepartmentCheckboxDropdown({
         <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-2xl border bg-white p-3 max-h-44 overflow-y-auto ${error ? "border-red-300 bg-red-50" : "border-slate-200"}`}>
           {departments.map((department) => {
             const checked = selectedDepartments.includes(department);
+            const isDisabled = Boolean(disabledDepartments?.has(department)) && !checked;
             return (
-              <label key={department} className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-[11px] font-pmedium text-slate-700">
+              <label
+                key={department}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-[11px] font-pmedium ${
+                  isDisabled ? "cursor-not-allowed border-slate-100 bg-slate-100 text-slate-400" : "border-slate-100 bg-slate-50 text-slate-700"
+                }`}
+              >
                 <input
                   type="checkbox"
                   checked={checked}
+                  disabled={isDisabled}
                   onChange={(e) => onToggle(department, e.target.checked)}
                   className="w-4 h-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
                 />
-                <span>{department}</span>
+                <span>
+                  {department}
+                  {isDisabled && <span className="block text-[9px] uppercase tracking-wide text-amber-600">Already has an admin</span>}
+                </span>
               </label>
             );
           })}
@@ -1139,6 +1200,16 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       const response = await getEmployeeManagementOverview();
       if (!isMountedRef.current) return;
       const overview = (response?.data as Record<string, unknown>) || {};
+      // Register real department names (custom ones included) before mapping
+      // any employee or building the picker list below, so nothing gets
+      // filtered out for not being one of the 7 built-in defaults.
+      if (Array.isArray(overview.departments) && overview.departments.length > 0) {
+        const nextDepts = (overview.departments as Array<{ name?: string } | string>)
+          .map((d) => (typeof d === "string" ? d : d?.name || ""))
+          .filter(Boolean);
+        registerKnownDepartments(nextDepts);
+        setAvailableDepartments(filterValidDepartments([...DEFAULT_DEPARTMENT_OPTIONS, ...nextDepts]));
+      }
       const nextEmployees = ((overview.employees as Record<string, unknown>[]) || [])
         .filter((e) => e?.source !== "tenant-company")
         .map(mapEmployeeToUi);
@@ -1150,12 +1221,6 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       const overviewSettings = (overview.settings as Record<string, unknown>) || {};
       const nextCurrency = String(overviewSettings.currency || DEFAULT_WORKSPACE_CURRENCY).trim().toUpperCase();
       setWorkspaceCurrency(nextCurrency || DEFAULT_WORKSPACE_CURRENCY);
-      if (Array.isArray(overview.departments) && overview.departments.length > 0) {
-        const nextDepts = (overview.departments as Array<{ name?: string } | string>)
-          .map((d) => (typeof d === "string" ? d : d?.name || ""))
-          .filter(Boolean);
-        setAvailableDepartments(filterValidDepartments([...DEFAULT_DEPARTMENT_OPTIONS, ...nextDepts]));
-      }
       const overviewShifts = Array.isArray(overview.attendanceShifts) ? overview.attendanceShifts : [];
       setAttendanceShifts(overviewShifts.map((shift: any) => ({
         id: String(shift.id || ""),
@@ -1382,7 +1447,12 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     setAddBankVerification({ status: "idle" });
   };
 
-  const buildEmployeeFormErrors = (form: EmployeeFormState, selectedDepartments: string[] = [], bankVerification: BankVerificationState = { status: "idle" }): Record<string, string> => {
+  const buildEmployeeFormErrors = (
+    form: EmployeeFormState,
+    selectedDepartments: string[] = [],
+    bankVerification: BankVerificationState = { status: "idle" },
+    departmentOccupancy: { managerDepartments: Set<string>; adminDepartments: Set<string> } = { managerDepartments: new Set(), adminDepartments: new Set() },
+  ): Record<string, string> => {
     const errors: Record<string, string> = {};
     if (!form.fullName.trim()) errors.fullName = "Full name is required";
     else if (!isValidFullName(form.fullName)) errors.fullName = "Full name cannot contain numbers";
@@ -1401,6 +1471,19 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       if (deptMode === "all" && allDepartments.length === 0) errors.departments = "No departments available";
       if (deptMode === "multiple" && cleanDepartments.length === 0) errors.departments = "Select at least one department";
       if (deptMode === "single" && cleanDepartments.length === 0) errors.departments = "Select a department";
+      // One manager / one admin per department (mirrors Organization
+      // Management) — the pickers already disable occupied departments, this
+      // is the submit-time backstop.
+      if (!errors.departments && mapRoleLabelToValue(form.role) === "manager") {
+        const conflict = cleanDepartments.find((department) => departmentOccupancy.managerDepartments.has(department));
+        if (conflict) errors.departments = `${conflict} already has an active manager`;
+      }
+      if (!errors.departments && mapRoleLabelToValue(form.role) === "admin") {
+        const conflicts = cleanDepartments.filter((department) => departmentOccupancy.adminDepartments.has(department));
+        if (conflicts.length > 0) {
+          errors.departments = `${conflicts.join(", ")} already ${conflicts.length === 1 ? "has" : "have"} an active admin`;
+        }
+      }
     }
     if (!form.country.trim()) errors.country = "Country is required";
     if (!form.state.trim()) errors.state = "State is required";
@@ -1430,7 +1513,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   };
 
   const submitAddForm = async (sendInvite: boolean) => {
-    const errors = buildEmployeeFormErrors(addForm, addForm.departments, addBankVerification);
+    const errors = buildEmployeeFormErrors(addForm, addForm.departments, addBankVerification, addDepartmentOccupancy);
     if (Object.keys(errors).length > 0) {
       setAddFormErrors(errors);
       toast.error(buildMissingFieldsMessage(errors));
@@ -1725,7 +1808,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     const selectedDepartments = getDepartmentSelectionMode(editForm.role) === "all"
       ? [...allDepartments]
       : editForm.departments;
-    const validationErrors = buildEmployeeFormErrors(editForm, selectedDepartments, editBankVerification);
+    const validationErrors = buildEmployeeFormErrors(editForm, selectedDepartments, editBankVerification, editDepartmentOccupancy);
     if (Object.keys(validationErrors).length > 0) {
       setEditFormErrors(validationErrors);
       toast.error(buildMissingFieldsMessage(validationErrors));
@@ -2060,6 +2143,18 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   /* ───────────────────── Derived Data ───────────────────── */
 
   const allDepartments = availableDepartments;
+
+  // One manager / one admin per department — same rule Organization
+  // Management enforces, computed here from the live employee roster so a
+  // disabled/terminated occupant doesn't block a replacement.
+  const addDepartmentOccupancy = useMemo(
+    () => computeDepartmentRoleOccupancy(employees),
+    [employees],
+  );
+  const editDepartmentOccupancy = useMemo(
+    () => computeDepartmentRoleOccupancy(employees, editingEmployee?.id || ""),
+    [employees, editingEmployee?.id],
+  );
 
   const managerOptions = useMemo(
     () =>
@@ -3412,7 +3507,8 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                         selectedDepartments={editForm.departments}
                         onToggle={handleEditDepartmentToggle}
                         error={editFormErrors.departments}
-                        note="Admin can select multiple departments."
+                        note="Admin can select multiple departments. Each department can have only one admin."
+                        disabledDepartments={editDepartmentOccupancy.adminDepartments}
                       />
                     ) : (
                       <>
@@ -3422,11 +3518,19 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                           className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${editFormErrors.departments ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}
                         >
                           <option value="">Select Department</option>
-                          {allDepartments.map((dept) => (
-                            <option key={dept} value={dept}>{dept}</option>
-                          ))}
+                          {allDepartments.map((dept) => {
+                            const isTakenByManager =
+                              mapRoleLabelToValue(editForm.role) === "manager" &&
+                              editDepartmentOccupancy.managerDepartments.has(dept) &&
+                              !editForm.departments.includes(dept);
+                            return (
+                              <option key={dept} value={dept} disabled={isTakenByManager}>
+                                {dept}{isTakenByManager ? " (already has a manager)" : ""}
+                              </option>
+                            );
+                          })}
                         </select>
-                        <p className="text-[9px] font-pmedium text-slate-400 mt-2">Managers and employees can be assigned one department.</p>
+                        <p className="text-[9px] font-pmedium text-slate-400 mt-2">Managers and employees can be assigned one department. Each department can have only one manager.</p>
                         {editFormErrors.departments && <p className="text-[10px] font-pmedium text-red-500 mt-2">{editFormErrors.departments}</p>}
                       </>
                     )}
@@ -3817,7 +3921,8 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                         selectedDepartments={addForm.departments}
                         onToggle={handleAddDepartmentToggle}
                         error={addFormErrors.departments}
-                        note="Admin can select multiple departments."
+                        note="Admin can select multiple departments. Each department can have only one admin."
+                        disabledDepartments={addDepartmentOccupancy.adminDepartments}
                       />
                     ) : (
                       <>
@@ -3827,11 +3932,18 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                           className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${addFormErrors.departments ? "border-red-300 bg-red-50" : "border-slate-200/60"}`}
                         >
                           <option value="">Select Department</option>
-                          {allDepartments.map((department) => (
-                            <option key={department} value={department}>{department}</option>
-                          ))}
+                          {allDepartments.map((department) => {
+                            const isTakenByManager =
+                              mapRoleLabelToValue(addForm.role) === "manager" &&
+                              addDepartmentOccupancy.managerDepartments.has(department);
+                            return (
+                              <option key={department} value={department} disabled={isTakenByManager}>
+                                {department}{isTakenByManager ? " (already has a manager)" : ""}
+                              </option>
+                            );
+                          })}
                         </select>
-                        <p className="text-[9px] font-pmedium text-slate-400 mt-2">Managers and employees can be assigned one department.</p>
+                        <p className="text-[9px] font-pmedium text-slate-400 mt-2">Managers and employees can be assigned one department. Each department can have only one manager.</p>
                         {addFormErrors.departments && <span className="text-[10px] font-pmedium text-red-500 mt-2">{addFormErrors.departments}</span>}
                       </>
                     )}
