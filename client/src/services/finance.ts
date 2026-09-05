@@ -167,7 +167,18 @@ export const getTenantRentRecords = async (params?: Record<string, any>) => {
   return unwrap(response);
 };
 
-export const markTenantRentPaid = async (rentId: string, payload: Record<string, any> = {}) => {
+export const markTenantRentPaid = async (rentId: string, payload: Record<string, any> = {}, receipt?: File | null) => {
+  if (receipt) {
+    const formData = new FormData();
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") formData.append(key, value as any);
+    });
+    formData.append("receipt", receipt);
+    const response = await axiosPrivate.patch(`/api/finance/tenant-rent/${rentId}/mark-paid`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return unwrap(response);
+  }
   const response = await axiosPrivate.patch(`/api/finance/tenant-rent/${rentId}/mark-paid`, payload);
   return unwrap(response);
 };
@@ -184,7 +195,18 @@ export const getVirtualOfficeRentRecords = async (params?: Record<string, any>) 
   return unwrap(response);
 };
 
-export const markVirtualOfficeRentPaid = async (recordId: string, payload: Record<string, any> = {}) => {
+export const markVirtualOfficeRentPaid = async (recordId: string, payload: Record<string, any> = {}, receipt?: File | null) => {
+  if (receipt) {
+    const formData = new FormData();
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") formData.append(key, value as any);
+    });
+    formData.append("receipt", receipt);
+    const response = await axiosPrivate.patch(`/api/finance/virtual-office-rent/${recordId}/mark-paid`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return unwrap(response);
+  }
   const response = await axiosPrivate.patch(`/api/finance/virtual-office-rent/${recordId}/mark-paid`, payload);
   return unwrap(response);
 };

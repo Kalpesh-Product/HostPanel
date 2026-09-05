@@ -631,7 +631,7 @@ export async function markTenantRentPaid(req: Request, res: Response, next: Next
     const rentId = String(req.params.rentId || "").trim();
     if (!rentId) return res.status(400).json({ message: "rentId is required" });
 
-    const result = await markTenantRentPaidForWorkspace({ workspaceId, userId, rentId, body: req.body });
+    const result = await markTenantRentPaidForWorkspace({ workspaceId, userId, rentId, body: req.body, file: (req as any).file });
 
     return res.status(200).json({
       success: true,
@@ -692,7 +692,7 @@ export async function markVirtualOfficeRentPaid(req: Request, res: Response, nex
     const recordId = String(req.params.recordId || "").trim();
     if (!recordId) return res.status(400).json({ message: "recordId is required" });
 
-    const result = await markVirtualOfficeRentPaidForWorkspace({ workspaceId, userId, recordId, body: req.body });
+    const result = await markVirtualOfficeRentPaidForWorkspace({ workspaceId, userId, recordId, body: req.body, file: (req as any).file });
 
     return res.status(200).json({
       success: true,

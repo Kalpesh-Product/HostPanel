@@ -1865,7 +1865,7 @@ export async function submitMyTenantCompanyRentPaymentForCurrentUser(userId, ren
   }
 
   if (rent.status === "Paid") {
-    const err = new Error("This rent is already marked as paid.");
+    const err = new Error("This rent is already fully paid.");
     err.statusCode = 409;
     throw err;
   }
@@ -1875,17 +1875,34 @@ export async function submitMyTenantCompanyRentPaymentForCurrentUser(userId, ren
     throw err;
   }
 
-  // Payment window: proof can only be submitted between (dueDate - 5 days)
-  // and (dueDate + 5 days). Outside the window finance records the payment.
+  // Payment window: 1st of the billing month through the due date.
   const paymentWindow = getRentPaymentWindow(rent.dueDate);
   if (paymentWindow && !paymentWindow.isWithin) {
     const fmt = (d: Date) => d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
     const nowDate = new Date();
     const message = nowDate < paymentWindow.start
-      ? `The payment window for this rent opens on ${fmt(paymentWindow.start)} (due ${fmt(new Date(rent.dueDate))}). Please submit your payment proof within that window.`
-      : `The payment window for this rent closed on ${fmt(paymentWindow.end)}. Please contact finance — payments outside the window are recorded manually.`;
+      ? `Payments for this rent open on ${fmt(paymentWindow.start)} (due ${fmt(new Date(rent.dueDate))}).`
+      : `The due date for this rent (${fmt(new Date(rent.dueDate))}) has passed. Please contact finance — late payments are recorded manually.`;
     const err = new Error(message);
     err.statusCode = 403;
+    throw err;
+  }
+
+  // Installment amount: default remaining balance, but tenants may pay in
+  // chunks — amount must be positive and cannot exceed what is still owed.
+  const amount = Math.max(0, Number(input?.amount || 0));
+  const verifiedTotal = (Array.isArray(rent.payments) ? rent.payments : [])
+    .filter((p) => p?.status === "Verified")
+    .reduce((s, p) => s + Number(p?.amount || 0), 0);
+  const remaining = Math.max(0, Number(rent.amount || 0) - verifiedTotal);
+  if (!(amount > 0)) {
+    const err = new Error("A payment amount greater than zero is required.");
+    err.statusCode = 400;
+    throw err;
+  }
+  if (amount > remaining) {
+    const err = new Error(`Payment amount cannot exceed the remaining rent of ${remaining}.`);
+    err.statusCode = 409;
     throw err;
   }
 
@@ -1901,15 +1918,27 @@ export async function submitMyTenantCompanyRentPaymentForCurrentUser(userId, ren
   }
 
   const now = new Date();
+  if (!Array.isArray(rent.payments)) rent.payments = [];
+  rent.payments.push({
+    id: `RTP-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    amount,
+    transactionReference: normalizeText(input?.transactionReference || ""),
+    proof: {
+      fileName: file.originalname || "rent-payment-proof",
+      fileUrl: s3Result.url || "",
+      publicId: s3Result.id || route,
+      mimeType: file.mimetype || "",
+      size: file.size ? String(file.size) : "",
+    },
+    status: "Submitted",
+    submittedById: userId,
+    submittedByName: normalizeText(user?.name || user?.fullName || ""),
+    submittedAt: now,
+  });
+  // Back-compat: mirror the latest proof onto the top-level fields.
   rent.status = "Proof Submitted";
   rent.transactionReference = normalizeText(input?.transactionReference || "");
-  rent.paymentProof = {
-    fileName: file.originalname || "rent-payment-proof",
-    fileUrl: s3Result.url || "",
-    publicId: s3Result.id || route,
-    mimeType: file.mimetype || "",
-    size: file.size ? String(file.size) : "",
-  };
+  rent.paymentProof = rent.payments[rent.payments.length - 1].proof;
   rent.submittedById = userId;
   rent.submittedByName = normalizeText(user?.name || user?.fullName || "");
   rent.submittedAt = now;
