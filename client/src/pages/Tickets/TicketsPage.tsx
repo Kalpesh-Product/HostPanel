@@ -2498,7 +2498,7 @@ export function TicketsPage() {
               <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
 
                 <div data-tour="tickets-status-filter" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-                  {['All', 'Open', 'In Progress', 'Resolved', 'Closed'].map((status) => (
+                  {(isViewingRaisedTab ? ['All', 'Draft', 'Open', 'In Progress', 'Resolved', 'Closed'] : ['All', 'Open', 'In Progress', 'Resolved', 'Closed']).map((status) => (
                     <button
                       key={status}
                       data-tour={`tickets-status-${status === 'Open' ? 'raised' : status.toLowerCase().replace(/\s+/g, '-')}`}

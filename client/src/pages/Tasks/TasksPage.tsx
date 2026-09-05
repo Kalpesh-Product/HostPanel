@@ -1046,13 +1046,26 @@ export function TasksPage() {
   // (see getAssignableRoleOptions) so the real Department dropdown only ever
   // lists actual departments. taskFilterDepartments (used by the list filter)
   // keeps "Admin" so tasks routed there before this change stay filterable.
+  //
+  // Routing is strictly top-down: Founder/Super Admin can route to any
+  // department, Admin can route to any department they're assigned to
+  // oversee, but a Department Manager can only route within their own
+  // department — they can't hand work sideways to a department they don't
+  // manage.
   const taskRouteDepartments = useMemo(() => {
     const withoutPlatformAdmin = taskFilterDepartments.filter((dept) => !isPlatformAdminDepartmentName(dept));
     if (isOwnerProfile || isSuperAdminProfile) {
       return orderDepartmentOptions(withoutPlatformAdmin, true);
     }
+    if (isAdminTaskProfile) {
+      return withoutPlatformAdmin.filter((dept) => adminAssignedDepartmentKeys.has(normalizeDepartmentKey(getCanonicalDepartmentLabel(dept))));
+    }
+    if (isDepartmentManagerProfile) {
+      const managedDeptKeys = new Set(getManagedDepartments().map((dept) => normalizeDepartmentKey(getCanonicalDepartmentLabel(dept))));
+      return withoutPlatformAdmin.filter((dept) => managedDeptKeys.has(normalizeDepartmentKey(getCanonicalDepartmentLabel(dept))));
+    }
     return withoutPlatformAdmin;
-  }, [taskFilterDepartments, isOwnerProfile, isSuperAdminProfile]);
+  }, [taskFilterDepartments, isOwnerProfile, isSuperAdminProfile, isAdminTaskProfile, isDepartmentManagerProfile, adminAssignedDepartmentKeys, storedUser]);
 
   const normalizedDepartmentMembers = useMemo(() => {
     return Object.entries(orgData).reduce<Record<string, Member[]>>((acc, [department, members]) => {
@@ -1223,13 +1236,23 @@ export function TasksPage() {
     if (normalizedTarget === 'admin') {
       return adminAssignableMembers;
     }
-    return Object.values(memberDirectoryById).filter((member) => {
+    const matches = Object.values(memberDirectoryById).filter((member) => {
       const memberRole = normalizeRoleValue(member?.role || '');
       if (normalizedTarget === 'manager') {
         return memberRole === 'manager' || memberRole.endsWith('_manager');
       }
       return memberRole === normalizedTarget;
     });
+    // Admin only oversees the departments assigned to it — Manager/Employee
+    // targets are scoped down to those, not every manager/employee company-wide.
+    if (isAdminTaskProfile) {
+      return matches.filter((member) =>
+        (member.departments || []).some((department) =>
+          adminAssignedDepartmentKeys.has(normalizeDepartmentKey(getCanonicalDepartmentLabel(department))),
+        ),
+      );
+    }
+    return matches;
   }
 
   const roleAssigneeOptions = useMemo(() => {
@@ -1479,7 +1502,7 @@ export function TasksPage() {
     async function loadMembers() {
       try {
         const response = await getWorkspaceMembers();
-        const members: Member[] = response?.data?.members || [];
+        const members: Member[] = response?.members || [];
 
         if (!isMounted) {
           return;
