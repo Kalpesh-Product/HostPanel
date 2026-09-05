@@ -73,6 +73,22 @@ interface TenantRentRecord {
   paymentWindowLabel?: string;
   isWithinPaymentWindow?: boolean;
   canSubmitProof?: boolean;
+  verifiedTotal?: number;
+  submittedTotal?: number;
+  remaining?: number;
+  payments?: Array<{
+    id: string;
+    amount: number;
+    transactionReference?: string;
+    status: string;
+    proof?: { fileName?: string; fileUrl?: string; mimeType?: string; size?: string };
+    receipt?: { fileName?: string; fileUrl?: string; mimeType?: string; size?: string; uploadedByName?: string; uploadedAt?: string | null };
+    submittedByName?: string;
+    submittedAt?: string | null;
+    verifiedByName?: string;
+    verifiedAt?: string | null;
+    rejection?: { reason?: string; rejectedByName?: string; rejectedAt?: string | null };
+  }>;
   actionHistory?: Array<{ action?: string; status?: string; note?: string; actorName?: string; at?: string }>;
 }
 
@@ -106,6 +122,7 @@ interface VirtualOfficeRentRecord {
     paymentDate?: string | null;
     paymentMethod?: string;
     notes?: string;
+    receipt?: { fileName?: string; fileUrl?: string; mimeType?: string; size?: string; uploadedByName?: string; uploadedAt?: string | null } | null;
   }>;
 }
 
@@ -733,6 +750,15 @@ export function BillingPaymentsPage() {
   const [viewingVo, setViewingVo] = useState<VirtualOfficeRentRecord | null>(null);
   const [showRentReturn, setShowRentReturn] = useState(false);
   const [rentReturnNote, setRentReturnNote] = useState('');
+  const [rentReturnPaymentId, setRentReturnPaymentId] = useState('');
+  const [rentReceiptFiles, setRentReceiptFiles] = useState<Record<string, File | null>>({});
+  const [showRentOfflineForm, setShowRentOfflineForm] = useState(false);
+  const [rentOfflineAmount, setRentOfflineAmount] = useState('');
+  const [rentOfflineRef, setRentOfflineRef] = useState('');
+  const [rentOfflineReceiptFile, setRentOfflineReceiptFile] = useState<File | null>(null);
+  const [voReceiptFile, setVoReceiptFile] = useState<File | null>(null);
+  const [voPaymentAmount, setVoPaymentAmount] = useState('');
+  const [voTransactionId, setVoTransactionId] = useState('');
   const [viewingBooking, setViewingBooking] = useState<BookingRecord | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<PayrollEmployee | null>(null);
   const [viewingExtraCredit, setViewingExtraCredit] = useState<ExtraCreditRequest | null>(null);
@@ -1026,7 +1052,7 @@ export function BillingPaymentsPage() {
       case 'rent': {
         const outstanding = rentRecords.filter((r) => r.status !== 'Paid');
         return [
-          { key: 'rentOutstanding', label: 'Outstanding', value: formatCurrency(outstanding.reduce((sum, r) => sum + (r.amount || 0), 0)), isCurrency: true, icon: ReceiptIndianRupee },
+          { key: 'rentOutstanding', label: 'Outstanding', value: formatCurrency(outstanding.reduce((sum, r) => sum + (r.remaining ?? r.amount ?? 0), 0)), isCurrency: true, icon: ReceiptIndianRupee },
           { key: 'rentDue', label: 'Due', value: String(rentRecords.filter((r) => r.status === 'Due').length), icon: Clock },
           { key: 'rentProof', label: 'Proof Submitted', value: String(rentRecords.filter((r) => r.status === 'Proof Submitted').length), icon: FileText },
           { key: 'rentPaid', label: 'Paid', value: String(rentRecords.filter((r) => r.status === 'Paid').length), icon: CheckCircle2 },
@@ -1240,17 +1266,29 @@ export function BillingPaymentsPage() {
 
   /* ── Handlers: Tenant Rent ── */
 
-  const handleMarkRentPaid = async (rent: TenantRentRecord) => {
+  const handleVerifyRentPayment = async (rent: TenantRentRecord, paymentId?: string, receiptFile?: File | null) => {
     if (isProcessingAction) return;
     setIsProcessingAction(true);
     try {
-      await markTenantRentPaid(rent.id);
-      setRentRecords((prev) => prev.map((r) => (r.id === rent.id ? { ...r, status: 'Paid', displayStatus: 'Paid', isOverdue: false, verifiedAt: new Date().toISOString() } : r)));
-      if (viewingRent?.id === rent.id) setViewingRent((prev) => prev ? { ...prev, status: 'Paid', displayStatus: 'Paid', isOverdue: false } : null);
-      toast.success(`Rent marked as paid for ${rent.companyName} (${rent.periodLabel || rent.periodKey}).`);
+      const payload: Record<string, any> = {};
+      if (paymentId) payload.paymentId = paymentId;
+      else {
+        if (rentOfflineAmount) payload.amount = rentOfflineAmount;
+        if (rentOfflineRef) payload.transactionReference = rentOfflineRef;
+      }
+      const res = await markTenantRentPaid(rent.id, payload, receiptFile || undefined);
+      const updated = res?.rent || res;
+      setRentRecords((prev) => prev.map((r) => (r.id === rent.id ? { ...r, ...updated } : r)));
+      if (viewingRent?.id === rent.id) setViewingRent((prev) => (prev ? { ...prev, ...updated } : null));
+      toast.success(updated?.status === 'Paid' ? `Rent fully paid for ${rent.companyName}.` : `Payment verified for ${rent.companyName}.`);
+      if (paymentId) setRentReceiptFiles((prev) => { const next = { ...prev }; delete next[paymentId]; return next; });
+      else setRentOfflineReceiptFile(null);
+      setShowRentOfflineForm(false);
+      setRentOfflineAmount('');
+      setRentOfflineRef('');
       window.dispatchEvent(new Event('finance:snapshot-updated'));
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to mark rent as paid.');
+      toast.error(error?.message || 'Failed to verify rent payment.');
     } finally {
       setIsProcessingAction(false);
     }
@@ -1260,12 +1298,16 @@ export function BillingPaymentsPage() {
     if (isProcessingAction || !rentReturnNote.trim()) return;
     setIsProcessingAction(true);
     try {
-      await returnTenantRentProof(rent.id, { reason: rentReturnNote.trim() });
-      setRentRecords((prev) => prev.map((r) => (r.id === rent.id ? { ...r, status: 'Due', displayStatus: 'Due', rejection: { reason: rentReturnNote.trim(), rejectedByName: currentUserName, rejectedAt: new Date().toISOString() } } : r)));
-      if (viewingRent?.id === rent.id) setViewingRent((prev) => prev ? { ...prev, status: 'Due', displayStatus: 'Due' } : null);
+      const payload: Record<string, any> = { reason: rentReturnNote.trim() };
+      if (rentReturnPaymentId) payload.paymentId = rentReturnPaymentId;
+      const res = await returnTenantRentProof(rent.id, payload);
+      const updated = res?.rent || res;
+      setRentRecords((prev) => prev.map((r) => (r.id === rent.id ? { ...r, ...updated } : r)));
+      if (viewingRent?.id === rent.id) setViewingRent((prev) => (prev ? { ...prev, ...updated } : null));
       toast.success(`Payment proof returned for ${rent.companyName} (${rent.periodLabel || rent.periodKey}).`);
       setShowRentReturn(false);
       setRentReturnNote('');
+      setRentReturnPaymentId('');
       window.dispatchEvent(new Event('finance:snapshot-updated'));
     } catch (error: any) {
       toast.error(error?.message || 'Failed to return payment proof.');
@@ -1280,21 +1322,20 @@ export function BillingPaymentsPage() {
     if (isProcessingAction) return;
     setIsProcessingAction(true);
     try {
-      await markVirtualOfficeRentPaid(vo.id);
-      setVoRecords((prev) => prev.map((v) => (v.id === vo.id
-        ? {
-          ...v,
-          currentPeriod: v.currentPeriod ? { ...v.currentPeriod, status: 'Paid', paidAmount: v.monthlyRent, dueAmount: 0 } : v.currentPeriod,
-          rentStatus: v.rentStatus === 'Overdue' ? 'Active' : v.rentStatus,
-        }
-        : v)));
-      if (viewingVo?.id === vo.id) setViewingVo((prev) => prev
-        ? { ...prev, currentPeriod: prev.currentPeriod ? { ...prev.currentPeriod, status: 'Paid', paidAmount: prev.monthlyRent, dueAmount: 0 } : prev.currentPeriod }
-        : null);
-      toast.success(`Rent marked as paid for ${vo.clientName} (${vo.currentPeriod?.monthLabel || 'current period'}).`);
+      const payload: Record<string, any> = {};
+      if (voPaymentAmount) payload.amount = voPaymentAmount;
+      if (voTransactionId) payload.transactionId = voTransactionId;
+      const res = await markVirtualOfficeRentPaid(vo.id, payload, voReceiptFile || undefined);
+      const updated = res?.record || res;
+      setVoRecords((prev) => prev.map((v) => (v.id === vo.id ? { ...v, ...updated } : v)));
+      if (viewingVo?.id === vo.id) setViewingVo((prev) => (prev ? { ...prev, ...updated } : null));
+      toast.success(`Payment recorded for ${vo.clientName} (${vo.currentPeriod?.monthLabel || 'current period'}).`);
+      setVoReceiptFile(null);
+      setVoPaymentAmount('');
+      setVoTransactionId('');
       window.dispatchEvent(new Event('finance:snapshot-updated'));
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to mark virtual office rent as paid.');
+      toast.error(error?.message || 'Failed to record virtual office rent payment.');
     } finally {
       setIsProcessingAction(false);
     }
@@ -1733,7 +1774,12 @@ export function BillingPaymentsPage() {
                           </td>
                           <td className="px-6 py-5 font-bold text-slate-700 text-xs">{rent.periodLabel || rent.periodKey || '-'}</td>
                           <td className="px-6 py-5 hidden sm:table-cell text-xs font-bold text-slate-700">{rent.dueDateLabel || '-'}</td>
-                          <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">{formatCurrency(rent.amount || 0)}</td>
+                          <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">
+                            {formatCurrency(rent.amount || 0)}
+                            {rent.status !== 'Paid' && typeof rent.remaining === 'number' && rent.remaining < (rent.amount || 0) && (
+                              <p className="text-[9px] font-bold text-rose-500">Remaining: {formatCurrency(rent.remaining)}</p>
+                            )}
+                          </td>
                           <td className="px-6 py-5 hidden md:table-cell">
                             {rent.paymentProof?.fileUrl ? (
                               <a href={rent.paymentProof.fileUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-pmedium text-blue-600 hover:text-blue-800 inline-flex items-center gap-1">
@@ -1792,20 +1838,9 @@ export function BillingPaymentsPage() {
                           <td className="px-6 py-5 text-center">{getRentStatusBadge(vo.currentPeriod?.status || vo.rentStatus || 'Due')}</td>
                           <td className="px-6 py-5 text-center">
                             <div className="flex items-center justify-center gap-1.5">
-                              {vo.currentPeriod && vo.currentPeriod.status !== 'Paid' && (
-                                <button
-                                  type="button"
-                                  onClick={() => void handleMarkVoPaid(vo)}
-                                  disabled={isProcessingAction}
-                                  title={vo.currentPeriod.status === 'Partially Paid' ? 'Mark the remaining amount as paid' : 'Mark this period as paid'}
-                                  className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-[9px] font-bold uppercase tracking-wider shadow-sm hover:bg-emerald-700 transition-all disabled:opacity-60 inline-flex items-center gap-1"
-                                >
-                                  <CheckCircle2 size={10} /> Mark Paid
-                                </button>
-                              )}
                               <button
                                 type="button"
-                                onClick={() => setViewingVo(vo)}
+                                onClick={() => { setViewingVo(vo); setVoPaymentAmount(String(vo.currentPeriod?.dueAmount ?? '')); setVoTransactionId(''); setVoReceiptFile(null); }}
                                 className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-pmedium uppercase transition-all shadow-sm inline-flex items-center gap-1"
                               >
                                 <Eye size={10} /> View
@@ -1869,15 +1904,14 @@ export function BillingPaymentsPage() {
                                   <CheckCircle2 size={10} /> Confirm
                                 </button>
                               )}
-                              {!entry.isReversal && (
-                                <button
-                                  type="button"
-                                  onClick={() => { setViewingRevenue(entry); setShowReverseRevenue(true); setReverseReason(''); }}
-                                  className="px-3 py-1.5 bg-white border border-rose-200 text-rose-600 rounded-lg text-[9px] font-pmedium uppercase transition-all shadow-sm hover:bg-rose-50 inline-flex items-center gap-1"
-                                >
-                                  <XCircle size={10} /> Reverse
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => { setViewingRevenue(entry); setShowReverseRevenue(false); setReverseReason(''); }}
+                                title="View details"
+                                className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-pmedium uppercase transition-all shadow-sm inline-flex items-center gap-1"
+                              >
+                                <Eye size={10} /> View
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -2173,24 +2207,130 @@ export function BillingPaymentsPage() {
         </div>
       )}
 
-      {/* ── Reverse Revenue Modal ── */}
-      {viewingRevenue && showReverseRevenue && (
+      {/* ── View Revenue Entry Modal (details + reverse) ── */}
+      {viewingRevenue && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div className="px-6 py-5 bg-slate-900 border-b border-slate-800">
-              <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-rose-500/20 text-rose-300 border-rose-400/30 mb-2 inline-block">Reverse Revenue Entry</span>
-              <h2 className="text-lg font-black text-white">{viewingRevenue.entityName}</h2>
-              <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">{viewingRevenue.entryCode} · {formatCurrency(viewingRevenue.amount || 0)} · {viewingRevenue.revenueDateLabel}</p>
+          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
+              <div>
+                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-blue-500/20 text-blue-300 border-blue-400/30 mb-2 inline-block">
+                  {viewingRevenue.source === 'workation-revenue' ? 'Workation Revenue' : 'Alternate Revenue'}
+                </span>
+                <h2 className="text-xl font-black text-white flex items-center gap-2 mt-1">
+                  {viewingRevenue.source === 'workation-revenue' ? <Briefcase size={18} /> : <Coins size={18} />} {viewingRevenue.entityName || '—'}
+                </h2>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">{viewingRevenue.entryCode}</p>
+              </div>
+              <button onClick={() => { setViewingRevenue(null); setShowReverseRevenue(false); setReverseReason(''); }} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
             </div>
-            <div className="px-6 py-5 space-y-3 bg-[#F8FAFC]">
-              <p className="text-[11px] text-slate-500">A reversal entry of <strong className="text-rose-600">{formatCurrency(viewingRevenue.amount || 0)}</strong> will be appended. The original entry stays untouched for audit, and the two net to zero in the P&L.</p>
-              <textarea rows={2} value={reverseReason} onChange={(e) => setReverseReason(e.target.value)} placeholder="Reason (required) — e.g. wrong amount / duplicate entry" className="w-full px-3 py-2 bg-white border border-rose-200 rounded-xl text-xs font-medium outline-none focus:border-rose-400" />
+            <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
+              <div className="px-6 sm:px-8 py-5 grid grid-cols-2 gap-4 border-b border-gray-100 bg-white">
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-600">Amount</p>
+                  <p className="text-xl font-black text-blue-900 mt-1">{formatCurrency(viewingRevenue.amount || 0)}</p>
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Status</p>
+                  <p className="text-lg font-black text-gray-900 mt-1">{viewingRevenue.status || '—'}</p>
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Category</p>
+                  <p className="text-xs font-black text-gray-900 mt-1">{viewingRevenue.category || '—'}</p>
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Revenue Date</p>
+                  <p className="text-xs font-black text-gray-900 mt-1">{viewingRevenue.revenueDateLabel || '—'}</p>
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Payment Method</p>
+                  <p className="text-xs font-black text-gray-900 mt-1">{viewingRevenue.paymentMethod || '—'}</p>
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Reference</p>
+                  <p className="text-xs font-black text-gray-900 mt-1 break-all">{viewingRevenue.reference || '—'}</p>
+                </div>
+                {viewingRevenue.billingPeriodLabel && (
+                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 col-span-2">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Billing Period</p>
+                    <p className="text-xs font-black text-gray-900 mt-1">{viewingRevenue.billingPeriodLabel}</p>
+                  </div>
+                )}
+                {viewingRevenue.note && (
+                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 col-span-2">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Description</p>
+                    <p className="text-xs font-semibold text-gray-800 mt-1">{viewingRevenue.note}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="px-6 sm:px-8 py-5 space-y-3">
+                {viewingRevenue.document?.fileUrl && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><FileText size={13} /></div>
+                      <p className="text-[12px] font-pmedium text-slate-900 truncate">{viewingRevenue.document.fileName || 'Supporting document'}</p>
+                    </div>
+                    <button type="button" onClick={() => window.open(viewingRevenue.document?.fileUrl, '_blank', 'noopener,noreferrer')} className="px-4 py-2 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-primary/95 transition-all shrink-0 flex items-center gap-1.5">
+                      <Eye size={12} /> View
+                    </button>
+                  </div>
+                )}
+
+                {viewingRevenue.isReceived && (
+                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-600">Confirmed Received</p>
+                    <p className="text-xs font-semibold text-emerald-800 mt-1">{viewingRevenue.confirmedByName || '—'}{viewingRevenue.confirmedAt ? ` · ${new Date(viewingRevenue.confirmedAt).toLocaleString()}` : ''}</p>
+                  </div>
+                )}
+
+                {viewingRevenue.postedByName && (
+                  <p className="text-[11px] text-slate-500">Recorded by <span className="font-pmedium text-slate-800">{viewingRevenue.postedByName}</span></p>
+                )}
+
+                {Array.isArray(viewingRevenue.events) && viewingRevenue.events.length > 0 && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">Audit Trail</p>
+                    <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                      {viewingRevenue.events.slice().reverse().map((event, idx: number) => (
+                        <div key={idx} className="flex items-start gap-2 text-[11px]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5 shrink-0" />
+                          <p className="text-slate-600">
+                            <span className="font-pmedium text-slate-800">{event.actorName || 'System'}</span> — {event.note || event.action}
+                            <span className="text-slate-400"> ({event.at ? new Date(event.at).toLocaleString() : ''})</span>
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {showReverseRevenue && (
+                  <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 space-y-2">
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-rose-600">Reverse this entry (reason required)</p>
+                    <p className="text-[11px] text-slate-500">A reversal entry of <strong className="text-rose-600">{formatCurrency(viewingRevenue.amount || 0)}</strong> will be appended. The original entry stays untouched for audit, and the two net to zero in the P&L.</p>
+                    <textarea rows={2} value={reverseReason} onChange={(e) => setReverseReason(e.target.value)} placeholder="Reason (required) — e.g. wrong amount / duplicate entry" className="w-full px-3 py-2 bg-white border border-rose-200 rounded-xl text-xs font-medium outline-none focus:border-rose-400" />
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="px-6 py-4 bg-white border-t border-slate-100 flex justify-end gap-2">
-              <button type="button" onClick={() => { setShowReverseRevenue(false); setReverseReason(''); setViewingRevenue(null); }} className="px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium text-[10px] uppercase tracking-widest">Cancel</button>
-              <button type="button" disabled={!reverseReason.trim() || isProcessingAction} onClick={() => void handleReverseRevenue(viewingRevenue)} className="px-5 py-2.5 bg-rose-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-widest shadow-sm hover:bg-rose-700 transition-all disabled:opacity-60 flex items-center gap-1.5">
-                <XCircle size={12} /> Reverse Entry
-              </button>
+            <div className="px-6 sm:px-8 py-4 bg-white border-t border-slate-100 flex flex-wrap justify-end gap-2 shrink-0">
+              {showReverseRevenue ? (
+                <>
+                  <button type="button" onClick={() => { setShowReverseRevenue(false); setReverseReason(''); }} className="px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium text-[10px] uppercase tracking-widest">Cancel</button>
+                  <button type="button" disabled={!reverseReason.trim() || isProcessingAction} onClick={() => void handleReverseRevenue(viewingRevenue)} className="px-5 py-2.5 bg-rose-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-widest shadow-sm hover:bg-rose-700 transition-all disabled:opacity-60 flex items-center gap-1.5">
+                    <XCircle size={12} /> Reverse Entry
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button type="button" onClick={() => setViewingRevenue(null)} className="px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium text-[10px] uppercase tracking-widest">Close</button>
+                  {!viewingRevenue.isReversal && (
+                    <button type="button" onClick={() => setShowReverseRevenue(true)} className="px-5 py-2.5 bg-white border border-rose-200 text-rose-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-rose-50 transition-all flex items-center gap-1.5">
+                      <XCircle size={12} /> Reverse
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -2322,7 +2462,7 @@ export function BillingPaymentsPage() {
                 <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1"><Building2 size={20} /> {viewingRent.companyName}</h2>
                 <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">{viewingRent.tenantCode || 'Tenant'} · {viewingRent.periodLabel || viewingRent.periodKey} · {viewingRent.id}</p>
               </div>
-              <button onClick={() => { setViewingRent(null); setShowRentReturn(false); setRentReturnNote(''); }} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
+              <button onClick={() => { setViewingRent(null); setShowRentReturn(false); setRentReturnNote(''); setRentReturnPaymentId(''); setRentReceiptFiles({}); setShowRentOfflineForm(false); setRentOfflineAmount(''); setRentOfflineRef(''); setRentOfflineReceiptFile(null); }} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
             </div>
             <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
               <div className="px-6 sm:px-8 py-5 grid grid-cols-2 sm:grid-cols-3 gap-4 border-b border-gray-100 bg-white">
@@ -2357,23 +2497,129 @@ export function BillingPaymentsPage() {
                   <p className="text-xs font-black text-gray-900 mt-1">{viewingRent.paymentWindowLabel || '—'}</p>
                   <p className="text-[10px] font-pmedium text-gray-400">{viewingRent.isWithinPaymentWindow ? 'Open — tenant can submit proof' : 'Closed — finance records manually'}</p>
                 </div>
+                <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 sm:p-5">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-rose-500">Remaining</p>
+                  <p className="text-xl font-black text-rose-900 mt-1">{formatCurrency(viewingRent.remaining ?? viewingRent.amount ?? 0)}</p>
+                  <p className="text-[10px] font-pmedium text-gray-400">Verified so far: {formatCurrency(viewingRent.verifiedTotal || 0)}</p>
+                </div>
               </div>
 
               <div className="px-6 sm:px-8 py-5 space-y-3">
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><FileText size={13} /></div>
-                    <div className="min-w-0">
-                      <p className="text-[12px] font-pmedium text-slate-900 truncate">{viewingRent.paymentProof?.fileName || 'No payment proof submitted'}</p>
-                      <p className="text-[10px] font-pregular text-slate-500">Proof of payment uploaded by the tenant</p>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">Installments</p>
+                  {(viewingRent.payments && viewingRent.payments.length > 0) ? (
+                    <div className="space-y-2">
+                      {viewingRent.payments.slice().reverse().map((payment) => (
+                        <div key={payment.id} className="rounded-xl border border-slate-100 bg-slate-50/60 p-3 space-y-1.5">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <p className="text-xs font-black text-slate-900">{formatCurrency(payment.amount || 0)}{payment.transactionReference ? ` · Ref: ${payment.transactionReference}` : ''}</p>
+                            {getRentStatusBadge(payment.status === 'Submitted' ? 'Proof Submitted' : payment.status === 'Verified' ? 'Paid' : 'Due')}
+                          </div>
+                          <p className="text-[10px] text-slate-500">
+                            Submitted by {payment.submittedByName || '—'}{payment.submittedAt ? ` · ${new Date(payment.submittedAt).toLocaleString()}` : ''}
+                          </p>
+                          {payment.status === 'Verified' && (
+                            <p className="text-[10px] text-emerald-600">Verified by {payment.verifiedByName || '—'}{payment.verifiedAt ? ` · ${new Date(payment.verifiedAt).toLocaleString()}` : ''}</p>
+                          )}
+                          {payment.status === 'Returned' && payment.rejection?.reason && (
+                            <p className="text-[10px] text-amber-700">Returned — {payment.rejection.reason}{payment.rejection.rejectedByName ? ` (${payment.rejection.rejectedByName})` : ''}</p>
+                          )}
+                          <div className="flex items-center gap-3 flex-wrap pt-0.5">
+                            {payment.proof?.fileUrl && (
+                              <button type="button" onClick={() => window.open(payment.proof?.fileUrl, '_blank', 'noopener,noreferrer')} className="text-[10px] font-pmedium text-blue-600 hover:text-blue-800 inline-flex items-center gap-1">
+                                <FileText size={11} /> View Proof
+                              </button>
+                            )}
+                            {payment.receipt?.fileUrl && (
+                              <button type="button" onClick={() => window.open(payment.receipt?.fileUrl, '_blank', 'noopener,noreferrer')} className="text-[10px] font-pmedium text-emerald-600 hover:text-emerald-800 inline-flex items-center gap-1">
+                                <Download size={11} /> Receipt
+                              </button>
+                            )}
+                          </div>
+                          {payment.status === 'Submitted' && (
+                            <div className="pt-1.5 border-t border-slate-100 space-y-1.5">
+                              <label className="block text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Attach receipt (optional) — required to persist, click Verify below</label>
+                              <input
+                                type="file"
+                                accept="image/*,application/pdf"
+                                onChange={(e) => setRentReceiptFiles((prev) => ({ ...prev, [payment.id]: e.target.files?.[0] || null }))}
+                                className="w-full text-[10px] text-slate-600 file:mr-2 file:px-2.5 file:py-1.5 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 file:text-[10px] file:font-pmedium cursor-pointer"
+                              />
+                              {rentReceiptFiles[payment.id] && <p className="text-[9px] text-slate-500">{rentReceiptFiles[payment.id]?.name}</p>}
+                              <div className="flex items-center gap-1.5 justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => void handleVerifyRentPayment(viewingRent, payment.id, rentReceiptFiles[payment.id])}
+                                  disabled={isProcessingAction}
+                                  className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-[9px] font-bold uppercase tracking-wider shadow-sm hover:bg-emerald-700 transition-all disabled:opacity-60 inline-flex items-center gap-1"
+                                >
+                                  <CheckCircle2 size={10} /> Verify &amp; Save
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setRentReturnPaymentId(payment.id); setShowRentReturn(true); setRentReturnNote(''); }}
+                                  disabled={isProcessingAction}
+                                  className="px-3 py-1.5 bg-white border border-rose-200 text-rose-600 rounded-lg text-[9px] font-pmedium uppercase transition-all shadow-sm hover:bg-rose-50 inline-flex items-center gap-1"
+                                >
+                                  <XCircle size={10} /> Return
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                  {viewingRent.paymentProof?.fileUrl && (
-                    <button type="button" onClick={() => window.open(viewingRent.paymentProof?.fileUrl, '_blank', 'noopener,noreferrer')} className="px-4 py-2 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-primary/95 transition-all shrink-0 flex items-center gap-1.5">
-                      <Eye size={12} /> View Proof
-                    </button>
+                  ) : (
+                    viewingRent.paymentProof?.fileUrl ? (
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-[11px] text-slate-500">Legacy proof: {viewingRent.paymentProof.fileName || 'payment-proof'}</p>
+                        <button type="button" onClick={() => window.open(viewingRent.paymentProof?.fileUrl, '_blank', 'noopener,noreferrer')} className="px-3 py-1.5 bg-[#2563EB] text-white rounded-lg text-[9px] font-bold uppercase tracking-wider shadow-sm hover:bg-primary/95 transition-all inline-flex items-center gap-1">
+                          <Eye size={10} /> View Proof
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-slate-400 font-semibold">No installments submitted yet.</p>
+                    )
                   )}
                 </div>
+
+                {showRentOfflineForm && viewingRent.status !== 'Paid' && (
+                  <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 space-y-2">
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Record an offline payment</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input
+                        type="number" min="0" step="0.01"
+                        value={rentOfflineAmount}
+                        onChange={(e) => setRentOfflineAmount(e.target.value)}
+                        placeholder={`Amount (remaining: ${formatCurrency(viewingRent.remaining ?? viewingRent.amount ?? 0)})`}
+                        className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-medium outline-none focus:border-blue-400"
+                      />
+                      <input
+                        type="text"
+                        value={rentOfflineRef}
+                        onChange={(e) => setRentOfflineRef(e.target.value)}
+                        placeholder="Transaction reference (optional)"
+                        className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-medium outline-none focus:border-blue-400"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[9px] font-pmedium uppercase tracking-widest text-blue-500">Attach receipt (optional)</label>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        onChange={(e) => setRentOfflineReceiptFile(e.target.files?.[0] || null)}
+                        className="w-full text-[10px] text-slate-600 file:mr-2 file:px-2.5 file:py-1.5 file:rounded-lg file:border-0 file:bg-white file:text-blue-700 file:text-[10px] file:font-pmedium cursor-pointer"
+                      />
+                      {rentOfflineReceiptFile && <p className="text-[9px] text-slate-500">{rentOfflineReceiptFile.name}</p>}
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button type="button" onClick={() => { setShowRentOfflineForm(false); setRentOfflineAmount(''); setRentOfflineRef(''); setRentOfflineReceiptFile(null); }} className="px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium text-[10px] uppercase tracking-widest">Cancel</button>
+                      <button type="button" disabled={isProcessingAction} onClick={() => void handleVerifyRentPayment(viewingRent, undefined, rentOfflineReceiptFile)} className="px-4 py-2 bg-blue-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-widest disabled:opacity-60 flex items-center gap-1.5">
+                        <CheckCircle2 size={12} /> Record Payment
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {viewingRent.rejection?.reason && (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
@@ -2382,7 +2628,7 @@ export function BillingPaymentsPage() {
                   </div>
                 )}
 
-                {showRentReturn && viewingRent.status === 'Proof Submitted' && (
+                {showRentReturn && (
                   <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 space-y-2">
                     <p className="text-[10px] font-pmedium uppercase tracking-widest text-rose-600">Return proof to tenant (reason required)</p>
                     <textarea
@@ -2393,7 +2639,7 @@ export function BillingPaymentsPage() {
                       className="w-full px-3 py-2 bg-white border border-rose-200 rounded-xl text-xs font-medium outline-none focus:border-rose-400"
                     />
                     <div className="flex justify-end gap-2">
-                      <button type="button" onClick={() => { setShowRentReturn(false); setRentReturnNote(''); }} className="px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium text-[10px] uppercase tracking-widest">Cancel</button>
+                      <button type="button" onClick={() => { setShowRentReturn(false); setRentReturnNote(''); setRentReturnPaymentId(''); }} className="px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium text-[10px] uppercase tracking-widest">Cancel</button>
                       <button type="button" disabled={isProcessingAction || !rentReturnNote.trim()} onClick={() => void handleReturnRentProof(viewingRent)} className="px-4 py-2 bg-rose-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-widest disabled:opacity-60 flex items-center gap-1.5">
                         <XCircle size={12} /> Return Proof
                       </button>
@@ -2421,20 +2667,20 @@ export function BillingPaymentsPage() {
               </div>
             </div>
             <div className="px-6 sm:px-8 py-4 bg-white border-t border-slate-100 flex flex-wrap justify-end gap-2 shrink-0">
-              {viewingRent.status !== 'Paid' && (
+              {viewingRent.status !== 'Paid' && !showRentOfflineForm && (
                 <button
                   type="button"
-                  onClick={() => void handleMarkRentPaid(viewingRent)}
+                  onClick={() => { setShowRentOfflineForm(true); setRentOfflineAmount(String(viewingRent.remaining ?? viewingRent.amount ?? '')); }}
                   disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-emerald-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
-                  <CheckCircle2 size={12} /> {isProcessingAction ? 'Processing...' : 'Mark as Paid'}
+                  <CheckCircle2 size={12} /> Record Payment
                 </button>
               )}
-              {viewingRent.status === 'Proof Submitted' && !showRentReturn && (
+              {viewingRent.status === 'Proof Submitted' && (!viewingRent.payments || viewingRent.payments.length === 0) && !showRentReturn && (
                 <button
                   type="button"
-                  onClick={() => setShowRentReturn(true)}
+                  onClick={() => { setRentReturnPaymentId(''); setShowRentReturn(true); }}
                   disabled={isProcessingAction}
                   className="px-5 py-2.5 bg-white border border-rose-200 text-rose-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-rose-50 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
@@ -2459,7 +2705,7 @@ export function BillingPaymentsPage() {
                 <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1"><Building2 size={20} /> {viewingVo.clientName || 'Virtual Office'}</h2>
                 <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">{viewingVo.recordCode}{viewingVo.serviceName ? ` · ${viewingVo.serviceName}` : ''}</p>
               </div>
-              <button onClick={() => setViewingVo(null)} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
+              <button onClick={() => { setViewingVo(null); setVoReceiptFile(null); setVoPaymentAmount(''); setVoTransactionId(''); }} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
             </div>
             <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
               <div className="px-6 sm:px-8 py-5 grid grid-cols-2 sm:grid-cols-3 gap-4 border-b border-gray-100 bg-white">
@@ -2500,6 +2746,11 @@ export function BillingPaymentsPage() {
                             <p className="font-pmedium text-slate-800">{p.monthLabel || 'Period'} · {formatCurrency(p.amount || 0)} · {p.status}</p>
                             <p className="text-slate-400">{p.paymentDate ? new Date(p.paymentDate).toLocaleString() : ''}{p.transactionId ? ` · Ref: ${p.transactionId}` : ''}{p.notes ? ` · ${p.notes}` : ''}</p>
                           </div>
+                          {p.receipt?.fileUrl && (
+                            <button type="button" onClick={() => window.open(p.receipt?.fileUrl, '_blank', 'noopener,noreferrer')} className="shrink-0 text-[10px] font-pmedium text-emerald-600 hover:text-emerald-800 inline-flex items-center gap-1">
+                              <Download size={11} /> Receipt
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -2507,6 +2758,45 @@ export function BillingPaymentsPage() {
                     <p className="text-[11px] text-slate-400 font-semibold">No rent payments recorded yet.</p>
                   )}
                 </div>
+
+                {viewingVo.currentPeriod && viewingVo.currentPeriod.status !== 'Paid' && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2">
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Record Payment</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="block text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Amount (up to {formatCurrency(viewingVo.currentPeriod?.dueAmount || 0)})</label>
+                        <input
+                          type="number" min="0" step="0.01" max={viewingVo.currentPeriod?.dueAmount || 0}
+                          value={voPaymentAmount}
+                          onChange={(e) => setVoPaymentAmount(e.target.value)}
+                          placeholder={String(viewingVo.currentPeriod?.dueAmount || 0)}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:bg-white"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Transaction Reference (optional)</label>
+                        <input
+                          type="text"
+                          value={voTransactionId}
+                          onChange={(e) => setVoTransactionId(e.target.value)}
+                          placeholder="e.g. UPI / bank txn id"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:bg-white"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-400">Pay in full or in installments — a partial amount keeps the period Overdue until the balance clears.</p>
+                    <div className="pt-1">
+                      <label className="block text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Attach receipt (optional)</label>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        onChange={(e) => setVoReceiptFile(e.target.files?.[0] || null)}
+                        className="w-full text-[11px] text-slate-600 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 file:text-[11px] file:font-pmedium cursor-pointer"
+                      />
+                      {voReceiptFile && <p className="text-[10px] text-slate-500">{voReceiptFile.name}</p>}
+                    </div>
+                  </div>
+                )}
 
               </div>
             </div>
@@ -2518,7 +2808,11 @@ export function BillingPaymentsPage() {
                   disabled={isProcessingAction}
                   className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-emerald-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
-                  <CheckCircle2 size={12} /> {isProcessingAction ? 'Processing...' : `Mark ${viewingVo.currentPeriod.monthLabel || 'This Period'} as Paid`}
+                  <CheckCircle2 size={12} /> {isProcessingAction
+                    ? 'Processing...'
+                    : Number(voPaymentAmount) > 0 && Number(voPaymentAmount) < (viewingVo.currentPeriod?.dueAmount || 0)
+                      ? `Record Partial Payment for ${viewingVo.currentPeriod.monthLabel || 'This Period'}`
+                      : `Mark ${viewingVo.currentPeriod.monthLabel || 'This Period'} as Paid`}
                 </button>
               )}
               {viewingVo.currentPeriod?.status === 'Paid' && (
