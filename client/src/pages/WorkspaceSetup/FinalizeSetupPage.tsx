@@ -79,7 +79,7 @@ const PlanCard = ({
           }
     }
   >
-    <h3 className="text-[20px] md:text-[17px] lg:text-[15px] font-pmedium text-[#0f1b35] text-center mt-1">
+    <h3 className="text-center text-[#0f1b35] font-bold text-[20px]">
       {plan.title}
     </h3>
 

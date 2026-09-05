@@ -9,7 +9,7 @@ import { normalizeDepartmentKey } from '@/utils/user-helpers';
 import {
   Search, Plus, X, Package, TrendingDown, TrendingUp, RefreshCw, Box, History, User,
   AlertTriangle, ShieldCheck, ArrowUpDown, ArrowUp, ArrowDown, Filter, Pencil, Wrench,
-  Eye, ArrowRightLeft, Building2, UploadCloud, Info, Loader2, FileSpreadsheet, ChevronDown,
+  Eye, ArrowRightLeft, Building2, UploadCloud, ChevronDown,
   Download,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -20,6 +20,7 @@ import { createReport } from '@/services/reports';
 import { downloadReportFile } from '@/utils/report-download';
 import ExportReportModal, { type ExportParams } from '@/components/ExportReportModal';
 import ReportExportButton from '@/components/ReportExportButton';
+import BulkUploadModal from '@/components/BulkUploadModal';
 
 interface InventoryItem {
   recordId?: string;
@@ -920,7 +921,7 @@ export function DepartmentInventoryPage() {
                     data-tour="dept-inventory-search"
                     type="text"
                     placeholder="Search items..."
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400 shadow-sm"
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500 shadow-sm"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
@@ -1144,72 +1145,37 @@ export function DepartmentInventoryPage() {
         </div>
       </PageFrame>
 
-      {bulkInventoryModal && (
-        <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-md h-auto rounded-t-[32px] sm:rounded-[32px] shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
-            <div className="flex items-center justify-between p-5 border-b border-slate-100">
-              <h3 className="text-sm font-pmedium text-slate-900 flex items-center gap-2"><UploadCloud size={16} /> Bulk Upload Inventory</h3>
-              <button onClick={closeBulkInventoryModal}
-                className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all"><X size={16} /></button>
-            </div>
-            <div className="p-5 space-y-4 overflow-y-auto">
-              {!bulkInventoryFileName ? (
-                <>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={handleBulkInventoryDownloadTemplate}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 hover:border-[#2563EB] hover:text-[#2563EB] transition-all">
-                      <FileSpreadsheet size={13} /> Download Template
-                    </button>
-                  </div>
-                  <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
-                    <Info size={13} className="text-blue-500 mt-0.5 shrink-0" />
-                    <p className="text-[10px] font-pmedium text-blue-700 leading-relaxed">Fill in Item Name, Category, Quantity, Unit and Price per Unit per row. Every row is added to {deptLabel} automatically. Total Value is calculated automatically.</p>
-                  </div>
-                  <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:border-[#2563EB] transition-colors cursor-pointer" onClick={() => bulkInventoryFileInputRef.current?.click()}>
-                    <UploadCloud size={28} className="mx-auto text-slate-300 mb-3" />
-                    <p className="text-[12px] font-pmedium text-slate-600 mb-1">Click to upload spreadsheet</p>
-                    <p className="text-[10px] text-slate-400">Supports .xlsx, .xls, .csv — use the template above for the required columns.</p>
-                  </div>
-                  <input ref={bulkInventoryFileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleBulkInventoryFileChange} />
-                </>
-              ) : bulkInventorySummary ? (
-                <div className="space-y-3">
-                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100">
-                    <p className="text-[12px] font-pmedium text-emerald-800">Import Complete</p>
-                    <p className="text-[11px] text-emerald-600 mt-1">{bulkInventorySummary.created} item(s) created, {bulkInventorySummary.skipped} skipped</p>
-                  </div>
-                  {bulkInventorySummary.issues.length > 0 && (
-                    <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 max-h-40 overflow-y-auto space-y-1">
-                      {bulkInventorySummary.issues.map((issue, i) => (
-                        <p key={i} className="text-[10px] font-pmedium text-amber-700">{issue}</p>
-                      ))}
-                    </div>
-                  )}
-                  <button onClick={closeBulkInventoryModal}
-                    className="w-full py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-[#2563EB]/90 transition-all">Done</button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                    <span className="text-[12px] font-pmedium text-slate-700 truncate">{bulkInventoryFileName}</span>
-                    <span className="text-[10px] font-pmedium text-slate-400 shrink-0">{bulkInventoryRows.length} rows</span>
-                  </div>
-                  {bulkInventoryError && <p className="text-[11px] font-pmedium text-red-500">{bulkInventoryError}</p>}
-                  <div className="flex gap-2">
-                    <button onClick={() => { setBulkInventoryFileName(''); setBulkInventoryRows([]); setBulkInventoryError(''); }}
-                      className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">Change File</button>
-                    <button onClick={handleBulkInventoryImport} disabled={bulkInventoryImporting || bulkInventoryRows.length === 0}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-[#2563EB]/90 disabled:opacity-50 transition-all">
-                      {bulkInventoryImporting ? <Loader2 size={13} className="animate-spin" /> : <UploadCloud size={13} />}
-                      {bulkInventoryImporting ? 'Importing...' : `Import ${bulkInventoryRows.length} Rows`}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <BulkUploadModal
+        open={bulkInventoryModal}
+        onClose={closeBulkInventoryModal}
+        title="Bulk Upload Inventory"
+        description={`Import inventory items from Excel or CSV — every row is added to ${deptLabel} automatically.`}
+        fileInputRef={bulkInventoryFileInputRef}
+        onFileChange={handleBulkInventoryFileChange}
+        onDownloadTemplate={handleBulkInventoryDownloadTemplate}
+        rules={[
+          'Required: Item Name, Quantity.',
+          `Category: one of ${INVENTORY_CATEGORY_OPTIONS.join(', ')} — defaults to "Other".`,
+          'Available Quantity defaults to Quantity if left blank.',
+          'Optional: Unit, Price per Unit, Floor, Wing.',
+          'Total Value is calculated automatically as Price per Unit x Quantity.',
+          `Every row is added to ${deptLabel} automatically.`,
+        ]}
+        fileName={bulkInventoryFileName}
+        isImporting={bulkInventoryImporting}
+        staged={Boolean(bulkInventoryFileName) && !bulkInventorySummary}
+        stagedInfo={`${bulkInventoryRows.length} row${bulkInventoryRows.length === 1 ? '' : 's'} detected`}
+        onConfirmImport={handleBulkInventoryImport}
+        onChangeFile={() => { setBulkInventoryFileName(''); setBulkInventoryRows([]); setBulkInventoryError(''); }}
+        importLabel={`Import ${bulkInventoryRows.length} Row${bulkInventoryRows.length === 1 ? '' : 's'}`}
+        summary={bulkInventorySummary ? {
+          created: bulkInventorySummary.created,
+          failed: bulkInventorySummary.skipped,
+          fileName: bulkInventoryFileName,
+          errors: bulkInventorySummary.issues,
+        } : null}
+        error={bulkInventoryError}
+      />
 
       {/* MODALS */}
       <AnimatePresence>
@@ -1244,7 +1210,7 @@ export function DepartmentInventoryPage() {
                         required
                         type="text"
                         placeholder="e.g. A4 Printer Paper"
-                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                         value={newItem.name}
                         onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
                       />
@@ -1266,7 +1232,7 @@ export function DepartmentInventoryPage() {
                         type="number"
                         min="0"
                         placeholder="0"
-                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                         value={newItem.quantity}
                         onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
                       />
@@ -1276,7 +1242,7 @@ export function DepartmentInventoryPage() {
                       <input
                         type="text"
                         placeholder="e.g. pcs, box, kg"
-                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                         value={newItem.unit}
                         onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
                       />
@@ -1288,7 +1254,7 @@ export function DepartmentInventoryPage() {
                         min="0"
                         step="0.01"
                         placeholder="e.g. 35"
-                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                         value={newItem.unitPrice}
                         onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
                       />
@@ -1302,7 +1268,7 @@ export function DepartmentInventoryPage() {
                       {floorMode === 'custom' ? (
                         <div className="space-y-1.5">
                           <input
-                            className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                            className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                             value={newItem.floor}
                             onChange={(e) => setNewItem({ ...newItem, floor: e.target.value })}
                             placeholder="Enter new floor"
@@ -1330,7 +1296,7 @@ export function DepartmentInventoryPage() {
                       {wingMode === 'custom' ? (
                         <div className="space-y-1.5">
                           <input
-                            className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                            className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                             value={newItem.wing}
                             onChange={(e) => setNewItem({ ...newItem, wing: e.target.value })}
                             placeholder="Enter new wing"
@@ -1440,7 +1406,7 @@ export function DepartmentInventoryPage() {
                         type="number"
                         min="0"
                         placeholder="0"
-                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                         value={updateStock.quantity}
                         onChange={(e) => setUpdateStock({ ...updateStock, quantity: e.target.value })}
                       />
@@ -1450,7 +1416,7 @@ export function DepartmentInventoryPage() {
                       <textarea
                         rows={2}
                         placeholder="e.g. New shipment arrived, restocked pantry..."
-                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-400"
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-500"
                         value={updateStock.reason}
                         onChange={(e) => setUpdateStock({ ...updateStock, reason: e.target.value })}
                       />
@@ -1529,7 +1495,7 @@ export function DepartmentInventoryPage() {
                         min="1"
                         max={activeTransferItem.availableQuantity}
                         placeholder={`Max: ${activeTransferItem.availableQuantity}`}
-                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                         value={transferData.quantity}
                         onChange={(e) => setTransferData({ ...transferData, quantity: e.target.value })}
                       />

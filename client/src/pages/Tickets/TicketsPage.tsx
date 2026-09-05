@@ -2529,7 +2529,7 @@ export function TicketsPage() {
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
                       type="text" placeholder="Search tickets..."
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
                       value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
@@ -2738,7 +2738,7 @@ export function TicketsPage() {
                 <div>
                   <h2 className="text-xl sm:text-2xl font-pmedium text-primary flex items-center gap-2">
                    
-                    Raise Master Ticket
+                    Raise a Ticket
                   </h2>
                   <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">Request technical or facility assistance</p>
                 </div>
@@ -2858,7 +2858,7 @@ export function TicketsPage() {
                                   autoFocus
                                   type="text"
                                   placeholder="Type a new issue for this department"
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                                   value={customIssueTitle}
                                   onChange={(e) => {
                                     setCustomIssueTitle(e.target.value);
@@ -2933,7 +2933,7 @@ export function TicketsPage() {
 
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Detailed Description</label>
-                  <textarea required rows={4} placeholder="Provide issue details..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-400" value={ticketForm.description} onChange={e => setTicketForm({ ...ticketForm, description: e.target.value })} />
+                  <textarea required rows={4} placeholder="Provide issue details..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-500" value={ticketForm.description} onChange={e => setTicketForm({ ...ticketForm, description: e.target.value })} />
                 </div>
                 </div>
 
@@ -3226,7 +3226,7 @@ export function TicketsPage() {
                     <textarea
                       required rows={3}
                       placeholder="Explain how this issue was resolved... (This will be sent to the raiser)"
-                      className="w-full px-4 py-3 bg-white border border-emerald-200 rounded-xl font-pmedium text-slate-700 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none resize-none mb-3 shadow-sm placeholder:text-slate-400 text-[13px]"
+                      className="w-full px-4 py-3 bg-white border border-emerald-200 rounded-xl font-pmedium text-slate-700 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none resize-none mb-3 shadow-sm placeholder:text-slate-500 text-[13px]"
                       value={resolutionMessage} onChange={e => setResolutionMessage(e.target.value)}
                     />
                     <div className="flex flex-col-reverse sm:flex-row gap-3">

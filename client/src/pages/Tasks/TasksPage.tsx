@@ -2236,7 +2236,7 @@ export function TasksPage() {
                     <input
                       data-tour="tasks-page-search"
                       type="text" placeholder="Search Tasks or People..."
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
                       value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
@@ -2435,7 +2435,7 @@ export function TasksPage() {
                       <div className="bg-blue-50 text-[#2563EB] p-2 rounded-xl">
                         <Plus size={20} strokeWidth={2.5} />
                       </div>
-                      Delegate Task
+                      Assign Task
                     </h2>
                     <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">
                       {isAdminTaskProfile
@@ -2510,7 +2510,7 @@ export function TasksPage() {
                         <div className="sm:col-span-2 bg-blue-50/60 border border-blue-100 rounded-lg p-3 space-y-3">
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">New Type Name</label>
-                            <input type="text" placeholder="e.g. Client Escalation" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={newTaskTypeName} onChange={e => setNewTaskTypeName(e.target.value)} />
+                            <input type="text" placeholder="e.g. Client Escalation" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500" value={newTaskTypeName} onChange={e => setNewTaskTypeName(e.target.value)} />
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Behavior</label>
@@ -2534,12 +2534,12 @@ export function TasksPage() {
 
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Task Title <span className="text-red-400">*</span></label>
-                      <input required type="text" placeholder="e.g. Audit Q3 Finances" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={taskForm.title} onChange={e => setTaskForm({ ...taskForm, title: e.target.value })} />
+                      <input required type="text" placeholder="e.g. Audit Q3 Finances" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500" value={taskForm.title} onChange={e => setTaskForm({ ...taskForm, title: e.target.value })} />
                     </div>
 
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Details & Instructions</label>
-                      <textarea required rows={4} placeholder="Detailed instructions..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-400" value={taskForm.description} onChange={e => setTaskForm({ ...taskForm, description: e.target.value })} />
+                      <textarea required rows={4} placeholder="Detailed instructions..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-500" value={taskForm.description} onChange={e => setTaskForm({ ...taskForm, description: e.target.value })} />
                     </div>
                   </div>
 
@@ -2854,7 +2854,7 @@ export function TasksPage() {
                             value={completionNote}
                             onChange={(e) => setCompletionNote(e.target.value)}
                             placeholder="Add what was completed, blockers resolved, or handover notes..."
-                            className="mt-1.5 w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-pmedium text-slate-700 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none resize-none transition-all placeholder:text-slate-400"
+                            className="mt-1.5 w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-pmedium text-slate-700 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none resize-none transition-all placeholder:text-slate-500"
                           />
                         </div>
 
@@ -2986,7 +2986,7 @@ export function TasksPage() {
                       <input
                         type="text" value={commentText} onChange={(e) => setCommentText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
                         placeholder="Tag someone (@) or type a message..."
-                        className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-24 py-3 sm:py-3.5 text-[13px] sm:text-[14px] font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none transition-all shadow-sm placeholder:text-slate-400"
+                        className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-24 py-3 sm:py-3.5 text-[13px] sm:text-[14px] font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none transition-all shadow-sm placeholder:text-slate-500"
                       />
                       <button onClick={handleAddComment} className="absolute right-2 top-1.5 sm:top-2 bg-slate-900 hover:bg-black text-white px-4 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-[12px] font-pmedium transition-colors shadow-sm tracking-wider uppercase">
                         Post
@@ -3056,12 +3056,12 @@ export function TasksPage() {
 
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Task Title <span className="text-red-400">*</span></label>
-                      <input required type="text" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={editForm.title} onChange={e => setEditForm({ ...editForm, title: e.target.value })} />
+                      <input required type="text" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500" value={editForm.title} onChange={e => setEditForm({ ...editForm, title: e.target.value })} />
                     </div>
 
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Details & Instructions</label>
-                      <textarea required rows={4} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-400" value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} />
+                      <textarea required rows={4} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-500" value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} />
                     </div>
                   </div>
 

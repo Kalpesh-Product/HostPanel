@@ -961,7 +961,7 @@ export function LeaveRequestsPage() {
                     <input
                       data-tour="leaves-search"
                       type="text" placeholder="Search employee..."
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
                       value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
@@ -1567,7 +1567,7 @@ export function LeaveRequestsPage() {
                       )}
                       <div className="space-y-1">
                         <label className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest">Reason *</label>
-                        <textarea required rows={2} placeholder="Reason for leave..." className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none resize-none placeholder:text-slate-400" value={formData.reason} onChange={(e) => setFormData({ ...formData, reason: e.target.value })} />
+                        <textarea required rows={2} placeholder="Reason for leave..." className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none resize-none placeholder:text-slate-500" value={formData.reason} onChange={(e) => setFormData({ ...formData, reason: e.target.value })} />
                       </div>
                       {requiresMedicalCert && (
                         <div className="space-y-2">

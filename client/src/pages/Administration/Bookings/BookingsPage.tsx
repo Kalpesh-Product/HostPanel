@@ -1871,7 +1871,7 @@ export default function BookingsPage() {
                       data-tour="admin-bookings-search"
                       type="text"
                       placeholder={activeScope === 'tenant' ? 'Search company, resource, date...' : 'Search bookings...'}
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-xs font-pmedium outline-none placeholder:text-slate-400 transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-xs font-pmedium outline-none placeholder:text-slate-500 transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />

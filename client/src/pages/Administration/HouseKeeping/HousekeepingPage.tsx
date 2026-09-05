@@ -6,6 +6,7 @@ import { formatTime12h } from '@/utils/time';
 import WebsiteFormField from '@/components/WebsiteFormField';
 import ExportReportModal, { type ExportParams } from '@/components/ExportReportModal';
 import ReportExportButton from '@/components/ReportExportButton';
+import BulkUploadModal from '@/components/BulkUploadModal';
 import { createReport } from '@/services/reports';
 import { downloadReportFile } from '@/utils/report-download';
 import { isDateInExportPeriod } from '@/utils/export-period';
@@ -24,7 +25,6 @@ import {
   CheckCircle2,
   ClipboardList,
   Clock,
-  Download,
   Edit,
   Eye,
   Plus,
@@ -334,6 +334,7 @@ function HousekeepingPageInner() {
   const [bulkUploadFile, setBulkUploadFile] = useState<File | null>(null);
   const [bulkUploadMessage, setBulkUploadMessage] = useState('');
   const [isBulkUploading, setIsBulkUploading] = useState(false);
+  const bulkUploadInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -743,7 +744,7 @@ function HousekeepingPageInner() {
                     data-tour="admin-housekeeping-search"
                     type="text"
                     placeholder="Search task or area..."
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-xs font-pmedium outline-none placeholder:text-slate-400 transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-xs font-pmedium outline-none placeholder:text-slate-500 transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
                   />
@@ -1027,45 +1028,32 @@ function HousekeepingPageInner() {
         ) : null}
 
         {/* -- Bulk Upload Modal -------------------------------------------- */}
-        {isBulkUploadModalOpen ? (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
-            <div className="flex w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl border border-white/70">
-              <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/30 px-6 py-5 lg:px-8 lg:py-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white"><Upload size={18} /></div>
-                  <div>
-                    <h2 className="text-xl font-pmedium text-slate-800">Bulk Upload</h2>
-                    <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">One workbook with staff and scheduled tasks</p>
-                  </div>
-                </div>
-                <button onClick={() => setIsBulkUploadModalOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100"><X size={18} /></button>
-              </div>
-              <form onSubmit={handleBulkUpload} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-6 lg:px-8 lg:py-7">
-                  <button type="button" onClick={downloadBulkTemplate} className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-5 py-4 text-sm font-pmedium text-slate-700 transition-all hover:bg-slate-200 flex items-center justify-center gap-2">
-                    <Download size={16} /> Download Template
-                  </button>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Upload Workbook *</label>
-                    <input
-                      type="file"
-                      accept=".xlsx,.xls,.csv"
-                      className="w-full rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm font-pmedium text-slate-700 outline-none file:mr-4 file:rounded-xl file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-xs file:font-pmedium file:uppercase file:tracking-wider file:text-white hover:file:bg-blue-700"
-                      onChange={(event) => setBulkUploadFile(event.target.files?.[0] || null)}
-                    />
-                    {bulkUploadFile ? <p className="text-xs font-pmedium uppercase tracking-widest text-slate-500">Selected: {bulkUploadFile.name}</p> : <p className="text-xs font-pmedium uppercase tracking-widest text-slate-400">Choose the completed Excel workbook.</p>}
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-5 lg:px-8">
-                  <button type="button" onClick={() => setIsBulkUploadModalOpen(false)} className="rounded-xl px-4 py-2 text-xs font-pmedium text-slate-600 transition-all hover:bg-slate-100">Cancel</button>
-                  <button type="submit" disabled={isBulkUploading} className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-pmedium text-white shadow-sm transition-all hover:bg-[#2563EB]/90 disabled:opacity-60">
-                    {isBulkUploading ? 'Importing...' : 'Import Workbook'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        ) : null}
+        <BulkUploadModal
+          open={isBulkUploadModalOpen}
+          onClose={() => setIsBulkUploadModalOpen(false)}
+          title="Bulk Upload"
+          description="One workbook with staff and scheduled tasks."
+          fileInputRef={bulkUploadInputRef}
+          onFileChange={(event: React.ChangeEvent<HTMLInputElement>) => setBulkUploadFile(event.target.files?.[0] || null)}
+          onDownloadTemplate={downloadBulkTemplate}
+          downloadLabel="Download Template"
+          rulesTitle="Template rules"
+          rules={[
+            'Housekeeping Staff sheet: Full Name, Address, Phone and Email are all required.',
+            'Scheduled Tasks sheet: Task Name and Start Task Time are required; Task Type, Area, Floor and Wing are optional.',
+            'One record per row. Blank rows are ignored.',
+            'Do not rename the sheet names or header labels.',
+            'See the Dropdown Data sheet for the allowed Task Type, Floor and Wing values.',
+          ]}
+          fileName={bulkUploadFile?.name || ''}
+          isImporting={isBulkUploading}
+          importingLabel="Importing..."
+          staged={Boolean(bulkUploadFile)}
+          onConfirmImport={() => handleBulkUpload({ preventDefault: () => {} } as React.FormEvent)}
+          onChangeFile={() => setBulkUploadFile(null)}
+          importLabel="Import Workbook"
+          selectLabel="Select file"
+        />
 
         {/* -- Assign Task Modal -------------------------------------------- */}
         {assigningTask ? (

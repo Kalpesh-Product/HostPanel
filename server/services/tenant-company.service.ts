@@ -1011,6 +1011,7 @@ export async function createTenantCompanyForCurrentUser(userId, input) {
     },
     agreementDetails: {
       annualIncrement: Math.max(0, Number(input.agreementDetails?.annualIncrement || 0)),
+      annualIncrementPercent: Math.min(100, Math.max(0, Number(input.agreementDetails?.annualIncrementPercent ?? 10))),
       perDeskMeetingCredits: Math.max(0, Number(input.agreementDetails?.perDeskMeetingCredits || 0)),
       totalMeetingCredits: Math.max(0, Number(input.agreementDetails?.totalMeetingCredits || 0)),
       startDate: input.agreementDetails?.startDate ? new Date(input.agreementDetails.startDate) : contractStart,
@@ -1022,6 +1023,7 @@ export async function createTenantCompanyForCurrentUser(userId, input) {
       monthlyRent: Math.max(0, Number(input.billingDetails?.monthlyRent || 0)),
       totalContractAmount: Math.max(0, Number(input.billingDetails?.totalContractAmount || 0)),
       securityDepositAmount: Math.max(0, Number(input.billingDetails?.securityDepositAmount || 0)),
+      securityDepositPercent: Math.min(100, Math.max(0, Number(input.billingDetails?.securityDepositPercent ?? 25))),
       securityDepositPaidStatus: normalizeText(input.billingDetails?.securityDepositPaidStatus || "Pending") === "Paid" ? "Paid" : "Pending",
       rentDueDate: validRentDueDate,
       rentDueDay: Math.min(31, Math.max(1, Math.round(

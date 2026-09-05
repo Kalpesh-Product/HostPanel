@@ -638,8 +638,34 @@ export async function deleteVirtualOfficeForCurrentUser(userId, recordId) {
   }
   const record = await VirtualOffice.findById(recordId);
   ensureExists(record, access.workspaceId);
+
+  // Release any architecture spaces assigned to this virtual office before
+  // deleting the record. Leaving assignedVirtualOfficeId dangling would orphan
+  // those resources — they'd still count as "assigned" in Sales Architecture
+  // with no company row left to release them from.
+  const assignedResources = await Resource.find({
+    workspaceId: access.workspaceId,
+    assignedVirtualOfficeId: record._id,
+  })
+    .select("_id name resourceCode assignedVirtualOfficeName assignedAt")
+    .lean()
+    .exec();
+
+  if (assignedResources.length > 0) {
+    await Resource.updateMany(
+      { workspaceId: access.workspaceId, assignedVirtualOfficeId: record._id },
+      {
+        $set: {
+          assignedVirtualOfficeId: null,
+          assignedVirtualOfficeName: "",
+          assignedAt: null,
+        },
+      },
+    );
+  }
+
   await VirtualOffice.deleteOne({ _id: recordId });
-  return { success: true };
+  return { success: true, releasedResources: assignedResources.length };
 }
 
 export async function recordRentPaymentForCurrentUser(userId, recordId, input = {}) {

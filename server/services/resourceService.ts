@@ -436,23 +436,17 @@ export async function assignResourceForOwner(workspaceId: string, ownerId: strin
 
     const assignmentType = input.assignmentType || "tenant";
 
-    if (assignmentType === "department" && String(resource!.inventoryMode || "area").trim().toLowerCase() === "area") {
-        const error: any = new Error("Area blocks can only be assigned to tenant or virtual office companies.");
-        error.statusCode = 400;
-        throw error;
-    }
-
-    // Once a resource is assigned to a company, it can't be silently handed
-    // to someone else — release it first. Re-submitting the same assignee
-    // (e.g. re-saving) is a no-op, not a conflict.
-    const currentAssigneeId = resource!.assignedTenantCompanyId || resource!.assignedVirtualOfficeId;
+    // Once a resource is assigned to a tenant, virtual office, or department
+    // it can't be silently handed off to someone else — release it first.
+    // Re-submitting the same assignee (e.g. re-saving) is a no-op, not a conflict.
+    const currentAssigneeId = resource!.assignedTenantCompanyId || resource!.assignedVirtualOfficeId || resource!.assignedDepartmentId;
     if (currentAssigneeId) {
         const requestedId = assignmentType === "tenant" ? input.tenantCompanyId
             : assignmentType === "virtualOffice" ? input.virtualOfficeId
-            : null;
+            : input.departmentId || input.departmentName;
         const isSameAssignee = requestedId && String(currentAssigneeId) === String(requestedId);
         if (!isSameAssignee) {
-            const currentAssigneeName = resource!.assignedTenantCompanyName || resource!.assignedVirtualOfficeName || "another company";
+            const currentAssigneeName = resource!.assignedTenantCompanyName || resource!.assignedVirtualOfficeName || resource!.assignedDepartmentName || "another department or company";
             const error: any = new Error(`This resource is already assigned to ${currentAssigneeName}. Release it before assigning it elsewhere.`);
             error.statusCode = 409;
             throw error;

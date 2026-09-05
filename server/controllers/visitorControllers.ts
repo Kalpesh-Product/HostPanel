@@ -170,6 +170,7 @@ const formatVisitor = (visitor: any) => ({
   rejectionReason: visitor?.rejectionReason || "",
   notes: visitor?.notes || "",
   badgeNo: visitor?.badgeNo || "",
+  leadStatus: visitor?.leadStatus || "New",
   // Tour-specific fields
   pocName: visitor?.pocName || "",
   pocDesignation: visitor?.pocDesignation || "",
@@ -848,4 +849,30 @@ export const checkOutVisitor = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+export const updateVisitorLeadStatus = async (req, res, next) => {
+  try {
+    const workspace = await getCurrentWorkspaceForRequest(req);
+    if (!workspace) return res.status(404).json({ message: "Workspace not found for this user." });
+    const membership = await getWorkspaceMembership(toId(workspace._id), toId(req.user));
+    if (!membership) return res.status(403).json({ message: "You do not have workspace access." });
+    if (!hasVisitorAccess({ workspace, membership, permissionKey: VISITOR_PERMISSION_KEYS.pages.manageVisitors })) {
+      return res.status(403).json({ message: "You do not have permission to update visitor leads." });
+    }
+    const leadStatus = req.body?.leadStatus;
+    if (!["New", "Contacted", "Qualified", "Converted", "Lost"].includes(leadStatus)) {
+      return res.status(400).json({ message: "Invalid lead status." });
+    }
+    if (!/^[a-f0-9]{24}$/i.test(String(req.params.visitorId || ""))) {
+      return res.status(400).json({ message: "Invalid visitor ID." });
+    }
+    const visitor = await VisitorLog.findOneAndUpdate(
+      { _id: req.params.visitorId, workspace: workspace._id, purpose: /tour|workspace|enquiry/i },
+      { $set: { leadStatus } },
+      { new: true, runValidators: true },
+    );
+    if (!visitor) return res.status(404).json({ message: "Unit tour lead not found." });
+    return res.status(200).json({ message: "Lead status updated.", data: { visitor: formatVisitor(visitor) } });
+  } catch (error) { next(error); }
 };

@@ -45,8 +45,7 @@ const deskCats = new Set(["open_desk", "cabin_desk"]);
 const bookingOnlyCats = new Set(["meeting_room", "conference_room"]);
 const voCats = new Set(["virtual_office"]);
 const isDepartmentAssignableResource = (resource = {}) =>
-  deskCats.has(String(resource.resourceCategory || "").trim().toLowerCase())
-  && String(resource.inventoryMode || "area").trim().toLowerCase() !== "area";
+  deskCats.has(String(resource.resourceCategory || "").trim().toLowerCase());
 
 const money = (v = 0, currency = "INR") => formatWorkspaceCurrency(Number(v || 0), currency, { maximumFractionDigits: 0 });
 const locStr = (r = {}) => [r.floor, r.wing].filter(Boolean).join(" ").trim();
@@ -119,6 +118,14 @@ const toneFor = (r = {}, isPackageLocked = false) => {
   if (r.assignmentType === "department") return ["bg-amber-50 border-amber-200 text-amber-700", "bg-amber-50 border-amber-300", r.assignedDepartmentName || "Department", "text-amber-600"];
   if (bookingOnlyCats.has(r.resourceCategory)) return ["bg-fuchsia-50 border-fuchsia-200 text-fuchsia-700", "bg-fuchsia-50 border-fuchsia-200", "Booking", "text-fuchsia-600"];
   return ["bg-emerald-50 border-emerald-200 text-emerald-700", "bg-green-50 border-green-300", "Available", "text-emerald-600"];
+};
+
+// Stat card text takes the card's accent color (parsed from its iconClass,
+// e.g. "bg-emerald-50 text-emerald-600"). Cards without an accent color
+// default to slate-600 grey.
+const statTextClassFor = (iconClass = "") => {
+  const m = String(iconClass || "").match(/text-[a-z]+-\d+/);
+  return m ? m[0] : "text-slate-600";
 };
 
 const matchesSearch = (r = {}, q = "") => {
@@ -577,6 +584,20 @@ export default function SalesArchitecturePage() {
     });
     return Object.values(map);
   }, [voResources]);
+
+  // Spaces still flagged as assigned to a virtual office that no longer
+  // exists (deleted before the resource assignment was released). They have
+  // no company row to release from, so we surface them explicitly.
+  const orphanedVOResources = useMemo(() => {
+    const activeIds = new Set(virtualOffices.map((v) => String(v._id || v.recordId)).filter(Boolean));
+    return voResources.filter(
+      (r) => r.assignmentType === "virtualOffice" && r.assignedVirtualOfficeId && !activeIds.has(String(r.assignedVirtualOfficeId)),
+    );
+  }, [voResources, virtualOffices]);
+  const orphanedVOSeatCount = useMemo(
+    () => orphanedVOResources.reduce((s, r) => s + Math.max(1, Number(r.capacity || 1)), 0),
+    [orphanedVOResources],
+  );
   const voAvailableFloors = useMemo(
     () => Array.from(new Set(voResources.map((r) => r.floor).filter(Boolean))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
     [voResources],
@@ -685,6 +706,8 @@ export default function SalesArchitecturePage() {
   const toggleResource = (r) => {
     if (r.status !== "Active") return;
     if (packageLockedIds.has(String(r.recordId || r.id))) return;
+    // Booking-only spaces (meeting/conference rooms) are not assignable.
+    if (bookingOnlyCats.has(r.resourceCategory)) return;
     // Prevent selecting already-assigned spaces (tenant or department)
     if (r.assignmentLabel) return;
     const id = String(r.recordId || r.id);
@@ -857,8 +880,8 @@ export default function SalesArchitecturePage() {
         ].map(({ icon: Icon, label, value, cardClass, iconClass }) => (
           <div key={label} className={cardClass}>
             <div className="min-w-0">
-              <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-              <p className="text-[15px] font-pmedium text-primary">{value}</p>
+              <p className={`text-[10px] font-pmedium ${statTextClassFor(iconClass)} uppercase tracking-widest mb-1`}>{label}</p>
+              <p className={`text-[15px] font-pmedium ${statTextClassFor(iconClass)}`}>{value}</p>
             </div>
             <div className={`p-2 rounded-2xl ${iconClass} shrink-0`}><Icon size={16} /></div>
           </div>
@@ -883,7 +906,7 @@ export default function SalesArchitecturePage() {
             <div className="relative flex-1 min-w-[180px]">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
               <input type="text" placeholder="Search space, tenant..."
-                className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
                 value={query} onChange={(e) => setQuery(e.target.value)} />
             </div>
             {assignableIds.length > 0 && (
@@ -1035,8 +1058,8 @@ export default function SalesArchitecturePage() {
           ].map(({ icon: Icon, label, value, cardClass, iconClass }) => (
             <div key={label} className={cardClass}>
               <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">{label}</p>
-                <p className="text-[15px] font-pmedium text-slate-900">{value}</p>
+                <p className={`text-[10px] font-pmedium ${statTextClassFor(iconClass)} uppercase tracking-widest mb-1`}>{label}</p>
+                <p className={`text-[15px] font-pmedium ${statTextClassFor(iconClass)}`}>{value}</p>
               </div>
               <div className={`p-2 rounded-2xl ${iconClass} shrink-0`}><Icon size={16} /></div>
             </div>
@@ -1063,7 +1086,7 @@ export default function SalesArchitecturePage() {
               <div className="relative flex-1 min-w-[180px]">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                 <input type="text" placeholder="Search by company, contact..."
-                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
                   value={tenantListSearch} onChange={(e) => setTenantListSearch(e.target.value)} />
               </div>
               <button onClick={() => { setSelectedCompanyId(""); clearSelection(); setIsAssignModalOpen(true); }}
@@ -1314,13 +1337,35 @@ export default function SalesArchitecturePage() {
           ].map(({ icon: Icon, label, value, cardClass, iconClass }) => (
             <div key={label} className={cardClass}>
               <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">{label}</p>
-                <p className="text-[15px] font-pmedium text-slate-900">{value}</p>
+                <p className={`text-[10px] font-pmedium ${statTextClassFor(iconClass)} uppercase tracking-widest mb-1`}>{label}</p>
+                <p className={`text-[15px] font-pmedium ${statTextClassFor(iconClass)}`}>{value}</p>
               </div>
               <div className={`p-2 rounded-2xl ${iconClass} shrink-0`}><Icon size={16} /></div>
             </div>
           ))}
         </div>
+
+        {orphanedVOResources.length > 0 && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 shadow-sm">
+            <div className="flex items-start gap-2.5 min-w-0">
+              <AlertTriangle className="mt-0.5 shrink-0 text-amber-500" size={16} />
+              <div className="min-w-0">
+                <p className="text-[11px] font-pmedium text-amber-800">
+                  {orphanedVOResources.length} space{orphanedVOResources.length === 1 ? "" : "s"} ({orphanedVOSeatCount} seats) {orphanedVOResources.length === 1 ? "is" : "are"} still assigned to a virtual office company that has been deleted.
+                </p>
+                <p className="text-[10px] font-pmedium text-amber-600 mt-0.5">Release them to free the spaces for reassignment.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setReleaseTarget({ type: "virtualOffice", name: "Deleted Virtual Office", resources: orphanedVOResources });
+                setReleaseSelectedIds(orphanedVOResources.map((r) => String(r.recordId || r.id)));
+              }}
+              disabled={saving}
+              className="shrink-0 ml-auto px-4 py-2 bg-rose-600 text-white rounded-xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-rose-700 transition-all disabled:opacity-60"
+            ><RotateCcw size={13} /> Release Spaces</button>
+          </div>
+        )}
 
         <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
           <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
@@ -1340,7 +1385,7 @@ export default function SalesArchitecturePage() {
               <div className="relative flex-1 min-w-[180px]">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                 <input type="text" placeholder="Search by company..."
-                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
                   value={voListSearch} onChange={(e) => setVoListSearch(e.target.value)} />
               </div>
               <button onClick={() => { setSelectedVOCompanyId(""); clearVOSelection(); setIsVOAssignModalOpen(true); }}
@@ -1536,8 +1581,8 @@ export default function SalesArchitecturePage() {
           ].map(({ icon: Icon, label, value, cardClass, iconClass }) => (
             <div key={label} className={cardClass}>
               <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">{label}</p>
-                <p className="text-[15px] font-pmedium text-primary">{value}</p>
+                <p className={`text-[10px] font-pmedium ${statTextClassFor(iconClass)} uppercase tracking-widest mb-1`}>{label}</p>
+                <p className={`text-[15px] font-pmedium ${statTextClassFor(iconClass)}`}>{value}</p>
               </div>
               <div className={`p-2 rounded-2xl ${iconClass} shrink-0`}><Icon size={16} /></div>
             </div>
@@ -1564,7 +1609,7 @@ export default function SalesArchitecturePage() {
               <div className="relative flex-1 min-w-[180px]">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                 <input type="text" placeholder="Search by department, manager..."
-                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
                   value={deptListSearch} onChange={(e) => setDeptListSearch(e.target.value)} />
               </div>
               <button onClick={() => { setDeptAssignSelectedId(""); clearSelection(); setIsDeptAssignModalOpen(true); }}
