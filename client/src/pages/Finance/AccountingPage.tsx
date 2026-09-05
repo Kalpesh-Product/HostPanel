@@ -253,6 +253,8 @@ interface DepartmentRow {
 interface PnlData {
   revenueBookings: number;
   revenueTenant: number;
+  revenueWorkation: number;
+  revenueAlternate: number;
   revenueOther: number;
   revenueTotal: number;
   cogsDepartment: number;
@@ -418,25 +420,32 @@ export default function AccountingPage(): React.ReactElement {
       }));
     });
 
-    // Income ledger — auto-posted when Finance marks tenant rent / virtual-office
-    // rent as paid. Feeds the P&L's income lines ("Tenant Rent", "Virtual Office Rent").
+    // Income ledger — auto-posted on rent/VO Mark-as-Paid + manual revenue
+    // (workation / alternate). Pending entries are NOT recognized income and
+    // never reach the ledger; Reversal rows are negative corrections.
     (data.incomeEntries || []).forEach((entry) => {
-      const postedAt = (entry?.postedAt || entry?.createdAt) as string | undefined;
+      const status = text(String(entry?.status || ''));
+      if (status === 'pending') return;
+      const postedAt = (entry?.revenueDate || entry?.postedAt || entry?.createdAt) as string | undefined;
       if (!withinSelectedFiscalYear(postedAt)) return;
       const amount = Number(entry?.amount || 0);
-      if (amount <= 0) return;
+      if (!amount) return;
       const source = String(entry?.source || '');
       const isVo = source === 'virtual-office-rent';
+      const sourceLabel = isVo ? 'Virtual Office Rent'
+        : source === 'workation-revenue' ? 'Workation Revenue'
+        : source === 'alternate-revenue' ? 'Alternate Revenue'
+        : 'Tenant Rent';
       rows.push(ledgerRow({
         id: (entry?.id as string) || `rent-income-${source}-${String(entry?.periodKey || '')}`,
         date: postedAt,
         type: 'Income',
-        source: isVo ? 'Virtual Office Rent' : 'Tenant Rent',
+        source: sourceLabel,
         entity: (entry?.entityName as string) || (isVo ? 'Virtual Office' : 'Tenant Company'),
-        dept: isVo ? 'Billing' : 'Sales',
+        dept: isVo || source !== 'tenant-rent' ? 'Billing' : 'Sales',
         amount,
         ref: (entry?.periodLabel as string) || (entry?.periodKey as string) || '',
-        status: 'Confirmed',
+        status: status === 'reversal' ? 'Reversed' : 'Confirmed',
         periodKey: (entry?.periodKey as string) || '',
       }));
     });
@@ -610,9 +619,11 @@ export default function AccountingPage(): React.ReactElement {
       directCostDepartments.has(deptKey(entry.dept)) || text(entry.source).includes('department spend') ||
       text(entry.source).includes('department budget expense') || text(entry.source).includes('extra budget expense');
     const total = (items: LedgerEntry[]) => items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-    const revenueBookings = total(income.filter((item) => text(item.source).includes('booking')));
+        const revenueBookings = total(income.filter((item) => text(item.source).includes('booking')));
     const revenueTenant = total(income.filter((item) => text(item.source).includes('tenant')));
-    const revenueOther = total(income) - revenueBookings - revenueTenant;
+    const revenueWorkation = total(income.filter((item) => text(item.source).includes('workation')));
+    const revenueAlternate = total(income.filter((item) => text(item.source).includes('alternate')));
+    const revenueOther = total(income) - revenueBookings - revenueTenant - revenueWorkation - revenueAlternate;
     const cogsDepartment = total(expense.filter((item) => isDepartmentCost(item)));
     const cogsExtra = total(expense.filter((item) => text(item.source).includes('extra budget')));
     const payroll = total(expense.filter((item) => text(item.source).includes('payroll')));
@@ -624,7 +635,7 @@ export default function AccountingPage(): React.ReactElement {
     const netProfitVal = grossProfit - opexTotal;
     const margin = revenueTotal > 0 ? Math.round((netProfitVal / revenueTotal) * 100) : 0;
     return {
-      revenueBookings, revenueTenant, revenueOther, revenueTotal,
+      revenueBookings, revenueTenant, revenueWorkation, revenueAlternate, revenueOther, revenueTotal,
       cogsDepartment, cogsExtra, cogsTotal, payroll, admin: Math.max(0, admin),
       opexTotal, grossProfit, netProfit: netProfitVal, margin,
     };
@@ -997,7 +1008,7 @@ export default function AccountingPage(): React.ReactElement {
                       Read only. Auto-compiled from the live ledger for {selectedPeriodLabel}.
                     </div>
                     <div className="space-y-6 p-4 sm:space-y-8 sm:p-6 md:p-8">
-                      <PnlSection title="Revenue" tone="green" icon={ArrowUpRight} rows={[['Walk-in / Bookings', pnlData.revenueBookings], ['Tenant Onboarding', pnlData.revenueTenant], ['Other Income', pnlData.revenueOther]]} totalLabel="Total Income" totalValue={pnlData.revenueTotal} currency={currency} />
+                      <PnlSection title="Revenue" tone="green" icon={ArrowUpRight} rows={[['Walk-in / Bookings', pnlData.revenueBookings], ['Tenant Onboarding', pnlData.revenueTenant], ['Workation Revenue', pnlData.revenueWorkation], ['Alternate Revenue', pnlData.revenueAlternate], ['Other Income', pnlData.revenueOther]]} totalLabel="Total Income" totalValue={pnlData.revenueTotal} currency={currency} />
                       <PnlSection title="COGS" tone="orange" icon={Building2} rows={[['Department Costs', pnlData.cogsDepartment], ['Extra Budget Costs', pnlData.cogsExtra]]} totalLabel="Total COGS" totalValue={pnlData.cogsTotal} currency={currency} />
                       <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-100 p-3 sm:p-4">
                         <span className="text-[10px] font-pmedium uppercase tracking-widest text-gray-600 sm:text-xs">Gross Profit</span>
