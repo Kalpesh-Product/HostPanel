@@ -32,7 +32,7 @@ import {
   ShieldAlert,
   Sparkles,
   Trash2,
-  Upload,
+  UploadCloud,
   User,
   UserCheck,
   Users,
@@ -639,10 +639,11 @@ function HousekeepingPageInner() {
               <button
                 type="button"
                 onClick={() => { setBulkUploadMessage(''); setBulkUploadFile(null); setIsBulkUploadModalOpen(true); }}
-                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-slate-100 hover:border-slate-500 text-slate-500 transition-all active:scale-95 shadow-sm"
+                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-blue-50 hover:border-blue-200 text-slate-500 transition-all active:scale-95 shadow-sm"
+                title="Bulk Upload"
               >
-                <Upload size={13} />
-                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-500 text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
+                <UploadCloud size={16} className="text-blue-500" />
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-[#2563EB] text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
               </button>
             </div>
           </div>

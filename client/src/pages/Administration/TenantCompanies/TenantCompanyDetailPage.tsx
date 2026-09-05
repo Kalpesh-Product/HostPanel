@@ -651,9 +651,12 @@ export default function AdministrationTenantCompanyDetailPage() {
                   <button onClick={() => setMgrModal(true)}
                     data-tour="tenant-detail-change-manager"
                     className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200/60 text-slate-700 rounded-xl text-[10px] font-pmedium hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"><UserCog size={12} /> Change Manager</button>
-                  <button onClick={openBulkModal}
+                  <button type="button" onClick={openBulkModal}
                     data-tour="tenant-detail-bulk-upload-employees"
-                    className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200/60 text-slate-700 rounded-xl text-[10px] font-pmedium hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"><UploadCloud size={12} /> Bulk Upload</button>
+                    className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-blue-50 hover:border-blue-200 text-slate-500 transition-all active:scale-95 shadow-sm" title="Bulk Upload">
+                    <UploadCloud size={16} className="text-blue-500" />
+                    <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-[#2563EB] text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
+                  </button>
                   <button onClick={() => setAddModal(true)}
                     data-tour="tenant-detail-add-employee"
                     className="flex items-center gap-1.5 px-3 py-2 bg-[#2563EB] text-white rounded-2xl text-[10px] font-pmedium shadow-sm hover:bg-[#2563EB]/90 active:scale-95 transition-all"><Plus size={12} strokeWidth={3} /> Add Employee</button>

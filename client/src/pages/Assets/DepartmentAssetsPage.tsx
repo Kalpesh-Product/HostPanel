@@ -660,8 +660,14 @@ export function DepartmentAssetsPage() {
               <p className="text-sm font-bold text-[#2563EB] uppercase tracking-widest mt-1">{deptLabel} &bull; Department Assets</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-              <button onClick={() => { setBulkUploadSummary(null); setBulkUploadFileName(''); setIsBulkUploadOpen(true); }} className="bg-white text-[#0F172A] px-5 py-3 rounded-2xl text-sm font-black flex items-center gap-2 border border-slate-200 shadow-sm hover:border-slate-300 transition-all">
-                <UploadCloud size={18} strokeWidth={2.75} /> BULK UPLOAD
+              <button
+                type="button"
+                onClick={() => { setBulkUploadSummary(null); setBulkUploadFileName(''); setIsBulkUploadOpen(true); }}
+                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-blue-50 hover:border-blue-200 text-slate-500 transition-all active:scale-95 shadow-sm self-center"
+                title="Bulk Upload"
+              >
+                <UploadCloud size={16} className="text-blue-500" />
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-[#2563EB] text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
               </button>
               <button onClick={() => setIsAddModalOpen(true)} className="bg-white text-[#2563EB] px-5 py-3 rounded-2xl text-sm font-black flex items-center gap-2 border border-blue-200 shadow-sm hover:border-blue-300 transition-all">
                 <Box size={18} strokeWidth={2.75} /> ADD ASSET
