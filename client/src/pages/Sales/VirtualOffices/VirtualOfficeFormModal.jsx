@@ -195,15 +195,15 @@ export default function VirtualOfficeFormModal({ open, mode = "create", initialR
             </h2>
             <p className="text-xs font-pmedium text-slate-500 mt-1">Enter company details and rental plan; amounts are calculated automatically.</p>
           </div>
-          <button onClick={onClose} type="button" className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600">
-            <X className="h-5 w-5" />
+          <button onClick={onClose} type="button" className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all">
+            <X size={16} />
           </button>
         </div>
 
-        <div className="max-h-[70vh] overflow-y-auto px-6 py-5">
-          <div className="space-y-6">
-            <section>
-              <h3 className="mb-3 text-xs font-pmedium uppercase tracking-wider text-slate-900 flex items-center gap-2"><Building2 size={14} /> Company Profile</h3>
+        <div className="max-h-[70vh] overflow-y-auto px-4 py-4 sm:px-5 bg-slate-50/30">
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+              <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Building2 size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">1. Company Profile</span></h4>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Client Name" required error={fieldErrors.clientName}>
                   <input className={inputClass} value={form.clientName} onChange={(e) => setField("clientName", e.target.value)} placeholder="e.g. AKIRA BUSINESS SERVICES" />
@@ -245,10 +245,10 @@ export default function VirtualOfficeFormModal({ open, mode = "create", initialR
                   </select>
                 </Field>
               </div>
-            </section>
+            </div>
 
-            <section>
-              <h3 className="mb-3 text-xs font-pmedium uppercase tracking-wider text-slate-900 flex items-center gap-2"><Users size={14} /> Points of Contact</h3>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+              <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Users size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">2. Points of Contact</span></h4>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-100 p-4">
                   <p className="mb-3 text-[10px] font-pmedium uppercase tracking-widest text-blue-600">HO POC</p>
@@ -273,10 +273,10 @@ export default function VirtualOfficeFormModal({ open, mode = "create", initialR
                   </div>
                 </div>
               </div>
-            </section>
+            </div>
 
-            <section>
-              <h3 className="mb-3 text-xs font-pmedium uppercase tracking-wider text-slate-900 flex items-center gap-2"><MapPin size={14} /> Space Allocation</h3>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+              <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><MapPin size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">3. Space Allocation</span></h4>
               <div className="grid gap-4 sm:grid-cols-3">
                 <Field label="Location">
                   <select className={inputClass} value={form.spaceLocation} onChange={(e) => handleSpaceLocationChange(e.target.value)}>
@@ -306,10 +306,10 @@ export default function VirtualOfficeFormModal({ open, mode = "create", initialR
               {/* <p className="mt-2 text-[10px] font-pmedium text-slate-400">
                 Options are pulled from Resource Management. Desk-by-desk assignment happens separately in Sales Architecture.
               </p> */}
-            </section>
+            </div>
 
-            <section>
-              <h3 className="mb-3 text-xs font-pmedium uppercase tracking-wider text-slate-900 flex items-center gap-2"><LayoutGrid size={14} /> Rental Plan &amp; Calculations</h3>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+              <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><LayoutGrid size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">4. Rental Plan &amp; Calculations</span></h4>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Open Desks" required error={fieldErrors.openDesks}>
                   <input type="number" min="0" className={inputClass} value={form.openDesks} onChange={(e) => setField("openDesks", e.target.value)} />
@@ -401,10 +401,10 @@ export default function VirtualOfficeFormModal({ open, mode = "create", initialR
                   </div>
                 ))}
               </div>
-            </section>
+            </div>
 
-            <section>
-              <h3 className="mb-3 text-xs font-pmedium uppercase tracking-wider text-slate-900 flex items-center gap-2"><Banknote size={14} /> Security Deposit &amp; Notes</h3>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+              <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Banknote size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">5. Security Deposit &amp; Notes</span></h4>
               <label className="flex items-center gap-2 text-sm font-pmedium text-slate-700">
                 <input
                   type="checkbox"
@@ -419,17 +419,17 @@ export default function VirtualOfficeFormModal({ open, mode = "create", initialR
                   <textarea className={inputClass} rows={2} value={form.notes} onChange={(e) => setField("notes", e.target.value)} />
                 </Field>
               </div>
-            </section>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-6 py-4">
-          <button onClick={onClose} type="button" className="rounded-xl px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-600 transition hover:bg-slate-100" disabled={isSaving}>
-            Cancel
+        <div className="flex gap-3 border-t border-slate-100 p-3 sm:p-4">
+          <button onClick={onClose} type="button" disabled={isSaving} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[11px] hover:bg-slate-50 transition-all shadow-sm disabled:cursor-not-allowed disabled:opacity-60">
+            CANCEL
           </button>
-          <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50">
+          <button onClick={handleSave} disabled={isSaving} className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[11px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60">
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-            {isSaving ? "Saving..." : mode === "edit" ? "Save Changes" : "Onboard Company"}
+            {isSaving ? "SAVING..." : mode === "edit" ? "SAVE CHANGES" : "ONBOARD COMPANY"}
           </button>
         </div>
       </div>

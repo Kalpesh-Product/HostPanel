@@ -139,9 +139,10 @@ export const getMyTenantRent = async () => {
   return axiosPrivate.get("/api/v1/tenant-companies/my/rent");
 };
 
-export const submitMyTenantRentPayment = async (rentId: string, payload: { paymentProof: File; transactionReference?: string }) => {
+export const submitMyTenantRentPayment = async (rentId: string, payload: { paymentProof: File; amount: number; transactionReference?: string }) => {
   const formData = new FormData();
   formData.append("paymentProof", payload.paymentProof);
+  formData.append("amount", String(payload.amount));
   if (payload.transactionReference) {
     formData.append("transactionReference", payload.transactionReference);
   }

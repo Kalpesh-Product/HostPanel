@@ -12,10 +12,11 @@ import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
 import {
   Search, ChevronDown, X, Eye, ShieldCheck,
-  CheckCircle2, Wrench, Box, ArrowRightLeft, MapPin, Building2,FileSpreadsheet, Download,
+  CheckCircle2, Wrench, Box, ArrowRightLeft, MapPin, Building2,
   Filter, Plus, Monitor, Server, Cloud, Briefcase, User, Package, Pencil, AlertTriangle, Loader2, ImageIcon, FileText,
-  UploadCloud, Info,
+  UploadCloud,
 } from 'lucide-react';
+import BulkUploadModal from '@/components/BulkUploadModal';
 import PageFrame from '../../components/Pages/PageFrame';
 import { statusPillClass } from '../../lib/status-pill';
 import { exportRowsAsCsv, exportRowsAsPdf, rowsToReportRows, type ExportColumn } from '@/utils/exportTable';
@@ -1478,7 +1479,7 @@ function AssetsSkeleton() {
                     <input
                       data-tour="assets-search"
                       type="text" placeholder="Search assets..."
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
                       value={searchQuery} onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
                     />
                   </div>
@@ -1683,72 +1684,34 @@ function AssetsSkeleton() {
         )}
       </PageFrame>
 
-      {bulkAssetModal && (
-        <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-md h-auto rounded-t-[32px] sm:rounded-[32px] shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
-            <div className="flex items-center justify-between p-5 border-b border-slate-100">
-              <h3 className="text-sm font-pmedium text-slate-900 flex items-center gap-2"><UploadCloud size={16} /> Bulk Upload Assets</h3>
-              <button onClick={closeBulkAssetModal}
-                className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all"><X size={16} /></button>
-            </div>
-            <div className="p-5 space-y-4 overflow-y-auto">
-              {!bulkAssetFileName ? (
-                <>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={handleBulkAssetDownloadTemplate}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 hover:border-[#2563EB] hover:text-[#2563EB] transition-all">
-                      <FileSpreadsheet size={13} /> Download Template
-                    </button>
-                  </div>
-                  <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
-                    <Info size={13} className="text-blue-500 mt-0.5 shrink-0" />
-                    <p className="text-[10px] font-pmedium text-blue-700 leading-relaxed">Fill in Asset Name, Department, Category, Sub Category, Quantity and Price per Unit per row. A row with Quantity 5 creates 5 identical units, each with its own unique Asset ID. Unknown categories/sub categories are created automatically.</p>
-                  </div>
-                  <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:border-[#2563EB] transition-colors cursor-pointer" onClick={() => bulkAssetFileInputRef.current?.click()}>
-                    <UploadCloud size={28} className="mx-auto text-slate-300 mb-3" />
-                    <p className="text-[12px] font-pmedium text-slate-600 mb-1">Click to upload spreadsheet</p>
-                    <p className="text-[10px] text-slate-400">Supports .xlsx, .xls, .csv — use the template above for the required columns.</p>
-                  </div>
-                  <input ref={bulkAssetFileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleBulkAssetFileChange} />
-                </>
-              ) : bulkAssetSummary ? (
-                <div className="space-y-3">
-                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100">
-                    <p className="text-[12px] font-pmedium text-emerald-800">Import Complete</p>
-                    <p className="text-[11px] text-emerald-600 mt-1">{bulkAssetSummary.created} row(s) created, {bulkAssetSummary.skipped} skipped</p>
-                  </div>
-                  {bulkAssetSummary.issues.length > 0 && (
-                    <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 max-h-40 overflow-y-auto space-y-1">
-                      {bulkAssetSummary.issues.map((issue, i) => (
-                        <p key={i} className="text-[10px] font-pmedium text-amber-700">{issue}</p>
-                      ))}
-                    </div>
-                  )}
-                  <button onClick={closeBulkAssetModal}
-                    className="w-full py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-[#2563EB]/90 transition-all">Done</button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                    <span className="text-[12px] font-pmedium text-slate-700 truncate">{bulkAssetFileName}</span>
-                    <span className="text-[10px] font-pmedium text-slate-400 shrink-0">{bulkAssetRows.length} rows</span>
-                  </div>
-                  {bulkAssetError && <p className="text-[11px] font-pmedium text-red-500">{bulkAssetError}</p>}
-                  <div className="flex gap-2">
-                    <button onClick={() => { setBulkAssetFileName(''); setBulkAssetRows([]); setBulkAssetError(''); }}
-                      className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">Change File</button>
-                    <button onClick={handleBulkAssetImport} disabled={bulkAssetImporting || bulkAssetRows.length === 0}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-[#2563EB]/90 disabled:opacity-50 transition-all">
-                      {bulkAssetImporting ? <Loader2 size={13} className="animate-spin" /> : <UploadCloud size={13} />}
-                      {bulkAssetImporting ? 'Importing...' : `Import ${bulkAssetRows.length} Rows`}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <BulkUploadModal
+        open={bulkAssetModal}
+        onClose={closeBulkAssetModal}
+        title="Bulk Upload Assets"
+        description="Import assets from a spreadsheet — one row per asset."
+        fileInputRef={bulkAssetFileInputRef}
+        onFileChange={handleBulkAssetFileChange}
+        onDownloadTemplate={handleBulkAssetDownloadTemplate}
+        rules={[
+          'Fill in Asset Name, Department, Category, Sub Category, Quantity and Price per Unit per row.',
+          'A row with Quantity 5 creates 5 identical units, each with its own unique Asset ID.',
+          'Unknown categories/sub categories are created automatically.',
+        ]}
+        fileName={bulkAssetFileName}
+        isImporting={bulkAssetImporting}
+        staged={Boolean(bulkAssetFileName) && !bulkAssetSummary}
+        stagedInfo={`${bulkAssetRows.length} row${bulkAssetRows.length === 1 ? '' : 's'} detected`}
+        onConfirmImport={handleBulkAssetImport}
+        onChangeFile={() => { setBulkAssetFileName(''); setBulkAssetRows([]); setBulkAssetError(''); }}
+        importLabel={`Import ${bulkAssetRows.length} Row${bulkAssetRows.length === 1 ? '' : 's'}`}
+        summary={bulkAssetSummary ? {
+          created: bulkAssetSummary.created,
+          failed: bulkAssetSummary.skipped,
+          fileName: bulkAssetFileName,
+          errors: bulkAssetSummary.issues,
+        } : null}
+        error={bulkAssetError}
+      />
 
       {isAddModalOpen && (
         <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
@@ -1776,7 +1739,7 @@ function AssetsSkeleton() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1 sm:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Asset Name <span className="text-red-400">*</span></label>
-                    <input required value={assetForm.name} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, name: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" placeholder="e.g. MacBook Pro M3 Max" />
+                    <input required value={assetForm.name} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, name: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500" placeholder="e.g. MacBook Pro M3 Max" />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Category <span className="text-red-400">*</span></label>
@@ -1820,7 +1783,7 @@ function AssetsSkeleton() {
                   {!requiresSerialNumber && (
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Serial Number</label>
-                      <input type="text" value={serialNumbers[0] || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => setSerialNumbers((prev) => { const next = [...prev]; next[0] = e.target.value; return next; })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" placeholder="IT asset tag or serial number" />
+                      <input type="text" value={serialNumbers[0] || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => setSerialNumbers((prev) => { const next = [...prev]; next[0] = e.target.value; return next; })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500" placeholder="IT asset tag or serial number" />
                     </div>
                   )}
                   {requiresSerialNumber && (
@@ -1834,7 +1797,7 @@ function AssetsSkeleton() {
                             type="text"
                             value={value}
                             onChange={(e: ChangeEvent<HTMLInputElement>) => setSerialNumbers((prev) => { const next = [...prev]; next[index] = e.target.value; return next; })}
-                            className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                            className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                             placeholder={`Unit ${index + 1} serial number`}
                           />
                         ))}
@@ -1843,7 +1806,7 @@ function AssetsSkeleton() {
                   )}
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Brand / Model</label>
-                    <input type="text" value={assetForm.brandModel} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, brandModel: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" placeholder="e.g. Dell Latitude 5440" />
+                    <input type="text" value={assetForm.brandModel} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, brandModel: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500" placeholder="e.g. Dell Latitude 5440" />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Purchase Date</label>
@@ -1855,7 +1818,7 @@ function AssetsSkeleton() {
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price per Unit ({workspacePreferences.currency})</label>
-                    <input type="number" min={0} step="0.01" value={assetForm.unitPrice} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, unitPrice: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" placeholder="e.g. 3499" />
+                    <input type="number" min={0} step="0.01" value={assetForm.unitPrice} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, unitPrice: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500" placeholder="e.g. 3499" />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Total Price ({workspacePreferences.currency})</label>
@@ -1962,7 +1925,7 @@ function AssetsSkeleton() {
                     {floorMode === 'custom' ? (
                       <div className="space-y-1.5">
                         <input
-                          className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                          className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                           value={assetForm.floor}
                           onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, floor: e.target.value }))}
                           placeholder="Enter new floor"
@@ -1986,7 +1949,7 @@ function AssetsSkeleton() {
                     {wingMode === 'custom' ? (
                       <div className="space-y-1.5">
                         <input
-                          className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                          className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                           value={assetForm.wing}
                           onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, wing: e.target.value }))}
                           placeholder="Enter new wing"
@@ -2011,7 +1974,7 @@ function AssetsSkeleton() {
                   </div>
                   <div className="flex flex-col gap-1 sm:col-span-2">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Notes</label>
-                    <textarea rows={2} value={assetForm.notes} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setAssetForm((prev) => ({ ...prev, notes: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-600 outline-none resize-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" placeholder="Additional notes for this asset" />
+                    <textarea rows={2} value={assetForm.notes} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setAssetForm((prev) => ({ ...prev, notes: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-600 outline-none resize-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500" placeholder="Additional notes for this asset" />
                   </div>
                 </div>
               </div>
@@ -2324,7 +2287,7 @@ function AssetsSkeleton() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">{canActAsOwnerFor(activeAssetForTransfer) ? 'Reason for Transfer' : 'Assignment Note'}</label>
-                    <textarea rows={2} value={transferForm.transferReason} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setTransferForm((prev) => ({ ...prev, transferReason: e.target.value }))} placeholder="Optional reason..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-600 outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none transition-all placeholder:text-slate-400" />
+                    <textarea rows={2} value={transferForm.transferReason} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setTransferForm((prev) => ({ ...prev, transferReason: e.target.value }))} placeholder="Optional reason..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-600 outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none transition-all placeholder:text-slate-500" />
                   </div>
                 </div>
               </div>

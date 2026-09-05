@@ -30,6 +30,48 @@ const tenantRentProofSchema = new Schema(
   { _id: false },
 );
 
+const tenantRentReceiptSchema = new Schema(
+  {
+    fileName: { type: String, default: "", trim: true, maxlength: 200 },
+    fileUrl: { type: String, default: "", trim: true, maxlength: 2048 },
+    publicId: { type: String, default: "", trim: true, maxlength: 255 },
+    mimeType: { type: String, default: "", trim: true, maxlength: 120 },
+    size: { type: String, default: "", trim: true, maxlength: 40 },
+    uploadedById: { type: Schema.Types.ObjectId, ref: "HostUser", default: null },
+    uploadedByName: { type: String, default: "", trim: true, maxlength: 140 },
+    uploadedAt: { type: Date, default: null },
+  },
+  { _id: false },
+);
+
+// Tenants can pay rent in several installments. Each installment carries its
+// own proof (tenant) and receipt (finance), and is independently verifiable.
+const tenantRentPaymentSchema = new Schema(
+  {
+    id: { type: String, default: () => `RTP-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, trim: true },
+    amount: { type: Number, default: 0, min: 0 },
+    transactionReference: { type: String, default: "", trim: true, maxlength: 160 },
+    proof: { type: tenantRentProofSchema, default: () => ({}) },
+    status: { type: String, default: "Submitted", trim: true, enum: ["Submitted", "Verified", "Returned"], index: true },
+    rejection: {
+      reason: { type: String, default: "", trim: true, maxlength: 500 },
+      rejectedById: { type: Schema.Types.ObjectId, ref: "HostUser", default: null },
+      rejectedByName: { type: String, default: "", trim: true, maxlength: 140 },
+      rejectedAt: { type: Date, default: null },
+    },
+    submittedById: { type: Schema.Types.ObjectId, ref: "HostUser", default: null },
+    submittedByName: { type: String, default: "", trim: true, maxlength: 140 },
+    submittedAt: { type: Date, default: null },
+    verifiedById: { type: Schema.Types.ObjectId, ref: "HostUser", default: null },
+    verifiedByName: { type: String, default: "", trim: true, maxlength: 140 },
+    verifiedAt: { type: Date, default: null },
+    // Host-issued receipt attached by Finance upon verification — the tenant
+    // can then view/download it from the tenant portal.
+    receipt: { type: tenantRentReceiptSchema, default: () => ({}) },
+  },
+  { _id: false },
+);
+
 const tenantRentSchema = new Schema(
   {
     workspaceId: { type: Schema.Types.ObjectId, ref: "Workspace", required: true, index: true },
@@ -57,6 +99,10 @@ const tenantRentSchema = new Schema(
     verifiedByName: { type: String, default: "", trim: true, maxlength: 140 },
     verifiedAt: { type: Date, default: null },
     paidAt: { type: Date, default: null },
+    // Installment payments: tenant submits each chunk with its own proof;
+    // finance verifies each and attaches a host receipt. The month is "Paid"
+    // only when the verified total >= amount.
+    payments: { type: [tenantRentPaymentSchema], default: [] },
     // Set when finance returns a proof back to the tenant (Proof Submitted → Due).
     rejection: {
       reason: { type: String, default: "", trim: true, maxlength: 500 },

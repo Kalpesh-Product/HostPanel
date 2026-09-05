@@ -7,6 +7,7 @@ import WorkspaceMember from "../models/WorkspaceMember.js";
 import Workspace from "../models/Workspace.js";
 import Department from "../models/Department.js";
 import { assertFinancePaymentActor, getActorName, postIncomeEntry } from "./incomeLedgerService.js";
+import { uploadFileToS3 } from "../config/s3config.js";
 
 const VIRTUAL_OFFICE_SALES_MODULE = "virtual-office-sales";
 const ADMIN_ROLES = new Set(["owner", "super_admin", "founder"]);
@@ -638,8 +639,34 @@ export async function deleteVirtualOfficeForCurrentUser(userId, recordId) {
   }
   const record = await VirtualOffice.findById(recordId);
   ensureExists(record, access.workspaceId);
+
+  // Release any architecture spaces assigned to this virtual office before
+  // deleting the record. Leaving assignedVirtualOfficeId dangling would orphan
+  // those resources — they'd still count as "assigned" in Sales Architecture
+  // with no company row left to release them from.
+  const assignedResources = await Resource.find({
+    workspaceId: access.workspaceId,
+    assignedVirtualOfficeId: record._id,
+  })
+    .select("_id name resourceCode assignedVirtualOfficeName assignedAt")
+    .lean()
+    .exec();
+
+  if (assignedResources.length > 0) {
+    await Resource.updateMany(
+      { workspaceId: access.workspaceId, assignedVirtualOfficeId: record._id },
+      {
+        $set: {
+          assignedVirtualOfficeId: null,
+          assignedVirtualOfficeName: "",
+          assignedAt: null,
+        },
+      },
+    );
+  }
+
   await VirtualOffice.deleteOne({ _id: recordId });
-  return { success: true };
+  return { success: true, releasedResources: assignedResources.length };
 }
 
 export async function recordRentPaymentForCurrentUser(userId, recordId, input = {}) {
@@ -784,8 +811,9 @@ export async function markVirtualOfficeRentPaidForWorkspace(input: {
   userId: any;
   recordId: string;
   body?: any;
+  file?: any;
 }) {
-  const { workspaceId, userId, recordId, body = {} } = input;
+  const { workspaceId, userId, recordId, body = {}, file } = input;
   // Segregation of duties: recording rent payments is finance-only, even
   // though Sales owns the virtual office record itself.
   await assertFinancePaymentActor(workspaceId, userId);
@@ -820,7 +848,7 @@ export async function markVirtualOfficeRentPaidForWorkspace(input: {
   }
   const originalRentStatus = record.rentStatus;
   const paymentId = new mongoose.Types.ObjectId().toString();
-  paymentRecords.push({
+  const paymentRecord = {
     paymentId,
     periodStart: period.periodStart,
     periodEnd: period.periodEnd,
@@ -831,32 +859,60 @@ export async function markVirtualOfficeRentPaidForWorkspace(input: {
     paymentDate: now,
     paymentMethod: normalizeText(body?.paymentMethod || ""),
     notes: normalizeText(body?.notes || `Marked paid by ${actorName || "finance"} from Billing & Payments.`),
-  });
+    receipt: null,
+  };
+  // Finance attaches a host-issued receipt to this payment (mirrors tenant rent).
+  if (file?.buffer?.length) {
+    const receiptName = (file.originalname || "receipt").replace(/[^a-zA-Z0-9._-]/g, "_");
+    const route = `finance-receipts/${workspaceId}/${String(record._id || recordId)}/${paymentId}/${now.getTime()}-${receiptName}`;
+    let s3Result;
+    try {
+      s3Result = await uploadFileToS3(route, file);
+    } catch {
+      s3Result = { id: route, url: "" };
+    }
+    paymentRecord.receipt = {
+      fileName: file.originalname || "receipt",
+      fileUrl: s3Result.url || "",
+      publicId: s3Result.id || route,
+      mimeType: file.mimetype || "",
+      size: file.size ? String(file.size) : "",
+      uploadedById: userId,
+      uploadedByName: actorName,
+      uploadedAt: now,
+    };
+  }
+  paymentRecords.push(paymentRecord);
   record.paymentRecords = paymentRecords;
   // Same live-status rule as the Sales-side payment recording.
-  if (paidForPeriod + amount >= monthlyRent) record.rentStatus = "Active";
+  const fullyPaid = monthlyRent > 0 && paidForPeriod + amount >= monthlyRent;
+  if (fullyPaid) record.rentStatus = "Active";
+  else if (paidForPeriod + amount > 0) record.rentStatus = "Overdue";
 
   await record.save();
-  try {
+  // The period's rent becomes P&L income ONLY when fully paid — one entry per
+  // period (idempotent). Compensated rollback on failure.
+  if (fullyPaid) {
+    try {
       const periodKey = `${period.periodStart.getFullYear()}-${String(period.periodStart.getMonth() + 1).padStart(2, "0")}`;
       const periodLabel = new Intl.DateTimeFormat("en-IN", { month: "short", year: "numeric" }).format(period.periodStart);
       await postIncomeEntry({
         workspaceId, source: "virtual-office-rent",
-        // Multiple instalments in one period are separate revenue events.
-        referredId: `${String(record._id || recordId)}:${paymentId}`,
+        referredId: `${String(record._id || recordId)}:${periodKey}`,
         periodKey, periodLabel, entityName: normalizeText(record.clientName || record.brandName || ""),
-        amount, postedById: userId, postedByName: actorName,
-        note: `Virtual office rent paid for ${periodLabel}.`,
+        amount: monthlyRent, postedById: userId, postedByName: actorName,
+        note: `Virtual office rent fully paid for ${periodLabel}.`,
       });
-  } catch (error) {
-    await VirtualOffice.updateOne(
-      { _id: record._id, workspaceId, "paymentRecords.paymentId": paymentId },
-      { $pull: { paymentRecords: { paymentId } }, $set: { rentStatus: originalRentStatus } },
-    );
-    throw error;
+    } catch (error) {
+      await VirtualOffice.updateOne(
+        { _id: record._id, workspaceId, "paymentRecords.paymentId": paymentId },
+        { $pull: { paymentRecords: { paymentId } }, $set: { rentStatus: originalRentStatus } },
+      );
+      throw error;
+    }
   }
 
-  return { record: formatRecord(record.toObject()), message: "Virtual office rent marked as paid." };
+  return { record: formatRecord(record.toObject()), message: fullyPaid ? "Virtual office rent marked as fully paid." : "Payment recorded." };
 }
 
 

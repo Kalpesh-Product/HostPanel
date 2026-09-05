@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import PageFrame from '@/components/Pages/PageFrame';
+import BulkUploadModal from '@/components/BulkUploadModal';
 import { ResourceManagementSkeleton } from '@/components/ui/Skeleton';
 import { createResource, deleteResource, getResources, updateResource } from '@/services/resources';
 import {
   AlertTriangle,
   Building2,
   CheckCircle2,
-  Download,
   Edit2,
   Eye,
   ChevronDown,
@@ -565,8 +565,6 @@ function ResourceManagementPageInner() {
   const [bulkUploadFileName, setBulkUploadFileName] = useState('');
   const [bulkUploadSummary, setBulkUploadSummary] = useState<BulkUploadSummary | null>(null);
   const [isBulkImporting, setIsBulkImporting] = useState(false);
-  const [isTemplateInfoOpen, setIsTemplateInfoOpen] = useState(false);
-  const [isAllowedValuesOpen, setIsAllowedValuesOpen] = useState(false);
 
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [viewingResource, setViewingResource] = useState<Resource | null>(null);
@@ -974,14 +972,6 @@ function ResourceManagementPageInner() {
   return (
     <AppShell>
       <div className="overflow-x-hidden p-2 lg:p-2.5">
-        <input
-          ref={bulkUploadInputRef}
-          type="file"
-          accept=".xlsx,.xls,.csv"
-          className="hidden"
-          onChange={handleBulkFileSelected}
-        />
-
         <PageFrame>
           <div className="flex flex-col gap-4">
 
@@ -1065,7 +1055,7 @@ function ResourceManagementPageInner() {
                     data-tour="admin-resource-search"
                     type="text"
                     placeholder="Search by name, ID, category, or location"
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
                   />
@@ -1350,7 +1340,7 @@ function ResourceManagementPageInner() {
                       <input
                         required
                         type="text"
-                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                         value={form.name}
                         onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
                       />
@@ -1363,7 +1353,7 @@ function ResourceManagementPageInner() {
                           <div className="space-y-2">
                             <input
                               required
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                               value={form.location}
                               onChange={(event) => setForm((current) => ({ ...current, location: event.target.value }))}
                               placeholder="Enter new location"
@@ -1467,7 +1457,7 @@ function ResourceManagementPageInner() {
                           <div className="space-y-2">
                             <input
                               required
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                               value={form.floor}
                               onChange={(event) => setForm((current) => ({ ...current, floor: event.target.value }))}
                               placeholder="Enter new floor"
@@ -1508,7 +1498,7 @@ function ResourceManagementPageInner() {
                         {wingMode === 'custom' ? (
                           <div className="space-y-2">
                             <input
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                               value={form.wing}
                               onChange={(event) => setForm((current) => ({ ...current, wing: event.target.value }))}
                               placeholder="Enter new wing or leave blank"
@@ -1582,7 +1572,7 @@ function ResourceManagementPageInner() {
                             type="number"
                             placeholder="Enter capacity for this resource"
                             min="1"
-                            className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                            className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                             value={form.capacity}
                             onChange={(event) => setForm((current) => ({ ...current, capacity: event.target.value }))}
                           />
@@ -1604,7 +1594,7 @@ function ResourceManagementPageInner() {
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Description / Amenities</label>
                       <textarea
                         rows={3}
-                        className="w-full resize-none px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                        className="w-full resize-none px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                         value={form.description}
                         onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
                       />
@@ -1821,154 +1811,32 @@ function ResourceManagementPageInner() {
         ) : null}
 
         {/* ── Bulk Upload Modal ─────────────────────────────────────────── */}
-        {isBulkUploadOpen ? (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
-            <div className="flex w-full max-w-2xl max-h-[85vh] flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70">
-              <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/70 p-5">
-                <div>
-                  <h2 className="flex items-center gap-2 text-xl font-pmedium text-primary tracking-tight">
-                    <UploadCloud size={20} /> Bulk Upload Resources
-                  </h2>
-                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Import resources from Excel or CSV</p>
-                </div>
-                <button onClick={() => setIsBulkUploadOpen(false)} className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100">
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="space-y-4 overflow-y-auto bg-slate-50/60 p-5">
-                <button
-                  type="button"
-                  onClick={() => setIsTemplateInfoOpen(!isTemplateInfoOpen)}
-                  className="flex w-full items-center justify-between rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-left transition-all hover:bg-blue-100"
-                >
-                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Template required</p>
-                  <ChevronDown
-                    size={16}
-                    className={`text-blue-500 transition-transform duration-200 ${isTemplateInfoOpen ? 'rotate-0' : '-rotate-90'}`}
-                  />
-                </button>
-
-                {isTemplateInfoOpen ? (
-                  <div className="space-y-4 pl-2">
-                    <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3 shadow-sm">
-                      <p className="text-sm font-semibold text-blue-800">
-                        Download the template first to avoid validation errors. Cabin desks are area blocks only, so single cabin rows will be rejected.
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">Fields (from Add Resource form)</p>
-                      <div className="grid gap-2 text-sm">
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-md bg-red-50 px-2 py-0.5 text-[10px] font-pmedium text-red-600">Required</span>
-                          <span className="font-semibold text-slate-700">name, location, resourceCategory, floor, capacity</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-pmedium text-amber-600">Conditional</span>
-                          <span className="font-semibold text-slate-700">inventoryMode (for open desks)</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-pmedium text-slate-500">Optional</span>
-                          <span className="font-semibold text-slate-700">wing, description, status</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-
-                <button
-                  type="button"
-                  onClick={() => setIsAllowedValuesOpen(!isAllowedValuesOpen)}
-                  className="flex w-full items-center justify-between rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-left transition-all hover:bg-blue-100"
-                >
-                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Allowed values</p>
-                  <ChevronDown
-                    size={16}
-                    className={`text-blue-500 transition-transform duration-200 ${isAllowedValuesOpen ? 'rotate-0' : '-rotate-90'}`}
-                  />
-                </button>
-
-                {isAllowedValuesOpen ? (
-                  <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3 shadow-sm">
-                    <p className="text-sm font-semibold text-blue-800 leading-6">
-                      Categories: {resourceCategoryOptions.map((option) => `${option.label} (${option.value})`).join(', ')}
-                      <br />
-                      Inventory: {inventoryModeOptions.map((option) => option.value).join(', ')}
-                      <br />
-                      Wings: suggested values {wingOptions.join(', ')} or your own custom label
-                      <br />
-                      Status: {statusOptions.join(', ')}
-                    </p>
-                    <p className="mt-2 text-xs font-medium text-blue-700">
-                      Capacity rules: open desk area = 1-10, cabin desk area = 4/6/8/10, single desk = 1, virtual office = 1.
-                    </p>
-                  </div>
-                ) : null}
-
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <button type="button" onClick={downloadBulkTemplate} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm flex-1 py-3 text-sm font-black inline-flex items-center justify-center gap-2 transition-all hover:border-blue-200 hover:text-blue-600">
-                    <Download size={16} /> Download Template
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => bulkUploadInputRef.current?.click()}
-                    disabled={isBulkImporting}
-                    className="flex-1 rounded-lg bg-blue-600 py-3 text-sm font-pmedium text-white shadow-sm transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none inline-flex items-center justify-center gap-2"
-                  >
-                    <UploadCloud size={16} /> {isBulkImporting ? 'Importing...' : 'Choose File'}
-                  </button>
-                </div>
-
-                {bulkUploadFileName ? (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Selected file</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-800">{bulkUploadFileName}</p>
-                  </div>
-                ) : null}
-
-                {bulkUploadSummary ? (
-                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
-                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-600">Import summary</p>
-                    <div className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-                      <div className="rounded-xl border border-emerald-100 bg-white p-3">
-                        <p className="text-[10px] font-pmedium uppercase text-slate-400">Rows</p>
-                        <p className="mt-1 font-bold text-slate-900">{bulkUploadSummary.totalRows}</p>
-                      </div>
-                      <div className="rounded-xl border border-emerald-100 bg-white p-3">
-                        <p className="text-[10px] font-pmedium uppercase text-slate-400">Processed</p>
-                        <p className="mt-1 font-bold text-slate-900">{bulkUploadSummary.processedRows}</p>
-                      </div>
-                      <div className="rounded-xl border border-emerald-100 bg-white p-3">
-                        <p className="text-[10px] font-pmedium uppercase text-slate-400">Created</p>
-                        <p className="mt-1 font-bold text-emerald-700">{bulkUploadSummary.createdCount}</p>
-                      </div>
-                      <div className="rounded-xl border border-emerald-100 bg-white p-3">
-                        <p className="text-[10px] font-pmedium uppercase text-slate-400">Failed</p>
-                        <p className="mt-1 font-bold text-rose-700">{bulkUploadSummary.failedCount}</p>
-                      </div>
-                    </div>
-                    {bulkUploadSummary.failedRows?.length ? (
-                      <div className="mt-3 rounded-xl border border-emerald-100 bg-white p-3">
-                        <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">First errors</p>
-                        <ul className="mt-2 space-y-1 text-xs font-medium text-slate-600">
-                          {bulkUploadSummary.failedRows.map((rowError) => (
-                            <li key={rowError}>{rowError}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="flex flex-col gap-3 border-t border-slate-100 bg-white p-5 sm:flex-row">
-                <button type="button" onClick={() => setIsBulkUploadOpen(false)} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm flex-1 py-3 text-sm font-pmedium transition-all hover:bg-slate-50">
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
+        <BulkUploadModal
+          open={isBulkUploadOpen}
+          onClose={() => setIsBulkUploadOpen(false)}
+          title="Bulk Upload Resources"
+          description="Import resources from Excel or CSV — one row per resource."
+          fileInputRef={bulkUploadInputRef}
+          onFileChange={handleBulkFileSelected}
+          onDownloadTemplate={downloadBulkTemplate}
+          rules={[
+            'Required: name, location, resourceCategory, floor, capacity.',
+            'Conditional: inventoryMode is required for open desks.',
+            'Optional: wing, description, status.',
+            'Cabin desks are area blocks only — single cabin rows will be rejected.',
+            `Categories: ${resourceCategoryOptions.map((option) => option.label).join(', ')}.`,
+            `Wings: suggested values ${wingOptions.join(', ')}, or your own custom label.`,
+            'Capacity: open desk 1-10, cabin desk 4/6/8/10, single desk 1, virtual office 1.',
+          ]}
+          fileName={bulkUploadFileName}
+          isImporting={isBulkImporting}
+          summary={bulkUploadSummary ? {
+            created: bulkUploadSummary.createdCount,
+            failed: bulkUploadSummary.failedCount,
+            fileName: bulkUploadSummary.fileName,
+            errors: bulkUploadSummary.failedRows,
+          } : null}
+        />
       </div>
 
       <ExportReportModal

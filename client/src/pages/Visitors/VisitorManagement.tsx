@@ -145,6 +145,7 @@ function getDefaultVisitorForm() {
     endTime: '',
     discountType: 'amount',
     discountValue: '',
+    applyTax: true,
     paymentMode: '',
     // For Cash walk-ins the front desk marks whether the amount was actually
     // collected now ('paid') or is still owed ('unpaid'). GPay is always paid.
@@ -2555,7 +2556,8 @@ export default function VisitorsManagementPage() {
       : discountValue;
     const discountAmount = Math.min(Math.max(discountAmountRaw, 0), subtotalBeforeDiscount);
     const taxableBaseAfterDiscount = Math.max(subtotalBeforeDiscount - discountAmount, 0);
-    const taxRate = taxConfig.enabled ? Math.max(0, Number(taxConfig.ratePercent || 0)) / 100 : 0;
+    const taxEnabled = taxConfig.enabled && form.applyTax !== false;
+    const taxRate = taxEnabled ? Math.max(0, Number(taxConfig.ratePercent || 0)) / 100 : 0;
     const gst = taxRate <= 0
       ? 0
       : taxConfig.priceIncludesTax
@@ -2569,11 +2571,11 @@ export default function VisitorsManagementPage() {
       subtotalBeforeDiscount,
       taxableBaseAfterDiscount,
       gst,
-      total: taxConfig.priceIncludesTax ? taxableBaseAfterDiscount : taxableBaseAfterDiscount + gst,
+      total: (taxConfig.priceIncludesTax && taxEnabled) ? taxableBaseAfterDiscount : taxableBaseAfterDiscount + gst,
       durationHours,
       roomRate: rate,
     };
-  }, [form.discountType, form.discountValue, form.endDate, form.endTime, form.startDate, form.startTime, selectedWalkInRoom, taxConfig]);
+  }, [form.discountType, form.discountValue, form.applyTax, form.endDate, form.endTime, form.startDate, form.startTime, selectedWalkInRoom, taxConfig]);
 
   const walkInAvailability = useMemo(() => {
     const selectedType = form.spaceType || 'space';
@@ -3621,6 +3623,7 @@ export default function VisitorsManagementPage() {
           baseAmount: walkInPricing.base,
           gstAmount: walkInPricing.gst,
           totalAmount: walkInPricing.total,
+          applyTax: form.applyTax !== false,
           sourceReference: form.sourceVisitorId ? `Visitor ${form.sourceVisitorId}` : 'Visitors Management',
           bookingNotes: form.bookingNotes || `Walk-in confirmed via ${form.paymentMode}. Visitors Management capture.`,
         };
@@ -4365,7 +4368,7 @@ export default function VisitorsManagementPage() {
               {(activeTab === 'daily' || activeTab === 'history' || activeTab === 'bookings' || activeTab === 'clients') && (
                 <div className="relative flex-1 min-w-[160px]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                  <input type="text" placeholder="Search records..." className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400" onChange={(e) => setSearchQuery(e.target.value)} />
+                  <input type="text" placeholder="Search records..." className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500" onChange={(e) => setSearchQuery(e.target.value)} />
                 </div>
               )}
               <button
@@ -5067,7 +5070,7 @@ export default function VisitorsManagementPage() {
                                   value={form.standardVisitorSearch}
                                   onChange={(e) => setForm((prev) => ({ ...prev, standardVisitorSearch: e.target.value }))}
                                   placeholder="Search by name, phone, email, company"
-                                  className="w-full bg-transparent text-[12px] font-pmedium text-[#0F172A] outline-none placeholder:text-slate-400"
+                                  className="w-full bg-transparent text-[12px] font-pmedium text-[#0F172A] outline-none placeholder:text-slate-500"
                                 />
                               </div>
                               {hasStandardVisitorSearchQuery && standardVisitorSearchMatches.length > 0 ? (
@@ -6252,6 +6255,17 @@ export default function VisitorsManagementPage() {
                                 </span>
                                 <span>{hasWalkInQuote ? `- ${formatCurrency(walkInPricing.discountAmount)}` : 'Pending'}</span>
                               </div>
+                              {taxConfig.enabled && (
+                                <label className="flex items-center justify-between gap-2 text-[11px] font-pmedium text-slate-500 cursor-pointer">
+                                  <span className="uppercase tracking-widest">Apply {taxConfig.label || 'Tax'}</span>
+                                  <input
+                                    type="checkbox"
+                                    checked={form.applyTax !== false}
+                                    onChange={(e) => setForm((prev) => ({ ...prev, applyTax: e.target.checked }))}
+                                    className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                  />
+                                </label>
+                              )}
                               {(taxConfig.enabled || walkInPricing.gst > 0) && (
                                 <div className="flex justify-between text-[12px] font-semibold text-slate-600">
                                   <span>Taxable amount</span>
@@ -6260,7 +6274,7 @@ export default function VisitorsManagementPage() {
                               )}
                               {(taxConfig.enabled || walkInPricing.gst > 0) && (
                                 <div className="flex justify-between text-[12px] font-semibold text-slate-600">
-                                  <span>{getTaxDisplayLabel(taxConfig)}{taxConfig.priceIncludesTax ? ' (included)' : ''}</span>
+                                  <span>{getTaxDisplayLabel(taxConfig)}{taxConfig.priceIncludesTax ? ' (included)' : ''}{form.applyTax === false ? ' (not applied)' : ''}</span>
                                   <span>{hasWalkInQuote ? formatCurrency(walkInPricing.gst) : 'Pending'}</span>
                                 </div>
                               )}

@@ -92,7 +92,7 @@ export default function WorkspaceEditModal({
   ).sort((a, b) => a.localeCompare(b));
 
   const inputClassName =
-    "w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed";
+    "w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500 disabled:bg-slate-50 disabled:cursor-not-allowed";
 
   const selectClassName = `${inputClassName} cursor-pointer`;
 

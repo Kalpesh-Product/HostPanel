@@ -68,12 +68,12 @@ router.post("/tenant-billing/:tenantCompanyId/invoice/reset", resetTenantSecurit
 
 // Tenant rent receivables (monthly) — list for the finance tab + verify/close.
 router.get("/tenant-rent", getTenantRentRecords);
-router.patch("/tenant-rent/:rentId/mark-paid", markTenantRentPaid);
+router.patch("/tenant-rent/:rentId/mark-paid", upload.single("receipt"), markTenantRentPaid);
 router.patch("/tenant-rent/:rentId/return-proof", returnTenantRentProof);
 
 // Virtual office rent — snapshot of each contract's current billing period.
 router.get("/virtual-office-rent", getVirtualOfficeRentRecords);
-router.patch("/virtual-office-rent/:recordId/mark-paid", markVirtualOfficeRentPaid);
+router.patch("/virtual-office-rent/:recordId/mark-paid", upload.single("receipt"), markVirtualOfficeRentPaid);
 
 // Income ledger — append-only revenue register read by Accounting/P&L & History.
 router.get("/income-ledger", getIncomeLedgerRecords);

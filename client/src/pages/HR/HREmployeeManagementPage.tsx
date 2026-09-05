@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
@@ -8,13 +8,14 @@ import {
   FileSpreadsheet, UploadCloud, Download, Plus, Filter, AlertCircle,
   Eye, Edit3, Clock, UserCheck, UserX, Loader2, ChevronDown, ArrowLeft,
   ChevronRight, AlertTriangle, XCircle, Camera, Save, Ban,
-  Settings, Info, Send,
+  Settings, Send,
 } from "lucide-react";
 import MonthWiseBirthdaysTab from "./MonthWiseBirthdaysTab";
 import CompanyDocumentTab from "./CompanyDocumentTab";
 import EmployeeBankAccountFields, { type BankVerificationState } from "./EmployeeBankAccountFields";
 import { toast } from "sonner";
 import PageFrame from "@/components/Pages/PageFrame";
+import BulkUploadModal from "@/components/BulkUploadModal";
 import { HREmployeeManagementSkeleton } from "@/components/ui/Skeleton";
 import { canAccessEmployeeModule, getStoredUser, normalizeUserRole } from "@/lib/auth-session";
 import { getAllDepartmentModules, getRoleModules } from "@/lib/owner-access";
@@ -41,7 +42,7 @@ import {
 import useDashboardAccess from "@/hooks/useDashboardAccess";
 import { formatTime12h } from "@/utils/time";
 
-/* ───────────────────────────── Types ───────────────────────────── */
+/* ----------------------------- Types ----------------------------- */
 
 interface EmployeeIdProof { type: string; value: string; }
 interface EmployeeShiftOption {
@@ -132,7 +133,7 @@ interface EmployeeManagementRouteState {
   prefillData?: EmployeeAddPrefillData;
 }
 
-/* ───────────────────────────── Constants ───────────────────────────── */
+/* ----------------------------- Constants ----------------------------- */
 
 const ROLE_VALUE_TO_LABEL: Record<string, string> = {
   owner: "Founder", super_admin: "Super Admin", admin: "Admin",
@@ -171,7 +172,7 @@ const DEFAULT_DEPARTMENT_OPTIONS = [
 ];
 // filterValidDepartments only accepted this fixed catalog, so a custom
 // department created in Organization Management (anything outside these 7
-// names) silently disappeared everywhere in this module — the picker, the
+// names) silently disappeared everywhere in this module � the picker, the
 // employee list, bulk import. loadEmployees calls registerKnownDepartments
 // with the workspace's real department list on every load so this catalog
 // grows to match Organization Management's, instead of staying frozen.
@@ -193,7 +194,7 @@ const WORK_MODE_OPTIONS = ["remote", "office", "hybrid"];
 const EMPLOYMENT_TYPE_OPTIONS = [
   "full-time", "part-time", "contract", "intern", "trainee", "consultant",
 ];
-// Suggested checklist only — not an enforced enum. HR can add any custom
+// Suggested checklist only � not an enforced enum. HR can add any custom
 // type via "+ Add" so this works for employees outside India too; it just
 // saves a click for the common Indian ID/document types most customers use today.
 const ID_PROOF_PRESETS = [
@@ -207,7 +208,7 @@ function isInternshipEmploymentType(type: string): boolean {
   return INTERNSHIP_EMPLOYMENT_TYPES.has(String(type || "").toLowerCase());
 }
 
-/* ───────────────────── Bulk Upload: Template & Instructions ───────────────────── */
+/* --------------------- Bulk Upload: Template & Instructions --------------------- */
 
 const BULK_TEMPLATE_SHEET_NAME = "Employee Upload";
 const BULK_TEMPLATE_HEADERS = [
@@ -279,7 +280,7 @@ const BULK_WORKFLOW_GUIDE_STEPS: Array<{ step: number; instruction: string }> = 
   { step: 1, instruction: "Download the template and keep the header row unchanged." },
   { step: 2, instruction: "Fill in one row per employee using the reference sheets for valid dropdown values." },
   { step: 3, instruction: "Upload the spreadsheet and review the row count before importing." },
-  { step: 4, instruction: "New employees are added as Pending. Use \"Send Invite\" on each row afterwards to email them a registration link — this can be resent as many times as needed until the employee registers." },
+  { step: 4, instruction: "New employees are added as Pending. Use \"Send Invite\" on each row afterwards to email them a registration link � this can be resent as many times as needed until the employee registers." },
 ];
 
 function excelValueToDateString(value: unknown): string {
@@ -327,7 +328,7 @@ function getStatusInfo(key: string) {
     || { key: "pending", label: "Pending", color: "text-amber-600 bg-amber-50 border-amber-200" };
 }
 
-/* ───────────────────────── Helper Functions ───────────────────────── */
+/* ------------------------- Helper Functions ------------------------- */
 
 function filterValidDepartments(departments: string[] = []): string[] {
   const seen = new Set<string>();
@@ -511,7 +512,7 @@ function normalizeEmployeeStatusKey(value: string = ""): string {
   return "pending";
 }
 
-// Mirrors organizationControllers.ts's getRoleBand — "admin_manager" governs
+// Mirrors organizationControllers.ts's getRoleBand � "admin_manager" governs
 // identically to "admin", it's just stored under a different role name.
 function getEmployeeRoleBand(employee: Pick<Employee, "rawRole" | "role">): "manager" | "admin" | "other" {
   const key = String(employee.rawRole || employee.role || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
@@ -547,7 +548,7 @@ function mapRoleLabelToValue(role: string): string {
 }
 
 // Existing employees saved before idProofs existed only have the old
-// nationalIdType/taxId/providentFundNumber fields — synthesize idProofs
+// nationalIdType/taxId/providentFundNumber fields � synthesize idProofs
 // entries from those so nothing is lost when this loads into the new editor.
 function normalizeIdProofs(employee: Record<string, unknown>): EmployeeIdProof[] {
   const existing = Array.isArray(employee.idProofs)
@@ -747,7 +748,7 @@ function buildEmployeeReportRows(employee: Record<string, unknown>, shiftLabel =
   ];
 }
 
-/* ──────────────────── Inline Form Section Component ──────────────────── */
+/* -------------------- Inline Form Section Component -------------------- */
 
 function FormSection({ title, icon: Icon, children, defaultOpen = true }: { title: string; icon: React.ComponentType<{ size?: number }>; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -828,11 +829,11 @@ function CompensationCtcFields({
             <p className="mt-1 text-sm font-pmedium text-slate-900">{formatEmployeeCurrency(monthlySalary, currency)}</p>
           </div>
           <div>
-            <p className="text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Daily rate · {workingDays} working days</p>
+            <p className="text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Daily rate � {workingDays} working days</p>
             <p className="mt-1 text-sm font-pmedium text-slate-900">{formatEmployeeCurrency(dailyRate, currency)}</p>
           </div>
         </div>
-        <p className="mt-2 text-[9px] font-pmedium text-slate-500">Payroll uses the selected month’s actual working days. Each unpaid absence deducts one daily rate; a half day deducts half.</p>
+        <p className="mt-2 text-[9px] font-pmedium text-slate-500">Payroll uses the selected month�s actual working days. Each unpaid absence deducts one daily rate; a half day deducts half.</p>
       </div>
     </>
   );
@@ -866,7 +867,7 @@ function AllowanceDeductionFields({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Monthly Deductions — Tax/PF ({currency})</label>
+        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Monthly Deductions � Tax/PF ({currency})</label>
         <input
           type="number"
           min="0"
@@ -882,7 +883,7 @@ function AllowanceDeductionFields({
 }
 
 // Checklist + custom-add editor for national IDs / tax IDs / social insurance
-// numbers. Not a fixed enum — ID_PROOF_PRESETS is just a suggested checklist,
+// numbers. Not a fixed enum � ID_PROOF_PRESETS is just a suggested checklist,
 // HR can add any type via "+ Add" for employees in any country.
 function IdProofsEditor({
   value,
@@ -1096,7 +1097,7 @@ function DepartmentCheckboxDropdown({
   );
 }
 
-/* ──────────────────── Main Component ──────────────────── */
+/* -------------------- Main Component -------------------- */
 
 export default function HREmployeeManagementPage(): React.ReactElement {
   const isMountedRef = useRef(true);
@@ -1150,7 +1151,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   const [editBankVerification, setEditBankVerification] = useState<BankVerificationState>({ status: "idle" });
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  /* ───────────────────── Company Management Tabs ───────────────────── */
+  /* --------------------- Company Management Tabs --------------------- */
   const [activeCompanyTab, setActiveCompanyTab] = useState<"employees" | "sop" | "policies" | "birthdays">("employees");
   const companyTabList = useMemo(
     () => [
@@ -1168,7 +1169,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     }
   }, [activeCompanyTab, isCustomPlan]);
 
-  /* ───────────────────── Inline Add Employee Form State ───────────────────── */
+  /* --------------------- Inline Add Employee Form State --------------------- */
   const [addForm, setAddForm] = useState<EmployeeFormState>(() => createEmployeeFormState());
   const [addFormErrors, setAddFormErrors] = useState<Record<string, string>>({});
   const [addFormSubmitting, setAddFormSubmitting] = useState(false);
@@ -1438,7 +1439,6 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   const [bulkImportSummary, setBulkImportSummary] = useState<BulkImportSummary | null>(null);
   const [bulkImportError, setBulkImportError] = useState("");
   const [isBulkImporting, setIsBulkImporting] = useState(false);
-  const [isBulkInstructionsOpen, setIsBulkInstructionsOpen] = useState(false);
   const [resendingInviteId, setResendingInviteId] = useState("");
 
   const resetAddForm = () => {
@@ -1472,7 +1472,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       if (deptMode === "multiple" && cleanDepartments.length === 0) errors.departments = "Select at least one department";
       if (deptMode === "single" && cleanDepartments.length === 0) errors.departments = "Select a department";
       // One manager / one admin per department (mirrors Organization
-      // Management) — the pickers already disable occupied departments, this
+      // Management) � the pickers already disable occupied departments, this
       // is the submit-time backstop.
       if (!errors.departments && mapRoleLabelToValue(form.role) === "manager") {
         const conflict = cleanDepartments.find((department) => departmentOccupancy.managerDepartments.has(department));
@@ -1567,7 +1567,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
         period: period || new Date().toISOString().slice(0, 7),
         generatedBy: (currentUser?.name as string) || "Admin",
         format: reportFormat,
-        description: `Employee report — ${visibleEmployees.length} employees`,
+        description: `Employee report � ${visibleEmployees.length} employees`,
         sourceType: "custom",
         sourceRef: "hr-employee-management",
         reportRows,
@@ -1583,7 +1583,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     } catch { toast.error(`Failed to export ${reportFormat}.`); }
   };
 
-  /* ───────────────────── Add Form Field Handlers ───────────────────── */
+  /* --------------------- Add Form Field Handlers --------------------- */
 
   const handleAddFieldChange = (field: keyof EmployeeFormState, value: unknown) => {
     setAddForm((prev) => {
@@ -1655,13 +1655,13 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     }));
   };
 
-  /* ───────────────────── Shared Helpers ───────────────────── */
+  /* --------------------- Shared Helpers --------------------- */
 
   const syncEditDepartmentDefaults = (role: string, previousDepartments: string[] = []) => {
     return normalizeDepartmentSelection(role, previousDepartments.length > 0 ? previousDepartments : allDepartments.slice(0, 1));
   };
 
-  /* ───────────────────── Invite Modal Handlers ───────────────────── */
+  /* --------------------- Invite Modal Handlers --------------------- */
 
   const handleInviteRoleChange = (newRole: string) => {
     setInviteForm((prev) => ({
@@ -1722,7 +1722,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
 
 
-  /* ───────────────────── Edit Modal Handlers ───────────────────── */
+  /* --------------------- Edit Modal Handlers --------------------- */
 
   const handleOpenEditEmployee = (employee: Employee) => {
     setEditingEmployee(employee);
@@ -1841,7 +1841,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     }
   };
 
-  /* ───────────────────── Bulk Upload Handlers ───────────────────── */
+  /* --------------------- Bulk Upload Handlers --------------------- */
 
   const handleBulkUploadClick = () => {
     setIsBulkUploadModalOpen(true);
@@ -2087,7 +2087,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     }
   };
 
-  /* ───────────────────── View Employee Handlers ───────────────────── */
+  /* --------------------- View Employee Handlers --------------------- */
 
   const handleDownloadEmployeeReport = async () => {
     if (!viewingEmployee) return;
@@ -2098,7 +2098,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     } catch { toast.error("Failed to generate report"); }
   };
 
-  /* ───────────────────── Access Control Handlers ───────────────────── */
+  /* --------------------- Access Control Handlers --------------------- */
 
   const [accessForm, setAccessForm] = useState<AccessFormState>({
     role: "Employee", departments: [], selectedModules: [],
@@ -2140,11 +2140,11 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     }
   };
 
-  /* ───────────────────── Derived Data ───────────────────── */
+  /* --------------------- Derived Data --------------------- */
 
   const allDepartments = availableDepartments;
 
-  // One manager / one admin per department — same rule Organization
+  // One manager / one admin per department � same rule Organization
   // Management enforces, computed here from the live employee roster so a
   // disabled/terminated occupant doesn't block a replacement.
   const addDepartmentOccupancy = useMemo(
@@ -2466,7 +2466,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     return buildEmployeeReportRows(viewingEmployee as unknown as Record<string, unknown>, shiftLabel);
   }, [viewingEmployee, attendanceShifts]);
 
-  /* ───────────────────── Render ───────────────────── */
+  /* --------------------- Render --------------------- */
 
   if (isLoading) return <HREmployeeManagementSkeleton />;
 
@@ -2475,7 +2475,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       <PageFrame>
         <div className="flex flex-col gap-4">
 
-          {/* ═══ HEADER ═══ */}
+          {/* --- HEADER --- */}
           <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
@@ -2498,7 +2498,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
             </div>
           </div>
 
-          {/* ═══ COMPANY MANAGEMENT TABS ═══ */}
+          {/* --- COMPANY MANAGEMENT TABS --- */}
           <div data-tour="hr-emp-tabs" data-active-tab={activeCompanyTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {companyTabList.map((tab) => (
               <button
@@ -2515,17 +2515,17 @@ export default function HREmployeeManagementPage(): React.ReactElement {
             ))}
           </div>
 
-          {/* ═══ EMPLOYEES TAB CONTENT ═══ */}
+          {/* --- EMPLOYEES TAB CONTENT --- */}
           {activeCompanyTab === "employees" && (
             <>
-          {/* ═══ ERROR BANNER ═══ */}
+          {/* --- ERROR BANNER --- */}
           {errorMessage && (
             <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-xs font-bold text-rose-700 flex items-center gap-2">
               <AlertCircle size={14} /> {errorMessage}
             </div>
           )}
 
-          {/* ═══ STAT CARDS ═══ */}
+          {/* --- STAT CARDS --- */}
           <div data-tour="hr-emp-summary" className="mb-3 grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
             {employeeSummaryCards.map((card) => {
               const CardIcon = card.icon;
@@ -2546,7 +2546,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
             })}
           </div>
 
-          {/* ═══ BACK ARROW (when inside create employee) ═══ */}
+          {/* --- BACK ARROW (when inside create employee) --- */}
           {showAddForm && (
             <button
               type="button"
@@ -2557,7 +2557,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
             </button>
           )}
 
-          {/* ═══ ADD EMPLOYEE FORM ═══ */}
+          {/* --- ADD EMPLOYEE FORM --- */}
           {showAddForm && (
             <form onSubmit={handleAddFormSubmit} ref={addFormContainerRef}>
               <div className="flex flex-col gap-4">
@@ -2932,10 +2932,10 @@ export default function HREmployeeManagementPage(): React.ReactElement {
             </form>
           )}
 
-          {/* ═══ EMPLOYEE TABLE (hidden when add form is open) ═══ */}
+          {/* --- EMPLOYEE TABLE (hidden when add form is open) --- */}
           {!showAddForm && (
             <>
-              {/* ─── Data Panel ─── */}
+              {/* --- Data Panel --- */}
               <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
                 {/* Header: status sub-tabs + filters + search + add button, all in one line */}
                 <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex items-center gap-3 bg-slate-50/50 overflow-x-auto">
@@ -3012,7 +3012,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       value={searchQuery}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
                       placeholder="Search by name or email..."
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
                     />
                   </div>
 
@@ -3222,7 +3222,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 </div>
               </div>
 
-              {/* ─── Transferred Employees Table ─── */}
+              {/* --- Transferred Employees Table --- */}
               {visibleTransferredEmployees.length > 0 && (
                 <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
                   <div className="px-5 py-4 border-b border-slate-100/60 bg-slate-50/50">
@@ -3263,13 +3263,13 @@ export default function HREmployeeManagementPage(): React.ReactElement {
             </>
           )}
 
-          {/* ═══ COMPANY SOP TAB ═══ */}
+          {/* --- COMPANY SOP TAB --- */}
           {activeCompanyTab === "sop" && <CompanyDocumentTab kind="sop" />}
 
-          {/* ═══ COMPANY POLICIES TAB ═══ */}
+          {/* --- COMPANY POLICIES TAB --- */}
           {activeCompanyTab === "policies" && <CompanyDocumentTab kind="policy" />}
 
-          {/* ═══ MONTH-WISE BIRTHDAYS TAB ═══ */}
+          {/* --- MONTH-WISE BIRTHDAYS TAB --- */}
           {activeCompanyTab === "birthdays" && (
             <MonthWiseBirthdaysTab
               employees={employees.map((emp) => ({
@@ -3288,11 +3288,11 @@ export default function HREmployeeManagementPage(): React.ReactElement {
         </div>
       </PageFrame>
 
-      {/* ═══════════════════════════════════════════════════════
+      {/* -------------------------------------------------------
            MODALS (rendered via createPortal)
-           ═══════════════════════════════════════════════════════ */}
+           ------------------------------------------------------- */}
 
-      {/* ─── MODAL: View Employee ─── */}
+      {/* --- MODAL: View Employee --- */}
       {viewingEmployee && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[5vh] pb-8 bg-black/40 backdrop-blur-sm overflow-y-auto">
           <div className="relative w-full max-w-2xl mx-4 bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden" onClick={(e) => e.stopPropagation()}>
@@ -3387,7 +3387,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
         document.body,
       )}
 
-      {/* ─── MODAL: Edit Employee ─── */}
+      {/* --- MODAL: Edit Employee --- */}
       {isEditModalOpen && editingEmployee && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[4vh] pb-8 bg-[#0F172A]/40 backdrop-blur-sm overflow-y-auto">
           <div className="relative w-full max-w-4xl mx-4 bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden" onClick={(e) => e.stopPropagation()}>
@@ -3723,7 +3723,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
         document.body,
       )}
 
-      {/* ─── MODAL: Add Employee ─── */}
+      {/* --- MODAL: Add Employee --- */}
       {isAddModalOpen && createPortal(
         <div
           className="fixed inset-0 z-[9999] flex items-start justify-center pt-[4vh] pb-8 bg-[#0F172A]/40 backdrop-blur-sm overflow-y-auto"
@@ -4243,143 +4243,41 @@ export default function HREmployeeManagementPage(): React.ReactElement {
         document.body,
       )}
 
-      {/* ─── MODAL: Bulk Upload ─── */}
-      {isBulkUploadModalOpen && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[10vh] pb-8 bg-black/40 backdrop-blur-sm overflow-y-auto">
-          <div className="relative w-full max-w-lg mx-4 bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                <UploadCloud size={16} /> Bulk Upload Employees
-              </h3>
-              <button onClick={() => setIsBulkUploadModalOpen(false)} className="p-1.5 rounded-lg hover:bg-slate-200 transition-colors">
-                <X size={16} className="text-slate-400" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              {!bulkSpreadsheetName ? (
-                <>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handleDownloadBulkTemplate}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 hover:border-[#2563EB] hover:text-[#2563EB] transition-all"
-                    >
-                      <FileSpreadsheet size={13} /> Download Template
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsBulkInstructionsOpen(true)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 hover:border-[#2563EB] hover:text-[#2563EB] transition-all"
-                    >
-                      <Info size={13} /> Instructions
-                    </button>
-                  </div>
-                  <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:border-[#2563EB] transition-colors cursor-pointer" onClick={() => bulkSpreadsheetInputRef.current?.click()}>
-                    <UploadCloud size={32} className="mx-auto text-slate-300 mb-3" />
-                    <p className="text-[12px] font-bold text-slate-600 mb-1">Click to upload spreadsheet</p>
-                    <p className="text-[10px] text-slate-400">Supports .xlsx, .xls, .csv files — download the template above for the required columns.</p>
-                  </div>
-                  <input ref={bulkSpreadsheetInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleBulkFileChange} />
-                </>
-              ) : bulkImportSummary ? (
-                <div className="space-y-3">
-                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100">
-                    <p className="text-[12px] font-bold text-emerald-800">Import Complete</p>
-                    <p className="text-[11px] text-emerald-600 mt-1">{bulkImportSummary.createdCount} created, {bulkImportSummary.skippedCount} skipped</p>
-                  </div>
-                  {bulkImportSummary.issues.length > 0 && (
-                    <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 max-h-32 overflow-y-auto">
-                      {bulkImportSummary.issues.map((issue, i) => (
-                        <p key={i} className="text-[10px] font-medium text-amber-700">{issue}</p>
-                      ))}
-                    </div>
-                  )}
-                  <button onClick={() => { setIsBulkUploadModalOpen(false); setBulkImportSummary(null); }} className="w-full py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-blue-700 transition-all">
-                    Done
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                    <span className="text-[12px] font-semibold text-slate-700">{bulkSpreadsheetName}</span>
-                    <span className="text-[10px] font-medium text-slate-400">{bulkSpreadsheetRows.length} rows</span>
-                  </div>
-                  {bulkImportError && <p className="text-[11px] font-medium text-red-500">{bulkImportError}</p>}
-                  <div className="flex gap-3">
-                    <button onClick={() => { setBulkSpreadsheetName(""); setBulkSpreadsheetRows([]); }} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">
-                      Change File
-                    </button>
-                    <button onClick={handleBulkImport} disabled={isBulkImporting || bulkSpreadsheetRows.length === 0} className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5">
-                      {isBulkImporting ? <Loader2 size={13} className="animate-spin" /> : <UploadCloud size={13} />}
-                      {isBulkImporting ? "Importing..." : `Import ${bulkSpreadsheetRows.length} Rows`}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )}
-
-      {/* ─── MODAL: Bulk Upload Instructions ─── */}
-      {isBulkInstructionsOpen && createPortal(
-        <div className="fixed inset-0 z-[10000] flex items-start justify-center pt-[6vh] pb-8 bg-black/40 backdrop-blur-sm overflow-y-auto">
-          <div className="relative w-full max-w-2xl mx-4 bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                <Info size={16} /> Bulk Upload Instructions
-              </h3>
-              <button onClick={() => setIsBulkInstructionsOpen(false)} className="p-1.5 rounded-lg hover:bg-slate-200 transition-colors">
-                <X size={16} className="text-slate-400" />
-              </button>
-            </div>
-            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-              <div>
-                <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">How it works</p>
-                <ol className="space-y-1.5">
-                  {BULK_WORKFLOW_GUIDE_STEPS.map((step) => (
-                    <li key={step.step} className="flex gap-2 text-[11px] text-slate-600">
-                      <span className="shrink-0 w-4 h-4 flex items-center justify-center rounded-full bg-blue-100 text-blue-700 text-[9px] font-bold">{step.step}</span>
-                      {step.instruction}
-                    </li>
-                  ))}
-                </ol>
-              </div>
-              <div>
-                <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">Required Fields</p>
-                <div className="border border-slate-200 rounded-xl overflow-hidden">
-                  {BULK_REQUIRED_FIELD_GUIDE.map((entry, i) => (
-                    <div key={entry.field} className={`px-3 py-2 flex flex-col gap-0.5 ${i % 2 === 0 ? "bg-slate-50/60" : "bg-white"}`}>
-                      <span className="text-[11px] font-bold text-slate-700">{entry.field}</span>
-                      <span className="text-[10px] text-slate-500">{entry.notes}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">Selection Rules</p>
-                <div className="border border-slate-200 rounded-xl overflow-hidden">
-                  {BULK_SELECTION_RULE_GUIDE.map((entry, i) => (
-                    <div key={entry.field} className={`px-3 py-2 flex flex-col gap-0.5 ${i % 2 === 0 ? "bg-slate-50/60" : "bg-white"}`}>
-                      <span className="text-[11px] font-bold text-slate-700">{entry.field}</span>
-                      <span className="text-[10px] text-slate-400">{entry.values}</span>
-                      <span className="text-[10px] text-slate-500">{entry.outcome}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-3">
-              <button onClick={handleDownloadBulkTemplate} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center gap-1.5">
-                <FileSpreadsheet size={13} /> Download Template
-              </button>
-              <button onClick={() => setIsBulkInstructionsOpen(false)} className="px-6 py-2 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-blue-700 transition-all">
-                Got It
-              </button>
-            </div>
-          </div>
-        </div>,
+      {/* --- MODAL: Bulk Upload --- */}
+      {createPortal(
+        <BulkUploadModal
+          open={isBulkUploadModalOpen}
+          onClose={() => { setIsBulkUploadModalOpen(false); setBulkImportSummary(null); }}
+          title="Bulk Upload Employees"
+          description="Import employees from a spreadsheet — one row per employee."
+          fileInputRef={bulkSpreadsheetInputRef}
+          onFileChange={handleBulkFileChange}
+          onDownloadTemplate={handleDownloadBulkTemplate}
+          rules={[
+            "Download the template and keep the header row unchanged.",
+            "Every row needs Full Name, Date of Birth, Email, Phone, Current Address, and Emergency Contact details.",
+            "System Role must be Owner, Super Admin, Admin, Manager, or Employee — Owner/Super Admin auto-assign every department, Admin can pick several, Manager/Employee use only the first department listed.",
+            "Work Mode: Office, Remote, or Hybrid. Employment Type: Full Time, Part Time, Intern, Contractor, Trainee, or Consultant.",
+            "Gross Annual Salary / CTC is required unless the row is an unpaid Intern or Trainee.",
+            "Bank Name accepts any listed bank or a custom name; National ID Type must be Aadhaar Card, PAN, Voter ID, Driving License, or Passport.",
+            "Job Code: matching an active job opening auto-fills the job title, department, and employment type.",
+            "New employees are added as Pending — use \"Send Invite\" on each row afterwards; it can be resent until the employee registers.",
+          ]}
+          fileName={bulkSpreadsheetName}
+          isImporting={isBulkImporting}
+          staged={Boolean(bulkSpreadsheetName) && !bulkImportSummary}
+          stagedInfo={`${bulkSpreadsheetRows.length} row${bulkSpreadsheetRows.length === 1 ? "" : "s"} detected`}
+          onConfirmImport={handleBulkImport}
+          onChangeFile={() => { setBulkSpreadsheetName(""); setBulkSpreadsheetRows([]); }}
+          importLabel={`Import ${bulkSpreadsheetRows.length} Rows`}
+          summary={bulkImportSummary ? {
+            created: bulkImportSummary.createdCount,
+            failed: bulkImportSummary.skippedCount,
+            fileName: bulkImportSummary.fileName,
+            errors: bulkImportSummary.issues,
+          } : null}
+          error={bulkImportError}
+        />,
         document.body,
       )}
 

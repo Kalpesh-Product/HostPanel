@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BadgeCheck, Building2, CalendarDays, CheckCircle2,
   ChevronRight, Mail, Phone, RotateCcw, Eye,
@@ -16,7 +16,7 @@ import ExportReportModal, { type ExportParams } from "./../../../components/Expo
 import ReportExportButton from "@/components/ReportExportButton";
 import { isDateInExportPeriod } from '@/utils/export-period';
 import { getSalesTourLeads, getWebsiteLeads, updateWebsiteLeadHostStatus } from "../../../services/sales-leads";
-import { getUnitTourLeads } from "../../../services/visitors";
+import { getUnitTourLeads, updateUnitTourLeadStatus } from "../../../services/visitors";
 import { downloadReportFile } from "../../../utils/report-download";
 import PageFrame from "../../../components/Pages/PageFrame";
 import { statusPillClass } from '../../../lib/status-pill';
@@ -106,7 +106,7 @@ function visitorToLead(visitor) {
     purpose: visitor.purpose || "Workspace Tour",
     source: "visitor-management",
     sourceLabel: "Visitor Management",
-    status: "New",
+    status: visitor.leadStatus || "New",
     priority: visitor.budgetRange?.includes("5L+") || visitor.budgetRange?.includes("3L") ? "High" : visitor.budgetRange ? "Medium" : "Low",
     dateAdded,
     lastContact,
@@ -158,6 +158,8 @@ export default function LeadsManagementPage() {
   const [stageFilter, setStageFilter] = useState("All");
   const [leads, setLeads] = useState([]);
   const [leadStages, setLeadStages] = useState({});
+  const pendingStageIds = useRef(new Set());
+  const [savingStages, setSavingStages] = useState({});
   const [selectedLeadId, setSelectedLeadId] = useState(null);
   const [isExportingReport, setIsExportingReport] = useState("");
   const [showExportModal, setShowExportModal] = useState(false);
@@ -307,9 +309,11 @@ export default function LeadsManagementPage() {
     const pending = normalizedWebsiteLeads.filter((l) => l.hostPanelStatus === "Pending").length;
     const closed = normalizedWebsiteLeads.filter((l) => l.hostPanelStatus === "Closed").length;
     return [
-      { label: "All Website & Nomad Leads", value: total, icon: Target },
-      { label: "Pending", value: pending, icon: Sparkles },
-      { label: "Closed", value: closed, icon: CheckCircle2 },
+      { label: "All Leads", value: total, icon: Target, accent: "border-l-blue-500", labelTone: "text-blue-600", iconTone: "bg-blue-50 text-blue-600" },
+      { label: "Nomads Leads", value: normalizedWebsiteLeads.filter((lead) => String(lead.source || "").trim().toLowerCase() === "nomad").length, icon: Users, accent: "border-l-indigo-500", labelTone: "text-indigo-600", iconTone: "bg-indigo-50 text-indigo-600" },
+      { label: "Website Leads", value: normalizedWebsiteLeads.filter((lead) => String(lead.source || "").trim().toLowerCase() !== "nomad").length, icon: Building2, accent: "border-l-slate-500", labelTone: "text-slate-600", iconTone: "bg-slate-50 text-slate-600" },
+      { label: "Pending", value: pending, icon: Sparkles, accent: "border-l-amber-500", labelTone: "text-amber-600", iconTone: "bg-amber-50 text-amber-600" },
+      { label: "Closed", value: closed, icon: CheckCircle2, accent: "border-l-emerald-500", labelTone: "text-emerald-600", iconTone: "bg-emerald-50 text-emerald-600" },
     ];
   }, [normalizedWebsiteLeads]);
 
@@ -338,8 +342,22 @@ export default function LeadsManagementPage() {
     [selectedLead],
   );
 
-  const handleUpdateStage = (leadId, nextStage) => {
-    setLeadStages((current) => ({ ...current, [leadId]: nextStage }));
+  const handleUpdateStage = async (leadId, nextStage) => {
+    if (pendingStageIds.current.has(leadId) || !STAGES.includes(nextStage)) return;
+    const lead = normalizedLeads.find((item) => item.id === leadId);
+    if (!lead || lead.status === nextStage) return;
+    pendingStageIds.current.add(leadId);
+    setSavingStages((current) => ({ ...current, [leadId]: true }));
+    try {
+      await updateUnitTourLeadStatus(leadId, nextStage);
+      setLeadStages((current) => ({ ...current, [leadId]: nextStage }));
+      toast.success("Lead status updated");
+    } catch (updateError) {
+      toast.error(updateError?.response?.data?.message || "Unable to update lead status");
+    } finally {
+      pendingStageIds.current.delete(leadId);
+      setSavingStages((current) => ({ ...current, [leadId]: false }));
+    }
   };
 
   const handleUpdateWebsiteLeadStatus = async (leadId, nextStatus) => {
@@ -392,7 +410,6 @@ export default function LeadsManagementPage() {
   };
 
   if (isLoading || (mainTab === "website-leads" && isWebsiteLoading)) return <TablePageSkeleton rows={6} columns={6} />;
-
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
@@ -477,28 +494,16 @@ export default function LeadsManagementPage() {
           </div>
         </div>
         ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
-          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
-            <div className="min-w-0">
-              <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">All Website & Nomad Leads</p>
-              <p className="text-[15px] font-pmedium text-slate-900">{websiteLeadStats[0]?.value ?? 0}</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-3 shrink-0">
+          {websiteLeadStats.map((stat) => (
+            <div key={stat.label} className={`bg-white p-5 rounded-[2rem] border border-slate-100 border-l-4 shadow-sm flex justify-between items-center gap-3 ${stat.accent}`}>
+              <div className="min-w-0">
+                <p className={`text-[10px] font-pmedium uppercase tracking-widest mb-1 ${stat.labelTone}`}>{stat.label}</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{stat.value}</p>
+              </div>
+              <div className={`p-2 rounded-2xl shrink-0 ${stat.iconTone}`}><stat.icon size={16} /></div>
             </div>
-            <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><Target size={16}/></div>
-          </div>
-          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
-            <div className="min-w-0">
-              <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Pending</p>
-              <p className="text-[15px] font-pmedium text-slate-900">{websiteLeadStats[1]?.value ?? 0}</p>
-            </div>
-            <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Sparkles size={16}/></div>
-          </div>
-          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
-            <div className="min-w-0">
-              <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Closed</p>
-              <p className="text-[15px] font-pmedium text-slate-900">{websiteLeadStats[2]?.value ?? 0}</p>
-            </div>
-            <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><CheckCircle2 size={16}/></div>
-          </div>
+          ))}
         </div>
         )}
 
@@ -529,7 +534,7 @@ export default function LeadsManagementPage() {
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                 <input type="text" placeholder="Search leads, companies, visitor codes..."
                   value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400" />
+                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500" />
               </div>
             </div>
           </div>
@@ -543,63 +548,37 @@ export default function LeadsManagementPage() {
             <table className="w-full text-left min-w-[860px]">
               <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                 <tr>
-                  <th className="px-5 py-4">Lead Details</th>
-                  <th className="px-5 py-4">Contact Info</th>
-                  <th className="px-5 py-4">Requirements</th>
-                  <th className="px-5 py-4">Stage</th>
-                  <th className="px-5 py-4">Timeline</th>
+                  <th className="px-5 py-4">ID</th>
+                  <th className="px-5 py-4">POC Name</th>
+                  <th className="px-5 py-4">Company</th>
+                  <th className="px-5 py-4">Phone Number</th>
+                  <th className="px-5 py-4">Email</th>
+                  <th className="px-5 py-4">Status</th>
                   <th className="px-5 py-4 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100/60">
                 {visibleLeads.map((lead) => {
                   const stageMeta = STAGE_META[lead.status] || STAGE_META.New;
-                  const priorityMeta = PRIORITY_META[lead.priority] || PRIORITY_META.Low;
                   return (
                     <tr key={lead.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-5 py-4 text-[12px] font-pmedium text-slate-600">{lead.visitorCode || lead.id}</td>
+                      <td className="px-5 py-4 text-[12px] font-pmedium text-slate-900">{lead.name || "Not shared"}</td>
+                      <td className="px-5 py-4 text-[12px] font-pmedium text-slate-600">{lead.company || "Individual"}</td>
+                      <td className="px-5 py-4 text-[12px] font-pmedium text-slate-600 whitespace-nowrap">{lead.phone || "Not shared"}</td>
+                      <td className="px-5 py-4 text-[12px] font-pmedium text-slate-600 break-all">{lead.email || "Not shared"}</td>
                       <td className="px-5 py-4">
-                        <div className="flex items-start gap-2.5">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-[10px] font-pmedium text-white shadow-sm">{getInitials(lead.name)}</div>
-                          <div className="min-w-0">
-                            <p className="text-[12px] font-pmedium text-slate-900 truncate">{lead.name}</p>
-                            <p className="mt-0.5 text-[10px] font-pmedium text-slate-500 flex items-center gap-1">
-                              <Building2 size={10} className="text-slate-400" /> {lead.company || "Individual"} {lead.industry && `• ${lead.industry}`}
-                            </p>
-                            {lead.visitorCode && <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500 flex items-center gap-1"><BadgeCheck size={9} /> {lead.visitorCode}</p>}
-                          </div>
-                        </div>
+                        <select value={lead.status} disabled={Boolean(savingStages[lead.id])}
+                          aria-label={`Status for ${lead.name}`} aria-busy={Boolean(savingStages[lead.id])}
+                          onChange={(e) => handleUpdateStage(lead.id, e.target.value)}
+                          className={`rounded-full border px-2.5 py-1 text-[11px] font-pmedium cursor-pointer focus:ring-2 focus:ring-blue-500/30 disabled:opacity-60 disabled:cursor-wait ${stageMeta.tone}`}>
+                          {STAGES.map((stage) => <option key={stage} value={stage}>{stage}</option>)}
+                        </select>
+                        {savingStages[lead.id] && <span className="block mt-1 text-[10px] text-slate-500" role="status">Saving...</span>}
                       </td>
-                      <td className="px-5 py-4">
-                        <div className="space-y-1 text-[11px] font-pmedium text-slate-600">
-                          <p className="flex items-center gap-1.5 truncate"><Phone size={11} className="text-slate-400" /> {lead.phone || "Not shared"}</p>
-                          <p className="flex items-center gap-1.5 truncate"><Mail size={11} className="text-slate-400" /> {lead.email || "Not shared"}</p>
-                          {lead.qualification?.preferredContactMethod && <p className="mt-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Prefers: {lead.qualification.preferredContactMethod}</p>}
-                        </div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="space-y-1">
-                           <p className="text-[11px] font-pmedium text-slate-700 flex items-center gap-1"><Home size={11} className="text-slate-400" /> {lead.preferredSpace || lead.purpose || "Unit Tour"} {lead.seatCount && `(${lead.seatCount} seats)`}</p>
-                           {lead.budgetRange && <p className="text-[11px] font-pmedium text-slate-600 flex items-center gap-1"><DollarSign size={11} className="text-slate-400" /> {lead.budgetRange}</p>}
-                           <div className="text-[10px] font-pmedium uppercase tracking-wider text-slate-600">{priorityMeta.label} priority</div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4 align-top">
-                        <div className="text-[10px] font-pmedium uppercase tracking-wider text-slate-600">{stageMeta.label}</div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="space-y-1.5">
-                          <p className="flex items-center gap-1.5 text-[11px] font-pmedium text-slate-700"><CalendarDays size={11} className="text-slate-400" /> {lead.dateAdded}</p>
-                          {lead.moveInTimeline && <p className="flex items-center gap-1.5 text-[11px] font-pmedium text-slate-600"><Clock size={11} className="text-slate-400" /> {lead.moveInTimeline}</p>}
-                        </div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button type="button" onClick={() => setSelectedLeadId(lead.id)}
-                            title="View details" aria-label={`View details for ${lead.name}`}
-                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"><Eye size={15} strokeWidth={2.5} aria-hidden="true" /></button>
-                          <button type="button" onClick={() => handleUpdateStage(lead.id, "Converted")}
-                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-600 rounded-lg transition-all"><CheckCircle2 size={15} strokeWidth={2.5} /></button>
-                        </div>
+                      <td className="px-5 py-4 text-center">
+                        <button type="button" onClick={() => setSelectedLeadId(lead.id)} title="View details" aria-label={`View details for ${lead.name}`}
+                          className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg focus-visible:ring-2 focus-visible:ring-blue-500/40"><Eye size={15} strokeWidth={2.5} /></button>
                       </td>
                     </tr>
                   );
@@ -633,7 +612,7 @@ export default function LeadsManagementPage() {
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                 <input type="text" placeholder="Search by name, email, phone..."
                   value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400" />
+                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500" />
               </div>
             </div>
           </div>
@@ -739,7 +718,7 @@ export default function LeadsManagementPage() {
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <span className={statusPillClass(selectedLead.status)}>{selectedLead.status}</span>
                     <span className={statusPillClass(selectedLead.priority)}>{selectedLead.priority} Priority</span>
-                    <span className="text-[10px] font-pmedium text-slate-500 truncate">{selectedLead.company} {selectedLead.visitorCode || selectedLead.id}</span>
+                    <span className="text-[10px] font-pmedium text-slate-500 truncate">{selectedLead.company || "Individual"} {selectedLead.visitorCode || selectedLead.id}</span>
                   </div>
                 </div>
               </div>
@@ -781,7 +760,26 @@ export default function LeadsManagementPage() {
                   <FileText size={14} /> Requirements
                 </h3>
                 <div className="bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
-                  <p className="text-[12px] font-pmedium leading-5 text-slate-700">{selectedLead.requirements || "—"}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    {[
+                      ["Company", selectedLead.company || "Individual"],
+                      ["Industry", selectedLead.industry],
+                      ["Team Size", selectedLead.teamSize],
+                      ["Seats Required", selectedLead.seatCount],
+                      ["Preferred Space", selectedLead.preferredSpace],
+                      ["Budget", selectedLead.budgetRange],
+                      ["Move-in Timeline", selectedLead.moveInTimeline],
+                      ["Date Added", selectedLead.dateAdded],
+                      ["Last Contact", selectedLead.lastContact],
+                    ].map(([label, value]) => (
+                      <div key={label}>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">{label}</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{value || "Not shared"}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Requirement Notes</p>
+                  <p className="text-[12px] font-pmedium leading-5 text-slate-700 whitespace-pre-wrap break-words">{selectedLead.requirements || "No requirement notes shared"}</p>
                 </div>
               </div>
 
@@ -808,7 +806,7 @@ export default function LeadsManagementPage() {
                 <div className="bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
                   <div className="flex flex-wrap gap-1.5">
                     {STAGES.map((stage) => (
-                      <button key={stage} type="button" onClick={() => handleUpdateStage(selectedLead.id, stage)}
+                      <button key={stage} type="button" disabled={Boolean(savingStages[selectedLead.id])} onClick={() => handleUpdateStage(selectedLead.id, stage)}
                         className={`rounded-xl border px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest transition ${selectedLead.status === stage ? "border-[#2563EB] bg-[#2563EB] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"}`}
                       >{stage}</button>
                     ))}
@@ -850,7 +848,7 @@ export default function LeadsManagementPage() {
               <button type="button" onClick={() => setSelectedLeadId(null)} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[12px] hover:bg-slate-50 transition-colors shadow-sm">
                 Close
               </button>
-              <button type="button" onClick={() => { handleUpdateStage(selectedLead.id, "Converted"); }}
+              <button type="button" disabled={Boolean(savingStages[selectedLead.id]) || selectedLead.status === "Converted"} onClick={() => { handleUpdateStage(selectedLead.id, "Converted"); }}
                 className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5"
               ><CheckCircle2 size={14} /> Convert Lead</button>
             </div>

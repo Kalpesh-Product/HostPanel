@@ -42,6 +42,20 @@ interface RentRecord {
   paymentWindowLabel?: string;
   isWithinPaymentWindow?: boolean;
   canSubmitProof?: boolean;
+  verifiedTotal?: number;
+  submittedTotal?: number;
+  remaining?: number;
+  payments?: Array<{
+    id: string;
+    amount: number;
+    transactionReference?: string;
+    status: string;
+    proof?: { fileName?: string; fileUrl?: string; mimeType?: string; size?: string };
+    receipt?: { fileName?: string; fileUrl?: string; mimeType?: string; size?: string };
+    submittedAt?: string | null;
+    verifiedAt?: string | null;
+    rejection?: { reason?: string; rejectedByName?: string; rejectedAt?: string | null };
+  }>;
 }
 
 interface RentCompany {
@@ -74,6 +88,7 @@ export default function TenantRentPaymentsPage() {
   const [payingRentId, setPayingRentId] = useState<string | null>(null);
   const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
   const [transactionReference, setTransactionReference] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
   const [proofError, setProofError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -118,6 +133,7 @@ export default function TenantRentPaymentsPage() {
     setPayingRentId(rent.id);
     setPaymentProofFile(null);
     setTransactionReference('');
+    setPaymentAmount(String(rent.remaining ?? rent.amount ?? ''));
     setProofError('');
   };
 
@@ -125,6 +141,7 @@ export default function TenantRentPaymentsPage() {
     setPayingRentId(null);
     setPaymentProofFile(null);
     setTransactionReference('');
+    setPaymentAmount('');
     setProofError('');
   };
 
@@ -134,11 +151,22 @@ export default function TenantRentPaymentsPage() {
       setProofError('Please attach a payment proof screenshot before submitting.');
       return;
     }
+    const amount = Number(paymentAmount);
+    const remaining = rent.remaining ?? rent.amount ?? 0;
+    if (!(amount > 0)) {
+      setProofError('Enter a payment amount greater than zero.');
+      return;
+    }
+    if (amount > remaining) {
+      setProofError(`Payment amount cannot exceed the remaining rent of ${formatCurrency(remaining)}.`);
+      return;
+    }
     setIsSubmitting(true);
     setProofError('');
     try {
       await submitMyTenantRentPayment(rent.id, {
         paymentProof: paymentProofFile,
+        amount,
         transactionReference: transactionReference.trim(),
       });
       toast.success('Rent payment proof submitted. Awaiting finance verification.');
@@ -154,7 +182,7 @@ export default function TenantRentPaymentsPage() {
   const summary = useMemo(() => {
     const outstanding = rentRecords.filter((r) => r.status !== 'Paid');
     return {
-      outstandingAmount: outstanding.reduce((sum, r) => sum + (r.amount || 0), 0),
+      outstandingAmount: outstanding.reduce((sum, r) => sum + (r.remaining ?? r.amount ?? 0), 0),
       due: rentRecords.filter((r) => r.status === 'Due').length,
       proofSubmitted: rentRecords.filter((r) => r.status === 'Proof Submitted').length,
       paid: rentRecords.filter((r) => r.status === 'Paid').length,
@@ -241,12 +269,14 @@ export default function TenantRentPaymentsPage() {
                           formatCurrency={formatCurrency}
                           paymentProofFile={paymentProofFile}
                           transactionReference={transactionReference}
+                          paymentAmount={paymentAmount}
                           proofError={proofError}
                           isSubmitting={isSubmitting}
                           fileInputRef={fileInputRef}
                           onCancelPaying={cancelPaying}
                           onSelectFile={validateAndSelectFile}
                           onTransactionChange={setTransactionReference}
+                          onAmountChange={setPaymentAmount}
                           onSubmit={() => void handleSubmitRentPayment(rent)}
                         />
                       )}
@@ -277,48 +307,83 @@ function RentRow({
   onOpenPaying: () => void;
 }) {
   const canSubmit = rent.status === 'Due' || rent.status === 'Proof Submitted';
+  const hasInstallments = Array.isArray(rent.payments) && rent.payments.length > 0;
   return (
-    <tr className="hover:bg-blue-50/30 transition-all">
-      <td className="px-6 py-5">
-        <p className="font-black text-slate-900 text-xs sm:text-sm flex items-center gap-1.5"><CalendarCheck size={13} className="text-slate-400" /> {rent.periodLabel || rent.periodKey}</p>
-      </td>
-      <td className="px-6 py-5 hidden sm:table-cell text-xs font-bold text-slate-700">{rent.dueDateLabel || '-'}</td>
-      <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">{formatCurrency(rent.amount || 0)}</td>
-      <td className="px-6 py-5 text-center">
-        <span className={`px-2.5 py-1 rounded-full text-[9px] font-pmedium uppercase tracking-wider ${getRentBadgeClass(rent.isOverdue ? 'Overdue' : rent.status)}`}>
-          {rent.isOverdue ? 'Overdue' : rent.status}
-        </span>
-      </td>
-      <td className="px-6 py-5 hidden md:table-cell">
-        {rent.paymentProof?.fileUrl ? (
-          <a href={rent.paymentProof.fileUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-pmedium text-blue-600 hover:text-blue-800 inline-flex items-center gap-1">
-            <FileText size={11} /> View
-          </a>
-        ) : (
-          <span className="text-[9px] font-bold text-slate-400 uppercase">Not Submitted</span>
-        )}
-      </td>
-      <td className="px-6 py-5 text-center">
-        {rent.status === 'Paid' ? (
-          <span className="text-[9px] font-bold text-emerald-600 uppercase inline-flex items-center gap-1 justify-center"><CheckCircle2 size={11} /> Paid</span>
-        ) : canSubmit && rent.canSubmitProof !== false ? (
-          <button
-            type="button"
-            onClick={onOpenPaying}
-            className="px-3 py-1.5 bg-[#2563EB] text-white rounded-lg text-[9px] font-pmedium uppercase tracking-wider shadow-sm hover:bg-primary/95 transition-all inline-flex items-center gap-1"
-          >
-            <Wallet size={10} /> {rent.status === 'Proof Submitted' ? 'Re-submit' : 'Pay Rent'}
-          </button>
-        ) : (
-          <span
-            className="text-[9px] font-bold text-slate-400 uppercase inline-flex items-center gap-1 justify-center"
-            title={rent.paymentWindowLabel ? `Payment window: ${rent.paymentWindowLabel}` : 'Payment window unavailable'}
-          >
-            <XCircle size={11} /> Outside Window
+    <>
+      <tr className="hover:bg-blue-50/30 transition-all">
+        <td className="px-6 py-5">
+          <p className="font-black text-slate-900 text-xs sm:text-sm flex items-center gap-1.5"><CalendarCheck size={13} className="text-slate-400" /> {rent.periodLabel || rent.periodKey}</p>
+        </td>
+        <td className="px-6 py-5 hidden sm:table-cell text-xs font-bold text-slate-700">{rent.dueDateLabel || '-'}</td>
+        <td className="px-6 py-5">
+          <p className="font-black text-slate-900 text-xs sm:text-sm">{formatCurrency(rent.amount || 0)}</p>
+          {rent.status !== 'Paid' && typeof rent.remaining === 'number' && rent.remaining < rent.amount && (
+            <p className="text-[9px] font-bold text-rose-500">Remaining: {formatCurrency(rent.remaining)}</p>
+          )}
+        </td>
+        <td className="px-6 py-5 text-center">
+          <span className={`px-2.5 py-1 rounded-full text-[9px] font-pmedium uppercase tracking-wider ${getRentBadgeClass(rent.isOverdue ? 'Overdue' : rent.status)}`}>
+            {rent.isOverdue ? 'Overdue' : rent.status}
           </span>
-        )}
-      </td>
-    </tr>
+        </td>
+        <td className="px-6 py-5 hidden md:table-cell">
+          {rent.paymentProof?.fileUrl ? (
+            <a href={rent.paymentProof.fileUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-pmedium text-blue-600 hover:text-blue-800 inline-flex items-center gap-1">
+              <FileText size={11} /> View
+            </a>
+          ) : (
+            <span className="text-[9px] font-bold text-slate-400 uppercase">Not Submitted</span>
+          )}
+        </td>
+        <td className="px-6 py-5 text-center">
+          {rent.status === 'Paid' ? (
+            <span className="text-[9px] font-bold text-emerald-600 uppercase inline-flex items-center gap-1 justify-center"><CheckCircle2 size={11} /> Paid</span>
+          ) : canSubmit && rent.canSubmitProof !== false ? (
+            <button
+              type="button"
+              onClick={onOpenPaying}
+              className="px-3 py-1.5 bg-[#2563EB] text-white rounded-lg text-[9px] font-pmedium uppercase tracking-wider shadow-sm hover:bg-primary/95 transition-all inline-flex items-center gap-1"
+            >
+              <Wallet size={10} /> {rent.status === 'Proof Submitted' ? 'Add Payment' : 'Pay Rent'}
+            </button>
+          ) : (
+            <span
+              className="text-[9px] font-bold text-slate-400 uppercase inline-flex items-center gap-1 justify-center"
+              title={rent.paymentWindowLabel ? `Payment window: ${rent.paymentWindowLabel}` : 'Payment window unavailable'}
+            >
+              <XCircle size={11} /> Outside Window
+            </span>
+          )}
+        </td>
+      </tr>
+      {hasInstallments && (
+        <tr>
+          <td colSpan={6} className="px-6 pb-4 pt-0">
+            <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-3 space-y-1.5">
+              <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Installments</p>
+              {rent.payments!.slice().reverse().map((payment) => (
+                <div key={payment.id} className="flex items-center justify-between gap-3 text-[11px] border-b border-slate-100 pb-1.5 last:border-0 last:pb-0">
+                  <div>
+                    <span className="font-pmedium text-slate-800">{formatCurrency(payment.amount || 0)}</span>
+                    <span className={`ml-2 px-2 py-0.5 rounded-full text-[8px] font-pmedium uppercase tracking-wider ${getRentBadgeClass(payment.status === 'Submitted' ? 'Proof Submitted' : payment.status === 'Verified' ? 'Paid' : 'Due')}`}>
+                      {payment.status}
+                    </span>
+                    {payment.status === 'Returned' && payment.rejection?.reason && (
+                      <span className="ml-2 text-amber-700">{payment.rejection.reason}</span>
+                    )}
+                  </div>
+                  {payment.receipt?.fileUrl && (
+                    <a href={payment.receipt.fileUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 text-[10px] font-pmedium text-emerald-600 hover:text-emerald-800 inline-flex items-center gap-1">
+                      <FileText size={11} /> Receipt
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
@@ -327,26 +392,31 @@ function PayingRow({
   formatCurrency,
   paymentProofFile,
   transactionReference,
+  paymentAmount,
   proofError,
   isSubmitting,
   fileInputRef,
   onCancelPaying,
   onSelectFile,
   onTransactionChange,
+  onAmountChange,
   onSubmit,
 }: {
   rent: RentRecord;
   formatCurrency: (value: number) => string;
   paymentProofFile: File | null;
   transactionReference: string;
+  paymentAmount: string;
   proofError: string;
   isSubmitting: boolean;
   fileInputRef: { current: HTMLInputElement | null };
   onCancelPaying: () => void;
   onSelectFile: (file?: File | null) => void;
   onTransactionChange: (value: string) => void;
+  onAmountChange: (value: string) => void;
   onSubmit: () => void;
 }) {
+  const remaining = rent.remaining ?? rent.amount ?? 0;
   return (
     <tr>
       <td colSpan={6} className="px-6 pb-5">
@@ -355,12 +425,24 @@ function PayingRow({
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-[#2563EB] text-white flex items-center justify-center shrink-0"><Paperclip size={13} /></div>
               <div>
-                <p className="text-[12px] font-pmedium text-slate-900">Submit Rent Payment Proof</p>
-                <p className="text-[10px] font-pregular text-slate-500">{formatCurrency(rent.amount)} due for {rent.periodLabel || rent.periodKey}.</p>
+                <p className="text-[12px] font-pmedium text-slate-900">Submit Rent Payment</p>
+                <p className="text-[10px] font-pregular text-slate-500">{formatCurrency(remaining)} remaining for {rent.periodLabel || rent.periodKey} (total {formatCurrency(rent.amount)}).</p>
                 {rent.paymentWindowLabel && <p className="text-[10px] font-pmedium text-blue-600 mt-0.5">Payment window: {rent.paymentWindowLabel}</p>}
               </div>
             </div>
             <button type="button" onClick={onCancelPaying} disabled={isSubmitting} className="w-7 h-7 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors shrink-0"><X size={13} /></button>
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Amount (up to {formatCurrency(remaining)})</label>
+            <input
+              type="number" min="0" step="0.01" max={remaining}
+              value={paymentAmount}
+              onChange={(e) => onAmountChange(e.target.value)}
+              placeholder={String(remaining)}
+              className="w-full px-3 py-2.5 bg-white border border-blue-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB]"
+            />
+            <p className="text-[10px] text-slate-400">You can pay in full or in installments — pay part now and the rest later, as long as it's within the payment window.</p>
           </div>
 
           <input ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden"

@@ -295,7 +295,7 @@ export function AssetRequestsPanel({ onShowAssets }: { onShowAssets: () => void 
                   <input
                     type="text"
                     placeholder="Search requests..."
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
                     value={searchQuery}
                     onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
                   />
@@ -640,7 +640,7 @@ export function AssetRequestsPanel({ onShowAssets }: { onShowAssets: () => void 
                     </div>
                     <div className="flex flex-col gap-1 sm:col-span-2">
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Asset Required <span className="text-red-400">*</span></label>
-                      <input required value={form.assetName} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm((current) => ({ ...current, assetName: e.target.value }))} placeholder="e.g. Laptop, Printer Paper" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" />
+                      <input required value={form.assetName} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm((current) => ({ ...current, assetName: e.target.value }))} placeholder="e.g. Laptop, Printer Paper" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500" />
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Quantity <span className="text-red-400">*</span></label>
@@ -648,7 +648,7 @@ export function AssetRequestsPanel({ onShowAssets }: { onShowAssets: () => void 
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">For Employee</label>
-                      <input value={form.employeeName} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm((current) => ({ ...current, employeeName: e.target.value }))} placeholder="Optional onboarding name" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" />
+                      <input value={form.employeeName} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm((current) => ({ ...current, employeeName: e.target.value }))} placeholder="Optional onboarding name" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500" />
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Needed By</label>
@@ -664,7 +664,7 @@ export function AssetRequestsPanel({ onShowAssets }: { onShowAssets: () => void 
                     </div>
                     <div className="flex flex-col gap-1 sm:col-span-2">
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Purpose <span className="text-red-400">*</span></label>
-                      <textarea required minLength={5} rows={3} value={form.purpose} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setForm((current) => ({ ...current, purpose: e.target.value }))} placeholder="Onboarding, replacement, project requirement..." className="w-full resize-none px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" />
+                      <textarea required minLength={5} rows={3} value={form.purpose} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setForm((current) => ({ ...current, purpose: e.target.value }))} placeholder="Onboarding, replacement, project requirement..." className="w-full resize-none px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500" />
                     </div>
                   </div>
                 </div>

@@ -45,3 +45,8 @@ export const getUnitTourLeads = async (params?: Record<string, any>) => {
   });
   return unwrap(response);
 };
+
+export const updateUnitTourLeadStatus = async (visitorId: string, leadStatus: string) => {
+  const response = await axiosPrivate.patch(`/api/v1/visitors/${visitorId}/lead-status`, { leadStatus });
+  return unwrap(response);
+};

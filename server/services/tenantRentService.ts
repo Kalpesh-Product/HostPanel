@@ -1,28 +1,44 @@
 import TenantRent from "../models/TenantRent.js";
 import { TenantCompany } from "../models/TenantCompany.js";
 import { assertFinancePaymentActor, getActorName, postIncomeEntry } from "./incomeLedgerService.js";
+import { uploadFileToS3 } from "../config/s3config.js";
 
 
 // The generation sweep runs at boot and then every 6 hours — frequent enough
 // to catch a month rollover even if the process was down for a while.
 const RENT_SWEEP_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
-// Tenant rent payment window: proof can be submitted from N days BEFORE the
-// due date until N days AFTER it. Outside this window the tenant cannot
-// self-submit — finance can still record the payment manually. While the
-// window is open an unpaid rent shows "Due"; after it closes unpaid it shows
-// "Overdue".
-export const RENT_PAYMENT_WINDOW_DAYS_BEFORE = 5;
-export const RENT_PAYMENT_WINDOW_DAYS_AFTER = 5;
+// Tenant rent payment window: tenants can self-submit payments from the 1st
+// of the billing month until the due date. After the due date, unpaid rent is
+// "Overdue"; finance records any late/offline payment independently.
+export const RENT_PAYMENT_WINDOW_DAYS_BEFORE = 5; // informational: replaced by 1st-of-month
+export const RENT_PAYMENT_WINDOW_DAYS_AFTER = 0;   // window ends ON the due date
 const RENT_WINDOW_DAY_MS = 24 * 60 * 60 * 1000;
 
-// [windowStart, windowEnd] around a rent record's due date.
+// [windowStart, windowEnd] = [1st of the due month, due date]. Tenants may pay
+// in installments any time within this window (not after the due date).
 export function getRentPaymentWindow(dueDate: any, now: Date = new Date()) {
   const due = dueDate ? new Date(dueDate) : null;
   if (!due || Number.isNaN(due.getTime())) return null;
-  const start = new Date(due.getTime() - RENT_PAYMENT_WINDOW_DAYS_BEFORE * RENT_WINDOW_DAY_MS);
-  const end = new Date(due.getTime() + RENT_PAYMENT_WINDOW_DAYS_AFTER * RENT_WINDOW_DAY_MS);
+  const start = new Date(Date.UTC(due.getUTCFullYear(), due.getUTCMonth(), 1, 0, 0, 0, 0));
+  const end = new Date(due);
   return { start, end, isWithin: now >= start && now <= end };
+}
+
+export function computeRentPaymentTotals(record: any) {
+  const amount = Number(record?.amount || 0);
+  const payments = Array.isArray(record?.payments) ? record.payments : [];
+  const verifiedTotal = payments
+    .filter((p: any) => p?.status === "Verified")
+    .reduce((s: number, p: any) => s + Number(p?.amount || 0), 0);
+  const submittedTotal = payments
+    .filter((p: any) => p?.status === "Submitted" || p?.status === "Verified")
+    .reduce((s: number, p: any) => s + Number(p?.amount || 0), 0);
+  return {
+    verifiedTotal,
+    submittedTotal,
+    remaining: Math.max(0, amount - verifiedTotal),
+  };
 }
 
 function safeNumber(value: any, fallback = 0) {
@@ -192,10 +208,46 @@ function isRentOverdue(record: any, now: Date = new Date()) {
   if (record?.status === "Paid") return false;
   const due = record?.dueDate ? new Date(record.dueDate) : null;
   if (!due || Number.isNaN(due.getTime())) return false;
-  // Unpaid rent only becomes "Overdue" once the whole payment window has
-  // closed — while the window is open it still displays as "Due".
-  const windowEnd = new Date(due.getTime() + RENT_PAYMENT_WINDOW_DAYS_AFTER * RENT_WINDOW_DAY_MS);
-  return now > windowEnd;
+  // Unpaid past the due date = Overdue. There is no post-due grace window.
+  return now > due;
+}
+
+function formatReceipt(receipt: any) {
+  return {
+    fileName: safeString(receipt?.fileName),
+    fileUrl: safeString(receipt?.fileUrl),
+    mimeType: safeString(receipt?.mimeType),
+    size: safeString(receipt?.size),
+    uploadedByName: safeString(receipt?.uploadedByName),
+    uploadedAt: receipt?.uploadedAt || null,
+  };
+}
+
+function formatRentPayment(payment: any) {
+  const proof = payment?.proof || {};
+  const rejection = payment?.rejection || {};
+  return {
+    id: safeString(payment?.id),
+    amount: Number(payment?.amount || 0),
+    transactionReference: safeString(payment?.transactionReference),
+    status: safeString(payment?.status, "Submitted"),
+    proof: {
+      fileName: safeString(proof.fileName),
+      fileUrl: safeString(proof.fileUrl),
+      mimeType: safeString(proof.mimeType),
+      size: safeString(proof.size),
+    },
+    receipt: formatReceipt(payment?.receipt),
+    submittedByName: safeString(payment?.submittedByName),
+    submittedAt: payment?.submittedAt || null,
+    verifiedByName: safeString(payment?.verifiedByName),
+    verifiedAt: payment?.verifiedAt || null,
+    rejection: {
+      reason: safeString(rejection.reason),
+      rejectedByName: safeString(rejection.rejectedByName),
+      rejectedAt: rejection.rejectedAt || null,
+    },
+  };
 }
 
 export function formatTenantRentRecord(record: any, now: Date = new Date()) {
@@ -204,6 +256,7 @@ export function formatTenantRentRecord(record: any, now: Date = new Date()) {
   const overdue = isRentOverdue(record, now);
   const status = safeString(record?.status, "Due");
   const window = getRentPaymentWindow(record?.dueDate, now);
+  const totals = computeRentPaymentTotals(record);
   return {
     id: safeString(record?.id) || record?._id?.toString?.() || "",
     recordId: record?._id?.toString?.() || String(record?._id || ""),
@@ -219,13 +272,19 @@ export function formatTenantRentRecord(record: any, now: Date = new Date()) {
     // "Overdue" is a display state only — never stored on the document.
     displayStatus: overdue ? "Overdue" : safeString(record?.status, "Due"),
     isOverdue: overdue,
-    // Monthly payment window (dueDate ± N days) — tenants can only submit
-    // proof while it is open.
+    // Payment window: 1st of the billing month through the due date.
     paymentWindowStart: window?.start || null,
     paymentWindowEnd: window?.end || null,
     paymentWindowLabel: window ? `${formatRentDate(window.start)} – ${formatRentDate(window.end)}` : "",
     isWithinPaymentWindow: !!window?.isWithin,
-    canSubmitProof: status !== "Paid" && !!window?.isWithin,
+    // Tenants can submit another installment while inside the window, not yet
+    // fully paid, and there is still outstanding balance.
+    canSubmitProof: status !== "Paid" && !!window?.isWithin && totals.remaining > 0,
+    // Installment totals.
+    verifiedTotal: totals.verifiedTotal,
+    submittedTotal: totals.submittedTotal,
+    remaining: totals.remaining,
+    payments: Array.isArray(record?.payments) ? record.payments.map((p: any) => formatRentPayment(p)) : [],
     paymentProof: {
       fileName: safeString(proof.fileName),
       fileUrl: safeString(proof.fileUrl),
@@ -257,9 +316,9 @@ export async function listTenantRentForWorkspace(workspaceId: any, query: any = 
   const status = safeString(query.status);
   if (status && status !== "All") {
     if (status === "Overdue") {
-      // Overdue = unpaid past the whole payment window (dueDate + grace days).
+      // Overdue = unpaid past the due date (no grace).
       filter.status = { $ne: "Paid" };
-      filter.dueDate = { $lt: new Date(Date.now() - RENT_PAYMENT_WINDOW_DAYS_AFTER * RENT_WINDOW_DAY_MS) };
+      filter.dueDate = { $lt: new Date() };
     } else {
       filter.status = status; // "Due" | "Proof Submitted" | "Paid"
     }
@@ -284,6 +343,7 @@ export async function listTenantRentForWorkspace(workspaceId: any, query: any = 
   const now = new Date();
   const formatted = records.map((record) => formatTenantRentRecord(record, now));
   const sumBy = (list: any[]) => list.reduce((acc: number, r: any) => acc + (r.amount || 0), 0);
+  const sumRemaining = (list: any[]) => list.reduce((acc: number, r: any) => acc + (r.remaining ?? r.amount ?? 0), 0);
 
   return {
     records: formatted,
@@ -293,7 +353,9 @@ export async function listTenantRentForWorkspace(workspaceId: any, query: any = 
       proofSubmitted: formatted.filter((r) => r.status === "Proof Submitted").length,
       paid: formatted.filter((r) => r.status === "Paid").length,
       overdue: formatted.filter((r) => r.isOverdue).length,
-      outstandingAmount: sumBy(formatted.filter((r) => r.status !== "Paid")),
+      // Outstanding reflects what's actually still owed — full amount minus
+      // any already-verified installments — not the gross rent amount.
+      outstandingAmount: sumRemaining(formatted.filter((r) => r.status !== "Paid")),
       paidAmount: sumBy(formatted.filter((r) => r.status === "Paid")),
     },
   };
@@ -304,44 +366,120 @@ export async function markTenantRentPaidForWorkspace(input: {
   userId: any;
   rentId: string;
   body?: any;
+  file?: any;
 }) {
-  const { workspaceId, userId, rentId, body = {} } = input;
+  const { workspaceId, userId, rentId, body = {}, file } = input;
   await assertFinancePaymentActor(workspaceId, userId);
 
   const now = new Date();
   const actorName = await getActorName(userId);
   const rent: any = await TenantRent.findOne({ workspaceId, id: rentId }).exec();
   if (!rent) throw Object.assign(new Error("Rent record not found."), { statusCode: 404 });
-  if (rent.status === "Paid") throw Object.assign(new Error("This rent payment is already marked as paid."), { statusCode: 409 });
+  if (rent.status === "Paid") throw Object.assign(new Error("This rent payment is already fully paid."), { statusCode: 409 });
   const original = rent.toObject();
-  const hadProof = !!rent.paymentProof?.fileUrl;
-  if (body?.transactionReference !== undefined) rent.transactionReference = safeString(body.transactionReference);
-  rent.status = "Paid";
-  rent.verifiedById = userId;
-  rent.verifiedByName = actorName;
-  rent.verifiedAt = now;
-  rent.paidAt = now;
+  if (!Array.isArray(rent.payments)) rent.payments = [];
+
+  const amount = Number(rent.amount || 0);
+  const totals = computeRentPaymentTotals(rent);
+
+  // 1) Resolve the payment to verify.
+  let payment: any = null;
+  const paymentId = safeString(body?.paymentId);
+  if (paymentId) {
+    payment = rent.payments.find((p: any) => String(p?.id) === paymentId);
+    if (!payment) throw Object.assign(new Error("Payment not found."), { statusCode: 404 });
+    if (payment.status !== "Submitted") {
+      throw Object.assign(new Error("Only submitted payments can be verified."), { statusCode: 409 });
+    }
+  } else {
+    // Offline / finance-recorded payment: default covers the remaining balance.
+    const payAmount = body?.amount !== undefined ? Math.max(0, Number(body.amount)) : totals.remaining;
+    if (!(payAmount > 0) || payAmount > totals.remaining) {
+      throw Object.assign(new Error("Payment amount must be positive and cannot exceed the remaining rent."), { statusCode: 409 });
+    }
+    rent.payments.push({
+      id: `RTP-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      amount: payAmount,
+      transactionReference: safeString(body?.transactionReference),
+      proof: {},
+      status: "Submitted",
+      submittedById: userId,
+      submittedByName: actorName,
+      submittedAt: now,
+    });
+    payment = rent.payments[rent.payments.length - 1];
+  }
+
+  // 2) Attach the host-issued receipt (finance) to this payment, if provided.
+  if (file?.buffer?.length) {
+    const receiptName = (file.originalname || "receipt").replace(/[^a-zA-Z0-9._-]/g, "_");
+    const route = `finance-receipts/${workspaceId}/${rent.id || String(rent._id)}/${payment.id || ""}/${now.getTime()}-${receiptName}`;
+    let s3Result;
+    try {
+      s3Result = await uploadFileToS3(route, file);
+    } catch {
+      s3Result = { id: route, url: "" };
+    }
+    payment.receipt = {
+      fileName: file.originalname || "receipt",
+      fileUrl: s3Result.url || "",
+      publicId: s3Result.id || route,
+      mimeType: file.mimetype || "",
+      size: file.size ? String(file.size) : "",
+      uploadedById: userId,
+      uploadedByName: actorName,
+      uploadedAt: now,
+    };
+  }
+
+  // 3) Verify this payment.
+  payment.status = "Verified";
+  payment.verifiedById = userId;
+  payment.verifiedByName = actorName;
+  payment.verifiedAt = now;
+  if (body?.transactionReference !== undefined) payment.transactionReference = safeString(body.transactionReference);
+
+  // 4) Recompute totals and close the month when fully paid.
+  const newVerified = totals.verifiedTotal + Number(payment.amount || 0);
+  const fullyPaid = amount > 0 && newVerified >= amount;
+  if (fullyPaid) {
+    rent.status = "Paid";
+    rent.paidAt = now;
+    rent.verifiedById = userId;
+    rent.verifiedByName = actorName;
+    rent.verifiedAt = now;
+  } else {
+    rent.status = newVerified > 0 ? "Proof Submitted" : "Due";
+  }
   rent.actionHistory.push({
-    action: "marked-paid", status: "Paid",
-    note: safeString(body?.note) || (hadProof ? "Payment verified against submitted proof." : "Marked paid without submitted proof (offline payment)."),
-    actorUserId: userId, actorName, at: now,
+    action: "payment-verified",
+    status: rent.status,
+    note: `Verified ${safeString(payment?.transactionReference) ? `payment ${safeString(payment.transactionReference)}` : `payment of ${String(payment?.amount || 0)}`}${file?.buffer?.length ? " with receipt" : ""}. ${fullyPaid ? "Rent fully paid." : `${String(Math.max(0, amount - newVerified))} still outstanding.`}`,
+    actorUserId: userId,
+    actorName,
+    at: now,
   });
   await rent.save();
-  try {
-    await postIncomeEntry({
+
+  // 5) The month's rent becomes P&L income ONLY when fully paid — one entry,
+  // idempotent via the unique index. Roll back on failure (compensated rollback).
+  if (fullyPaid) {
+    try {
+      await postIncomeEntry({
         workspaceId, source: "tenant-rent", referredId: rent.id || rent._id?.toString?.() || "",
         periodKey: rent.periodKey || "", periodLabel: rent.periodLabel || "", entityName: rent.companyName || "",
         amount: rent.amount || 0, postedById: userId, postedByName: actorName,
-        note: `Rent marked paid ${rent.periodLabel || rent.periodKey || ""} (${hadProof ? "with proof" : "offline"}).`,
-    });
-  } catch (error) {
-    await TenantRent.replaceOne({ _id: rent._id, status: "Paid", paidAt: now }, original);
-    throw error;
+        note: `Rent fully paid ${rent.periodLabel || rent.periodKey || ""}.`,
+      });
+    } catch (error) {
+      await TenantRent.replaceOne({ _id: rent._id }, original);
+      throw error;
+    }
   }
 
   return {
     rent: formatTenantRentRecord(rent.toObject(), now),
-    message: "Rent marked as paid.",
+    message: fullyPaid ? "Rent marked as fully paid." : "Payment verified.",
   };
 }
 
@@ -356,30 +494,45 @@ export async function returnTenantRentProofForWorkspace(input: {
 
   const rent: any = await TenantRent.findOne({ workspaceId, id: rentId }).exec();
   if (!rent) throw Object.assign(new Error("Rent record not found."), { statusCode: 404 });
-  if (rent.status !== "Proof Submitted") {
-    throw Object.assign(new Error("Only rent records with submitted payment proof can be returned."), { statusCode: 409 });
-  }
 
   const reason = safeString(body?.reason);
   if (!reason) {
     throw Object.assign(new Error("A reason is required when returning a payment proof."), { statusCode: 400 });
   }
-
   const now = new Date();
   const actorName = await getActorName(userId);
 
-  rent.status = "Due";
-  // The last submitted proof is kept for reference; the tenant can re-submit
-  // and overwrite it.
-  rent.rejection = { reason, rejectedById: userId, rejectedByName: actorName, rejectedAt: now };
-  rent.actionHistory.push({
-    action: "proof-returned",
-    status: "Due",
-    note: reason,
-    actorUserId: userId,
-    actorName,
-    at: now,
-  });
+  const paymentId = safeString(body?.paymentId);
+  if (paymentId) {
+    const payment = (Array.isArray(rent.payments) ? rent.payments : []).find((p: any) => String(p?.id) === paymentId);
+    if (!payment) throw Object.assign(new Error("Payment not found."), { statusCode: 404 });
+    if (payment.status !== "Submitted") {
+      throw Object.assign(new Error("Only submitted payments can be returned."), { statusCode: 409 });
+    }
+    payment.status = "Returned";
+    payment.rejection = { reason, rejectedById: userId, rejectedByName: actorName, rejectedAt: now };
+    // Recompute from actual verified totals — don't blindly reset to "Due",
+    // since another installment on this rent may already be Verified.
+    const totalsAfterReturn = computeRentPaymentTotals(rent);
+    rent.status = totalsAfterReturn.verifiedTotal > 0 ? "Proof Submitted" : "Due";
+    rent.rejection = { reason, rejectedById: userId, rejectedByName: actorName, rejectedAt: now };
+    rent.actionHistory.push({
+      action: "payment-returned",
+      status: rent.status,
+      note: `Returned ${safeString(payment.id)} — ${reason}`,
+      actorUserId: userId,
+      actorName,
+      at: now,
+    });
+  } else {
+    // Back-compat: return the whole rent proof (pre-installment behaviour).
+    if (rent.status !== "Proof Submitted") {
+      throw Object.assign(new Error("Only rent records with submitted payment proof can be returned."), { statusCode: 409 });
+    }
+    rent.status = "Due";
+    rent.rejection = { reason, rejectedById: userId, rejectedByName: actorName, rejectedAt: now };
+    rent.actionHistory.push({ action: "proof-returned", status: "Due", note: reason, actorUserId: userId, actorName, at: now });
+  }
 
   await rent.save();
   return {
@@ -387,6 +540,7 @@ export async function returnTenantRentProofForWorkspace(input: {
     message: "Payment proof returned to tenant.",
   };
 }
+
 
 
 

@@ -1576,7 +1576,7 @@ export default function AccessGrantsPage() {
                     placeholder="Search by name, email, or dept..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr- py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                    className="w-full pl-9 pr- py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
                   />
                 </div>
 
@@ -2389,7 +2389,7 @@ export default function AccessGrantsPage() {
                         }))
                       }
                       placeholder="Optional note for this access grant..."
-                      className="w-full rounded-2xl border font-pmedium border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+                      className="w-full rounded-2xl border font-pmedium border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-500 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
                     />
                   </div>
 
@@ -2589,7 +2589,7 @@ export default function AccessGrantsPage() {
                       }))
                     }
                     placeholder="Optional note for this transfer..."
-                    className="w-full rounded-2xl border font-pmedium border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+                    className="w-full rounded-2xl border font-pmedium border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-500 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
                   />
                 </div>
 
