@@ -5,7 +5,7 @@ import {
   Receipt, Building2, Calendar, CreditCard, CheckCircle2,
   XCircle, Search, FileText, ArrowRight, X, Clock, Eye,
   PieChart, Users, LayoutGrid, FileCheck, Send, Banknote, Globe, User, Download,
-  ReceiptIndianRupee,
+  ReceiptIndianRupee, Briefcase, Coins, Plus,
 } from 'lucide-react';
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { createReport } from '@/services/reports';
@@ -25,6 +25,10 @@ import {
   getVirtualOfficeRentRecords,
   markVirtualOfficeRentPaid,
   getFinanceIncomeLedger,
+  getFinanceRevenueEntries,
+  createFinanceRevenueEntry,
+  confirmFinanceRevenueEntry,
+  reverseFinanceRevenueEntry,
 } from '@/services/finance';
 import {
   generateMeetingRoomInvoice,
@@ -103,6 +107,33 @@ interface VirtualOfficeRentRecord {
     paymentMethod?: string;
     notes?: string;
   }>;
+}
+
+interface RevenueRecord {
+  id: string;
+  entryCode?: string;
+  source: string;
+  category?: string;
+  entityName?: string;
+  amount: number;
+  revenueDate?: string | null;
+  revenueDateLabel?: string;
+  periodKey?: string;
+  periodLabel?: string;
+  billingPeriodLabel?: string;
+  paymentMethod?: string;
+  reference?: string;
+  note?: string;
+  document?: { fileName?: string; fileUrl?: string };
+  status: string;
+  isPending?: boolean;
+  isReceived?: boolean;
+  isReversal?: boolean;
+  confirmedAt?: string | null;
+  confirmedByName?: string;
+  postedByName?: string;
+  reversalOf?: string;
+  events?: Array<{ action?: string; status?: string; note?: string; actorName?: string; at?: string }>;
 }
 
 interface TenantBillingRecord {
@@ -418,8 +449,33 @@ function buildTenantRentReportRows(records: any[] = [], filters: Record<string, 
   return rows.slice(0, 200);
 }
 
-function buildVirtualOfficeRentReportRows(records: any[] = [], filters: Record<string, any> = {}): Array<{ label: string; value: string }> {
+function buildRevenueReportRows(records: any[] = [], filters: Record<string, any> = {}, scope = 'Workation Revenue'): Array<{ label: string; value: string }> {
   const rows: Array<{ label: string; value: string }> = [
+    { label: 'Report Scope', value: scope },
+    { label: 'Record Count', value: String(records.length) },
+    { label: 'Fiscal Year', value: filters.fiscalYear || DEFAULT_FISCAL_YEAR },
+    { label: 'Status Filter', value: filters.statusFilter || 'All' },
+    { label: 'Search Filter', value: filters.searchQuery || 'All' },
+  ];
+  records.forEach((record: any, index: number) => {
+    rows.push({
+      label: `${index + 1}. ${record.entityName || 'Client'} | ${record.entryCode || ''}`,
+      value: [
+        record.category ? `Category: ${record.category}` : '',
+        `Amount: ${formatCurrency(record.amount || 0, filters.currency)}`,
+        `Revenue Date: ${record.revenueDateLabel || '-'}`,
+        `Status: ${record.status || 'Pending'}`,
+        record.paymentMethod ? `Payment Method: ${record.paymentMethod}` : '',
+        record.reference ? `Reference: ${record.reference}` : '',
+        record.billingPeriodLabel ? `Billing Period: ${record.billingPeriodLabel}` : '',
+        record.note ? `Note: ${record.note}` : '',
+      ].filter(Boolean).join(' | '),
+    });
+  });
+  return rows.slice(0, 200);
+}
+
+function buildVirtualOfficeRentReportRows(records: any[] = [], filters: Record<string, any> = {}): Array<{ label: string; value: string }> {  const rows: Array<{ label: string; value: string }> = [
     { label: 'Report Scope', value: 'Virtual Office Rent (Current Billing Periods)' },
     { label: 'Record Count', value: String(records.length) },
     { label: 'Fiscal Year', value: filters.fiscalYear || DEFAULT_FISCAL_YEAR },
@@ -457,6 +513,15 @@ function getRentStatusBadge(status = '') {
   }
   if (normalized === 'partially paid') {
     return <span className="px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-700 text-[9px] font-pmedium uppercase tracking-wider">Partially Paid</span>;
+  }
+  if (normalized === 'pending') {
+    return <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-[9px] font-pmedium uppercase tracking-wider">Pending</span>;
+  }
+  if (normalized === 'received') {
+    return <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[9px] font-pmedium uppercase tracking-wider">Received</span>;
+  }
+  if (normalized === 'reversal') {
+    return <span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 text-[9px] font-pmedium uppercase tracking-wider">Reversal</span>;
   }
   return <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-[9px] font-pmedium uppercase tracking-wider">Due</span>;
 }
@@ -635,6 +700,18 @@ export function BillingPaymentsPage() {
   const [rentRecords, setRentRecords] = useState<TenantRentRecord[]>([]);
   const [voRecords, setVoRecords] = useState<VirtualOfficeRentRecord[]>([]);
   const [incomeEntries, setIncomeEntries] = useState<TransactionEntry[]>([]);
+  const [revenueRecords, setRevenueRecords] = useState<RevenueRecord[]>([]);
+  const [showAddRevenue, setShowAddRevenue] = useState(false);
+  const [addRevenueForm, setAddRevenueForm] = useState({
+    entityName: '', category: '', amount: '', revenueDate: '', paymentStatus: 'Pending',
+    paymentMethod: '', reference: '', billingPeriodLabel: '', note: '',
+  });
+  const [addRevenueFile, setAddRevenueFile] = useState<File | null>(null);
+  const [isSubmittingRevenue, setIsSubmittingRevenue] = useState(false);
+  const [addRevenueError, setAddRevenueError] = useState('');
+  const [viewingRevenue, setViewingRevenue] = useState<RevenueRecord | null>(null);
+  const [showReverseRevenue, setShowReverseRevenue] = useState(false);
+  const [reverseReason, setReverseReason] = useState('');
   const [bookingRecords, setBookingRecords] = useState<BookingRecord[]>([]);
   const [payrollData, setPayrollData] = useState<PayrollSnapshotData | null>(null);
   const [extraCreditRequests, setExtraCreditRequests] = useState<ExtraCreditRequest[]>([]);
@@ -666,6 +743,8 @@ export function BillingPaymentsPage() {
     { key: 'tenant', label: 'TENANT SECURITY DEPOSITS', icon: Building2 },
     { key: 'rent', label: 'TENANT RENT', icon: ReceiptIndianRupee },
     { key: 'virtualOffice', label: 'VIRTUAL OFFICE', icon: Building2 },
+    { key: 'workation', label: 'WORKATION REVENUE', icon: Briefcase },
+    { key: 'alternateRevenue', label: 'ALTERNATE REVENUE', icon: Coins },
     { key: 'bookings', label: 'MEETING ROOM BOOKINGS', icon: Calendar },
     { key: 'payroll', label: 'PAYROLL', icon: Users },
     { key: 'extraCredits', label: 'EXTRA CREDIT REQUESTS', icon: CreditCard },
@@ -682,7 +761,7 @@ export function BillingPaymentsPage() {
       setErrorMessage('');
 
       try {
-        const [billingRes, bookingRes, payrollRes, creditRes, rentRes, voRes, incomeRes] = await Promise.allSettled([
+        const [billingRes, bookingRes, payrollRes, creditRes, rentRes, voRes, incomeRes, revenueRes] = await Promise.allSettled([
           getTenantBillingSnapshot({ fiscalYear: selectedFY }),
           getMeetingRoomBookings({ fiscalYear: selectedFY }),
           getPayrollSnapshot(),
@@ -690,6 +769,7 @@ export function BillingPaymentsPage() {
           getTenantRentRecords(),
           getVirtualOfficeRentRecords(),
           getFinanceIncomeLedger(),
+          getFinanceRevenueEntries(),
         ]);
 
         if (!alive) return;
@@ -750,9 +830,11 @@ export function BillingPaymentsPage() {
         if (incomeRes.status === 'fulfilled') {
           const data = incomeRes.value?.data?.data || incomeRes.value?.data || incomeRes.value || {};
           const entries = Array.isArray(data) ? data : Array.isArray(data?.entries) ? data.entries : [];
-          setIncomeEntries(entries.map((entry: any) => ({
+          setIncomeEntries(entries
+            .filter((entry: any) => String(entry?.status || '').toLowerCase() !== 'pending')
+            .map((entry: any) => ({
             id: `income-${entry?.id || `${entry?.source}-${entry?.periodKey}`}`,
-            type: entry?.source === 'virtual-office-rent' ? 'Virtual Office Rent' : 'Tenant Rent',
+            type: entry?.source === 'virtual-office-rent' ? 'Virtual Office Rent' : entry?.source === 'workation-revenue' ? 'Workation Revenue' : entry?.source === 'alternate-revenue' ? 'Alternate Revenue' : 'Tenant Rent',
             entity: entry?.entityName || (entry?.source === 'virtual-office-rent' ? 'Virtual Office' : 'Tenant Company'),
             amount: Number(entry?.amount || 0),
             date: entry?.postedAt || '',
@@ -761,6 +843,13 @@ export function BillingPaymentsPage() {
           })));
         } else {
           setErrorMessage((prev) => prev || 'Failed to load income ledger.');
+        }
+
+        if (revenueRes.status === 'fulfilled') {
+          const data = revenueRes.value?.data?.data || revenueRes.value?.data || revenueRes.value || {};
+          setRevenueRecords(Array.isArray(data) ? data : Array.isArray(data?.records) ? data.records : []);
+        } else {
+          setErrorMessage((prev) => prev || 'Failed to load revenue entries.');
         }
       } catch (error: any) {
         if (!alive) return;
@@ -855,6 +944,17 @@ export function BillingPaymentsPage() {
     });
   }, [voRecords, statusFilter, searchQuery]);
 
+  const visibleRevenueRecords = useMemo(() => {
+    const source = activeTab === 'workation' ? 'workation-revenue' : 'alternate-revenue';
+    return revenueRecords.filter((entry) => {
+      if (entry.source !== source) return false;
+      if (statusFilter !== 'All' && entry.status !== statusFilter) return false;
+      if (!searchQuery) return true;
+      const haystack = [entry.entityName, entry.entryCode, entry.category, entry.reference, entry.note].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(searchQuery.toLowerCase());
+    });
+  }, [revenueRecords, activeTab, statusFilter, searchQuery]);
+
   const transactionHistory = useMemo(
     () => [
       ...incomeEntries,
@@ -941,16 +1041,32 @@ export function BillingPaymentsPage() {
           { key: 'voPaid', label: 'Paid', value: String(voRecords.filter((v) => v.currentPeriod?.status === 'Paid').length), icon: CheckCircle2 },
         ];
       }
+      case 'workation':
+      case 'alternateRevenue': {
+        const source = activeTab === 'workation' ? 'workation-revenue' : 'alternate-revenue';
+        const rows = revenueRecords.filter((r) => r.source === source);
+        const received = rows.filter((r) => r.status === 'Received');
+        const pending = rows.filter((r) => r.status === 'Pending');
+        const tabIcon = activeTab === 'workation' ? Briefcase : Coins;
+        return [
+          { key: 'revReceivedAmount', label: 'Received', value: formatCurrency(received.reduce((s, r) => s + (r.amount || 0), 0)), isCurrency: true, icon: tabIcon },
+          { key: 'revPendingAmount', label: 'Pending', value: formatCurrency(pending.reduce((s, r) => s + (r.amount || 0), 0)), isCurrency: true, icon: Clock },
+          { key: 'revReceivedCount', label: 'Received #', value: String(received.length), icon: CheckCircle2 },
+          { key: 'revPendingCount', label: 'Pending #', value: String(pending.length), icon: FileText },
+        ];
+      }
       default:
         return [];
     }
-  }, [activeTab, tenantBills, rentRecords, voRecords, bookingRecords, payablePayrollEmployees, extraCreditRequests, transactionHistory, formatCurrency]);
+  }, [activeTab, tenantBills, rentRecords, voRecords, revenueRecords, bookingRecords, payablePayrollEmployees, extraCreditRequests, transactionHistory, formatCurrency]);
 
   const activeReportLabel = (() => {
     switch (activeTab) {
       case 'tenant': return 'Tenant Security Deposits';
       case 'rent': return 'Tenant Rent';
       case 'virtualOffice': return 'Virtual Office Rent';
+      case 'workation': return 'Workation Revenue';
+      case 'alternateRevenue': return 'Alternate Revenue';
       case 'bookings': return 'Meeting Room Bookings';
       case 'payroll': return 'Payroll';
       case 'extraCredits': return 'Extra Credit Requests';
@@ -1184,6 +1300,83 @@ export function BillingPaymentsPage() {
     }
   };
 
+  /* ── Handlers: Manual Revenue (Workation / Alternate) ── */
+
+  const refreshRevenueEntries = async () => {
+    try {
+      const res = await getFinanceRevenueEntries();
+      const data = res?.data?.data || res?.data || res || {};
+      setRevenueRecords(Array.isArray(data) ? data : Array.isArray(data?.records) ? data.records : []);
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to refresh revenue entries.');
+    }
+  };
+
+  const openAddRevenue = () => {
+    setAddRevenueForm({
+      entityName: '', category: '', amount: '', revenueDate: new Date().toISOString().slice(0, 10),
+      paymentStatus: 'Pending', paymentMethod: '', reference: '', billingPeriodLabel: '', note: '',
+    });
+    setAddRevenueFile(null);
+    setAddRevenueError('');
+    setShowAddRevenue(true);
+  };
+
+  const handleAddRevenueSubmit = async () => {
+    if (isSubmittingRevenue) return;
+    const source = activeTab === 'workation' ? 'workation-revenue' : 'alternate-revenue';
+    if (!addRevenueForm.entityName.trim()) { setAddRevenueError('Client/customer name is required.'); return; }
+    if (!(Number(addRevenueForm.amount) > 0)) { setAddRevenueError('Amount must be greater than zero.'); return; }
+    if (!addRevenueForm.revenueDate) { setAddRevenueError('Revenue date is required.'); return; }
+    if (source === 'alternate-revenue' && !addRevenueForm.category) { setAddRevenueError('A revenue category is required for alternate revenue.'); return; }
+    setIsSubmittingRevenue(true);
+    setAddRevenueError('');
+    try {
+      await createFinanceRevenueEntry({ source, ...addRevenueForm, document: addRevenueFile || undefined });
+      toast.success('Revenue entry created.');
+      setShowAddRevenue(false);
+      await refreshRevenueEntries();
+      window.dispatchEvent(new Event('finance:snapshot-updated'));
+    } catch (error: any) {
+      setAddRevenueError(error?.message || 'Failed to create revenue entry.');
+    } finally {
+      setIsSubmittingRevenue(false);
+    }
+  };
+
+  const handleConfirmRevenue = async (entry: RevenueRecord) => {
+    if (isProcessingAction) return;
+    setIsProcessingAction(true);
+    try {
+      await confirmFinanceRevenueEntry(entry.id);
+      toast.success(`Revenue confirmed for ${entry.entityName}.`);
+      await refreshRevenueEntries();
+      window.dispatchEvent(new Event('finance:snapshot-updated'));
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to confirm revenue.');
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
+  const handleReverseRevenue = async (entry: RevenueRecord) => {
+    if (isProcessingAction || !reverseReason.trim()) return;
+    setIsProcessingAction(true);
+    try {
+      await reverseFinanceRevenueEntry(entry.id, { reason: reverseReason.trim() });
+      toast.success(`Revenue reversed for ${entry.entityName}.`);
+      setShowReverseRevenue(false);
+      setReverseReason('');
+      setViewingRevenue(null);
+      await refreshRevenueEntries();
+      window.dispatchEvent(new Event('finance:snapshot-updated'));
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to reverse revenue.');
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
   /* ── Export handler ── */
 
   const handleExportActiveReport = async ({ format, dataWindow, period, reportMonth, dateFrom, dateTo }: ExportParams) => {
@@ -1201,6 +1394,7 @@ export function BillingPaymentsPage() {
     const periodTransactions = filterPeriod(transactionHistory, ['date', 'paidAt', 'createdAt']);
     const periodRentRecords = filterPeriod(visibleRentRecords, ['dueDate', 'submittedAt', 'paidAt', 'createdAt']);
     const periodVoRecords = filterPeriod(visibleVoRecords, ['rentDate', 'createdAt']);
+    const periodRevenueEntries = filterPeriod(visibleRevenueRecords, ['revenueDate', 'createdAt']);
 
     const reportConfigByTab: Record<string, any> = {
       tenant: {
@@ -1250,6 +1444,22 @@ export function BillingPaymentsPage() {
         sourceRef: 'finance-virtual-office-rent',
         reportRows: buildVirtualOfficeRentReportRows(periodVoRecords, { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }),
         hasData: periodVoRecords.length > 0,
+      },
+      workation: {
+        title: `Billing - Workation Revenue - ${fiscalYearLabel}`,
+        period: `${exportPeriodLabel} Workation Revenue`,
+        description: `Workation revenue report for ${exportPeriodLabel}.`,
+        sourceRef: 'finance-workation-revenue',
+        reportRows: buildRevenueReportRows(periodRevenueEntries, { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }, 'Workation Revenue'),
+        hasData: periodRevenueEntries.length > 0,
+      },
+      alternateRevenue: {
+        title: `Billing - Alternate Revenue - ${fiscalYearLabel}`,
+        period: `${exportPeriodLabel} Alternate Revenue`,
+        description: `Alternate revenue report for ${exportPeriodLabel}.`,
+        sourceRef: 'finance-alternate-revenue',
+        reportRows: buildRevenueReportRows(periodRevenueEntries, { fiscalYear: selectedFY, statusFilter, searchQuery, currency: workspacePreferences.currency }, 'Alternate Revenue'),
+        hasData: periodRevenueEntries.length > 0,
       },
       history: {
         title: `Billing - Transaction History - ${fiscalYearLabel}`,
@@ -1319,6 +1529,15 @@ export function BillingPaymentsPage() {
                 </select>
               </div>
                               <ReportExportButton onClick={() => setShowExportModal(true)} />
+                              {(activeTab === 'workation' || activeTab === 'alternateRevenue') && (
+                                <button
+                                  type="button"
+                                  onClick={openAddRevenue}
+                                  className="px-4 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-xs shadow-sm hover:bg-primary/95 transition-all flex items-center gap-1.5"
+                                >
+                                  <Plus size={14} /> Add Revenue
+                                </button>
+                              )}
             </div>
           </div>
 
@@ -1398,6 +1617,12 @@ export function BillingPaymentsPage() {
                       <option>Proof Submitted</option>
                       <option>Paid</option>
                       <option>Overdue</option>
+                    </>
+                  ) : activeTab === 'workation' || activeTab === 'alternateRevenue' ? (
+                    <>
+                      <option>Pending</option>
+                      <option>Received</option>
+                      <option>Reversal</option>
                     </>
                   ) : activeTab === 'virtualOffice' ? (
                     <>
@@ -1597,6 +1822,76 @@ export function BillingPaymentsPage() {
                   </>
                 )}
 
+                {(activeTab === 'workation' || activeTab === 'alternateRevenue') && (
+                  <>
+                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                      <tr>
+                        <th className="px-6 py-5">Client</th>
+                        <th className="px-6 py-5 hidden sm:table-cell">Category</th>
+                        <th className="px-6 py-5 hidden sm:table-cell">Revenue Date</th>
+                        <th className="px-6 py-5">Amount</th>
+                        <th className="px-6 py-5 hidden md:table-cell">Method / Reference</th>
+                        <th className="px-6 py-5 text-center">Status</th>
+                        <th className="px-6 py-5 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100/60">
+                      {visibleRevenueRecords.length > 0 ? visibleRevenueRecords.map((entry) => (
+                        <tr key={entry.id} className="hover:bg-blue-50/30 transition-all">
+                          <td className="px-6 py-5">
+                            <p className="font-black text-slate-900 text-xs sm:text-sm flex items-center gap-1.5">
+                              {activeTab === 'workation' ? <Briefcase size={13} className="text-slate-400" /> : <Coins size={13} className="text-slate-400" />} {entry.entityName || '—'}
+                            </p>
+                            <p className="text-[9px] font-semibold text-slate-400">
+                              {entry.entryCode}{entry.billingPeriodLabel ? ` · ${entry.billingPeriodLabel}` : ''}
+                              {entry.document?.fileUrl && (
+                                <> · <a href={entry.document.fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 inline-flex items-center gap-0.5"><FileText size={9} /> Document</a></>
+                              )}
+                            </p>
+                          </td>
+                          <td className="px-6 py-5 hidden sm:table-cell text-xs font-bold text-slate-700">{entry.category || '—'}</td>
+                          <td className="px-6 py-5 hidden sm:table-cell text-xs font-bold text-slate-700">{entry.revenueDateLabel || '—'}</td>
+                          <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">{formatCurrency(entry.amount || 0)}</td>
+                          <td className="px-6 py-5 hidden md:table-cell text-xs font-semibold text-slate-600">
+                            {entry.paymentMethod || '—'}{entry.reference ? ` · ${entry.reference}` : ''}
+                          </td>
+                          <td className="px-6 py-5 text-center">{getRentStatusBadge(entry.status)}</td>
+                          <td className="px-6 py-5 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              {entry.isPending && (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleConfirmRevenue(entry)}
+                                  disabled={isProcessingAction}
+                                  title="Recognize this revenue as received"
+                                  className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-[9px] font-bold uppercase tracking-wider shadow-sm hover:bg-emerald-700 transition-all disabled:opacity-60 inline-flex items-center gap-1"
+                                >
+                                  <CheckCircle2 size={10} /> Confirm
+                                </button>
+                              )}
+                              {!entry.isReversal && (
+                                <button
+                                  type="button"
+                                  onClick={() => { setViewingRevenue(entry); setShowReverseRevenue(true); setReverseReason(''); }}
+                                  className="px-3 py-1.5 bg-white border border-rose-200 text-rose-600 rounded-lg text-[9px] font-pmedium uppercase transition-all shadow-sm hover:bg-rose-50 inline-flex items-center gap-1"
+                                >
+                                  <XCircle size={10} /> Reverse
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan={7} className="px-6 py-16 text-center text-slate-400 font-semibold">
+                            No revenue entries yet. Use "Add Revenue" to record {activeTab === 'workation' ? 'workation' : 'alternate'} income.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </>
+                )}
+
                 {activeTab === 'bookings' && (
                   <>
                     <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
@@ -1776,6 +2071,130 @@ export function BillingPaymentsPage() {
           </div>
         </div>
       </PageFrame>
+
+      {/* ── Add Revenue Modal (Workation / Alternate) ── */}
+      {showAddRevenue && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
+              <div>
+                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-blue-500/20 text-blue-300 border-blue-400/30 mb-2 inline-block">Manual Revenue</span>
+                <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1">
+                  {activeTab === 'workation' ? <Briefcase size={20} /> : <Coins size={20} />} Add {activeTab === 'workation' ? 'Workation' : 'Alternate'} Revenue
+                </h2>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">
+                  {activeTab === 'workation' ? 'Workation packages, extensions and add-ons' : 'Events, café, printing, parking, day passes, commissions and more'}
+                </p>
+              </div>
+              <button onClick={() => setShowAddRevenue(false)} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 bg-[#F8FAFC] px-6 sm:px-8 py-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Client / Customer Name <span className="text-red-400">*</span></label>
+                  <input type="text" value={addRevenueForm.entityName} onChange={(e) => setAddRevenueForm((prev) => ({ ...prev, entityName: e.target.value }))} placeholder="e.g. Acme Corp" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Category {activeTab === 'alternateRevenue' && <span className="text-red-400">*</span>}</label>
+                  <select value={addRevenueForm.category} onChange={(e) => setAddRevenueForm((prev) => ({ ...prev, category: e.target.value }))} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] outline-none transition-all cursor-pointer">
+                    {activeTab === 'workation' ? (
+                      <>
+                        <option value="">— None —</option>
+                        <option value="package">Package</option>
+                        <option value="extension">Extension</option>
+                        <option value="add-on">Add-on</option>
+                        <option value="miscellaneous">Miscellaneous</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="">Select category</option>
+                        <option value="events">Events</option>
+                        <option value="cafe-food">Café / Food</option>
+                        <option value="printing">Printing</option>
+                        <option value="parking">Parking</option>
+                        <option value="day-passes">Day Passes</option>
+                        <option value="commission">Commission</option>
+                        <option value="penalty-late-fee">Penalty / Late Fee</option>
+                        <option value="miscellaneous">Miscellaneous</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Amount <span className="text-red-400">*</span></label>
+                  <input type="number" min="0" value={addRevenueForm.amount} onChange={(e) => setAddRevenueForm((prev) => ({ ...prev, amount: e.target.value }))} placeholder="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] outline-none transition-all" />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Revenue Date <span className="text-red-400">*</span></label>
+                  <input type="date" value={addRevenueForm.revenueDate} onChange={(e) => setAddRevenueForm((prev) => ({ ...prev, revenueDate: e.target.value }))} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] outline-none transition-all" />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Payment Status</label>
+                  <select value={addRevenueForm.paymentStatus} onChange={(e) => setAddRevenueForm((prev) => ({ ...prev, paymentStatus: e.target.value }))} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] outline-none transition-all cursor-pointer">
+                    <option value="Pending">Pending</option>
+                    <option value="Received">Received</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Payment Method</label>
+                  <input type="text" value={addRevenueForm.paymentMethod} onChange={(e) => setAddRevenueForm((prev) => ({ ...prev, paymentMethod: e.target.value }))} placeholder="e.g. UPI / Bank transfer / Cash" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] outline-none transition-all" />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Transaction / Invoice Reference</label>
+                  <input type="text" value={addRevenueForm.reference} onChange={(e) => setAddRevenueForm((prev) => ({ ...prev, reference: e.target.value }))} placeholder="e.g. INV-1042 / UTR" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] outline-none transition-all" />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Billing Period (optional)</label>
+                  <input type="text" value={addRevenueForm.billingPeriodLabel} onChange={(e) => setAddRevenueForm((prev) => ({ ...prev, billingPeriodLabel: e.target.value }))} placeholder="e.g. Sep 2026 package" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] outline-none transition-all" />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Description</label>
+                  <textarea rows={2} value={addRevenueForm.note} onChange={(e) => setAddRevenueForm((prev) => ({ ...prev, note: e.target.value }))} placeholder="What is this revenue for?" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] outline-none transition-all" />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Supporting Document (optional)</label>
+                  <input type="file" accept="image/*,application/pdf" onChange={(e) => setAddRevenueFile(e.target.files?.[0] || null)} className="w-full text-[11px] text-slate-600 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 file:text-[11px] file:font-pmedium cursor-pointer" />
+                  {addRevenueFile && <p className="text-[10px] text-slate-500">{addRevenueFile.name}</p>}
+                </div>
+                {addRevenueError && (
+                  <div className="sm:col-span-2 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-[11px] font-pmedium text-red-600 flex items-start gap-1.5">
+                    <XCircle size={13} className="mt-0.5 shrink-0" /> {addRevenueError}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="px-6 sm:px-8 py-4 bg-white border-t border-slate-100 flex justify-end gap-2 shrink-0">
+              <button type="button" onClick={() => setShowAddRevenue(false)} disabled={isSubmittingRevenue} className="px-5 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all">Cancel</button>
+              <button type="button" onClick={() => void handleAddRevenueSubmit()} disabled={isSubmittingRevenue} className="px-5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-widest shadow-sm hover:bg-primary/95 transition-all disabled:opacity-60 flex items-center gap-1.5">
+                <CheckCircle2 size={12} /> {isSubmittingRevenue ? 'Saving...' : 'Save Revenue'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reverse Revenue Modal ── */}
+      {viewingRevenue && showReverseRevenue && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="px-6 py-5 bg-slate-900 border-b border-slate-800">
+              <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-rose-500/20 text-rose-300 border-rose-400/30 mb-2 inline-block">Reverse Revenue Entry</span>
+              <h2 className="text-lg font-black text-white">{viewingRevenue.entityName}</h2>
+              <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">{viewingRevenue.entryCode} · {formatCurrency(viewingRevenue.amount || 0)} · {viewingRevenue.revenueDateLabel}</p>
+            </div>
+            <div className="px-6 py-5 space-y-3 bg-[#F8FAFC]">
+              <p className="text-[11px] text-slate-500">A reversal entry of <strong className="text-rose-600">{formatCurrency(viewingRevenue.amount || 0)}</strong> will be appended. The original entry stays untouched for audit, and the two net to zero in the P&L.</p>
+              <textarea rows={2} value={reverseReason} onChange={(e) => setReverseReason(e.target.value)} placeholder="Reason (required) — e.g. wrong amount / duplicate entry" className="w-full px-3 py-2 bg-white border border-rose-200 rounded-xl text-xs font-medium outline-none focus:border-rose-400" />
+            </div>
+            <div className="px-6 py-4 bg-white border-t border-slate-100 flex justify-end gap-2">
+              <button type="button" onClick={() => { setShowReverseRevenue(false); setReverseReason(''); setViewingRevenue(null); }} className="px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium text-[10px] uppercase tracking-widest">Cancel</button>
+              <button type="button" disabled={!reverseReason.trim() || isProcessingAction} onClick={() => void handleReverseRevenue(viewingRevenue)} className="px-5 py-2.5 bg-rose-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-widest shadow-sm hover:bg-rose-700 transition-all disabled:opacity-60 flex items-center gap-1.5">
+                <XCircle size={12} /> Reverse Entry
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── View Tenant Bill Modal ── */}
       {viewingTenantBill && (
@@ -2371,7 +2790,7 @@ export function BillingPaymentsPage() {
         subtitle="Select format and date range to export."
         department="Finance"
         category="Financial"
-        sourceRef={({ tenant: 'finance-tenant-deposits', rent: 'finance-tenant-rent', virtualOffice: 'finance-virtual-office-rent', bookings: 'finance-booking-invoices', payroll: 'finance-payroll', extraCredits: 'finance-extra-credits', history: 'finance-transaction-history' } as Record<string, string>)[activeTab] || 'finance-billing'}
+        sourceRef={({ tenant: 'finance-tenant-deposits', rent: 'finance-tenant-rent', virtualOffice: 'finance-virtual-office-rent', workation: 'finance-workation-revenue', alternateRevenue: 'finance-alternate-revenue', bookings: 'finance-booking-invoices', payroll: 'finance-payroll', extraCredits: 'finance-extra-credits', history: 'finance-transaction-history' } as Record<string, string>)[activeTab] || 'finance-billing'}
         reportTitle={`Billing ${activeReportLabel} - ${selectedFY || DEFAULT_FISCAL_YEAR}`}
         defaultDataWindow="Annual"
         onExport={handleExportActiveReport}

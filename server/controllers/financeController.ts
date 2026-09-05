@@ -39,6 +39,12 @@ import {
   markVirtualOfficeRentPaidForWorkspace,
 } from "../services/virtualOffice.service.js";
 import { listIncomeEntriesForWorkspace } from "../services/incomeLedgerService.js";
+import {
+  listRevenueEntriesForWorkspace,
+  createRevenueEntryForWorkspace,
+  confirmRevenueEntryForWorkspace,
+  reverseRevenueEntryForWorkspace,
+} from "../services/incomeLedgerService.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Workspace from "../models/Workspace.js";
 import FinanceVendor from "../models/FinanceVendor.js";
@@ -708,6 +714,86 @@ export async function getIncomeLedgerRecords(req: Request, res: Response, next: 
     return res.status(200).json({
       success: true,
       message: "Income ledger loaded successfully.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function listRevenueEntries(req: Request, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = getWorkspaceId(req);
+    if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
+
+    const result = await listRevenueEntriesForWorkspace(workspaceId, req.query);
+
+    return res.status(200).json({
+      success: true,
+      message: "Revenue entries loaded successfully.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function createRevenueEntry(req: Request, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = getWorkspaceId(req);
+    const userId = getUserId(req);
+    if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
+    if (!userId) return res.status(401).json({ message: "Unauthorized: user not resolved." });
+
+    const result = await createRevenueEntryForWorkspace({ workspaceId, userId, body: req.body, file: (req as any).file });
+
+    return res.status(201).json({
+      success: true,
+      message: "Revenue entry created.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function confirmRevenueEntry(req: Request, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = getWorkspaceId(req);
+    const userId = getUserId(req);
+    if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
+    if (!userId) return res.status(401).json({ message: "Unauthorized: user not resolved." });
+
+    const entryId = String(req.params.entryId || "").trim();
+    if (!entryId) return res.status(400).json({ message: "entryId is required" });
+
+    const result = await confirmRevenueEntryForWorkspace({ workspaceId, userId, entryId, body: req.body });
+
+    return res.status(200).json({
+      success: true,
+      message: "Revenue confirmed as received.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function reverseRevenueEntry(req: Request, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = getWorkspaceId(req);
+    const userId = getUserId(req);
+    if (!workspaceId) return res.status(401).json({ message: "Unauthorized: workspace not resolved." });
+    if (!userId) return res.status(401).json({ message: "Unauthorized: user not resolved." });
+
+    const entryId = String(req.params.entryId || "").trim();
+    if (!entryId) return res.status(400).json({ message: "entryId is required" });
+
+    const result = await reverseRevenueEntryForWorkspace({ workspaceId, userId, entryId, body: req.body });
+
+    return res.status(200).json({
+      success: true,
+      message: "Revenue entry reversed.",
       data: result,
     });
   } catch (error) {
