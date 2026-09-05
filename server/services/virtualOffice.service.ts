@@ -6,8 +6,7 @@ import HostUser from "../models/HostUser.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Workspace from "../models/Workspace.js";
 import Department from "../models/Department.js";
-import { assertFinancePaymentActor, getActorName } from "./tenantRentService.js";
-import { postIncomeEntry } from "./incomeLedgerService.js";
+import { assertFinancePaymentActor, getActorName, postIncomeEntry } from "./incomeLedgerService.js";
 
 const VIRTUAL_OFFICE_SALES_MODULE = "virtual-office-sales";
 const ADMIN_ROLES = new Set(["owner", "super_admin", "founder"]);

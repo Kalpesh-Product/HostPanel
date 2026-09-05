@@ -196,6 +196,35 @@ export const getFinanceIncomeLedger = async (params?: Record<string, any>) => {
   return unwrap(response);
 };
 
+// --- Manual Revenue (Workation / Alternate) ---
+
+export const getFinanceRevenueEntries = async (params?: Record<string, any>) => {
+  const response = await axiosPrivate.get("/api/finance/revenue-entries", { params });
+  return unwrap(response);
+};
+
+export const createFinanceRevenueEntry = async (payload: Record<string, any>) => {
+  const formData = new FormData();
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      formData.append(key, value as any);
+    }
+  });
+  return axiosPrivate.post("/api/finance/revenue-entries", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+};
+
+export const confirmFinanceRevenueEntry = async (entryId: string, payload: Record<string, any> = {}) => {
+  const response = await axiosPrivate.patch(`/api/finance/revenue-entries/${entryId}/confirm`, payload);
+  return unwrap(response);
+};
+
+export const reverseFinanceRevenueEntry = async (entryId: string, payload: Record<string, any> = {}) => {
+  const response = await axiosPrivate.post(`/api/finance/revenue-entries/${entryId}/reverse`, payload);
+  return unwrap(response);
+};
+
 export const getPayrollSnapshot = async (params?: Record<string, any>) => {
   const response = await axiosPrivate.get("/api/finance/payroll/snapshot", { params });
   return unwrap(response);

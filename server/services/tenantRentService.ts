@@ -1,19 +1,7 @@
 import TenantRent from "../models/TenantRent.js";
 import { TenantCompany } from "../models/TenantCompany.js";
-import WorkspaceMember from "../models/WorkspaceMember.js";
-import HostUser from "../models/HostUser.js";
-import { postIncomeEntry } from "./incomeLedgerService.js";
+import { assertFinancePaymentActor, getActorName, postIncomeEntry } from "./incomeLedgerService.js";
 
-// Roles allowed to verify/close tenant rent payments (same segregation-of-
-// duties gate as department-finance payments: canManageAllFinancePayments).
-const FINANCE_PRIVILEGED_ROLES = new Set([
-  "owner",
-  "founder",
-  "super_admin",
-  "admin",
-  "finance_manager",
-  "finance",
-]);
 
 // The generation sweep runs at boot and then every 6 hours — frequent enough
 // to catch a month rollover even if the process was down for a while.
@@ -48,11 +36,6 @@ function safeString(value: any, fallback = "") {
   return fallback;
 }
 
-function normalizeRoleName(value: any) {
-  const raw = typeof value === "string" ? value : value?.name;
-  return safeString(raw).trim().toLowerCase().replace(/[\s-]+/g, "_");
-}
-
 function daysInMonth(year: number, monthIndex: number) {
   return new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
 }
@@ -70,57 +53,6 @@ function formatRentDate(value: any) {
     year: "numeric",
     timeZone: "UTC",
   }).format(date);
-}
-
-// ============================================================================
-// Finance-actor authorization (mirrors financeService.canManageAllFinancePayments)
-// ============================================================================
-
-async function getFinanceActorMembership(workspaceId: any, userId: any) {
-  const membership: any = await WorkspaceMember.findOne({ workspace: workspaceId, user: userId })
-    .populate("departments", "name")
-    .populate("role", "name")
-    .lean()
-    .exec();
-  if (!membership) {
-    throw Object.assign(new Error("Workspace membership not found."), { statusCode: 403 });
-  }
-  return membership;
-}
-
-function getOwnDepartmentKeys(membership: any) {
-  return ((membership?.departments || []) as any[])
-    .map((d) => safeString(d?.name).trim().toLowerCase())
-    .filter(Boolean);
-}
-
-function canManageFinancePayments(membership: any) {
-  const role = normalizeRoleName(membership?.role);
-  if (FINANCE_PRIVILEGED_ROLES.has(role)) return true;
-  // A generic Manager assigned to the Finance department acts as finance staff.
-  if (role !== "manager") return false;
-  return getOwnDepartmentKeys(membership).some((key) => key.includes("finance"));
-}
-
-export async function assertFinancePaymentActor(workspaceId: any, userId: any) {
-  const membership = await getFinanceActorMembership(workspaceId, userId);
-  if (!canManageFinancePayments(membership)) {
-    throw Object.assign(
-      new Error("Only finance-privileged roles can manage tenant rent payments."),
-      { statusCode: 403 },
-    );
-  }
-  return membership;
-}
-
-export async function getActorName(userId: any) {
-  if (!userId) return "";
-  try {
-    const user: any = await HostUser.findById(userId).select("name fullName email").lean().exec();
-    return safeString(user?.name || user?.fullName || user?.email || "");
-  } catch {
-    return "";
-  }
 }
 
 // ============================================================================

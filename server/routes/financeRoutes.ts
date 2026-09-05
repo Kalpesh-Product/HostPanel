@@ -34,6 +34,10 @@ import {
   getVirtualOfficeRentRecords,
   markVirtualOfficeRentPaid,
   getIncomeLedgerRecords,
+  listRevenueEntries,
+  createRevenueEntry,
+  confirmRevenueEntry,
+  reverseRevenueEntry,
 } from "../controllers/financeController.js";
 
 const router = express.Router();
@@ -73,6 +77,13 @@ router.patch("/virtual-office-rent/:recordId/mark-paid", markVirtualOfficeRentPa
 
 // Income ledger — append-only revenue register read by Accounting/P&L & History.
 router.get("/income-ledger", getIncomeLedgerRecords);
+
+// Manual revenue (Workation / Alternate) — finance-created, Pending → Received,
+// corrections via reversal entries.
+router.get("/revenue-entries", listRevenueEntries);
+router.post("/revenue-entries", upload.single("document"), createRevenueEntry);
+router.patch("/revenue-entries/:entryId/confirm", confirmRevenueEntry);
+router.post("/revenue-entries/:entryId/reverse", reverseRevenueEntry);
 
 router.post("/approval/decision", applyFinanceApprovalDecision);
 
