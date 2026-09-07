@@ -53,6 +53,7 @@ const mapTicket = (ticket: any, sr: number) => ({
   department: ticket?.department || null,
   workspaceName: ticket?.workspace?.workspaceName || ticket?.workspaceName || "",
   image: ticket?.image || { id: "", url: "" },
+  images: Array.isArray(ticket?.images) ? ticket.images : ticket?.image?.url ? [ticket.image] : [],
   resolutionMessage: ticket?.resolutionMessage || "",
   resolutionAttachment: ticket?.resolutionAttachment || { id: "", url: "" },
   resolvedAt: ticket?.resolvedAt || null,
@@ -100,11 +101,16 @@ export const createSupportTicket = async (req, res, next) => {
     }
 
     let image = { id: "", url: "" };
-    if (req.file) {
-      const cleanName = String(req.file.originalname || "file").replace(/[/\\?%*:|"<>]/g, "_");
-      const route = `support-tickets/${req.workspaceMembership?.workspace || "default"}/${Date.now()}-${cleanName}`;
+    let images: { id: string; url: string; name: string }[] = [];
+    const uploadedFiles = req.files && req.files.length ? req.files : req.file ? [req.file] : [];
+    if (uploadedFiles.length) {
       try {
-        image = await uploadFileToS3(route, req.file);
+        for (const file of uploadedFiles) {
+          const cleanName = String(file.originalname || "file").replace(/[/\\?%*:|"<>]/g, "_");
+          const route = `support-tickets/${req.workspaceMembership?.workspace || "default"}/${Date.now()}-${cleanName}`;
+          const uploaded = await uploadFileToS3(route, file);
+          images.push({ id: uploaded.id, url: uploaded.url, name: cleanName });
+        }
       } catch (uploadError: any) {
         return res.status(502).json({
           message: "Attachment upload failed. Please try again.",
@@ -112,6 +118,7 @@ export const createSupportTicket = async (req, res, next) => {
         });
       }
     }
+    if (images.length === 1) image = { id: images[0].id, url: images[0].url };
 
     const [requestedByUser, workspaceDoc] = await Promise.all([
       req.user
@@ -158,6 +165,7 @@ export const createSupportTicket = async (req, res, next) => {
       companyName,
       workspaceName,
       image,
+      images,
     });
 
     // Notify workspace admins/founders about new support ticket
@@ -244,11 +252,18 @@ export const updateSupportTicket = async (req, res, next) => {
       ticket.pageUrl = String(pageUrl || "").trim();
     }
 
-    if (req.file) {
-      const cleanName = String(req.file.originalname || "file").replace(/[/\\?%*:|"<>]/g, "_");
-      const route = `support-tickets/${req.workspaceMembership?.workspace || "default"}/${Date.now()}-${cleanName}`;
+    const uploadedFiles = req.files && req.files.length ? req.files : req.file ? [req.file] : [];
+    if (uploadedFiles.length) {
       try {
-        ticket.image = await uploadFileToS3(route, req.file);
+        const images: { id: string; url: string; name: string }[] = [];
+        for (const file of uploadedFiles) {
+          const cleanName = String(file.originalname || "file").replace(/[/\\?%*:|"<>]/g, "_");
+          const route = `support-tickets/${req.workspaceMembership?.workspace || "default"}/${Date.now()}-${cleanName}`;
+          const uploaded = await uploadFileToS3(route, file);
+          images.push({ id: uploaded.id, url: uploaded.url, name: cleanName });
+        }
+        ticket.images = images;
+        if (images.length === 1) ticket.image = { id: images[0].id, url: images[0].url };
       } catch (uploadError: any) {
         return res.status(502).json({
           message: "Attachment upload failed. Please try again.",

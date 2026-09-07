@@ -34,3 +34,13 @@ export const getTicketIssueSuggestions = async (params?: Record<string, any>) =>
   const response = await axiosPrivate.get("/api/tickets/issue-suggestions", { params });
   return unwrap(response);
 };
+
+export const createTicketIssue = async (payload: Record<string, any>) => {
+  const response = await axiosPrivate.post("/api/tickets/issues", payload);
+  return unwrap(response);
+};
+
+export const recordTicketIssueUsage = async (payload: Record<string, any>) => {
+  const response = await axiosPrivate.post("/api/tickets/issues/usage", payload);
+  return unwrap(response);
+};

@@ -1323,6 +1323,44 @@ export const switchWorkspace = async (req, res, next) => {
   }
 };
 
+// Full, unscoped workspace roster (name/role/departments) — used by
+// cross-department features like Task routing, where a department manager
+// needs to see other departments to hand work to them. Deliberately not
+// restricted the way getOrganizationOverview's team-management view is
+// (that endpoint scopes a manager down to their own department, which is
+// correct for managing rosters but wrong for routing tasks elsewhere).
+export const getWorkspaceMembers = async (req, res, next) => {
+  try {
+    const workspaceId = req.workspaceMembership?.workspace;
+    if (!workspaceId) return res.status(400).json({ message: "Workspace is required" });
+
+    const members = await WorkspaceMember.find({ workspace: workspaceId, isActive: true })
+      .populate("user", "name email")
+      .populate("role", "name")
+      .populate("departments", "name")
+      .lean()
+      .exec();
+
+    const formatted = members.map((member) => ({
+      userId: String(member.user?._id || member.user || ""),
+      // Both keys: TasksPage.tsx's resolveMemberName only checks fullName,
+      // other existing (previously-dead-code) consumers check name/fullName
+      // interchangeably — cover both rather than guessing which wins.
+      name: member.user?.name || "",
+      fullName: member.user?.name || "",
+      email: member.user?.email || "",
+      role: _normalizeRole(member.role?.name || "employee"),
+      departments: Array.isArray(member.departments)
+        ? member.departments.map((department: any) => department?.name).filter(Boolean)
+        : [],
+    }));
+
+    return res.status(200).json({ message: "Members loaded successfully", data: { members: formatted } });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getWorkspaceSettings = async (req, res, next) => {
   try {
     // Prefer the workspace verifyJwt already resolved (req.workspaceMembership) —

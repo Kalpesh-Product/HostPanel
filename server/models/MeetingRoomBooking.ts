@@ -53,6 +53,7 @@ export interface IMeetingRoomBooking extends Document {
     taxLabel?: string;
     taxRatePercent?: number;
     priceIncludesTax?: boolean;
+    taxApplied?: boolean;
 
     paymentStatus: string;
     paymentMode?: string;
@@ -197,6 +198,10 @@ const meetingRoomBookingSchema = new Schema<IMeetingRoomBooking>(
         taxLabel: { type: String, trim: true, default: "Tax", maxlength: 40 },
         taxRatePercent: { type: Number, default: 0, min: 0, max: 100 },
         priceIncludesTax: { type: Boolean, default: false },
+        // Whether tax was actually charged on this booking — false when the
+        // booker unchecked the "Apply tax" option at checkout, independent of
+        // whether the workspace's country has tax enabled at all.
+        taxApplied: { type: Boolean, default: true },
 
         paymentStatus: { type: String, default: "Pending" },
         paymentMode: { type: String, trim: true, default: "" },

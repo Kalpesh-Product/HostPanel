@@ -19,7 +19,7 @@ export interface ITask extends Document {
     ownerId: mongoose.Types.ObjectId;
     taskNumber: number;
     taskCode: string;
-    type: "Standard" | "Approval";
+    type: string;
     title: string;
     description: string;
     departmentId?: mongoose.Types.ObjectId | null;
@@ -90,7 +90,7 @@ const taskSchema = new Schema<ITask>(
         },
         type: {
             type: String,
-            enum: ["Standard", "Approval"],
+            trim: true,
             default: "Standard",
             required: true,
         },

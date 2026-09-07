@@ -221,39 +221,61 @@ export const createTicket = async (req: Request, res: Response): Promise<void> =
             });
         }
 
-        // Notify workspace founder/admin about new ticket
+        // Notify the whole destination department (any admin assigned there,
+        // its manager(s), and its employees) plus workspace founders/super
+        // admins/admins, so a newly raised ticket reaches everyone who can
+        // act on it — not just whoever happens to be the initial assignee.
         if (workspaceId) {
+            const departmentDoc = await Department.findOne({ workspaceId, name: targetDepartment })
+                .select("_id")
+                .lean();
+
             // `role` on WorkspaceMember is an ObjectId ref to Role — a plain
             // find() can't filter on "role.name" without populating first
             // (it's not an embedded subdocument), so populate then filter in
-            // JS. Role names are "founder"/"super_admin"/"admin" (see
-            // seedRoles.ts) — there is no role literally named "owner".
+            // JS. Role names are "founder"/"super_admin"/"admin"/"manager"/
+            // "employee" (see seedRoles.ts) — there is no role literally
+            // named "owner".
             const workspaceMembers = await mongoose.model("WorkspaceMember").find({
                 workspace: workspaceId,
                 isActive: true,
-            }).select("user role").populate("role", "name").lean();
+            }).select("user role departments").populate("role", "name").lean();
 
-            const adminIds = workspaceMembers
-                .filter((m: any) => ["founder", "super_admin", "admin"].includes(String(m.role?.name || "").toLowerCase()))
-                .map((m: any) => String(m.user))
-                .filter((id: string) => id !== String(ownerId) && id !== String(savedTicket.assigneeUserId));
+            const recipientIds = new Set<string>();
+            for (const member of workspaceMembers as any[]) {
+                const memberId = String(member.user);
+                if (memberId === String(ownerId) || memberId === String(savedTicket.assigneeUserId || "")) {
+                    continue;
+                }
 
-            for (const adminId of adminIds) {
+                const roleName = String(member.role?.name || "").toLowerCase();
+                const isTopManagement = ["founder", "super_admin", "admin"].includes(roleName);
+                const isInDestinationDepartment = Boolean(
+                    departmentDoc?._id &&
+                    (member.departments || []).some((deptId: any) => String(deptId) === String(departmentDoc._id))
+                );
+
+                if (isTopManagement || isInDestinationDepartment) {
+                    recipientIds.add(memberId);
+                }
+            }
+
+            for (const recipientId of recipientIds) {
                 createNotification({
                     workspaceId,
-                    recipientUserId: adminId,
+                    recipientUserId: recipientId,
                     actorUserId: ownerId,
                     type: "ticket_created",
                     category: "ticket",
-                    title: "New Ticket Created",
-                    description: `${requesterName} created ticket #${savedTicket.ticketCode} in ${targetDepartment}.`,
+                    title: "New Ticket Raised",
+                    description: `${requesterName} raised ticket #${savedTicket.ticketCode} in ${targetDepartment}.`,
                     entityType: "ticket",
                     entityId: String(savedTicket._id),
                     entityCode: savedTicket.ticketCode,
                     targetUrl: `/tickets`,
                     data: { ticketCode: savedTicket.ticketCode, department: targetDepartment, priority: savedTicket.priority },
                     priority: savedTicket.priority === "High" ? "high" : "normal",
-                    dedupeKey: `ticket-created:${savedTicket._id}:${adminId}`,
+                    dedupeKey: `ticket-created:${savedTicket._id}:${recipientId}`,
                 });
             }
         }
@@ -353,9 +375,19 @@ export const updateTicket = async (req: Request, res: Response): Promise<void> =
 
         const existingTicket = await Ticket.findOne(queryFilter).lean();
 
+        const updateSet: Record<string, any> = { ...sanitizeTicketPayload(req.body) };
+
+        // Capture acceptance / assignment timestamps when the state changes.
+        if (req.body.acceptedByUserId && (!existingTicket?.acceptedByUserId || String(existingTicket.acceptedByUserId) !== String(req.body.acceptedByUserId))) {
+            updateSet.acceptedAt = new Date();
+        }
+        if (req.body.assigneeUserId && (!existingTicket?.assigneeUserId || String(existingTicket.assigneeUserId) !== String(req.body.assigneeUserId))) {
+            updateSet.assignedAt = new Date();
+        }
+
         const updatedTicket = await Ticket.findOneAndUpdate(
             queryFilter,
-            { $set: sanitizeTicketPayload(req.body) },
+            { $set: updateSet },
             { new: true, runValidators: true }
         );
 
@@ -394,14 +426,18 @@ export const updateTicket = async (req: Request, res: Response): Promise<void> =
             }
         }
 
-        // Notify on reassignment
+        // Notify on assignment: the new assignee is told the ticket is now
+        // theirs, and the raiser is told who has picked it up.
         if (existingTicket && req.body.assigneeUserId && String(req.body.assigneeUserId) !== String(existingTicket.assigneeUserId)) {
             const newAssigneeId = String(req.body.assigneeUserId);
-            if (newAssigneeId && newAssigneeId !== String((req as any).user)) {
+            const actorId = String((req as any).user || "");
+            const raiserId = String(existingTicket.requesterUserId || existingTicket.ownerId || "");
+
+            if (newAssigneeId && newAssigneeId !== actorId) {
                 createNotification({
                     workspaceId: scopeFilter.workspaceId || "",
                     recipientUserId: newAssigneeId,
-                    actorUserId: (req as any).user,
+                    actorUserId: actorId,
                     type: "ticket_assigned",
                     category: "ticket",
                     title: "Ticket Assigned to You",
@@ -414,6 +450,25 @@ export const updateTicket = async (req: Request, res: Response): Promise<void> =
                     priority: updatedTicket.priority === "High" ? "high" : "normal",
                     isActionRequired: true,
                     dedupeKey: `ticket-assigned:${updatedTicket._id}:${newAssigneeId}:${Date.now()}`,
+                });
+            }
+
+            if (raiserId && raiserId !== actorId && raiserId !== newAssigneeId) {
+                createNotification({
+                    workspaceId: scopeFilter.workspaceId || "",
+                    recipientUserId: raiserId,
+                    actorUserId: actorId,
+                    type: "ticket_assigned",
+                    category: "ticket",
+                    title: "Your Ticket Has Been Assigned",
+                    description: `Ticket ${updatedTicket.ticketCode} has been assigned to ${updatedTicket.assignedTo || "a team member"}.`,
+                    entityType: "ticket",
+                    entityId: String(updatedTicket._id),
+                    entityCode: updatedTicket.ticketCode,
+                    targetUrl: `/tickets`,
+                    data: { ticketCode: updatedTicket.ticketCode, department: updatedTicket.department, assignedTo: updatedTicket.assignedTo },
+                    priority: "normal",
+                    dedupeKey: `ticket-assigned-raiser:${updatedTicket._id}:${raiserId}:${Date.now()}`,
                 });
             }
         }
@@ -486,7 +541,262 @@ export const getIssueSuggestions = async (req: Request, res: Response): Promise<
             .lean()
             .exec();
 
+        // If a specific department was requested but no saved issues exist yet,
+        // seed the default templates for that department and return them.
+        if (!suggestions.length && department) {
+            const deptStr = String(department).trim();
+            const departmentName = mongoose.Types.ObjectId.isValid(deptStr)
+                ? (await Department.findById(deptStr).select("name").lean().exec() as any)?.name || deptStr
+                : deptStr;
+            let departmentId = mongoose.Types.ObjectId.isValid(deptStr)
+                ? new mongoose.Types.ObjectId(deptStr)
+                : (await Department.findOne({ name: departmentName, workspaceId }).select("_id").lean().exec() as any)?._id || null;
+
+            await seedDepartmentIssuesIfEmpty(String(workspaceId), departmentName, departmentId ? String(departmentId) : null);
+
+            const seeded = await TicketIssueCatalog.find({
+                workspaceId,
+                isActive: { $ne: false },
+                $or: [
+                    { department: departmentName },
+                    { departmentKey: departmentName.toLowerCase() }
+                ],
+            })
+                .sort({ usageCount: -1, lastUsedAt: -1 })
+                .limit(20)
+                .lean()
+                .exec();
+
+            res.status(200).json({ success: true, data: seeded });
+            return;
+        }
+
         res.status(200).json({ success: true, data: suggestions });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Default issue templates seeded per department when a workspace has no saved
+// issues yet. Kept generic so every department starts with a sensible list, and
+// the user can add their own custom issues on top (which are persisted too).
+const DEFAULT_DEPARTMENT_ISSUES: Record<string, string[]> = {
+    "IT": [
+        "Email & Outlook Issues",
+        "Internet & Network Issues",
+        "Printer Issues",
+        "Hardware Upgrade Issues",
+        "System Update Issues",
+        "Shared Drive & Access Issues",
+        "System Boot Issues",
+        "Antivirus Issues",
+        "Software Installation Issues",
+        "Backup & Restore Issues",
+        "Peripheral & Device Issues",
+        "Platform Issue",
+        "Biometric Issues",
+        "IT Internal Issues",
+    ],
+
+    "HR": [
+        "Leave & Attendance",
+        "Payroll & Salary",
+        "HR Documents Request",
+        "PF / ESIC / Tax Queries",
+        "Performance & Appraisal",
+        "Recruitment / Referral",
+        "Policy Clarification",
+        "Grievance / Complaint",
+        "Workplace Concern (Confidential)",
+        "Employee Engagement / Events",
+        "General HR Query / Other Option",
+        "Platform Issue",
+    ],
+
+    "Finance": [
+        "Salary Delay",
+        "Reimbursement Pending",
+        "Invoice Payment",
+        "Budget Request",
+        "Tax Update",
+        "Petty Cash",
+        "Expense Policy",
+        "Vendor Payment",
+        "Bonus Query",
+        "Account Issue",
+        "Platform Issue",
+    ],
+
+    "Sales": [
+        "CRM Issue",
+        "Collateral Request",
+        "Client Database",
+        "Report Error",
+        "Travel Delay",
+        "Proposal Template",
+        "Lead Issue",
+        "Demo Request",
+        "Invoice Delay",
+        "Pricing Query",
+        "Platform Issue",
+    ],
+
+    "Technology": [
+        "Platform Issue",
+    ],
+
+    "Maintenance": [
+        "AC Issues",
+        "Water Leakage",
+        "Washroom Plumbing Issues",
+        "Washroom Door & Lock Issues",
+        "Electrical & Lighting Issues",
+        "Ceiling / Wall Damage",
+        "Flooring & Interior Fixing",
+        "Furniture & Fixture Repairs",
+        "Equipment Maintenance",
+        "Rat smell / Bad odour",
+        "Platform Issue",
+    ],
+
+    "Administration": [
+        "Water & Pantry Supply Issues",
+        "General Cleaning Issues",
+        "Washroom Cleaning & Hygiene Issues",
+        "Water Quality Issue",
+        "Furniture Issues",
+        "AC Control Issues",
+        "Platform Issue",
+        "Requirements of Water & Bottle",
+    ],
+};
+
+const seedDepartmentIssuesIfEmpty = async (workspaceId: string, department: string, departmentId?: string | null): Promise<void> => {
+    const departmentKey = String(department || "").trim().toLowerCase();
+    if (!departmentKey) return;
+
+    const existing = await TicketIssueCatalog.countDocuments({
+        workspaceId,
+        departmentKey,
+        source: "seed",
+    }).exec();
+
+    if (existing > 0) return;
+
+    const templates = DEFAULT_DEPARTMENT_ISSUES[department]?.length
+        ? DEFAULT_DEPARTMENT_ISSUES[department]
+        : DEFAULT_DEPARTMENT_ISSUES["Administration"];
+
+    const now = new Date();
+    await TicketIssueCatalog.insertMany(
+        templates.map((title) => ({
+            workspaceId,
+            department,
+            departmentId: departmentId || null,
+            departmentKey,
+            title,
+            normalizedTitle: title.trim().toLowerCase(),
+            description: "",
+            keywords: [],
+            usageCount: 0,
+            lastUsedAt: null,
+            createdByUserId: null,
+            source: "seed",
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+        })),
+    );
+};
+
+// Save a custom issue into the catalog (used when the requester types their own
+// issue title). Reuses an existing matching entry to avoid duplicates.
+export const createTicketIssue = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const workspaceId = (req as any).workspaceMembership?.workspace;
+        if (!workspaceId) {
+            res.status(401).json({ success: false, message: "Workspace ID is required" });
+            return;
+        }
+
+        const department = String(req.body?.department || "").trim();
+        const title = String(req.body?.title || "").trim();
+        if (!department || !title) {
+            res.status(400).json({ success: false, message: "Department and issue title are required." });
+            return;
+        }
+
+        const departmentKey = department.toLowerCase();
+        const normalizedTitle = title.toLowerCase();
+
+        // Reuse existing issue for this workspace/department if present.
+        const existing = await TicketIssueCatalog.findOne({
+            workspaceId,
+            departmentKey,
+            normalizedTitle,
+        }).lean().exec();
+
+        if (existing) {
+            res.status(200).json({ success: true, data: existing, reused: true });
+            return;
+        }
+
+        const created = await TicketIssueCatalog.create({
+            workspaceId,
+            department,
+            departmentId: req.body?.departmentId || null,
+            departmentKey,
+            title,
+            normalizedTitle,
+            description: String(req.body?.description || "").trim(),
+            keywords: Array.isArray(req.body?.keywords) ? req.body.keywords : [],
+            usageCount: 0,
+            lastUsedAt: null,
+            createdByUserId: (req as any).user || null,
+            source: "custom",
+            isActive: true,
+        });
+
+        res.status(201).json({ success: true, data: created, reused: false });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Increment the usage counter / last-used time for a catalog issue when it is
+// selected for a new ticket. Supports lookup by catalog id or by dept+title.
+export const recordIssueUsage = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const workspaceId = (req as any).workspaceMembership?.workspace;
+        if (!workspaceId) {
+            res.status(401).json({ success: false, message: "Workspace ID is required" });
+            return;
+        }
+
+        const { issueId, department, title } = req.body || {};
+
+        let filter: any = null;
+        if (issueId && mongoose.Types.ObjectId.isValid(String(issueId))) {
+            filter = { _id: new mongoose.Types.ObjectId(String(issueId)), workspaceId };
+        } else if (department && title) {
+            filter = {
+                workspaceId,
+                departmentKey: String(department).trim().toLowerCase(),
+                normalizedTitle: String(title).trim().toLowerCase(),
+            };
+        }
+
+        if (!filter) {
+            res.status(400).json({ success: false, message: "Issue reference is required." });
+            return;
+        }
+
+        await TicketIssueCatalog.updateOne(filter, {
+            $inc: { usageCount: 1 },
+            $set: { lastUsedAt: new Date() },
+        }).exec();
+
+        res.status(200).json({ success: true });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
     }

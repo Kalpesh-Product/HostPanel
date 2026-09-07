@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, type FormEvent } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, Eye, X, Calendar, Clock, CheckCircle2, XCircle, AlertCircle,
@@ -413,6 +413,7 @@ export function AttendancePage() {
   const [cameraStreamActive, setCameraStreamActive] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
 
   /* ── Data State ── */
   const [activeTab, setActiveTab] = useState('my-attendance');
@@ -447,6 +448,7 @@ export function AttendancePage() {
   const [viewingMonth, setViewingMonth] = useState<string | null>(null);
   const [viewingDay, setViewingDay] = useState<string | null>(null);
   const [dayRecords, setDayRecords] = useState<AttendanceRecord[]>([]);
+  const [dayViewRecords, setDayViewRecords] = useState<AttendanceRecord[]>([]);
 
   const [viewingCorrection, setViewingCorrection] = useState<any>(null);
   const [showCorrectionForm, setShowCorrectionForm] = useState(false);
@@ -457,24 +459,31 @@ export function AttendancePage() {
 
   const todayKey = todayDate;
 
-  useEffect(() => {
-    return () => {
-      if (cameraStreamActive && videoRef.current?.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [cameraStreamActive]);
+  const stopClockCamera = useCallback(() => {
+    const stream = cameraStreamRef.current || (videoRef.current?.srcObject as MediaStream | null);
+    stream?.getTracks().forEach((track) => track.stop());
+    cameraStreamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setCameraReady(false);
+    setCameraStreamActive(false);
+  }, []);
+
+  const closeClockModal = useCallback(() => {
+    if (isClockLoading) return;
+    stopClockCamera();
+    setCapturedSelfie(null);
+    setCapturedSelfieBlob(null);
+    setCapturedLocation(null);
+    setCaptureOpenedAt(null);
+    setShowClockModal(false);
+  }, [isClockLoading, stopClockCamera]);
+
+  useEffect(() => () => stopClockCamera(), [stopClockCamera]);
 
   useEffect(() => {
     if (showClockModal) return;
-    if (videoRef.current?.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach((track) => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    setCameraStreamActive(false);
-  }, [showClockModal]);
+    stopClockCamera();
+  }, [showClockModal, stopClockCamera]);
 
   /* ── Derived ── */
   const monthDates = useMemo(() => getMonthDateRange(selectedMonth), [selectedMonth]);
@@ -710,6 +719,7 @@ export function AttendancePage() {
       } else {
         setClockErrorMessage('Location access is required. You can still capture the selfie and try proceed.');
       }
+      cameraStreamRef.current = stream;
       setCameraStreamActive(true);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -754,6 +764,12 @@ export function AttendancePage() {
     setCapturedSelfie(dataUrl);
   };
 
+  const handleRetakeSelfie = () => {
+    setCapturedSelfie(null);
+    setCapturedSelfieBlob(null);
+    setClockErrorMessage('');
+  };
+
   const handleSubmitClock = async () => {
     setIsClockLoading(true);
     setClockErrorMessage('');
@@ -796,14 +812,12 @@ export function AttendancePage() {
       } else {
         await checkOutAttendance(formData);
       }
+      stopClockCamera();
       setCaptureOpenedAt(null);
+      setCapturedSelfie(null);
+      setCapturedSelfieBlob(null);
+      setCapturedLocation(null);
       setShowClockModal(false);
-      if (videoRef.current?.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach((track) => track.stop());
-        videoRef.current.srcObject = null;
-      }
-      setCameraStreamActive(false);
       await reloadMyAttendance();
     } catch (err: any) {
       setClockErrorMessage(err?.response?.data?.message || err?.message || 'Failed to record attendance.');
@@ -953,7 +967,7 @@ export function AttendancePage() {
     setViewingDay(date);
     const records = activeTab === 'my-attendance' ? myRecords : allRecords;
     const filtered = records.filter((r) => r.date === date);
-    setDayRecords(filtered);
+    setDayViewRecords(filtered);
   };
 
   // getTeamAttendance (allRecords) deliberately excludes the signed-in user
@@ -1301,7 +1315,7 @@ export function AttendancePage() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
                     Daily Target <span className="text-slate-700 font-pbold normal-case tracking-normal">{formatSeconds(dailyTargetSeconds)}</span>
-                    {assignedShiftName && <span className="ml-2 text-blue-600">• {assignedShiftName} ({attendanceSettings.workingHoursStart}–{attendanceSettings.workingHoursEnd})</span>}
+                    {assignedShiftName && <span className="ml-2 text-blue-600">• {assignedShiftName} ({formatTime12h(attendanceSettings.workingHoursStart)} – {formatTime12h(attendanceSettings.workingHoursEnd)})</span>}
                   </p>
                   <p className={`text-[10px] font-pmedium uppercase tracking-widest ${targetReached ? 'text-emerald-600' : 'text-blue-600'}`}>
                     {targetReached ? 'Target completed' : `${targetPercentage}% complete`}
@@ -1386,7 +1400,7 @@ export function AttendancePage() {
                     <input
                       data-tour="attendance-search"
                       type="text" placeholder="Search employee..."
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
                       value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
@@ -1620,7 +1634,7 @@ export function AttendancePage() {
                   {clockMode === 'in' ? 'Check In' : 'Check Out'} verification
                 </p>
               </div>
-              <button onClick={() => setShowClockModal(false)} className="p-2 bg-white rounded-full shadow-sm hover:scale-110 transition-transform">
+              <button onClick={closeClockModal} disabled={isClockLoading} className="p-2 bg-white rounded-full shadow-sm hover:scale-110 transition-transform disabled:opacity-50">
                 <X size={18} />
               </button>
             </div>
@@ -1635,10 +1649,9 @@ export function AttendancePage() {
                 </div>
                 <div className="p-2.5">
                   <div className="relative min-h-[380px] overflow-hidden rounded-[1.35rem] bg-black">
-                    {capturedSelfie ? (
+                    <video ref={videoRef} className="absolute inset-0 h-full w-full object-cover object-center" playsInline muted autoPlay />
+                    {capturedSelfie && (
                       <img src={capturedSelfie} alt="Captured selfie" className="absolute inset-0 h-full w-full object-cover object-center" />
-                    ) : (
-                      <video ref={videoRef} className="absolute inset-0 h-full w-full object-cover object-center" playsInline muted autoPlay />
                     )}
                     {!cameraReady && (
                       <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80">
@@ -1653,12 +1666,12 @@ export function AttendancePage() {
               </div>
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Date</p>
-                  <p className="mt-1 text-[10px] font-pbold text-slate-700">{captureOpenedAt ? captureOpenedAt.toLocaleDateString() : new Date().toLocaleDateString()}</p>
+                  <p className="text-xs font-pmedium uppercase text-slate-500">Date</p>
+                  <p className="mt-1 text-xs font-pbold text-slate-700">{captureOpenedAt ? captureOpenedAt.toLocaleDateString() : new Date().toLocaleDateString()}</p>
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Time</p>
-                  <p className="mt-1 text-[10px] font-pbold text-slate-700">{captureOpenedAt ? captureOpenedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                  <p className="text-xs font-pmedium uppercase text-slate-500">Time</p>
+                  <p className="mt-1 text-xs font-pbold text-slate-700">{captureOpenedAt ? captureOpenedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
               </div>
               <canvas ref={canvasRef} className="hidden" />
@@ -1668,11 +1681,12 @@ export function AttendancePage() {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => setShowClockModal(false)}
-                  className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 text-xs font-pmedium uppercase text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+                  onClick={capturedSelfie ? handleRetakeSelfie : closeClockModal}
+                  disabled={isClockLoading}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 text-xs font-pmedium uppercase text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50"
                 >
                   <X size={14} />
-                  Cancel
+                  {capturedSelfie ? 'Retake' : 'Cancel'}
                 </button>
                 <button
                   type="button"
@@ -1832,7 +1846,7 @@ export function AttendancePage() {
                       value={correctionForm.reason}
                       onChange={(e) => setCorrectionForm((prev) => ({ ...prev, reason: e.target.value }))}
                       placeholder="Explain why this correction is needed..."
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none resize-none min-h-[80px] placeholder:text-slate-400"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none resize-none min-h-[80px] placeholder:text-slate-500"
                       rows={3}
                     />
                   </div>
@@ -2033,11 +2047,11 @@ export function AttendancePage() {
                 <button onClick={() => setViewingDay(null)} className="p-2 bg-white rounded-full shadow-sm hover:scale-110 transition-transform"><X size={18} /></button>
               </div>
               <div className="p-6 overflow-y-auto flex-1">
-                {dayRecords.length === 0 ? (
+                {dayViewRecords.length === 0 ? (
                   <div className="text-center py-8 text-slate-400 font-pmedium">No records for this day.</div>
                 ) : (
                   <div className="space-y-3">
-                    {dayRecords.map((record, idx) => (
+                    {dayViewRecords.map((record, idx) => (
                       <div key={idx} className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
                         <div className="flex justify-between items-start mb-1">
                           <div>

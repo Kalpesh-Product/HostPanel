@@ -6,11 +6,12 @@ import {
   Mail, Phone, MapPin, CheckCircle2, AlertTriangle, Clock, Eye,
   ChevronDown, UserCog, ToggleLeft, ToggleRight, Building2, FileText, DollarSign,
   LayoutGrid, Loader2,
-  Banknote, UploadCloud, FileSpreadsheet, Info, Send
+  Banknote, UploadCloud, Send
 } from 'lucide-react';
 import { getTenantCompany, addTenantCompanyEmployee, sendTenantCompanyEmployeeInvite, updateTenantCompanyEmployee, updateTenantCompanyEmployeeStatus, deleteTenantCompanyEmployee, updateTenantCompanyManager } from '../../../services/tenant-companies';
 import { getBookingsByTenantCompany } from '../../../services/meeting-room-bookings';
 import PageFrame from '../../../components/Pages/PageFrame';
+import BulkUploadModal from '../../../components/BulkUploadModal';
 import { toast } from 'sonner';
 import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
 import useWorkspacePreferences from '../../../hooks/useWorkspacePreferences';
@@ -1035,22 +1036,22 @@ export default function TenantCompanyDetailPage() {
               <div>
                 <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Name *</label>
                 <input type="text" value={addF.name} onChange={e => setAddF({ ...addF, name: e.target.value })} required
-                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-400" placeholder="Employee name" />
+                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-500" placeholder="Employee name" />
               </div>
               <div>
                 <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Email *</label>
                 <input type="email" value={addF.email} onChange={e => setAddF({ ...addF, email: e.target.value })} required
-                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-400" placeholder="employee@company.com" />
+                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-500" placeholder="employee@company.com" />
               </div>
               <div>
                 <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Phone *</label>
                 <input type="tel" value={addF.phone} onChange={e => setAddF({ ...addF, phone: e.target.value })} required
-                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-400" placeholder="Phone number" />
+                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-500" placeholder="Phone number" />
               </div>
               <div>
                 <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Designation *</label>
                 <input type="text" value={addF.designation} onChange={e => setAddF({ ...addF, designation: e.target.value })} required
-                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-400" placeholder="Designation" />
+                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-500" placeholder="Designation" />
               </div>
               <div>
                 <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Role *</label>
@@ -1076,72 +1077,29 @@ export default function TenantCompanyDetailPage() {
       {/* ================================================================ */}
       {/* BULK UPLOAD EMPLOYEES MODAL */}
       {/* ================================================================ */}
-      {bulkModal && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-md h-auto rounded-t-[32px] sm:rounded-[32px] shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
-            <div className="flex items-center justify-between p-5 border-b border-slate-100">
-              <h3 className="text-sm font-pmedium text-slate-900 flex items-center gap-2"><UploadCloud size={16} /> Bulk Upload Employees</h3>
-              <button onClick={closeBulkModal}
-                className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all"><X size={16} /></button>
-            </div>
-            <div className="p-5 space-y-4 overflow-y-auto">
-              {!bulkFileName ? (
-                <>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={hBulkDownloadTemplate}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 hover:border-[#2563EB] hover:text-[#2563EB] transition-all">
-                      <FileSpreadsheet size={13} /> Download Template
-                    </button>
-                  </div>
-                  <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
-                    <Info size={13} className="text-blue-500 mt-0.5 shrink-0" />
-                    <p className="text-[10px] font-pmedium text-blue-700 leading-relaxed">Fill in Name, Email, Phone, Designation and Role ("Manager" or "Employee") per row. Only one Manager is allowed per tenant.</p>
-                  </div>
-                  <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:border-[#2563EB] transition-colors cursor-pointer" onClick={() => bulkFileInputRef.current?.click()}>
-                    <UploadCloud size={28} className="mx-auto text-slate-300 mb-3" />
-                    <p className="text-[12px] font-pmedium text-slate-600 mb-1">Click to upload spreadsheet</p>
-                    <p className="text-[10px] text-slate-400">Supports .xlsx, .xls, .csv — use the template above for the required columns.</p>
-                  </div>
-                  <input ref={bulkFileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={hBulkFileChange} />
-                </>
-              ) : bulkSummary ? (
-                <div className="space-y-3">
-                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100">
-                    <p className="text-[12px] font-pmedium text-emerald-800">Import Complete</p>
-                    <p className="text-[11px] text-emerald-600 mt-1">{bulkSummary.created} created, {bulkSummary.skipped} skipped</p>
-                  </div>
-                  {bulkSummary.issues.length > 0 && (
-                    <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 max-h-40 overflow-y-auto space-y-1">
-                      {bulkSummary.issues.map((issue, i) => (
-                        <p key={i} className="text-[10px] font-pmedium text-amber-700">{issue}</p>
-                      ))}
-                    </div>
-                  )}
-                  <button onClick={closeBulkModal}
-                    className="w-full py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-[#2563EB]/90 transition-all">Done</button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                    <span className="text-[12px] font-pmedium text-slate-700 truncate">{bulkFileName}</span>
-                    <span className="text-[10px] font-pmedium text-slate-400 shrink-0">{bulkRows.length} rows</span>
-                  </div>
-                  {bulkError && <p className="text-[11px] font-pmedium text-red-500">{bulkError}</p>}
-                  <div className="flex gap-2">
-                    <button onClick={() => { setBulkFileName(''); setBulkRows([]); setBulkError(''); }}
-                      className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">Change File</button>
-                    <button onClick={hBulkImport} disabled={bulkImporting || bulkRows.length === 0}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-[#2563EB]/90 disabled:opacity-50 transition-all">
-                      {bulkImporting ? <Loader2 size={13} className="animate-spin" /> : <UploadCloud size={13} />}
-                      {bulkImporting ? 'Importing...' : `Import ${bulkRows.length} Rows`}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <BulkUploadModal
+        open={bulkModal}
+        onClose={closeBulkModal}
+        title="Bulk Upload Employees"
+        description="Import tenant employees from a spreadsheet — one row per employee."
+        fileInputRef={bulkFileInputRef}
+        onFileChange={hBulkFileChange}
+        onDownloadTemplate={hBulkDownloadTemplate}
+        rules={[
+          'Fill in Name, Email, Phone, Designation and Role per row.',
+          'Role must be exactly "Manager" or "Employee".',
+          'Only one Manager is allowed per tenant company.',
+        ]}
+        fileName={bulkFileName}
+        isImporting={bulkImporting}
+        staged={Boolean(bulkFileName) && !bulkSummary}
+        stagedInfo={`${bulkRows.length} row${bulkRows.length === 1 ? '' : 's'} detected`}
+        onConfirmImport={hBulkImport}
+        onChangeFile={() => { setBulkFileName(''); setBulkRows([]); setBulkError(''); }}
+        importLabel={`Import ${bulkRows.length} Row${bulkRows.length === 1 ? '' : 's'}`}
+        summary={bulkSummary ? { created: bulkSummary.created, failed: bulkSummary.skipped, fileName: bulkFileName, errors: bulkSummary.issues } : null}
+        error={bulkError}
+      />
 
       {/* ================================================================ */}
       {/* VIEW EMPLOYEE MODAL */}

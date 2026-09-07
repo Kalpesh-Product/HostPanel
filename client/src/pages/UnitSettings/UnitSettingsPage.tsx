@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
   ArrowLeftRight,
@@ -24,6 +25,8 @@ import {
   RotateCcw,
   Save,
   Trash2,
+  Users,
+  X,
 } from "lucide-react";
 import PageFrame from "../../components/Pages/PageFrame";
 import TimePicker12h, { formatTime12hLabel } from "../../components/ui/TimePicker12h";
@@ -72,6 +75,21 @@ function formatTimeInZone(timeZone: string): string {
   } catch {
     return "-";
   }
+}
+
+function unitStatusPillClass(workspace: WorkspaceItem): string {
+  const base = "inline-flex px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider border";
+  if (workspace.isDeleted) return `${base} bg-rose-50 text-rose-700 border-rose-200`;
+  if (workspace.isActiveWorkspace) return `${base} bg-blue-50 text-[#2563EB] border-blue-200`;
+  if (workspace.isDisabled) return `${base} bg-amber-50 text-amber-700 border-amber-200`;
+  return `${base} bg-emerald-50 text-emerald-700 border-emerald-200`;
+}
+
+function unitStatusLabel(workspace: WorkspaceItem): string {
+  if (workspace.isDeleted) return "Deleted";
+  if (workspace.isActiveWorkspace) return "Active (current)";
+  if (workspace.isDisabled) return "Disabled";
+  return "Active";
 }
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -271,6 +289,7 @@ export default function WorkspaceSettingsPage() {
       value: keptWorkspaceCount,
       cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-slate-400",
       iconClass: "bg-slate-50 text-slate-600",
+      labelClass: "text-slate-400",
     },
     {
       key: "active",
@@ -279,6 +298,7 @@ export default function WorkspaceSettingsPage() {
       value: activeWorkspaceName,
       cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500",
       iconClass: "bg-blue-50 text-blue-600",
+      labelClass: "text-blue-600",
     },
     {
       key: "remaining",
@@ -287,6 +307,7 @@ export default function WorkspaceSettingsPage() {
       value: unitsRemainingValue,
       cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500",
       iconClass: "bg-amber-50 text-amber-600",
+      labelClass: "text-amber-600",
     },
     {
       key: "plan",
@@ -295,6 +316,7 @@ export default function WorkspaceSettingsPage() {
       value: planLabel,
       cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500",
       iconClass: "bg-emerald-50 text-emerald-600",
+      labelClass: "text-emerald-600",
     },
   ];
 
@@ -409,9 +431,9 @@ export default function WorkspaceSettingsPage() {
         : fiscalYearStartMonth;
       setFiscalYearStartMonth(effectiveMonth);
       window.localStorage.setItem("workspaceFiscalYearStartMonth", String(effectiveMonth));
-      toast.success("Fiscal year updated successfully.");
+      toast.success("Financial year updated successfully.");
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to update fiscal year.");
+      toast.error(error?.response?.data?.message || "Failed to update financial year.");
     } finally {
       setIsSavingFiscalYear(false);
     }
@@ -637,7 +659,7 @@ export default function WorkspaceSettingsPage() {
               return (
                 <div key={card.key} className={card.cardClass}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className={`text-[10px] font-pmedium ${card.labelClass} uppercase tracking-widest mb-1`}>{card.label}</p>
                     <p className="text-[15px] font-pmedium text-slate-900 truncate">{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}><Icon size={16} /></div>
@@ -753,7 +775,7 @@ export default function WorkspaceSettingsPage() {
                                 ) : null}
                               </div>
                               {workspace.businessName ? (
-                                <p className="mt-0.5 text-[10px] text-slate-400">{workspace.businessName}</p>
+                                <p className="mt-0.5 text-xs font-pmedium text-slate-400">{workspace.businessName}</p>
                               ) : null}
                             </td>
                             <td className="px-4 py-3">
@@ -947,28 +969,6 @@ export default function WorkspaceSettingsPage() {
                     <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Workspace Currency</p>
                     <p className="mt-1 text-[12px] font-pmedium text-[#0F172A]">{workspaceCurrency || "-"}</p>
                   </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Fiscal Year Starts</label>
-                    <select
-                      value={fiscalYearStartMonth}
-                      onChange={(event) => setFiscalYearStartMonth(Number(event.target.value))}
-                      className="mt-1 w-full bg-transparent text-[12px] font-pmedium text-[#0F172A] outline-none cursor-pointer"
-                    >
-                      {FISCAL_YEAR_RANGE_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                    <p className="mt-1 text-[10px] font-pmedium text-slate-400">Used by Finance, Accounting, budgets, and reports.</p>
-                    <button
-                      type="button"
-                      onClick={saveFiscalYear}
-                      disabled={isSavingFiscalYear}
-                      className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#2563EB] px-3 py-2 text-[10px] font-pmedium text-white shadow-sm transition-all hover:bg-primary/95 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isSavingFiscalYear ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} strokeWidth={3} />}
-                      {isSavingFiscalYear ? "SAVING..." : "SAVE FISCAL YEAR"}
-                    </button>
-                  </div>
                 </div>
                 <label className="flex items-center gap-2.5 mb-4 cursor-pointer select-none">
                   <input
@@ -1003,7 +1003,44 @@ export default function WorkspaceSettingsPage() {
               </div>
             </section>
 
-            
+            <section data-tour="unit-settings-fiscal-year" className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+              <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+                <div className="flex items-start gap-3">
+                  <span className="rounded-2xl bg-indigo-50 p-2 text-indigo-600 shrink-0">
+                    <ClipboardList className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Financial Year</p>
+                    <p className="mt-1 text-[11px] font-pmedium leading-6 text-slate-500">
+                      Used by Finance, Accounting, budgets, and reports.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={saveFiscalYear}
+                  disabled={isSavingFiscalYear}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl px-4 py-2.5 text-[10px] font-pmedium shadow-sm transition-all whitespace-nowrap bg-[#2563EB] text-white hover:bg-primary/95 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isSavingFiscalYear ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} strokeWidth={3} />}
+                  {isSavingFiscalYear ? "SAVING..." : "SAVE FINANCIAL YEAR"}
+                </button>
+              </div>
+              <div className="p-3 sm:p-4 lg:p-5">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 sm:max-w-xs">
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Financial Year Starts</label>
+                  <select
+                    value={fiscalYearStartMonth}
+                    onChange={(event) => setFiscalYearStartMonth(Number(event.target.value))}
+                    className="mt-1 w-full bg-transparent text-[12px] font-pmedium text-[#0F172A] outline-none cursor-pointer"
+                  >
+                    {FISCAL_YEAR_RANGE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </section>
 
             <section data-tour="unit-settings-billing" className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
               <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
@@ -1032,8 +1069,8 @@ export default function WorkspaceSettingsPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <label className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                     <span>
-                      <span className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Apply tax</span>
-                      <span className="text-[10px] text-slate-400">Disable for tax-free or externally handled locations.</span>
+                      <span className="block text-xs font-pmedium uppercase tracking-widest text-slate-700">Apply tax</span>
+                      <span className="text-xs font-pmedium text-slate-400">Disable for tax-free or externally handled locations.</span>
                     </span>
                     <input
                       type="checkbox"
@@ -1044,8 +1081,8 @@ export default function WorkspaceSettingsPage() {
                   </label>
                   <label className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                     <span>
-                      <span className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Prices include tax</span>
-                      <span className="text-[10px] text-slate-400">Extract tax from the entered price instead of adding it.</span>
+                      <span className="block text-xs font-pmedium uppercase tracking-widest text-slate-700">Prices include tax</span>
+                      <span className="text-xs font-pmedium text-slate-400">Extract tax from the entered price instead of adding it.</span>
                     </span>
                     <input
                       type="checkbox"
@@ -1106,7 +1143,7 @@ export default function WorkspaceSettingsPage() {
                       );
                     })}
                   </div>
-                  <p className="mt-2 text-[10px] text-slate-400">Cash remains available as the universal fallback. Local methods are preselected when a new location is created.</p>
+                  <p className="mt-2 text-xs font-pmedium text-slate-400">Cash remains available as the universal fallback. Local methods are preselected when a new location is created.</p>
                 </div>
               </div>
             </section>
@@ -1163,74 +1200,141 @@ export default function WorkspaceSettingsPage() {
     </div>
 
       {viewingWorkspace ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-6">
-          <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Unit Details</p>
-                <p className="mt-1 text-[16px] font-pmedium text-slate-950">{viewingWorkspace.workspaceName}</p>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setViewingWorkspace(null)}
+            className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm"
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="bg-white rounded-[2rem] max-w-xl w-full max-h-[90vh] shadow-2xl border border-white/70 relative z-[110] flex flex-col overflow-hidden"
+          >
+            {/* Header */}
+            <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white">
+                  <Building2 size={18} />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">Unit Details</h2>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className={unitStatusPillClass(viewingWorkspace)}>{unitStatusLabel(viewingWorkspace)}</span>
+                    {viewingWorkspace.isMain ? (
+                      <span className="inline-flex px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200">
+                        Main Unit
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
               </div>
               <button
-                type="button"
                 onClick={() => setViewingWorkspace(null)}
-                className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 px-3 text-[12px] font-pmedium text-slate-600 transition hover:bg-slate-50"
+                className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"
               >
-                Close
+                <X size={16} />
               </button>
             </div>
-            <div className="mt-5 grid gap-3 md:grid-cols-2">
-              {[
-                { label: "Unit Name", value: viewingWorkspace.workspaceName || "—" },
-                { label: "Company Name", value: viewingWorkspace.businessName || "—" },
-                { label: "Brand Name", value: viewingWorkspace.brandName || "—" },
-                { label: "Country", value: viewingWorkspace.country || "—" },
-                { label: "State", value: viewingWorkspace.state || "—" },
-                { label: "City", value: viewingWorkspace.city || "—" },
-                { label: "Address", value: viewingWorkspace.address || "—", span: true },
-                { label: "Timezone", value: viewingWorkspace.timezone || "—" },
-                { label: "Currency", value: viewingWorkspace.currency || "—" },
-                {
-                  label: "Type of Vertical",
-                  value:
-                    (Array.isArray(viewingWorkspace.businessTypes) && viewingWorkspace.businessTypes.length
-                      ? viewingWorkspace.businessTypes.join(", ")
-                      : viewingWorkspace.businessType) || "—",
-                  span: true,
-                },
-                { label: "Plan", value: (viewingWorkspace.selectedPlan || "—").toString() },
-                { label: "Employees", value: String(viewingWorkspace.metrics?.totalEmployees ?? 0) },
-                {
-                  label: "Status",
-                  value: viewingWorkspace.isDeleted
-                    ? "Deleted"
-                    : viewingWorkspace.isDisabled
-                    ? "Disabled"
-                    : viewingWorkspace.isActiveWorkspace
-                    ? "Active (current)"
-                    : "Active",
-                },
-                {
-                  label: "Created",
-                  value: viewingWorkspace.createdAt
-                    ? new Date(viewingWorkspace.createdAt).toLocaleDateString()
-                    : "—",
-                },
-              ].map((row) => (
-                <div
-                  key={row.label}
-                  className={`rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 ${row.span ? "md:col-span-2" : ""}`}
-                >
-                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{row.label}</p>
-                  <p className="mt-1 text-[13px] font-pmedium text-slate-900 capitalize break-words">{row.value}</p>
+
+            <div className="p-5 sm:p-6 space-y-5 overflow-y-auto bg-white">
+              <div>
+                <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                  <Building2 size={14} /> Unit Information
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Unit Name</p>
+                    <p className="text-[12px] font-pmedium text-slate-900">{viewingWorkspace.workspaceName || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Company Name</p>
+                    <p className="text-[12px] font-pmedium text-slate-900">{viewingWorkspace.businessName || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Brand Name</p>
+                    <p className="text-[12px] font-pmedium text-slate-900">{viewingWorkspace.brandName || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Plan</p>
+                    <p className="text-[12px] font-pmedium text-slate-900 capitalize">{viewingWorkspace.selectedPlan || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Employees</p>
+                    <p className="text-[12px] font-pmedium text-slate-900 flex items-center gap-1.5">
+                      <Users size={12} className="text-slate-400" />
+                      {viewingWorkspace.metrics?.totalEmployees ?? 0}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Created</p>
+                    <p className="text-[12px] font-pmedium text-slate-900 flex items-center gap-1.5">
+                      <CalendarDays size={12} className="text-slate-400" />
+                      {viewingWorkspace.createdAt ? new Date(viewingWorkspace.createdAt).toLocaleDateString() : "—"}
+                    </p>
+                  </div>
                 </div>
-              ))}
+              </div>
+
+              <div>
+                <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                  <MapPin size={14} /> Location & Locale
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Country</p>
+                    <p className="text-[12px] font-pmedium text-slate-900">{viewingWorkspace.country || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">State</p>
+                    <p className="text-[12px] font-pmedium text-slate-900">{viewingWorkspace.state || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">City</p>
+                    <p className="text-[12px] font-pmedium text-slate-900">{viewingWorkspace.city || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Timezone</p>
+                    <p className="text-[12px] font-pmedium text-slate-900">{viewingWorkspace.timezone || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Currency</p>
+                    <p className="text-[12px] font-pmedium text-slate-900">{viewingWorkspace.currency || "—"}</p>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Address</p>
+                    <p className="text-[12px] font-pmedium text-slate-900 break-words">{viewingWorkspace.address || "—"}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
+                  <Layers size={14} /> Business
+                </h3>
+                <div className="grid grid-cols-1 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Type of Vertical</p>
+                    <p className="text-[12px] font-pmedium text-slate-900">
+                      {(Array.isArray(viewingWorkspace.businessTypes) && viewingWorkspace.businessTypes.length
+                        ? viewingWorkspace.businessTypes.join(", ")
+                        : viewingWorkspace.businessType) || "—"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {viewingWorkspace.isMain ? (
+                <p className="text-[11px] font-pmedium text-slate-500">
+                  This is your main unit created at registration — it can't be disabled or deleted.
+                </p>
+              ) : null}
             </div>
-            {viewingWorkspace.isMain ? (
-              <p className="mt-3 text-[11px] font-pmedium text-slate-500">
-                This is your main unit created at registration — it can't be disabled or deleted.
-              </p>
-            ) : null}
-          </div>
+          </motion.div>
         </div>
       ) : null}
 

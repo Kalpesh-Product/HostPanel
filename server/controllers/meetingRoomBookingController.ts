@@ -149,14 +149,19 @@ const calculateExternalPricingSnapshot = (body: any, billing: WorkspaceBillingCo
     const discountAmount = Math.round(Math.min(rawDiscount, subtotalBeforeDiscount) * 100) / 100;
     const taxableBaseAfterDiscount = Math.round(Math.max(subtotalBeforeDiscount - discountAmount, 0) * 100) / 100;
     const tax = billing.tax;
-    const taxRatePercent = tax.enabled ? Math.min(100, Math.max(0, Number(tax.ratePercent || 0))) : 0;
-    const rawTaxAmount = !tax.enabled || taxRatePercent <= 0
+    // The booker can opt out of tax per-booking (e.g. the client is tax-exempt)
+    // via an "Apply tax" checkbox — defaults to true so existing callers that
+    // never send the flag keep charging tax exactly as before.
+    const taxApplied = resolveApplyTax(body);
+    const taxEnabled = tax.enabled && taxApplied;
+    const taxRatePercent = taxEnabled ? Math.min(100, Math.max(0, Number(tax.ratePercent || 0))) : 0;
+    const rawTaxAmount = !taxEnabled || taxRatePercent <= 0
         ? 0
         : tax.priceIncludesTax
             ? taxableBaseAfterDiscount * (taxRatePercent / (100 + taxRatePercent))
             : taxableBaseAfterDiscount * (taxRatePercent / 100);
     const taxAmount = Math.round(rawTaxAmount * 100) / 100;
-    const totalAmount = Math.round((tax.priceIncludesTax
+    const totalAmount = Math.round((tax.priceIncludesTax && taxEnabled
         ? taxableBaseAfterDiscount
         : taxableBaseAfterDiscount + taxAmount) * 100) / 100;
 
@@ -171,9 +176,15 @@ const calculateExternalPricingSnapshot = (body: any, billing: WorkspaceBillingCo
         totalAmount,
         taxLabel: tax.label || "Tax",
         taxRatePercent,
-        priceIncludesTax: Boolean(tax.priceIncludesTax),
+        priceIncludesTax: Boolean(tax.priceIncludesTax) && taxEnabled,
+        taxApplied,
     };
 };
+
+// req.body.applyTax is only ever sent as a real boolean by the client; treat
+// anything else (undefined, from callers written before this flag existed)
+// as "still apply tax" so behavior doesn't change for them.
+const resolveApplyTax = (body: any) => body?.applyTax !== false;
 
 const isBookingPaid = (booking: any) => {
     const status = String(booking.paymentStatus || "").trim();

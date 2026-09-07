@@ -44,7 +44,7 @@ export const canAccessAdminDashboard = (user?: any): boolean => {
 
 export const canAccessAdministrationDashboard = (user?: any): boolean => {
   const role = getRoleString(user);
-  return role === "owner" || role === "super_admin" || role === "super-admin" || role === "administration-manager" || role === "administration_manager" || role === "administration" || role === "admin-manager";
+  return role === "owner" || role === "super_admin" || role === "super-admin" || role === "administration-manager" || role === "administration_manager" || role === "administration" || role === "admin-manager" || role === "admin_manager";
 };
 
 export const canAccessHRDashboard = (user?: any): boolean => {
@@ -64,7 +64,7 @@ export const canAccessSalesDashboard = (user?: any): boolean => {
 
 export const canAccessTechDashboard = (user?: any): boolean => {
   const role = getRoleString(user);
-  return role === "owner" || role === "super_admin" || role === "super-admin" || role === "tech-manager" || role === "tech_manager" || role === "tech" || role === "technology-manager" || role === "technology";
+  return role === "owner" || role === "super_admin" || role === "super-admin" || role === "tech-manager" || role === "tech_manager" || role === "tech" || role === "technology_manager" || role === "technology";
 };
 
 export const canAccessITDashboard = (user?: any): boolean => {

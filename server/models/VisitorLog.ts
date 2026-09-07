@@ -99,6 +99,7 @@ const visitorLogSchema = new mongoose.Schema(
       trim: true,
     },
     // Unit Tour / Sales tour fields
+    leadStatus: { type: String, enum: ["New", "Contacted", "Qualified", "Converted", "Lost"], default: "New" },
     pocName: { type: String, default: "", trim: true },
     pocDesignation: { type: String, default: "", trim: true },
     pocPhone: { type: String, default: "", trim: true },

@@ -77,6 +77,64 @@ const isWorkspaceLeaderRole = (value = "") => {
   return normalized === "founder" || normalized === "super_admin" || normalized === "owner";
 };
 
+// Mirrors organizationControllers.ts's getRoleBand: "admin_manager" is
+// stored separately from "admin" but governs identically, so both band to
+// "admin" here.
+const getEmployeeRoleBand = (value = "") => {
+  const normalized = normalizeRoleForStorage(value);
+  if (normalized === "admin" || normalized === "admin_manager") return "admin";
+  if (normalized === "manager") return "manager";
+  return "other";
+};
+
+// One manager / one admin per department, enforced the same way Organization
+// Management enforces it for WorkspaceMember-based assignments — except this
+// checks EmployeeProfile directly, since that's what this form writes to.
+// EmployeeProfile also mirrors every WorkspaceMember (see
+// ensureEmployeeProfileForMember below), so this catches conflicts against
+// managers/admins created through Organization Management too, not just
+// other HR-created records.
+const findEmployeeProfileDepartmentConflicts = async ({
+  workspaceId,
+  roleBand,
+  departmentIds,
+  excludeProfileId = null,
+}: {
+  workspaceId: any;
+  roleBand: string;
+  departmentIds: any[];
+  excludeProfileId?: any;
+}): Promise<string[]> => {
+  if ((roleBand !== "admin" && roleBand !== "manager") || !Array.isArray(departmentIds) || departmentIds.length === 0) {
+    return [];
+  }
+  const query: Record<string, any> = {
+    workspaceId,
+    departments: { $in: departmentIds },
+    isActive: { $ne: false },
+    status: { $nin: ["terminated"] },
+  };
+  if (excludeProfileId) query._id = { $ne: excludeProfileId };
+  const candidates = await EmployeeProfile.find(query)
+    .select("workspaceRole departments")
+    .populate("workspaceRole", "name")
+    .populate("departments", "name")
+    .lean()
+    .exec();
+  const requestedIds = new Set(departmentIds.map((id) => String(id)));
+  const conflictingNames = new Set<string>();
+  for (const candidate of candidates) {
+    if (getEmployeeRoleBand((candidate as any)?.workspaceRole?.name || "") !== roleBand) continue;
+    for (const dept of Array.isArray((candidate as any).departments) ? (candidate as any).departments : []) {
+      const deptId = String((dept as any)?._id || dept);
+      if (requestedIds.has(deptId)) {
+        conflictingNames.add((dept as any)?.name || deptId);
+      }
+    }
+  }
+  return Array.from(conflictingNames);
+};
+
 const toId = (value: any) => {
   if (!value) return "";
   if (typeof value === "object") return String(value._id || value.id || "");
@@ -618,20 +676,62 @@ const ensureEmployeeProfilesForWorkspace = async (workspace: any) => {
           ...(userIds.length ? [{ linkedUserId: { $in: userIds } }] : []),
         ],
       })
-        .select("linkedWorkspaceMemberId linkedUserId")
+        .select("linkedWorkspaceMemberId linkedUserId workspaceRole departments isActive")
+        .populate("workspaceRole", "name")
         .lean()
         .exec()
     : [];
-  const existingMemberIds = new Set(existingProfiles.map((profile: any) => String(profile?.linkedWorkspaceMemberId || "")).filter(Boolean));
-  const existingUserIds = new Set(existingProfiles.map((profile: any) => String(profile?.linkedUserId || "")).filter(Boolean));
-  const missingMembers = members.filter((member: any) => {
+  const profileByMemberId = new Map(
+    existingProfiles
+      .filter((profile: any) => profile?.linkedWorkspaceMemberId)
+      .map((profile: any) => [String(profile.linkedWorkspaceMemberId), profile]),
+  );
+  const profileByUserId = new Map(
+    existingProfiles
+      .filter((profile: any) => profile?.linkedUserId)
+      .map((profile: any) => [String(profile.linkedUserId), profile]),
+  );
+
+  // Re-sync isn't only for members with no profile at all — some assignment
+  // paths (e.g. the department "Assign Manager" action) update the
+  // WorkspaceMember but don't call ensureEmployeeProfileForMember, leaving a
+  // stale EmployeeProfile that keeps showing the old role/department
+  // forever. Detect that drift here too so it self-heals on the next load
+  // instead of needing a one-off migration.
+  const membersNeedingSync = members.filter((member: any) => {
     const memberId = String(member?._id || "");
     const userId = String(member?.user?._id || member?.user || "");
-    return !(memberId && existingMemberIds.has(memberId)) && !(userId && existingUserIds.has(userId));
+    const profile = (memberId && profileByMemberId.get(memberId)) || (userId && profileByUserId.get(userId));
+    if (!profile) return true;
+
+    const memberRoleName = normalizeRoleForStorage(member?.role?.name || member?.role || "");
+    const profileRoleName = normalizeRoleForStorage((profile as any)?.workspaceRole?.name || "");
+    if (memberRoleName !== profileRoleName) return true;
+
+    if (Boolean((profile as any)?.isActive) !== (member?.isActive !== false)) return true;
+
+    if (!isWorkspaceLeaderRole(memberRoleName)) {
+      const memberDepartmentIds = new Set(
+        (Array.isArray(member?.departments) ? member.departments : [])
+          .map((dept: any) => String(dept?._id || dept))
+          .filter(Boolean),
+      );
+      const profileDepartmentIds = new Set(
+        (Array.isArray((profile as any)?.departments) ? (profile as any).departments : [])
+          .map((id: any) => String(id))
+          .filter(Boolean),
+      );
+      if (memberDepartmentIds.size !== profileDepartmentIds.size) return true;
+      for (const id of memberDepartmentIds) {
+        if (!profileDepartmentIds.has(id)) return true;
+      }
+    }
+
+    return false;
   });
 
   const syncedProfiles = [];
-  for (const member of missingMembers) {
+  for (const member of membersNeedingSync) {
     try {
       const profile = await ensureEmployeeProfileForMember({
         workspace,
@@ -813,6 +913,25 @@ const createOrUpdateEmployeeProfile = async (workspace: any, payload: any) => {
     workspaceId: workspace._id,
     $or: profileLookupConditions,
   }).exec();
+
+  const requestedRoleBand = getEmployeeRoleBand(roleDoc?.name || payload?.workspaceRole || payload?.role || "");
+  const conflictingDepartmentNames = await findEmployeeProfileDepartmentConflicts({
+    workspaceId: workspace._id,
+    roleBand: requestedRoleBand,
+    departmentIds: departmentData.ids,
+    excludeProfileId: profile?._id,
+  });
+  if (conflictingDepartmentNames.length > 0) {
+    throw Object.assign(
+      new Error(
+        `${conflictingDepartmentNames.join(", ")} already ${
+          conflictingDepartmentNames.length === 1 ? "has" : "have"
+        } an active ${requestedRoleBand}. Disable or reassign them before adding another.`,
+      ),
+      { statusCode: 409 },
+    );
+  }
+
   const requestedShiftId = payload?.shiftId !== undefined
     ? normalizeText(payload.shiftId)
     : normalizeText(profile?.shiftId || "");

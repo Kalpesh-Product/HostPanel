@@ -5,7 +5,7 @@ import {
   CheckCircle2, XCircle, MapPin, Building, Calendar,
   UserCheck, UserPlus, ChevronDown, ChevronRight, Mail, Phone, ExternalLink,
   History, ToggleRight, ToggleLeft, DollarSign, GraduationCap, Eye,
-  Target, Award, Clock, Loader2, Globe, UploadCloud, FileSpreadsheet, Download, Pencil,
+  Target, Award, Clock, Loader2, Globe, UploadCloud, Pencil,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -17,6 +17,7 @@ import { createReport } from "@/services/reports";
 import { downloadReportFile } from "@/utils/report-download";
 import ExportReportModal, { type ExportParams } from "@/components/ExportReportModal";
 import ReportExportButton from "@/components/ReportExportButton";
+import BulkUploadModal from "@/components/BulkUploadModal";
 import {
   createRecruitmentCandidate,
   bulkUploadRecruitmentJobOpenings,
@@ -1019,7 +1020,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
   const [isSavingCandidate, setIsSavingCandidate] = useState(false);
   const [isBulkUploading, setIsBulkUploading] = useState(false);
   const [isBulkUploadMenuOpen, setIsBulkUploadMenuOpen] = useState(false);
-  const [isBulkUploadInstructionsOpen, setIsBulkUploadInstructionsOpen] = useState(false);
+  const [bulkUploadFileName, setBulkUploadFileName] = useState("");
   const [busyCandidateId, setBusyCandidateId] = useState("");
   const [togglingActiveJobCode, setTogglingActiveJobCode] = useState("");
   const [togglingWebsiteJobCode, setTogglingWebsiteJobCode] = useState("");
@@ -1243,12 +1244,8 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
 
   const handleOpenBulkUploadMenu = () => {
     setErrorMessage("");
-    setIsBulkUploadInstructionsOpen(false);
+    setBulkUploadFileName("");
     setIsBulkUploadMenuOpen(true);
-  };
-
-  const handleUploadBulkDataClick = () => {
-    bulkUploadInputRef.current?.click();
   };
 
   const buildJobFormFromOpening = (job: JobOpening): NewJobForm => ({
@@ -1352,6 +1349,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
     const file = event.target.files?.[0] || null;
     event.target.value = "";
     if (!file) return;
+    setBulkUploadFileName(file.name);
     await handleBulkUploadJobOpenings(file);
   };
 
@@ -1641,7 +1639,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
                     placeholder={activeTab === "jobs" ? "Search by title, department..." : "Search by name, position..."}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
                   />
                 </div>
                 {activeTab === "candidates" ? (
@@ -1892,102 +1890,34 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
       </PageFrame>
 
       {isBulkUploadMenuOpen && createPortal(
-        <div
-          className="fixed inset-0 z-[9999] flex items-start justify-center pt-[10vh] pb-8 bg-black/40 backdrop-blur-sm overflow-y-auto"
-        >
-          <div
-            className="relative w-full max-w-xl mx-4 bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-blue-100 bg-blue-50/30 px-6 py-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-100 text-[#2563EB]">
-                  <UploadCloud size={18} />
-                </div>
-                <h2 className="text-base font-pmedium text-slate-900">Bulk Upload Job Openings</h2>
-              </div>
-              <button
-                onClick={() => setIsBulkUploadMenuOpen(false)}
-                className="rounded-full p-2 text-slate-400 transition-colors hover:bg-blue-100/60 hover:text-slate-600"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4 text-[11px] leading-6 text-slate-600">
-                <p className="font-pmedium text-slate-800 mb-2">Before you upload</p>
-                <ul className="space-y-1 list-disc list-inside">
-                  <li>Use the template headers exactly as downloaded.</li>
-                  <li>Leave <span className="font-pmedium">jobCode</span> blank to auto-generate it, or fill it manually if you want a fixed code.</li>
-                  <li><span className="font-pmedium">designation</span> should match the role shown in add employee so both screens stay aligned.</li>
-                  <li>Use <span className="font-pmedium">true</span> or <span className="font-pmedium">false</span> for boolean columns like <span className="font-pmedium">isPaid</span> and <span className="font-pmedium">isActive</span>.</li>
-                  <li>One job opening per row. Duplicate jobCode values will update the existing opening for this workspace.</li>
-                </ul>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={downloadRecruitmentTemplate}
-                  className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-left hover:border-blue-200 hover:bg-blue-50 transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-blue-100 text-blue-600">
-                      <FileSpreadsheet size={18} />
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-pmedium uppercase tracking-wider text-slate-900">Download Template</p>
-                      <p className="text-[10px] text-slate-500 mt-1">Get the CSV with all required columns and example data.</p>
-                    </div>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleUploadBulkDataClick}
-                  disabled={isBulkUploading}
-                  className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-left hover:border-blue-200 hover:bg-blue-50 transition-all disabled:opacity-60"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-emerald-100 text-emerald-600">
-                      {isBulkUploading ? <Loader2 size={18} className="animate-spin" /> : <UploadCloud size={18} />}
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-pmedium uppercase tracking-wider text-slate-900">Upload Bulk Data</p>
-                      <p className="text-[10px] text-slate-500 mt-1">Upload a completed CSV file to create or update job openings.</p>
-                    </div>
-                  </div>
-                </button>
-              </div>
-
-              <details
-                open={isBulkUploadInstructionsOpen}
-                onToggle={(event) => setIsBulkUploadInstructionsOpen(event.currentTarget.open)}
-                className="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden"
-              >
-                <summary className="cursor-pointer list-none px-4 py-3 text-[11px] font-pmedium uppercase tracking-wider text-slate-800 flex items-center justify-between">
-                  <span>Read Instructions</span>
-                  <ChevronDown size={14} className={`transition-transform ${isBulkUploadInstructionsOpen ? "rotate-180" : ""}`} />
-                </summary>
-                <div className="px-4 pb-4 text-[11px] leading-6 text-slate-600 space-y-2 border-t border-slate-200/70">
-                    <p>Template fields: jobCode, title, designation, department, employmentType, vacancyTotal, vacancyFilled, isPaid, internshipDurationMonths, aboutTheJob, location, workMode, keyResponsibilities, requirements, softSkills, isActive.</p>
-                  <p>Leave jobCode empty if you want the backend to generate it. Leave designation empty if you want it to follow title.</p>
-                  <p>Use true or false for boolean values. Keep one job opening per row. Do not add extra columns.</p>
-                </div>
-              </details>
-            </div>
-          </div>
-        </div>,
+        <BulkUploadModal
+          open={isBulkUploadMenuOpen}
+          onClose={() => setIsBulkUploadMenuOpen(false)}
+          title="Bulk Upload Job Openings"
+          description="Upload a completed CSV file to create or update job openings."
+          fileInputRef={bulkUploadInputRef}
+          accept=".csv,text/csv"
+          onFileChange={handleBulkUploadFileChange}
+          onDownloadTemplate={downloadRecruitmentTemplate}
+          downloadLabel="Download Template"
+          rulesTitle="Before you upload"
+          rules={[
+            "Use the template headers exactly as downloaded.",
+            "Leave jobCode blank to auto-generate it, or fill it manually for a fixed code.",
+            "designation should match the role shown in add employee so both screens stay aligned.",
+            "Use true or false for boolean columns like isPaid and isActive.",
+            "One job opening per row. Duplicate jobCode values update the existing opening for this workspace.",
+            "Leave designation empty if you want it to follow title.",
+            "Do not add extra columns.",
+          ]}
+          fileName={bulkUploadFileName}
+          isImporting={isBulkUploading}
+          importingLabel="Uploading..."
+          error={errorMessage}
+          selectLabel="Upload Bulk Data"
+        />,
         document.body,
       )}
-
-      <input
-        ref={bulkUploadInputRef}
-        type="file"
-        accept=".csv,text/csv"
-        className="hidden"
-        onChange={handleBulkUploadFileChange}
-      />
 
       {/* Candidate Detail Modal */}
       {viewingCandidate && (

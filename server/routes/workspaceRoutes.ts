@@ -5,6 +5,7 @@ import {
   backfillWorkspaceModules,
   getCurrentHostCompanyIdentity,
   getWorkspaceManagementOverview,
+  getWorkspaceMembers,
   getWorkspaceModuleAccessMap,
   getWorkspaceSettings,
   switchWorkspace,
@@ -30,6 +31,7 @@ router.post("/management/:workspaceId/recovery-request", requestWorkspaceRecover
 router.patch("/management/:workspaceId", updateManagedWorkspace);
 router.delete("/management/:workspaceId", deleteManagedWorkspace);
 router.post("/management/switch", switchWorkspace);
+router.get("/members", getWorkspaceMembers);
 router.get("/settings", getWorkspaceSettings);
 router.get("/module-access-map", getWorkspaceModuleAccessMap);
 router.post("/dev/backfill-modules", backfillWorkspaceModules);

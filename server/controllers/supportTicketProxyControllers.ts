@@ -78,9 +78,14 @@ export const createSupportTicketProxy = async (req, res) => {
       }
     });
 
-    if (req.file?.buffer) {
+    if (req.files?.length) {
+      req.files.forEach((file) => {
+        const imageBlob = new Blob([file.buffer], { type: file.mimetype });
+        formData.append("images", imageBlob, file.originalname || "attachment");
+      });
+    } else if (req.file?.buffer) {
       const imageBlob = new Blob([req.file.buffer], { type: req.file.mimetype });
-      formData.append("image", imageBlob, req.file.originalname || "attachment");
+      formData.append("images", imageBlob, req.file.originalname || "attachment");
     }
 
     if (requestedByName) formData.append("requestedByName", requestedByName);

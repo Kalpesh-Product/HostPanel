@@ -10,7 +10,6 @@ import {
   Box,
   CheckCircle2,
   ChevronDown,
-  Download,
   Eye,
   Filter,
   Search,
@@ -20,6 +19,7 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
+import BulkUploadModal from '@/components/BulkUploadModal';
 
 interface Member {
   userId?: string;
@@ -642,7 +642,6 @@ export function DepartmentAssetsPage() {
 
   return (
     <div className="p-6 lg:p-8 bg-[#F8FAFC] min-h-screen text-[#1E293B] font-sans flex flex-col">
-      <input ref={bulkUploadInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleBulkFileSelected} />
       {isInitialLoading && (
         <div className="space-y-4">
           <div className="h-12 w-56 bg-slate-100 rounded-2xl animate-pulse" />
@@ -941,48 +940,30 @@ export function DepartmentAssetsPage() {
         </div>
       )}
 
-      {isBulkUploadOpen && (
-        <div className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-md flex items-center justify-center z-150 p-4">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-            <div className="p-8 bg-slate-950 text-white border-b border-slate-800 flex justify-between items-center shrink-0">
-              <div>
-                <h2 className="text-2xl font-black leading-none flex items-center gap-2"><UploadCloud size={24} /> Bulk Upload Assets</h2>
-                <p className="text-[10px] font-pmedium text-slate-300 uppercase tracking-widest mt-2">Import many assets from Excel or CSV</p>
-              </div>
-              <button onClick={() => setIsBulkUploadOpen(false)} className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-all"><X size={20} /></button>
-            </div>
-            <div className="p-8 space-y-5 overflow-y-auto flex-1 bg-slate-50/60">
-              <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
-                <p className="text-[10px] font-pmedium text-[#2563EB] uppercase tracking-widest">Ownership locked</p>
-                <p className="text-sm font-semibold text-[#2563EB] mt-1">Imported assets will be owned by {deptLabel}.</p>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Required</p><p className="mt-2 text-sm font-semibold text-slate-700">`name`</p></div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Optional</p><p className="mt-2 text-sm font-semibold text-slate-700">`category`, `quantity`, `ownershipType`, `rentDurationMonths`, `serialNumber`, `brandModel`, `purchaseDate`, `location`, `value`, `notes`, `status`</p></div>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button onClick={downloadBulkTemplate} className="flex-1 py-3 rounded-2xl border border-slate-200 bg-white text-sm font-pmedium text-slate-700 hover:bg-slate-50 transition-all flex items-center justify-center gap-2"><Download size={16} /> Download Template</button>
-                <button onClick={() => bulkUploadInputRef.current?.click()} disabled={isSaving} className="flex-1 py-3 rounded-2xl bg-[#2563EB] text-sm font-pmedium text-white shadow-lg shadow-blue-200 hover:bg-blue-700 disabled:bg-slate-300 disabled:shadow-none transition-all flex items-center justify-center gap-2"><UploadCloud size={16} /> {isSaving ? 'Importing...' : 'Choose File'}</button>
-              </div>
-              {bulkUploadSummary && (
-                <div className="rounded-2xl border border-green-200 bg-green-50 p-4 shadow-sm">
-                  <p className="text-[10px] font-pmedium text-green-700 uppercase tracking-widest">Import summary</p>
-                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                    <div className="rounded-xl bg-white p-3 border border-green-100"><p className="text-[10px] font-pmedium text-slate-400 uppercase">Rows</p><p className="mt-1 font-bold text-slate-900">{bulkUploadSummary.totalRows}</p></div>
-                    <div className="rounded-xl bg-white p-3 border border-green-100"><p className="text-[10px] font-pmedium text-slate-400 uppercase">Processed</p><p className="mt-1 font-bold text-slate-900">{bulkUploadSummary.processedRows}</p></div>
-                    <div className="rounded-xl bg-white p-3 border border-green-100"><p className="text-[10px] font-pmedium text-slate-400 uppercase">Created</p><p className="mt-1 font-bold text-green-700">{bulkUploadSummary.createdCount}</p></div>
-                    <div className="rounded-xl bg-white p-3 border border-green-100"><p className="text-[10px] font-pmedium text-slate-400 uppercase">Failed</p><p className="mt-1 font-bold text-rose-700">{bulkUploadSummary.failedCount}</p></div>
-                  </div>
-                  {bulkUploadSummary.failedRows?.length ? <div className="mt-3 rounded-xl bg-white p-3 border border-green-100"><ul className="space-y-1 text-xs font-medium text-slate-600">{bulkUploadSummary.failedRows.map((r) => <li key={r}>{r}</li>)}</ul></div> : null}
-                </div>
-              )}
-            </div>
-            <div className="p-6 bg-white border-t border-slate-100 shrink-0">
-              <button onClick={() => setIsBulkUploadOpen(false)} className="w-full py-3 rounded-2xl border border-slate-200 bg-white text-sm font-pmedium text-slate-600 hover:bg-slate-50 transition-all">Close</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <BulkUploadModal
+        open={isBulkUploadOpen}
+        onClose={() => setIsBulkUploadOpen(false)}
+        title="Bulk Upload Assets"
+        description={`Import assets from Excel or CSV — imported assets will be owned by ${deptLabel}.`}
+        fileInputRef={bulkUploadInputRef}
+        onFileChange={handleBulkFileSelected}
+        onDownloadTemplate={downloadBulkTemplate}
+        rules={[
+          'Required column: name.',
+          'Optional columns: category, quantity, ownershipType, rentDurationMonths, serialNumber, brandModel, purchaseDate, location, value, notes, status.',
+          `Imported assets are always owned by ${deptLabel}.`,
+        ]}
+        fileName={bulkUploadFileName}
+        isImporting={isSaving}
+        importingLabel="Importing..."
+        selectLabel="Choose File"
+        summary={bulkUploadSummary ? {
+          created: bulkUploadSummary.createdCount,
+          failed: bulkUploadSummary.failedCount,
+          fileName: bulkUploadSummary.fileName,
+          errors: bulkUploadSummary.failedRows,
+        } : null}
+      />
 
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-md flex items-center justify-center z-150 p-4">

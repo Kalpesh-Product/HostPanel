@@ -54,6 +54,7 @@ const tenantCompanyDetailsSchema = new Schema(
 const tenantAgreementDetailsSchema = new Schema(
   {
     annualIncrement: { type: Number, default: 0, min: 0 },
+    annualIncrementPercent: { type: Number, default: 10, min: 0, max: 100 },
     perDeskMeetingCredits: { type: Number, default: 0, min: 0 },
     totalMeetingCredits: { type: Number, default: 0, min: 0 },
     startDate: { type: Date, default: null },
@@ -69,6 +70,7 @@ const tenantBillingDetailsSchema = new Schema(
     monthlyRent: { type: Number, default: 0, min: 0 },
     totalContractAmount: { type: Number, default: 0, min: 0 },
     securityDepositAmount: { type: Number, default: 0, min: 0 },
+    securityDepositPercent: { type: Number, default: 25, min: 0, max: 100 },
     securityDepositPaidStatus: { type: String, default: "Pending", trim: true, enum: ["Pending", "Paid"] },
     // "Rent Due Date" — the FIRST monthly rent due date picked in the Sales
     // wizard (date picker). Its day-of-month is the recurring rent anchor

@@ -47,6 +47,7 @@ const TodayAttendanceCard = () => {
   const access = useDashboardAccess();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
   const [clockMode, setClockMode] = useState<ClockMode>("in");
   const [showClockModal, setShowClockModal] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
@@ -84,25 +85,35 @@ const TodayAttendanceCard = () => {
   const liveTimes = useLiveTimes(todayRecord || undefined);
 
   const stopCamera = useCallback(() => {
-    const stream = videoRef.current?.srcObject as MediaStream | null;
+    const stream = cameraStreamRef.current || (videoRef.current?.srcObject as MediaStream | null);
     stream?.getTracks().forEach((track) => track.stop());
+    cameraStreamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
     setCameraReady(false);
   }, []);
 
+  const clearCapturedSelfie = useCallback(() => {
+    setCapturedSelfie((currentSelfie) => {
+      if (currentSelfie) URL.revokeObjectURL(currentSelfie);
+      return null;
+    });
+    setCapturedSelfieBlob(null);
+  }, []);
+
   const closeClockModal = useCallback(() => {
     if (isActionLoading) return;
+    clearCapturedSelfie();
+    setCapturedLocation(null);
     stopCamera();
     setShowClockModal(false);
-  }, [isActionLoading, stopCamera]);
+  }, [clearCapturedSelfie, isActionLoading, stopCamera]);
 
   useEffect(() => () => stopCamera(), [stopCamera]);
 
   const openClockModal = async (mode: ClockMode) => {
     setClockMode(mode);
     setShowClockModal(true);
-    setCapturedSelfie(null);
-    setCapturedSelfieBlob(null);
+    clearCapturedSelfie();
     setCapturedLocation(null);
     setErrorMessage("");
     setCameraReady(false);
@@ -119,6 +130,7 @@ const TodayAttendanceCard = () => {
         throw new Error("Location access is required to record attendance.");
       }
       setCapturedLocation(location);
+      cameraStreamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play().catch(() => undefined);
@@ -144,6 +156,11 @@ const TodayAttendanceCard = () => {
     if (!blob) return setErrorMessage("Unable to capture selfie.");
     setCapturedSelfieBlob(blob);
     setCapturedSelfie(URL.createObjectURL(blob));
+    setErrorMessage("");
+  };
+
+  const retakeSelfie = () => {
+    clearCapturedSelfie();
     setErrorMessage("");
   };
 
@@ -266,7 +283,7 @@ const TodayAttendanceCard = () => {
             <div className="flex-1 overflow-y-auto p-5">
               <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-slate-950">
                 <div className="relative min-h-[360px] overflow-hidden">
-                  {capturedSelfie ? <img src={capturedSelfie} alt="Captured selfie" className="absolute inset-0 h-full w-full object-cover" /> : <video ref={videoRef} className="absolute inset-0 h-full w-full object-cover" playsInline muted autoPlay />}
+                  <video ref={videoRef} className="absolute inset-0 h-full w-full object-cover" playsInline muted autoPlay />{capturedSelfie && <img src={capturedSelfie} alt="Captured selfie" className="absolute inset-0 h-full w-full object-cover" />}
                   {!cameraReady && !capturedSelfie && <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 text-slate-300"><Camera size={28} /><p className="mt-3 text-xs font-pmedium">{isCapturing ? "Requesting camera and location..." : "Camera preview unavailable"}</p></div>}
                 </div>
               </div>
@@ -274,7 +291,7 @@ const TodayAttendanceCard = () => {
               {errorMessage && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-small font-pmedium text-rose-700">{errorMessage}</p>}
             </div>
             <div className="grid grid-cols-2 gap-3 border-t border-slate-100 bg-slate-50 px-5 py-4">
-              <button type="button" onClick={closeClockModal} disabled={isActionLoading} className="rounded-xl border border-slate-200 bg-white py-3 text-xs font-pmedium uppercase text-slate-700 disabled:opacity-50">Cancel</button>
+              <button type="button" onClick={capturedSelfie ? retakeSelfie : closeClockModal} disabled={isActionLoading} className="rounded-xl border border-slate-200 bg-white py-3 text-xs font-pmedium uppercase text-slate-700 disabled:opacity-50">{capturedSelfie ? "Retake" : "Cancel"}</button>
               <button type="button" onClick={() => void (capturedSelfie ? submitClock() : captureSelfie())} disabled={isActionLoading || !cameraReady || !capturedLocation} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] py-3 text-xs font-pmedium uppercase text-white hover:bg-blue-700 disabled:opacity-50">
                 {isActionLoading ? <><RefreshCw size={14} className="animate-spin" /> Processing...</> : capturedSelfie ? <><Check size={14} /> Proceed</> : <><Camera size={14} /> Capture</>}
               </button>

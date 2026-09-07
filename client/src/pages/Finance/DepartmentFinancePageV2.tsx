@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, Wallet, TrendingDown, TrendingUp, AlertCircle,
   Send, Plus, Eye, Receipt, UserPlus, UploadCloud,
-  CheckCircle2, Clock, Check, Loader2, X, FileText, FileWarning, Search, FileDown, FileSpreadsheet, Calendar, Pencil, MessageSquare, Download
+  CheckCircle2, Clock, Check, Loader2, X, FileText, FileWarning, Search, Calendar, Pencil, MessageSquare, Download
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useLocation } from 'react-router-dom';
@@ -31,6 +31,7 @@ import { formatFinancePaymentStatus } from '@/features/finance/utils/paymentStat
 import { statusPillClass } from '@/lib/status-pill';
 import { ApprovalFlowBadges, hasApprovalProgress } from '@/components/finance/ApprovalFlowBadges';
 import PageFrame from '@/components/Pages/PageFrame';
+import BulkUploadModal from '@/components/BulkUploadModal';
 import ExportReportModal, { type ExportParams } from '@/components/ExportReportModal';
 import ReportExportButton from '@/components/ReportExportButton';
 import { isMonthInExportPeriod } from '@/utils/export-period';
@@ -1436,7 +1437,7 @@ export function DepartmentFinancePageV2() {
                     data-tour="dept-finance-search"
                     type="text" placeholder="Search..."
                     value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
                   />
                 </div>
                 <div className="relative">
@@ -1533,7 +1534,7 @@ export function DepartmentFinancePageV2() {
                               <div className="space-y-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Monthly Budget Title</label>
                                 <input
-                                  className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200/60 outline-none text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                                  className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200/60 outline-none text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                                   value={m.title}
                                   onChange={(e) => updateDraftMonthField(m.id, 'title', e.target.value)}
                                   placeholder="E.g., Hardware Upgrades Budget"
@@ -1592,7 +1593,7 @@ export function DepartmentFinancePageV2() {
                                   <div className="md:col-span-4 space-y-1">
                                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Expense Title</label>
                                     <input
-                                      className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200/60 outline-none text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                                      className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200/60 outline-none text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                                       placeholder="e.g. Server Hosting"
                                       value={exp.title}
                                       onChange={(e) => updateDraftExpenseField(m.id, exp.id, 'title', e.target.value)}
@@ -1603,7 +1604,7 @@ export function DepartmentFinancePageV2() {
                                     <div className="relative">
                                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[12px] font-pmedium">{currencySymbol}</span>
                                       <input
-                                        className="w-full pl-7 pr-3 py-2 rounded-lg bg-white border border-slate-200/60 outline-none text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                                        className="w-full pl-7 pr-3 py-2 rounded-lg bg-white border border-slate-200/60 outline-none text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                                         type="number"
                                         placeholder="0.00"
                                         value={exp.projectedAmount || ''}
@@ -1623,7 +1624,7 @@ export function DepartmentFinancePageV2() {
                                   <div className="md:col-span-12 space-y-1">
                                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Justification / Details</label>
                                     <input
-                                      className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200/60 outline-none text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                                      className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200/60 outline-none text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                                       placeholder="Why is this expense necessary?"
                                       value={exp.description}
                                       onChange={(e) => updateDraftExpenseField(m.id, exp.id, 'description', e.target.value)}
@@ -2352,7 +2353,7 @@ export function DepartmentFinancePageV2() {
                     value={increaseForm.amount}
                     onChange={(e) => setIncreaseForm((prev) => ({ ...prev, amount: e.target.value }))}
                     placeholder="How much more this line needs"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all placeholder:text-slate-500 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
                   />
                 </div>
                 <div>
@@ -2362,7 +2363,7 @@ export function DepartmentFinancePageV2() {
                     onChange={(e) => setIncreaseForm((prev) => ({ ...prev, reason: e.target.value }))}
                     placeholder="Why does this line need more budget?"
                     rows={3}
-                    className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                    className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all placeholder:text-slate-500 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
                   />
                 </div>
                 <div>
@@ -2445,7 +2446,7 @@ export function DepartmentFinancePageV2() {
                     onChange={(e) => setExtraBudgetForm((prev) => ({ ...prev, title: e.target.value }))}
                     placeholder="Example: Sales conference booth"
                     maxLength={200}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all placeholder:text-slate-500 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
                   />
                 </div>
                 <div>
@@ -2455,7 +2456,7 @@ export function DepartmentFinancePageV2() {
                     value={extraBudgetForm.amount}
                     onChange={(e) => setExtraBudgetForm((prev) => ({ ...prev, amount: e.target.value }))}
                     placeholder="Enter amount"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all placeholder:text-slate-500 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
                   />
                 </div>
                 <div>
@@ -2465,7 +2466,7 @@ export function DepartmentFinancePageV2() {
                     onChange={(e) => setExtraBudgetForm((prev) => ({ ...prev, reason: e.target.value }))}
                     placeholder="Explain why this extra budget is needed"
                     rows={4}
-                    className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                    className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all placeholder:text-slate-500 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
                   />
                 </div>
               </div>
@@ -2698,65 +2699,34 @@ export function DepartmentFinancePageV2() {
       </AnimatePresence>
 
       {/* Import Modal */}
-      {showImportModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
-            <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h2 className="text-xl font-pmedium text-slate-900 flex items-center gap-2">
-                <FileSpreadsheet size={20} className="text-[#2563EB]" /> Import Finance Data
-              </h2>
-              <button onClick={() => { setShowImportModal(false); setImportFile(null); }} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm">
-                <X size={16} />
-              </button>
-            </div>
-            <div className="p-4 sm:p-6 lg:p-8 space-y-5">
-              <p className="text-xs text-slate-600">
-                Download the template, keep its headers unchanged, and add your department's budget rows before uploading it.
-              </p>
-              <button
-                type="button"
-                onClick={handleDownloadImportTemplate}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-[10px] font-pmedium uppercase tracking-wider text-blue-700 transition-colors hover:bg-blue-100"
-              >
-                <FileDown size={14} /> Download Template
-              </button>
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center cursor-pointer hover:border-[#2563EB] hover:bg-blue-50/30 transition-all"
-              >
-                <FileSpreadsheet size={32} className="mx-auto text-slate-400 mb-2" />
-                {importFile ? (
-                  <p className="text-sm font-bold text-slate-900">{importFile.name}</p>
-                ) : (
-                  <p className="text-xs text-slate-500">Click to select a file (.xlsx, .csv)</p>
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".xlsx,.xls,.csv"
-                  className="hidden"
-                  onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-                />
-              </div>
-            </div>
-            <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex gap-3 sm:gap-4 shrink-0">
-              <button
-                onClick={() => { setShowImportModal(false); setImportFile(null); }}
-                className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleImportFile}
-                disabled={isImporting || !importFile}
-                className="w-full sm:w-auto px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-blue-700 active:scale-95 transition-all uppercase flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                <UploadCloud size={14} /> {isImporting ? 'Importing...' : 'Import'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <BulkUploadModal
+        open={showImportModal}
+        onClose={() => { setShowImportModal(false); setImportFile(null); }}
+        title="Import Finance Data"
+        description="Download the template, keep its headers unchanged, and add your department's budget rows before uploading it."
+        fileInputRef={fileInputRef}
+        accept=".xlsx,.xls,.csv"
+        onFileChange={(e: React.ChangeEvent<HTMLInputElement>) => setImportFile(e.target.files?.[0] || null)}
+        onDownloadTemplate={handleDownloadImportTemplate}
+        downloadLabel="Download Template"
+        rulesTitle="Template rules"
+        rules={[
+          'Keep the header row exactly as provided',
+          'One row per budget or expense line item',
+          'Amounts should be plain numbers, no currency symbols',
+          'Due Date accepts standard date formats',
+          "Payment Status should match existing values (e.g. Paid, Pending)",
+          'Only .xlsx, .xls, or .csv files are accepted',
+        ]}
+        fileName={importFile?.name}
+        isImporting={isImporting}
+        importingLabel="Importing..."
+        staged={!!importFile}
+        onConfirmImport={handleImportFile}
+        onChangeFile={() => setImportFile(null)}
+        selectLabel="Select file"
+        importLabel="Import"
+      />
 
       <ExportReportModal
         isOpen={showExportModal}

@@ -26,6 +26,8 @@ export interface ITicket extends Document {
     assigneeUserId?: mongoose.Types.ObjectId | null;
     acceptedBy?: string | null;
     acceptedByUserId?: mongoose.Types.ObjectId | null;
+    acceptedAt?: Date | null;
+    assignedAt?: Date | null;
     priority: "Low" | "Medium" | "High";
     status: "Open" | "In Progress" | "Resolved" | "Closed";
     resolutionNote: string;
@@ -79,6 +81,8 @@ const ticketSchema = new Schema<ITicket>(
         assigneeUserId: { type: Schema.Types.ObjectId, ref: "HostUser", default: null, index: true },
         acceptedBy: { type: String, default: null, trim: true, maxlength: 120 },
         acceptedByUserId: { type: Schema.Types.ObjectId, ref: "HostUser", default: null, index: true },
+        acceptedAt: { type: Date, default: null },
+        assignedAt: { type: Date, default: null },
         priority: { type: String, enum: ["Low", "Medium", "High"], default: "Medium", required: true, index: true },
         status: { type: String, enum: ["Open", "In Progress", "Resolved", "Closed"], default: "Open", required: true, index: true },
         resolutionNote: { type: String, default: "", trim: true, maxlength: 2000 },
