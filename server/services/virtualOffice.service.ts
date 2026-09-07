@@ -163,6 +163,93 @@ async function syncOverdueRentStatuses(filter) {
   }
 }
 
+// ============================================================================
+// Onboarding advance → auto-generated "Paid" payment records
+// ============================================================================
+
+// The first `advanceMonths` billing periods, anchored on rentDate (period k =
+// rentDate + k months, ending the day before the next rent date) and bounded
+// by the contract's termEnd. Each covers one month of monthlyRent.
+function buildAdvancePeriods(record) {
+  const rentDate = toDateOrNull(record.rentDate);
+  const advanceMonths = Math.max(0, Math.floor(Number(record.advanceMonths || 0)));
+  const monthlyRent = Math.max(0, Number(record.monthlyRent || 0));
+  if (!rentDate || advanceMonths <= 0 || monthlyRent <= 0) return [];
+  const termEnd = toDateOrNull(record.termEnd);
+  const periods = [];
+  for (let k = 0; k < advanceMonths; k += 1) {
+    const periodStart = new Date(rentDate);
+    periodStart.setMonth(periodStart.getMonth() + k);
+    if (termEnd && periodStart.getTime() > termEnd.getTime()) break;
+    const periodEnd = new Date(periodStart);
+    periodEnd.setMonth(periodEnd.getMonth() + 1);
+    periodEnd.setDate(periodEnd.getDate() - 1);
+    periods.push({
+      index: k,
+      periodStart,
+      periodEnd,
+      amount: monthlyRent,
+      monthLabel: new Intl.DateTimeFormat("en-IN", { month: "short", year: "numeric" }).format(periodStart),
+    });
+  }
+  return periods;
+}
+
+function paymentOverlapsPeriod(payment, periodStart, periodEnd) {
+  const pStart = toDateOrNull(payment.periodStart) || toDateOrNull(payment.paymentDate);
+  const pEnd = toDateOrNull(payment.periodEnd) || toDateOrNull(payment.paymentDate);
+  if (!pStart || !pEnd) return false;
+  return pStart.getTime() <= periodEnd.getTime() && pEnd.getTime() >= periodStart.getTime();
+}
+
+// Keeps `paymentRecords` in sync with the onboarding advance so a company that
+// paid N months upfront has those months stored as Paid in the database and
+// shown as Paid in every UI:
+// - strips ALL system-generated advance records (source: "advance") and
+//   re-adds them for the first N rentDate-anchored periods, so editing
+//   advanceMonths / rentDate re-derives coverage automatically;
+// - a period already settled by a real (non-advance) "Paid" payment gets NO
+//   advance record (no double-counting);
+// - runs on create + update + after Sales records a payment, so records
+//   self-heal without a background job.
+// NOTE: intentionally does NOT post income-ledger/P&L entries for advance
+// periods — recognition of advance revenue is a separate, open decision.
+function syncAdvanceRentPaymentRecords(record) {
+  const realPayments = (Array.isArray(record.paymentRecords) ? record.paymentRecords : [])
+    .filter((p) => normalizeText(p?.source) !== "advance");
+  const advanceMonths = Math.max(0, Math.floor(Number(record.advanceMonths || 0)));
+  const advanceRecords = [];
+  for (const period of buildAdvancePeriods(record)) {
+    const settledByRealPayment = realPayments.some(
+      (p) => p.status === "Paid" && paymentOverlapsPeriod(p, period.periodStart, period.periodEnd),
+    );
+    if (settledByRealPayment) continue;
+    advanceRecords.push({
+      paymentId: new mongoose.Types.ObjectId().toString(),
+      periodStart: period.periodStart,
+      periodEnd: period.periodEnd,
+      monthLabel: period.monthLabel,
+      amount: period.amount,
+      status: "Paid",
+      transactionId: "",
+      paymentDate: toDateOrNull(record.createdAt) || toDateOrNull(record.rentDate) || new Date(),
+      paymentMethod: "Onboarding advance",
+      notes: `Covered by onboarding advance (month ${period.index + 1} of ${advanceMonths})`,
+      source: "advance",
+      receipt: null,
+    });
+  }
+  // Chronological order for the UI: real payments keep their relative order,
+  // advance records slot in by period start; records without dates sink last.
+  const merged = [...realPayments, ...advanceRecords];
+  merged.sort((a, b) => {
+    const aStart = (toDateOrNull(a.periodStart) || toDateOrNull(a.paymentDate) || new Date(8640000000000000)).getTime();
+    const bStart = (toDateOrNull(b.periodStart) || toDateOrNull(b.paymentDate) || new Date(8640000000000000)).getTime();
+    return aStart - bStart;
+  });
+  record.paymentRecords = merged;
+}
+
 async function getNextRecordNumber(workspaceId) {
   const latest = await VirtualOffice.findOne({ workspaceId })
     .sort({ recordNumber: -1 })
@@ -209,7 +296,15 @@ function computeCalculations(input = {}) {
   const monthlyRent = Math.round(openDesks * openDeskMonthlyRate);
 
   const totalTerm = Math.max(0, Number(input.totalTerm || 0));
-  const advanceMonths = Math.max(0, Number(input.advanceMonths || 0) || 1);
+  // Advance rent (months): default to 1 when not provided, but honor an
+  // explicit 0 (no advance collected) — the old `|| 1` coerced 0 into 1.
+  const rawAdvanceMonths = input.advanceMonths;
+  const hasAdvanceMonths = rawAdvanceMonths !== undefined
+    && rawAdvanceMonths !== null
+    && String(rawAdvanceMonths).trim() !== "";
+  const advanceMonths = hasAdvanceMonths
+    ? Math.max(0, Math.floor(Number(rawAdvanceMonths) || 0))
+    : 1;
 
   // Annual increment only applies once the contract runs past a full year.
   const annualIncrement = totalTerm > 12 ? Math.max(0, Number(input.annualIncrement || 0)) : 0;
@@ -485,7 +580,7 @@ export async function createVirtualOfficeForCurrentUser(userId, input = {}) {
   const lockInEnd = lockInMonths > 0 ? buildTermEndDate(termStart, lockInMonths) : null;
   const rentStatus = normalizeText(input.rentStatus || "Active");
 
-  const record = await VirtualOffice.create({
+  const record = new VirtualOffice({
     workspaceId: access.workspaceId,
     ownerId: access.workspace.ownerId || userId,
     recordNumber,
@@ -543,6 +638,12 @@ export async function createVirtualOfficeForCurrentUser(userId, input = {}) {
     status: normalizeText(input.status || "Active"),
     notes: normalizeText(input.notes || ""),
   });
+
+  // Auto-generate "Onboarding advance" payment records covering the first
+  // advanceMonths periods — they persist like any other payment and render
+  // as Paid in the Sales and Finance UIs.
+  syncAdvanceRentPaymentRecords(record);
+  await record.save();
 
   return { record: formatRecord(record.toObject()) };
 }
@@ -626,6 +727,10 @@ export async function updateVirtualOfficeForCurrentUser(userId, recordId, input 
     record.paymentRecords = input.paymentRecords;
   }
 
+  // Re-sync advance coverage (advanceMonths/rentDate/termEnd may have changed)
+  // and drop advance records for periods now settled by a real payment.
+  syncAdvanceRentPaymentRecords(record);
+
   await record.save();
   return { record: formatRecord(record.toObject()) };
 }
@@ -675,12 +780,16 @@ export async function recordRentPaymentForCurrentUser(userId, recordId, input = 
   paymentRecords.push(newRecord);
   record.paymentRecords = paymentRecords;
 
+  // Re-sync advance coverage: a real payment covering an advance period
+  // replaces that period's auto-generated advance record (no double-count).
+  syncAdvanceRentPaymentRecords(record);
+
   // Only sum payments belonging to the same billing period as the one just
   // recorded, not every payment ever made — otherwise one fully-paid month
   // permanently marks the contract "Active" even as later months lapse.
   const monthlyRent = Math.max(0, Number(record.monthlyRent || 0));
   const recordsForPeriod = periodStart && periodEnd
-    ? paymentRecords.filter((p) => {
+    ? record.paymentRecords.filter((p) => {
         const pStart = toDateOrNull(p.periodStart);
         const pEnd = toDateOrNull(p.periodEnd);
         return pStart && pEnd && pStart.getTime() === periodStart.getTime() && pEnd.getTime() === periodEnd.getTime();

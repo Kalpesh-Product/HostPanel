@@ -122,6 +122,7 @@ interface VirtualOfficeRentRecord {
     paymentDate?: string | null;
     paymentMethod?: string;
     notes?: string;
+    source?: string;
     receipt?: { fileName?: string; fileUrl?: string; mimeType?: string; size?: string; uploadedByName?: string; uploadedAt?: string | null } | null;
   }>;
 }
@@ -2743,7 +2744,7 @@ export function BillingPaymentsPage() {
                       {viewingVo.paymentRecords.slice().reverse().map((p, idx: number) => (
                         <div key={idx} className="flex items-start justify-between gap-3 text-[11px] border-b border-slate-50 pb-1.5 last:border-0">
                           <div>
-                            <p className="font-pmedium text-slate-800">{p.monthLabel || 'Period'} · {formatCurrency(p.amount || 0)} · {p.status}</p>
+                            <p className="font-pmedium text-slate-800">{p.monthLabel || 'Period'} · {formatCurrency(p.amount || 0)} · {p.status}{p.source === 'advance' ? ' · Advance' : ''}</p>
                             <p className="text-slate-400">{p.paymentDate ? new Date(p.paymentDate).toLocaleString() : ''}{p.transactionId ? ` · Ref: ${p.transactionId}` : ''}{p.notes ? ` · ${p.notes}` : ''}</p>
                           </div>
                           {p.receipt?.fileUrl && (

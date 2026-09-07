@@ -11,6 +11,24 @@ const virtualOfficePocSchema = new Schema(
   { _id: false },
 );
 
+// Host-issued receipt attached by Finance when marking a period paid
+// (mirrors TenantRent receipts — stored on the payment record itself).
+// NOTE: this subdoc previously did not exist, so Mongoose strict mode was
+// silently stripping the receipt objects that mark-paid wrote to records.
+const virtualOfficeReceiptSchema = new Schema(
+  {
+    fileName: { type: String, default: "", trim: true, maxlength: 200 },
+    fileUrl: { type: String, default: "", trim: true, maxlength: 2048 },
+    publicId: { type: String, default: "", trim: true, maxlength: 255 },
+    mimeType: { type: String, default: "", trim: true, maxlength: 120 },
+    size: { type: String, default: "", trim: true, maxlength: 40 },
+    uploadedById: { type: Schema.Types.ObjectId, ref: "HostUser", default: null },
+    uploadedByName: { type: String, default: "", trim: true, maxlength: 140 },
+    uploadedAt: { type: Date, default: null },
+  },
+  { _id: false },
+);
+
 const virtualOfficeRentPaymentSchema = new Schema(
   {
     paymentId: { type: String, default: "", trim: true, maxlength: 80 },
@@ -28,6 +46,10 @@ const virtualOfficeRentPaymentSchema = new Schema(
     paymentDate: { type: Date, default: null },
     paymentMethod: { type: String, default: "", trim: true, maxlength: 80 },
     notes: { type: String, default: "", trim: true, maxlength: 400 },
+    // Origin: "" = manually recorded (Sales/Finance), "advance" =
+    // auto-generated from the onboarding advance months.
+    source: { type: String, default: "", trim: true, maxlength: 40 },
+    receipt: { type: virtualOfficeReceiptSchema, default: () => ({}) },
   },
   { _id: false },
 );
