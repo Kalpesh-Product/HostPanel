@@ -903,6 +903,45 @@ function buildVOCurrentPeriod(record, now = new Date()) {
   };
 }
 
+// Unpaid ("open") rent periods from the contract's first cycle through the
+// current one — this is how Finance settles a MISSED past month: the UI lists
+// these periods as payment targets. Ordered oldest → newest, capped at 24
+// cycles so pathological data can't blow up the scan.
+function buildVOOpenPeriods(record, now) {
+  const rentDate = toDateOrNull(record.rentDate);
+  const current = rentDate ? getCurrentBillingPeriod(rentDate, now) : null;
+  const monthlyRent = Math.max(0, Number(record.monthlyRent || 0));
+  if (!rentDate || !current || monthlyRent <= 0) return { openPeriods: [], missedCount: 0 };
+  const payments = Array.isArray(record.paymentRecords) ? record.paymentRecords : [];
+  const termEnd = toDateOrNull(record.termEnd);
+  const openPeriods = [];
+  let missedCount = 0;
+  let cursor = new Date(rentDate);
+  for (let guard = 0; guard < 24 && cursor.getTime() <= current.periodStart.getTime(); guard += 1) {
+    if (termEnd && cursor.getTime() > termEnd.getTime()) break;
+    const periodEnd = new Date(cursor);
+    periodEnd.setMonth(periodEnd.getMonth() + 1);
+    periodEnd.setDate(periodEnd.getDate() - 1);
+    const paidAmount = sumPaidOverlappingPeriod(payments, cursor, periodEnd);
+    const dueAmount = Math.max(0, monthlyRent - paidAmount);
+    if (dueAmount > 0) {
+      const isPast = periodEnd.getTime() < now.getTime();
+      openPeriods.push({
+        periodStart: new Date(cursor).toISOString(),
+        periodEnd: periodEnd.toISOString(),
+        monthLabel: new Intl.DateTimeFormat("en-IN", { month: "short", year: "numeric" }).format(cursor),
+        paidAmount,
+        dueAmount,
+        isPast,
+      });
+      if (isPast) missedCount += 1;
+    }
+    cursor = new Date(cursor);
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return { openPeriods, missedCount };
+}
+
 export async function listVirtualOfficeRentForWorkspace(workspaceId, query = {}) {
   // Keeps rentStatus live (Active ↔ Overdue) without a background job.
   await syncOverdueRentStatuses({ workspaceId });
@@ -924,6 +963,7 @@ export async function listVirtualOfficeRentForWorkspace(workspaceId, query = {})
     rentDateLabel: formatVORentDate(record.rentDate),
     rentStatus: record.rentStatus || "Active",
     currentPeriod: buildVOCurrentPeriod(record, now),
+    ...buildVOOpenPeriods(record, now),
     termStart: record.termStart || null,
     termEnd: record.termEnd || null,
     paymentRecords: Array.isArray(record.paymentRecords) ? record.paymentRecords : [],
@@ -939,7 +979,8 @@ export async function listVirtualOfficeRentForWorkspace(workspaceId, query = {})
       partiallyPaid: formatted.filter((r) => r.currentPeriod?.status === "Partially Paid").length,
       overdue: formatted.filter((r) => r.rentStatus === "Overdue").length,
       monthlyExpected: sum(formatted.map((r) => r.monthlyRent)),
-      outstanding: sum(formatted.filter((r) => r.currentPeriod && r.currentPeriod.status !== "Paid").map((r) => r.currentPeriod.dueAmount)),
+      // Outstanding includes MISSED past months too, not just the current cycle.
+      outstanding: sum(formatted.map((r) => (r.openPeriods || []).reduce((s, p) => s + (Number(p.dueAmount) || 0), 0))),
     },
   };
 }
@@ -960,21 +1001,42 @@ export async function markVirtualOfficeRentPaidForWorkspace(input: {
   ensureExists(record, workspaceId);
 
   const now = new Date();
-  const period = getCurrentBillingPeriod(record.rentDate, now);
+  const monthlyRent = Math.max(0, Number(record.monthlyRent || 0));
+  const paymentRecords = Array.isArray(record.paymentRecords) ? [...record.paymentRecords] : [];
+
+  // Target period: defaults to the cycle "now" falls inside. Finance may pass
+  // body.periodStart to settle a MISSED past month — the UI lists open
+  // (unpaid) periods since contract start and sends one back here.
+  const requestedStart = toDateOrNull(body?.periodStart);
+  let period;
+  if (requestedStart) {
+    const rentDate = toDateOrNull(record.rentDate);
+    if (!rentDate) {
+      throw Object.assign(new Error("This virtual office has no rent due date set, so there is no billing period to pay."), { statusCode: 409 });
+    }
+    const monthDelta = (requestedStart.getFullYear() - rentDate.getFullYear()) * 12
+      + (requestedStart.getMonth() - rentDate.getMonth());
+    const anchoredStart = new Date(rentDate);
+    anchoredStart.setMonth(anchoredStart.getMonth() + monthDelta);
+    const anchoredEnd = new Date(anchoredStart);
+    anchoredEnd.setMonth(anchoredEnd.getMonth() + 1);
+    anchoredEnd.setDate(anchoredEnd.getDate() - 1);
+    if (monthDelta < 0 || anchoredStart.getTime() !== requestedStart.getTime()) {
+      throw Object.assign(new Error("The selected period does not align with this contract's rent cycle."), { statusCode: 400 });
+    }
+    const termEnd = toDateOrNull(record.termEnd);
+    if (termEnd && anchoredStart.getTime() > termEnd.getTime()) {
+      throw Object.assign(new Error("The selected period is outside this contract's term."), { statusCode: 409 });
+    }
+    period = { periodStart: anchoredStart, periodEnd: anchoredEnd };
+  } else {
+    period = getCurrentBillingPeriod(record.rentDate, now);
+  }
   if (!period) {
     throw Object.assign(new Error("This virtual office has no rent due date set, so there is no open billing period."), { statusCode: 409 });
   }
 
-  const monthlyRent = Math.max(0, Number(record.monthlyRent || 0));
-  const paymentRecords = Array.isArray(record.paymentRecords) ? [...record.paymentRecords] : [];
-  const paidForPeriod = paymentRecords.reduce((sum, p) => {
-    const pStart = toDateOrNull(p.periodStart) || toDateOrNull(p.paymentDate);
-    const pEnd = toDateOrNull(p.periodEnd) || toDateOrNull(p.paymentDate);
-    const overlaps = pStart && pEnd
-      && pStart.getTime() <= period.periodEnd.getTime()
-      && pEnd.getTime() >= period.periodStart.getTime();
-    return sum + (overlaps && p.status === "Paid" ? Number(p.amount || 0) : 0);
-  }, 0);
+  const paidForPeriod = sumPaidOverlappingPeriod(paymentRecords, period.periodStart, period.periodEnd);
   if (monthlyRent > 0 && paidForPeriod >= monthlyRent) {
     throw Object.assign(new Error("This billing period's rent is already fully paid."), { statusCode: 409 });
   }
@@ -1022,10 +1084,11 @@ export async function markVirtualOfficeRentPaidForWorkspace(input: {
   }
   paymentRecords.push(paymentRecord);
   record.paymentRecords = paymentRecords;
-  // Same live-status rule as the Sales-side payment recording.
+  // Same live-status rule as the Sales-side payment recording — rentStatus
+  // always reflects the CURRENT billing cycle (even when settling a missed
+  // past period), via the same helper syncOverdueRentStatuses uses.
   const fullyPaid = monthlyRent > 0 && paidForPeriod + amount >= monthlyRent;
-  if (fullyPaid) record.rentStatus = "Active";
-  else if (paidForPeriod + amount > 0) record.rentStatus = "Overdue";
+  record.rentStatus = computeEffectiveRentStatus(record, now) || record.rentStatus;
 
   await record.save();
   // The period's rent becomes P&L income ONLY when fully paid — one entry per

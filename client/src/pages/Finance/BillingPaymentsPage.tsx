@@ -126,6 +126,15 @@ interface VirtualOfficeRentRecord {
     source?: string;
     receipt?: { fileName?: string; fileUrl?: string; mimeType?: string; size?: string; uploadedByName?: string; uploadedAt?: string | null } | null;
   }>;
+  openPeriods?: Array<{
+    periodStart?: string;
+    periodEnd?: string;
+    monthLabel?: string;
+    paidAmount?: number;
+    dueAmount?: number;
+    isPast?: boolean;
+  }>;
+  missedCount?: number;
 }
 
 interface RevenueRecord {
@@ -761,6 +770,7 @@ export function BillingPaymentsPage() {
   const [voReceiptFile, setVoReceiptFile] = useState<File | null>(null);
   const [voPaymentAmount, setVoPaymentAmount] = useState('');
   const [voTransactionId, setVoTransactionId] = useState('');
+  const [voTargetPeriodStart, setVoTargetPeriodStart] = useState('');
   const [viewingBooking, setViewingBooking] = useState<BookingRecord | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<PayrollEmployee | null>(null);
   const [viewingExtraCredit, setViewingExtraCredit] = useState<ExtraCreditRequest | null>(null);
@@ -1327,14 +1337,18 @@ export function BillingPaymentsPage() {
       const payload: Record<string, any> = {};
       if (voPaymentAmount) payload.amount = voPaymentAmount;
       if (voTransactionId) payload.transactionId = voTransactionId;
+      if (voTargetPeriodStart) payload.periodStart = voTargetPeriodStart;
       const res = await markVirtualOfficeRentPaid(vo.id, payload, voReceiptFile || undefined);
       const updated = res?.record || res;
       setVoRecords((prev) => prev.map((v) => (v.id === vo.id ? { ...v, ...updated } : v)));
       if (viewingVo?.id === vo.id) setViewingVo((prev) => (prev ? { ...prev, ...updated } : null));
-      toast.success(`Payment recorded for ${vo.clientName} (${vo.currentPeriod?.monthLabel || 'current period'}).`);
+      const targetLabel = (viewingVo?.openPeriods || []).find((p) => p.periodStart === voTargetPeriodStart)?.monthLabel
+        || vo.currentPeriod?.monthLabel || 'current period';
+      toast.success(`Payment recorded for ${vo.clientName} (${targetLabel}).`);
       setVoReceiptFile(null);
       setVoPaymentAmount('');
       setVoTransactionId('');
+      setVoTargetPeriodStart('');
       window.dispatchEvent(new Event('finance:snapshot-updated'));
     } catch (error: any) {
       toast.error(error?.message || 'Failed to record virtual office rent payment.');
@@ -1342,6 +1356,11 @@ export function BillingPaymentsPage() {
       setIsProcessingAction(false);
     }
   };
+
+  // The open (unpaid) period the Record Payment form targets — defaults to the
+  // first open period (the current cycle unless a month was missed).
+  const getVoTargetPeriod = (vo: VirtualOfficeRentRecord | null) =>
+    vo?.openPeriods?.find((p) => p.periodStart === voTargetPeriodStart) || vo?.openPeriods?.[0] || null;
 
   /* ── Handlers: Manual Revenue (Workation / Alternate) ── */
 
@@ -1839,12 +1858,26 @@ export function BillingPaymentsPage() {
                             <p className="text-[10px] font-pmedium text-emerald-600">Paid: {formatCurrency(vo.currentPeriod?.paidAmount || 0)}</p>
                             <p className="text-[10px] font-pmedium text-rose-500">Due: {formatCurrency(vo.currentPeriod?.dueAmount || 0)}</p>
                           </td>
-                          <td className="px-6 py-5 text-center">{getRentStatusBadge(vo.currentPeriod?.status || vo.rentStatus || 'Due')}</td>
+                          <td className="px-6 py-5 text-center">
+                            <div className="flex flex-col items-center gap-1">
+                              {getRentStatusBadge(vo.currentPeriod?.status || vo.rentStatus || 'Due')}
+                              {(vo.missedCount ?? 0) > 0 && (
+                                <span className="text-[9px] font-pmedium text-amber-600">{vo.missedCount} missed month{(vo.missedCount ?? 0) > 1 ? 's' : ''}</span>
+                              )}
+                            </div>
+                          </td>
                           <td className="px-6 py-5 text-center">
                             <div className="flex items-center justify-center gap-1.5">
                               <button
                                 type="button"
-                                onClick={() => { setViewingVo(vo); setVoPaymentAmount(String(vo.currentPeriod?.dueAmount ?? '')); setVoTransactionId(''); setVoReceiptFile(null); }}
+                                onClick={() => {
+                                  const defaultTarget = vo.openPeriods?.find((p) => p.periodStart === vo.currentPeriod?.periodStart) || vo.openPeriods?.[0];
+                                  setViewingVo(vo);
+                                  setVoPaymentAmount('');
+                                  setVoTransactionId('');
+                                  setVoReceiptFile(null);
+                                  setVoTargetPeriodStart(defaultTarget?.periodStart || '');
+                                }}
                                 className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-pmedium uppercase transition-all shadow-sm inline-flex items-center gap-1"
                               >
                                 <Eye size={10} /> View
@@ -2767,17 +2800,36 @@ export function BillingPaymentsPage() {
                   )}
                 </div>
 
-                {viewingVo.currentPeriod && viewingVo.currentPeriod.status !== 'Paid' && (
+                {(viewingVo.openPeriods?.length ?? 0) > 0 && (
                   <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2">
                     <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Record Payment</p>
+                    {(viewingVo.openPeriods?.length ?? 0) > 1 && (
+                      <div className="space-y-1">
+                        <label className="block text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Billing period (missed months included)</label>
+                        <select
+                          value={voTargetPeriodStart}
+                          onChange={(e) => setVoTargetPeriodStart(e.target.value)}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:bg-white"
+                        >
+                          {(viewingVo.openPeriods || []).map((p) => (
+                            <option key={p.periodStart || p.monthLabel} value={p.periodStart || ''}>
+                              {p.monthLabel}{p.isPast ? ' — missed' : ''} · due {formatCurrency(p.dueAmount || 0)}
+                            </option>
+                          ))}
+                        </select>
+                        {getVoTargetPeriod(viewingVo)?.isPast && (
+                          <p className="text-[10px] text-amber-600">Settling a missed month — when fully paid it posts to that month in Accounting.</p>
+                        )}
+                      </div>
+                    )}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div className="space-y-1">
-                        <label className="block text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Amount (up to {formatCurrency(viewingVo.currentPeriod?.dueAmount || 0)})</label>
+                        <label className="block text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Amount (up to {formatCurrency(getVoTargetPeriod(viewingVo)?.dueAmount || 0)})</label>
                         <input
-                          type="number" min="0" step="0.01" max={viewingVo.currentPeriod?.dueAmount || 0}
+                          type="number" min="0" step="0.01" max={getVoTargetPeriod(viewingVo)?.dueAmount || 0}
                           value={voPaymentAmount}
                           onChange={(e) => setVoPaymentAmount(e.target.value)}
-                          placeholder={String(viewingVo.currentPeriod?.dueAmount || 0)}
+                          placeholder={String(getVoTargetPeriod(viewingVo)?.dueAmount || 0)}
                           className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:bg-white"
                         />
                       </div>
@@ -2809,7 +2861,7 @@ export function BillingPaymentsPage() {
               </div>
             </div>
             <div className="px-6 sm:px-8 py-4 bg-white border-t border-slate-100 flex flex-wrap justify-end gap-2 shrink-0">
-              {viewingVo.currentPeriod && viewingVo.currentPeriod.status !== 'Paid' && (
+              {(viewingVo.openPeriods?.length ?? 0) > 0 && (
                 <button
                   type="button"
                   onClick={() => void handleMarkVoPaid(viewingVo)}
@@ -2818,13 +2870,13 @@ export function BillingPaymentsPage() {
                 >
                   <CheckCircle2 size={12} /> {isProcessingAction
                     ? 'Processing...'
-                    : Number(voPaymentAmount) > 0 && Number(voPaymentAmount) < (viewingVo.currentPeriod?.dueAmount || 0)
-                      ? `Record Partial Payment for ${viewingVo.currentPeriod.monthLabel || 'This Period'}`
-                      : `Mark ${viewingVo.currentPeriod.monthLabel || 'This Period'} as Paid`}
+                    : Number(voPaymentAmount) > 0 && Number(voPaymentAmount) < (getVoTargetPeriod(viewingVo)?.dueAmount || 0)
+                      ? `Record Partial Payment for ${getVoTargetPeriod(viewingVo)?.monthLabel || 'This Period'}`
+                      : `Mark ${getVoTargetPeriod(viewingVo)?.monthLabel || 'This Period'} as Paid`}
                 </button>
               )}
-              {viewingVo.currentPeriod?.status === 'Paid' && (
-                <span className="px-4 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 font-pmedium text-[10px] uppercase tracking-wider flex items-center gap-1.5"><CheckCircle2 size={12} /> This period is fully paid</span>
+              {(viewingVo.openPeriods?.length ?? 0) === 0 && viewingVo.currentPeriod?.status === 'Paid' && (
+                <span className="px-4 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 font-pmedium text-[10px] uppercase tracking-wider flex items-center gap-1.5"><CheckCircle2 size={12} /> All periods fully paid</span>
               )}
               {!viewingVo.currentPeriod && (
                 <span className="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-500 font-pmedium text-[10px] uppercase tracking-wider flex items-center gap-1.5">
