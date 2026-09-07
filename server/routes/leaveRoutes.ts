@@ -3,6 +3,9 @@ import {
   attachLeaveCertificate,
   createHoliday,
   createLeaveRequest,
+  createLeaveRequestProxy,
+  listLeaveRequestsProxy,
+  getLeaveBalanceProxy,
   createLeaveType,
   deleteHoliday,
   listHolidays,
@@ -35,6 +38,10 @@ router.get("/holidays", listHolidays);
 router.post("/holidays", createHoliday);
 router.patch("/holidays/:holidayId", updateHoliday);
 router.delete("/holidays/:holidayId", deleteHoliday);
+
+router.get("/proxy/:employeeProfileId/balance", getLeaveBalanceProxy);
+router.get("/proxy/:employeeProfileId", listLeaveRequestsProxy);
+router.post("/proxy/:employeeProfileId", createLeaveRequestProxy);
 
 router.patch("/:leaveRequestId", updateLeaveRequest);
 

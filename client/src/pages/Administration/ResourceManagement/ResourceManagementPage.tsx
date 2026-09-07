@@ -19,9 +19,11 @@ import {
   Save,
   Search,
   ShieldAlert,
+  Tag,
   Trash2,
   UploadCloud,
   Users,
+  View,
   Wrench,
   X,
   XCircle,
@@ -486,7 +488,7 @@ class ResourceManagementErrorBoundary extends React.Component<ErrorBoundaryProps
     if (this.state.error) {
       return (
         <AppShell>
-          <div className="overflow-x-hidden p-2 lg:p-2.5">
+          <div className="overflow-x-hidden min-h-full bg-white p-2 lg:p-2.5 text-[#0F172A] font-sans text-[12px]">
             <PageFrame>
               <div className="mx-auto max-w-4xl rounded-3xl border border-red-200 bg-white p-6 shadow-sm">
                 <div className="flex items-start gap-4">
@@ -971,7 +973,7 @@ function ResourceManagementPageInner() {
 
   return (
     <AppShell>
-      <div className="overflow-x-hidden p-2 lg:p-2.5">
+      <div className="overflow-x-hidden min-h-full bg-white p-2 lg:p-2.5 text-[#0F172A] font-sans text-[12px]">
         <PageFrame>
           <div className="flex flex-col gap-4">
 
@@ -1022,13 +1024,17 @@ function ResourceManagementPageInner() {
               const Icon = card.icon;
               const borderColors = ['', 'border-l-4 border-l-blue-500', 'border-l-4 border-l-emerald-500', 'border-l-4 border-l-amber-500', 'border-l-4 border-l-slate-500'];
               const iconClasses = ['bg-slate-50 text-slate-600', 'bg-blue-50 text-blue-600', 'bg-emerald-50 text-emerald-600', 'bg-amber-50 text-amber-600', 'bg-slate-100 text-slate-500'];
+              const iconClass = iconClasses[idx] || 'bg-slate-50 text-slate-600';
+              const labelToneClass = (borderColors[idx] || '').includes('border-l')
+                ? (iconClass.split(' ').find((cls) => cls.startsWith('text-')) || 'text-slate-400')
+                : 'text-slate-400';
               return (
                 <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className={`text-[10px] font-pmedium ${labelToneClass} uppercase tracking-widest mb-1`}>{card.label}</p>
                     <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                   </div>
-                  <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>
+                  <div className={`p-2 rounded-2xl ${iconClass} shrink-0`}>
                     <Icon size={16} />
                   </div>
                 </div>
@@ -1658,85 +1664,160 @@ function ResourceManagementPageInner() {
               </div>
 
               <div className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 bg-slate-50/30">
-                <div className="rounded-2xl border border-slate-200 bg-linear-to-br from-slate-50 to-white p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Resource</p>
-                      <h3 className="mt-1 text-lg font-pmedium text-slate-900">{viewingResource.name}</h3>
-                      <p className="mt-0.5 text-[12px] font-pmedium text-slate-600">{viewingResource.id || viewingResource.recordId} &bull; {getResourceCategoryLabel(viewingResource.resourceCategory)}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {statusBadge(viewingResource.status)}
-                      {viewingResource.currentlyBooked ? (
-                        <span className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-amber-700">
-                          Currently booked
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                   <FormSectionHeader icon={Monitor} label="Resource Details" />
-                  <dl className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div>
-                      <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Category</dt>
-                      <dd className="mt-0.5 flex items-center gap-1.5 text-[12px] font-pmedium text-slate-900">
-                        {typeIcon(viewingResource.type)}
-                        {getResourceCategoryLabel(viewingResource.resourceCategory)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Inventory</dt>
-                      <dd className="mt-0.5 text-[12px] font-pmedium text-slate-900">
-                        {isDeskCategory(viewingResource.resourceCategory) ? getInventoryModeLabel(viewingResource.inventoryMode) : 'Not applicable'}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Location</dt>
-                      <dd className="mt-0.5 text-[12px] font-pmedium text-slate-900">{getLocationLabel(viewingResource) || '--'}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Floor / Wing</dt>
-                      <dd className="mt-0.5 text-[12px] font-pmedium text-slate-900">Floor {viewingResource.floor || '--'} / Wing {viewingResource.wing || '--'}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Capacity</dt>
-                      <dd className="mt-0.5 text-[12px] font-pmedium text-slate-900">{viewingResource.capacity} Pax</dd>
-                    </div>
-                    <div>
-                      <dt className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Tenant Assignment</dt>
-                      <dd className="mt-0.5 text-[12px] font-pmedium text-slate-900">{viewingResource.assignedTenantCompanyName || 'Unassigned'}</dd>
-                    </div>
-                  </dl>
+
                   <div className="space-y-1">
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Description</p>
-                    <p className="text-[12px] font-pmedium text-slate-700">{viewingResource.description || 'No description added yet.'}</p>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Resource Name *</label>
+                    <input
+                      type="text"
+                      disabled
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60"
+                      value={viewingResource.name || ''}
+                      readOnly
+                    />
+                    <p className="text-[10px] font-pmedium text-slate-400 normal-case tracking-normal">
+                      {viewingResource.id || viewingResource.recordId ? `Resource code: ${viewingResource.id || viewingResource.recordId}` : ''}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Location *</label>
+                      <input
+                        type="text"
+                        disabled
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60"
+                        value={getLocationLabel(viewingResource) || '--'}
+                        readOnly
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Category *</label>
+                      <select
+                        disabled
+                        className="w-full cursor-pointer px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60"
+                        value={viewingResource.resourceCategory || ''}
+                      >
+                        {resourceCategoryOptions.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {isDeskCategory(viewingResource.resourceCategory) ? (
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Inventory *</label>
+                        <select
+                          disabled
+                          className="w-full cursor-pointer px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60"
+                          value={viewingResource.inventoryMode || ''}
+                        >
+                          {inventoryModeOptions.map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : null}
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Floor</label>
+                      <input
+                        type="text"
+                        disabled
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60"
+                        value={viewingResource.floor || '--'}
+                        readOnly
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Wing</label>
+                      <input
+                        type="text"
+                        disabled
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60"
+                        value={viewingResource.wing || '--'}
+                        readOnly
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
+                        {isDeskCategory(viewingResource.resourceCategory) ? 'Seats *' : 'Capacity *'}
+                      </label>
+                      <input
+                        type="text"
+                        disabled
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60"
+                        value={`${viewingResource.capacity} ${isDeskCategory(viewingResource.resourceCategory) && viewingResource.inventoryMode === 'single' ? 'desk fixed' : 'Pax'}`}
+                        readOnly
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Tenant Assignment</label>
+                      <input
+                        type="text"
+                        disabled
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60"
+                        value={viewingResource.assignedTenantCompanyName || 'Unassigned'}
+                        readOnly
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Description / Amenities</label>
+                    <textarea
+                      rows={3}
+                      disabled
+                      className="w-full resize-none px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60"
+                      value={viewingResource.description || 'No description added yet.'}
+                      readOnly
+                    />
                   </div>
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
-                  <FormSectionHeader icon={LayoutGrid} label="Pricing & Credits (set by Sales)" />
+                  <FormSectionHeader icon={Tag} label="Pricing & Credits (set by Sales)" />
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                    <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
-                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
                         {isPerPersonPricingCategory(viewingResource.resourceCategory) ? 'Hourly / Person' : 'Hourly'}
-                      </p>
-                      <p className="mt-1 text-[13px] font-pmedium text-emerald-700">
-                        {viewingResource.pricePerHour && viewingResource.pricePerHour > 0 ? wsMoney(viewingResource.pricePerHour) : viewingResource.pricing || 'Not set'}
-                      </p>
+                      </label>
+                      <input
+                        type="text"
+                        disabled
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60"
+                        value={viewingResource.pricePerHour && viewingResource.pricePerHour > 0 ? `${wsMoney(viewingResource.pricePerHour)} / hr` : viewingResource.pricing || 'Not set'}
+                        readOnly
+                      />
                     </div>
-                    <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
-                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
                         {isPerPersonPricingCategory(viewingResource.resourceCategory) ? 'Daily / Person' : 'Daily'}
-                      </p>
-                      <p className="mt-1 text-[13px] font-pmedium text-emerald-700">
-                        {viewingResource.pricePerDay && viewingResource.pricePerDay > 0 ? wsMoney(viewingResource.pricePerDay) : 'Not set'}
-                      </p>
+                      </label>
+                      <input
+                        type="text"
+                        disabled
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60"
+                        value={viewingResource.pricePerDay && viewingResource.pricePerDay > 0 ? `${wsMoney(viewingResource.pricePerDay)} / day` : 'Not set'}
+                        readOnly
+                      />
                     </div>
-                    <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3">
-                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-indigo-600">Credits</p>
-                      <p className="mt-1 text-[13px] font-pmedium text-indigo-700">{getCreditValue(viewingResource)}</p>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
+                        {isDeskCategory(viewingResource.resourceCategory) ? 'Credits Per Seat' : 'Credits Per Hour'}
+                      </label>
+                      <input
+                        type="number"
+                        disabled
+                        className="w-full px-3 py-2 bg-indigo-50/60 border border-indigo-200 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60"
+                        value={getCreditValue(viewingResource)}
+                        readOnly
+                      />
+                      <p className="text-[10px] font-pmedium text-slate-400 normal-case tracking-normal">(used for tenant bookings)</p>
                     </div>
                   </div>
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{getCreditSummary(viewingResource)}</p>
@@ -1744,7 +1825,29 @@ function ResourceManagementPageInner() {
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                   <FormSectionHeader icon={CheckCircle2} label="Status & Availability" />
-                  <div>{statusBadge(viewingResource.status)}</div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {statusBadge(viewingResource.status)}
+                    {viewingResource.currentlyBooked ? (
+                      <span className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-amber-700">
+                        Currently booked
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <FormSectionHeader icon={View} label="Preview" />
+                  <p className="mt-1 text-sm font-pmedium text-slate-800">
+                    {viewingResource.pricePerHour && viewingResource.pricePerHour > 0
+                      ? `${wsMoney(viewingResource.pricePerHour)} per hour${isPerPersonPricingCategory(viewingResource.resourceCategory) ? ' per person' : ''}`
+                      : 'Hourly rate not set'}{' '}&bull;{' '}
+                    {viewingResource.pricePerDay && viewingResource.pricePerDay > 0
+                      ? `${wsMoney(viewingResource.pricePerDay)} per day${isPerPersonPricingCategory(viewingResource.resourceCategory) ? ' per person' : ''}`
+                      : 'Daily rate not set'}
+                  </p>
+                  <p className="mt-1 text-[11px] font-pmedium uppercase tracking-widest text-slate-400">
+                    {getCreditSummary(viewingResource)}
+                  </p>
                 </div>
               </div>
 

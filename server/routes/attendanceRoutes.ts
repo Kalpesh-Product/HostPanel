@@ -15,6 +15,13 @@ import {
   updateAttendanceGeofenceConfig,
   updateAttendanceSettingsConfig,
   startBreak,
+  proxyCheckIn,
+  proxyStartBreak,
+  proxyEndBreak,
+  proxyCheckOut,
+  proxyGetToday,
+  proxyGetMonth,
+  proxyRequestCorrection,
 } from "../controllers/attendanceController.js";
 import { attendanceSelfieUpload } from "../middlewares/attendance-upload.middleware.js";
 
@@ -38,5 +45,13 @@ router.post("/correction/:recordId", createCorrectionRequest);
 router.post("/:recordId/corrections", createCorrectionRequest);
 router.patch("/correction/:recordId/review", reviewCorrectionRequest);
 router.patch("/hr/corrections/:recordId", reviewCorrectionRequest);
+
+router.get("/proxy/:employeeProfileId/today", proxyGetToday);
+router.get("/proxy/:employeeProfileId/month", proxyGetMonth);
+router.post("/proxy/:employeeProfileId/check-in", proxyCheckIn);
+router.patch("/proxy/:employeeProfileId/start-break", proxyStartBreak);
+router.patch("/proxy/:employeeProfileId/end-break", proxyEndBreak);
+router.post("/proxy/:employeeProfileId/check-out", proxyCheckOut);
+router.post("/proxy/:employeeProfileId/:recordId/correction", proxyRequestCorrection);
 
 export default router;

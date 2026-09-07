@@ -4,7 +4,10 @@ export type LeaveTypeKey = "Casual" | "Sick" | "Vacation";
 
 export interface ILeaveQuota extends Document {
     workspaceId: mongoose.Types.ObjectId;
-    userId: mongoose.Types.ObjectId;
+    userId?: mongoose.Types.ObjectId | null;
+    // Set instead of userId for staff onboarded with no login account (e.g.
+    // housekeeping), so HR can assign them a quota through the same page.
+    employeeProfileId?: mongoose.Types.ObjectId | null;
     year: number;
     Casual: number;
     Sick: number;
@@ -32,7 +35,13 @@ const leaveQuotaSchema = new Schema<ILeaveQuota>(
         userId: {
             type: Schema.Types.ObjectId,
             ref: "HostUser",
-            required: true,
+            default: null,
+            index: true,
+        },
+        employeeProfileId: {
+            type: Schema.Types.ObjectId,
+            ref: "EmployeeProfile",
+            default: null,
             index: true,
         },
         year: {
@@ -101,7 +110,14 @@ const leaveQuotaSchema = new Schema<ILeaveQuota>(
     }
 );
 
-leaveQuotaSchema.index({ workspaceId: 1, userId: 1, year: 1 }, { unique: true });
+leaveQuotaSchema.index(
+    { workspaceId: 1, userId: 1, year: 1 },
+    { unique: true, partialFilterExpression: { userId: { $type: "objectId" } } }
+);
+leaveQuotaSchema.index(
+    { workspaceId: 1, employeeProfileId: 1, year: 1 },
+    { unique: true, partialFilterExpression: { employeeProfileId: { $type: "objectId" } } }
+);
 leaveQuotaSchema.index({ workspaceId: 1, year: 1 });
 
 export const LeaveQuota = (mongoose.models.LeaveQuota as mongoose.Model<ILeaveQuota>) ||

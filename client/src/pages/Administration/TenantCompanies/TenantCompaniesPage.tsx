@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { AppShell } from '@/components/layout/AppShell';
 import PageFrame from '@/components/Pages/PageFrame';
-import { TablePageSkeleton } from '@/components/ui/Skeleton';
+import { SalesTenantCompaniesSkeleton } from '@/components/ui/SalesPageSkeletons';
 import { toast } from 'sonner';
 import { createReport } from '@/services/reports';
 import ExportReportModal, { type ExportParams } from '@/components/ExportReportModal';
@@ -28,6 +27,7 @@ import {
   Users,
   CreditCard,
   Calendar,
+  Clock,
   Phone,
   Mail,
   ShieldCheck,
@@ -835,10 +835,21 @@ function buildEditForm(company: TenantCompany): EditForm {
   };
 }
 
-function getStatusBadge(status: string): string {
-  if (status === 'Active') return 'bg-green-50 text-green-600 border-green-200';
-  if (status === 'Expiring Soon') return 'bg-amber-50 text-amber-600 border-amber-200 animate-pulse';
-  return 'bg-red-50 text-red-600 border-red-200';
+function getStatusBadge(status: string): React.ReactNode {
+  switch (status) {
+    case 'Pending Setup':
+      return <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider text-slate-700"><Clock size={12} /> Pending Setup</span>;
+    case 'Pending Space Assignment':
+      return <span className="inline-flex items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider text-indigo-700"><Building2 size={12} /> Pending Space Assignment</span>;
+    case 'Active':
+      return <span className="inline-flex items-center gap-1 rounded-md border border-green-200 bg-green-50 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider text-green-700"><CheckCircle2 size={12} /> Active</span>;
+    case 'Expiring Soon':
+      return <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider text-amber-700"><AlertTriangle size={12} /> Expiring Soon</span>;
+    case 'Expired':
+      return <span className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider text-red-700"><XCircle size={12} /> Expired</span>;
+    default:
+      return null;
+  }
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -1053,6 +1064,40 @@ export default function AdministrationTenantCompaniesPage() {
     expiringSoon: companiesSummary.expiringSoon,
     expiredContracts: companiesSummary.expired,
   }), [companiesSummary]);
+  const summaryCards = useMemo(() => [
+    {
+      key: 'total-tenants',
+      label: 'Total Tenants',
+      value: formatInteger(stats.totalTenants),
+      icon: Building2,
+      cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md',
+      iconClass: 'bg-blue-50 text-blue-600',
+    },
+    {
+      key: 'active-contracts',
+      label: 'Active Contracts',
+      value: formatInteger(stats.activeContracts),
+      icon: CheckCircle2,
+      cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-green-500',
+      iconClass: 'bg-green-50 text-green-600',
+    },
+    {
+      key: 'expiring-contracts',
+      label: 'Expiring Soon (30d)',
+      value: formatInteger(stats.expiringSoon),
+      icon: AlertTriangle,
+      cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500',
+      iconClass: 'bg-amber-50 text-amber-600',
+    },
+    {
+      key: 'expired-contracts',
+      label: 'Expired Contracts',
+      value: formatInteger(stats.expiredContracts),
+      icon: XCircle,
+      cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-red-500',
+      iconClass: 'bg-red-50 text-red-600',
+    },
+  ], [stats]);
 
   // ── Handlers (commented out backend calls) ──
 
@@ -1221,61 +1266,66 @@ export default function AdministrationTenantCompaniesPage() {
     }
   };
 
-  if (isLoading) return <TablePageSkeleton />;
+  if (isLoading) return (
+    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+      <PageFrame><SalesTenantCompaniesSkeleton /></PageFrame>
+    </div>
+  );
 
   return (
     <>
-    <AppShell>
       <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
         <PageFrame>
-          <div className="flex flex-col gap-4">
-          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-3">
+          <div className="flex flex-col">
+          <div className="mb-3 flex flex-col md:flex-row md:items-end justify-between gap-3 shrink-0">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Administration Tenant Companies
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">Manage client contracts, allocations and company profiles.</p>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-                              <ReportExportButton onClick={() => setShowExportModal(true)} />
-                            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <ReportExportButton onClick={() => setShowExportModal(true)} />
+            </div>
           </div>
 
-          {/* Stat Cards */}
-          <div data-tour="admin-tenant-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
-            {[
-              { key: 'total', label: 'Total Tenants', value: String(stats.totalTenants), icon: Building2, borderClass: '', iconClass: 'bg-slate-50 text-slate-600' },
-              { key: 'active', label: 'Active Contracts', value: String(stats.activeContracts), icon: CheckCircle2, borderClass: 'border-l-4 border-l-green-500', iconClass: 'bg-green-50 text-green-600' },
-              { key: 'expiring', label: 'Expiring Soon', value: String(stats.expiringSoon), icon: AlertTriangle, borderClass: 'border-l-4 border-l-amber-500', iconClass: 'bg-amber-50 text-amber-600' },
-              { key: 'expired', label: 'Expired Contracts', value: String(stats.expiredContracts), icon: XCircle, borderClass: 'border-l-4 border-l-red-500', iconClass: 'bg-red-50 text-red-600' },
-            ].map((card) => {
+          <div data-tour="admin-tenant-tabs" className="mt-8 mb-8 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            <button
+              type="button"
+              className="flex-1 rounded-xl bg-[#2563EB] px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest text-white shadow-sm"
+            >
+              Tenant companies
+            </button>
+          </div>
+
+          <div data-tour="admin-tenant-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8 shrink-0">
+            {summaryCards.map((card) => {
               const Icon = card.icon;
-              const labelToneClass = card.borderClass ? (card.iconClass.split(' ').find((cls) => cls.startsWith('text-')) || 'text-slate-400') : 'text-slate-400';
+              const labelToneClass = card.cardClass.includes('border-l')
+                ? (card.iconClass.split(' ').find((cls) => cls.startsWith('text-')) || 'text-slate-400')
+                : 'text-slate-400';
               return (
-                <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.borderClass}`}>
-                  <div className="min-w-0">
+                <div key={card.key} className={card.cardClass}>
+                  <div>
                     <p className={`text-[10px] font-pmedium ${labelToneClass} uppercase tracking-widest mb-1`}>{card.label}</p>
                     <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                   </div>
-                  <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}>
-                    <Icon size={16} />
-                  </div>
+                  <div className={`p-2 rounded-2xl ${card.iconClass}`}><Icon size={16} /></div>
                 </div>
               );
             })}
           </div>
 
           {/* Data Panel */}
-          <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-            {/* Panel Header */}
-            <div data-tour="admin-tenant-tabs" className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-              <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col flex-1 min-h-110">
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 shrink-0 bg-slate-50/50">
+              <div data-tour="admin-tenant-status-filters" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                 {['All Status', 'Active', 'Expiring Soon', 'Expired'].map((status) => (
                   <button
                     key={status}
                     type="button"
                     onClick={() => setStatusFilter(status)}
-                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-[11px] font-pmedium transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
                       statusFilter === status
                         ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
                         : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
@@ -1292,15 +1342,15 @@ export default function AdministrationTenantCompaniesPage() {
                   <input
                     data-tour="admin-tenant-search"
                     type="text"
-                    placeholder="Search company or contact..."
+                    placeholder="Search company or contact person..."
                     className="w-full rounded-lg border border-slate-200/60 bg-white py-2.5 pl-9 pr-4 text-[12px] font-pmedium text-[#0F172A] outline-none transition-all placeholder:text-slate-500 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
                   />
                 </div>
                 <select
-                  data-tour="admin-tenant-status-select"
-                  className="min-w-[140px] cursor-pointer appearance-none rounded-lg border border-blue-100 bg-blue-50/50 py-2.5 pl-3 pr-8 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm outline-none hover:bg-blue-50"
+                  data-tour="admin-tenant-package-filter"
+                  className="w-full sm:w-auto px-3 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-700 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all cursor-pointer"
                   value={packageFilter}
                   onChange={(event) => setPackageFilter(event.target.value)}
                 >
@@ -1313,23 +1363,23 @@ export default function AdministrationTenantCompaniesPage() {
             </div>
 
             <div className="overflow-x-auto flex-1">
-              <table data-tour="admin-tenant-table" className="w-full min-w-[1120px] text-left font-pmedium">
-                <thead className="border-b border-slate-100/60 bg-slate-50/50 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
+              <table data-tour="admin-tenant-table" className="w-full min-w-[1000px] text-left">
+                <thead className="bg-white text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100">
                   <tr>
-                    <th className="px-5 py-4 min-w-[240px]">Company Info</th>
-                    <th className="px-5 py-4 min-w-[200px]">Contact Details</th>
-                    <th className="px-5 py-4">Contract Period</th>
-                    <th className="px-5 py-4">Package & Credits</th>
-                    <th className="px-5 py-4 text-center">Status</th>
-                    <th className="px-5 py-4 text-center">Actions</th>
+                    <th className="px-3.5 py-2 min-w-[240px]">Company Info</th>
+                    <th className="px-3.5 py-2 min-w-[200px]">Contact Details</th>
+                    <th className="px-3.5 py-2">Contract Period</th>
+                    <th className="px-3.5 py-2">Package & Credits</th>
+                    <th className="px-3.5 py-2 text-center">Status</th>
+                    <th className="px-3.5 py-2 text-center">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100/60">
+                <tbody className="divide-y divide-slate-50">
                   {filteredCompanies.map((company) => (
-                    <tr key={company.recordId || company.id} className="group transition-colors hover:bg-blue-50/30">
-                      <td className="px-5 py-4">
+                    <tr key={company.recordId || company.id} className="hover:bg-blue-50/30 transition-all group">
+                      <td className="px-3.5 py-2">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-[11px] font-pmedium shadow-sm shrink-0 border border-slate-200">
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-[11px] font-black shadow-sm shrink-0 border border-slate-200">
                             {company.initials}
                           </div>
                           <div>
@@ -1338,12 +1388,12 @@ export default function AdministrationTenantCompaniesPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-4 space-y-1">
+                      <td className="px-3.5 py-2 space-y-1">
                         <p className="font-pmedium text-slate-800 text-xs break-words">{company.contactPerson}</p>
                         <p className="text-[10px] font-pmedium text-slate-500 flex items-center gap-1.5"><Mail size={10} /> <span className="break-all">{company.email}</span></p>
                         <p className="text-[10px] font-pmedium text-slate-500 flex items-center gap-1.5"><Phone size={10} /> {company.phone}</p>
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-3.5 py-2">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="w-2 h-2 rounded-full bg-green-500" />
                           <p className="text-xs font-pmedium text-slate-700">{company.contractStart}</p>
@@ -1353,20 +1403,20 @@ export default function AdministrationTenantCompaniesPage() {
                           <p className="text-xs font-pmedium text-slate-700">{company.contractEnd}</p>
                         </div>
                       </td>
-                      <td className="px-5 py-4 space-y-1.5">
+                      <td className="px-3.5 py-2 space-y-1.5">
                         <span className="inline-block px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded text-[9px] font-pmedium uppercase tracking-wider">
                           {company.packageName || company.planType}
                         </span>
                         <div className="flex items-center gap-1 text-[10px] font-pmedium text-slate-600">
-                          <CreditCard size={12} className="text-slate-400" /> {company.creditsUsed} / {company.creditsAllocated} Cr
+                          <CreditCard size={12} className="text-slate-400" /> {Math.max(0, Number(company.totalCreditsAllocated || company.creditsAllocated || 0) - Number(company.creditsUsed || 0))} / {company.totalCreditsAllocated || company.creditsAllocated || 0} Cr
                         </div>
                       </td>
-                      <td className="px-5 py-4 text-center">
-                        <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-pmedium uppercase tracking-wider ${getStatusBadge(company.status)}`}>{company.status}</span>
+                      <td className="px-3.5 py-2 text-center">
+                        {getStatusBadge(company.status)}
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-3.5 py-2">
                         <div className="flex flex-wrap items-center justify-center gap-1.5">
-                          <button onClick={() => navigate(`/department-accesses/administration-department/tenant-companies/${company.recordId || company.id}`)} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm" title="View Details">
+                          <button onClick={() => navigate(`/department-accesses/administration-department/tenant-companies/${company.recordId || company.id}`, { state: { tenantCompanyName: company.name } })} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm" title="View Details">
                             <Eye size={14} />
                           </button>
                           <button onClick={() => openEditModal(company)} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 rounded-lg transition-all shadow-sm" title="Edit Company Record">
@@ -1380,10 +1430,10 @@ export default function AdministrationTenantCompaniesPage() {
                     </tr>
                   ))}
                   {filteredCompanies.length === 0 && !isFilteringCompanies && (
-                    <tr><td colSpan={6} className="py-16 text-center font-pmedium text-slate-400">No tenant companies found matching your filters.</td></tr>
+                    <tr><td colSpan={6} className="text-center py-20 text-slate-400 font-pmedium bg-slate-50/50">No companies match the current filters.</td></tr>
                   )}
                   {isFilteringCompanies && (
-                    <tr><td colSpan={6} className="py-16 text-center font-pmedium text-slate-400">
+                    <tr><td colSpan={6} className="text-center py-16 text-slate-400 font-pmedium bg-slate-50/50">
                       <span className="inline-flex items-center gap-1.5"><Loader2 size={14} className="animate-spin" /> Searching...</span>
                     </td></tr>
                   )}
@@ -1406,9 +1456,9 @@ export default function AdministrationTenantCompaniesPage() {
 
 
         {renewingContract && (
-          <div className="fixed inset-0 z-95 flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-md">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#0F172A]/40 backdrop-blur-sm">
             <div className="w-full max-w-md overflow-hidden rounded-[2rem] bg-white shadow-2xl border border-white/70">
-              <div className="flex items-center justify-between border-b border-slate-100 bg-blue-50/30 p-5">
+              <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white"><RefreshCw size={18} /></div>
                   <h3 className="text-base font-pmedium text-slate-800">Renew Contract</h3>
@@ -1421,16 +1471,16 @@ export default function AdministrationTenantCompaniesPage() {
                   <p>Finance gets notified automatically upon saving. Contract dates will be updated from the tenant company API.</p>
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Extend Duration</label>
-                  <select className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={renewForm.extendMonths} onChange={(event) => setRenewForm({ ...renewForm, extendMonths: event.target.value })}>
+                  <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Extend Duration</label>
+                  <select className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={renewForm.extendMonths} onChange={(event) => setRenewForm({ ...renewForm, extendMonths: event.target.value })}>
                     <option value="6">6 Months</option>
                     <option value="12">12 Months (1 Year)</option>
                     <option value="24">24 Months (2 Years)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Add More Credits</label>
-                  <input type="number" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={renewForm.addCredits} onChange={(event) => setRenewForm({ ...renewForm, addCredits: event.target.value })} min="0" step="100" />
+                  <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Add More Credits</label>
+                  <input type="number" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={renewForm.addCredits} onChange={(event) => setRenewForm({ ...renewForm, addCredits: event.target.value })} min="0" step="100" />
                 </div>
                 <button type="submit" className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#2563EB] py-2.5 text-xs font-pmedium text-white transition-all hover:bg-[#2563EB]/90"><Save size={14} /> Update Contract</button>
               </form>
@@ -1439,76 +1489,73 @@ export default function AdministrationTenantCompaniesPage() {
         )}
 
         {editingCompany && editForm && (
-          <div className="fixed inset-0 z-95 flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-md">
-            <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl border border-white/70">
-              <div className="flex items-center justify-between border-b border-slate-100 bg-blue-50/30 p-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white"><Edit size={18} /></div>
-                  <div>
-                    <h3 className="text-base font-pmedium text-slate-800">Edit Tenant Details</h3>
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">Editing: {editingCompany.name}</p>
-                  </div>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#0F172A]/40 backdrop-blur-sm">
+            <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] border border-white/70">
+              <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between shrink-0">
+                <div>
+                  <h2 className="text-base font-pmedium text-primary flex items-center gap-2"><Edit size={18} /> Edit Tenant Details</h2>
+                  <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">Editing: {editingCompany.name}</p>
                 </div>
-                <button onClick={closeEditModal} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors"><X size={16} /></button>
+                <button onClick={closeEditModal} className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"><X size={16} /></button>
               </div>
-              <form onSubmit={handleEditSave} className="flex-1 overflow-y-auto p-4 bg-slate-50/30">
+              <form onSubmit={handleEditSave} className="p-3 sm:p-4 overflow-y-auto flex flex-1 flex-col gap-4 bg-slate-50/30">
                 <div className="grid gap-4">
                   <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
-                    <h4 className="flex items-center gap-2.5 border-b border-slate-100 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Users size={16} /></span><span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Profile & Contact</span></h4>
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Users size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">1. Profile &amp; Contact</span></h4>
                     <div className="grid gap-3 md:grid-cols-2">
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Company Name</label>
-                        <input required type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.companyName} onChange={(event) => setEditForm((current) => current && ({ ...current, companyName: event.target.value }))} />
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Company Name</label>
+                        <input required type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.companyName} onChange={(event) => setEditForm((current) => current && ({ ...current, companyName: event.target.value }))} />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Business Type</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.businessType} onChange={(event) => setEditForm((current) => current && ({ ...current, businessType: event.target.value }))} />
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Business Type</label>
+                        <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.businessType} onChange={(event) => setEditForm((current) => current && ({ ...current, businessType: event.target.value }))} />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Contact Person</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.contactPerson} onChange={(event) => setEditForm((current) => current && ({ ...current, contactPerson: event.target.value }))} />
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Contact Person</label>
+                        <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.contactPerson} onChange={(event) => setEditForm((current) => current && ({ ...current, contactPerson: event.target.value }))} />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Email</label>
-                        <input type="email" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.email} onChange={(event) => setEditForm((current) => current && ({ ...current, email: event.target.value }))} />
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Email</label>
+                        <input type="email" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.email} onChange={(event) => setEditForm((current) => current && ({ ...current, email: event.target.value }))} />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Phone</label>
-                        <input type="tel" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.phone} onChange={(event) => setEditForm((current) => current && ({ ...current, phone: event.target.value }))} />
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Phone</label>
+                        <input type="tel" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.phone} onChange={(event) => setEditForm((current) => current && ({ ...current, phone: event.target.value }))} />
                       </div>
                     </div>
                   </section>
 
                   <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
-                    <h4 className="flex items-center gap-2.5 border-b border-slate-100 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Building2 size={16} /></span><span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Company Details</span></h4>
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Building2 size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">2. Company Details</span></h4>
                     <div className="grid gap-3 md:grid-cols-2">
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Building Name</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.companyDetails.buildingName} onChange={(event) => updateEditSection('companyDetails', 'buildingName', event.target.value)} />
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Building Name</label>
+                        <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.companyDetails.buildingName} onChange={(event) => updateEditSection('companyDetails', 'buildingName', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Unit No</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.companyDetails.unitNo} onChange={(event) => updateEditSection('companyDetails', 'unitNo', event.target.value)} />
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Unit No</label>
+                        <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.companyDetails.unitNo} onChange={(event) => updateEditSection('companyDetails', 'unitNo', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Cabin Desks</label>
-                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.companyDetails.cabinDesks} onChange={(event) => updateEditSection('companyDetails', 'cabinDesks', event.target.value)} />
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Cabin Desks</label>
+                        <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.companyDetails.cabinDesks} onChange={(event) => updateEditSection('companyDetails', 'cabinDesks', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Rate Per Cabin Desk</label>
-                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.companyDetails.ratePerCabinDesk} onChange={(event) => updateEditSection('companyDetails', 'ratePerCabinDesk', event.target.value)} />
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Rate Per Cabin Desk</label>
+                        <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.companyDetails.ratePerCabinDesk} onChange={(event) => updateEditSection('companyDetails', 'ratePerCabinDesk', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Open Desks</label>
-                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.companyDetails.openDesks} onChange={(event) => updateEditSection('companyDetails', 'openDesks', event.target.value)} />
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Open Desks</label>
+                        <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.companyDetails.openDesks} onChange={(event) => updateEditSection('companyDetails', 'openDesks', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Rate Per Open Desk</label>
-                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.companyDetails.ratePerOpenDesk} onChange={(event) => updateEditSection('companyDetails', 'ratePerOpenDesk', event.target.value)} />
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Rate Per Open Desk</label>
+                        <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.companyDetails.ratePerOpenDesk} onChange={(event) => updateEditSection('companyDetails', 'ratePerOpenDesk', event.target.value)} />
                       </div>
                       <div className="md:col-span-2">
-                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Status</label>
-                        <select className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={editForm.companyDetails.status} onChange={(event) => updateEditSection('companyDetails', 'status', event.target.value)}>
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Status</label>
+                        <select className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer" value={editForm.companyDetails.status} onChange={(event) => updateEditSection('companyDetails', 'status', event.target.value)}>
                           <option>Active</option>
                           <option>Expiring Soon</option>
                           <option>Expired</option>
@@ -1518,18 +1565,18 @@ export default function AdministrationTenantCompaniesPage() {
                   </section>
 
                   <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
-                    <h4 className="flex items-center gap-2.5 border-b border-slate-100 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Building2 size={16} /></span><span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Customer Details</span></h4>
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Building2 size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">3. Customer Details</span></h4>
                     <div className="grid gap-3 md:grid-cols-2">
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Client Name</label>
-                        <input required type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.customerDetails.clientName} onChange={(event) => updateEditSection('customerDetails', 'clientName', event.target.value)} />
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Client Name</label>
+                        <input required type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.customerDetails.clientName} onChange={(event) => updateEditSection('customerDetails', 'clientName', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">Sector</label>
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Sector</label>
                         {!showCustomSector ? (
                           <div className="space-y-1.5">
                             <select
-                              className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer"
+                              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                               value={allSectorOptions.includes(editForm.customerDetails.sector) ? editForm.customerDetails.sector : ''}
                               onChange={(event) => { setShowCustomSector(false); updateEditSection('customerDetails', 'sector', event.target.value); }}
                             >
@@ -1565,132 +1612,132 @@ export default function AdministrationTenantCompaniesPage() {
                         )}
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">HO Country</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.customerDetails.hoCountry} onChange={(event) => updateEditSection('customerDetails', 'hoCountry', event.target.value)} />
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">HO Country</label>
+                        <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.customerDetails.hoCountry} onChange={(event) => updateEditSection('customerDetails', 'hoCountry', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">HO State</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.customerDetails.hoState} onChange={(event) => updateEditSection('customerDetails', 'hoState', event.target.value)} />
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">HO State</label>
+                        <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.customerDetails.hoState} onChange={(event) => updateEditSection('customerDetails', 'hoState', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-wider text-slate-500">HO City</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-sm font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.customerDetails.hoCity} onChange={(event) => updateEditSection('customerDetails', 'hoCity', event.target.value)} />
+                        <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">HO City</label>
+                        <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.customerDetails.hoCity} onChange={(event) => updateEditSection('customerDetails', 'hoCity', event.target.value)} />
                       </div>
                     </div>
                   </section>
 
                   <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
-                    <h4 className="flex items-center gap-2.5 border-b border-slate-100 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Phone size={16} /></span><span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">POC Details</span></h4>
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Phone size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">4. POC Details</span></h4>
                     <div className="grid gap-3 md:grid-cols-3">
                       <div className="md:col-span-3">
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Local POC Name</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.pocDetails.localPocName} onChange={(event) => updateEditSection('pocDetails', 'localPocName', event.target.value)} />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Local POC Name</label>
+                        <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.pocDetails.localPocName} onChange={(event) => updateEditSection('pocDetails', 'localPocName', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Local POC Email</label>
-                        <input type="email" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.pocDetails.localPocEmail} onChange={(event) => updateEditSection('pocDetails', 'localPocEmail', event.target.value)} />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Local POC Email</label>
+                        <input type="email" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.pocDetails.localPocEmail} onChange={(event) => updateEditSection('pocDetails', 'localPocEmail', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Local POC Phone</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.pocDetails.localPocPhone} onChange={(event) => updateEditSection('pocDetails', 'localPocPhone', event.target.value)} />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Local POC Phone</label>
+                        <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.pocDetails.localPocPhone} onChange={(event) => updateEditSection('pocDetails', 'localPocPhone', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">HO POC Name</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.pocDetails.hoPocName} onChange={(event) => updateEditSection('pocDetails', 'hoPocName', event.target.value)} />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">HO POC Name</label>
+                        <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.pocDetails.hoPocName} onChange={(event) => updateEditSection('pocDetails', 'hoPocName', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">HO POC Email</label>
-                        <input type="email" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.pocDetails.hoPocEmail} onChange={(event) => updateEditSection('pocDetails', 'hoPocEmail', event.target.value)} />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">HO POC Email</label>
+                        <input type="email" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.pocDetails.hoPocEmail} onChange={(event) => updateEditSection('pocDetails', 'hoPocEmail', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">HO POC Phone</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.pocDetails.hoPocPhone} onChange={(event) => updateEditSection('pocDetails', 'hoPocPhone', event.target.value)} />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">HO POC Phone</label>
+                        <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.pocDetails.hoPocPhone} onChange={(event) => updateEditSection('pocDetails', 'hoPocPhone', event.target.value)} />
                       </div>
                     </div>
                   </section>
 
                   <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
-                    <h4 className="flex items-center gap-2.5 border-b border-slate-100 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><FileText size={16} /></span><span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Agreement Details</span></h4>
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><FileText size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">5. Agreement Details</span></h4>
                     <div className="grid gap-3 md:grid-cols-3">
                       <div>
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Start Date</label>
-                        <input type="date" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.agreementDetails.startDate} onChange={(event) => updateEditSection('agreementDetails', 'startDate', event.target.value)} />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Start Date</label>
+                        <input type="date" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.agreementDetails.startDate} onChange={(event) => updateEditSection('agreementDetails', 'startDate', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">End Date</label>
-                        <input type="date" className="w-full rounded-xl border border-slate-200 bg-slate-100 p-2.5 text-xs font-pmedium text-slate-500 outline-none" value={editForm.agreementDetails.endDate} readOnly />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">End Date</label>
+                        <input type="date" className="w-full px-3 py-2.5 bg-slate-100 border border-transparent rounded-xl text-[12px] font-pmedium text-slate-500 outline-none cursor-not-allowed" value={editForm.agreementDetails.endDate} readOnly />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Lock-in Period (Months)</label>
-                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.agreementDetails.lockInPeriod} onChange={(event) => updateEditSection('agreementDetails', 'lockInPeriod', event.target.value)} />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Lock-in Period (Months)</label>
+                        <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.agreementDetails.lockInPeriod} onChange={(event) => updateEditSection('agreementDetails', 'lockInPeriod', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Annual Increment</label>
-                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.agreementDetails.annualIncrement} onChange={(event) => updateEditSection('agreementDetails', 'annualIncrement', event.target.value)} />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Annual Increment</label>
+                        <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.agreementDetails.annualIncrement} onChange={(event) => updateEditSection('agreementDetails', 'annualIncrement', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Per Desk Meeting Credits</label>
-                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.agreementDetails.perDeskMeetingCredits} onChange={(event) => updateEditSection('agreementDetails', 'perDeskMeetingCredits', event.target.value)} />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Per Desk Meeting Credits</label>
+                        <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.agreementDetails.perDeskMeetingCredits} onChange={(event) => updateEditSection('agreementDetails', 'perDeskMeetingCredits', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Total Meeting Credits</label>
-                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.agreementDetails.totalMeetingCredits} onChange={(event) => updateEditSection('agreementDetails', 'totalMeetingCredits', event.target.value)} />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Total Meeting Credits</label>
+                        <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.agreementDetails.totalMeetingCredits} onChange={(event) => updateEditSection('agreementDetails', 'totalMeetingCredits', event.target.value)} />
                       </div>
                     </div>
                   </section>
 
                   <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
-                    <h4 className="flex items-center gap-2.5 border-b border-slate-100 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><CreditCard size={16} /></span><span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Package & Credits</span></h4>
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><CreditCard size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">6. Package &amp; Credits</span></h4>
                     <div className="grid gap-3 md:grid-cols-2">
                       <div className="md:col-span-2">
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Package Name</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.packageDetails.packageName} onChange={(event) => updateEditSection('packageDetails', 'packageName', event.target.value)} />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Package Name</label>
+                        <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.packageDetails.packageName} onChange={(event) => updateEditSection('packageDetails', 'packageName', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Open Desks</label>
-                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.packageDetails.openDesks} onChange={(event) => updateEditSection('packageDetails', 'openDesks', event.target.value)} />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Open Desks</label>
+                        <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.packageDetails.openDesks} onChange={(event) => updateEditSection('packageDetails', 'openDesks', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Cabin Desks</label>
-                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.packageDetails.cabinDesks} onChange={(event) => updateEditSection('packageDetails', 'cabinDesks', event.target.value)} />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Cabin Desks</label>
+                        <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.packageDetails.cabinDesks} onChange={(event) => updateEditSection('packageDetails', 'cabinDesks', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Credits Per Seat</label>
-                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.packageDetails.creditsPerSeat} onChange={(event) => updateEditSection('packageDetails', 'creditsPerSeat', event.target.value)} />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Credits Per Seat</label>
+                        <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.packageDetails.creditsPerSeat} onChange={(event) => updateEditSection('packageDetails', 'creditsPerSeat', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Monthly Total Credits</label>
-                        <input type="number" className="w-full rounded-xl border border-sky-200 bg-sky-50 p-2.5 text-xs font-pmedium text-sky-700 outline-none" value={calculatePackageMonthlyCredits(editForm.packageDetails)} readOnly />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Monthly Total Credits</label>
+                        <input type="number" className="w-full px-3 py-2.5 bg-slate-100 border border-transparent rounded-xl text-[12px] font-pmedium text-slate-500 outline-none cursor-not-allowed" value={calculatePackageMonthlyCredits(editForm.packageDetails)} readOnly />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Credit Reset Cycle</label>
-                        <select className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={editForm.creditConfiguration.creditResetCycle} onChange={(event) => { updateEditSection('creditConfiguration', 'creditResetCycle', event.target.value); updateEditSection('packageDetails', 'creditResetCycle', event.target.value); }}>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Credit Reset Cycle</label>
+                        <select className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer" value={editForm.creditConfiguration.creditResetCycle} onChange={(event) => { updateEditSection('creditConfiguration', 'creditResetCycle', event.target.value); updateEditSection('packageDetails', 'creditResetCycle', event.target.value); }}>
                           <option>Monthly</option>
                           <option>Quarterly</option>
                           <option>Yearly</option>
                         </select>
                       </div>
                       <div>
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Rate per Credit (Purchase)</label>
-                        <input type="number" min="0" step="0.01" title="Price the tenant pays per credit when buying more (default 10)" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.creditConfiguration.ratePerCredit ?? '10'} onChange={(event) => updateEditSection('creditConfiguration', 'ratePerCredit', event.target.value)} />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Rate per Credit (Purchase)</label>
+                        <input type="number" min="0" step="0.01" title="Price the tenant pays per credit when buying more (default 10)" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.creditConfiguration.ratePerCredit ?? '10'} onChange={(event) => updateEditSection('creditConfiguration', 'ratePerCredit', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Purchased Credits</label>
-                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.addOnCredits.purchasedCredits} onChange={(event) => updateEditSection('addOnCredits', 'purchasedCredits', event.target.value)} />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Purchased Credits</label>
+                        <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.addOnCredits.purchasedCredits} onChange={(event) => updateEditSection('addOnCredits', 'purchasedCredits', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Remaining Credits</label>
-                        <input type="number" className="w-full rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-pmedium text-emerald-700 outline-none" value={calculateRemainingCredits(editForm)} readOnly />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Remaining Credits</label>
+                        <input type="number" className="w-full px-3 py-2.5 bg-slate-100 border border-transparent rounded-xl text-[12px] font-pmedium text-slate-500 outline-none cursor-not-allowed" value={calculateRemainingCredits(editForm)} readOnly />
                       </div>
                       <div className="md:col-span-2">
-                        <label className="mb-1 block text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Credit Usage Tracking</label>
-                        <textarea rows={3} className="w-full rounded-xl border border-slate-200/60 bg-white p-2.5 text-xs font-pmedium outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={editForm.packageDetails.creditUsageTracking} onChange={(event) => { updateEditSection('packageDetails', 'creditUsageTracking', event.target.value); updateEditSection('creditConfiguration', 'creditUsageTracking', event.target.value); }} placeholder="Track monthly usage, add-on consumption, and renewal notes here." />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Credit Usage Tracking</label>
+                        <textarea rows={3} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={editForm.packageDetails.creditUsageTracking} onChange={(event) => { updateEditSection('packageDetails', 'creditUsageTracking', event.target.value); updateEditSection('creditConfiguration', 'creditUsageTracking', event.target.value); }} placeholder="Track monthly usage, add-on consumption, and renewal notes here." />
                       </div>
                     </div>
                   </section>
 
                   <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
-                    <h4 className="flex items-center gap-2.5 border-b border-slate-100 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><FileText size={16} /></span><span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Upload Document</span></h4>
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><FileText size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">7. Upload Document</span></h4>
                     <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4">
                       <label className="block text-[10px] font-pmedium text-amber-700 uppercase tracking-widest mb-2">Upload Agreement Document</label>
                       <div className="rounded-xl border border-amber-200 bg-white p-3 shadow-sm">
@@ -1735,7 +1782,7 @@ export default function AdministrationTenantCompaniesPage() {
                   </section>
                 </div>
 
-                <div className="mt-4 flex items-center justify-end gap-2 border-t border-slate-100 pt-3 sticky bottom-0 bg-slate-50/30">
+                <div className="mt-0 flex items-center justify-end gap-2 border-t border-slate-100 pt-3 sticky bottom-0 bg-slate-50/30">
                   <button type="button" onClick={closeEditModal} className="rounded-xl px-4 py-2 text-xs font-pmedium text-slate-600 transition-all hover:bg-slate-100">Cancel</button>
                   <button type="submit" disabled={isSaving} className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-pmedium text-white transition-all hover:bg-[#2563EB]/90 disabled:cursor-not-allowed disabled:opacity-60">
                     <Save size={14} /> Save Changes
@@ -1745,7 +1792,6 @@ export default function AdministrationTenantCompaniesPage() {
             </div>
           </div>
         )}
-    </AppShell>
 
       <ExportReportModal
         isOpen={showExportModal}

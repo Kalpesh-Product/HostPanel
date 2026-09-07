@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import {
   ArrowLeft, Users, History, CalendarDays, CreditCard, Plus, X, Save,
@@ -8,7 +8,6 @@ import {
   LayoutGrid, Loader2,
   Banknote, UploadCloud, Send
 } from 'lucide-react';
-import { AppShell } from '@/components/layout/AppShell';
 import { getTenantCompany, addTenantCompanyEmployee, sendTenantCompanyEmployeeInvite, updateTenantCompanyEmployee, updateTenantCompanyEmployeeStatus, deleteTenantCompanyEmployee, updateTenantCompanyManager } from '../../../services/tenant-companies';
 import { getBookingsByTenantCompany } from '../../../services/meeting-room-bookings';
 import PageFrame from '../../../components/Pages/PageFrame';
@@ -201,6 +200,7 @@ function DataPanel({ title, subtitle, headerRight, children }) {
 export default function AdministrationTenantCompanyDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const currentUser = useFreshCurrentUser();
   const workspacePreferences = useWorkspacePreferences();
   currentWorkspaceCurrency = workspacePreferences.currency;
@@ -298,6 +298,17 @@ export default function AdministrationTenantCompanyDetailPage() {
     // Backend "Purchased Credits" uses `credited`, while usage/debits typically use `used` or `debited`.
     return Number(e?.credited ?? e?.used ?? e?.debited ?? 0);
   };
+
+  useEffect(() => {
+    const tenantCompanyName = String(tenant?.companyName || '').trim();
+    const currentRouteName = String((location.state as Record<string, unknown> | null)?.tenantCompanyName || '').trim();
+    if (tenantCompanyName && tenantCompanyName !== currentRouteName) {
+      navigate(location.pathname, {
+        replace: true,
+        state: { ...((location.state as Record<string, unknown> | null) || {}), tenantCompanyName },
+      });
+    }
+  }, [location.pathname, location.state, navigate, tenant?.companyName]);
 
   const mStats = useMemo(() => {
     let debitSum = 0, creditSum = 0;
@@ -411,7 +422,6 @@ export default function AdministrationTenantCompanyDetailPage() {
   // ---------- Loading / Not found ----------
   if (isLoading) {
     return (
-      <AppShell>
         <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
           <PageFrame>
             <div className="space-y-4 w-full animate-pulse">
@@ -422,18 +432,15 @@ export default function AdministrationTenantCompanyDetailPage() {
             </div>
           </PageFrame>
         </div>
-      </AppShell>
     );
   }
   if (!tenant) {
     return (
-      <AppShell>
         <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
           <PageFrame>
             <div className="flex items-center justify-center min-h-[40vh]"><p className="text-sm font-pmedium text-slate-400">Tenant company not found.</p></div>
           </PageFrame>
         </div>
-      </AppShell>
     );
   }
 
@@ -443,7 +450,7 @@ export default function AdministrationTenantCompanyDetailPage() {
   // RENDER
   // ====================================================================
   return (
-    <AppShell>
+    <>
       <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
         <PageFrame>
           <div className="flex flex-col gap-4">
@@ -563,7 +570,7 @@ export default function AdministrationTenantCompanyDetailPage() {
                         <div>
                           <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Current Manager</p>
                           <p className="text-sm font-pmedium text-slate-900 mt-1">{mgrEmp ? empName(mgrEmp) : tenant.contactName || 'No manager assigned'}</p>
-                          {mgrEmp && <p className="text-[10px] text-slate-500 mt-0.5">{mgrEmp.email}</p>}
+                          {mgrEmp && <p className="text-[10px] font-pmedium text-slate-500 mt-0.5">{mgrEmp.email}</p>}
                         </div>
                         <span className={`px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-wider border ${mgrEmp || tenant.contactName ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
                           {mgrEmp || tenant.contactName ? 'Assigned' : 'Pending'}
@@ -745,18 +752,18 @@ export default function AdministrationTenantCompanyDetailPage() {
                             <td className="px-5 py-4"><p className="text-sm font-pmedium text-slate-900">{b.roomName}</p></td>
                             <td className="px-5 py-4">
                               <p className="text-xs font-pmedium text-slate-800">{fmtDate(b.start || b.date)}</p>
-                              <p className="text-[10px] text-slate-500">{b.startTime || ''} - {b.endTime || ''}</p>
+                              <p className="text-[10px] font-pmedium text-slate-500">{b.startTime || ''} - {b.endTime || ''}</p>
                             </td>
                             <td className="px-5 py-4">
                               <p className="text-xs font-pmedium text-slate-700">{b.bookedByName || '-'}</p>
-                              <p className="text-[10px] text-slate-500">{b.bookedByEmail || ''}</p>
+                              <p className="text-[10px] font-pmedium text-slate-500">{b.bookedByEmail || ''}</p>
                             </td>
                             <td className="px-5 py-4">
                               <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[8px] font-pmedium uppercase tracking-widest ${bookingStyle(b.status || b.storedStatus)}`}>
                                 {b.status || b.storedStatus || 'Booked'}
                               </span>
                             </td>
-                            <td className="px-5 py-4 text-right"><span className="text-xs font-black text-red-500">{(b.bookingCredits || 0)}</span></td>
+                            <td className="px-5 py-4 text-right"><span className="text-xs font-pmedium text-red-500">{(b.bookingCredits || 0)}</span></td>
                             <td className="px-5 py-4 text-center">
                               <button onClick={() => setViewBk(b)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all" title="View Details"><Eye size={15} strokeWidth={2.5} /></button>
                             </td>
@@ -860,15 +867,15 @@ export default function AdministrationTenantCompanyDetailPage() {
                               <td className="px-5 py-4 text-[10px] font-pmedium text-slate-500">{(Date(e.date))}</td>
                               <td className="px-5 py-4">
                                 <p className="text-xs font-pmedium text-slate-900">{e.roomName || e.resource || e.type || 'Transaction'}</p>
-                                {e.bookedBy && <p className="text-[10px] text-slate-500">Host: {e.bookedBy}</p>}
+                                {e.bookedBy && <p className="text-[10px] font-pmedium text-slate-500">Host: {e.bookedBy}</p>}
                               </td>
-                              <td className="px-5 py-4 text-right text-xs font-black text-red-500">
+                              <td className="px-5 py-4 text-right text-xs font-pmedium text-red-500">
                                 {!isCreditEntry(e.type) && (e.used || e.debited) ? (e.used || e.debited) : '-'}
                               </td>
-                              <td className="px-5 py-4 text-right text-xs font-black text-emerald-600">
+                              <td className="px-5 py-4 text-right text-xs font-pmedium text-emerald-600">
                                 {isCreditEntry(e.type) ? (getEntryCreditAmount(e)) : '-'}
                               </td>
-                              <td className="px-5 py-4 text-right text-xs font-black text-slate-700">{(e.remainingCredits ?? 0)}</td>
+                              <td className="px-5 py-4 text-right text-xs font-pmedium text-slate-700">{(e.remainingCredits ?? 0)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -899,17 +906,17 @@ export default function AdministrationTenantCompanyDetailPage() {
                   <div className="flex flex-col items-center justify-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                     <LayoutGrid className="mb-1 text-blue-500" size={22} />
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mt-1">Open Desks</p>
-                    <p className="text-2xl font-black text-slate-900 mt-0.5">{(tenant.spaceAssigned?.openDesks || tenant.companyDetails?.openDesks || tenant.packageDetails?.openDesks || 0)}</p>
+                    <p className="text-2xl font-pmedium text-slate-900 mt-0.5">{(tenant.spaceAssigned?.openDesks || tenant.companyDetails?.openDesks || tenant.packageDetails?.openDesks || 0)}</p>
                   </div>
                   <div className="flex flex-col items-center justify-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                     <Building2 className="mb-1 text-purple-500" size={22} />
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mt-1">Cabin Desks</p>
-                    <p className="text-2xl font-black text-slate-900 mt-0.5">{(tenant.spaceAssigned?.cabinDesks || tenant.companyDetails?.cabinDesks || tenant.packageDetails?.cabinDesks || 0)}</p>
+                    <p className="text-2xl font-pmedium text-slate-900 mt-0.5">{(tenant.spaceAssigned?.cabinDesks || tenant.companyDetails?.cabinDesks || tenant.packageDetails?.cabinDesks || 0)}</p>
                   </div>
                   <div className="flex flex-col items-center justify-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                     <Users className="mb-1 text-sky-500" size={22} />
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mt-1">Total Seats</p>
-                    <p className="text-2xl font-black text-slate-900 mt-0.5">{(tenant.spaceAssigned?.totalSeats || tenant.packageDetails?.totalSeats || 0)}</p>
+                    <p className="text-2xl font-pmedium text-slate-900 mt-0.5">{(tenant.spaceAssigned?.totalSeats || tenant.packageDetails?.totalSeats || 0)}</p>
                   </div>
                 </div>
 
@@ -1307,6 +1314,6 @@ export default function AdministrationTenantCompanyDetailPage() {
           </div>
         </div>
       )}
-    </AppShell>
+    </>
   );
 }

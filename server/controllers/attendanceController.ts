@@ -14,8 +14,89 @@ import {
   updateAttendanceGeofence,
   updateAttendanceSettings,
   startBreakAttendance,
+  checkInAttendanceForProfile,
+  startBreakAttendanceForProfile,
+  endBreakAttendanceForProfile,
+  checkOutAttendanceForProfile,
+  getTodayAttendanceForProfile,
+  getEmployeeAttendanceHistoryForProfile,
+  requestAttendanceCorrectionForProfile,
 } from "../services/attendanceService.js";
 import { createNotification } from "../utils/notify.js";
+
+const resolveWorkspaceId = (request) =>
+  request.workspaceMembership?.workspace ||
+  request.user?.activeWorkspaceId ||
+  request.query?.workspaceId ||
+  request.body?.workspaceId;
+
+export async function proxyCheckIn(request, response, next) {
+  try {
+    const workspaceId = resolveWorkspaceId(request);
+    const result = await checkInAttendanceForProfile(request.params.employeeProfileId, workspaceId, request.user);
+    response.status(200).json({ success: true, message: "Checked in successfully.", data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function proxyStartBreak(request, response, next) {
+  try {
+    const workspaceId = resolveWorkspaceId(request);
+    const result = await startBreakAttendanceForProfile(request.params.employeeProfileId, workspaceId, request.user);
+    response.status(200).json({ success: true, message: "Break started successfully.", data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function proxyEndBreak(request, response, next) {
+  try {
+    const workspaceId = resolveWorkspaceId(request);
+    const result = await endBreakAttendanceForProfile(request.params.employeeProfileId, workspaceId, request.user);
+    response.status(200).json({ success: true, message: "Break ended successfully.", data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function proxyCheckOut(request, response, next) {
+  try {
+    const workspaceId = resolveWorkspaceId(request);
+    const result = await checkOutAttendanceForProfile(request.params.employeeProfileId, workspaceId, request.user);
+    response.status(200).json({ success: true, message: "Checked out successfully.", data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function proxyGetToday(request, response, next) {
+  try {
+    const workspaceId = resolveWorkspaceId(request);
+    const result = await getTodayAttendanceForProfile(request.params.employeeProfileId, workspaceId);
+    response.status(200).json({ success: true, message: "Attendance loaded successfully.", data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function proxyGetMonth(request, response, next) {
+  try {
+    const result = await getEmployeeAttendanceHistoryForProfile(request.user, request.params.employeeProfileId, request.query);
+    response.status(200).json({ success: true, message: "Attendance history loaded successfully.", data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function proxyRequestCorrection(request, response, next) {
+  try {
+    const result = await requestAttendanceCorrectionForProfile(request.user, request.params.recordId, request.params.employeeProfileId, request.body);
+    response.status(200).json({ success: true, message: "Correction request submitted.", data: result });
+  } catch (error) {
+    next(error);
+  }
+}
 
 export async function checkIn(request, response, next) {
   try {

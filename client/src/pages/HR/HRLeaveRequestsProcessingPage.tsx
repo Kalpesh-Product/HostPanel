@@ -1809,7 +1809,7 @@ export default function HRLeaveRequestsProcessingPage() {
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden">
               <div className="p-6 bg-slate-900 border-b border-slate-800 flex justify-between items-start">
                 <div>
-                  <h2 className="text-lg font-pmedium text-slate-900">Leave Details</h2>
+                  <h2 className="text-lg font-pmedium text-slate-100">Leave Details</h2>
                   <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{String(viewingLeaveDetail.employeeName || viewingLeaveDetail.name || "")}</p>
                 </div>
                 <button onClick={() => setViewingLeaveDetail(null)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm transition-colors hover:bg-red-50 hover:text-red-600">
@@ -2059,7 +2059,7 @@ export default function HRLeaveRequestsProcessingPage() {
                   <button onClick={() => { setRejectingRequest(null); setRejectReason(""); }} className="w-full sm:flex-1 py-2.5 bg-white border border-slate-200/60 shadow-sm text-slate-700 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[11px] uppercase tracking-wider">
                     CANCEL
                   </button>
-                  <button disabled={!rejectReason.trim() || isSavingDecision} onClick={handleRejectSubmit} className="w-full sm:flex-[2] flex items-center justify-center gap-1.5 bg-rose-500 text-white px-4 py-2.5 rounded-2xl text-[11px] font-pmedium uppercase tracking-wider hover:bg-rose-600 active:scale-95 transition-all disabled:opacity-50">
+                  <button disabled={!rejectReason.trim() || isSavingDecision} onClick={handleRejectSubmit} className="w-full sm:flex-1 flex items-center justify-center gap-1.5 bg-rose-500 text-white px-4 py-2.5 rounded-2xl text-[11px] font-pmedium uppercase tracking-wider hover:bg-rose-600 active:scale-95 transition-all disabled:opacity-50">
                     {isSavingDecision ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
                     CONFIRM REJECTION
                   </button>

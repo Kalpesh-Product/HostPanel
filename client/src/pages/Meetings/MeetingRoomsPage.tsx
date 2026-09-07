@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+ï»¿import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Search, ChevronDown, Clock, Users, Building,
@@ -277,7 +277,7 @@ function isActiveRoom(room: any) {
 }
 
 // Virtual Office resources are a sales product, not something bookable via
-// the external-booking flow — excluded there specifically.
+// the external-booking flow excluded there specifically.
 function isVirtualOfficeRoom(room: any) {
   const normalizedType = String(room.type || '').trim().toLowerCase();
   const normalizedCategory = String(room.resourceCategory || '').trim().toLowerCase();
@@ -422,7 +422,7 @@ function getMeetingTimeZoneDateParts(value?: any, timeZone = DEFAULT_WORKSPACE_T
   }
 
   // A plain "YYYY-MM-DD" string (e.g. from a date picker) already IS the
-  // workspace-local calendar date the user chose — it must be read verbatim,
+  // workspace-local calendar date the user chose it must be read verbatim,
   // never routed through `new Date()` (which anchors it to UTC midnight)
   // and re-projected into `timeZone`, or workspaces far from UTC (e.g.
   // America/Adak) shift a day off.
@@ -536,7 +536,7 @@ function isAlignedToStep(totalMinutes: number, stepMinutes: number = BOOKING_SLO
 }
 
 // Scrolls to and focuses the first invalid field (in form order) so the user
-// doesn't have to hunt for it — each click surfaces the next unresolved field.
+// doesn't have to hunt for it each click surfaces the next unresolved field.
 function focusFirstFieldError(fieldOrder: string[], errors: Record<string, string>, idPrefix: string) {
   const firstKey = fieldOrder.find((key) => errors[key]);
   if (!firstKey) return;
@@ -603,7 +603,7 @@ function getBookingTimeValidation(
       return { valid: false, reason: 'End date cannot be before the start date.' };
     }
 
-    // A multi-day booking occupies the same start–end window on every day of
+    // A multi-day booking occupies the same start end window on every day of
     // the range, so end time must be after start time even across days.
     if (endMinutes <= startMinutes) {
       return { valid: false, reason: 'End time must be after start time.' };
@@ -773,7 +773,7 @@ function isRejectedCurrentUserInvite(booking: any) {
 }
 
 // -----------------------------------------------------------------------------
-// ClientDetailsTab — Task 9: Search, select, and "Add New Client" flow
+// ClientDetailsTab Task 9: Search, select, and "Add New Client" flow
 // -----------------------------------------------------------------------------
 
 interface ClientDetailsTabProps {
@@ -818,7 +818,7 @@ function ClientDetailsTab({
   const [isConfirming, setIsConfirming] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Debounced search — fires 300ms after the user stops typing if = 2 chars
+  // Debounced search fires 300ms after the user stops typing if = 2 chars
   const handleSearchChange = useCallback(
     (value: string) => {
       setClientSearch(value);
@@ -908,7 +908,7 @@ function ClientDetailsTab({
       return;
     }
 
-    // clientMode === 'new' — validate all required fields
+    // clientMode === 'new' validate all required fields
     const errors: Record<string, string> = {};
     if (!newClientForm.name.trim()) errors.name = 'Name is required.';
     if (!newClientForm.email.trim()) {
@@ -990,7 +990,7 @@ function ClientDetailsTab({
               type="text"
               value={clientSearch}
               onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Search client by name, email, or phone…"
+              placeholder="Search client by name, email, or phone"
               className={`${inputClass} pl-9`}
             />
           </div>
@@ -1008,8 +1008,8 @@ function ClientDetailsTab({
                   <p className="text-[13px] font-pmedium text-[#0F172A]">{client.name}</p>
                   <p className="text-[11px] text-slate-500">
                     {client.email}
-                    {client.phone ? ` · ${client.phone}` : ''}
-                    {client.company ? ` · ${client.company}` : ''}
+                    {client.phone ? ` ${client.phone}` : ''}
+                    {client.company ? ` ${client.company}` : ''}
                   </p>
                 </button>
               ))}
@@ -1124,14 +1124,14 @@ function ClientDetailsTab({
           className="w-full px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
         >
           {isConfirming
-            ? 'Saving…'
+            ? 'Saving'
             : clientMode === 'new'
               ? 'Confirm Client'
               : 'Continue with Selected Client'}
         </button>
       )}
 
-      {/* -- Already confirmed — advance to booking -- */}
+      {/* -- Already confirmed advance to booking -- */}
       {selectedClient && (
         <button
           type="button"
@@ -1146,7 +1146,7 @@ function ClientDetailsTab({
 }
 
 // -----------------------------------------------------------------------------
-// ExternalBookingDialog — Task 8: Skeleton, state, and tab bar
+// ExternalBookingDialog Task 8: Skeleton, state, and tab bar
 // -----------------------------------------------------------------------------
 
 interface ExternalBookingDialogProps {
@@ -1230,7 +1230,7 @@ function ExternalBookingDialog({
   const [wingFilter, setWingFilter] = useState('');
   const [floorFilter, setFloorFilter] = useState('');
 
-  // External bookings never offer Virtual Office resources — that's a sales
+  // External bookings never offer Virtual Office resources that's a sales
   // product assigned via Sales Architecture, not something booked here.
   const bookableRoomCatalog = useMemo(() => roomCatalog.filter((r) => !isVirtualOfficeRoom(r)), [roomCatalog]);
 
@@ -1289,7 +1289,7 @@ function ExternalBookingDialog({
     effectiveTaxConfig,
   ]);
 
-  // Discount validation — runs whenever discount inputs or base price change
+  // Discount validation runs whenever discount inputs or base price change
   useEffect(() => {
     if (!bookingForm.discountValue || Number(bookingForm.discountValue) === 0) {
       if (bookingErrors.discount) setBookingErrors((prev) => { const n = { ...prev }; delete n.discount; return n; });
@@ -1415,7 +1415,7 @@ function ExternalBookingDialog({
       else errors.endTime = timeValidation.reason;
     }
 
-    // Conflict check — surfaced inline on the end time field, same as the server-side 409 path
+    // Conflict check surfaced inline on the end time field, same as the server-side 409 path
     if (!errors.resource && !errors.date && !errors.startTime && !errors.endTime
       && hasSlotConflict(allBookings, bookingForm.resourceName, bookingForm.date, bookingForm.startTime, bookingForm.endTime)) {
       errors.endTime = 'This resource is already booked for the selected time slot.';
@@ -1446,7 +1446,7 @@ function ExternalBookingDialog({
         roomName: room.name,
         bookedByName: editedClient.name || selectedClient.name,
         bookedForName: editedClient.name || selectedClient.name,
-        // Client contact — needed for the confirmation email recipient and so
+        // Client contact needed for the confirmation email recipient and so
         // the booking detail view can show the client's phone/email/company.
         bookedByEmail: editedClient.email || selectedClient.email || '',
         bookedByPhone: editedClient.phone || selectedClient.phone || '',
@@ -1611,7 +1611,7 @@ function ExternalBookingDialog({
                           type="text"
                           value={existingClientSearch}
                           onChange={(e) => setExistingClientSearch(e.target.value)}
-                          placeholder="Filter clients by name, email, or phone…"
+                          placeholder="Filter clients by name, email, or phone"
                           className="w-full px-4 py-3 pl-9 bg-slate-50 border-2 border-transparent rounded-2xl font-pmedium text-[13px] text-[#0F172A] placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all"
                         />
                       </div>
@@ -1620,7 +1620,7 @@ function ExternalBookingDialog({
                       {isLoadingClients && (
                         <div className="flex items-center justify-center py-8">
                           <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                          <span className="ml-2 text-[12px] text-slate-500">Loading clients…</span>
+                          <span className="ml-2 text-[12px] text-slate-500">Loading clients</span>
                         </div>
                       )}
 
@@ -1671,8 +1671,8 @@ function ExternalBookingDialog({
                                     <p className="text-[13px] font-pmedium text-[#0F172A] truncate">{client.name}</p>
                                     <p className="text-[11px] text-slate-500 truncate">
                                       {client.email}
-                                      {client.phone ? ` · ${client.phone}` : ''}
-                                      {client.company ? ` · ${client.company}` : ''}
+                                      {client.phone ? `  ${client.phone}` : ''}
+                                      {client.company ? `  ${client.company}` : ''}
                                     </p>
                                   </div>
                                   <span className="text-[10px] font-pmedium text-blue-600 uppercase tracking-wider shrink-0">Select</span>
@@ -1738,7 +1738,7 @@ function ExternalBookingDialog({
               )}
               {activeDialogTab === 'booking' && selectedClient && (
                 <div className="booking-tab-content rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4">
-                  {/* Editable Client Details — top of booking tab */}
+                  {/* Editable Client Details top of booking tab */}
                   <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
                     <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
                       <div className="flex items-center gap-2.5">
@@ -1801,15 +1801,15 @@ function ExternalBookingDialog({
                         </div>
                         <div>
                           <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Email</p>
-                          <p className="text-[13px] font-pmedium text-[#0F172A]">{selectedClient.email || '—'}</p>
+                          <p className="text-[13px] font-pmedium text-[#0F172A]">{selectedClient.email || ''}</p>
                         </div>
                         <div>
                           <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Phone</p>
-                          <p className="text-[13px] font-pmedium text-[#0F172A]">{selectedClient.phone || '—'}</p>
+                          <p className="text-[13px] font-pmedium text-[#0F172A]">{selectedClient.phone || ''}</p>
                         </div>
                         <div>
                           <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Company</p>
-                          <p className="text-[13px] font-pmedium text-[#0F172A]">{selectedClient.company || '—'}</p>
+                          <p className="text-[13px] font-pmedium text-[#0F172A]">{selectedClient.company || ''}</p>
                         </div>
                       </div>
                     )}
@@ -1821,10 +1821,10 @@ function ExternalBookingDialog({
                       <span className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700 shrink-0"><CalIcon size={16} /></span>
                       <span className="text-[12px] font-pmedium uppercase tracking-[0.16em] text-slate-900">Booking Details</span>
                     </div>
-                  {/* Booking Details — two-column grid */}
+                  {/* Booking Details two-column grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                    {/* Row 1 — Type filter (left) + Floor filter (right) */}
+                    {/* Row 1 Type filter (left) + Floor filter (right) */}
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">
                         Type
@@ -1864,7 +1864,7 @@ function ExternalBookingDialog({
                       </select>
                     </div>
 
-                    {/* Row 2 — Wing filter (left, optional) + Resource selector (right) */}
+                    {/* Row 2 Wing filter (left, optional) + Resource selector (right) */}
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">
                         Wing <span className="text-slate-300 font-pmedium normal-case tracking-normal">(optional)</span>
@@ -1918,7 +1918,7 @@ function ExternalBookingDialog({
                         }}
                         className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                       >
-                        <option value="">Select resource…</option>
+                        <option value="">Select resource</option>
                         {filteredResources.map((r) => (
                           <option key={String(r._id ?? r.id)} value={String(r._id ?? r.id)}>
                             {r.name}
@@ -2009,7 +2009,7 @@ function ExternalBookingDialog({
                         }}
                         className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                       >
-                        <option value="">Select…</option>
+                        <option value="">Select</option>
                         {(() => {
                           const todayIST = (() => {
                             const parts = new Intl.DateTimeFormat('en-GB', {
@@ -2053,7 +2053,7 @@ function ExternalBookingDialog({
                         }}
                         className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                       >
-                        <option value="">Select…</option>
+                        <option value="">Select</option>
                         {buildTimeOptions(
                           bookingForm.startTime
                             ? minutesToTimeString((timeToMinutes(bookingForm.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES)
@@ -2075,7 +2075,7 @@ function ExternalBookingDialog({
                         {(() => {
                           if (bookingForm.endDate && bookingForm.endDate !== bookingForm.date) {
                             const hours = computeBusinessHoursDuration(bookingForm.date, bookingForm.startTime, bookingForm.endDate, bookingForm.endTime, BOOKING_DAY_START_MINUTES, BOOKING_DAY_END_MINUTES);
-                            if (hours <= 0) return '—';
+                            if (hours <= 0) return '';
                             const h = Math.floor(hours);
                             const m = Math.round((hours - h) * 60);
                             const label = m === 0 ? `${h} h` : `${h} h ${m} min`;
@@ -2083,7 +2083,7 @@ function ExternalBookingDialog({
                           }
                           const startMin = timeToMinutes(bookingForm.startTime);
                           const endMin = timeToMinutes(bookingForm.endTime);
-                          if (startMin === null || endMin === null || endMin <= startMin) return '—';
+                          if (startMin === null || endMin === null || endMin <= startMin) return '';
                           const diff = endMin - startMin;
                           const h = Math.floor(diff / 60);
                           const m = diff % 60;
@@ -2103,7 +2103,7 @@ function ExternalBookingDialog({
                               <div className="p-3 bg-blue-50 rounded-xl flex items-start gap-2 border border-blue-100">
                                 <AlertCircle className="text-blue-500 shrink-0 mt-0.5" size={15} />
                                 <p className="text-[12px] text-blue-800 font-pmedium">
-                                  Multi-day booking — availability is checked when you submit. If the resource is already booked on any day in this range, you&apos;ll be asked to pick another slot.
+                                  Multi-day booking availability is checked when you submit. If the resource is already booked on any day in this range, you&apos;ll be asked to pick another slot.
                                 </p>
                               </div>
                             );
@@ -2164,7 +2164,7 @@ function ExternalBookingDialog({
                               <div className="p-3 bg-red-50 rounded-xl border border-red-100">
                                 <div className="flex items-start gap-2 mb-2">
                                   <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={15} />
-                                  <p className="text-[12px] text-red-800 font-pmedium">Time conflict — this slot is already booked.</p>
+                                  <p className="text-[12px] text-red-800 font-pmedium">Time conflict this slot is already booked.</p>
                                 </div>
                                 {suggestions.length > 0 && (
                                   <div>
@@ -2180,7 +2180,7 @@ function ExternalBookingDialog({
                                           }}
                                           className="px-2.5 py-1 rounded-full bg-white border border-red-200 text-[11px] font-pmedium text-red-700 hover:bg-red-100 transition-colors"
                                         >
-                                          {formatTime12h(slot.startTime)} — {formatTime12h(slot.endTime)}
+                                          {formatTime12h(slot.startTime)} {formatTime12h(slot.endTime)}
                                         </button>
                                       ))}
                                     </div>
@@ -2243,7 +2243,7 @@ function ExternalBookingDialog({
                         id="external-field-purpose"
                         type="text"
                         value={bookingForm.purpose}
-                        placeholder="e.g. Client meeting, Workshop…"
+                        placeholder="e.g. Client meeting, Workshop"
                         onChange={(e) => {
                           setBookingForm((f) => ({ ...f, purpose: e.target.value }));
                           if (bookingErrors.purpose) setBookingErrors((prev) => { const n = { ...prev }; delete n.purpose; return n; });
@@ -2307,11 +2307,11 @@ function ExternalBookingDialog({
                         </div>
                       ) : (
                         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-emerald-700">
-                          {bookingForm.paymentMode ? `Paid · ${bookingForm.paymentMode}` : 'Select payment mode'}
+                          {bookingForm.paymentMode ? `Paid ${bookingForm.paymentMode}` : 'Select payment mode'}
                         </div>
                       )}
                       {selectedPaymentMethod?.code === 'cash' && bookingForm.paymentStatus !== 'Paid' && (
-                        <p className="mt-1.5 text-[10px] font-medium text-slate-400">Amount stays due — the client is emailed to pay at the front desk before entry.</p>
+                        <p className="mt-1.5 text-[10px] font-medium text-slate-400">Amount stays due the client is emailed to pay at the front desk before entry.</p>
                       )}
                     </div>
 
@@ -2362,7 +2362,7 @@ function ExternalBookingDialog({
                         Discount <span className="text-slate-300 font-pmedium normal-case tracking-normal">(optional)</span>
                       </label>
                       <div className="flex gap-2">
-                        {/* ? / % type toggle — same pill style as payment mode */}
+                        {/* ? / % type toggle same pill style as payment mode */}
                         <div className="flex bg-slate-100/60 p-0.5 rounded-lg border border-slate-200/50 shrink-0">
                           {(['flat', 'percent'] as const).map((t) => (
                             <button
@@ -2407,7 +2407,7 @@ function ExternalBookingDialog({
                       <textarea
                         rows={2}
                         value={bookingForm.notes}
-                        placeholder="Any additional notes…"
+                        placeholder="Any additional notes"
                         onChange={(e) => setBookingForm((f) => ({ ...f, notes: e.target.value }))}
                         className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
                       />
@@ -2422,7 +2422,7 @@ function ExternalBookingDialog({
                           <span className="text-slate-600 font-pmedium">Base Price</span>
                           <span className="font-pmedium text-slate-900">{formatWorkspaceCurrency(externalPricing.basePriceRaw, workspacePreferences.currency, { minimumFractionDigits: 2 })}</span>
                         </div>
-                        {/* Discount line — only shown when non-zero */}
+                        {/* Discount line only shown when non-zero */}
                         {externalPricing.discountAmount > 0 && (
                           <div className="flex justify-between items-center text-[13px]">
                             <span className="text-slate-600 font-pmedium">Discount</span>
@@ -2816,7 +2816,7 @@ export function MeetingRoomsPage() {
     const currentInviteStatus = booking?.currentInviteStatus || '';
     const isAcceptedInvite = currentInviteStatus === 'accepted';
     // For on-behalf internal bookings: bookedForName is set, meaning ownerId = selected member,
-    // bookedByUserId = admin/founder. The admin should NOT see these in their My Bookings —
+    // bookedByUserId = admin/founder. The admin should NOT see these in their My Bookings
     // only the host member (isMe) and accepted invitees do.
     const isOnBehalfBooking = Boolean((booking as any).bookedForName);
     return Boolean(
@@ -3132,7 +3132,7 @@ export function MeetingRoomsPage() {
         const roomNames = details.filter((room: any) => isActiveRoom(room) && isMeetingCalendarRoom(room)).map((room: any) => room.name);
         setAvailableRooms(roomNames);
         setCalendarRoomFilter((current) => roomNames.includes(current) ? current : (roomNames[0] || ''));
-      } catch { /* silent — poll failures don't show errors */ }
+      } catch { /* silent poll failures don't show errors */ }
     }, 30000);
 
     return () => clearInterval(pollInterval);
@@ -3143,7 +3143,7 @@ export function MeetingRoomsPage() {
     if (mainBookingTab === 'tenant_bookings') return allBookings.filter((b) => normalize(b.bookingType) === 'tenant');
     if (mainBookingTab === 'internal_booking') return allBookings.filter((b) => normalize(b.bookingType) !== 'external' && normalize(b.bookingType) !== 'tenant');
     
-    // Default tabs (my_bookings, company_bookings, dept_bookings) — never show external or tenant
+    // Default tabs (my_bookings, company_bookings, dept_bookings) never show external or tenant
     if (isEmployeeProfile) return allBookings.filter((booking) => isMyBooking(booking) && normalize(booking.bookingType) !== 'tenant' && normalize(booking.bookingType) !== 'external');
     if (canViewCompanyBookings) return allBookings.filter((b) => normalize(b.bookingType) === 'internal');
     if (!isAdminProfile) return allBookings.filter((b) => normalize(b.bookingType) !== 'tenant' && normalize(b.bookingType) !== 'external');
@@ -3326,12 +3326,14 @@ export function MeetingRoomsPage() {
   const [internalBookingForm, setInternalBookingForm] = useState({
     bookedForName: '', bookedForUserId: '', department: '', roomType: '', floor: '', wing: '', roomName: '', date: '',
     startTime: '', endTime: '', attendees: 1, purpose: '', inviteParticipantIds: [] as string[], notes: '',
+    requirements: [] as string[],
   });
   const [isSavingInternalBooking, setIsSavingInternalBooking] = useState(false);
 
   const [tenantBookingForm, setTenantBookingForm] = useState({
     tenantCompanyId: '', tenantCompanyName: '', bookedByName: '', bookedByEmail: '', bookedByPhone: '',
     roomType: '', floor: '', wing: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', notes: '', creditsToDeduct: 0, inviteParticipantIds: [] as string[],
+    requirements: [] as string[],
   });
   const [isSavingTenantBooking, setIsSavingTenantBooking] = useState(false);
   const [externalBookingClientTab, setExternalBookingClientTab] = useState<'new' | 'search'>('search');
@@ -3534,7 +3536,7 @@ export function MeetingRoomsPage() {
     const status = String(booking?.paymentStatus || 'Pending');
     if (status.toLowerCase() !== 'paid') return status;
     const mode = String(booking?.paymentMode || '').trim();
-    return mode ? `Paid · ${mode}` : 'Paid';
+    return mode ? `Paid ${mode}` : 'Paid';
   };
 
   const formatTimeSlot = (startTime?: string, endTime?: string) => {
@@ -3695,7 +3697,7 @@ export function MeetingRoomsPage() {
 
   const rescheduleStatus = useMemo(() => {
     if (!rescheduleData.roomName || !rescheduleData.date || !rescheduleData.startTime || !rescheduleData.endTime) return 'pending';
-    // Same-day-only conflict lookup — a multi-day range is verified by the
+    // Same-day-only conflict lookup a multi-day range is verified by the
     // server at submit time (see handleRescheduleBooking's 409 handling).
     if (rescheduleIsMultiDay) return 'multi-day';
     return checkAvailability(rescheduleData, rescheduleData.recordId || null);
@@ -4083,7 +4085,7 @@ export function MeetingRoomsPage() {
 
     // Internal bookings are company-wide: whichever department/role is booked
     // for, every workspace member (including the booker themself) is eligible
-    // to be invited — only the host (already the primary attendee) and
+    // to be invited only the host (already the primary attendee) and
     // external/tenant members are excluded.
     return workspaceMembers.filter((member: any) => {
       const memberId = resolveMemberUserId(member);
@@ -4119,7 +4121,7 @@ export function MeetingRoomsPage() {
   }, [rescheduleData.date, BOOKING_DAY_START, BOOKING_DAY_END_MINUTES, workspacePreferences.timezone]);
 
   const rescheduleEndTimeOptions = useMemo(() => {
-    // The same start–end window repeats on each day of a multi-day range, so
+    // The same start end window repeats on each day of a multi-day range, so
     // the end time must always be at least start + minimum duration.
     if (!rescheduleData.startTime) return buildTimeOptions(minutesToTimeString(BOOKING_DAY_START_MINUTES + BOOKING_MIN_DURATION_MINUTES), BOOKING_DAY_END);
     const minEnd = minutesToTimeString((timeToMinutes(rescheduleData.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
@@ -4143,7 +4145,7 @@ export function MeetingRoomsPage() {
     if (!newBooking.endTime) fieldErrors.endTime = 'End time is required.';
     if (!newBooking.purpose.trim()) fieldErrors.purpose = 'Purpose / Agenda is required.';
     if (!fieldErrors.startTime && !fieldErrors.endTime && !bookingTimeValidation.valid) fieldErrors.startTime = bookingTimeValidation.reason;
-    if (!fieldErrors.startTime && (bookingStatus === 'conflict' || bookingStatus === 'full')) fieldErrors.startTime = 'Time conflict — this slot is already booked.';
+    if (!fieldErrors.startTime && (bookingStatus === 'conflict' || bookingStatus === 'full')) fieldErrors.startTime = 'Time conflict this slot is already booked.';
     if (!fieldErrors.roomName && bookingStatus === 'capacity') fieldErrors.roomName = 'Room capacity too small for this booking. Pick a bigger room.';
 
     if (Object.keys(fieldErrors).length > 0) {
@@ -4531,7 +4533,7 @@ export function MeetingRoomsPage() {
       await reloadBookings();
       focusMyBookingsTab();
 
-      // Send email confirmation if client has an email address (silent — don't fail booking on email error)
+      // Send email confirmation if client has an email address (silent don't fail booking on email error)
       if (externalBookingForm.email) {
         const bookingId = result?.booking?._id || result?.booking?.id || result?._id || result?.id;
         if (bookingId) {
@@ -4559,7 +4561,7 @@ export function MeetingRoomsPage() {
     if (!internalBookingForm.endTime) fieldErrors.endTime = 'End time is required.';
     if (!fieldErrors.startTime && !fieldErrors.endTime && !internalBookingTimeValidation.valid) fieldErrors.startTime = internalBookingTimeValidation.reason;
     if (!fieldErrors.startTime && (internalBookingAvailability === 'conflict' || internalBookingAvailability === 'full')) {
-      fieldErrors.startTime = 'Time conflict — this slot is already booked.';
+      fieldErrors.startTime = 'Time conflict this slot is already booked.';
     }
     if (!fieldErrors.roomName && internalBookingAvailability === 'capacity') {
       fieldErrors.roomName = 'Room capacity too small for this booking. Pick a bigger room.';
@@ -4593,11 +4595,12 @@ export function MeetingRoomsPage() {
         purpose: internalBookingForm.purpose || 'Internal Meeting',
         inviteeUserIds: safeInviteeIds,
         bookingNotes: internalBookingForm.notes,
+        requirements: internalBookingForm.requirements,
       } as any);
       await reloadBookings();
       focusMyBookingsTab();
       setShowInternalBookingDialog(false);
-      setInternalBookingForm({ bookedForName: '', bookedForUserId: '', department: '', roomType: '', floor: '', wing: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', inviteParticipantIds: [], notes: '' });
+      setInternalBookingForm({ bookedForName: '', bookedForUserId: '', department: '', roomType: '', floor: '', wing: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', inviteParticipantIds: [], notes: '', requirements: [] });
     } catch (error: any) {
       setInternalBookingError(error?.response?.data?.message || error?.message || 'Failed to create internal booking.');
     } finally {
@@ -4645,11 +4648,12 @@ export function MeetingRoomsPage() {
         purpose: tenantBookingForm.purpose || 'Tenant Meeting',
         inviteeUserIds: tenantBookingForm.inviteParticipantIds,
         bookingNotes: tenantBookingForm.notes,
+        requirements: tenantBookingForm.requirements,
       } as any);
       await reloadBookings();
       focusMyBookingsTab();
       setShowTenantBookingDialog(false);
-      setTenantBookingForm({ tenantCompanyId: '', tenantCompanyName: '', bookedByName: '', bookedByEmail: '', bookedByPhone: '', roomType: '', floor: '', wing: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', notes: '', creditsToDeduct: 0, inviteParticipantIds: [] });
+      setTenantBookingForm({ tenantCompanyId: '', tenantCompanyName: '', bookedByName: '', bookedByEmail: '', bookedByPhone: '', roomType: '', floor: '', wing: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', notes: '', creditsToDeduct: 0, inviteParticipantIds: [], requirements: [] });
       setTenantSearchQuery('');
     } catch (error: any) {
       setTenantBookingError(error?.response?.data?.message || error?.message || 'Failed to create tenant booking.');
@@ -5110,7 +5114,7 @@ export function MeetingRoomsPage() {
                                 return (
                                   <tr key={b.recordId || b.id} className="hover:bg-slate-50/50 transition-colors group">
                                     <td className="px-5 py-4">
-                                      <p className="font-pmedium text-[#0F172A] text-[13px]">{getExternalClientName(b) || '—'}</p>
+                                      <p className="font-pmedium text-[#0F172A] text-[13px]">{getExternalClientName(b) || ''}</p>
                                     </td>
                                     <td className="px-5 py-4">
                                       <div className="flex items-center gap-2">
@@ -5176,7 +5180,7 @@ export function MeetingRoomsPage() {
                               <div key={b.recordId || b.id} className="bg-white border border-slate-200/60 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
                                 <div className="flex justify-between items-start">
                                   <div>
-                                    <p className="font-pmedium text-[#0F172A] text-sm">{getExternalClientName(b) || '—'}</p>
+                                    <p className="font-pmedium text-[#0F172A] text-sm">{getExternalClientName(b) || ''}</p>
                                     <p className="text-[11px] font-pmedium text-slate-500">{b.roomName}</p>
                                   </div>
                                   <span className={statusPillClass(displayStatus)}>
@@ -5190,7 +5194,7 @@ export function MeetingRoomsPage() {
                                   </div>
                                   <div>
                                     <span className="text-[10px] text-slate-400 uppercase tracking-wider font-pmedium block mb-0.5">Time</span>
-                                    {formatTime12h(b.startTime)} – {formatTime12h(b.endTime)}
+                                    {formatTime12h(b.startTime)} {formatTime12h(b.endTime)}
                                   </div>
                                   <div>
                                     <span className="text-[10px] text-slate-400 uppercase tracking-wider font-pmedium block mb-0.5">Payment</span>
@@ -5266,7 +5270,7 @@ export function MeetingRoomsPage() {
                                 </td>
                                 <td className="px-5 py-4 text-[12px] text-slate-600">
                                   {b.bookedByRole ? b.bookedByRole.replace(/[-_]/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase()) : (<>
-                                  {b.department || '—'}
+                                  {b.department || ''}
                                   </>)}
                                 </td>
                                 <td className="px-5 py-4">
@@ -5278,7 +5282,7 @@ export function MeetingRoomsPage() {
                                   </p>
                                 </td>
                                 <td className="px-5 py-4 whitespace-nowrap text-[12px] text-slate-600">
-                                  {b.date || '—'}
+                                  {b.date || ''}
                                 </td>
                                 <td className="px-5 py-4 whitespace-nowrap text-[12px] text-slate-600">
                                   {formatTimeSlot(b.startTime || b.checkIn, b.endTime || b.checkOut)}
@@ -5889,7 +5893,7 @@ export function MeetingRoomsPage() {
                       <span className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700 shrink-0"><Clock size={16} /></span>
                       <span className="text-[12px] font-pmedium uppercase tracking-[0.16em] text-slate-900">Timing & Slot</span>
                     </div>
-                    <span className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{selectedRoomCapacity || '—'} seats</span>
+                    <span className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{selectedRoomCapacity || ''} seats</span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-2">
@@ -6020,7 +6024,7 @@ export function MeetingRoomsPage() {
                     <div className="p-3.5 bg-red-50 rounded-2xl border border-red-100 space-y-2.5">
                       <div className="flex items-center gap-3">
                         <AlertCircle className="text-red-500 shrink-0" size={16} />
-                        <p className="text-[12px] text-red-800 font-pmedium">Time conflict — slot already booked.</p>
+                        <p className="text-[12px] text-red-800 font-pmedium">Time conflict slot already booked.</p>
                       </div>
                       {bookingSuggestions.length > 0 && (
                         <div className="space-y-1.5">
@@ -6033,7 +6037,7 @@ export function MeetingRoomsPage() {
                                 onClick={() => setNewBooking((prev) => ({ ...prev, startTime: slot.start, endTime: slot.end }))}
                                 className="px-3 py-1.5 rounded-full bg-white border border-red-200 text-[11px] font-pmedium text-red-700 hover:bg-red-100 transition-colors"
                               >
-                                {formatTimeOptionLabel(slot.start)} – {formatTimeOptionLabel(slot.end)}
+                                {formatTimeOptionLabel(slot.start)} {formatTimeOptionLabel(slot.end)}
                               </button>
                             ))}
                           </div>
@@ -6052,7 +6056,7 @@ export function MeetingRoomsPage() {
                             onClick={() => setNewBooking((prev) => ({ ...prev, startTime: slot.start, endTime: slot.end }))}
                             className="px-3 py-1.5 rounded-full bg-white border border-slate-200 text-[11px] font-pmedium text-slate-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors"
                           >
-                            {formatTimeOptionLabel(slot.start)} – {formatTimeOptionLabel(slot.end)}
+                            {formatTimeOptionLabel(slot.start)} {formatTimeOptionLabel(slot.end)}
                           </button>
                         ))}
                       </div>
@@ -6074,7 +6078,7 @@ export function MeetingRoomsPage() {
                       id="room-field-purpose"
                       type="text"
                       required
-                      placeholder="e.g. Q3 Roadmap Review…"
+                      placeholder="e.g. Q3 Roadmap Review"
                       className="w-full px-5 py-3.5 bg-slate-50 border-2 border-transparent rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all"
                       onChange={(e) => {
                         setNewBooking({ ...newBooking, purpose: e.target.value });
@@ -6100,7 +6104,7 @@ export function MeetingRoomsPage() {
                       </div>
                     </div>
                     {selectedRoomCapacity && Number(selectedRoomCapacity) <= 1 && (
-                      <p className="text-[11px] font-pmedium text-amber-600">This room seats 1 — no additional members can be invited.</p>
+                      <p className="text-[11px] font-pmedium text-amber-600">This room seats 1 no additional members can be invited.</p>
                     )}
                     <div className="max-h-60 overflow-y-auto space-y-3 pr-1">
                       {inviteDepartments.map((group: any) => (
@@ -6329,19 +6333,19 @@ export function MeetingRoomsPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
                           <div>
                             <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Client Name</p>
-                            <p className="text-[12px] font-pmedium text-slate-900">{(viewingBooking as any).clientName || getExternalClientName(viewingBooking) || '—'}</p>
+                            <p className="text-[12px] font-pmedium text-slate-900">{(viewingBooking as any).clientName || getExternalClientName(viewingBooking) || ''}</p>
                           </div>
                           <div>
                             <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Company</p>
-                            <p className="text-[12px] font-pmedium text-slate-900">{(viewingBooking as any).clientCompany || '—'}</p>
+                            <p className="text-[12px] font-pmedium text-slate-900">{(viewingBooking as any).clientCompany || ''}</p>
                           </div>
                           <div>
                             <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Phone</p>
-                            <p className="text-[12px] font-pmedium text-slate-900">{(viewingBooking as any).clientPhone || (viewingBooking as any).bookedByPhone || '—'}</p>
+                            <p className="text-[12px] font-pmedium text-slate-900">{(viewingBooking as any).clientPhone || (viewingBooking as any).bookedByPhone || ''}</p>
                           </div>
                           <div>
                             <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Email</p>
-                            <p className="text-[12px] font-pmedium text-slate-900 break-all">{(viewingBooking as any).clientEmail || (viewingBooking as any).bookedByEmail || '—'}</p>
+                            <p className="text-[12px] font-pmedium text-slate-900 break-all">{(viewingBooking as any).clientEmail || (viewingBooking as any).bookedByEmail || ''}</p>
                           </div>
                           {(viewingBooking as any).paymentMode && (
                             <div>
@@ -6862,7 +6866,7 @@ export function MeetingRoomsPage() {
                       <p className="font-pmedium text-[#0F172A] text-[13px]">
                         {(rescheduleData as any).originalDate || rescheduleData.date}
                         {(rescheduleData as any).originalEndDate && (rescheduleData as any).originalEndDate !== ((rescheduleData as any).originalDate || rescheduleData.date) ? ` ? ${(rescheduleData as any).originalEndDate}` : ''}
-                        {' '}· {formatTimeOptionLabel((rescheduleData as any).originalStartTime || rescheduleData.startTime || '')} – {formatTimeOptionLabel((rescheduleData as any).originalEndTime || rescheduleData.endTime || '')}
+                        {' '} {formatTimeOptionLabel((rescheduleData as any).originalStartTime || rescheduleData.startTime || '')} {formatTimeOptionLabel((rescheduleData as any).originalEndTime || rescheduleData.endTime || '')}
                       </p>
                     </div>
                   </div>
@@ -6933,7 +6937,7 @@ export function MeetingRoomsPage() {
                 {normalize(rescheduleData.bookingType) === 'external' && rescheduleIsMultiDay && (
                   <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-start gap-3">
                     <AlertCircle className="text-blue-500 shrink-0 mt-0.5" size={18} />
-                    <p className="text-[12px] font-pmedium text-blue-800">Multi-day reschedule — availability is checked when you submit. If the resource is already booked on any day in this range, you&apos;ll be asked to pick another slot.</p>
+                    <p className="text-[12px] font-pmedium text-blue-800">Multi-day reschedule availability is checked when you submit. If the resource is already booked on any day in this range, you&apos;ll be asked to pick another slot.</p>
                   </div>
                 )}
 
@@ -7096,7 +7100,7 @@ export function MeetingRoomsPage() {
                   </div>
                 )}
 
-                {/* External booking — reschedule pricing delta */}
+                {/* External booking reschedule pricing delta */}
                 {normalize(rescheduleData.bookingType) === 'external' && rescheduleData.startTime && rescheduleData.endTime && rescheduleTimeValidation.valid && (() => {
                   const room = roomCatalog.find(r => r.name === rescheduleData.roomName);
                   const pricePerHour = Number(room?.pricePerHour || 0);
@@ -7129,12 +7133,12 @@ export function MeetingRoomsPage() {
                           ) : hasDiff && diff < 0 ? (
                             <p className="text-sm font-pmedium text-emerald-700 mt-0.5">{formatCurrency(diff)}</p>
                           ) : (
-                            <p className="text-sm font-pmedium text-slate-500 mt-0.5">—</p>
+                            <p className="text-sm font-pmedium text-slate-500 mt-0.5"></p>
                           )}
                         </div>
                       </div>
                       {pricePerHour > 0 && (
-                        <p className="text-[11px] font-pmedium text-amber-700">Rate: {formatCurrency(pricePerHour)}/hr · {taxConfig.enabled ? `${getTaxDisplayLabel(taxConfig)} ${taxConfig.priceIncludesTax ? 'included' : 'applied'}` : 'No tax'}</p>
+                        <p className="text-[11px] font-pmedium text-amber-700">Rate: {formatCurrency(pricePerHour)}/hr {taxConfig.enabled ? `${getTaxDisplayLabel(taxConfig)} ${taxConfig.priceIncludesTax ? 'included' : 'applied'}` : 'No tax'}</p>
                       )}
                       {hasDiff && diff > 0 && (
                         <div className="pt-2 border-t border-amber-100">
@@ -7171,7 +7175,7 @@ export function MeetingRoomsPage() {
                 {rescheduleTimeValidation.valid && (rescheduleStatus === 'conflict' || rescheduleStatus === 'full') && (
                   <div className="p-4 bg-red-50 rounded-2xl flex items-start sm:items-center gap-3 border border-red-100 mt-2">
                     <AlertCircle className="text-red-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
-                    <p className="text-[13px] text-red-800 font-pmedium">{rescheduleStatus === 'full' ? 'Slot not available — no open slots on this date. Choose another date.' : 'Slot not available. Pick one of the available slots above.'}</p>
+                    <p className="text-[13px] text-red-800 font-pmedium">{rescheduleStatus === 'full' ? 'Slot not available no open slots on this date. Choose another date.' : 'Slot not available. Pick one of the available slots above.'}</p>
                   </div>
                 )}
               </div>
@@ -7289,7 +7293,7 @@ export function MeetingRoomsPage() {
                         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-center justify-between gap-3">
                           <div>
                             <p className="text-[13px] font-pmedium text-emerald-800">{extClientSelected.name}</p>
-                            <p className="text-[11px] font-pmedium text-emerald-600">{extClientSelected.phone}{extClientSelected.email ? ` · ${extClientSelected.email}` : ''}{extClientSelected.company ? ` · ${extClientSelected.company}` : ''}</p>
+                            <p className="text-[11px] font-pmedium text-emerald-600">{extClientSelected.phone}{extClientSelected.email ? ` ${extClientSelected.email}` : ''}{extClientSelected.company ? ` ${extClientSelected.company}` : ''}</p>
                           </div>
                           <button type="button" onClick={() => { setExtClientSelected(null); setExternalBookingForm(f => ({ ...f, name: '', phone: '', email: '', company: '' })); }} className="w-7 h-7 flex items-center justify-center rounded-full bg-emerald-100 hover:bg-red-100 text-emerald-600 hover:text-red-500 transition-colors shrink-0">
                             <X size={13} strokeWidth={2.5} />
@@ -7319,7 +7323,7 @@ export function MeetingRoomsPage() {
                                   finally { setExtClientSearchLoading(false); }
                                 }, 350);
                               }}
-                              placeholder="Search by name, phone, or email…"
+                              placeholder="Search by name, phone, or email"
                               className="w-full pl-10 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all"
                             />
                             {extClientSearchLoading && <div className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-[#2563EB] border-t-transparent rounded-full animate-spin" />}
@@ -7335,7 +7339,7 @@ export function MeetingRoomsPage() {
                                   setExtClientSearch(''); setExtClientSearchResults([]);
                                 }} className="w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0">
                                   <p className="text-[13px] font-pmedium text-[#0F172A]">{client.name}</p>
-                                  <p className="text-[11px] text-slate-500">{client.phone}{client.email ? ` · ${client.email}` : ''}{client.company ? ` · ${client.company}` : ''}</p>
+                                  <p className="text-[11px] text-slate-500">{client.phone}{client.email ? ` ${client.email}` : ''}{client.company ? ` ${client.company}` : ''}</p>
                                 </button>
                               ))}
                             </div>
@@ -7362,7 +7366,7 @@ export function MeetingRoomsPage() {
                                 </div>
                                 <div className="min-w-0">
                                   <p className="text-[13px] font-pmedium text-[#0F172A] truncate">{client.name}</p>
-                                  <p className="text-[11px] font-pmedium text-slate-500 truncate">{client.phone}{client.company ? ` · ${client.company}` : ''}</p>
+                                  <p className="text-[11px] font-pmedium text-slate-500 truncate">{client.phone}{client.company ? ` ${client.company}` : ''}</p>
                                 </div>
                               </div>
                               <span className="text-[10px] font-pmedium text-[#2563EB] uppercase tracking-widest shrink-0">Select</span>
@@ -7611,7 +7615,7 @@ export function MeetingRoomsPage() {
                     </div>
                   )}
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-emerald-700">
-                    {selectedExternalPaymentMethod ? `Payment Status · Paid via ${selectedExternalPaymentMethod.label}` : 'Select a payment method'}
+                    {selectedExternalPaymentMethod ? `Payment Status Paid via ${selectedExternalPaymentMethod.label}` : 'Select a payment method'}
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Notes (Optional)</label>
@@ -7907,7 +7911,7 @@ export function MeetingRoomsPage() {
                       <div className="p-4 bg-red-50 rounded-2xl border border-red-100">
                         <div className="flex items-start gap-3 mb-2">
                           <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
-                          <p className="text-[13px] text-red-800 font-pmedium">Time conflict — this slot is already booked.</p>
+                          <p className="text-[13px] text-red-800 font-pmedium">Time conflict this slot is already booked.</p>
                         </div>
                         {internalBookingSuggestions.length > 0 && (
                           <div className="mt-2">
@@ -7920,7 +7924,7 @@ export function MeetingRoomsPage() {
                                   onClick={() => setInternalBookingForm(f => ({ ...f, startTime: slot.start, endTime: slot.end }))}
                                   className="px-3 py-1.5 rounded-full bg-white border border-red-200 text-[11px] font-pmedium text-red-700 hover:bg-red-100 transition-colors"
                                 >
-                                  {formatTimeOptionLabel(slot.start)} — {formatTimeOptionLabel(slot.end)}
+                                  {formatTimeOptionLabel(slot.start)} {formatTimeOptionLabel(slot.end)}
                                 </button>
                               ))}
                             </div>
@@ -7977,7 +7981,7 @@ export function MeetingRoomsPage() {
                     return (
                       <>
                         {internalBookingForm.roomName && cap && Number(cap) <= 1 && (
-                          <p className="text-[11px] font-pmedium text-amber-600">This room seats 1 — no additional participants can be invited.</p>
+                          <p className="text-[11px] font-pmedium text-amber-600">This room seats 1 no additional participants can be invited.</p>
                         )}
                         {internalBookingForm.roomName && cap && (
                           <div className="rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-2.5 text-[12px] font-pmedium text-blue-800 flex items-center justify-between">
@@ -8042,6 +8046,30 @@ export function MeetingRoomsPage() {
                       </>
                     );
                   })()}
+                </div>
+
+                {/* Housekeeping Requirements */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Housekeeping Requirements (Optional)</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Water bottles', 'Tea / coffee service', 'Extra chairs', 'Whiteboard / markers'].map((item) => {
+                      const checked = internalBookingForm.requirements.includes(item);
+                      return (
+                        <label key={item} className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-pmedium cursor-pointer transition-all ${checked ? 'border-[#2563EB] bg-blue-50 text-[#2563EB]' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}>
+                          <input
+                            type="checkbox"
+                            className="h-3.5 w-3.5 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]/30"
+                            checked={checked}
+                            onChange={(e) => setInternalBookingForm((f) => ({
+                              ...f,
+                              requirements: e.target.checked ? [...f.requirements, item] : f.requirements.filter((r) => r !== item),
+                            }))}
+                          />
+                          {item}
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Notes */}
@@ -8310,6 +8338,28 @@ export function MeetingRoomsPage() {
                       <div className="space-y-2">
                         <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Purpose</label>
                         <input type="text" placeholder="Client meeting, board meeting..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={tenantBookingForm.purpose} onChange={e => setTenantBookingForm(f => ({ ...f, purpose: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Housekeeping Requirements (Optional)</label>
+                      <div className="flex flex-wrap gap-2">
+                        {['Water bottles', 'Tea / coffee service', 'Extra chairs', 'Whiteboard / markers'].map((item) => {
+                          const checked = tenantBookingForm.requirements.includes(item);
+                          return (
+                            <label key={item} className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-pmedium cursor-pointer transition-all ${checked ? 'border-[#2563EB] bg-blue-50 text-[#2563EB]' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}>
+                              <input
+                                type="checkbox"
+                                className="h-3.5 w-3.5 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]/30"
+                                checked={checked}
+                                onChange={(e) => setTenantBookingForm((f) => ({
+                                  ...f,
+                                  requirements: e.target.checked ? [...f.requirements, item] : f.requirements.filter((r) => r !== item),
+                                }))}
+                              />
+                              {item}
+                            </label>
+                          );
+                        })}
                       </div>
                     </div>
                     <div className="space-y-2">

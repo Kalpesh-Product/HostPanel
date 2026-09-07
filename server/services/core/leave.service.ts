@@ -373,6 +373,116 @@ const ensureQuotaForYear = async (workspaceId: any, userId: any, year: number, l
   }
 };
 
+// Profile-keyed mirrors of getApprovedDaysForUser/ensureQuotaForYear/
+// getLeaveBalancesForUser, for staff with no login account (e.g.
+// housekeeping). Deliberately simpler — always calendar-year, no shift/
+// working-hours fields — since that's all the Housekeeping tab needs to
+// show "available" vs "taken."
+const getApprovedDaysForEmployeeProfile = async (
+  workspaceId: any,
+  employeeProfileId: any,
+  year: number,
+  leaveTypes?: any[],
+): Promise<Record<string, number>> => {
+  const types = leaveTypes || await getWorkspaceLeaveTypes(workspaceId, true);
+  const used: Record<string, number> = Object.fromEntries(types.map((type: any) => [String(type._id), 0]));
+  const byId = new Map(types.map((type: any) => [String(type._id), String(type._id)]));
+  const byCode = new Map(types.map((type: any) => [type.code, String(type._id)]));
+  const approved = await LeaveRequest.find({
+    workspaceId,
+    requesterEmployeeProfileId: employeeProfileId,
+    status: "approved",
+    quotaYear: year,
+  })
+    .select("leaveType leaveTypeId days")
+    .lean()
+    .exec();
+  approved.forEach((request: any) => {
+    const typeId = byId.get(toId(request.leaveTypeId)) || byCode.get(toLeaveTypeCode(request.leaveType));
+    if (typeId) used[typeId] = roundDays(Number(used[typeId] || 0) + Number(request.days || 0));
+  });
+  return used;
+};
+
+const ensureQuotaForEmployeeProfileYear = async (workspaceId: any, employeeProfileId: any, year: number, leaveTypes: any[]): Promise<any> => {
+  const current: any = await LeaveQuota.findOne({ workspaceId, employeeProfileId, year }).lean().exec();
+  if (current) return current;
+  const previous: any = await LeaveQuota.findOne({ workspaceId, employeeProfileId, year: year - 1 }).lean().exec();
+  if (!previous) return null;
+
+  const assignedTypes = getAssignedLeaveTypes(previous, leaveTypes);
+  const previousBalances = mapToObject(previous.balances);
+  const annualBalances = Object.keys(mapToObject(previous.annualBalances)).length > 0
+    ? mapToObject(previous.annualBalances)
+    : previousBalances;
+  const previousUsed = await getApprovedDaysForEmployeeProfile(workspaceId, employeeProfileId, year - 1, leaveTypes);
+  const nextBalances: Record<string, number> = {};
+  const nextAnnualBalances: Record<string, number> = {};
+
+  assignedTypes.forEach((type: any) => {
+    const base = Math.max(0, Number(annualBalances[type.code] ?? previousBalances[type.code] ?? 0));
+    const previousRemaining = Math.max(0, Number(previousBalances[type.code] || 0) - Number(previousUsed[String(type._id)] || 0));
+    const carryLimit = previous.carryForwardLimit == null ? previousRemaining : Math.max(0, Number(previous.carryForwardLimit));
+    const carried = previous.carryForward ? Math.min(previousRemaining, carryLimit) : 0;
+    nextAnnualBalances[type.code] = base;
+    nextBalances[type.code] = roundDays(base + carried);
+  });
+
+  try {
+    return await LeaveQuota.create({
+      workspaceId,
+      employeeProfileId,
+      year,
+      assignedLeaveTypeIds: assignedTypes.map((type: any) => type._id),
+      balances: nextBalances,
+      annualBalances: nextAnnualBalances,
+      cycleType: previous.cycleType || "calendar_year",
+      carryForward: Boolean(previous.carryForward),
+      carryForwardLimit: previous.carryForwardLimit ?? null,
+      createdBy: previous.updatedBy || previous.createdBy || null,
+      updatedBy: previous.updatedBy || previous.createdBy || null,
+    });
+  } catch (error: any) {
+    if (error?.code === 11000) return LeaveQuota.findOne({ workspaceId, employeeProfileId, year }).lean().exec();
+    throw error;
+  }
+};
+
+export async function getLeaveBalancesForEmployeeProfile(employeeProfileId: string, workspaceId: string, quotaYear?: number) {
+  if (!mongoose.isValidObjectId(employeeProfileId)) throw httpError("Invalid employee id.", 400);
+  const workspace = await Workspace.findById(workspaceId).lean().exec();
+  if (!workspace) throw httpError("Workspace not found.", 404);
+  const profile = await EmployeeProfile.findOne({ _id: employeeProfileId, workspaceId: workspace._id }).lean().exec();
+  if (!profile) throw httpError("Employee profile not found.", 404);
+
+  const year = Number(quotaYear) || new Date().getFullYear();
+  const allLeaveTypes = await getWorkspaceLeaveTypes(workspace._id);
+  const quota: any = await ensureQuotaForEmployeeProfileYear(workspace._id, profile._id, year, allLeaveTypes);
+  const leaveTypes = getAssignedLeaveTypes(quota, allLeaveTypes);
+  const storedBalances = mapToObject(quota?.balances);
+  const used = await getApprovedDaysForEmployeeProfile(workspace._id, profile._id, year, allLeaveTypes);
+  const balances: Record<string, { total: number; used: number; remaining: number }> = {};
+
+  leaveTypes.forEach((type: any) => {
+    const id = String(type._id);
+    const total = Math.max(0, Number(storedBalances[type.code] ?? 0));
+    const usedDays = Number(used[id] || 0);
+    balances[id] = {
+      total,
+      used: roundDays(usedDays),
+      remaining: type.requiresBalance === false ? -1 : Math.max(0, roundDays(total - usedDays)),
+    };
+  });
+
+  return {
+    year,
+    quotaConfigured: Boolean(quota),
+    cycleType: quota?.cycleType || "calendar_year",
+    leaveTypes: leaveTypes.map(formatLeaveType),
+    balances,
+  };
+}
+
 export async function getLeaveBalancesForUser(userId: string, workspaceId?: string, quotaYear?: number) {
   const { workspace, user } = await resolveLeaveWorkspaceContext(userId, workspaceId);
   const resolvedUserId = user?._id || userId;
@@ -591,6 +701,17 @@ const getApproversForRequester = async (
   } else if (requesterRoleKey === "manager") {
     addAssignedAdmins();
     if (recipients.size === hrRecipientCount) addSuperAdmins();
+  } else if (requesterDepartmentName && isAdministrationDepartmentName(requesterDepartmentName)) {
+    // Administration Manager first; fall back to plain Admin (in the same
+    // department) only if no Administration Manager is assigned. HR Manager
+    // is already included above via addHrManagers().
+    const beforeCount = recipients.size;
+    addMembers((member: any) => normalizeRoleKey(member.role) === "admin_manager"
+      && inSameDepartment(member, requesterDepartmentIds, requesterDepartmentName));
+    if (recipients.size === beforeCount) {
+      addMembers((member: any) => normalizeRoleKey(member.role) === "admin"
+        && inSameDepartment(member, requesterDepartmentIds, requesterDepartmentName));
+    }
   } else {
     // Employee requests go to their department manager as well as HR.
     await addDepartmentManagers();
@@ -888,6 +1009,202 @@ export async function createLeaveRequestForUser(userId: string, input: CreateLea
 
   const departmentNameById = await loadWorkspaceDepartmentMap(workspace._id);
   return { leaveRequest: formatLeaveRequest(leaveRequest, departmentNameById, actor.userId) };
+}
+
+// Files a leave request on behalf of an employee who has no login account
+// (e.g. housekeeping staff onboarded directly via HR, never invited). Mirrors
+// createLeaveRequestForUser's validation and approval routing, but resolves
+// the applicant straight from their EmployeeProfile instead of a HostUser /
+// WorkspaceMember chain, since neither exists for them. Leave-balance/quota
+// enforcement is intentionally skipped for now (LeaveQuota is keyed to a
+// HostUser id) — a first-cut simplification called out to the user.
+export async function createLeaveRequestForEmployeeProfile(
+  employeeProfileId: string,
+  input: CreateLeaveInput,
+  workspaceId: string,
+  actingUserId: string,
+) {
+  if (!mongoose.isValidObjectId(employeeProfileId)) throw httpError("Invalid employee id.", 400);
+  const workspace = await Workspace.findById(workspaceId).lean().exec();
+  if (!workspace) throw httpError("Workspace not found for this user.", 404);
+
+  const profile: any = await EmployeeProfile.findOne({ _id: employeeProfileId, workspaceId: workspace._id })
+    .lean()
+    .exec();
+  if (!profile) throw httpError("Employee profile not found.", 404);
+
+  const shiftId = String(profile.shiftId || "").trim();
+  const shift = findAttendanceShift(workspace, shiftId);
+  if (!shift) {
+    throw httpError("This employee's attendance shift is not assigned. Add their shift data before requesting leave.", 409);
+  }
+  const dailyWorkingHours = getDailyWorkingHours(workspace, shift);
+
+  const requestedLeaveTypeId = String(input?.leaveTypeId || "").trim();
+  const requestedLeaveTypeName = String(input?.leaveType || "").trim();
+  const leaveTypeRecord = await LeaveType.findOne({
+    workspaceId: workspace._id,
+    isActive: true,
+    ...(mongoose.isValidObjectId(requestedLeaveTypeId)
+      ? { _id: requestedLeaveTypeId }
+      : { $or: [{ name: requestedLeaveTypeName }, { code: toLeaveTypeCode(requestedLeaveTypeName) }] }),
+  })
+    .lean()
+    .exec();
+  if (!leaveTypeRecord) throw httpError("Choose an active leave type configured by HR.", 400);
+  const leaveType = leaveTypeRecord.name;
+
+  const leaveMode = normalizeLeaveModeInput(input?.leaveMode);
+  const halfDaySession = normalizeHalfDaySessionInput(input?.halfDaySession);
+  const startDate = new Date(String(input?.startDate || ""));
+  const endDate = new Date(String(input?.endDate || ""));
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+    throw httpError("Invalid leave date format.", 400);
+  }
+  if (endDate < startDate) throw httpError("End date must be on or after start date.", 400);
+
+  const workspaceTimezone = normalizeTimeZone((workspace as any)?.preferences?.timezone);
+  const workspaceTodayKey = getZonedDateKey(new Date(), workspaceTimezone);
+  if (formatDateOnly(startDate) < workspaceTodayKey) {
+    throw httpError("Leave cannot be requested for a past date in this unit.", 400);
+  }
+
+  const startDateKey = formatDateOnly(startDate);
+  const endDateKey = formatDateOnly(endDate);
+  const holidayRows = await Holiday.find({
+    workspaceId: workspace._id,
+    dateKey: { $gte: startDateKey, $lte: endDateKey },
+    isActive: true,
+    $or: [{ entryKind: "holiday" }, { entryKind: { $exists: false } }],
+  })
+    .select("dateKey date")
+    .lean()
+    .exec();
+  const holidayDateKeys = new Set(
+    holidayRows.map((holiday: any) => String(holiday.dateKey || formatDateOnly(holiday.date))).filter(Boolean),
+  );
+  const selectedDateIsNonWorking = startDate.getUTCDay() === 0 || holidayDateKeys.has(startDateKey);
+
+  let leaveHours = Math.max(0, Number(input?.leaveHours) || 0);
+  let days = 0;
+
+  if (leaveMode === "half_day") {
+    if (!isSameCalendarDay(startDate, endDate)) throw httpError("Half-day leave must use the same start and end date.", 400);
+    if (!halfDaySession) throw httpError("Half-day leave requires a morning or evening session.", 400);
+    if (selectedDateIsNonWorking) throw httpError("Leave cannot be requested on a Sunday or company holiday.", 400);
+    days = 0.5;
+    leaveHours = roundDays(dailyWorkingHours / 2);
+  } else if (leaveMode === "hours") {
+    if (!isSameCalendarDay(startDate, endDate)) throw httpError("Hour-based leave must use the same start and end date.", 400);
+    if (selectedDateIsNonWorking) throw httpError("Leave cannot be requested on a Sunday or company holiday.", 400);
+    if (leaveHours <= 0) leaveHours = Math.max(0, Number(input?.days) || 0) * dailyWorkingHours;
+    if (leaveHours <= 0 || leaveHours > 24) throw httpError("Partial leave requires hours between 0 and 24.", 400);
+    days = roundDays(Math.min(1, leaveHours / PARTIAL_LEAVE_DAY_HOURS));
+    if (days <= 0) throw httpError("Leave duration must be greater than 0.", 400);
+  } else {
+    days = countWorkingLeaveDays(startDate, endDate, holidayDateKeys);
+    if (days <= 0) throw httpError("The selected range contains no working days. Sundays and company holidays are excluded.", 400);
+    leaveHours = roundDays(days * dailyWorkingHours);
+  }
+
+  const reason = String(input?.reason || "").trim();
+  if (!reason || reason.length < 3) throw httpError("Please provide a reason for the leave (at least 3 characters).", 400);
+
+  const overlappingApproved = await LeaveRequest.find({
+    workspaceId: workspace._id,
+    requesterEmployeeProfileId: profile._id,
+    status: "approved",
+    startDate: { $lte: endDate },
+    endDate: { $gte: startDate },
+  })
+    .select("leaveCode startDate endDate leaveMode leaveHours halfDaySession")
+    .lean()
+    .exec();
+  const conflicting = (overlappingApproved || []).find((existing: any) => {
+    const existingMode = normalizeLeaveModeInput(existing.leaveMode);
+    if (leaveMode === "full_day" || existingMode === "full_day") return true;
+    if (!isSameCalendarDay(new Date(existing.startDate), startDate)) return true;
+    if (existingMode === "hours" && leaveMode === "hours") return true;
+    if (existingMode === "half_day" && leaveMode === "half_day") {
+      return normalizeHalfDaySessionInput(existing.halfDaySession) === halfDaySession;
+    }
+    return true;
+  });
+  if (conflicting) {
+    throw httpError(`This employee already has an approved leave (${conflicting.leaveCode}) on one or more of the selected dates.`, 409);
+  }
+
+  const leaveNumber = await getNextLeaveNumber(workspace._id);
+  const leaveCode = buildLeaveCode(leaveNumber);
+  const departmentIds = getDepartmentIds(profile.departments || []);
+  const departmentNames = getDepartmentNames(profile.departments || []);
+  const quotaYear = getYearFromDate(startDate);
+
+  const balanceData = await getLeaveBalancesForEmployeeProfile(String(profile._id), String(workspace._id), quotaYear);
+  const selectedBalance = balanceData.balances[String(leaveTypeRecord._id)];
+  if (!selectedBalance) throw httpError("No leave quota is configured for this leave type.", 400);
+  if (leaveTypeRecord.requiresBalance !== false && days > selectedBalance.remaining + 1e-9) {
+    throw httpError(
+      `Insufficient ${leaveType.toLowerCase()} leave balance. Remaining: ${selectedBalance.remaining} day(s).`,
+      400,
+    );
+  }
+
+  const approverUserIds = await getApproversForRequester(
+    workspace._id,
+    "employee",
+    departmentIds,
+    departmentNames[0] || "",
+    undefined,
+  );
+  if (approverUserIds.length === 0) {
+    throw httpError("No department manager is configured for this employee's leave request. Ask an admin to assign the department manager first.", 409);
+  }
+
+  const leaveRequest = await LeaveRequest.create({
+    workspaceId: workspace._id,
+    ownerId: (workspace as any).owner || null,
+    leaveNumber,
+    leaveCode,
+    employeeName: profile.fullName,
+    employeeId: profile.employeeId || "",
+    requesterUserId: null,
+    requesterEmployeeProfileId: profile._id,
+    createdByUserId: actingUserId,
+    department: departmentIds[0] || null,
+    departments: departmentIds,
+    requesterRole: "employee",
+    leaveType,
+    leaveTypeId: leaveTypeRecord._id,
+    leaveMode,
+    halfDaySession,
+    leaveHours,
+    quotaYear,
+    startDate,
+    endDate,
+    days,
+    status: "pending",
+    reason,
+    requesterBalance: leaveTypeRecord.requiresBalance === false ? 0 : selectedBalance.remaining,
+    actionedByUserId: null,
+    actionedByName: "",
+    rejectionReason: "",
+  });
+
+  await notifyApprovers(workspace._id, actingUserId, leaveRequest, approverUserIds);
+
+  const departmentNameById = await loadWorkspaceDepartmentMap(workspace._id);
+  return { leaveRequest: formatLeaveRequest(leaveRequest, departmentNameById, "") };
+}
+
+export async function listLeaveRequestsForEmployeeProfile(employeeProfileId: string, workspaceId: string) {
+  if (!mongoose.isValidObjectId(employeeProfileId)) throw httpError("Invalid employee id.", 400);
+  const requests = await LeaveRequest.find({ workspaceId, requesterEmployeeProfileId: employeeProfileId })
+    .sort({ createdAt: -1 })
+    .lean()
+    .exec();
+  const departmentNameById = await loadWorkspaceDepartmentMap(workspaceId);
+  return { leaveRequests: requests.map((request: any) => formatLeaveRequest(request, departmentNameById, "")) };
 }
 
 const isSameCalendarDay = (left: Date, right: Date): boolean =>
@@ -1319,6 +1636,51 @@ export async function listLeaveQuotasForWorkspace(userId: string, query: any = {
     });
   }
 
+  // Housekeeping staff have no WorkspaceMember (no login), so they're
+  // invisible to the loop above — append them here, in the same row shape,
+  // so HR configures their quota through this same page. `userId` on the
+  // row holds the EmployeeProfile id; updateLeaveQuotaForUser/
+  // -ForEmployeeProfile both accept it transparently (see the controller).
+  const housekeepingProfiles = await EmployeeProfile.find({ workspaceId: workspace._id, isHousekeepingStaff: true })
+    .populate("departments", "name")
+    .lean()
+    .exec();
+  for (const profile of housekeepingProfiles) {
+    const profileId = String(profile._id);
+    let storedQuota: any = await LeaveQuota.findOne({ workspaceId: workspace._id, employeeProfileId: profile._id, year }).lean().exec();
+    if (!storedQuota) storedQuota = await ensureQuotaForEmployeeProfileYear(workspace._id, profile._id, year, leaveTypes);
+    const assignedTypes = getAssignedLeaveTypes(storedQuota, leaveTypes);
+    const storedBalances = mapToObject(storedQuota?.balances);
+    const used = await getApprovedDaysForEmployeeProfile(workspace._id, profile._id, year, leaveTypes);
+    const total: Record<string, number> = {};
+    const remaining: Record<string, number> = {};
+    assignedTypes.forEach((type: any) => {
+      const id = String(type._id);
+      total[id] = Math.max(0, Number(storedBalances[type.code] ?? 0));
+      remaining[id] = type.requiresBalance === false ? -1 : Math.max(0, roundDays(total[id] - Number(used[id] || 0)));
+    });
+
+    rows.push({
+      userId: profileId,
+      name: (profile as any).fullName || "Housekeeping Staff",
+      email: (profile as any).email || "",
+      employeeId: (profile as any).employeeId || "",
+      role: "employee",
+      departments: ((profile as any).departments || []).map((d: any) => d?.name).filter(Boolean),
+      year,
+      quotaConfigured: Boolean(storedQuota),
+      assignedLeaveTypeIds: assignedTypes.map((type: any) => String(type._id)),
+      assignedLeaveTypes: assignedTypes.map(formatLeaveType),
+      cycleType: storedQuota?.cycleType || "calendar_year",
+      carryForward: Boolean(storedQuota?.carryForward),
+      carryForwardLimit: storedQuota?.carryForwardLimit ?? null,
+      total,
+      used,
+      remaining,
+      isHousekeepingStaff: true,
+    });
+  }
+
   return {
     quotas: rows,
     leaveTypes: leaveTypes.map(formatLeaveType),
@@ -1341,13 +1703,21 @@ export async function updateLeaveQuotaForUser(
   }
   if (!targetUserId || !mongoose.isValidObjectId(targetUserId)) throw httpError("Invalid user id.", 400);
   const membership = await resolveMembershipByWorkspace(workspace._id, targetUserId, "role");
-  if (!membership) throw httpError("The requested user is not part of this workspace.", 404);
+  // Housekeeping staff have no WorkspaceMember (no login) — fall back to
+  // treating targetUserId as an EmployeeProfile id so HR can assign their
+  // quota through the same quota-management UI as everyone else.
+  const housekeepingProfile = membership
+    ? null
+    : await EmployeeProfile.findOne({ _id: targetUserId, workspaceId: workspace._id, isHousekeepingStaff: true }).lean().exec();
+  if (!membership && !housekeepingProfile) throw httpError("The requested user is not part of this workspace.", 404);
+  const identityKey = housekeepingProfile ? "employeeProfileId" : "userId";
+  const getApprovedDaysForTarget = housekeepingProfile ? getApprovedDaysForEmployeeProfile : getApprovedDaysForUser;
 
   const year = Number(input?.year) || new Date().getFullYear();
   const leaveTypes = await getWorkspaceLeaveTypes(workspace._id);
   if (leaveTypes.length === 0) throw httpError("Add at least one leave type before assigning quotas.", 409);
   const typeById = new Map(leaveTypes.map((type: any) => [String(type._id), type]));
-  const existing: any = await LeaveQuota.findOne({ workspaceId: workspace._id, userId: targetUserId, year }).lean().exec();
+  const existing: any = await LeaveQuota.findOne({ workspaceId: workspace._id, [identityKey]: targetUserId, year }).lean().exec();
 
   const assignmentWasProvided = Array.isArray(input?.assignedLeaveTypeIds);
   const requestedAssignments = assignmentWasProvided
@@ -1389,7 +1759,7 @@ export async function updateLeaveQuotaForUser(
       : existing?.carryForwardLimit ?? null;
 
   const quota: any = await LeaveQuota.findOneAndUpdate(
-    { workspaceId: workspace._id, userId: targetUserId, year },
+    { workspaceId: workspace._id, [identityKey]: targetUserId, year },
     {
       $set: {
         assignedLeaveTypeIds: requestedAssignments,
@@ -1407,19 +1777,22 @@ export async function updateLeaveQuotaForUser(
   const assignedTypes = requestedAssignments.map((id: string) => typeById.get(id)).filter(Boolean);
   const totalById = Object.fromEntries(assignedTypes.map((type: any) => [String(type._id), Number(balances[type.code] || 0)]));
 
-  await createNotification({
-    workspaceId: workspace._id,
-    recipientUserId: targetUserId,
-    actorUserId: actor.userId,
-    type: "leave_quota_updated",
-    category: "leave",
-    title: "Your leave policy was updated",
-    description: `${actor.displayName} updated your ${year} leave types and balances.`,
-    entityType: "leave-quota",
-    entityId: String(quota._id),
-    targetUrl: "/leave-requests",
-    data: { year, total: totalById, assignedLeaveTypeIds: requestedAssignments, cycleType, carryForward, carryForwardLimit },
-  });
+  // Housekeeping staff have no login/HostUser to notify.
+  if (!housekeepingProfile) {
+    await createNotification({
+      workspaceId: workspace._id,
+      recipientUserId: targetUserId,
+      actorUserId: actor.userId,
+      type: "leave_quota_updated",
+      category: "leave",
+      title: "Your leave policy was updated",
+      description: `${actor.displayName} updated your ${year} leave types and balances.`,
+      entityType: "leave-quota",
+      entityId: String(quota._id),
+      targetUrl: "/leave-requests",
+      data: { year, total: totalById, assignedLeaveTypeIds: requestedAssignments, cycleType, carryForward, carryForwardLimit },
+    });
+  }
 
   return {
     quota: {
@@ -1431,7 +1804,7 @@ export async function updateLeaveQuotaForUser(
       carryForward,
       carryForwardLimit,
       total: totalById,
-      used: await getApprovedDaysForUser(workspace._id, targetUserId, year, leaveTypes),
+      used: await getApprovedDaysForTarget(workspace._id, targetUserId, year, leaveTypes),
     },
   };
 }

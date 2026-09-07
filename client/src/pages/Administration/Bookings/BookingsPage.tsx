@@ -26,8 +26,6 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
-import { AppShell } from '@/components/layout/AppShell';
-import PageFrame from '@/components/Pages/PageFrame';
 import { canAccessAdministrationDashboard, getStoredUser } from '@/lib/auth-session';
 import { BookingsSkeleton } from '@/components/ui/Skeleton';
 import { formatTime12h } from '@/utils/time';
@@ -616,14 +614,15 @@ function getScheduleChangeLabel(value: string): string {
   return '';
 }
 
-function renderScheduleSummary(row: Record<string, unknown>, options: { showDate?: boolean } = {}): ReactNode {
+function renderScheduleSummary(row: Record<string, unknown>, options: { showDate?: boolean; showHistory?: boolean } = {}): ReactNode {
   const showDate = options.showDate !== false;
+  const showHistory = options.showHistory !== false;
   const currentDateLabel = showDate ? formatDisplayDate(String(row.date)) : '';
   const currentTimeLabel = String(row.timeSlot || formatTimeSlot(String(row.startTime || ''), String(row.endTime || '')));
   const previousDateLabel = showDate ? formatDisplayDate(String(row.previousDate)) : '';
   const previousTimeLabel = formatTimeSlot(String(row.previousStartTime || ''), String(row.previousEndTime || ''));
   const changeLabel = getScheduleChangeLabel(String(row.scheduleChangeType || ''));
-  const hasHistory = Boolean(row.previousDate || row.previousStartTime || row.previousEndTime) && Boolean(previousTimeLabel);
+  const hasHistory = showHistory && Boolean(row.previousDate || row.previousStartTime || row.previousEndTime) && Boolean(previousTimeLabel);
 
   if (!hasHistory) {
     if (showDate) {
@@ -1702,31 +1701,29 @@ export default function BookingsPage() {
 
   return (
     <>
-    <AppShell>
-      <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+      <div className="min-h-full bg-white p-2 lg:p-2.5 text-[#0F172A] font-sans text-[12px]">
         {loadingInternal ? (
           <BookingsSkeleton />
         ) : (
-          <PageFrame>
             <div className="flex flex-col gap-4">
 
             {/* ── Header ────────────────────────────────────────────── */}
             <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-3">
               <div>
                 <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                  Administration Meeting Room Bookings
+                  Administration Bookings
                 </h2>
                 <p className="text-xs font-pmedium text-slate-500 mt-1">View meeting room bookings Internal, External, and Tenant.</p>
               </div>
               <div className="flex items-center gap-2">
-                <button
+                {/* <button
                   type="button"
                   onClick={() => setViewingCalendar(true)}
                   className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-blue-50 hover:border-blue-200 text-slate-500 transition-all active:scale-95 shadow-sm"
                 >
                   <CalendarDays size={16} />
                   <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-blue-500 text-white px-1.5 py-0.5 rounded">CALENDAR</span>
-                </button>
+                </button> */}
                  <ReportExportButton onClick={() => setShowExportModal(true)} />
 
               </div>
@@ -1755,11 +1752,12 @@ export default function BookingsPage() {
               {stats.map((stat, idx) => {
                 const Icon = stat.icon;
                 const borderColors = ['', 'border-l-4 border-l-blue-500', 'border-l-4 border-l-emerald-500', 'border-l-4 border-l-amber-500'];
-                const iconClasses = ['bg-slate-50 text-slate-600', 'bg-blue-50 text-blue-600', 'bg-emerald-50 text-emerald-600', 'bg-amber-50 text-amber-600'];
+                const iconClasses = ['bg-blue-50 text-blue-600', 'bg-blue-50 text-blue-600', 'bg-emerald-50 text-emerald-600', 'bg-amber-50 text-amber-600'];
+                const labelToneClass = ['text-slate-400', 'text-blue-600', 'text-emerald-600', 'text-amber-600'][idx] || 'text-slate-400';
                 return (
                   <div key={stat.label} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
                     <div className="min-w-0">
-                      <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
+                      <p className={`text-[10px] font-pmedium ${labelToneClass} uppercase tracking-widest mb-1`}>{stat.label}</p>
                       <p className="text-[15px] font-pmedium text-slate-900">{stat.value}</p>
                     </div>
                     <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>
@@ -1818,9 +1816,9 @@ export default function BookingsPage() {
             )} */}
 
             {/* ── Data Panel ──────────────────────────────────────── */}
-            <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col flex-1 min-h-[500px]">
               {/* ── Panel Header ── */}
-              <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
+              <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 shrink-0 bg-slate-50/50">
                 <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
                   {/* ── Sub-tabs: Status ── */}
                   <div data-tour="admin-bookings-status-filters" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
@@ -1843,7 +1841,7 @@ export default function BookingsPage() {
                     <>
                       <select
                         data-tour="admin-bookings-resource-filter"
-                        className="w-full sm:w-auto px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-pmedium text-slate-700 outline-none cursor-pointer"
+                        className="w-full sm:w-auto px-3 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-700 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all cursor-pointer"
                         value={resourceFilter}
                         onChange={(e) => setResourceFilter(e.target.value)}
                       >
@@ -1853,7 +1851,7 @@ export default function BookingsPage() {
                       </select>
                       <select
                         data-tour="admin-bookings-type-filter"
-                        className="w-full sm:w-auto px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-pmedium text-slate-700 outline-none cursor-pointer"
+                        className="w-full sm:w-auto px-3 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-700 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all cursor-pointer"
                         value={bookingTypeFilter}
                         onChange={(e) => setBookingTypeFilter(e.target.value)}
                       >
@@ -1881,89 +1879,89 @@ export default function BookingsPage() {
 
               {/* ── Bookings Table ──────────────────────────────────── */}
               <div className="overflow-x-auto">
-              <table data-tour="admin-bookings-table" className="w-full min-w-[1120px] table-auto text-left">
-                <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+              <table data-tour="admin-bookings-table" className="w-full min-w-[1120px] text-left">
+                <thead className="bg-white text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100">
                   <tr>
-                    <th className="px-3 py-4 whitespace-nowrap">Resource</th>
-                    {activeScope === 'tenant' && <th className="px-3 py-4 whitespace-nowrap">Company</th>}
-                    <th className="px-3 py-4 whitespace-nowrap">Schedule</th>
-                    <th className="px-3 py-4 whitespace-nowrap">Booked By</th>
-                    {activeScope !== 'tenant' && <th className="px-3 py-4 whitespace-nowrap">Company / Dept</th>}
-                    <th className="px-3 py-4 text-center whitespace-nowrap">Status</th>
-                    {activeScope !== 'tenant' && <th className="px-3 py-4 text-center whitespace-nowrap">Type</th>}
-                    <th className="px-3 py-4 text-center whitespace-nowrap">Actions</th>
+                    <th className="px-3.5 py-2 whitespace-nowrap">Resource</th>
+                    {activeScope === 'tenant' && <th className="px-3.5 py-2 whitespace-nowrap">Company</th>}
+                    <th className="px-3.5 py-2 whitespace-nowrap">Schedule</th>
+                    <th className="px-3.5 py-2 whitespace-nowrap">Booked By</th>
+                    {activeScope !== 'tenant' && <th className="px-3.5 py-2 whitespace-nowrap">Company / Dept</th>}
+                    <th className="px-3.5 py-2 text-center whitespace-nowrap">Status</th>
+                    {activeScope !== 'tenant' && <th className="px-3.5 py-2 text-center whitespace-nowrap">Type</th>}
+                    <th className="px-3.5 py-2 text-center whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100/60">
+                <tbody className="divide-y divide-slate-50">
                   {visibleRows.length === 0 ? (
                     <tr>
-                      <td colSpan={activeScope === 'tenant' ? 5 : 7} className="px-3 py-20 text-center font-pmedium text-slate-400">
+                      <td colSpan={activeScope === 'tenant' ? 5 : 7} className="px-3.5 py-20 text-center font-pmedium text-slate-400">
                         No bookings found matching your filters.
                       </td>
                     </tr>
                   ) : (
                     visibleRows.map((row) => {
-                      const liveStatus = activeScope === 'tenant' ? getLiveMeetingStatus(row as unknown as Record<string, unknown>) : row.status;
+                      const liveStatus = getLiveMeetingStatus(row as unknown as Record<string, unknown>);
                       const isInternalLikeScope = activeScope === 'internal' || activeScope === 'department' || activeScope === 'history';
                       return (
                         <tr key={row.id || row.bookingCode} className="hover:bg-blue-50/30 transition-all group">
-                          <td className="px-3 py-4">
+                          <td className="px-3.5 py-2">
                             <div className="flex items-center gap-3">
-                              <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm">
+                              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-primary">
                                 <MapPin size={14} />
                               </div>
                               <div>
-                                <div className="font-pmedium text-slate-900 text-sm">{row.resourceName}</div>
-                                <div className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-0.5">
+                                <div className="font-pmedium text-[#0F172A] text-[13px]">{row.resourceName}</div>
+                                <div className="text-[10px] font-pmedium text-slate-500 uppercase tracking-wider mt-0.5">
                                   {row.resourceType}{row.resourceLocation ? ` • ${row.resourceLocation}` : ''}
                                 </div>
                               </div>
                             </div>
                           </td>
                           {activeScope === 'tenant' && (
-                            <td className="px-3 py-4">
-                              <span className="font-pmedium text-slate-900 text-sm">{row.companyName || row.company}</span>
+                            <td className="px-3.5 py-2">
+                              <span className="font-pmedium text-[#0F172A] text-[13px]">{row.companyName || row.company}</span>
                             </td>
                           )}
-                          <td className="px-3 py-4">
-                            {renderScheduleSummary(row as unknown as Record<string, unknown>, { showDate: true })}
+                          <td className="px-3.5 py-2">
+                            {renderScheduleSummary(row as unknown as Record<string, unknown>, { showDate: true, showHistory: false })}
                           </td>
-                          <td className="px-3 py-4">
+                          <td className="px-3.5 py-2">
                             <div className="font-pmedium text-slate-800 text-xs">{row.bookedBy || '-'}</div>
                             <div className="text-[10px] font-pmedium text-slate-500 flex items-center gap-1.5">
                               {row.role || 'Manager'}
                             </div>
-                            {isInternalLikeScope && row.bookingType !== 'External' && row.bookingType !== 'Tenant' && (
+                            {/* {isInternalLikeScope && row.bookingType !== 'External' && row.bookingType !== 'Tenant' && (
                               <span className={`mt-1 inline-flex px-1.5 py-0.5 rounded text-[8px] font-pmedium uppercase tracking-wider border ${bookingScopeBadge(row.bookingScope)}`}>
                                 {bookingScopeLabel(row.role)}
                               </span>
-                            )}
+                            )} */}
                           </td>
                           {activeScope !== 'tenant' && (
-                            <td className="px-3 py-4">
-                              <span className="font-pmedium text-slate-900 text-sm">{row.company || row.department}</span>
+                            <td className="px-3.5 py-2">
+                              <span className="font-pmedium text-[#0F172A] text-[13px]">{row.company || row.department}</span>
                             </td>
                           )}
-                          <td className="px-3 py-4 text-center">
+                          <td className="px-3.5 py-2 text-center">
                             <span className={statusPillClass(liveStatus)}>
                               {liveStatus}
                             </span>
                           </td>
                           {activeScope !== 'tenant' && (
-                            <td className="px-3 py-4 text-center">
+                            <td className="px-3.5 py-2 text-center">
                               <span className={statusPillClass(row.bookingType)}>
                                 {row.bookingType}
                               </span>
                             </td>
                           )}
-                          <td className="px-3 py-4">
+                          <td className="px-3.5 py-2">
                             <div className="flex items-center justify-center gap-1.5">
                               <button
                                 onClick={() => setViewingDetails(row)}
-                                className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all shadow-sm"
+                                className="p-1.5 bg-slate-100 text-slate-600 hover:bg-primary/10 hover:text-primary rounded-lg transition-all"
                                 title="View Details"
                               >
-                                <Eye size={14} />
+                                <Eye size={15} strokeWidth={2.5} />
                               </button>
                             </div>
                           </td>
@@ -1976,24 +1974,24 @@ export default function BookingsPage() {
               </div>
             </div>
             </div>
-          </PageFrame>
         )}
       </div>
 
       {/* ── View Details Modal ───────────────────────────────────────── */}
       {viewingDetails && (
-        <div className="fixed inset-0 z-90 flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-md">
-          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl">
-            <div className="flex items-start justify-between border-b border-slate-100 bg-slate-50/70 p-6">
-              <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
-                  <Building2 className="text-blue-600" size={28} />
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-3">
+          <div className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" onClick={() => setViewingDetails(null)} />
+          <div className="relative z-[90] flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-blue-50/30 p-5 sm:p-6 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#2563EB] text-white shadow-sm">
+                  <Building2 size={18} />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-pmedium text-slate-900">{viewingDetails.resourceName || 'Booking Details'}</h2>
-                  <div className="mt-1 flex items-center gap-3">
+                  <h2 className="truncate text-base lg:text-lg font-pmedium tracking-tight text-slate-800">Booking Details</h2>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
                     <span className={statusPillClass(viewingDetails.status)}>{viewingDetails.status}</span>
-                    <span className="flex items-center gap-1 text-xs font-bold text-slate-500">
+                    <span className="flex items-center gap-1 text-[10px] font-pmedium uppercase tracking-wider text-slate-500">
                       <MapPin size={12} /> {viewingDetails.resourceType}
                     </span>
                   </div>
@@ -2003,21 +2001,33 @@ export default function BookingsPage() {
                 <button
                   type="button"
                   onClick={() => setViewingDetails(null)}
-                  className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-colors hover:bg-slate-100"
+                  className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"
                 ><X size={18} /></button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="grid grid-cols-2 gap-6">
+            <div className="flex-1 overflow-y-auto bg-white p-5 sm:p-6 space-y-5">
+              <div className="grid grid-cols-1 gap-5">
                 <div className="space-y-4">
                   <section>
-                    <h4 className="mb-3 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Booking Information</h4>
-                    <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+                    <h4 className="mb-3 flex items-center gap-2 border-b border-slate-100 pb-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-500"><Building2 size={14} /> Booking Information</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
                       <InfoRow label="Booking Code" value={viewingDetails.bookingCode || '-'} />
                       <InfoRow label="Resource" value={viewingDetails.resourceName || '-'} />
                       <InfoRow label="Resource Type" value={viewingDetails.resourceType || '-'} />
                       <InfoRow label="Date" value={formatDisplayDate(viewingDetails.date) || '-'} />
                       <InfoRow label="Time Slot" value={viewingDetails.timeSlot || '-'} />
+                      {Boolean(viewingDetails.previousDate || viewingDetails.previousStartTime || viewingDetails.previousEndTime) && (
+                        <>
+                          <InfoRow label="Rescheduled From" value={
+                            (viewingDetails.previousDate ? formatDisplayDate(viewingDetails.previousDate) : '')
+                              + (viewingDetails.previousStartTime || viewingDetails.previousEndTime
+                                ? ` ${formatTimeSlot(String(viewingDetails.previousStartTime || ''), String(viewingDetails.previousEndTime || ''))}`
+                                : '')
+                            || '-'
+                          } />
+                          <InfoRow label="Schedule Status" value={getScheduleChangeLabel(String(viewingDetails.scheduleChangeType || '')) || 'Rescheduled'} />
+                        </>
+                      )}
                       <InfoRow label="Duration" value={viewingDetails.durationMinutes ? `${viewingDetails.durationMinutes} min` : '-'} />
                       <InfoRow label="Location" value={viewingDetails.resourceLocation || '-'} />
                       <InfoRow label="Booking Type" value={viewingDetails.bookingType || '-'} />
@@ -2026,8 +2036,8 @@ export default function BookingsPage() {
                     </div>
                   </section>
                   <section>
-                    <h4 className="mb-3 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Booked By</h4>
-                    <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+                    <h4 className="mb-3 flex items-center gap-2 border-b border-slate-100 pb-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-500"><User size={14} /> Booked By</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
                       <InfoRow label="Name" value={viewingDetails.bookedBy || '-'} />
                       <InfoRow label="Email" value={viewingDetails.bookedByEmail || '-'} />
                       <InfoRow label="Phone" value={viewingDetails.bookedByPhone || '-'} />
@@ -2040,15 +2050,14 @@ export default function BookingsPage() {
                 <div className="space-y-4">
                   {viewingDetails.bookingType !== 'External' && viewingDetails.bookingType !== 'Tenant' && (
                     <section>
-                      <h4 className="mb-3 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
-                        Invites ({currentBookingInvites.length})
+                      <h4 className="mb-3 flex items-center gap-2 border-b border-slate-100 pb-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-500"><Users size={14} /> Invites ({currentBookingInvites.length})
                         {currentBookingInviteCounts.pending > 0 && (
                           <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-black text-amber-700">
                             {currentBookingInviteCounts.pending} pending
                           </span>
                         )}
                       </h4>
-                      <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+                      <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
                         {currentBookingInvites.length === 0 ? (
                           <p className="text-xs font-bold text-slate-400">No invites sent.</p>
                         ) : (
@@ -2070,8 +2079,8 @@ export default function BookingsPage() {
                     </section>
                   )}
                   <section>
-                    <h4 className="mb-3 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Payment & Invoice</h4>
-                    <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+                    <h4 className="mb-3 flex items-center gap-2 border-b border-slate-100 pb-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-500"><CreditCard size={14} /> Payment & Invoice</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
                       <InfoRow label="Payment Status" value={viewingDetails.paymentStatus || '-'} />
                       {viewingDetails.totalAmount > 0 && (
                         <>
@@ -2099,8 +2108,8 @@ export default function BookingsPage() {
                   </section>
                   {viewingDetails.remainingCredits != null && (
                     <section>
-                      <h4 className="mb-3 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Credits</h4>
-                      <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+                      <h4 className="mb-3 flex items-center gap-2 border-b border-slate-100 pb-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-500"><CreditCard size={14} /> Credits</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
                         <InfoRow label="Credits Used" value={String(viewingDetails.creditsUsed)} />
                         <InfoRow label="Remaining Credits" value={String(viewingDetails.remainingCredits)} />
                       </div>
@@ -2108,9 +2117,9 @@ export default function BookingsPage() {
                   )}
                   {viewingDetails.notes && (
                     <section>
-                      <h4 className="mb-3 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Notes</h4>
-                      <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                        <p className="text-sm font-medium text-slate-700">{viewingDetails.notes}</p>
+                      <h4 className="mb-3 flex items-center gap-2 border-b border-slate-100 pb-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-500"><FileText size={14} /> Notes</h4>
+                      <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+                        <p className="text-[12px] font-pmedium leading-5 text-slate-700">{viewingDetails.notes}</p>
                       </div>
                     </section>
                   )}
@@ -2468,7 +2477,6 @@ export default function BookingsPage() {
           </div>
         </div>
       )}
-    </AppShell>
 
       <ExportReportModal
         isOpen={showExportModal}
@@ -2503,9 +2511,9 @@ export default function BookingsPage() {
 
 function InfoRow({ label, value }: { label: string; value: ReactNode | string | number | null | undefined }) {
   return (
-    <div className="flex items-center justify-between py-2">
-      <span className={statusPillClass(label)}>{label}</span>
-      <span className="text-xs font-bold text-slate-900">{value ?? '-'}</span>
+    <div className="min-w-0">
+      <p className="mb-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">{label}</p>
+      <div className="break-words text-[12px] font-pmedium text-slate-900">{value ?? '-'}</div>
     </div>
   );
 }

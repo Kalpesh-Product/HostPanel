@@ -83,6 +83,28 @@ export const updateHousekeepingStaffAttendance = async (staffId: string, payload
   return unwrap(response);
 };
 
+export const updateHousekeepingTaskRequirements = async (
+  taskId: string,
+  index: number,
+  fulfilled: boolean,
+) => {
+  const response = await axiosPrivate.patch(`/api/housekeeping/tasks/${taskId}/requirements`, {
+    index,
+    fulfilled,
+  });
+  return unwrap(response);
+};
+
+export const getHousekeepingStaffPerformance = async () => {
+  const response = await axiosPrivate.get("/api/housekeeping/staff/performance");
+  return unwrap(response);
+};
+
+export const getHousekeepingEmployees = async () => {
+  const response = await axiosPrivate.get("/api/housekeeping/employees");
+  return unwrap(response);
+};
+
 export const bulkUploadHousekeepingWorkbook = async (file: File) => {
   const formData = new FormData();
   formData.append("file", file);

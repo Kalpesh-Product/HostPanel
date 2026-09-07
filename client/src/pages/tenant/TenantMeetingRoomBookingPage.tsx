@@ -210,6 +210,7 @@ interface BookingForm {
   purpose: string;
   attendees: number;
   inviteeUserIds: string[];
+  requirements: string[];
 }
 
 interface InviteeOption {
@@ -253,6 +254,7 @@ export default function TenantMeetingRoomBookingPage() {
     purpose: '',
     attendees: 1,
     inviteeUserIds: [],
+    requirements: [],
   });
 
   useEffect(() => {
@@ -510,7 +512,7 @@ export default function TenantMeetingRoomBookingPage() {
 
   const handleOpenBooking = (room: NormalizedRoom) => {
     setSelectedRoom(room);
-    setBookingForm({ date: '', startTime: '', endTime: '', purpose: '', attendees: 1, inviteeUserIds: [] });
+    setBookingForm({ date: '', startTime: '', endTime: '', purpose: '', attendees: 1, inviteeUserIds: [], requirements: [] });
     setBookingError('');
     setFieldErrors({});
   };
@@ -599,6 +601,7 @@ export default function TenantMeetingRoomBookingPage() {
         bookedByName: currentUserName,
         bookedByEmail: currentUser?.email || '',
         bookingNotes: `Floor ${selectedRoom.floor} Wing ${selectedRoom.wing}`,
+        requirements: bookingForm.requirements,
       });
 
       toast.success(`${selectedRoom.name} booked for ${formatTime12h(bookingForm.startTime)}.`);
@@ -899,6 +902,30 @@ export default function TenantMeetingRoomBookingPage() {
                         setBookingError('');
                       }}
                     />
+                  </div>
+                </div>
+
+                {/* Housekeeping Requirements */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Housekeeping Requirements (Optional)</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Water bottles', 'Tea / coffee service', 'Extra chairs', 'Whiteboard / markers'].map((item) => {
+                      const checked = bookingForm.requirements.includes(item);
+                      return (
+                        <label key={item} className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-pmedium cursor-pointer transition-all ${checked ? 'border-[#2563EB] bg-blue-50 text-[#2563EB]' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}>
+                          <input
+                            type="checkbox"
+                            className="h-3.5 w-3.5 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]/30"
+                            checked={checked}
+                            onChange={(e) => setBookingForm((prev) => ({
+                              ...prev,
+                              requirements: e.target.checked ? [...prev.requirements, item] : prev.requirements.filter((r) => r !== item),
+                            }))}
+                          />
+                          {item}
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
 

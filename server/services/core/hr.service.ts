@@ -9,7 +9,7 @@ import EmployeeProfile from "../../models/EmployeeProfile.js";
 import { findAttendanceShift, getConfiguredAttendanceShifts } from "../../utils/attendanceShifts.js";
 import TenantEmployee from "../../models/TenantEmployee.js";
 import { Role } from "../../models/Role.js";
-import { formatEmployeeId } from "../../utils/employee-id.js";
+import { formatEmployeeId, formatHousekeepingCode, isFormattedHousekeepingCode } from "../../utils/employee-id.js";
 import { deleteFileFromS3ByUrl, uploadFileToS3 } from "../../config/s3config.js";
 
 const SYSTEM_ROLE_NAMES = new Set(["founder", "owner", "super_admin", "admin", "manager", "employee"]);
@@ -277,6 +277,22 @@ const getWorkspaceDepartmentIdsAndNames = async (workspaceId: any) => {
 
 const getNextEmployeeSequence = async (workspaceId: any) => {
   const counterKey = EMPLOYEE_COUNTER_KEY(workspaceId);
+  const counter = await EmployeeProfileCounter.findOneAndUpdate(
+    { _id: counterKey },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true, setDefaultsOnInsert: true },
+  )
+    .lean()
+    .exec();
+
+  const sequence = Number(counter?.seq || 1);
+  return sequence > 0 ? sequence : 1;
+};
+
+const HOUSEKEEPING_CODE_COUNTER_KEY = (workspaceId: any) => `housekeepingCodeSr:${String(workspaceId || "")}`;
+
+const getNextHousekeepingCodeSequence = async (workspaceId: any) => {
+  const counterKey = HOUSEKEEPING_CODE_COUNTER_KEY(workspaceId);
   const counter = await EmployeeProfileCounter.findOneAndUpdate(
     { _id: counterKey },
     { $inc: { seq: 1 } },
@@ -951,6 +967,20 @@ const createOrUpdateEmployeeProfile = async (workspace: any, payload: any) => {
           email,
         })) || formatEmployeeId(employeeSequence);
 
+  const isHousekeepingStaff = Boolean(payload?.isHousekeepingStaff || profile?.isHousekeepingStaff);
+  // Housekeeping hires get a real, unique HKS-### code from the server
+  // rather than trusting client input — the Add/Edit form only ever sends
+  // back the literal "HOUSEKEEPING" placeholder or a blank value for them.
+  const existingJobCode = normalizeText(profile?.jobCode || "").toUpperCase();
+  const incomingJobCode = normalizeText(payload?.jobCode || "").toUpperCase();
+  const jobCode = isHousekeepingStaff
+    ? (isFormattedHousekeepingCode(incomingJobCode)
+        ? incomingJobCode
+        : isFormattedHousekeepingCode(existingJobCode)
+          ? existingJobCode
+          : formatHousekeepingCode(await getNextHousekeepingCodeSequence(workspace._id)))
+    : normalizeText(payload?.jobCode || profile?.jobCode || "");
+
   const nextValues = {
     workspaceId: workspace._id,
     linkedUserId: payload?.linkedUserId || profile?.linkedUserId || null,
@@ -970,7 +1000,7 @@ const createOrUpdateEmployeeProfile = async (workspace: any, payload: any) => {
     emergencyContactName: normalizeText(payload?.emergencyContactName || profile?.emergencyContactName || ""),
     emergencyContactPhone: normalizeText(payload?.emergencyContactPhone || profile?.emergencyContactPhone || ""),
     jobTitle: normalizeText(payload?.jobTitle || profile?.jobTitle || roleDoc?.name || "Employee"),
-    jobCode: normalizeText(payload?.jobCode || profile?.jobCode || ""),
+    jobCode,
     departments: departmentData.ids,
     workLocation: normalizeText(payload?.workLocation || profile?.workLocation || ""),
     workMode: String(payload?.workMode || profile?.workMode || "hybrid"),
@@ -978,7 +1008,7 @@ const createOrUpdateEmployeeProfile = async (workspace: any, payload: any) => {
     managerUserId: payload?.managerUserId || profile?.managerUserId || null,
     shiftId: requestedShiftId,
     workspaceRole: roleDoc._id,
-    isHousekeepingStaff: Boolean(payload?.isHousekeepingStaff || profile?.isHousekeepingStaff),
+    isHousekeepingStaff,
     employmentType: normalizeEmploymentTypeForStorage(payload?.employmentType || profile?.employmentType || "full_time"),
     internshipIsUnpaid: Boolean(payload?.internshipIsUnpaid ?? profile?.internshipIsUnpaid),
     status: normalizeText(payload?.status || profile?.status || "pending").toLowerCase().replace(/\s+/g, "_"),

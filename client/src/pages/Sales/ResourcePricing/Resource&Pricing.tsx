@@ -2581,7 +2581,7 @@ export default function PricingPackagesPage() {
                       <FormSectionHeader icon={View} label="Preview" />
                       {/* <p className="text-[11px] font-pmedium uppercase tracking-widest text-slate-400">Preview</p> */}
                       <p className="mt-1 text-sm font-pmedium text-slate-800">
-                        {resourceForm.pricePerHour ? `${formatCurrency(resourceForm.pricePerHour)} / hr${isPerPersonPricingCategory(resourceForm.resourceCategory) ? ' / person' : ''}` : 'Hourly rate not set'} &bull; {resourceForm.pricePerDay ? `${formatCurrency(resourceForm.pricePerDay)} / day${isPerPersonPricingCategory(resourceForm.resourceCategory) ? ' / person' : ''}` : 'Daily rate not set'}
+                        {resourceForm.pricePerHour ? `${formatCurrency(resourceForm.pricePerHour)} per hour${isPerPersonPricingCategory(resourceForm.resourceCategory) ? ' per person' : ''}` : 'Hourly rate not set'} &bull; {resourceForm.pricePerDay ? `${formatCurrency(resourceForm.pricePerDay)} per day${isPerPersonPricingCategory(resourceForm.resourceCategory) ? ' per person' : ''}` : 'Daily rate not set'}
                       </p>
                       <p className="mt-1 text-[11px] font-pmedium uppercase tracking-widest text-slate-400">
                         {getResourceCreditSummary({
