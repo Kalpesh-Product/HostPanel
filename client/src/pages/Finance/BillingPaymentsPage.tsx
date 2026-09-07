@@ -106,6 +106,7 @@ interface VirtualOfficeRentRecord {
     periodEnd?: string | null;
     monthLabel?: string;
     dueDateLabel?: string;
+    paidThroughLabel?: string | null;
     paidAmount?: number;
     dueAmount?: number;
     status?: string;
@@ -1815,6 +1816,7 @@ export function BillingPaymentsPage() {
                       <tr>
                         <th className="px-6 py-5">Client</th>
                         <th className="px-6 py-5 hidden sm:table-cell">Current Period</th>
+                        <th className="px-6 py-5 hidden sm:table-cell">Paid Through</th>
                         <th className="px-6 py-5 hidden sm:table-cell">Due Date</th>
                         <th className="px-6 py-5">Monthly Rent</th>
                         <th className="px-6 py-5 hidden md:table-cell">Paid / Due</th>
@@ -1830,6 +1832,7 @@ export function BillingPaymentsPage() {
                             <p className="text-[9px] font-semibold text-slate-400">{vo.recordCode}{vo.serviceName ? ` · ${vo.serviceName}` : ''}</p>
                           </td>
                           <td className="px-6 py-5 hidden sm:table-cell text-xs font-bold text-slate-700">{vo.currentPeriod?.monthLabel || '—'}</td>
+                          <td className="px-6 py-5 hidden lg:table-cell text-xs font-bold text-slate-700">{vo.currentPeriod?.paidThroughLabel || '—'}</td>
                           <td className="px-6 py-5 hidden sm:table-cell text-xs font-bold text-slate-700">{vo.currentPeriod?.dueDateLabel || vo.rentDateLabel || '—'}</td>
                           <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">{formatCurrency(vo.monthlyRent || 0)}</td>
                           <td className="px-6 py-5 hidden md:table-cell">
@@ -1851,7 +1854,7 @@ export function BillingPaymentsPage() {
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan={7} className="px-6 py-16 text-center text-slate-400 font-semibold">No virtual office rent records found.</td>
+                          <td colSpan={8} className="px-6 py-16 text-center text-slate-400 font-semibold">No virtual office rent records found.</td>
                         </tr>
                       )}
                     </tbody>
@@ -2721,6 +2724,10 @@ export function BillingPaymentsPage() {
                 <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Period Status</p>
                   <p className="text-lg font-black text-gray-900 mt-1">{viewingVo.currentPeriod?.status || '—'}</p>
+                </div>
+                <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4 sm:p-5">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-violet-600">Paid Through</p>
+                  <p className="text-lg font-black text-violet-900 mt-1">{viewingVo.currentPeriod?.paidThroughLabel || '—'}</p>
                 </div>
                 <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Rent Due Date (recurring)</p>

@@ -842,32 +842,61 @@ function formatVORentDate(value) {
   return new Intl.DateTimeFormat("en-IN", { month: "short", day: "2-digit", year: "numeric" }).format(date);
 }
 
-// The billing cycle "now" falls inside, plus how much of it has been paid.
+// Sums every "Paid" payment overlapping [periodStart, periodEnd].
+function sumPaidOverlappingPeriod(payments, periodStart, periodEnd) {
+  return payments.reduce((sum, p) => {
+    const pStart = toDateOrNull(p.periodStart) || toDateOrNull(p.paymentDate);
+    const pEnd = toDateOrNull(p.periodEnd) || toDateOrNull(p.paymentDate);
+    const overlaps = pStart && pEnd
+      && pStart.getTime() <= periodEnd.getTime()
+      && pEnd.getTime() >= periodStart.getTime();
+    return sum + (overlaps && p.status === "Paid" ? Number(p.amount || 0) : 0);
+  }, 0);
+}
+
+// The billing cycle "now" falls inside, plus how much of it has been paid and
+// how far the contract is pre-paid (onboarding advance / collected payments).
 function buildVOCurrentPeriod(record, now = new Date()) {
   const period = getCurrentBillingPeriod(record.rentDate, now);
   if (!period) return null;
   const monthlyRent = Math.max(0, Number(record.monthlyRent || 0));
   const payments = Array.isArray(record.paymentRecords) ? record.paymentRecords : [];
-  const paidAmount = payments.reduce((sum, p) => {
-    const pStart = toDateOrNull(p.periodStart) || toDateOrNull(p.paymentDate);
-    const pEnd = toDateOrNull(p.periodEnd) || toDateOrNull(p.paymentDate);
-    const overlaps = pStart && pEnd
-      && pStart.getTime() <= period.periodEnd.getTime()
-      && pEnd.getTime() >= period.periodStart.getTime();
-    return sum + (overlaps && p.status === "Paid" ? Number(p.amount || 0) : 0);
-  }, 0);
+  const paidAmount = sumPaidOverlappingPeriod(payments, period.periodStart, period.periodEnd);
   const status = monthlyRent > 0 && paidAmount >= monthlyRent
     ? "Paid"
     : paidAmount > 0 ? "Partially Paid" : "Due";
-  // Unpaid → this cycle's rent date; paid → the next cycle's rent date.
-  const nextDueDate = status === "Paid"
-    ? new Date(period.periodStart.getFullYear(), period.periodStart.getMonth() + 1, period.periodStart.getDate())
+
+  // Walk forward through consecutive fully-paid periods so a pre-paid contract
+  // reports how far it is covered — e.g. a 7-month onboarding advance starting
+  // Sept 2026 is "Paid Through Mar 2027", with rent next due Apr 2027.
+  let paidThroughStart = null;
+  if (monthlyRent > 0 && status === "Paid") {
+    paidThroughStart = period.periodStart;
+    let cursor = period.periodStart;
+    for (let guard = 0; guard < 120; guard += 1) {
+      const nextStart = new Date(cursor);
+      nextStart.setMonth(nextStart.getMonth() + 1);
+      const nextEnd = new Date(nextStart);
+      nextEnd.setMonth(nextEnd.getMonth() + 1);
+      nextEnd.setDate(nextEnd.getDate() - 1);
+      if (sumPaidOverlappingPeriod(payments, nextStart, nextEnd) < monthlyRent) break;
+      paidThroughStart = nextStart;
+      cursor = nextStart;
+    }
+  }
+  // Unpaid → this cycle's rent date; paid → the first UNPAID period's rent
+  // date (pre-paid months no longer masquerade as the next due date).
+  const nextDueDate = status === "Paid" && paidThroughStart
+    ? new Date(paidThroughStart.getFullYear(), paidThroughStart.getMonth() + 1, paidThroughStart.getDate())
     : period.periodStart;
   return {
     periodStart: period.periodStart,
     periodEnd: period.periodEnd,
     monthLabel: new Intl.DateTimeFormat("en-IN", { month: "short", year: "numeric" }).format(period.periodStart),
     dueDateLabel: formatVORentDate(nextDueDate),
+    paidThroughLabel: paidThroughStart
+      ? new Intl.DateTimeFormat("en-IN", { month: "short", year: "numeric" }).format(paidThroughStart)
+      : null,
     paidAmount,
     dueAmount: Math.max(0, monthlyRent - paidAmount),
     status,
