@@ -344,7 +344,7 @@ function RentRow({
               onClick={onOpenPaying}
               className="px-3 py-1.5 bg-[#2563EB] text-white rounded-lg text-[9px] font-pmedium uppercase tracking-wider shadow-sm hover:bg-primary/95 transition-all inline-flex items-center gap-1"
             >
-              <Wallet size={10} /> {rent.status === 'Proof Submitted' ? 'Add Payment' : 'Pay Rent'}
+              <Wallet size={10} /> {rent.status === 'Proof Submitted' ? 'Add Payment' : rent.isOverdue ? 'Pay Overdue Rent' : 'Pay Rent'}
             </button>
           ) : (
             <span
@@ -442,7 +442,7 @@ function PayingRow({
               placeholder={String(remaining)}
               className="w-full px-3 py-2.5 bg-white border border-blue-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB]"
             />
-            <p className="text-[10px] text-slate-400">You can pay in full or in installments — pay part now and the rest later, as long as it's within the payment window.</p>
+            <p className="text-[10px] text-slate-400">You can pay in full or in installments — pay part now and the rest later. Late payments stay marked Overdue until Finance verifies them.</p>
           </div>
 
           <input ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden"

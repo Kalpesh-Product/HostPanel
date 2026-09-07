@@ -1875,15 +1875,14 @@ export async function submitMyTenantCompanyRentPaymentForCurrentUser(userId, ren
     throw err;
   }
 
-  // Payment window: 1st of the billing month through the due date.
+  // Payment window opens on the 1st of the billing month. Per business
+  // decision it no longer CLOSES — an overdue month stays submittable in any
+  // later month (Finance still verifies every installment), so only payments
+  // BEFORE the window opens are rejected here.
   const paymentWindow = getRentPaymentWindow(rent.dueDate);
-  if (paymentWindow && !paymentWindow.isWithin) {
+  if (paymentWindow && Date.now() < paymentWindow.start.getTime()) {
     const fmt = (d: Date) => d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-    const nowDate = new Date();
-    const message = nowDate < paymentWindow.start
-      ? `Payments for this rent open on ${fmt(paymentWindow.start)} (due ${fmt(new Date(rent.dueDate))}).`
-      : `The due date for this rent (${fmt(new Date(rent.dueDate))}) has passed. Please contact finance — late payments are recorded manually.`;
-    const err = new Error(message);
+    const err = new Error(`Payments for this rent open on ${fmt(paymentWindow.start)} (due ${fmt(new Date(rent.dueDate))}).`);
     err.statusCode = 403;
     throw err;
   }

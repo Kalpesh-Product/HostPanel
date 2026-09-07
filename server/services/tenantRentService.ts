@@ -125,53 +125,89 @@ export function buildMonthlyRentPeriodInfo(company: any, now: Date = new Date())
   return { periodKey, periodLabel, dueDate, amount: resolveTenantMonthlyRent(company) };
 }
 
-// Creates the current month's rent record for a company if it is missing.
+// Builds one period info per calendar month from the contract's start month
+// through the month of `now` (inclusive), skipping months the contract does
+// not cover (buildMonthlyRentPeriodInfo already handles that per-month).
+// This is what makes generation catch up a backdated contractStart instead of
+// only ever producing the single month the sweep happens to be ticking in.
+function buildMissingRentPeriodInfos(company: any, now: Date = new Date()) {
+  const contractStart = company?.contractStart ? new Date(company.contractStart) : null;
+  if (!contractStart || Number.isNaN(contractStart.getTime())) return [];
+
+  const cursor = new Date(Date.UTC(contractStart.getUTCFullYear(), contractStart.getUTCMonth(), 1));
+  const stop = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+
+  const infos: NonNullable<ReturnType<typeof buildMonthlyRentPeriodInfo>>[] = [];
+  let guard = 0; // safety cap so bad data can't spin this into an unbounded loop
+  while (cursor <= stop && guard < 240) {
+    const info = buildMonthlyRentPeriodInfo(company, cursor);
+    if (info) infos.push(info);
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    guard += 1;
+  }
+  return infos;
+}
+
+// Creates every missing monthly rent record for a company, from the month its
+// contract started through the current month — not just the current month —
+// so a company entered with a backdated contractStart (e.g. onboarded today
+// for a contract that "started" two months ago) gets every owed month's
+// receivable, not only the one the scheduler happens to be ticking in.
 // Idempotent: the {tenantCompanyId, periodKey} unique index backs this up even
 // under concurrent sweeps (duplicate key → treated as "already exists").
 export async function ensureCurrentMonthRentRecordForCompany(company: any, now: Date = new Date()) {
-  const info = buildMonthlyRentPeriodInfo(company, now);
-  if (!info || !(info.amount > 0)) return null;
+  const infos = buildMissingRentPeriodInfos(company, now).filter((info) => info.amount > 0);
+  if (infos.length === 0) return [];
 
-  const existing = await TenantRent.findOne({ tenantCompanyId: company._id, periodKey: info.periodKey }).lean().exec();
-  if (existing) return null;
+  const periodKeys = infos.map((info) => info.periodKey);
+  const existing = await TenantRent.find({ tenantCompanyId: company._id, periodKey: { $in: periodKeys } })
+    .select("periodKey")
+    .lean()
+    .exec();
+  const existingKeys = new Set(existing.map((r: any) => r.periodKey));
 
-  try {
-    const created = await TenantRent.create({
-      workspaceId: company.workspaceId,
-      tenantCompanyId: company._id,
-      tenantCode: safeString(company.tenantCode),
-      companyName: safeString(company.companyName),
-      periodKey: info.periodKey,
-      periodLabel: info.periodLabel,
-      dueDate: info.dueDate,
-      amount: info.amount,
-      status: "Due",
-      source: "scheduler",
-      actionHistory: [{
-        action: "generated",
+  const created: any[] = [];
+  for (const info of infos) {
+    if (existingKeys.has(info.periodKey)) continue;
+    try {
+      const record = await TenantRent.create({
+        workspaceId: company.workspaceId,
+        tenantCompanyId: company._id,
+        tenantCode: safeString(company.tenantCode),
+        companyName: safeString(company.companyName),
+        periodKey: info.periodKey,
+        periodLabel: info.periodLabel,
+        dueDate: info.dueDate,
+        amount: info.amount,
         status: "Due",
-        note: `Rent receivable for ${info.periodLabel} generated.`,
-        at: new Date(),
-      }],
-    });
-    return created;
-  } catch (err: any) {
-    if (err?.code === 11000) return null; // concurrent sweep already created it
-    throw err;
+        source: "scheduler",
+        actionHistory: [{
+          action: "generated",
+          status: "Due",
+          note: `Rent receivable for ${info.periodLabel} generated.`,
+          at: new Date(),
+        }],
+      });
+      created.push(record);
+    } catch (err: any) {
+      if (err?.code === 11000) continue; // concurrent sweep already created it
+      throw err;
+    }
   }
+  return created;
 }
 
-// Sweep: materializes this month's rent receivables for every tenant company
-// whose contract covers the current month.
+// Sweep: materializes every missing rent receivable (backfilling any months
+// skipped since contract start) for every tenant company whose contract has
+// started by now. Per-month contract coverage (including an already-ended
+// contract) is still enforced inside buildMonthlyRentPeriodInfo.
 export async function runTenantRentGenerationSweep(now: Date = new Date()) {
   const year = now.getUTCFullYear();
   const month = now.getUTCMonth();
-  const monthStart = new Date(Date.UTC(year, month, 1));
   const monthEnd = new Date(Date.UTC(year, month, daysInMonth(year, month), 23, 59, 59, 999));
 
   const companies: any[] = await TenantCompany.find({
     contractStart: { $ne: null, $lte: monthEnd },
-    contractEnd: { $ne: null, $gte: monthStart },
   })
     .lean()
     .exec();
@@ -179,7 +215,7 @@ export async function runTenantRentGenerationSweep(now: Date = new Date()) {
   let generated = 0;
   for (const company of companies) {
     const created = await ensureCurrentMonthRentRecordForCompany(company, now);
-    if (created) generated += 1;
+    generated += created.length;
   }
   return { checked: companies.length, generated };
 }
@@ -277,9 +313,11 @@ export function formatTenantRentRecord(record: any, now: Date = new Date()) {
     paymentWindowEnd: window?.end || null,
     paymentWindowLabel: window ? `${formatRentDate(window.start)} – ${formatRentDate(window.end)}` : "",
     isWithinPaymentWindow: !!window?.isWithin,
-    // Tenants can submit another installment while inside the window, not yet
-    // fully paid, and there is still outstanding balance.
-    canSubmitProof: status !== "Paid" && !!window?.isWithin && totals.remaining > 0,
+    // Per business decision the window no longer CLOSES: an overdue month
+    // stays submittable in any later month (Finance still verifies every
+    // installment). Blocked only when fully paid, nothing is owed, or the
+    // window has not opened yet (future month).
+    canSubmitProof: status !== "Paid" && totals.remaining > 0 && (!window || now.getTime() >= window.start.getTime()),
     // Installment totals.
     verifiedTotal: totals.verifiedTotal,
     submittedTotal: totals.submittedTotal,
