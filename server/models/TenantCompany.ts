@@ -43,6 +43,10 @@ const tenantCompanyDetailsSchema = new Schema(
   {
     buildingName: { type: String, default: "", trim: true, maxlength: 160 },
     unitNo: { type: String, default: "", trim: true, maxlength: 60 },
+    // Floor + wing this tenant's desks are assigned from — drives seat
+    // reconciliation against ResourceSeat inventory (see resourceSeatService).
+    floor: { type: String, default: "", trim: true, maxlength: 60 },
+    wing: { type: String, default: "", trim: true, maxlength: 10 },
     cabinDesks: { type: Number, default: 0, min: 0 },
     ratePerCabinDesk: { type: Number, default: 0, min: 0 },
     openDesks: { type: Number, default: 0, min: 0 },
@@ -60,6 +64,10 @@ const tenantAgreementDetailsSchema = new Schema(
     startDate: { type: Date, default: null },
     endDate: { type: Date, default: null },
     lockInPeriod: { type: Number, default: 0, min: 0 },
+    // Next date the annual rent increment applies — contract start (or the
+    // most recent increment) plus 12 months. Recomputed server-side on
+    // create/update; null when no increment percent is set.
+    annualIncrementDate: { type: Date, default: null },
   },
   { _id: false },
 );

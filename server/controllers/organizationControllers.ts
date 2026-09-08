@@ -3450,6 +3450,16 @@ export const transferOrganizationOwnership = async (req, res, next) => {
         message: "Ownership can only be transferred to a Super Admin.",
       });
     }
+    // Ownership may only be handed to a Super Admin who has actually joined the
+    // workspace. If the target was merely invited (or registered) but never
+    // joined, transferring would hand the account to a dormant account and the
+    // ownership would effectively be lost — so only joined users can receive it.
+    if (targetMember.status !== "joined") {
+      return res.status(400).json({
+        message:
+          "Ownership can only be transferred to a Super Admin who has joined. The selected user still needs to accept the invite and join.",
+      });
+    }
 
     const requestedWorkspaceIds = Array.from(
       new Set(
@@ -3494,6 +3504,15 @@ export const transferOrganizationOwnership = async (req, res, next) => {
     const nextOwner = await HostUser.findById(targetMember.user);
     if (!nextOwner) {
       return res.status(404).json({ message: "Selected user not found." });
+    }
+    // Double-guard: even if the membership row's status drifted out of sync,
+    // the account must have actually joined (set once on first login) before it
+    // can take over ownership.
+    if (nextOwner.inviteStatus !== "joined") {
+      return res.status(400).json({
+        message:
+          "Ownership can only be transferred to a Super Admin who has joined. The selected user still needs to accept the invite and join.",
+      });
     }
 
     const previousOwner = await HostUser.findById(workspace.owner);

@@ -23,3 +23,23 @@ export const assignResource = async (recordId: string, payload: Record<string, a
 export const releaseResourceAssignment = async (recordId: string) => {
   return axiosPrivate.delete(`/api/v1/resources/${recordId}/assignment`);
 };
+
+export const getResourceSeats = async (recordId: string) => {
+  return axiosPrivate.get(`/api/v1/resources/${recordId}/seats`);
+};
+
+export const assignResourceSeat = async (recordId: string, seatNumber: number, payload: Record<string, any>) => {
+  return axiosPrivate.patch(`/api/v1/resources/${recordId}/seats/${seatNumber}/assignment`, payload);
+};
+
+export const releaseResourceSeatAssignment = async (recordId: string, seatNumber: number) => {
+  return axiosPrivate.delete(`/api/v1/resources/${recordId}/seats/${seatNumber}/assignment`);
+};
+
+export const getResourceSeatSummary = async (params: { floor?: string; wing?: string; resourceCategory?: string } = {}) => {
+  return axiosPrivate.get("/api/v1/resources/seat-summary", { params });
+};
+
+export const getResourceSeatAssignments = async () => {
+  return axiosPrivate.get("/api/v1/resources/seat-assignments");
+};

@@ -985,7 +985,7 @@ function ResourceManagementPageInner() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <button
+              {/* <button
                 type="button"
                 onClick={handleBulkUploadClick}
                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-blue-50 hover:border-blue-200 text-slate-500 transition-all active:scale-95 shadow-sm"
@@ -993,7 +993,7 @@ function ResourceManagementPageInner() {
               >
                 <UploadCloud size={16} className="text-blue-500" />
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-[#2563EB] text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
-              </button>
+              </button> */}
               <ReportExportButton onClick={() => setShowExportModal(true)} />
             </div>
           </div>
@@ -1077,13 +1077,13 @@ function ResourceManagementPageInner() {
                     onChange={(event) => setSearchQuery(event.target.value)}
                   />
                 </div>
-                <button
+                {/* <button
                   onClick={openAddModal}
                   data-tour="admin-resource-add-btn"
                   className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
                 >
                   <Plus size={13} strokeWidth={3} /> ADD RESOURCE
-                </button>
+                </button> */}
               </div>
             </div>
 
@@ -1290,12 +1290,12 @@ function ResourceManagementPageInner() {
                               <button title="View Details" onClick={() => setViewingResource(resource)} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900">
                                 <Eye size={14} />
                               </button>
-                              <button title="Edit Resource" onClick={() => openEditModal(resource)} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600">
+                              {/* <button title="Edit Resource" onClick={() => openEditModal(resource)} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600">
                                 <Edit2 size={14} />
                               </button>
                               <button title="Delete Resource" onClick={() => setDeletingResource(resource)} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-600">
                                 <Trash2 size={14} />
-                              </button>
+                              </button> */}
                             </div>
                           </td>
                         </tr>

@@ -12,10 +12,10 @@ export const resourceCategories = [
 export const resourceTypes = ["Open Desk", "Meeting Room", "Conference Room", "Cabin Desk", "Virtual Office"];
 export const resourceStatuses = ["Active", "Under Maintenance", "Disabled"];
 export const areaCapacityCatalog: Record<string, number[]> = {
-    open_desk: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-    cabin_desk: [4, 6, 8, 10],
     virtual_office: [1, 2, 3, 4, 5],
 };
+// Open desk (area) and cabin desk seats are entered manually, capped at MAX_DESK_SEATS.
+export const MAX_DESK_SEATS = 499;
 const DEFAULT_BOOKING_SPAN_HOURS = 13;
 
 export function normalizeResourceFloor(value = "") {
@@ -46,12 +46,9 @@ export function normalizeResourceInventoryMode(value = "", category = "", capaci
 
 export function getResourceCapacityOptions(category = "", inventoryMode = "area") {
     const resourceCategory = normalizeResourceCategory(category);
-    if (resourceCategory === "cabin_desk") return areaCapacityCatalog[resourceCategory] || [1];
     if (resourceCategory === "virtual_office") return areaCapacityCatalog[resourceCategory] || [1];
-    if (resourceCategory === "open_desk") {
-        if (inventoryMode === "single") return [1];
-        return areaCapacityCatalog[resourceCategory] || [1];
-    }
+    if (resourceCategory === "open_desk" && inventoryMode === "single") return [1];
+    // Open desk (area) and cabin desk have no fixed catalog — seats are entered manually.
     return [];
 }
 
@@ -88,11 +85,14 @@ export function normalizeResourceStatus(resource: any = {}) {
     return "Active";
 }
 
+// Named "...AndCredits" for historical reasons, but credits are no longer part
+// of this check — 0 is a valid credit value (e.g. an internal/complimentary
+// resource) and must not force the resource into "Disabled". Only pricing
+// (hourly or daily) determines whether a resource is ready to activate.
 export function hasResourcePricingAndCredits(resource: any = {}) {
     const hourly = Number(resource?.pricePerHour || 0);
     const daily = Number(resource?.pricePerDay || 0);
-    const credits = Number(resource?.credits || 0);
-    return (hourly > 0 || daily > 0) && credits > 0;
+    return hourly > 0 || daily > 0;
 }
 
 // The stored daily price is authoritative — resourceService keeps it in sync
@@ -115,7 +115,7 @@ export function normalizeResourceName(name = "") {
     return String(name || "").trim();
 }
 
-function buildSeatPrefix(resourceCategory = "", type = "") {
+export function buildSeatPrefix(resourceCategory = "", type = "") {
     const normalizedCategory = String(resourceCategory || "").trim().toLowerCase();
     const normalizedType = String(type || "").trim().toLowerCase();
     if (normalizedCategory === "open_desk" || normalizedType === "desk") return "ODS";
@@ -144,9 +144,10 @@ function formatPricingSummary(pricePerHour = 0, pricePerDay = 0, fallback = "") 
     return parts.length > 0 ? parts.join(" • ") : String(fallback || "");
 }
 
-export function formatResource(roomDoc: any) {
+export function formatResource(roomDoc: any, seatSummary?: { total: number; assigned: number; vacant: number }) {
     const room = roomDoc?.toObject ? roomDoc.toObject() : roomDoc || {};
     const resourceCategory = room.resourceCategory || normalizeResourceCategory(room.type, room.name);
+    const isSeatTracked = resourceCategory === "open_desk" || resourceCategory === "cabin_desk";
     const type = room.type || normalizeResourceType(resourceCategory, room.name);
     const status = resolveActivationStatus(normalizeResourceStatus(room), room);
     const floor = normalizeResourceFloor(room.floor);
@@ -155,14 +156,28 @@ export function formatResource(roomDoc: any) {
     const inventoryMode = normalizeResourceInventoryMode(room.inventoryMode, resourceCategory, room.capacity);
     const locationArea = [floor, wing].filter(Boolean).join(" ").trim();
     const locationLabel = [location, locationArea].filter(Boolean).join(" • ").trim();
-    const assignmentLabel = room.assignedTenantCompanyName || room.assignedVirtualOfficeName || room.assignedDepartmentName || "";
-    const assignmentType = room.assignedTenantCompanyId
-        ? "tenant"
-        : room.assignedVirtualOfficeId
-            ? "virtualOffice"
-            : room.assignedDepartmentName
-                ? "department"
-                : "";
+    const resolvedSeatSummary = isSeatTracked
+        ? seatSummary || { total: Number(room.capacity || 0), assigned: 0, vacant: Number(room.capacity || 0) }
+        : null;
+
+    // Open desk / cabin desk are assigned seat-by-seat now — their whole-resource
+    // assignedTenantCompanyId/etc. fields are no longer written to, so the
+    // assignment label/type for these categories is derived from seat counts.
+    let assignmentLabel: string;
+    let assignmentType: string;
+    if (isSeatTracked) {
+        assignmentLabel = resolvedSeatSummary!.assigned > 0 ? `${resolvedSeatSummary!.assigned}/${resolvedSeatSummary!.total} seats assigned` : "";
+        assignmentType = resolvedSeatSummary!.assigned === 0 ? "" : resolvedSeatSummary!.assigned >= resolvedSeatSummary!.total ? "seatsFull" : "seatsPartial";
+    } else {
+        assignmentLabel = room.assignedTenantCompanyName || room.assignedVirtualOfficeName || room.assignedDepartmentName || "";
+        assignmentType = room.assignedTenantCompanyId
+            ? "tenant"
+            : room.assignedVirtualOfficeId
+                ? "virtualOffice"
+                : room.assignedDepartmentName
+                    ? "department"
+                    : "";
+    }
 
     return {
         recordId: room._id,
@@ -186,6 +201,7 @@ export function formatResource(roomDoc: any) {
         locationLabel,
         capacity: Number(room.capacity || 1),
         seatLabels: buildSeatLabels(resourceCategory, room.capacity, type),
+        seatSummary: resolvedSeatSummary,
         pricing: formatPricingSummary(room.pricePerHour, room.pricePerDay, room.pricing || ""),
         pricePerHour: Number(room.pricePerHour || 0),
         pricePerDay: resolveResourcePricePerDay(room.pricePerHour, room.pricePerDay),
