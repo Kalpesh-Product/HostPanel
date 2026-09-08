@@ -75,9 +75,10 @@ function formatRentDate(value: any) {
 // Rent computation & monthly generation
 // ============================================================================
 
-// Monthly rent for a company — same priority as the finance billing snapshot:
-// desk rates × 30 when desk rates exist, else billingDetails.monthlyRent.
-export function resolveTenantMonthlyRent(company: any) {
+// Base monthly rent for a company, before annual increments — same priority
+// as the finance billing snapshot: desk rates × 30 when desk rates exist,
+// else billingDetails.monthlyRent.
+function resolveBaseTenantMonthlyRent(company: any) {
   const billing = company?.billingDetails || {};
   const details = company?.companyDetails || {};
   const pkg = company?.packageDetails || {};
@@ -87,6 +88,33 @@ export function resolveTenantMonthlyRent(company: any) {
   const ratePerOpenDesk = Math.max(0, safeNumber(details.ratePerOpenDesk ?? pkg.ratePerOpenDesk));
   const dailyRent = Math.max(0, cabinDesks * ratePerCabinDesk + openDesks * ratePerOpenDesk);
   return dailyRent > 0 ? dailyRent * 30 : Math.max(0, safeNumber(billing.monthlyRent));
+}
+
+// Number of full 12-month periods elapsed since the contract started, as of
+// `now`. Used to compound the annual increment onto the base rent.
+function elapsedContractYears(contractStart: any, now: Date) {
+  const start = contractStart ? new Date(contractStart) : null;
+  if (!start || Number.isNaN(start.getTime()) || now <= start) return 0;
+  let years = now.getFullYear() - start.getFullYear();
+  const anniversary = new Date(start);
+  anniversary.setFullYear(start.getFullYear() + years);
+  if (anniversary > now) years -= 1;
+  return Math.max(0, years);
+}
+
+// Monthly rent for a company, with the annual increment% (agreementDetails)
+// compounded once per full year elapsed since contractStart. e.g. a 10%
+// increment raises the monthly rent by 10% at the first anniversary, another
+// 10% on top of that at the second, and so on.
+export function resolveTenantMonthlyRent(company: any, now: Date = new Date()) {
+  const baseRent = resolveBaseTenantMonthlyRent(company);
+  const incrementPercent = Math.max(0, safeNumber(company?.agreementDetails?.annualIncrementPercent));
+  if (!incrementPercent || !baseRent) return baseRent;
+
+  const elapsedYears = elapsedContractYears(company?.contractStart, now);
+  if (elapsedYears <= 0) return baseRent;
+
+  return Math.round(baseRent * (1 + incrementPercent / 100) ** elapsedYears);
 }
 
 // Builds the CURRENT calendar month's rent period for a company, or null when
@@ -122,7 +150,7 @@ export function buildMonthlyRentPeriodInfo(company: any, now: Date = new Date())
   const periodKey = `${year}-${String(month + 1).padStart(2, "0")}`;
   const periodLabel = new Intl.DateTimeFormat("en-IN", { month: "short", year: "numeric" }).format(monthStart);
 
-  return { periodKey, periodLabel, dueDate, amount: resolveTenantMonthlyRent(company) };
+  return { periodKey, periodLabel, dueDate, amount: resolveTenantMonthlyRent(company, now) };
 }
 
 // Creates the current month's rent record for a company if it is missing.

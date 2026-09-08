@@ -13,6 +13,7 @@ import TenantCreditRequest from "../models/TenantCreditRequest.js";
 import TenantCreditLedger from "../models/TenantCreditLedger.js";
 import TenantAgreementDocument from "../models/TenantAgreementDocument.js";
 import { Resource } from "../models/Resource.js";
+import { ResourceSeat } from "../models/ResourceSeat.js";
 import VisitorLog from "../models/VisitorLog.js";
 import { createNotification } from "../utils/notify.js";
 import { parseFiscalYearRange } from "../utils/fiscalYear.js";
@@ -23,6 +24,7 @@ import {
   resolveTenantMonthlyRent,
   getRentPaymentWindow,
 } from "./tenantRentService.js";
+import { reconcileTenantSeatAssignments } from "./resourceSeatService.js";
 
 const TENANT_COMPANIES_SALES_MODULE = "tenant-companies-sales";
 const TENANT_COMPANIES_ADMIN_MODULE = "tenant-companies-admin";
@@ -115,6 +117,20 @@ function buildContractEndDate(start, durationMonths) {
   return end;
 }
 
+// Next date the annual rent increment kicks in — contract start plus whole
+// years elapsed, rolled forward to the next anniversary. No increment percent
+// set means no increment date.
+function computeNextAnnualIncrementDate(contractStart, annualIncrementPercent, now = new Date()) {
+  const start = toDateOrNull(contractStart);
+  if (!start || Number(annualIncrementPercent || 0) <= 0) return null;
+  const next = new Date(start);
+  next.setFullYear(next.getFullYear() + 1);
+  while (next <= now) {
+    next.setFullYear(next.getFullYear() + 1);
+  }
+  return next;
+}
+
 function formatFileSize(bytes = 0) {
   const value = Number(bytes || 0);
   return value ? `${(value / 1024).toFixed(1)} KB` : "";
@@ -162,17 +178,17 @@ function validateRequiredTenantEmployeeInput(input = {}) {
 
 function validateRequiredTenantCompanyOnboardingInput(input = {}) {
   if (input.draftMode === true) return;
-  const pkg = input.packageDetails || {}, customer = input.customerDetails || {}, company = input.companyDetails || {}, poc = input.pocDetails || {}, agreement = input.agreementDetails || {};
-  const required = [[input.companyName, "Company name"], [input.businessType, "Business type"], [input.contactName, "Contact person"], [input.email, "Email"], [input.phone, "Phone number"], [customer.sector, "Company sector"], [customer.hoCountry, "Head-office country"], [customer.hoState, "Head-office state"], [customer.hoCity, "Head-office city"], [company.buildingName, "Building name"], [company.unitNo, "Unit number"], [poc.localPocName, "Local POC name"], [poc.localPocEmail, "Local POC email"], [poc.localPocPhone, "Local POC phone"], [input.pricingPackageId, "Package selection"], [pkg.packageName, "Package name"], [input.contractStart || agreement.startDate, "Agreement start date"], [input.endDate || agreement.endDate, "Agreement end date"]];
+  const customer = input.customerDetails || {}, company = input.companyDetails || {}, poc = input.pocDetails || {}, agreement = input.agreementDetails || {};
+  const required = [[input.companyName, "Company name"], [input.businessType, "Business type"], [input.contactName, "Contact person"], [input.email, "Email"], [input.phone, "Phone number"], [customer.sector, "Company sector"], [customer.hoCountry, "Head-office country"], [customer.hoState, "Head-office state"], [customer.hoCity, "Head-office city"], [company.buildingName, "Location"], [poc.localPocName, "Local POC name"], [poc.localPocEmail, "Local POC email"], [poc.localPocPhone, "Local POC phone"], [input.contractStart || agreement.startDate, "Agreement start date"], [input.endDate || agreement.endDate, "Agreement end date"]];
   const missing = required.filter(([value]) => !normalizeText(value)).map(([, label]) => label);
   if (missing.length) { const err = new Error(`${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} required.`); err.statusCode = 400; throw err; }
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/, phonePattern = /^\+?[\d\s()-]{7,15}$/;
   if (!emailPattern.test(normalizeText(input.email).toLowerCase()) || !emailPattern.test(normalizeText(poc.localPocEmail).toLowerCase())) { const err = new Error("Enter valid company and local POC email addresses."); err.statusCode = 400; throw err; }
   if (!phonePattern.test(normalizeText(input.phone)) || !phonePattern.test(normalizeText(poc.localPocPhone))) { const err = new Error("Enter valid company and local POC phone numbers."); err.statusCode = 400; throw err; }
-  const totalSeats = Number(pkg.totalSeats || 0), openDesks = Number(pkg.openDesks || 0), cabinDesks = Number(pkg.cabinDesks || 0), duration = Number(input.contractDurationMonths || agreement.lockInPeriod || 0);
-  const mappings = Array.isArray(pkg.locationMappings) ? pkg.locationMappings : [], startDate = new Date(input.contractStart || agreement.startDate), endDate = new Date(input.endDate || agreement.endDate);
+  const openDesks = Number(company.openDesks || 0), cabinDesks = Number(company.cabinDesks || 0), duration = Number(input.contractDurationMonths || agreement.lockInPeriod || 0);
+  const startDate = new Date(input.contractStart || agreement.startDate), endDate = new Date(input.endDate || agreement.endDate);
   let message = "";
-  if (totalSeats <= 0) message = "Select at least one tenant company seat."; else if (!mappings.length) message = "Select at least one tenant company location or desk block."; else if (openDesks > 0 && Number(pkg.ratePerOpenDesk || 0) <= 0) message = "Open desk rate must be greater than zero."; else if (cabinDesks > 0 && Number(pkg.ratePerCabinDesk || 0) <= 0) message = "Cabin desk rate must be greater than zero."; else if (Number(pkg.creditsPerSeat || 0) <= 0) message = "Credits per seat must be greater than zero."; else if (Number(pkg.monthlyTotalCredits || input.creditsAllocated || 0) <= 0) message = "Monthly credits must be greater than zero."; else if (duration < 3) message = "Contract duration must be at least 3 months."; else if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate < startDate) message = "Agreement end date must be after the start date.";
+  if (openDesks <= 0 && cabinDesks <= 0) message = "Assign at least one open desk or cabin desk."; else if (!normalizeText(company.floor)) message = "Select a floor for the assigned desks."; else if (openDesks > 0 && Number(company.ratePerOpenDesk || 0) <= 0) message = "Open desk rate must be greater than zero."; else if (cabinDesks > 0 && Number(company.ratePerCabinDesk || 0) <= 0) message = "Cabin desk rate must be greater than zero."; else if (duration < 3) message = "Contract duration must be at least 3 months."; else if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate < startDate) message = "Agreement end date must be after the start date.";
   if (message) { const err = new Error(message); err.statusCode = 400; throw err; }
 }
 function findEmployeeIndex(employees = [], employeeId = "") {
@@ -532,23 +548,31 @@ function formatPricingPackage(pkg) {
 async function formatTenantCompany(company, preloaded = null) {
   if (!company) return null;
 
-  const [employees, creditRequests, agreementDocuments, creditHistory, assignedResources] = preloaded
+  const [employees, creditRequests, agreementDocuments, creditHistory, assignedResources, assignedSeatDocs] = preloaded
     ? [
         preloaded.employees || [],
         preloaded.creditRequests || [],
         preloaded.agreementDocuments || [],
         preloaded.creditHistory || [],
         preloaded.assignedResources || [],
+        preloaded.assignedSeatDocs || [],
       ]
     : await Promise.all([
         TenantEmployee.find({ tenantCompanyId: company._id }).lean().exec(),
         TenantCreditRequest.find({ tenantCompanyId: company._id }).sort({ requestedAt: -1 }).lean().exec(),
         TenantAgreementDocument.find({ tenantCompanyId: company._id }).sort({ uploadedAt: -1 }).lean().exec(),
         TenantCreditLedger.find({ tenantCompanyId: company._id }).sort({ date: -1 }).lean().exec(),
+        // Legacy whole-block assignment — still populated for tenants onboarded
+        // before per-seat tracking existed.
         Resource.find({
           workspaceId: company.workspaceId,
           assignedTenantCompanyId: company._id,
         }).sort({ floor: 1, wing: 1, name: 1 }).lean().exec(),
+        // Current per-seat assignment — what tenant onboarding/edit now writes.
+        ResourceSeat.find({
+          workspaceId: company.workspaceId,
+          assignedTenantCompanyId: company._id,
+        }).lean().exec(),
       ]);
 
   const managerEmployee = company.managerEmployeeId
@@ -586,24 +610,36 @@ async function formatTenantCompany(company, preloaded = null) {
       resource.location || [resource.floor, resource.wing].filter(Boolean).join(" ") || resource.name || resource.resourceCode,
     ))
     .filter(Boolean);
+  const companyDetailsLocationLabel = normalizeText(
+    [company.companyDetails?.floor, company.companyDetails?.wing].filter(Boolean).join(" "),
+  );
   const packageLocationLabels = [...new Set(
     (locationMappings.length > 0
       ? locationMappings.map((mapping) => mapping.label || mapping.locationCode || [mapping.floor, mapping.wing].filter(Boolean).join(" "))
-      : assignedResourceLabels
+      : assignedResourceLabels.length > 0
+        ? assignedResourceLabels
+        : [companyDetailsLocationLabel]
     ).map(normalizeText).filter(Boolean),
   )];
-  const assignedSeats = [...new Set(
-    assignedResources.map((resource) => normalizeText(resource.name || resource.resourceCode)).filter(Boolean),
-  )];
+  const assignedSeats = [...new Set([
+    ...assignedResources.map((resource) => normalizeText(resource.name || resource.resourceCode)),
+    ...assignedSeatDocs.map((seat) => normalizeText(seat.seatLabel)),
+  ].filter(Boolean))];
   const mappedFloor = locationMappings.find((mapping) => mapping.floor)?.floor || "";
   const resourceFloor = assignedResources.find((resource) => normalizeText(resource.floor))?.floor || "";
-  const primaryFloor = normalizeText(company.space?.floor || mappedFloor || resourceFloor);
-  const openDesks = assignedResources
+  const primaryFloor = normalizeText(company.space?.floor || company.companyDetails?.floor || mappedFloor || resourceFloor);
+  // Sum both sources: legacy whole-block Resource assignment (older tenants)
+  // plus live per-seat ResourceSeat assignment (current onboarding/edit flow).
+  const legacyOpenDesks = assignedResources
     .filter((r) => r.type === "Open Desk")
     .reduce((sum, r) => sum + Number(r.capacity || 1), 0);
-  const cabinDesks = assignedResources
+  const legacyCabinDesks = assignedResources
     .filter((r) => r.type === "Cabin Desk")
     .reduce((sum, r) => sum + Number(r.capacity || 1), 0);
+  const seatOpenDesks = assignedSeatDocs.filter((seat) => seat.resourceCategory === "open_desk").length;
+  const seatCabinDesks = assignedSeatDocs.filter((seat) => seat.resourceCategory === "cabin_desk").length;
+  const openDesks = legacyOpenDesks + seatOpenDesks;
+  const cabinDesks = legacyCabinDesks + seatCabinDesks;
   const totalSeats = openDesks + cabinDesks;
   const existingSeats = Array.isArray(company.space?.seats) ? company.space.seats : [];
   const space = {
@@ -754,7 +790,7 @@ export async function listTenantCompaniesForCurrentUser(userId, query = {}) {
 
   const companyIds = companies.map((c) => c._id);
 
-  const [allEmployees, allCreditRequests, allAgreementDocuments, allCreditHistory, allAssignedResources] =
+  const [allEmployees, allCreditRequests, allAgreementDocuments, allCreditHistory, allAssignedResources, allAssignedSeats] =
     companyIds.length
       ? await Promise.all([
           TenantEmployee.find({ tenantCompanyId: { $in: companyIds } }).lean().exec(),
@@ -777,8 +813,14 @@ export async function listTenantCompaniesForCurrentUser(userId, query = {}) {
             .sort({ floor: 1, wing: 1, name: 1 })
             .lean()
             .exec(),
+          ResourceSeat.find({
+            workspaceId,
+            assignedTenantCompanyId: { $in: companyIds },
+          })
+            .lean()
+            .exec(),
         ])
-      : [[], [], [], [], []];
+      : [[], [], [], [], [], []];
 
   const groupById = (docs, key) => {
     const map = new Map();
@@ -795,6 +837,7 @@ export async function listTenantCompaniesForCurrentUser(userId, query = {}) {
   const agreementDocumentsByCompany = groupById(allAgreementDocuments, "tenantCompanyId");
   const creditHistoryByCompany = groupById(allCreditHistory, "tenantCompanyId");
   const assignedResourcesByCompany = groupById(allAssignedResources, "assignedTenantCompanyId");
+  const assignedSeatsByCompany = groupById(allAssignedSeats, "assignedTenantCompanyId");
 
   const tenants = await Promise.all(
     companies.map((c) => {
@@ -805,6 +848,7 @@ export async function listTenantCompaniesForCurrentUser(userId, query = {}) {
         agreementDocuments: agreementDocumentsByCompany.get(cid) || [],
         creditHistory: creditHistoryByCompany.get(cid) || [],
         assignedResources: assignedResourcesByCompany.get(cid) || [],
+        assignedSeatDocs: assignedSeatsByCompany.get(cid) || [],
       });
     }),
   );
@@ -1004,6 +1048,8 @@ export async function createTenantCompanyForCurrentUser(userId, input) {
     companyDetails: {
       buildingName: normalizeText(input.companyDetails?.buildingName || ""),
       unitNo: normalizeText(input.companyDetails?.unitNo || ""),
+      floor: normalizeText(input.companyDetails?.floor || ""),
+      wing: normalizeText(input.companyDetails?.wing || ""),
       cabinDesks: Math.max(0, Number(input.companyDetails?.cabinDesks || 0)),
       ratePerCabinDesk: Math.max(0, Number(input.companyDetails?.ratePerCabinDesk || 0)),
       openDesks: Math.max(0, Number(input.companyDetails?.openDesks || 0)),
@@ -1017,6 +1063,10 @@ export async function createTenantCompanyForCurrentUser(userId, input) {
       startDate: input.agreementDetails?.startDate ? new Date(input.agreementDetails.startDate) : contractStart,
       endDate: input.agreementDetails?.endDate ? new Date(input.agreementDetails.endDate) : contractEnd,
       lockInPeriod: Math.max(0, Number(input.agreementDetails?.lockInPeriod || 0)),
+      annualIncrementDate: computeNextAnnualIncrementDate(
+        contractStart,
+        Math.min(100, Math.max(0, Number(input.agreementDetails?.annualIncrementPercent ?? 10))),
+      ),
     },
     billingDetails: {
       contractDurationMonths: Math.max(0, Number(input.billingDetails?.contractDurationMonths || contractDurationMonths)),
@@ -1078,6 +1128,28 @@ export async function createTenantCompanyForCurrentUser(userId, input) {
     },
     space: { floor: "", seats: [], assignedDate: null },
   });
+
+  // Assign real desk seats out of the floor+wing's ResourceSeat inventory.
+  // If there isn't enough vacant capacity, roll the create back rather than
+  // leaving a half-onboarded record sitting on the unique companyName index
+  // (which would otherwise block the user from simply retrying).
+  if (company.companyDetails?.floor && (company.companyDetails.openDesks > 0 || company.companyDetails.cabinDesks > 0)) {
+    try {
+      await reconcileTenantSeatAssignments(
+        access.workspaceId,
+        access.workspace.ownerId || userId,
+        company._id,
+        company.companyName,
+        company.companyDetails.floor,
+        company.companyDetails.wing,
+        company.companyDetails.openDesks,
+        company.companyDetails.cabinDesks,
+      );
+    } catch (seatError: any) {
+      await TenantCompany.deleteOne({ _id: company._id }).exec();
+      throw seatError;
+    }
+  }
 
   // Generate the current month's rent receivable right away so Finance sees
   // it immediately — the scheduler covers subsequent months.
@@ -1149,6 +1221,10 @@ export async function updateTenantCompanyForCurrentUser(userId, tenantCompanyId,
   if (company.agreementDetails) {
     delete company.agreementDetails.rentDate;
     delete company.agreementDetails.nextIncrement;
+    company.agreementDetails.annualIncrementDate = computeNextAnnualIncrementDate(
+      company.contractStart,
+      company.agreementDetails.annualIncrementPercent,
+    );
   }
 
   if (company.billingDetails) {
@@ -1167,6 +1243,22 @@ export async function updateTenantCompanyForCurrentUser(userId, tenantCompanyId,
 
   company.status = deriveTenantStatus(company.contractEnd);
   await company.save();
+
+  // Desk counts, rate, or floor/wing may have changed — reconcile the tenant's
+  // ResourceSeat assignments to match (assigns more vacant seats, releases
+  // extras, or moves seats entirely when the floor/wing itself changed).
+  if (input.companyDetails !== undefined) {
+    await reconcileTenantSeatAssignments(
+      access.workspaceId,
+      access.workspace.ownerId || userId,
+      company._id,
+      company.companyName,
+      company.companyDetails?.floor || "",
+      company.companyDetails?.wing || "",
+      company.companyDetails?.openDesks || 0,
+      company.companyDetails?.cabinDesks || 0,
+    );
+  }
 
   // Contract or rent terms may have changed — refresh this month's receivable.
   try {
@@ -1209,6 +1301,21 @@ export async function renewTenantCompanyForCurrentUser(userId, tenantCompanyId, 
 
   company.creditsUsed = 0;
   company.status = "Active";
+
+  if (input.agreementDetails && typeof input.agreementDetails === "object") {
+    const ad = company.agreementDetails || {};
+    for (const [key, value] of Object.entries(input.agreementDetails)) {
+      if (value !== undefined) ad[key] = value;
+    }
+    company.agreementDetails = ad;
+  }
+
+  if (company.agreementDetails) {
+    company.agreementDetails.annualIncrementDate = computeNextAnnualIncrementDate(
+      company.contractStart,
+      company.agreementDetails.annualIncrementPercent,
+    );
+  }
 
   if (input.billingDetails && typeof input.billingDetails === "object") {
     const bd = company.billingDetails || {};

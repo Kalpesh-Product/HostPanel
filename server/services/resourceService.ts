@@ -14,7 +14,17 @@ import {
     resourceStatuses,
     resourceTypes,
     hasResourcePricingAndCredits,
+    MAX_DESK_SEATS,
 } from "./resourceSyncService.js";
+import {
+    createSeatsForResource,
+    deleteAllSeatsForResource,
+    deleteExcessSeatsForResource,
+    findBlockingSeatForCapacityReduction,
+    getBulkSeatSummaries,
+    getSeatSummaryForResource,
+    isSeatTrackedCategory,
+} from "./resourceSeatService.js";
 
 // Fallback bookable-day span when a workspace has no business hours saved
 // (default 09:00–22:00 = 13 hours).
@@ -39,7 +49,9 @@ export async function getWorkspaceBookingSpanHours(workspaceId: string): Promise
     return DEFAULT_BOOKING_SPAN_HOURS;
 }
 
-const assignableResourceCategories = new Set(["open_desk", "cabin_desk", "virtual_office"]);
+// Open desk / cabin desk are assigned per-seat (see resourceSeatService.ts);
+// virtual_office is the only category still assigned as a whole resource.
+const assignableResourceCategories = new Set(["virtual_office"]);
 
 // ---- Validation helpers (replacing Zod) ----
 
@@ -133,18 +145,20 @@ function validateResourceCapacity(resourceCategory: string, inventoryMode: strin
     const normalizedCapacity = Math.max(1, Number(capacity || 0));
     const allowedCapacities = getResourceCapacityOptions(normalizedCategory, normalizedMode);
 
-    if (allowedCapacities.length === 0) return normalizedCapacity;
-    if (allowedCapacities.includes(normalizedCapacity)) return normalizedCapacity;
+    if (allowedCapacities.length > 0) {
+        if (allowedCapacities.includes(normalizedCapacity)) return normalizedCapacity;
+        const error: any = new Error("Choose a valid capacity for this resource.");
+        error.statusCode = 400;
+        throw error;
+    }
 
-    const error: any = new Error(
-        normalizedCategory === "open_desk"
-            ? "Open desk areas must be saved as 1 through 10 seat blocks."
-            : normalizedCategory === "cabin_desk"
-                ? "Cabin desk areas must be saved as 4, 6, 8, or 10 seat blocks."
-                : "Choose a valid capacity for this resource.",
-    );
-    error.statusCode = 400;
-    throw error;
+    if ((normalizedCategory === "open_desk" || normalizedCategory === "cabin_desk") && normalizedCapacity > MAX_DESK_SEATS) {
+        const error: any = new Error(`Seats must be ${MAX_DESK_SEATS} or fewer.`);
+        error.statusCode = 400;
+        throw error;
+    }
+
+    return normalizedCapacity;
 }
 
 // An explicitly supplied daily price always wins (the client keeps it in sync
@@ -175,6 +189,19 @@ function resolveResourceStatusForActivation({
 }: any = {}) {
     if (!hasResourcePricingAndCredits({ pricePerHour, pricePerDay, credits })) return "Disabled";
     return requestedStatus || "Active";
+}
+
+const validResourceTypes = ["Open Desk", "Meeting Room", "Conference Room", "Cabin Desk", "Virtual Office"];
+
+// Legacy MeetingRoom-synced data can carry `type` values ("Desk", "Cabin",
+// "Other") that predate the current schema enum. Any save on a document that
+// still has one of those fails Mongoose validation even when `type` itself
+// isn't being changed by this request — heal it first so unrelated edits
+// (assign, release, capacity/status updates) don't get blocked by stale data.
+function healStaleResourceType(resource: any) {
+    if (!validResourceTypes.includes(resource.type as string)) {
+        resource.type = normalizeResourceType(resource.resourceCategory, resource.name) as any;
+    }
 }
 
 function ensureResourceTenant(resource: any, workspaceId: string) {
@@ -232,8 +259,10 @@ export async function listResourcesForOwner(workspaceId: string, ownerId: string
         .sort({ sortOrder: 1, resourceNumber: 1, name: 1 })
         .exec();
 
+    const seatSummaries = await getBulkSeatSummaries(workspaceId);
+
     return {
-        resources: resources.map(formatResource),
+        resources: resources.map((resource) => formatResource(resource, seatSummaries.get(String(resource._id)))),
     };
 }
 
@@ -292,6 +321,27 @@ export async function createResourceForOwner(workspaceId: string, ownerId: strin
     assertCabinDeskAreaMode(resourceCategory, input.inventoryMode);
     const inventoryMode = normalizeResourceInventoryMode(input.inventoryMode, resourceCategory, input.capacity);
     const capacity = validateResourceCapacity(resourceCategory, inventoryMode, input.capacity);
+    const floor = normalizeResourceFloor(input.floor);
+    const wing = normalizeResourceWing(input.wing);
+
+    // Desk inventory is meant to be one Resource block per floor+wing+category
+    // — tenant onboarding assigns seats out of that single block. Block a
+    // second block for the same location instead of splitting the inventory.
+    if (isSeatTrackedCategory(resourceCategory)) {
+        const duplicateBlock = await Resource.findOne({
+            workspaceId: new mongoose.Types.ObjectId(workspaceId),
+            floor,
+            wing,
+            resourceCategory,
+        }).lean().exec();
+        if (duplicateBlock) {
+            const label = resourceCategory === "cabin_desk" ? "cabin desk" : "open desk";
+            const location = `Floor ${floor}${wing ? ` Wing ${wing}` : ""}`;
+            const error: any = new Error(`An ${label} block already exists on ${location} — edit its capacity instead of creating a new one.`);
+            error.statusCode = 409;
+            throw error;
+        }
+    }
     const pricePerHour = typeof input.pricePerHour === "number" ? input.pricePerHour : 0;
     const bookingSpanHours = await getWorkspaceBookingSpanHours(workspaceId);
     const pricePerDay = resolveResourcePricePerDay(
@@ -317,8 +367,8 @@ export async function createResourceForOwner(workspaceId: string, ownerId: strin
         resourceCategory,
         inventoryMode,
         location: normalizeResourceLocation(input.location),
-        floor: normalizeResourceFloor(input.floor),
-        wing: normalizeResourceWing(input.wing),
+        floor,
+        wing,
         capacity,
         pricePerHour,
         pricePerDay,
@@ -333,8 +383,14 @@ export async function createResourceForOwner(workspaceId: string, ownerId: strin
         sortOrder,
     });
 
+    let seatSummary;
+    if (isSeatTrackedCategory(resourceCategory)) {
+        await createSeatsForResource(resource, capacity);
+        seatSummary = await getSeatSummaryForResource(String(resource._id));
+    }
+
     return {
-        resource: formatResource(resource),
+        resource: formatResource(resource, seatSummary),
     };
 }
 
@@ -348,6 +404,11 @@ export async function updateResourceForOwner(workspaceId: string, ownerId: strin
 
     const resource = await Resource.findById(resourceId).exec();
     ensureResourceTenant(resource, workspaceId);
+
+    const previousCategory = resource!.resourceCategory;
+    const previousCapacity = resource!.capacity;
+    const previousFloor = resource!.floor;
+    const previousWing = resource!.wing;
 
     if (typeof input.name === "string") resource!.name = normalizeResourceName(input.name);
     if (typeof input.type === "string") resource!.type = input.type as any;
@@ -410,10 +471,51 @@ export async function updateResourceForOwner(workspaceId: string, ownerId: strin
     resource!.status = resolvedStatus as any;
     resource!.isActive = resolvedStatus === "Active";
 
+    const wasSeatTracked = isSeatTrackedCategory(previousCategory);
+    const isNowSeatTracked = isSeatTrackedCategory(resource!.resourceCategory);
+    let seatWarning: string | null = null;
+
+    if (isNowSeatTracked && !wasSeatTracked) {
+        // Category just became open_desk/cabin_desk — seed seats for the full capacity.
+        await createSeatsForResource(resource, resource!.capacity);
+    } else if (!isNowSeatTracked && wasSeatTracked) {
+        // Category moved away from open_desk/cabin_desk — its seats no longer apply.
+        const blockingSeat = await findBlockingSeatForCapacityReduction(String(resource!._id), 0);
+        if (blockingSeat) {
+            const error: any = new Error(`Seat ${blockingSeat.seatLabel} is assigned to ${blockingSeat.assignmentLabel}. Release it before changing this resource's category.`);
+            error.statusCode = 409;
+            throw error;
+        }
+        await deleteAllSeatsForResource(String(resource!._id));
+    } else if (isNowSeatTracked && wasSeatTracked) {
+        if (resource!.capacity > previousCapacity) {
+            await createSeatsForResource(resource, resource!.capacity - previousCapacity);
+        } else if (resource!.capacity < previousCapacity) {
+            const blockingSeat = await findBlockingSeatForCapacityReduction(String(resource!._id), resource!.capacity);
+            if (blockingSeat) {
+                const error: any = new Error(`Seat ${blockingSeat.seatLabel} is assigned to ${blockingSeat.assignmentLabel}. Release it before reducing seats below ${blockingSeat.seatNumber}.`);
+                error.statusCode = 409;
+                throw error;
+            }
+            await deleteExcessSeatsForResource(String(resource!._id), resource!.capacity);
+        }
+
+        if (previousFloor !== resource!.floor || previousWing !== resource!.wing) {
+            const { total } = await getSeatSummaryForResource(String(resource!._id));
+            if (total > 0) {
+                seatWarning = "This resource's floor/wing changed, but its existing seat labels stay as originally assigned for stable tracking. New seats will use the updated floor/wing.";
+            }
+        }
+    }
+
+    healStaleResourceType(resource);
     await resource!.save();
 
+    const seatSummary = isNowSeatTracked ? await getSeatSummaryForResource(String(resource!._id)) : undefined;
+
     return {
-        resource: formatResource(resource),
+        resource: formatResource(resource, seatSummary),
+        ...(seatWarning ? { warning: seatWarning } : {}),
     };
 }
 
@@ -428,8 +530,13 @@ export async function assignResourceForOwner(workspaceId: string, ownerId: strin
     const resource = await Resource.findById(resourceId).exec();
     ensureResourceTenant(resource, workspaceId);
 
+    if (isSeatTrackedCategory(resource!.resourceCategory)) {
+        const error: any = new Error("Open desk and cabin desk resources are assigned seat by seat. Use the seat picker for this resource.");
+        error.statusCode = 400;
+        throw error;
+    }
     if (!assignableResourceCategories.has(resource!.resourceCategory)) {
-        const error: any = new Error("Only open desks and cabin desks can be assigned.");
+        const error: any = new Error("Only virtual offices can be assigned as a whole resource.");
         error.statusCode = 400;
         throw error;
     }
@@ -501,13 +608,7 @@ export async function assignResourceForOwner(workspaceId: string, ownerId: strin
 
     resource!.assignedAt = new Date();
 
-    // Heal stale type values from legacy data that don't match the schema enum.
-    // e.g. "Desk" → "Open Desk", "Cabin" → "Cabin Desk"
-    const validTypes = ["Open Desk", "Meeting Room", "Conference Room", "Cabin Desk", "Virtual Office"];
-    if (!validTypes.includes(resource!.type as string)) {
-        resource!.type = normalizeResourceType(resource!.resourceCategory, resource!.name) as any;
-    }
-
+    healStaleResourceType(resource);
     await resource!.save();
 
     return {
@@ -519,6 +620,12 @@ export async function releaseResourceAssignmentForOwner(workspaceId: string, own
     const resource = await Resource.findById(resourceId).exec();
     ensureResourceTenant(resource, workspaceId);
 
+    if (isSeatTrackedCategory(resource!.resourceCategory)) {
+        const error: any = new Error("Open desk and cabin desk resources are released seat by seat. Use the seat picker for this resource.");
+        error.statusCode = 400;
+        throw error;
+    }
+
     resource!.assignedTenantCompanyId = null as any;
     resource!.assignedTenantCompanyName = "";
     resource!.assignedVirtualOfficeId = null as any;
@@ -527,12 +634,7 @@ export async function releaseResourceAssignmentForOwner(workspaceId: string, own
     resource!.assignedDepartmentName = "";
     resource!.assignedAt = null as any;
 
-    // Heal stale type values from legacy data that don't match the schema enum.
-    const validTypes = ["Open Desk", "Meeting Room", "Conference Room", "Cabin Desk", "Virtual Office"];
-    if (!validTypes.includes(resource!.type as string)) {
-        resource!.type = normalizeResourceType(resource!.resourceCategory, resource!.name) as any;
-    }
-
+    healStaleResourceType(resource);
     await resource!.save();
 
     return {
@@ -543,6 +645,16 @@ export async function releaseResourceAssignmentForOwner(workspaceId: string, own
 export async function deleteResourceForOwner(workspaceId: string, ownerId: string, resourceId: string) {
     const resource = await Resource.findById(resourceId).exec();
     ensureResourceTenant(resource, workspaceId);
+
+    if (isSeatTrackedCategory(resource!.resourceCategory)) {
+        const blockingSeat = await findBlockingSeatForCapacityReduction(String(resource!._id), 0);
+        if (blockingSeat) {
+            const error: any = new Error(`Seat ${blockingSeat.seatLabel} is assigned to ${blockingSeat.assignmentLabel}. Release every seat before deleting this resource.`);
+            error.statusCode = 409;
+            throw error;
+        }
+        await deleteAllSeatsForResource(resourceId);
+    }
 
     await resource!.deleteOne();
 

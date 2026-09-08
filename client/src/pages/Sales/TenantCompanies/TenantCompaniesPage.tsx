@@ -24,7 +24,7 @@ import {
   updateTenantCompanyEmployeeStatus,
   updateTenantCompanyManager,
 } from '../../../services/tenant-companies';
-import { getResources } from '../../../services/resources';
+import { getResources, getResourceSeatSummary } from '../../../services/resources';
 import { getPricingPackages } from '../../../services/pricing-packages';
 import { getCountries, getStates, getCities } from '../../../utils/locationApi';
 import { toast } from 'sonner';
@@ -58,8 +58,17 @@ const BULK_TEMPLATE_HEADERS = [
   'HO Country',
   'HO State',
   'HO City',
-  'Building Name',
-  'Unit No',
+  'Location',
+  'Open Desks',
+  'Cabin Desks',
+  'Rate Per Open Desk',
+  'Rate Per Cabin Desk',
+  'Credits Per Seat',
+  'Total Meeting Credits',
+  'Annual Increment Percent',
+  'Lock-in Period (Months)',
+  'Start Date',
+  'End Date',
   'Local POC Name',
   'Local POC Email',
   'Local POC Phone',
@@ -72,7 +81,11 @@ const BULK_TEMPLATE_HEADERS = [
 ];
 
 const BULK_COLUMN_ALIASES = {
-  companyName: ['company name', 'tenant company', 'tenant', 'company'],
+  // 'company'/'building' are deliberately NOT bare aliases here — real data
+  // exports from other systems often carry a same-named column holding an
+  // internal ID reference (e.g. a legacy package or building _id), not the
+  // human value this field wants. Only accept unambiguous header names.
+  companyName: ['company name', 'tenant company', 'tenant company name'],
   contactName: ['contact name', 'contact person', 'primary contact', 'poc name'],
   businessType: ['business type', 'industry', 'sector'],
   clientName: ['client name', 'customer name', 'legal name'],
@@ -80,8 +93,17 @@ const BULK_COLUMN_ALIASES = {
   hoCountry: ['ho country', 'head office country', 'country'],
   hoState: ['ho state', 'head office state'],
   hoCity: ['ho city', 'head office city', 'head office location city'],
-  buildingName: ['building name', 'building'],
-  unitNo: ['unit no', 'unit number', 'unit', 'office no'],
+  buildingName: ['location', 'building name', 'unit'],
+  openDesks: ['open desks', 'open desk count'],
+  cabinDesks: ['cabin desks', 'cabin desk count'],
+  ratePerOpenDesk: ['rate per open desk', 'open desk rate'],
+  ratePerCabinDesk: ['rate per cabin desk', 'cabin desk rate'],
+  creditsPerSeat: ['credits per seat', 'per desk meeting credits'],
+  creditsAllocated: ['credits allocated', 'total meeting credits', 'monthly total credits'],
+  annualIncrementPercent: ['annual increment percent', 'annual increment', 'annual increment %'],
+  lockInPeriod: ['lock-in period', 'lockin period', 'lock in period months'],
+  startDate: ['start date', 'contract start', 'agreement start date'],
+  endDate: ['end date', 'contract end', 'agreement end date'],
   localPocName: ['local poc name', 'local contact', 'local point of contact'],
   localPocEmail: ['local poc email', 'local email'],
   localPocPhone: ['local poc phone', 'local phone'],
@@ -92,6 +114,18 @@ const BULK_COLUMN_ALIASES = {
   phone: ['phone', 'contact phone', 'mobile'],
   notes: ['notes', 'remarks', 'comments'],
 };
+
+// Best-effort month count between two spreadsheet date cells/strings — used
+// to reproduce an imported contract's real end date (contractEnd is always
+// derived from contractStart + a duration, never stored as a raw end date).
+function monthsBetweenBulkDates(startValue, endValue) {
+  const start = startValue instanceof Date ? startValue : new Date(startValue);
+  const end = endValue instanceof Date ? endValue : new Date(endValue);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+  let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+  if (end.getDate() < start.getDate()) months -= 1;
+  return Math.max(0, months);
+}
 
 function normalizeBulkHeader(value) {
   return String(value || '')
@@ -136,7 +170,8 @@ async function readSpreadsheetRows(file) {
 }
 
 function buildBulkTenantPayload(row) {
-  const companyName = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.companyName)).trim();
+  const clientNameRaw = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.clientName)).trim();
+  const companyName = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.companyName)).trim() || clientNameRaw;
   if (!companyName) {
     return { payload: null, error: 'Missing company name.' };
   }
@@ -146,12 +181,29 @@ function buildBulkTenantPayload(row) {
   const email = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.email)).trim() || String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.localPocEmail)).trim();
   const phone = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.phone)).trim() || String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.localPocPhone)).trim();
   const businessType = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.businessType)).trim();
-  const clientName = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.clientName)).trim() || companyName;
+  const clientName = clientNameRaw || companyName;
   const sector = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.sector)).trim() || businessType;
   const hoCity = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.hoCity)).trim();
   const hoState = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.hoState)).trim();
+  // Location only — floor/wing are deliberately left for the manager to pick
+  // from the real Resource & Pricing inventory (see Location Details), since
+  // an imported unit label ("Sunteck 701 A") won't reliably match it and a
+  // false match would misassign real desks.
   const buildingName = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.buildingName)).trim();
-  const unitNo = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.unitNo)).trim();
+  const openDesks = Math.max(0, Number(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.openDesks)) || 0);
+  const cabinDesks = Math.max(0, Number(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.cabinDesks)) || 0);
+  const ratePerOpenDesk = Math.max(0, Number(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.ratePerOpenDesk)) || 0);
+  const ratePerCabinDesk = Math.max(0, Number(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.ratePerCabinDesk)) || 0);
+  const creditsPerSeat = Math.max(0, Number(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.creditsPerSeat)) || 0);
+  const creditsAllocated = Math.max(0, Number(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.creditsAllocated)) || 0);
+  const annualIncrementRaw = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.annualIncrementPercent)).trim();
+  const annualIncrementPercent = annualIncrementRaw === '' ? null : Number(annualIncrementRaw);
+  const lockInPeriod = Math.max(0, Number(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.lockInPeriod)) || 0);
+  const startDateValue = resolveBulkCellValue(row, BULK_COLUMN_ALIASES.startDate);
+  const endDateValue = resolveBulkCellValue(row, BULK_COLUMN_ALIASES.endDate);
+  const startDate = startDateValue instanceof Date ? startDateValue : new Date(String(startDateValue || ''));
+  const hasValidStartDate = !Number.isNaN(startDate.getTime());
+  const contractDurationMonths = hasValidStartDate && endDateValue ? monthsBetweenBulkDates(startDateValue, endDateValue) : 0;
   const notes = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.notes)).trim();
 
   return {
@@ -163,6 +215,9 @@ function buildBulkTenantPayload(row) {
       phone,
       businessType,
       planType: 'Pending Setup',
+      creditsAllocated,
+      ...(hasValidStartDate ? { contractStart: startDate.toISOString() } : {}),
+      ...(contractDurationMonths > 0 ? { contractDurationMonths } : {}),
       customerDetails: {
         clientName,
         sector,
@@ -171,8 +226,18 @@ function buildBulkTenantPayload(row) {
       },
       companyDetails: {
         buildingName,
-        unitNo,
+        openDesks,
+        cabinDesks,
+        ratePerOpenDesk,
+        ratePerCabinDesk,
         status: 'Active',
+      },
+      agreementDetails: {
+        ...(annualIncrementPercent !== null && Number.isFinite(annualIncrementPercent) ? { annualIncrementPercent } : {}),
+        lockInPeriod,
+      },
+      packageDetails: {
+        creditsPerSeat,
       },
       pocDetails: {
         localPocName: localPocName || contactName,
@@ -185,6 +250,56 @@ function buildBulkTenantPayload(row) {
       notes,
     },
   };
+}
+
+// Drops blank-string leaves and any nested object left empty as a result, so a
+// partially-filled bulk-upload row only touches the columns it actually set.
+function stripBlankBulkFields(value) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (value && typeof value === 'object') {
+    const result = {};
+    for (const [key, nestedValue] of Object.entries(value)) {
+      const stripped = stripBlankBulkFields(nestedValue);
+      if (stripped && typeof stripped === 'object' && !Array.isArray(stripped)) {
+        if (Object.keys(stripped).length > 0) {
+          result[key] = stripped;
+        }
+      } else if (typeof stripped === 'string') {
+        if (stripped.trim() !== '') {
+          result[key] = stripped;
+        }
+      } else if (stripped !== undefined && stripped !== null) {
+        result[key] = stripped;
+      }
+    }
+    return result;
+  }
+  return value;
+}
+
+// Bulk upload doubles as an update path: a row whose Company Name matches an
+// existing tenant updates it instead of failing on the unique-name index. Blank
+// cells must NOT blank out existing data, so this strips empty columns and also
+// drops the create-only defaults (draftMode / planType / companyDetails.status)
+// that buildBulkTenantPayload hardcodes for brand-new companies.
+function buildBulkTenantUpdatePayload(row) {
+  const built = buildBulkTenantPayload(row);
+  if (!built.payload) {
+    return built;
+  }
+
+  const { draftMode, planType, companyDetails, ...rest } = built.payload;
+  const { status: _createOnlyStatus, ...companyDetailsRest } = companyDetails || {};
+
+  return {
+    payload: stripBlankBulkFields({ ...rest, companyDetails: companyDetailsRest }),
+  };
+}
+
+function normalizeBulkCompanyNameKey(value = '') {
+  return String(value || '').trim().toLowerCase();
 }
 
 function buildTenantCompanyExportRows(company = {}) {
@@ -567,6 +682,17 @@ function deriveBillingDurationMonths(startDate, endDate, fallbackMonths = 0) {
   return Number.isFinite(parsedFallback) && parsedFallback > 0 ? parsedFallback : 1;
 }
 
+function addMonthsToDateString(dateValue, months) {
+  if (!dateValue) return '';
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return '';
+  date.setMonth(date.getMonth() + Number(months || 0));
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function calculateTenantBillingSummary(form = {}) {
   const companyDetails = form.companyDetails || {};
   const agreementDetails = form.agreementDetails || {};
@@ -575,11 +701,6 @@ function calculateTenantBillingSummary(form = {}) {
   const startDate = agreementDetails.startDate || form.startDate || '';
   const endDate = agreementDetails.endDate || form.endDate || '';
   const selectedDuration = (() => {
-    const lockInMonths = Number(agreementDetails.lockInPeriod);
-    if (Number.isFinite(lockInMonths) && lockInMonths > 0) {
-      return lockInMonths;
-    }
-
     const duration = String(form.contractDuration || '').trim().toLowerCase();
     if (duration === '3 months') return 3;
     if (duration === '6 months') return 6;
@@ -594,7 +715,7 @@ function calculateTenantBillingSummary(form = {}) {
     }
     return 0;
   })();
-  const durationMonths = deriveBillingDurationMonths(startDate, endDate, selectedDuration || agreementDetails.lockInPeriod || 0);
+  const durationMonths = deriveBillingDurationMonths(startDate, endDate, selectedDuration || 0);
   const cabinDesks = Number(companyDetails.cabinDesks || packageDetails.cabinDesks || 0);
   const openDesks = Number(companyDetails.openDesks || packageDetails.openDesks || 0);
   const ratePerCabinDesk = resolveTenantDeskRate(companyDetails.ratePerCabinDesk, packageDetails.ratePerCabinDesk);
@@ -603,11 +724,26 @@ function calculateTenantBillingSummary(form = {}) {
   const monthlyRent = dailyRent * TENANT_BILLING_MONTH_DAYS;
   const totalContractAmount = monthlyRent * durationMonths;
 
-  const parsedSecurityDepositPercent = Number(billingDetails.securityDepositPercent);
-  const securityDepositPercent = Number.isFinite(parsedSecurityDepositPercent) && parsedSecurityDepositPercent >= 0
-    ? parsedSecurityDepositPercent
-    : 25;
-  const securityDepositAmount = Math.round(totalContractAmount * (securityDepositPercent / 100));
+  // Security deposit can be driven either by percentage (of total contract
+  // amount) or by a directly entered amount — whichever the user touched
+  // last (tracked in billingDetails.securityDepositInputMode). The other
+  // field is derived and shown read-only.
+  const securityDepositInputMode = billingDetails.securityDepositInputMode === 'amount' ? 'amount' : 'percent';
+  const parsedSecurityDepositAmount = Number(billingDetails.securityDepositAmount);
+  let securityDepositPercent;
+  let securityDepositAmount;
+  if (securityDepositInputMode === 'amount' && Number.isFinite(parsedSecurityDepositAmount) && parsedSecurityDepositAmount >= 0) {
+    securityDepositAmount = Math.round(parsedSecurityDepositAmount);
+    securityDepositPercent = totalContractAmount > 0
+      ? Math.round((securityDepositAmount / totalContractAmount) * 10000) / 100
+      : 0;
+  } else {
+    const parsedSecurityDepositPercent = Number(billingDetails.securityDepositPercent);
+    securityDepositPercent = Number.isFinite(parsedSecurityDepositPercent) && parsedSecurityDepositPercent >= 0
+      ? parsedSecurityDepositPercent
+      : 25;
+    securityDepositAmount = Math.round(totalContractAmount * (securityDepositPercent / 100));
+  }
 
   // Annual increment only applies once the contract runs past a full year.
   const incrementApplies = durationMonths > 12;
@@ -616,6 +752,10 @@ function calculateTenantBillingSummary(form = {}) {
     ? parsedAnnualIncrementPercent
     : 10;
   const annualIncrementAmount = incrementApplies ? Math.round(monthlyRent * (annualIncrementPercent / 100)) : 0;
+  // Annual increment raises the monthly rent itself (not the total contract
+  // value) at each contract anniversary — this is the date the first raise
+  // takes effect.
+  const annualIncrementDate = incrementApplies ? addMonthsToDateString(startDate, 12) : '';
 
   const securityDepositPaidStatus = String(billingDetails.securityDepositPaidStatus || 'Pending').toLowerCase() === 'paid' ? 'Paid' : 'Pending';
   const validationErrors = [];
@@ -641,11 +781,13 @@ function calculateTenantBillingSummary(form = {}) {
     monthlyRent,
     dailyRent,
     totalContractAmount,
+    securityDepositInputMode,
     securityDepositPercent,
     securityDepositAmount,
     incrementApplies,
     annualIncrementPercent,
     annualIncrementAmount,
+    annualIncrementDate,
     securityDepositPaidStatus,
     validationError: validationErrors[0] || '',
     hasValidationError: validationErrors.length > 0,
@@ -654,9 +796,8 @@ function calculateTenantBillingSummary(form = {}) {
 
 function validateTenantCompanyOnboarding(form = {}, hasAgreementDocument = false) {
   const errors = {};
-  const packageDetails = form.packageDetails || {}, customerDetails = form.customerDetails || {}, companyDetails = form.companyDetails || {}, pocDetails = form.pocDetails || {}, agreementDetails = form.agreementDetails || {};
-  const mappings = Array.isArray(packageDetails.locationMappings) ? packageDetails.locationMappings : [];
-  const totalSeats = Number(packageDetails.totalSeats || 0), openDesks = Number(packageDetails.openDesks || 0), cabinDesks = Number(packageDetails.cabinDesks || 0);
+  const customerDetails = form.customerDetails || {}, companyDetails = form.companyDetails || {}, pocDetails = form.pocDetails || {}, agreementDetails = form.agreementDetails || {};
+  const openDesks = Number(companyDetails.openDesks || 0), cabinDesks = Number(companyDetails.cabinDesks || 0);
   const email = String(form.email || '').trim(), phone = String(form.phone || '').trim();
   if (!String(form.companyName || '').trim()) errors.companyName = 'Company name is required.';
   if (!String(form.businessType || '').trim()) errors.businessType = 'Business type is required.';
@@ -667,22 +808,16 @@ function validateTenantCompanyOnboarding(form = {}, hasAgreementDocument = false
   if (!String(customerDetails.hoCountry || '').trim()) errors.hoCountry = 'Head-office country is required.';
   if (!String(customerDetails.hoState || '').trim()) errors.hoState = 'Head-office state is required.';
   if (!String(customerDetails.hoCity || '').trim()) errors.hoCity = 'Head-office city is required.';
-  if (!String(companyDetails.buildingName || '').trim()) errors.buildingName = 'Building name is required.';
-  if (!String(companyDetails.unitNo || '').trim()) errors.unitNo = 'Unit number is required.';
+  if (!String(companyDetails.buildingName || '').trim()) errors.buildingName = 'Select a location.';
   if (!String(pocDetails.localPocName || '').trim()) errors.localPocName = 'Local POC name is required.';
   const localPocEmail = String(pocDetails.localPocEmail || '').trim(), localPocPhone = String(pocDetails.localPocPhone || '').trim();
   if (!localPocEmail) errors.localPocEmail = 'Local POC email is required.'; else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(localPocEmail)) errors.localPocEmail = 'Enter a valid local POC email.';
   if (!localPocPhone) errors.localPocPhone = 'Local POC phone is required.'; else if (!/^\+?[\d\s()-]{7,15}$/.test(localPocPhone)) errors.localPocPhone = 'Enter a valid local POC phone.';
-  if (!form.pricingPackageId) errors.pricingPackageId = 'Select a package.';
-  if (form.pricingPackageId === '__custom__' && !String(packageDetails.selectionFloor || '').trim()) errors.selectionFloor = 'Select a floor for the space assignment.';
-  if (!String(packageDetails.packageName || '').trim()) errors.packageName = 'Package name is required.';
-  if (!Number.isFinite(totalSeats) || totalSeats <= 0) errors.totalSeats = 'Select at least one seat.';
-  if (mappings.length === 0) errors.locationMappings = 'Select at least one location or desk block.';
-  if (openDesks > 0 && Number(packageDetails.ratePerOpenDesk || 0) <= 0) errors.ratePerOpenDesk = 'Enter the open desk rate.';
-  if (cabinDesks > 0 && Number(packageDetails.ratePerCabinDesk || 0) <= 0) errors.ratePerCabinDesk = 'Enter the cabin desk rate.';
-  if (Number(packageDetails.creditsPerSeat || 0) <= 0) errors.creditsPerSeat = 'Credits per seat must be greater than zero.';
-  if (Number(packageDetails.monthlyTotalCredits || form.creditsAllocated || 0) <= 0) errors.monthlyTotalCredits = 'Monthly credits must be greater than zero.';
-  if (Number(agreementDetails.lockInPeriod || 0) < 3) errors.contractDuration = 'Contract duration must be at least 3 months.';
+  if (openDesks <= 0 && cabinDesks <= 0) errors.deskCounts = 'Assign at least one open desk or cabin desk.';
+  if (!String(companyDetails.floor || '').trim()) errors.floor = 'Select a floor for the assigned desks.';
+  if (openDesks > 0 && Number(companyDetails.ratePerOpenDesk || 0) <= 0) errors.ratePerOpenDesk = 'Enter the open desk rate.';
+  if (cabinDesks > 0 && Number(companyDetails.ratePerCabinDesk || 0) <= 0) errors.ratePerCabinDesk = 'Enter the cabin desk rate.';
+  if (calculateTenantBillingSummary(form).durationMonths < 3) errors.contractDuration = 'Contract duration must be at least 3 months.';
   const startDate = String(agreementDetails.startDate || form.startDate || '').trim(), endDate = String(agreementDetails.endDate || form.endDate || '').trim();
   if (!startDate) errors.startDate = 'Agreement start date is required.';
   if (!endDate) errors.endDate = 'Agreement end date is required.';
@@ -693,10 +828,9 @@ function validateTenantCompanyOnboarding(form = {}, hasAgreementDocument = false
 
 function getTenantValidationSection(field) {
   if (['companyName', 'businessType', 'contactName', 'email', 'phone'].includes(field)) return 'profile';
-  if (['pricingPackageId', 'packageName', 'totalSeats', 'locationMappings', 'ratePerOpenDesk', 'ratePerCabinDesk', 'creditsPerSeat', 'monthlyTotalCredits', 'selectionFloor'].includes(field)) return 'space';
   if (field === 'contractDuration') return 'billing';
   if (['sector', 'hoCountry', 'hoState', 'hoCity'].includes(field)) return 'customer';
-  if (['buildingName', 'unitNo'].includes(field)) return 'company';
+  if (['buildingName', 'unitNo', 'floor', 'wing', 'deskCounts', 'ratePerOpenDesk', 'ratePerCabinDesk'].includes(field)) return 'company';
   if (['startDate', 'endDate'].includes(field)) return 'agreement';
   if (['localPocName', 'localPocEmail', 'localPocPhone'].includes(field)) return 'poc';
   return 'document';
@@ -1382,7 +1516,7 @@ export default function TenantCompaniesPage() {
     startDate: '', endDate: '', pricingPackageId: '', planType: 'Custom', creditsAllocated: 0,
     customerDetails: { clientName: '', sector: '', hoCountry: '', hoState: '', hoCity: '' },
     companyDetails: {
-      buildingName: '', unitNo: '', cabinDesks: '', ratePerCabinDesk: '', openDesks: '', ratePerOpenDesk: '', status: 'Active',
+      buildingName: '', unitNo: '', floor: '', wing: '', cabinDesks: '', ratePerCabinDesk: '', openDesks: '', ratePerOpenDesk: '', status: 'Active',
     },
     agreementDetails: {
       annualIncrement: '', annualIncrementPercent: '10', perDeskMeetingCredits: '', totalMeetingCredits: '',
@@ -1523,33 +1657,183 @@ export default function TenantCompaniesPage() {
       .finally(() => setLoadingCities(false));
   }, [companyForm.customerDetails?.hoState]);
 
-  const syncCustomPackageCreditFields = (currentState, nextCreditsPerSeat, nextTotalSeats = null) => {
-    const totalSeats = nextTotalSeats !== null
-      ? toNumber(nextTotalSeats)
-      : toNumber(currentState.packageDetails?.totalSeats || 0);
-    const creditsPerSeat = toNumber(nextCreditsPerSeat || 0);
+  // Credits are per-seat, not a separately-typed total: multiply Credits Per
+  // Seat by the tenant's assigned desk count (open + cabin) to get the
+  // monthly total, and drive `creditsAllocated` from that automatically.
+  // Recomputed whenever either the rate or the desk counts change, so the two
+  // never drift out of sync. Pass `nextCreditsPerSeat` to change the rate in
+  // the same update; omit it to just recompute after a desk-count change.
+  const recomputeCreditsFromDeskSeats = (currentState, nextCreditsPerSeat = undefined) => {
+    const totalSeats = toNumber(currentState.companyDetails?.openDesks || 0) + toNumber(currentState.companyDetails?.cabinDesks || 0);
+    const creditsPerSeat = toNumber(nextCreditsPerSeat !== undefined ? nextCreditsPerSeat : currentState.packageDetails?.creditsPerSeat || 0);
     const monthlyTotalCredits = totalSeats > 0 && creditsPerSeat > 0
       ? String(Math.round(totalSeats * creditsPerSeat))
       : '';
+    const resolvedCreditsPerSeat = nextCreditsPerSeat !== undefined ? nextCreditsPerSeat : currentState.packageDetails?.creditsPerSeat;
 
     return {
       ...currentState,
       packageDetails: {
         ...(currentState.packageDetails || {}),
-        creditsPerSeat: nextCreditsPerSeat,
+        creditsPerSeat: resolvedCreditsPerSeat,
         monthlyTotalCredits,
       },
       agreementDetails: {
         ...(currentState.agreementDetails || {}),
-        perDeskMeetingCredits: nextCreditsPerSeat,
+        perDeskMeetingCredits: resolvedCreditsPerSeat,
         totalMeetingCredits: monthlyTotalCredits,
       },
       creditConfiguration: {
         ...(currentState.creditConfiguration || {}),
         monthlyTotalCredits,
+        creditResetCycle: 'Monthly',
       },
       creditsAllocated: monthlyTotalCredits ? Number(monthlyTotalCredits) : 0,
     };
+  };
+
+  // Location/floor/wing options all come from the real open_desk/cabin_desk
+  // Resource blocks (Resource & Pricing) rather than free text, so onboarding
+  // can only point a tenant at a location that actually has desk inventory —
+  // the same location list used when adding a Resource there.
+  const isDeskResource = (resource) => ['open_desk', 'cabin_desk'].includes(resource.resourceCategory) && resource.status === 'Active';
+
+  const deskResourceLocationOptions = useMemo(() => {
+    const locations = new Set();
+    resources.forEach((resource) => {
+      if (isDeskResource(resource) && resource.location) {
+        locations.add(String(resource.location).trim());
+      }
+    });
+    return [...locations].sort();
+  }, [resources]);
+
+  const selectedDeskLocation = String(companyForm.companyDetails?.buildingName || '').trim();
+  const selectedDeskFloor = String(companyForm.companyDetails?.floor || '').trim();
+  const selectedDeskWing = String(companyForm.companyDetails?.wing || '').trim();
+
+  const deskResourceFloorOptions = useMemo(() => {
+    const floors = new Set();
+    resources.forEach((resource) => {
+      if (isDeskResource(resource) && String(resource.location || '').trim() === selectedDeskLocation && resource.floor) {
+        floors.add(String(resource.floor).trim());
+      }
+    });
+    return [...floors].sort();
+  }, [resources, selectedDeskLocation]);
+
+  const deskResourceWingOptions = useMemo(() => {
+    const wings = new Set();
+    resources.forEach((resource) => {
+      if (isDeskResource(resource) && String(resource.location || '').trim() === selectedDeskLocation && String(resource.floor || '').trim() === selectedDeskFloor && resource.wing) {
+        wings.add(String(resource.wing).trim());
+      }
+    });
+    return [...wings].sort();
+  }, [resources, selectedDeskLocation, selectedDeskFloor]);
+
+  // The Resource block's own rate — used only to pre-fill the (editable) tenant
+  // rate fields when a floor/wing is first picked, never to overwrite an
+  // already-entered rate.
+  const deskFloorRateByCategory = useMemo(() => {
+    const rates = { open_desk: 0, cabin_desk: 0 };
+    resources.forEach((resource) => {
+      if (String(resource.location || '').trim() !== selectedDeskLocation) return;
+      if (String(resource.floor || '').trim() !== selectedDeskFloor) return;
+      if (String(resource.wing || '').trim() !== selectedDeskWing) return;
+      if ((resource.resourceCategory === 'open_desk' || resource.resourceCategory === 'cabin_desk') && !rates[resource.resourceCategory]) {
+        rates[resource.resourceCategory] = Number(resource.pricePerDay || 0);
+      }
+    });
+    return rates;
+  }, [resources, selectedDeskLocation, selectedDeskFloor, selectedDeskWing]);
+
+  // Live vacant open/cabin desk counts at the selected floor+wing, fetched from
+  // the real ResourceSeat inventory (not the tenant's own current assignment).
+  const [deskVacancy, setDeskVacancy] = useState(null);
+  useEffect(() => {
+    if (activeModal === 'renew' || !selectedDeskFloor) {
+      setDeskVacancy(null);
+      return undefined;
+    }
+    let cancelled = false;
+    getResourceSeatSummary({ floor: selectedDeskFloor, wing: selectedDeskWing })
+      .then((response) => {
+        if (cancelled) return;
+        const rows = response?.data?.data?.summary;
+        const summaryRows = Array.isArray(rows) ? rows : [];
+        setDeskVacancy({
+          open_desk: summaryRows.find((row) => row.resourceCategory === 'open_desk')?.vacant ?? 0,
+          cabin_desk: summaryRows.find((row) => row.resourceCategory === 'cabin_desk')?.vacant ?? 0,
+        });
+      })
+      .catch(() => { if (!cancelled) setDeskVacancy(null); });
+    return () => { cancelled = true; };
+  }, [activeModal, selectedDeskFloor, selectedDeskWing]);
+
+  const handleDeskLocationChange = (buildingName) => {
+    setCompanyForm((prev) => ({
+      ...prev,
+      companyDetails: { ...(prev.companyDetails || {}), buildingName, floor: '', wing: '' },
+    }));
+  };
+
+  const handleDeskFloorChange = (floor) => {
+    setCompanyForm((prev) => ({
+      ...prev,
+      companyDetails: { ...(prev.companyDetails || {}), floor, wing: '' },
+    }));
+  };
+
+  const handleDeskWingChange = (wing) => {
+    setCompanyForm((prev) => {
+      const rates = deskFloorRateByCategory;
+      return {
+        ...prev,
+        companyDetails: {
+          ...(prev.companyDetails || {}),
+          wing,
+          ratePerOpenDesk: prev.companyDetails?.ratePerOpenDesk || (rates.open_desk ? String(rates.open_desk) : ''),
+          ratePerCabinDesk: prev.companyDetails?.ratePerCabinDesk || (rates.cabin_desk ? String(rates.cabin_desk) : ''),
+        },
+      };
+    });
+  };
+
+  // Seats this tenant already holds at the selected floor+wing (edit mode
+  // only, and only while floor+wing hasn't changed from what's saved — moving
+  // location releases all of them, so the vacancy cap shouldn't include them).
+  const isEditingSameDeskLocation = activeModal === 'edit'
+    && String(selectedTenant?.companyDetails?.floor || '').trim() === selectedDeskFloor
+    && String(selectedTenant?.companyDetails?.wing || '').trim() === selectedDeskWing;
+  const ownHeldOpenDesks = isEditingSameDeskLocation ? Number(selectedTenant?.companyDetails?.openDesks || 0) : 0;
+  const ownHeldCabinDesks = isEditingSameDeskLocation ? Number(selectedTenant?.companyDetails?.cabinDesks || 0) : 0;
+
+  // getResourceSeatSummary aggregates ResourceSeat docs by floor+wing+category
+  // only — it has no idea whether the Resource block those seats belong to is
+  // still Active. If that block is now Under Maintenance/Disabled, its seats
+  // must not count as assignable even though they're technically "vacant".
+  const hasActiveDeskResource = (category) => resources.some((resource) =>
+    resource.resourceCategory === category
+    && isDeskResource(resource)
+    && String(resource.location || '').trim() === selectedDeskLocation
+    && String(resource.floor || '').trim() === selectedDeskFloor
+    && String(resource.wing || '').trim() === selectedDeskWing,
+  );
+  const maxAssignableOpenDesks = deskVacancy
+    ? (hasActiveDeskResource('open_desk') ? deskVacancy.open_desk : 0) + ownHeldOpenDesks
+    : null;
+  const maxAssignableCabinDesks = deskVacancy
+    ? (hasActiveDeskResource('cabin_desk') ? deskVacancy.cabin_desk : 0) + ownHeldCabinDesks
+    : null;
+
+  const handleDeskCountChange = (field, maxAllowed, rawValue) => {
+    const parsed = Math.max(0, parseInt(rawValue, 10) || 0);
+    const clamped = Number.isFinite(maxAllowed) && maxAllowed !== null ? Math.min(parsed, maxAllowed) : parsed;
+    setCompanyForm((prev) => recomputeCreditsFromDeskSeats({
+      ...prev,
+      companyDetails: { ...(prev.companyDetails || {}), [field]: String(clamped) },
+    }));
   };
 
   const selectedTenantPackage = useMemo(() => {
@@ -1862,7 +2146,7 @@ export default function TenantCompaniesPage() {
   const tenantAgreementDocuments = Array.isArray(selectedTenant?.agreementDocuments) ? selectedTenant.agreementDocuments : [];
   const hasExistingAgreementDocuments = tenantAgreementDocuments.length > 0;
   const canSaveTenantCompany = activeModal === 'add' || activeModal === 'renew' || hasExistingAgreementDocuments || agreementFiles.length > 0;
-  const contractDurationMonthsValue = Number(companyForm.agreementDetails?.lockInPeriod);
+  const contractDurationMonthsValue = Number(billingSummary.durationMonths);
   const isContractDurationInvalid = !Number.isFinite(contractDurationMonthsValue) || contractDurationMonthsValue < 3;
   const onboardingValidationErrors = useMemo(
     () => validateTenantCompanyOnboarding(companyForm, hasExistingAgreementDocuments || agreementFiles.length > 0),
@@ -2177,9 +2461,7 @@ export default function TenantCompaniesPage() {
     }
 
     const monthsToAdd = Math.max(3, toNumber(
-      companyForm.agreementDetails?.lockInPeriod
-      || resolveDurationMonths(companyForm.contractDuration, companyForm.customDurationMonths)
-      || 3,
+      resolveDurationMonths(companyForm.contractDuration, companyForm.customDurationMonths) || 3,
     ));
     const endDate = addDateOffset(startDate, monthsToAdd, -1);
     const annualIncrement = billingSummary.monthlyRent > 0 ? String(Math.round(billingSummary.monthlyRent * 0.1)) : '';
@@ -2311,9 +2593,7 @@ export default function TenantCompaniesPage() {
     setIsSaving(true);
     try {
       const agreementMonths = Math.max(3, toNumber(
-        companyForm.agreementDetails?.lockInPeriod
-        || resolveDurationMonths(companyForm.contractDuration, companyForm.customDurationMonths)
-        || 3,
+        resolveDurationMonths(companyForm.contractDuration, companyForm.customDurationMonths) || 3,
       ));
       const submissionForm = activeModal === 'renew'
         ? companyForm
@@ -2446,8 +2726,17 @@ export default function TenantCompaniesPage() {
       { Field: 'HO Country', Requirement: 'Optional', Notes: 'Head office country.' },
       { Field: 'HO State', Requirement: 'Optional', Notes: 'Head office state.' },
       { Field: 'HO City', Requirement: 'Optional', Notes: 'Head office city.' },
-      { Field: 'Building Name', Requirement: 'Optional', Notes: 'Use your building name. Editable later in the manager screen.' },
-      { Field: 'Unit No', Requirement: 'Optional', Notes: 'Unit number as floor + wing for your building.' },
+      { Field: 'Location', Requirement: 'Optional', Notes: 'Match an existing location from Resource & Pricing. Floor and wing are picked later in the manager screen (from real inventory), not imported.' },
+      { Field: 'Open Desks', Requirement: 'Optional', Notes: 'Number of open desks assigned to this tenant.' },
+      { Field: 'Cabin Desks', Requirement: 'Optional', Notes: 'Number of cabin desks assigned to this tenant.' },
+      { Field: 'Rate Per Open Desk', Requirement: 'Optional', Notes: 'Required by the app once Open Desks is above zero.' },
+      { Field: 'Rate Per Cabin Desk', Requirement: 'Optional', Notes: 'Required by the app once Cabin Desks is above zero.' },
+      { Field: 'Credits Per Seat', Requirement: 'Optional', Notes: 'Meeting-room credits per assigned desk, monthly. Can be 0.' },
+      { Field: 'Total Meeting Credits', Requirement: 'Optional', Notes: 'Overrides the computed Credits Per Seat x desks total, if given.' },
+      { Field: 'Annual Increment Percent', Requirement: 'Optional', Notes: 'Defaults to 10% if left blank.' },
+      { Field: 'Lock-in Period (Months)', Requirement: 'Optional', Notes: 'Contract lock-in, independent of contract duration.' },
+      { Field: 'Start Date', Requirement: 'Optional', Notes: 'Contract start date.' },
+      { Field: 'End Date', Requirement: 'Optional', Notes: 'Contract end date — used with Start Date to compute contract duration.' },
       { Field: 'Local POC Name', Requirement: 'Optional', Notes: 'Local point of contact name.' },
       { Field: 'Local POC Email', Requirement: 'Optional', Notes: 'Local point of contact email.' },
       { Field: 'Local POC Phone', Requirement: 'Optional', Notes: 'Local point of contact phone.' },
@@ -2468,8 +2757,17 @@ export default function TenantCompaniesPage() {
       { Field: 'HO Country', Format: 'Text', Example: 'India', Notes: 'Optional.' },
       { Field: 'HO State', Format: 'Text', Example: 'Maharashtra', Notes: 'Optional.' },
       { Field: 'HO City', Format: 'Text', Example: 'Mumbai', Notes: 'Optional.' },
-      { Field: 'Building Name', Format: 'Text', Example: 'Your Building Name', Notes: 'Use this building name for the template.' },
-      { Field: 'Unit No', Format: 'Text', Example: 'Floor + Wing' },
+      { Field: 'Location', Format: 'Text', Example: 'Your Location Name', Notes: 'Must match a location already set up in Resource & Pricing.' },
+      { Field: 'Open Desks', Format: 'Number', Example: '5', Notes: 'Optional.' },
+      { Field: 'Cabin Desks', Format: 'Number', Example: '2', Notes: 'Optional.' },
+      { Field: 'Rate Per Open Desk', Format: 'Number', Example: '9000', Notes: 'Optional.' },
+      { Field: 'Rate Per Cabin Desk', Format: 'Number', Example: '15000', Notes: 'Optional.' },
+      { Field: 'Credits Per Seat', Format: 'Number', Example: '3', Notes: 'Optional, can be 0.' },
+      { Field: 'Total Meeting Credits', Format: 'Number', Example: '21', Notes: 'Optional.' },
+      { Field: 'Annual Increment Percent', Format: 'Number', Example: '10', Notes: 'Optional.' },
+      { Field: 'Lock-in Period (Months)', Format: 'Number', Example: '12', Notes: 'Optional.' },
+      { Field: 'Start Date', Format: 'Date', Example: '2024-08-01', Notes: 'Optional.' },
+      { Field: 'End Date', Format: 'Date', Example: '2026-08-01', Notes: 'Optional.' },
       { Field: 'Local POC Name', Format: 'Text', Example: '[sample person name]', Notes: 'Optional.' },
       { Field: 'Local POC Email', Format: 'Text', Example: '[sample email]', Notes: 'Optional.' },
       { Field: 'Local POC Phone', Format: 'Text', Example: '[sample phone]', Notes: 'Optional.' },
@@ -2482,7 +2780,7 @@ export default function TenantCompaniesPage() {
     ], { header: ['Field', 'Format', 'Example', 'Notes'] });
 
     const workflowGuideSheet = XLSX.utils.json_to_sheet([
-      { Label: 'Draft tenant company onboarding', Notes: 'Use your building name. Unit numbers are the floor + wing of the unit, as configured for your company.' },
+      { Label: 'Draft tenant company onboarding', Notes: 'Company, contact, desks, rates, credits, and contract dates import directly. Location should match an existing Resource & Pricing location. Floor and wing are picked from real inventory when the manager edits the record, so desks get assigned to real seats.' },
     ], { header: ['Label', 'Notes'] });
 
     XLSX.utils.book_append_sheet(workbook, tenantCompaniesSheet, 'Tenant Companies');
@@ -2553,9 +2851,33 @@ export default function TenantCompaniesPage() {
     setBulkUploadError('');
 
     let created = 0;
+    let updated = 0;
     const failedRows = [];
 
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    // A row whose Company Name matches an existing tenant updates that tenant
+    // instead of failing on the workspace-unique companyName index. Load the
+    // full existing list once up front so matching doesn't depend on which
+    // page happens to be in view, and keep it updated as rows are imported so
+    // duplicate names within the same sheet also update the record the batch
+    // just created rather than colliding with it.
+    const existingIdByName = new Map();
+    try {
+      const existingResponse = await getAllTenantCompanies();
+      const existingTenants = existingResponse?.data?.tenants || [];
+      existingTenants.forEach((tenant) => {
+        const key = normalizeBulkCompanyNameKey(tenant?.companyName);
+        const id = tenant?.recordId || tenant?.id;
+        if (key && id) {
+          existingIdByName.set(key, id);
+        }
+      });
+    } catch (error) {
+      setIsBulkImporting(false);
+      setBulkUploadError(error.message || 'Unable to check existing tenant companies before import.');
+      return;
+    }
 
     for (const [index, row] of bulkUploadRows.entries()) {
       const built = buildBulkTenantPayload(row);
@@ -2563,6 +2885,11 @@ export default function TenantCompaniesPage() {
         failedRows.push(`Row ${index + 2}: ${built.error}`);
         continue;
       }
+
+      const nameKey = normalizeBulkCompanyNameKey(built.payload.companyName);
+      const existingTenantId = existingIdByName.get(nameKey);
+      const isUpdate = Boolean(existingTenantId);
+      const updateBuilt = isUpdate ? buildBulkTenantUpdatePayload(row) : null;
 
       // "Network Error" (no response at all — a dropped connection or a dev-server
       // restart mid-batch) is transient, unlike a validation error the server
@@ -2572,11 +2899,20 @@ export default function TenantCompaniesPage() {
       let succeeded = false;
       for (let attempt = 1; attempt <= 3 && !succeeded; attempt += 1) {
         try {
-          const response = await createTenantCompany(built.payload);
+          const response = isUpdate
+            ? await updateTenantCompany(existingTenantId, updateBuilt.payload)
+            : await createTenantCompany(built.payload);
           const payload = response?.data || {};
-          const savedTenantId = payload?.tenant?.recordId || payload?.tenant?.id || '';
+          const savedTenantId = payload?.tenant?.recordId || payload?.tenant?.id || existingTenantId || '';
           syncTenantCollections(payload, savedTenantId);
-          created += 1;
+          if (isUpdate) {
+            updated += 1;
+          } else {
+            created += 1;
+            if (nameKey && savedTenantId) {
+              existingIdByName.set(nameKey, savedTenantId);
+            }
+          }
           succeeded = true;
         } catch (error) {
           lastError = error;
@@ -2587,23 +2923,27 @@ export default function TenantCompaniesPage() {
       }
 
       if (!succeeded) {
-        failedRows.push(`Row ${index + 2}: ${lastError?.message || 'Unable to create tenant company.'}`);
+        failedRows.push(`Row ${index + 2}: ${lastError?.message || `Unable to ${isUpdate ? 'update' : 'create'} tenant company.`}`);
       }
     }
 
     setBulkUploadSummary({
       fileName: bulkUploadFileName,
       created,
+      updated,
       failed: failedRows.length,
       errors: failedRows,
     });
 
-    // Each successful row was pushed onto `tenants` locally as it was created
+    // Each successful row was pushed onto `tenants` locally as it was created/updated
     // (syncTenantCollections), which drifts pagination/summary out of sync with
     // the server once dozens of rows land — reload page 1 fresh once the batch finishes.
-    if (created > 0) {
+    if (created > 0 || updated > 0) {
       loadTenantsPage(1, { replace: true });
-      toast.success(`Imported ${created} tenant compan${created === 1 ? 'y' : 'ies'} from bulk upload.`);
+      const parts = [];
+      if (created > 0) parts.push(`created ${created} tenant compan${created === 1 ? 'y' : 'ies'}`);
+      if (updated > 0) parts.push(`updated ${updated} tenant compan${updated === 1 ? 'y' : 'ies'}`);
+      toast.success(`Bulk upload ${parts.join(' and ')}.`);
     }
     if (failedRows.length > 0) {
       setBulkUploadError(failedRows[0]);
@@ -2859,7 +3199,6 @@ export default function TenantCompaniesPage() {
       agreementDetails: {
         ...(prev.agreementDetails || {}),
         ...packageDefaults.agreementDetails,
-        lockInPeriod: selectedPackage?.durationMonths ? String(selectedPackage.durationMonths) : '',
       },
       packageDetails: {
         ...(prev.packageDetails || {}),
@@ -3011,8 +3350,7 @@ export default function TenantCompaniesPage() {
           : String(tenant.agreementDetails?.totalMeetingCredits || tenant.creditsAllocated || ''),
         startDate: normalizedStartDate,
         endDate: normalizedEndDate,
-        lockInPeriod: String(tenant.agreementDetails?.lockInPeriod || tenant.contractDurationMonths || 12),
-
+        lockInPeriod: String(tenant.agreementDetails?.lockInPeriod || ''),
       },
       pocDetails: {
         localPocName: tenant.pocDetails?.localPocName || tenant.contactName || '',
@@ -3054,6 +3392,8 @@ export default function TenantCompaniesPage() {
         ...(tenant.billingDetails || {}),
         securityDepositPaidStatus: tenant.billingDetails?.securityDepositPaidStatus || 'Pending',
         securityDepositPercent: String(tenant.billingDetails?.securityDepositPercent ?? 25),
+        securityDepositAmount: String(tenant.billingDetails?.securityDepositAmount ?? ''),
+        securityDepositInputMode: 'percent',
       },
       addOnCredits: {
         purchasedCredits: String(tenant.addOnCredits?.purchasedCredits || ''),
@@ -3112,10 +3452,10 @@ export default function TenantCompaniesPage() {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'Pending Setup': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-50 text-slate-700 border border-slate-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><Clock size={12} /> Pending Setup</span>;
-      case 'Pending Space Assignment': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><LayoutGrid size={12} /> Pending Space Assignment</span>;
+      case 'Pending Space Assignment': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><LayoutGrid size={12} /> Inactive</span>;
       case 'Active': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><CheckCircle2 size={12} /> Active</span>;
       case 'Expiring Soon': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><AlertTriangle size={12} /> Expiring Soon</span>;
-      case 'Expired': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 border border-red-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><XCircle size={12} /> Expired</span>;
+      case 'Expired': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 border border-red-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><XCircle size={12} /> Contract Expired · Inactive</span>;
       default: return null;
     }
   };
@@ -3509,15 +3849,17 @@ export default function TenantCompaniesPage() {
             open={isBulkUploadOpen}
             onClose={() => { setIsBulkUploadOpen(false); setBulkUploadError(''); setBulkUploadSummary(null); setBulkUploadFileName(''); setBulkUploadRows([]); }}
             title="Upload Tenant Companies"
-            description="Import only the onboarding text fields. Building name comes from sales architecture later, and package or contract values are filled during edit."
+            description="Imports company, contact, desk counts, rates, credits, and contract dates directly. Floor and wing are picked from real inventory when the manager edits the record."
             fileInputRef={bulkUploadInputRef}
             onFileChange={handleBulkFileSelected}
             onDownloadTemplate={downloadBulkTemplate}
             rules={[
               'Use one row per tenant company.',
-              'Use unit numbers as floor + wing for your building.',
-              'Do not include building name, package, rates, seats, or contract dates.',
-              'Those values are added later when the manager edits the record.',
+              'Location should match an existing Resource & Pricing location, if known.',
+              'Open/cabin desks, rates, credits, and contract dates import directly if present.',
+              'Floor and wing are not imported — pick those from real inventory when editing the record, so desks get actually assigned to real seats.',
+              'A Company Name matching an existing tenant updates it instead of creating a duplicate.',
+              'Blank cells on an update are ignored — they never clear existing data.',
             ]}
             fileName={bulkUploadFileName}
             isImporting={isBulkImporting}
@@ -3594,10 +3936,10 @@ export default function TenantCompaniesPage() {
                     </div>
                   )}
 
-                  <div data-tenant-validation="billing" className="order-7 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
-                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><CreditCard size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">7. Billing Details</span></h4>
+                  <div data-tenant-validation="billing" className="order-6 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><CreditCard size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">6. Billing Details</span></h4>
                     <p className="text-[10px] font-pmedium text-slate-400">
-                      Calculated from desk allocation and contract duration. Security deposit percentage is adjustable below.
+                      Monthly rent is calculated from desk allocation. Security deposit can be set by percentage or amount — the other auto-calculates.
                     </p>
                     {formError && (
                       <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-[10px] font-pmedium uppercase tracking-widest text-rose-700">
@@ -3606,12 +3948,12 @@ export default function TenantCompaniesPage() {
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Contract Duration <span className="text-red-400">*</span></label>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Contract Duration (Months) <span className="text-red-400">*</span></label>
                         <input
                           type="number"
                           min="0"
                           className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                          value={companyForm.agreementDetails?.lockInPeriod || ''}
+                          value={companyForm.customDurationMonths || (companyForm.contractDuration ? resolveDurationMonths(companyForm.contractDuration, companyForm.customDurationMonths) : '')}
                           onChange={(e) => {
                             const nextDurationMonths = e.target.value;
                             const nextDurationLabel = durationLabelFromMonths(nextDurationMonths);
@@ -3620,10 +3962,6 @@ export default function TenantCompaniesPage() {
                               ...prev,
                               contractDuration: nextDurationLabel,
                               customDurationMonths: nextDurationLabel === 'Custom' ? String(nextDurationMonths) : '',
-                              agreementDetails: {
-                                ...(prev.agreementDetails || {}),
-                                lockInPeriod: nextDurationMonths,
-                              },
                             }));
                           }}
                         />
@@ -3654,17 +3992,37 @@ export default function TenantCompaniesPage() {
                           min="0"
                           max="100"
                           className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                          value={companyForm.billingDetails?.securityDepositPercent ?? ''}
-                          onChange={(e) => updateCompanySection('billingDetails', 'securityDepositPercent', e.target.value)}
+                          value={billingSummary.securityDepositInputMode === 'amount'
+                            ? billingSummary.securityDepositPercent
+                            : (companyForm.billingDetails?.securityDepositPercent ?? '')}
+                          onChange={(e) => setCompanyForm((prev) => ({
+                            ...prev,
+                            billingDetails: {
+                              ...(prev.billingDetails || {}),
+                              securityDepositPercent: e.target.value,
+                              securityDepositInputMode: 'percent',
+                            },
+                          }))}
                         />
+                        <p className="text-[9px] font-pregular text-slate-400">Enter either the % or the amount — the other auto-calculates.</p>
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Security Deposit Amount</label>
                         <input
-                          type="text"
-                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 outline-none"
-                          value={formatCurrency(billingSummary.securityDepositAmount)}
-                          readOnly
+                          type="number"
+                          min="0"
+                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                          value={billingSummary.securityDepositInputMode === 'percent'
+                            ? billingSummary.securityDepositAmount
+                            : (companyForm.billingDetails?.securityDepositAmount ?? '')}
+                          onChange={(e) => setCompanyForm((prev) => ({
+                            ...prev,
+                            billingDetails: {
+                              ...(prev.billingDetails || {}),
+                              securityDepositAmount: e.target.value,
+                              securityDepositInputMode: 'amount',
+                            },
+                          }))}
                         />
                       </div>
                       <div className="space-y-1">
@@ -3929,53 +4287,84 @@ export default function TenantCompaniesPage() {
 
                   {activeModal !== 'renew' && (
                     <div data-tenant-validation="company" className="order-4 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
-                      <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Building size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">4. Company Details</span></h4>
+                      <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Building size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">4. Location Details</span></h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Building Name <span className="text-red-400">*</span></label>
-                          <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.buildingName} onChange={(e) => updateCompanySection('companyDetails', 'buildingName', e.target.value)} />
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Location <span className="text-red-400">*</span></label>
+                          <select
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                            value={selectedDeskLocation}
+                            onChange={(e) => handleDeskLocationChange(e.target.value)}
+                          >
+                            <option value="">Select location</option>
+                            {deskResourceLocationOptions.map((location) => <option key={location} value={location}>{location}</option>)}
+                          </select>
                           <TenantFieldError message={visibleCompanyErrors.buildingName} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Unit No <span className="text-red-400">*</span></label>
-                          <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.unitNo} onChange={(e) => updateCompanySection('companyDetails', 'unitNo', e.target.value)} />
-                          <TenantFieldError message={visibleCompanyErrors.unitNo} />
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Floor {(Number(companyForm.companyDetails.openDesks || 0) > 0 || Number(companyForm.companyDetails.cabinDesks || 0) > 0) && <span className="text-red-400">*</span>}</label>
+                          <select
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                            value={selectedDeskFloor}
+                            onChange={(e) => handleDeskFloorChange(e.target.value)}
+                            disabled={!selectedDeskLocation}
+                          >
+                            <option value="">Select floor</option>
+                            {deskResourceFloorOptions.map((floor) => <option key={floor} value={floor}>{floor}</option>)}
+                          </select>
+                          <TenantFieldError message={visibleCompanyErrors.floor} />
                         </div>
                         <div className="space-y-1">
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Wing (Optional)</label>
+                          <select
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                            value={selectedDeskWing}
+                            onChange={(e) => handleDeskWingChange(e.target.value.toUpperCase())}
+                            disabled={!selectedDeskFloor}
+                          >
+                            <option value="">Select wing</option>
+                            {deskResourceWingOptions.map((wing) => <option key={wing} value={wing}>{wing}</option>)}
+                          </select>
+                        </div>
+                        {selectedDeskFloor && (
+                          <div className="space-y-1 md:col-span-2">
+                            <p className="text-[10px] font-pmedium text-slate-500">
+                              {deskVacancy
+                                ? `${maxAssignableOpenDesks} open desk${maxAssignableOpenDesks === 1 ? '' : 's'} / ${maxAssignableCabinDesks} cabin desk${maxAssignableCabinDesks === 1 ? '' : 's'} available on Floor ${selectedDeskFloor}${selectedDeskWing ? ` Wing ${selectedDeskWing}` : ''}${isEditingSameDeskLocation ? ' (including what this tenant already holds)' : ''}.`
+                                : 'Checking availability...'}
+                            </p>
+                          </div>
+                        )}
+                        <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Cabin Desks</label>
-                          <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.cabinDesks} onChange={(e) => updateCompanySection('companyDetails', 'cabinDesks', e.target.value)} />
+                          <input type="number" min="0" max={maxAssignableCabinDesks ?? undefined} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.cabinDesks} onChange={(e) => handleDeskCountChange('cabinDesks', maxAssignableCabinDesks, e.target.value)} />
+                          <TenantFieldError message={visibleCompanyErrors.deskCounts} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Rate Per Cabin Desk {Number(companyForm.companyDetails.cabinDesks || 0) > 0 && <span className="text-red-400">*</span>}</label>
                           <input
                             type="number"
                             min="0"
-                            disabled={Boolean(companyForm.pricingPackageId)}
-                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:bg-slate-100"
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                             value={companyForm.companyDetails.ratePerCabinDesk}
                             onChange={(e) => updateCompanySection('companyDetails', 'ratePerCabinDesk', e.target.value)}
                           />
-                          {companyForm.pricingPackageId && (
-                            <p className="text-[9px] font-pmedium text-slate-400">Pulled from the selected package.</p>
-                          )}
+                          <TenantFieldError message={visibleCompanyErrors.ratePerCabinDesk} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Open Desks</label>
-                          <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.openDesks} onChange={(e) => updateCompanySection('companyDetails', 'openDesks', e.target.value)} />
+                          <input type="number" min="0" max={maxAssignableOpenDesks ?? undefined} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyDetails.openDesks} onChange={(e) => handleDeskCountChange('openDesks', maxAssignableOpenDesks, e.target.value)} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Rate Per Open Desk {Number(companyForm.companyDetails.openDesks || 0) > 0 && <span className="text-red-400">*</span>}</label>
                           <input
                             type="number"
                             min="0"
-                            disabled={Boolean(companyForm.pricingPackageId)}
-                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:bg-slate-100"
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                             value={companyForm.companyDetails.ratePerOpenDesk}
                             onChange={(e) => updateCompanySection('companyDetails', 'ratePerOpenDesk', e.target.value)}
                           />
-                          {companyForm.pricingPackageId && (
-                            <p className="text-[9px] font-pmedium text-slate-400">Pulled from the selected package.</p>
-                          )}
+                          <TenantFieldError message={visibleCompanyErrors.ratePerOpenDesk} />
                         </div>
                         <div className="space-y-1 md:col-span-2">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Status</label>
@@ -3990,8 +4379,8 @@ export default function TenantCompaniesPage() {
                   )}
 
                   {activeModal !== 'renew' && (
-                    <div data-tenant-validation="agreement" className="order-8 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
-                      <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><FileText size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">8. Agreement Details</span></h4>
+                    <div data-tenant-validation="agreement" className="order-7 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                      <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><FileText size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">7. Agreement Details</span></h4>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         {billingSummary.incrementApplies && (
                           <>
@@ -4009,6 +4398,11 @@ export default function TenantCompaniesPage() {
                             <div className="space-y-1">
                               <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Annual Increment Amount</label>
                               <input type="text" readOnly className="w-full px-3 py-2.5 bg-slate-100 border border-transparent rounded-xl text-[12px] font-pmedium text-slate-500 outline-none cursor-not-allowed" value={formatCurrency(billingSummary.annualIncrementAmount)} />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Annual Increment Date</label>
+                              <input type="text" readOnly className="w-full px-3 py-2.5 bg-slate-100 border border-transparent rounded-xl text-[12px] font-pmedium text-slate-500 outline-none cursor-not-allowed" value={formatDateLabel(billingSummary.annualIncrementDate)} />
+                              <p className="text-[9px] font-pregular text-slate-400">First anniversary of the start date — the increment raises the monthly rent from this date onward.</p>
                             </div>
                           </>
                         )}
@@ -4038,8 +4432,15 @@ export default function TenantCompaniesPage() {
                           <TenantFieldError message={visibleCompanyErrors.endDate} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Lock-in Period</label>
-                          <input type="number" min="0" readOnly className="w-full px-3 py-2.5 bg-slate-100 border border-transparent rounded-xl text-[12px] font-pmedium text-slate-500 outline-none cursor-not-allowed" value={companyForm.agreementDetails.lockInPeriod} />
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Lock-in Period (Months)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                            value={companyForm.agreementDetails.lockInPeriod}
+                            onChange={(e) => updateCompanySection('agreementDetails', 'lockInPeriod', e.target.value)}
+                          />
+                          <p className="text-[9px] font-pregular text-slate-400">Entered manually — independent of the contract duration.</p>
                         </div>
 
                       </div>
@@ -4069,459 +4470,49 @@ export default function TenantCompaniesPage() {
                     </div>
                   )}
 
-                  {activeModal !== 'renew' && (
-                    <div className="order-6 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
-                      <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Briefcase size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">6. Selected Package Details</span></h4>
-                      {isTenantPackageLocked && (
-                        <p className="text-[10px] font-pmedium text-slate-400">This package is locked to the company, so the package details stay read-only here.</p>
-                      )}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div className="space-y-1 md:col-span-2">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Package Name <span className="text-red-400">*</span></label>
-                          <input
-                            type="text"
-                            disabled={isTenantPackageLocked}
-                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:bg-slate-100"
-                            value={companyForm.packageDetails.packageName}
-                            onChange={(e) => updateCompanySection('packageDetails', 'packageName', e.target.value)}
-                          />
-                          <TenantFieldError message={visibleCompanyErrors.packageName} />
-                          {!companyForm.pricingPackageId && (
-                            <p className="text-[10px] font-pmedium text-slate-400">Name the custom package before you save the selected areas and desks.</p>
-                          )}
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Total Seats <span className="text-red-400">*</span></label>
-                          <input
-                            type="number"
-                            min="0"
-                            disabled
-                            readOnly
-                            className="w-full px-3 py-2.5 bg-slate-100 border border-transparent rounded-xl text-[12px] font-pmedium text-slate-500 outline-none cursor-not-allowed"
-                            value={companyForm.packageDetails.totalSeats}
-                          />
-                          <TenantFieldError message={visibleCompanyErrors.totalSeats} />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Open Desks</label>
-                          <input
-                            type="number"
-                            min="0"
-                            disabled
-                            readOnly
-                            className="w-full px-3 py-2.5 bg-slate-100 border border-transparent rounded-xl text-[12px] font-pmedium text-slate-500 outline-none cursor-not-allowed"
-                            value={companyForm.packageDetails.openDesks}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Cabin Desks</label>
-                          <input
-                            type="number"
-                            min="0"
-                            disabled
-                            readOnly
-                            className="w-full px-3 py-2.5 bg-slate-100 border border-transparent rounded-xl text-[12px] font-pmedium text-slate-500 outline-none cursor-not-allowed"
-                            value={companyForm.packageDetails.cabinDesks}
-                          />
-                        </div>
-                        {Number(companyForm.packageDetails.openDesks || 0) > 0 && (
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Rate Per Open Desk <span className="text-red-400">*</span></label>
-                            <input
-                              type="number"
-                              min="0"
-                              disabled={isTenantPackageLocked}
-                              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:bg-slate-100"
-                              value={companyForm.packageDetails.ratePerOpenDesk}
-                              onChange={(e) => setCompanyForm((prev) => ({
-                                ...prev,
-                                packageDetails: {
-                                  ...(prev.packageDetails || {}),
-                                  ratePerOpenDesk: e.target.value,
-                                },
-                                companyDetails: {
-                                  ...(prev.companyDetails || {}),
-                                  ratePerOpenDesk: e.target.value,
-                                },
-                              }))}
-                            />
-                            <TenantFieldError message={visibleCompanyErrors.ratePerOpenDesk} />
-                          </div>
-                        )}
-                        {Number(companyForm.packageDetails.cabinDesks || 0) > 0 && (
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Rate Per Cabin Desk <span className="text-red-400">*</span></label>
-                            <input
-                              type="number"
-                              min="0"
-                              disabled={isTenantPackageLocked}
-                              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:bg-slate-100"
-                              value={companyForm.packageDetails.ratePerCabinDesk}
-                              onChange={(e) => setCompanyForm((prev) => ({
-                                ...prev,
-                                packageDetails: {
-                                  ...(prev.packageDetails || {}),
-                                  ratePerCabinDesk: e.target.value,
-                                },
-                                companyDetails: {
-                                  ...(prev.companyDetails || {}),
-                                  ratePerCabinDesk: e.target.value,
-                                },
-                              }))}
-                            />
-                            <TenantFieldError message={visibleCompanyErrors.ratePerCabinDesk} />
-                          </div>
-                        )}
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Credits Per Seat <span className="text-red-400">*</span></label>
-                          <input
-                            type="number"
-                            min="0"
-                            disabled={isTenantPackageLocked}
-                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:bg-slate-100"
-                            value={companyForm.packageDetails.creditsPerSeat}
-                            onChange={(e) => setCompanyForm((prev) => syncCustomPackageCreditFields(prev, e.target.value))}
-                          />
-                          <TenantFieldError message={visibleCompanyErrors.creditsPerSeat} />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Monthly Total Credits <span className="text-red-400">*</span></label>
-                          <input
-                            type="number"
-                            min="0"
-                            readOnly
-                            className="w-full px-3 py-2.5 bg-slate-100 border border-transparent rounded-xl text-[12px] font-pmedium text-slate-500 outline-none cursor-not-allowed"
-                            value={companyForm.packageDetails.monthlyTotalCredits}
-                          />
-                          <TenantFieldError message={visibleCompanyErrors.monthlyTotalCredits} />
-                        </div>
-                        <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-white p-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Selected Location Mapping <span className="text-red-400">*</span></p>
-                            <span className="rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-700">
-                              {locationLabelsFromValue(companyForm.packageDetails.locationMappings).length} selected
-                            </span>
-                          </div>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {locationLabelsFromValue(companyForm.packageDetails.locationMappings).length > 0 ? (
-                              locationLabelsFromValue(companyForm.packageDetails.locationMappings).map((label, index) => (
-                                <span key={`${label}-${index}`} className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-700">
-                                  {label}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="text-[10px] font-pmedium text-slate-400">
-                                {isCustomPackageSelected ? 'Choose a floor and wing to start selecting areas. Block mix only changes which sections are shown.' : 'Package locations will appear here.'}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeModal !== 'renew' && (
-                    <div className="order-9 rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
-                      <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><CreditCard size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">9. Credit Configuration</span></h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Credits Per Seat <span className="text-red-400">*</span></label>
-                          <input
-                            type="number"
-                            min="0"
-                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                            value={companyForm.packageDetails.creditsPerSeat}
-                            onChange={(e) => setCompanyForm((prev) => syncCustomPackageCreditFields(prev, e.target.value))}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Monthly Total Credits <span className="text-red-400">*</span></label>
-                          <input
-                            type="number"
-                            min="0"
-                            readOnly
-                            className="w-full px-3 py-2.5 bg-slate-100 border border-transparent rounded-xl text-[12px] font-pmedium text-slate-500 outline-none cursor-not-allowed"
-                            value={companyForm.packageDetails.monthlyTotalCredits}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Credit Reset Cycle</label>
-                          <select disabled={isTenantPackageLocked} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" value={companyForm.creditConfiguration.creditResetCycle} onChange={(e) => {
-                            updateCompanySection('creditConfiguration', 'creditResetCycle', e.target.value);
-                            updateCompanySection('packageDetails', 'creditResetCycle', e.target.value);
-                          }}>
-                            <option>Monthly</option>
-                            <option>Quarterly</option>
-                            <option>Yearly</option>
-                          </select>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Rate per Credit (Purchase)</label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                            value={companyForm.creditConfiguration.ratePerCredit ?? '10'}
-                            onChange={(e) => updateCompanySection('creditConfiguration', 'ratePerCredit', e.target.value)}
-                            placeholder="Price the tenant pays per credit when buying more (default 10)"
-                          />
-                          <p className="text-[9px] font-pmedium text-slate-400">Used on the tenant Buy Credits page — each company can have its own negotiated price.</p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Purchased Credits</label>
-                          <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.addOnCredits.purchasedCredits} onChange={(e) => updateCompanySection('addOnCredits', 'purchasedCredits', e.target.value)} />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Remaining Credits</label>
-                          <input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-100 border border-transparent rounded-xl text-[12px] font-pmedium text-slate-500 outline-none cursor-not-allowed" value={calculateRemainingCredits(companyForm)} readOnly />
-                        </div>
-                        <div className="space-y-1 md:col-span-3">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Credit Usage Tracking</label>
-                          <textarea rows="3" disabled={isTenantPackageLocked} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:bg-slate-100" value={companyForm.creditConfiguration.creditUsageTracking} onChange={(e) => {
-                            updateCompanySection('creditConfiguration', 'creditUsageTracking', e.target.value);
-                            updateCompanySection('packageDetails', 'creditUsageTracking', e.target.value);
-                          }} placeholder="Track monthly usage, add-on consumption, and renewal notes here." />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
                   <div data-tenant-validation="space" className="order-5 rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
-                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Briefcase size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">5. Package Selection &amp; Allocation</span></h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-5 bg-slate-50 border border-slate-200 rounded-2xl">
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Briefcase size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">5. Credits Allocation</span></h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-5 bg-slate-50 border border-slate-200 rounded-2xl">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Select Package <span className="text-red-400">*</span></label>
-                        <select
-                          className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
-                          value={isCustomPackageSelected ? '__custom__' : (companyForm.pricingPackageId || '')}
-                          onChange={e => handlePackageSelection(e.target.value)}
-                          disabled={isTenantPackageLocked}
-                        >
-                          <option value="" disabled hidden>Select a package</option>
-                          <option value="__custom__">Custom package</option>
-                          {tenantPackageSelectionOptions.map((pkg) => <option key={pkg.recordId || pkg.id} value={pkg.recordId || pkg.id}>{pkg.name} - {pkg.creditsIncluded} CR{pkg.assignedTenantCompanyId ? ' - Locked' : ''}</option>)}
-                        </select>
-                        <TenantFieldError message={visibleCompanyErrors.pricingPackageId} />
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Credits Per Seat</label>
+                        <input
+                          type="number"
+                          min="0"
+                          className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                          value={companyForm.packageDetails.creditsPerSeat}
+                          onChange={(e) => setCompanyForm((prev) => recomputeCreditsFromDeskSeats(prev, e.target.value))}
+                        />
+                        <p className="text-[9px] font-pmedium text-slate-400 mt-1">Can be left at 0 — meeting credits are optional.</p>
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest flex items-center gap-1">Credits Allocated (Auto)</label>
-                        <input required type="number" min="0" disabled={Boolean(selectedTenantPackage)} className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:bg-slate-100" value={companyForm.creditsAllocated} onChange={e => setCompanyForm({ ...companyForm, creditsAllocated: parseInt(e.target.value) || 0, planType: 'Custom', pricingPackageId: '__custom__' })} />
-                        <p className="text-[9px] font-pmedium text-slate-400 mt-1">Credits can be used for Meeting & Conference Rooms Bookings.</p>
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Monthly Total Credits</label>
+                        <input
+                          type="text"
+                          readOnly
+                          className="w-full px-3 py-2.5 bg-slate-100 border border-transparent rounded-xl text-[12px] font-pmedium text-slate-500 outline-none cursor-not-allowed"
+                          value={companyForm.creditsAllocated || 0}
+                        />
+                        <p className="text-[9px] font-pmedium text-slate-400 mt-1">Credits per seat &times; assigned desks (Location Details).</p>
                       </div>
-                      {isCustomPackageSelected && (
-                        <div className="md:col-span-2 space-y-3 rounded-xl border border-slate-200 bg-white p-3">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-2">
-                              <div className="flex h-5 w-5 items-center justify-center rounded-md bg-slate-100 text-slate-600"><LayoutGrid size={10} /></div>
-                              <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Custom Package Builder</p>
-                            </div>
-                            <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-700">
-                              {customPackageSelectedResourceKeys.size} selected
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Floor <span className="text-red-400">*</span></label>
-                              <select
-                                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
-                                value={customPackageFloor}
-                                onChange={(e) => setCompanyForm((prev) => ({
-                                  ...prev,
-                                  packageDetails: {
-                                    ...(prev.packageDetails || {}),
-                                    selectionFloor: e.target.value,
-                                    selectionWing: '',
-                                  },
-                                }))}
-                              >
-                                <option value="">Select floor</option>
-                                {customPackageFloorOptions.map((floor) => <option key={floor} value={floor}>{floor}</option>)}
-                              </select>
-                              <TenantFieldError message={visibleCompanyErrors.selectionFloor} />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Wing (Optional)</label>
-                              <select
-                                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
-                                value={customPackageWing}
-                                onChange={(e) => setCompanyForm((prev) => ({
-                                  ...prev,
-                                  packageDetails: {
-                                    ...(prev.packageDetails || {}),
-                                    selectionWing: e.target.value.toUpperCase(),
-                                  },
-                                }))}
-                              >
-                                <option value="">Select wing</option>
-                                {customPackageWingOptions.map((wing) => <option key={wing} value={wing}>{wing}</option>)}
-                              </select>
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Block Mix</label>
-                              <select
-                                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
-                                value={customPackageBlockMix}
-                                onChange={(e) => setCompanyForm((prev) => ({
-                                  ...prev,
-                                  packageDetails: {
-                                    ...(prev.packageDetails || {}),
-                                    selectionBlockMix: e.target.value,
-                                  },
-                                }))}
-                              >
-                                {tenantBlockMixOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                              </select>
-                            </div>
-                          </div>
-                          {hasCustomPackageScopeSelection ? (
-                            customPackageVisibleOpenAreaResources.length > 0 || customPackageVisibleCabinAreaResources.length > 0 || customPackageVisibleSingleOpenDeskResources.length > 0 ? (
-                              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                                {customPackageBlockMix !== 'cabin' && (
-                                <div className="rounded-xl border border-slate-200 bg-white p-3">
-                                  <div className="mb-2 flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2">
-                                      <div className="flex h-5 w-5 items-center justify-center rounded-md bg-slate-100 text-slate-600"><LayoutGrid size={10} /></div>
-                                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-600">Open Desk Blocks</p>
-                                    </div>
-                                    <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-700">
-                                      {customPackageOpenSelectedCount}/{customPackageVisibleOpenAreaResources.length}
-                                    </span>
-                                  </div>
-                                  <div className="max-h-44 space-y-1.5 overflow-y-auto pr-1">
-                                    {customPackageVisibleOpenAreaResources.length > 0 ? customPackageVisibleOpenAreaResources.map((resource) => {
-                                      const selected = customPackageSelectedResourceKeys.has(getTenantResourceSelectionKey(resource));
-                                      const seatLabels = Array.isArray(resource.seatLabels) ? resource.seatLabels : [];
-                                      return (
-                                        <label key={resource.recordId || resource.resourceCode} className={`flex cursor-pointer items-start gap-2 rounded-lg border px-2.5 py-2 transition-all ${selected ? 'border-blue-300 bg-blue-50/70' : 'border-slate-100 bg-slate-50/50 hover:border-blue-200'}`}>
-                                          <input type="checkbox" disabled={isTenantPackageLocked} className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-[#2563EB] focus:ring-blue-500" checked={selected} onChange={() => toggleLocationMapping(resource)} />
-                                          <div className="min-w-0 flex-1">
-                                            <p className="truncate text-[12px] font-pmedium text-slate-900">{resource.name || resource.locationLabel || resource.resourceCode}</p>
-                                            <p className="text-[10px] font-pmedium text-slate-400">{resource.capacity} seats - {formatCurrency(resource.pricePerDay)}/day - {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
-                                            {seatLabels.length > 0 && (
-                                              <div className="mt-2 flex flex-wrap gap-1.5">
-                                                {seatLabels.map((seatLabel) => (
-                                                  <span key={`${resource.recordId || resource.resourceCode}-${seatLabel}`} className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-700">
-                                                    {seatLabel}
-                                                  </span>
-                                                ))}
-                                              </div>
-                                            )}
-                                          </div>
-                                        </label>
-                                      );
-                                    }) : (
-                                      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs font-pmedium text-slate-500">No open desk blocks in this scope.</div>
-                                    )}
-                                  </div>
-                                </div>
-                                )}
-                                {customPackageBlockMix !== 'open' && (
-                                <div className="rounded-xl border border-slate-200 bg-white p-3">
-                                  <div className="mb-2 flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2">
-                                      <div className="flex h-5 w-5 items-center justify-center rounded-md bg-slate-100 text-slate-600"><LayoutGrid size={10} /></div>
-                                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-600">Cabin Desk Blocks</p>
-                                    </div>
-                                    <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-700">
-                                      {customPackageCabinSelectedCount}/{customPackageVisibleCabinAreaResources.length}
-                                    </span>
-                                  </div>
-                                  <div className="max-h-44 space-y-1.5 overflow-y-auto pr-1">
-                                    {customPackageVisibleCabinAreaResources.length > 0 ? customPackageVisibleCabinAreaResources.map((resource) => {
-                                      const selected = customPackageSelectedResourceKeys.has(getTenantResourceSelectionKey(resource));
-                                      const seatLabels = Array.isArray(resource.seatLabels) ? resource.seatLabels : [];
-                                      return (
-                                        <label key={resource.recordId || resource.resourceCode} className={`flex cursor-pointer items-start gap-2 rounded-lg border px-2.5 py-2 transition-all ${selected ? 'border-blue-300 bg-blue-50/70' : 'border-slate-100 bg-slate-50/50 hover:border-blue-200'}`}>
-                                          <input type="checkbox" disabled={isTenantPackageLocked} className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-[#2563EB] focus:ring-blue-500" checked={selected} onChange={() => toggleLocationMapping(resource)} />
-                                          <div className="min-w-0 flex-1">
-                                            <p className="truncate text-[12px] font-pmedium text-slate-900">{resource.name || resource.locationLabel || resource.resourceCode}</p>
-                                            <p className="text-[10px] font-pmedium text-slate-400">{resource.capacity} seats - {formatCurrency(resource.pricePerDay)}/day - {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
-                                            {seatLabels.length > 0 && (
-                                              <div className="mt-2 flex flex-wrap gap-1.5">
-                                                {seatLabels.map((seatLabel) => (
-                                                  <span key={`${resource.recordId || resource.resourceCode}-${seatLabel}`} className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-700">
-                                                    {seatLabel}
-                                                  </span>
-                                                ))}
-                                              </div>
-                                            )}
-                                          </div>
-                                        </label>
-                                      );
-                                    }) : (
-                                      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs font-pmedium text-slate-500">No cabin desk blocks in this scope.</div>
-                                    )}
-                                  </div>
-                                </div>
-                                )}
-                                {customPackageBlockMix !== 'cabin' && (
-                                <div className="rounded-xl border border-slate-200 bg-white p-3">
-                                  <div className="mb-2 flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2">
-                                      <div className="flex h-5 w-5 items-center justify-center rounded-md bg-slate-100 text-slate-600"><LayoutGrid size={10} /></div>
-                                      <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-600">Single Open Desks</p>
-                                    </div>
-                                    <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-700">
-                                      {customPackageVisibleSingleOpenDeskResources.length}
-                                    </span>
-                                  </div>
-                                  <div className="max-h-44 space-y-1.5 overflow-y-auto pr-1">
-                                    {customPackageVisibleSingleOpenDeskResources.length > 0 ? customPackageVisibleSingleOpenDeskResources.map((resource) => {
-                                      const selected = customPackageSelectedResourceKeys.has(getTenantResourceSelectionKey(resource));
-                                      return (
-                                        <label key={resource.recordId || resource.resourceCode} className={`flex cursor-pointer items-start gap-2 rounded-lg border px-2.5 py-2 transition-all ${selected ? 'border-blue-300 bg-blue-50/70' : 'border-slate-100 bg-slate-50/50 hover:border-blue-200'}`}>
-                                          <input type="checkbox" disabled={isTenantPackageLocked} className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-[#2563EB] focus:ring-blue-500" checked={selected} onChange={() => toggleLocationMapping(resource)} />
-                                          <div className="min-w-0 flex-1">
-                                            <p className="truncate text-[12px] font-pmedium text-slate-900">{resource.name || resource.locationLabel || resource.resourceCode}</p>
-                                            <p className="text-[10px] font-pmedium text-slate-400">{resource.floor || '--'} / {resource.wing || '--'} - Single open desk</p>
-                                          </div>
-                                        </label>
-                                      );
-                                    }) : (
-                                      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs font-pmedium text-slate-500">No single open desks in this scope.</div>
-                                    )}
-                                  </div>
-                                </div>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-                                <LayoutGrid size={28} className="mx-auto mb-2 text-slate-300" />
-                                <p className="text-sm font-pmedium text-slate-500">No area blocks found</p>
-                                <p className="mt-1 text-xs font-pmedium text-slate-400">Add open desk and cabin desk area blocks in Resource Management first.</p>
-                              </div>
-                            )
-                          ) : (
-                            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
-                              <LayoutGrid size={28} className="mx-auto mb-2 text-slate-300" />
-                              <p className="text-sm font-pmedium text-slate-500">Select a floor to load area blocks</p>
-                              <p className="mt-1 text-xs font-pmedium text-slate-400">Choose a wing only when you want to narrow the floor results.</p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      <div className="md:col-span-2 rounded-xl border border-slate-200 bg-white p-4">
-                        <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Selected Location Mapping <span className="text-red-400">*</span></p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {locationLabelsFromValue(companyForm.packageDetails.locationMappings).length > 0 ? (
-                            locationLabelsFromValue(companyForm.packageDetails.locationMappings).map((label, index) => (
-                              <span key={`${label}-${index}`} className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-700">
-                                {label}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-[10px] font-pmedium text-slate-400">No location selected yet.</span>
-                          )}
-                        </div>
-                        <TenantFieldError message={visibleCompanyErrors.locationMappings} />
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Rate Per Credit (Purchase)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                          value={companyForm.creditConfiguration.ratePerCredit ?? '10'}
+                          onChange={(e) => updateCompanySection('creditConfiguration', 'ratePerCredit', e.target.value)}
+                          placeholder="Price per credit when buying more (default 10)"
+                        />
+                        <p className="text-[9px] font-pmedium text-slate-400 mt-1">Used on the tenant Buy Credits page.</p>
                       </div>
                     </div>
                   </div>
 
                   {activeModal !== 'renew' && (
-                    <div data-tenant-validation="document" className="order-10 rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
-                      <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><FileText size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">10. Upload Document</span></h4>
+                    <div data-tenant-validation="document" className="order-8 rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                      <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><FileText size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">8. Upload Document</span></h4>
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                         <div className="space-y-3">
                           <label className="block text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Upload Agreement Document *</label>
@@ -4559,7 +4550,7 @@ export default function TenantCompaniesPage() {
                     </div>
                   )}
 
-                  <div className="order-11 sticky bottom-0 bg-white border-t border-slate-100 p-3 sm:p-4 flex gap-3">
+                  <div className="order-9 sticky bottom-0 bg-white border-t border-slate-100 p-3 sm:p-4 flex gap-3">
                     <button type="button" onClick={() => { setActiveModal(null); setSelectedTenant(null); setCompanyForm(initialCompanyForm); setAgreementFiles([]); setFormError(''); }} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[11px] hover:bg-slate-50 transition-all shadow-sm">CANCEL</button>
                     <button type="submit" disabled={isSaving} className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[11px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60">
                       {isSaving ? <><Loader2 size={14} className="animate-spin" /> SAVING...</> : <>SUBMIT &amp; SEND TO FINANCE <Save size={14} /></>}
@@ -4738,6 +4729,7 @@ export default function TenantCompaniesPage() {
                         <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-pmedium uppercase tracking-wider text-slate-900">Agreement Details</h3>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                           <div><p className="mb-1 text-xs font-pmedium text-slate-400">Annual Increment</p><p className="text-sm font-pmedium text-slate-900">{formatCurrency(selectedTenantBillingDisplay.annualIncrement || selectedTenant.agreementDetails?.annualIncrement || 0)}</p></div>
+                          <div><p className="mb-1 text-xs font-pmedium text-slate-400">Annual Increment Date</p><p className="text-sm font-pmedium text-slate-900">{formatDateLabel(selectedTenant.agreementDetails?.annualIncrementDate)}</p></div>
                           <div><p className="mb-1 text-xs font-pmedium text-slate-400">Meeting Credits</p><p className="text-sm font-pmedium text-slate-900">{selectedTenant.packageDetails?.monthlyTotalCredits || 0}</p></div>
                           <div><p className="mb-1 text-xs font-pmedium text-slate-400">Lock-in Period</p><p className="text-sm font-pmedium text-slate-900">{selectedTenant.agreementDetails?.lockInPeriod || selectedTenant.contractDurationMonths || 0} Months</p></div>
                           <div><p className="mb-1 text-xs font-pmedium text-slate-400">Status</p><p className="text-sm font-pmedium text-slate-900">{selectedTenant.status}</p></div>

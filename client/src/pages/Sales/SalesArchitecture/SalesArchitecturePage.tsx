@@ -14,7 +14,11 @@ import { canExportReports } from "../../../utils/workspacePlanAccess";
 import { createReport } from "../../../services/reports";
 import ExportReportModal, { type ExportParams } from "../../../components/ExportReportModal";
 import ReportExportButton from "@/components/ReportExportButton";
-import { assignResource, getResources, releaseResourceAssignment } from "../../../services/resources";
+import {
+  assignResource, assignResourceSeat, getResources, getResourceSeatAssignments, getResourceSeats,
+  releaseResourceAssignment, releaseResourceSeatAssignment,
+} from "../../../services/resources";
+import SeatAssignmentModal from "./SeatAssignmentModal";
 import { getTenantCompanies } from "../../../services/tenant-companies";
 import { getVirtualOffices } from "../../../services/virtual-offices";
 import { getOrganizationOverview } from "../../../services/organization";
@@ -116,6 +120,8 @@ const toneFor = (r = {}, isPackageLocked = false) => {
   if (r.assignmentType === "tenant") return ["bg-indigo-50 border-indigo-200 text-indigo-700", "bg-indigo-50 border-indigo-300", r.assignedTenantCompanyName || "Tenant", "text-indigo-600"];
   if (r.assignmentType === "virtualOffice") return ["bg-teal-50 border-teal-200 text-teal-700", "bg-teal-50 border-teal-300", r.assignedVirtualOfficeName || "Virtual Office", "text-teal-600"];
   if (r.assignmentType === "department") return ["bg-amber-50 border-amber-200 text-amber-700", "bg-amber-50 border-amber-300", r.assignedDepartmentName || "Department", "text-amber-600"];
+  if (r.assignmentType === "seatsFull") return ["bg-indigo-50 border-indigo-200 text-indigo-700", "bg-indigo-50 border-indigo-300", "Fully Assigned", "text-indigo-600"];
+  if (r.assignmentType === "seatsPartial") return ["bg-amber-50 border-amber-200 text-amber-700", "bg-amber-50 border-amber-300", "Partially Assigned", "text-amber-600"];
   if (bookingOnlyCats.has(r.resourceCategory)) return ["bg-fuchsia-50 border-fuchsia-200 text-fuchsia-700", "bg-fuchsia-50 border-fuchsia-200", "Booking", "text-fuchsia-600"];
   return ["bg-emerald-50 border-emerald-200 text-emerald-700", "bg-green-50 border-green-300", "Available", "text-emerald-600"];
 };
@@ -195,16 +201,37 @@ function buildExportRows({ building = "", floor = "", wing = "All", resources = 
   return rows;
 }
 
-function SpaceCard({ resource, selected, disabled, packageLocked, onToggle }) {
+// Assigns every currently-vacant seat of a desk resource to one tenant/department
+// — used by the bulk "select whole blocks -> assign" flow, which only ever
+// selects fully-vacant resources (see toggleResource's assignmentLabel guard).
+async function assignAllSeatsForResource(resourceId, payload) {
+  const res = await getResourceSeats(resourceId);
+  const seats = res?.data?.data?.seats || [];
+  for (const seat of seats.filter((s) => s.isVacant)) {
+    await assignResourceSeat(resourceId, seat.seatNumber, payload);
+  }
+}
+
+// Releases every currently-assigned seat of a desk resource.
+async function releaseAllAssignedSeatsForResource(resourceId) {
+  const res = await getResourceSeats(resourceId);
+  const seats = res?.data?.data?.seats || [];
+  for (const seat of seats.filter((s) => !s.isVacant)) {
+    await releaseResourceSeatAssignment(resourceId, seat.seatNumber);
+  }
+}
+
+function SpaceCard({ resource, selected, disabled, packageLocked, onToggle, onManageSeats }) {
   const [badge, card, label] = toneFor(resource, packageLocked);
   const locked = packageLocked || disabled;
   const isAssigned = Boolean(resource.assignmentLabel);
-  const assignedTo = resource.assignedTenantCompanyName || resource.assignedVirtualOfficeName || resource.assignedDepartmentName || resource.assignmentLabel || "";
-  const assignmentIconClass = resource.assignmentType === "tenant" ? "text-indigo-500" : resource.assignmentType === "virtualOffice" ? "text-teal-500" : "text-amber-500";
-  const assignmentTextClass = resource.assignmentType === "tenant" ? "text-indigo-700" : resource.assignmentType === "virtualOffice" ? "text-teal-700" : "text-amber-700";
+  const isDesk = deskCats.has(resource.resourceCategory);
+  const assignedTo = resource.assignedTenantCompanyName || resource.assignedVirtualOfficeName || resource.assignedDepartmentName || (isDesk ? "" : resource.assignmentLabel) || "";
+  const assignmentIconClass = resource.assignmentType === "tenant" || resource.assignmentType === "seatsFull" ? "text-indigo-500" : resource.assignmentType === "virtualOffice" ? "text-teal-500" : "text-amber-500";
+  const assignmentTextClass = resource.assignmentType === "tenant" || resource.assignmentType === "seatsFull" ? "text-indigo-700" : resource.assignmentType === "virtualOffice" ? "text-teal-700" : "text-amber-700";
   return (
-    <button type="button" onClick={() => onToggle(resource)} disabled={locked}
-      className={`group flex min-h-36 flex-col justify-between rounded-[1.75rem] border-2 p-3 text-left transition-all ${card} ${selected ? "shadow-lg -translate-y-0.5" : "shadow-sm hover:-translate-y-0.5 hover:shadow-md"} ${locked ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+    <button type="button" onClick={() => (isDesk && onManageSeats ? onManageSeats(resource) : onToggle(resource))} disabled={locked && !isDesk}
+      className={`group flex min-h-36 flex-col justify-between rounded-[1.75rem] border-2 p-3 text-left transition-all ${card} ${selected ? "shadow-lg -translate-y-0.5" : "shadow-sm hover:-translate-y-0.5 hover:shadow-md"} ${locked && !isDesk ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2">
@@ -223,9 +250,11 @@ function SpaceCard({ resource, selected, disabled, packageLocked, onToggle }) {
       <div className="mt-2 rounded-xl bg-white/70 p-2 space-y-0.5">
         <div className="flex items-center justify-between gap-2">
           <span className="text-[9px] font-pmedium text-slate-500">{resource.locationLabel || "--"}</span>
-          {resource.seatLabels?.length > 0 && (
+          {isDesk && resource.seatSummary ? (
+            <span className="text-[8px] font-pmedium text-slate-500">{resource.seatSummary.assigned}/{resource.seatSummary.total} assigned · {resource.seatSummary.vacant} vacant</span>
+          ) : resource.seatLabels?.length > 0 ? (
             <span className="text-[8px] font-pmedium text-slate-400">{resource.seatLabels.slice(0, 3).join(", ")}{resource.seatLabels.length > 3 ? ` +${resource.seatLabels.length - 3}` : ""}</span>
-          )}
+          ) : null}
         </div>
         {isAssigned && assignedTo && (
           <div className="flex items-center gap-1">
@@ -233,6 +262,7 @@ function SpaceCard({ resource, selected, disabled, packageLocked, onToggle }) {
             <span className={`text-[9px] font-pmedium truncate max-w-[140px] ${assignmentTextClass}`}>{assignedTo}</span>
           </div>
         )}
+        {isDesk && <span className="text-[8px] font-pmedium text-slate-400 group-hover:text-slate-600">Click to manage seats →</span>}
       </div>
     </button>
   );
@@ -290,6 +320,12 @@ export default function SalesArchitecturePage() {
   const [spaceFilter, setSpaceFilter] = useState("all"); // all | available | tenant | department | maintenance
   const [isDeptAssignModalOpen, setIsDeptAssignModalOpen] = useState(false);
   const [deptAssignSelectedId, setDeptAssignSelectedId] = useState("");
+  const [seatModalResource, setSeatModalResource] = useState(null);
+  // Per-seat tenant/department assignment groups (open_desk/cabin_desk seats
+  // within one resource can belong to different assignees) — merged into
+  // tenantAssignmentMap/deptAssignmentMap below since those otherwise only
+  // see the old whole-resource assignedTenantCompanyId/assignedDepartmentId.
+  const [seatAssignmentGroups, setSeatAssignmentGroups] = useState({ tenant: [], department: [] });
 
   // Virtual Offices tab — kept independent of the tenant assignment state
   // above so browsing/assigning here never contaminates the Tenants tab.
@@ -315,14 +351,17 @@ export default function SalesArchitecturePage() {
     let alive = true;
     (async () => {
       try {
-        const [rRes, tRes, oRes, voRes] = await Promise.allSettled([
-          getResources(), getTenantCompanies(), getOrganizationOverview(axiosPrivate), getVirtualOffices({ page: 1, limit: 200 }),
+        const [rRes, tRes, oRes, voRes, seatRes] = await Promise.allSettled([
+          getResources(), getTenantCompanies(), getOrganizationOverview(axiosPrivate), getVirtualOffices({ page: 1, limit: 200 }), getResourceSeatAssignments(),
         ]);
         if (!alive) return;
 
         const rawResources = rRes.status === "fulfilled" ? (rRes.value?.data?.data?.resources || rRes.value?.data?.resources || []) : [];
         const nextResources = Array.isArray(rawResources) ? rawResources.map(normalizeResource) : [];
-        
+
+        const seatGroups = seatRes.status === "fulfilled" ? (seatRes.value?.data?.data || {}) : {};
+        setSeatAssignmentGroups({ tenant: seatGroups.tenant || [], department: seatGroups.department || [] });
+
         const rawTenants = tRes.status === "fulfilled" ? (tRes.value?.data?.data?.tenants || tRes.value?.data?.tenants || []) : [];
         const nextTenants = Array.isArray(rawTenants) ? rawTenants : [];
         
@@ -457,9 +496,9 @@ export default function SalesArchitecturePage() {
     if (!matchesSearch(r, query)) return false;
     // status/assignment filter
     if (spaceFilter === "available") return !r.assignmentLabel && r.status === "Active" && !bookingOnlyCats.has(r.resourceCategory);
-    if (spaceFilter === "tenant") return r.assignmentType === "tenant";
+    if (spaceFilter === "tenant") return r.assignmentType === "tenant" || (deskCats.has(r.resourceCategory) && Number(r.seatSummary?.assignedToTenant || 0) > 0);
     if (spaceFilter === "virtualOffice") return voCats.has(r.resourceCategory);
-    if (spaceFilter === "department") return r.assignmentType === "department";
+    if (spaceFilter === "department") return r.assignmentType === "department" || (deskCats.has(r.resourceCategory) && Number(r.seatSummary?.assignedToDepartment || 0) > 0);
     if (spaceFilter === "maintenance") return r.status === "Under Maintenance";
     if (spaceFilter === "booking") return bookingOnlyCats.has(r.resourceCategory);
     return true;
@@ -488,13 +527,24 @@ export default function SalesArchitecturePage() {
   const departmentSelectedSeatCount = useMemo(() => departmentAssignableResources.reduce((s, r) => s + Math.max(1, Number(r.capacity || 1)), 0), [departmentAssignableResources]);
   const departmentAssignableIds = useMemo(() => departmentAssignableResources.map((r) => String(r.recordId || r.id)).filter(Boolean), [departmentAssignableResources]);
 
+  // Desk resources (open_desk/cabin_desk) are assigned seat-by-seat, so their
+  // tenant/department counts come from each resource's seatSummary (assignedToTenant
+  // /assignedToDepartment) rather than the old single whole-resource assignmentType.
+  const deskSeatCounts = (r) => r.seatSummary || { total: Number(r.capacity || 0), assigned: 0, assignedToTenant: 0, assignedToDepartment: 0, vacant: Number(r.capacity || 0) };
+
   const floorStats = useMemo(() => {
     const s = filtered;
+    const deskTotals = s.filter((r) => deskCats.has(r.resourceCategory)).reduce((acc, r) => {
+      const c = deskSeatCounts(r);
+      acc.tenant += c.assignedToTenant || 0;
+      acc.dept += c.assignedToDepartment || 0;
+      return acc;
+    }, { tenant: 0, dept: 0 });
     return {
       total: s.length,
       available: s.filter((r) => !r.assignmentLabel && r.status === "Active" && !bookingOnlyCats.has(r.resourceCategory)).length,
-      tenantAssigned: s.filter((r) => r.assignmentType === "tenant").length,
-      deptAssigned: s.filter((r) => r.assignmentType === "department").length,
+      tenantAssigned: s.filter((r) => r.assignmentType === "tenant").length + deskTotals.tenant,
+      deptAssigned: s.filter((r) => r.assignmentType === "department").length + deskTotals.dept,
       assigned: s.filter((r) => Boolean(r.assignmentLabel)).length,
       meetingRooms: bookingOnly.length,
       maintenance: s.filter((r) => r.status === "Under Maintenance").length,
@@ -504,13 +554,69 @@ export default function SalesArchitecturePage() {
   const floorCards = useMemo(() => availableFloors.map((f) => {
     const items = buildingResources.filter((r) => r.floor === f);
     const d = items.filter((r) => deskCats.has(r.resourceCategory));
+    const deskTotals = d.reduce((acc, r) => {
+      const c = deskSeatCounts(r);
+      acc.open += c.vacant || 0;
+      acc.tenant += c.assignedToTenant || 0;
+      acc.dept += c.assignedToDepartment || 0;
+      return acc;
+    }, { open: 0, tenant: 0, dept: 0 });
     return {
       floor: f,
-      open: d.filter((r) => !r.assignmentLabel && r.status === "Active").length,
-      tenant: d.filter((r) => r.assignmentType === "tenant").length,
-      dept: d.filter((r) => r.assignmentType === "department").length,
+      open: deskTotals.open,
+      tenant: deskTotals.tenant,
+      dept: deskTotals.dept,
     };
   }), [availableFloors, buildingResources]);
+
+  // Total/assigned/vacant seats grouped by floor+wing, for open_desk and
+  // cabin_desk specifically — this is the "total - assigned = vacant"
+  // breakdown shown in the Architecture tab.
+  const deskSeatStatsByLocation = useMemo(() => {
+    const groups = new Map();
+    filtered.filter((r) => deskCats.has(r.resourceCategory)).forEach((r) => {
+      const key = `${r.floor || ""}__${r.wing || ""}__${r.resourceCategory}`;
+      const c = deskSeatCounts(r);
+      const existing = groups.get(key) || {
+        floor: r.floor || "", wing: r.wing || "", resourceCategory: r.resourceCategory,
+        total: 0, assigned: 0, vacant: 0,
+      };
+      existing.total += c.total || 0;
+      existing.assigned += c.assigned || 0;
+      existing.vacant += c.vacant || 0;
+      groups.set(key, existing);
+    });
+    return Array.from(groups.values()).sort((a, b) => {
+      const fc = String(a.floor).localeCompare(String(b.floor), undefined, { numeric: true });
+      if (fc !== 0) return fc;
+      const wc = String(a.wing).localeCompare(String(b.wing), undefined, { numeric: true });
+      return wc !== 0 ? wc : a.resourceCategory.localeCompare(b.resourceCategory);
+    });
+  }, [filtered]);
+
+  // Same seat totals rolled up one level further, to floor+wing (Open Desk +
+  // Cabin Desk combined), with an occupancy percentage — the Dashboard view's
+  // "who has occupied how much of this space" breakdown.
+  const wingSeatStats = useMemo(() => {
+    const groups = new Map();
+    deskSeatStatsByLocation.forEach((s) => {
+      const key = `${s.floor}__${s.wing}`;
+      const existing = groups.get(key) || {
+        floor: s.floor, wing: s.wing, total: 0, assigned: 0, vacant: 0, byCategory: {},
+      };
+      existing.total += s.total;
+      existing.assigned += s.assigned;
+      existing.vacant += s.vacant;
+      existing.byCategory[s.resourceCategory] = { total: s.total, assigned: s.assigned, vacant: s.vacant };
+      groups.set(key, existing);
+    });
+    return Array.from(groups.values())
+      .map((g) => ({ ...g, occupancyPct: g.total > 0 ? Math.round((g.assigned / g.total) * 100) : 0 }))
+      .sort((a, b) => {
+        const fc = String(a.floor).localeCompare(String(b.floor), undefined, { numeric: true });
+        return fc !== 0 ? fc : String(a.wing).localeCompare(String(b.wing), undefined, { numeric: true });
+      });
+  }, [deskSeatStatsByLocation]);
 
   const tabAssignedGroups = useMemo(() => buildResourceAreaGroups(desks.filter((r) => r.assignmentLabel)), [desks]);
   const tabAvailableGroups = useMemo(() => buildResourceAreaGroups(desks.filter((r) => !r.assignmentLabel && r.status === "Active")), [desks]);
@@ -528,8 +634,21 @@ export default function SalesArchitecturePage() {
       if (r.floor) map[id].floors.add(r.floor);
       if (r.wing) map[id].wings.add(r.wing);
     });
+    // Open desk / cabin desk seats are assigned individually now — merge in
+    // each tenant's seat-level share of every desk resource they hold seats in.
+    seatAssignmentGroups.tenant.forEach((row) => {
+      const resource = resources.find((r) => String(r.recordId || r.id) === row.resourceId);
+      if (!resource) return;
+      const id = String(row.tenantCompanyId);
+      if (!map[id]) map[id] = { id, name: row.tenantCompanyName || "Unknown", resources: [], seatCount: 0, locationLabels: new Set(), floors: new Set(), wings: new Set() };
+      if (!map[id].resources.some((r) => String(r.recordId || r.id) === row.resourceId)) map[id].resources.push(resource);
+      map[id].seatCount += row.seatCount;
+      if (resource.locationLabel) map[id].locationLabels.add(resource.locationLabel);
+      if (resource.floor) map[id].floors.add(resource.floor);
+      if (resource.wing) map[id].wings.add(resource.wing);
+    });
     return Object.values(map);
-  }, [resources]);
+  }, [resources, seatAssignmentGroups]);
 
   const tenantsWithPackages = useMemo(() => {
     return tenants.map((t) => {
@@ -565,8 +684,19 @@ export default function SalesArchitecturePage() {
       map[name].seatCount += Math.max(1, Number(r.capacity || 1));
       if (r.locationLabel) map[name].locationLabels.add(r.locationLabel);
     });
+    // Open desk / cabin desk seats are assigned individually now — merge in
+    // each department's seat-level share of every desk resource it holds seats in.
+    seatAssignmentGroups.department.forEach((row) => {
+      const resource = resources.find((r) => String(r.recordId || r.id) === row.resourceId);
+      if (!resource) return;
+      const name = row.departmentName || "Unknown";
+      if (!map[name]) map[name] = { name, resources: [], seatCount: 0, locationLabels: new Set() };
+      if (!map[name].resources.some((r) => String(r.recordId || r.id) === row.resourceId)) map[name].resources.push(resource);
+      map[name].seatCount += row.seatCount;
+      if (resource.locationLabel) map[name].locationLabels.add(resource.locationLabel);
+    });
     return Object.values(map);
-  }, [resources]);
+  }, [resources, seatAssignmentGroups]);
 
   const unassignedDesks = useMemo(() => desks.filter((r) => isDepartmentAssignableResource(r) && !r.assignmentLabel && r.status === "Active"), [desks]);
 
@@ -696,6 +826,9 @@ export default function SalesArchitecturePage() {
   };
 
   const clearSelection = () => { setSelectedIds([]); setPrimaryId(""); };
+  const openSeatModal = (resource) => setSeatModalResource(resource);
+  const closeSeatModal = () => setSeatModalResource(null);
+  const handleSeatModalChanged = async () => { await refreshResources(); };
   const selectBuilding = (building) => {
     setSelectedBuilding(building);
     setSelectedFloor("All");
@@ -718,6 +851,17 @@ export default function SalesArchitecturePage() {
     });
   };
 
+  // Desk resources are assigned/released seat-by-seat now (see resourceSeatService
+  // on the server). Whole-block flows below assign/release every seat of the
+  // selected resource(s) instead of calling the old whole-resource endpoint.
+  const refreshResources = async () => {
+    const [res, seatRes] = await Promise.all([getResources(), getResourceSeatAssignments()]);
+    const raw = res?.data?.data?.resources || res?.data?.resources || [];
+    if (Array.isArray(raw)) setResources(raw.map(normalizeResource));
+    const seatGroups = seatRes?.data?.data || {};
+    setSeatAssignmentGroups({ tenant: seatGroups.tenant || [], department: seatGroups.department || [] });
+  };
+
   const saveAssignment = async ({ assignmentType = "tenant", tenantCompanyId = selectedCompanyId, departmentId = "" } = {}) => {
     const isDepartmentAssignment = assignmentType === "department";
     const resourcesToAssign = isDepartmentAssignment ? departmentAssignableResources : assignableResources;
@@ -730,21 +874,15 @@ export default function SalesArchitecturePage() {
       ? { assignmentType: "department", departmentId: String(department.id || department.name || departmentId).trim(), departmentName: String(department.name || departmentId).trim() }
       : { assignmentType: "tenant", tenantCompanyId: company.recordId || company.id || "", tenantCompanyName: company.companyName || company.name || "" };
     try {
-      const updated = [];
       for (const rid of ids) {
-        const res = await assignResource(rid, payload);
-        // Server wraps response in data.data.resource
-        const resourceData = res?.data?.data?.resource || res?.data?.resource;
-        if (resourceData) updated.push(normalizeResource(resourceData));
+        await assignAllSeatsForResource(rid, payload);
       }
-      if (updated.length) {
-        setResources((cur) => cur.map((r) => updated.find((x) => String(x.recordId) === String(r.recordId)) || r));
-      }
+      await refreshResources();
       clearSelection();
       if (isDepartmentAssignment) setIsDeptAssignModalOpen(false);
       else setIsAssignModalOpen(false);
-      toast.success(`${updated.length} space(s) assigned successfully.`);
-    } catch (e) { setError(e.message || "Assignment failed."); }
+      toast.success(`${ids.length} space(s) assigned successfully.`);
+    } catch (e) { setError(e.message || "Assignment failed."); toast.error(e.message || "Assignment failed."); }
     finally { setSaving(false); }
   };
 
@@ -752,16 +890,13 @@ export default function SalesArchitecturePage() {
     if (!assignableIds.length) return;
     setSaving(true); setError("");
     try {
-      const updated = [];
       for (const rid of assignableIds) {
-        const res = await releaseResourceAssignment(rid);
-        const resourceData = res?.data?.data?.resource || res?.data?.resource;
-        if (resourceData) updated.push(normalizeResource(resourceData));
+        await releaseAllAssignedSeatsForResource(rid);
       }
-      if (updated.length) setResources((cur) => cur.map((r) => updated.find((x) => String(x.recordId) === String(r.recordId)) || r));
+      await refreshResources();
       clearSelection();
-      toast.success(`${updated.length} space(s) released.`);
-    } catch (e) { setError(e.message || "Release failed."); }
+      toast.success(`${assignableIds.length} space(s) released.`);
+    } catch (e) { setError(e.message || "Release failed."); toast.error(e.message || "Release failed."); }
     finally { setSaving(false); }
   };
 
@@ -773,14 +908,16 @@ export default function SalesArchitecturePage() {
     }
     setSaving(true); setError("");
     try {
-      const updated = [];
       for (const rid of releasable) {
-        const res = await releaseResourceAssignment(rid);
-        const resourceData = res?.data?.data?.resource || res?.data?.resource;
-        if (resourceData) updated.push(normalizeResource(resourceData));
+        const target = resources.find((r) => String(r.recordId || r.id) === rid);
+        if (target && deskCats.has(target.resourceCategory)) {
+          await releaseAllAssignedSeatsForResource(rid);
+        } else {
+          await releaseResourceAssignment(rid);
+        }
       }
-      if (updated.length) setResources((cur) => cur.map((r) => updated.find((x) => String(x.recordId) === String(r.recordId)) || r));
-      toast.success(`${updated.length} space(s) released.`);
+      await refreshResources();
+      toast.success(`${releasable.length} space(s) released.`);
     } catch (e) {
       setError(e.message || "Release failed.");
       toast.error(e.message || "Release failed.");
@@ -970,7 +1107,7 @@ export default function SalesArchitecturePage() {
                       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                         {items.length > 0 ? items.map((r) => {
                           const id = String(r.recordId || r.id);
-                          return <SpaceCard key={id} resource={r} selected={selectedIds.includes(id)} disabled={r.status !== "Active"} packageLocked={packageLockedIds.has(id)} onToggle={toggleResource} />;
+                          return <SpaceCard key={id} resource={r} selected={selectedIds.includes(id)} disabled={r.status !== "Active"} packageLocked={packageLockedIds.has(id)} onToggle={toggleResource} onManageSeats={openSeatModal} />;
                         }) : (
                           <div className="rounded-[2rem] border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center text-[12px] font-pmedium text-slate-500 md:col-span-2 xl:col-span-3">
                             No desks mapped to Wing {wing} on Floor {selectedFloor}.
@@ -1030,6 +1167,51 @@ export default function SalesArchitecturePage() {
                 </button>
               ))}
             </div>
+
+            {wingSeatStats.length > 0 && (
+              <div className="rounded-[2rem] border border-slate-100 bg-white p-4 shadow-sm">
+                <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-3">Seat Occupancy by Floor & Wing</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {wingSeatStats.map((w) => {
+                    const barColor = w.occupancyPct >= 90 ? "bg-rose-500" : w.occupancyPct >= 70 ? "bg-amber-500" : "bg-emerald-500";
+                    const pctColor = w.occupancyPct >= 90 ? "text-rose-600" : w.occupancyPct >= 70 ? "text-amber-600" : "text-emerald-600";
+                    const openStats = w.byCategory.open_desk;
+                    const cabinStats = w.byCategory.cabin_desk;
+                    return (
+                      <div key={`${w.floor}__${w.wing}`} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-3.5">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-[12px] font-pmedium text-slate-800">
+                            {[w.floor && `Floor ${w.floor}`, w.wing && `Wing ${w.wing}`].filter(Boolean).join(" · ") || "Unassigned"}
+                          </p>
+                          <span className={`text-[12px] font-pmedium ${pctColor}`}>{w.occupancyPct}%</span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden mb-3">
+                          <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, w.occupancyPct)}%` }} />
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 mb-2">
+                          <div className="rounded-xl bg-white p-2 border border-slate-100">
+                            <p className="text-[8px] font-pmedium uppercase text-slate-400">Total</p>
+                            <p className="text-sm font-pmedium text-slate-800">{w.total}</p>
+                          </div>
+                          <div className="rounded-xl bg-white p-2 border border-slate-100">
+                            <p className="text-[8px] font-pmedium uppercase text-indigo-400">Assigned</p>
+                            <p className="text-sm font-pmedium text-indigo-700">{w.assigned}</p>
+                          </div>
+                          <div className="rounded-xl bg-white p-2 border border-slate-100">
+                            <p className="text-[8px] font-pmedium uppercase text-emerald-500">Vacant</p>
+                            <p className="text-sm font-pmedium text-emerald-700">{w.vacant}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 text-[9px] font-pmedium text-slate-500">
+                          {openStats && <span>Open Desk: <b className="text-slate-700">{openStats.assigned}/{openStats.total}</b> assigned</span>}
+                          {cabinStats && <span>Cabin Desk: <b className="text-slate-700">{cabinStats.assigned}/{cabinStats.total}</b> assigned</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1053,7 +1235,7 @@ export default function SalesArchitecturePage() {
           {[
             { icon: Building2, label: "Total Tenants", value: tenants.length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', iconClass: 'bg-slate-50 text-slate-600' },
             { icon: CheckCircle2, label: "Active", value: tenants.filter((t) => String(t.status || "").toLowerCase() === "active").length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600' },
-            { icon: LayoutGrid, label: "Assigned Spaces", value: resources.filter((r) => r.assignmentType === "tenant").length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-indigo-500', iconClass: 'bg-indigo-50 text-indigo-600' },
+            { icon: LayoutGrid, label: "Assigned Spaces", value: new Set(tenantAssignmentMap.flatMap((t) => t.resources.map((r) => String(r.recordId || r.id)))).size, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-indigo-500', iconClass: 'bg-indigo-50 text-indigo-600' },
             { icon: Users, label: "Total Assigned Seats", value: tenantAssignmentMap.reduce((s, a) => s + a.seatCount, 0), cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', iconClass: 'bg-blue-50 text-blue-600' },
           ].map(({ icon: Icon, label, value, cardClass, iconClass }) => (
             <div key={label} className={cardClass}>
@@ -1575,7 +1757,7 @@ export default function SalesArchitecturePage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
           {[
             { icon: Briefcase, label: "Departments", value: availableDepartments.length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', iconClass: 'bg-slate-50 text-slate-600' },
-            { icon: LayoutGrid, label: "Dept Spaces", value: resources.filter((r) => r.assignmentType === "department").length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-indigo-500', iconClass: 'bg-indigo-50 text-indigo-600' },
+            { icon: LayoutGrid, label: "Dept Spaces", value: new Set(deptAssignmentMap.flatMap((d) => d.resources.map((r) => String(r.recordId || r.id)))).size, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-indigo-500', iconClass: 'bg-indigo-50 text-indigo-600' },
             { icon: DoorOpen, label: "Available Desks", value: unassignedDesks.length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600' },
             { icon: Users, label: "Dept Seats", value: deptAssignmentMap.reduce((s, d) => s + d.seatCount, 0), cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', iconClass: 'bg-blue-50 text-blue-600' },
           ].map(({ icon: Icon, label, value, cardClass, iconClass }) => (
@@ -2346,6 +2528,14 @@ export default function SalesArchitecturePage() {
         reportTitle={`Sales Architecture - ${selectedBuilding}`}
         defaultDataWindow="Custom"
         onExport={handleExport}
+      />
+
+      <SeatAssignmentModal
+        resource={seatModalResource}
+        tenants={tenants}
+        departments={availableDepartments}
+        onClose={closeSeatModal}
+        onChanged={handleSeatModalChanged}
       />
     </div>
   );

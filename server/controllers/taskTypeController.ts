@@ -19,7 +19,7 @@ const getCurrentUserId = (req) => {
 
 const DEFAULT_TASK_TYPES = [
   { name: "Standard", workflowKind: "progress", isSystem: true },
-  { name: "Approval", workflowKind: "approval", isSystem: true },
+  { name: "Recurring", workflowKind: "progress", isSystem: true },
 ];
 
 const serializeTaskType = (taskType) => {
@@ -30,6 +30,17 @@ const serializeTaskType = (taskType) => {
 // Lazily backfills the two built-in types for a workspace the first time its
 // task types are requested, mirroring how default departments are seeded.
 async function ensureWorkspaceTaskTypes(workspaceId) {
+  await TaskType.updateOne(
+    { workspaceId, name: "Approval", isSystem: true },
+    { $set: { name: "Recurring", workflowKind: "progress" } },
+    { collation: { locale: "en", strength: 2 } },
+  ).catch(() => {});
+  await TaskType.updateMany(
+    { workspaceId, name: "Approval", isSystem: true },
+    { $set: { isActive: false } },
+    { collation: { locale: "en", strength: 2 } },
+  ).catch(() => {});
+
   const existing = await TaskType.find({ workspaceId }).select("name").lean();
   const haveNames = new Set(existing.map((doc) => String(doc.name || "").toLowerCase()));
   const toCreate = DEFAULT_TASK_TYPES.filter((doc) => !haveNames.has(doc.name.toLowerCase())).map((doc) => ({

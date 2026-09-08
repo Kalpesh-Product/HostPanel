@@ -7,6 +7,13 @@ import {
     releaseResourceAssignmentForOwner,
     updateResourceForOwner,
 } from "../services/resourceService.js";
+import {
+    assignSeatForOwner,
+    getSeatResourceGroupsByAssignee,
+    getSeatSummaryByLocation,
+    listSeatsForResource,
+    releaseSeatAssignmentForOwner,
+} from "../services/resourceSeatService.js";
 
 interface AuthenticatedRequest extends Request {
     user?: string;
@@ -122,6 +129,89 @@ export async function releaseResourceAssignment(request: AuthenticatedRequest, r
             success: true,
             message: "Resource assignment released successfully.",
             data: result,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function listResourceSeats(request: AuthenticatedRequest, response: Response, next: NextFunction) {
+    try {
+        const workspaceId = getWorkspaceId(request);
+        const resourceId = request.params.resourceId as string;
+        const seats = await listSeatsForResource(workspaceId, resourceId);
+
+        response.status(200).json({
+            success: true,
+            message: "Seats loaded successfully.",
+            data: { seats },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function assignResourceSeat(request: AuthenticatedRequest, response: Response, next: NextFunction) {
+    try {
+        const workspaceId = getWorkspaceId(request);
+        const ownerId = getUserId(request);
+        const resourceId = request.params.resourceId as string;
+        const seatNumber = Number(request.params.seatNumber);
+        const seat = await assignSeatForOwner(workspaceId, ownerId, resourceId, seatNumber, request.body);
+
+        response.status(200).json({
+            success: true,
+            message: "Seat assignment saved successfully.",
+            data: { seat },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function releaseResourceSeatAssignment(request: AuthenticatedRequest, response: Response, next: NextFunction) {
+    try {
+        const workspaceId = getWorkspaceId(request);
+        const ownerId = getUserId(request);
+        const resourceId = request.params.resourceId as string;
+        const seatNumber = Number(request.params.seatNumber);
+        const seat = await releaseSeatAssignmentForOwner(workspaceId, ownerId, resourceId, seatNumber);
+
+        response.status(200).json({
+            success: true,
+            message: "Seat assignment released successfully.",
+            data: { seat },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function getResourceSeatSummary(request: AuthenticatedRequest, response: Response, next: NextFunction) {
+    try {
+        const workspaceId = getWorkspaceId(request);
+        const { floor, wing, resourceCategory } = request.query as { floor?: string; wing?: string; resourceCategory?: string };
+        const summary = await getSeatSummaryByLocation(workspaceId, { floor, wing, resourceCategory });
+
+        response.status(200).json({
+            success: true,
+            message: "Seat summary loaded successfully.",
+            data: { summary },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function getResourceSeatAssignments(request: AuthenticatedRequest, response: Response, next: NextFunction) {
+    try {
+        const workspaceId = getWorkspaceId(request);
+        const groups = await getSeatResourceGroupsByAssignee(workspaceId);
+
+        response.status(200).json({
+            success: true,
+            message: "Seat assignments loaded successfully.",
+            data: groups,
         });
     } catch (error) {
         next(error);

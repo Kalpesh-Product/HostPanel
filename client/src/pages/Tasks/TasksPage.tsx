@@ -84,6 +84,7 @@ interface Task {
   priority?: string;
   status?: string;
   dueDate?: string;
+  startDate?: string;
   progress?: number;
   comments: TaskComment[];
   attachments?: TaskAttachment[];
@@ -480,7 +481,8 @@ export function TasksPage() {
 
   // Resolves a task's workflow behavior (progress slider vs approve/reject)
   // from the dynamic Task Type list, falling back to the legacy hardcoded
-  // "Approval" check so tasks still render correctly before taskTypes loads.
+  // "Approval" remains supported for older saved tasks even though new users
+  // now create daily recurring tasks from the built-in Recurring type.
   function getWorkflowKindForType(typeName: string): 'progress' | 'approval' {
     const normalized = (typeName || '').trim().toLowerCase();
     const match = taskTypes.find((t) => t.name.trim().toLowerCase() === normalized);
@@ -974,6 +976,24 @@ export function TasksPage() {
     return '';
   }
 
+  function resolveMemberDepartments(member: Member | any): string[] {
+    const rawDepartments = Array.isArray(member?.departmentNames) && member.departmentNames.length > 0
+      ? member.departmentNames
+      : Array.isArray(member?.departments)
+        ? member.departments
+        : [member?.department].filter(Boolean);
+
+    return rawDepartments
+      .map((department: any) => {
+        if (typeof department === 'string') {
+          return department;
+        }
+        return department?.name || department?.departmentName || department?.title || '';
+      })
+      .map((department: string) => department.trim())
+      .filter(Boolean);
+  }
+
   const memberDirectoryById: Record<string, Member> = useMemo(() => {
     const map: Record<string, Member> = {};
     Object.values(orgData).forEach((members) => {
@@ -1167,20 +1187,31 @@ export function TasksPage() {
     });
 
     if (isOwnerProfile && normalizeRoleValue(taskForm.department) !== 'super_admin') {
-      const superAdminPool = Array.isArray(superAdminMembers) ? superAdminMembers : [];
       const merged = [...filteredSource];
       const seen = new Set(
         merged.map((member) => String(member?.userId || member?.id || member?.name || '').trim().toLowerCase()).filter(Boolean),
       );
-
-      superAdminPool.forEach((member) => {
-        const key = String(member?.userId || member?.id || member?.name || '').trim().toLowerCase();
-        if (!key || seen.has(key)) {
-          return;
-        }
-        seen.add(key);
-        merged.push(member);
+      const appendUniqueMembers = (members: Member[]) => {
+        members.forEach((member) => {
+          const key = String(member?.userId || member?.id || member?.name || '').trim().toLowerCase();
+          if (!key || seen.has(key)) {
+            return;
+          }
+          seen.add(key);
+          merged.push(member);
+        });
+      };
+      const hasDepartmentManagerOrEmployee = merged.some((member) => {
+        const role = normalizeRoleValue(member?.role || '');
+        return role === 'employee' || role === 'manager' || role.endsWith('_manager');
       });
+
+      if (!hasDepartmentManagerOrEmployee) {
+        appendUniqueMembers(adminAssignableMembers);
+      }
+      if (merged.length === 0) {
+        appendUniqueMembers(Array.isArray(superAdminMembers) ? superAdminMembers : []);
+      }
 
       return merged;
     }
@@ -1334,24 +1365,20 @@ export function TasksPage() {
   }, [assigneeOptions, isAssignModalOpen, taskForm.department, taskForm.assigneeUserId]);
 
   useEffect(() => {
-    if (!isAssignModalOpen || (!isDepartmentManagerProfile && !isAdminTaskProfile)) {
+    if (!isAssignModalOpen || !isDepartmentManagerProfile || assignTarget !== 'others') {
       return;
     }
-    const managedDepartments = isAdminTaskProfile ? adminAssignedDepartments : getManagedDepartments();
-    if (managedDepartments.length === 0) {
+    const managedDepartments = getManagedDepartments();
+    if (managedDepartments.length !== 1) {
       return;
     }
     setTaskForm((current) => {
-      const currentDepartment = current.department || '';
-      const nextDepartment = currentDepartment && managedDepartments.includes(currentDepartment)
-        ? currentDepartment
-        : managedDepartments[0];
-      if (currentDepartment === nextDepartment) {
+      if (current.department) {
         return current;
       }
       return {
         ...current,
-        department: nextDepartment,
+        department: managedDepartments[0],
         assignee: '',
         assigneeUserId: '',
       };
@@ -1359,8 +1386,7 @@ export function TasksPage() {
   }, [
     isAssignModalOpen,
     isDepartmentManagerProfile,
-    isAdminTaskProfile,
-    adminAssignedDepartments,
+    assignTarget,
     orgData,
     normalizedDepartmentMembers,
     currentUserId,
@@ -1459,7 +1485,7 @@ export function TasksPage() {
         if (!isMounted) return;
         setTaskTypes(Array.isArray(response?.taskTypes) ? response.taskTypes : []);
       } catch {
-        // Task Type dropdown falls back to the built-in Standard/Approval defaults.
+        // Task Type dropdown falls back to the built-in Standard/Recurring defaults.
       }
     }
 
@@ -1520,7 +1546,7 @@ export function TasksPage() {
               id: memberUserId || key,
               name: memberName,
               role: normalizeRoleValue(member?.role || 'employee'),
-              departments: Array.isArray(member?.departments) ? member.departments.filter(Boolean) : [],
+              departments: resolveMemberDepartments(member),
             };
           }
           return acc;
@@ -1536,6 +1562,9 @@ export function TasksPage() {
             );
             return hasSuperAdminRole || hasSuperAdminDepartment;
           });
+
+        const adminMembersList = canonicalMembers
+          .filter((member) => normalizeRoleValue(member.role || '') === 'admin');
 
         const workspaceDepartments: string[] = Array.isArray(storedUser?.workspace?.departments)
           ? storedUser.workspace.departments.filter(Boolean)
@@ -1563,6 +1592,7 @@ export function TasksPage() {
         });
 
         grouped['Super Admin'] = superAdminMembersList;
+        grouped['Admin'] = adminMembersList;
         setSuperAdminMembers(superAdminMembersList);
 
         if (isOwnerProfile) {
@@ -1576,7 +1606,7 @@ export function TasksPage() {
 
         setOrgData(grouped);
 
-        if (Object.keys(grouped).length === 0) {
+        if (Object.entries(grouped).some(([department, members]) => !['founder', 'super admin', 'admin'].includes(String(department || '').trim().toLowerCase().replace(/[-_]+/g, ' ')) && (!Array.isArray(members) || members.length === 0))) {
           try {
             const ovRes = await axiosPrivate.get("/api/organization/overview");
             const overview = ovRes?.data?.data || ovRes?.data || {};
@@ -1586,25 +1616,29 @@ export function TasksPage() {
               const added = new Set<string>();
               const canon = (val: string) => val.trim().toLowerCase().replace(/[\s_]+/g, '-');
               teamMembers.forEach((tm: any) => {
-                (tm.departmentNames || []).forEach((dept: string) => {
-                  const key = canon(dept);
+                const departments = resolveMemberDepartments(tm);
+                departments.forEach((dept: string) => {
+                  const key = canon(String(dept || ''));
                   if (!key) return;
                   if (!fallback[dept]) fallback[dept] = [];
                   const memberId = tm.userId || tm.id || '';
-                  const dedupKey = memberId ? `${key}::${memberId}` : `${key}::${canon(tm.name || '')}`;
+                  const dedupKey = memberId ? key + '::' + memberId : key + '::' + canon(tm.name || '');
                   if (!added.has(dedupKey)) {
                     added.add(dedupKey);
                     fallback[dept].push({
                       id: memberId,
                       userId: tm.userId,
-                      name: tm.name || '',
+                      name: tm.name || tm.fullName || '',
                       role: normalizeRoleValue(tm.role || 'employee'),
-                      departments: tm.departmentNames || [],
+                      departments,
                     });
                   }
                 });
               });
-              if (Object.keys(fallback).length > 0) setOrgData(fallback);
+              Object.entries(fallback).forEach(([department, members]) => {
+                grouped[department] = members;
+              });
+              setOrgData(grouped);
             }
           } catch {
             // fallback failed, orgData stays empty
@@ -1620,7 +1654,7 @@ export function TasksPage() {
             const added = new Set<string>();
             const canon = (val: string) => val.trim().toLowerCase().replace(/[\s_]+/g, '-');
             teamMembers.forEach((tm: any) => {
-              (tm.departmentNames || []).forEach((dept: string) => {
+              resolveMemberDepartments(tm).forEach((dept: string) => {
                 const key = canon(dept);
                 if (!key) return;
                 if (!fallback[dept]) fallback[dept] = [];
@@ -1660,6 +1694,11 @@ export function TasksPage() {
 
   const todayDate = new Date();
   todayDate.setHours(0, 0, 0, 0);
+  const formatDateInputValue = (date: Date) => {
+    const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return localDate.toISOString().slice(0, 10);
+  };
+  const assignmentStartDateInput = formatDateInputValue(new Date());
 
   const getPendingTaskCount = (employeeName: string): number => {
     return tasks.filter(t => t.assignee === employeeName && t.status !== 'Completed' && t.status !== 'Approved' && t.status !== 'Rejected').length;
@@ -2272,7 +2311,7 @@ export function TasksPage() {
                       <th className="px-5 py-4">Assigned To</th>
                       <th className="px-5 py-4">Dept</th>
                       <th className="px-5 py-4">Priority</th>
-                      <th className="px-5 py-4">Submitted On</th>
+                      <th className="px-5 py-4">Start Date</th>
                       <th className="px-5 py-4">Due Date</th>
                       <th className="px-5 py-4">Status</th>
                       <th className="px-5 py-4 text-center">Actions</th>
@@ -2368,12 +2407,12 @@ export function TasksPage() {
                             <span className="text-[11px] font-semibold text-[#0F172A] truncate block">{task.assignee === 'Unassigned' ? 'Department' : getAssigneeDisplayLabel(task)}</span>
                           </div>
                           <div>
-                            <span className="text-[9px] text-slate-400 uppercase font-pmedium tracking-widest block">Submitted On</span>
+                            <span className="text-[9px] text-slate-400 uppercase font-pmedium tracking-widest block">Start Date</span>
                             <span className="text-[11px] font-semibold text-[#0F172A] truncate block">{humanDate(task.createdAt)}</span>
                           </div>
                         </div>
                         <div className="flex justify-between items-center mt-1 border-t border-slate-100/60 pt-3">
-                          <span className="font-semibold text-slate-700 text-[11px] sm:text-[12px] flex items-center gap-1.5"><Calendar size={12} /> {humanDate(task.dueDate)}</span>
+                          <span className="font-semibold text-slate-700 text-[11px] sm:text-[12px] flex items-center gap-1.5"><Calendar size={12} /> End: {humanDate(task.dueDate)}</span>
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => setViewingTask(task)}
@@ -2470,9 +2509,83 @@ export function TasksPage() {
                     }}>
                       <option value="" disabled>Select Assign Type</option>
                       <option value="self">Self</option>
-                      {!isEmployeeTaskProfile && <option value="others">Others</option>}
+                      {!isEmployeeTaskProfile && <option value="others">Department</option>}
                     </select>
                   </div>
+
+                  {assignTarget === 'others' && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                      <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><User size={16} /></span>
+                      <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Routing & Workload Control</span>
+                    </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Route to Department <span className="text-red-400">*</span></label>
+                          <select required className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={taskForm.department} onChange={e => {
+                            const nextDepartment = e.target.value;
+                            setTaskForm((current) => ({
+                              ...current,
+                              department: nextDepartment,
+                              assignee: '',
+                              assigneeUserId: '',
+                            }));
+                          }}>
+                            <option value="">Select Department</option>
+                            {taskRouteDepartments.map(dept => <option key={dept} value={dept}>{dept}</option>)}
+                          </select>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Assignee (Checks Workload)</label>
+                          <select required={isAdminTaskProfile || isTopManagementDepartmentName(taskForm.department)} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer disabled:opacity-50 disabled:bg-slate-100" disabled={!taskForm.department} value={taskForm.assigneeUserId || ''} onChange={e => {
+                            const selected = assigneeOptions.find((member) => member.id === e.target.value) || null;
+                            setTaskForm({
+                              ...taskForm,
+                              assignee: selected?.id === 'owner' ? 'Founder' : (selected?.name || ''),
+                              assigneeUserId: selected?.id === 'owner' ? 'owner' : (selected?.id || ''),
+                            });
+                          }}>
+                            {isTopManagementDepartmentName(taskForm.department) || isDepartmentManagerProfile
+                              ? <option value="">Select Assignee</option>
+                              : <option value="">To Department</option>}
+                            {taskForm.department && assigneeOptions.map(member => {
+                              const pending = getPendingTaskCount(member.name || '');
+                              const empRole = resolveDisplayRole([member.role || '']);
+                              return (
+                                <option key={member.id} value={member.id}>
+                                  {member.name} ({empRole}) {pending > 0 ? `(${pending} tasks pending)` : `(Available)`}
+                                </option>
+                              );
+                            })}
+                          </select>
+                          {taskForm.department ? (
+                            <p className="text-[10px] font-pmedium text-slate-500 mt-1">
+                              {taskForm.assigneeUserId
+                                ? 'This task will be assigned to the selected employee.'
+                                : `This task will be assigned to ${taskForm.department} department.`}
+                            </p>
+                          ) : null}
+                          {taskForm.department && normalizeRoleValue(taskForm.department) === 'super_admin' && superAdminMembers.length === 0 ? (
+                            <p className="text-[10px] font-pmedium text-red-600 mt-1">No active Super Admin member found in this workspace.</p>
+                          ) : null}
+                          {isAdminTaskProfile && taskForm.department && assigneeOptions.length === 0 ? (
+                            <p className="text-[10px] font-pmedium text-red-600 mt-1">
+                              No assigned-department managers or employees found for "{taskForm.department}".
+                            </p>
+                          ) : null}
+                          {!isAdminTaskProfile && taskForm.department && assigneeOptions.length === 0 ? (
+                            <p className="text-[10px] font-pmedium text-red-600 mt-1">
+                              No members matched for department "{taskForm.department}".
+                            </p>
+                          ) : null}
+                          {taskForm.assignee && getPendingTaskCount(taskForm.assignee) >= 3 && (
+                            <p className="text-[10px] font-pmedium text-amber-600 inline-flex items-center gap-1.5 mt-1 bg-amber-50 px-2 py-1 rounded border border-amber-100"><AlertTriangle size={12} /> High workload detected.</p>
+                          )}
+                        </div>
+                      </div>
+
+                  </div>
+                  )}
 
                   <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                     <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
@@ -2491,7 +2604,7 @@ export function TasksPage() {
                           setTaskForm({ ...taskForm, type: e.target.value });
                         }}>
                           <option value="" disabled>Select Type</option>
-                          {(taskTypes.length > 0 ? taskTypes : [{ id: 'standard', name: 'Standard', workflowKind: 'progress' as const }, { id: 'approval', name: 'Approval', workflowKind: 'approval' as const }]).map(t => (
+                          {(taskTypes.length > 0 ? taskTypes : [{ id: 'standard', name: 'Standard', workflowKind: 'progress' as const }, { id: 'recurring', name: 'Recurring', workflowKind: 'progress' as const }]).map(t => (
                             <option key={t.id} value={t.name}>{t.name}</option>
                           ))}
                           <option value="__new__">+ Add New Type</option>
@@ -2527,9 +2640,15 @@ export function TasksPage() {
                       )}
                     </div>
 
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Deadline <span className="text-red-400">*</span></label>
-                      <input required type="date" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={taskForm.dueDate} onChange={e => setTaskForm({ ...taskForm, dueDate: e.target.value })} />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Start Date</label>
+                        <input type="date" readOnly className="w-full px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-500 outline-none cursor-not-allowed" value={assignmentStartDateInput} />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Due Date <span className="text-red-400">*</span></label>
+                        <input required type="date" min={assignmentStartDateInput} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={taskForm.dueDate} onChange={e => setTaskForm({ ...taskForm, dueDate: e.target.value })} />
+                      </div>
                     </div>
 
                     <div className="flex flex-col gap-1">
@@ -2541,124 +2660,12 @@ export function TasksPage() {
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Details & Instructions</label>
                       <textarea required rows={4} placeholder="Detailed instructions..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-500" value={taskForm.description} onChange={e => setTaskForm({ ...taskForm, description: e.target.value })} />
                     </div>
+                    {taskForm.type === 'Recurring' ? (
+                      <p className="text-[10px] font-pmedium text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                        This task repeats every day after assignment.
+                      </p>
+                    ) : null}
                   </div>
-
-                  {assignTarget === 'others' && (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
-                    <h4 className="flex items-center justify-between border-b border-slate-200/80 pb-2 flex-wrap gap-2">
-                      <div className="flex items-center gap-2.5">
-                        <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><User size={16} /></span>
-                        <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Routing & Workload Control</span>
-                      </div>
-                      <div className="flex bg-slate-100 rounded-lg p-1">
-                        <button type="button" onClick={() => { setRoutingMode('department'); setSelectedRole(''); setTaskForm(current => ({ ...current, department: '', assignee: '', assigneeUserId: '' })); }} className={`px-3 py-1.5 rounded-md text-[10px] font-pmedium uppercase tracking-wider transition-all ${routingMode === 'department' ? 'bg-white text-[#2563EB] shadow-sm' : 'text-slate-500'}`}>Department</button>
-                        {getAssignableRoleOptions().length > 0 && (
-                          <button type="button" onClick={() => { setRoutingMode('role'); setSelectedRole(''); setTaskForm(current => ({ ...current, department: '', assignee: '', assigneeUserId: '' })); }} className={`px-3 py-1.5 rounded-md text-[10px] font-pmedium uppercase tracking-wider transition-all ${routingMode === 'role' ? 'bg-white text-[#2563EB] shadow-sm' : 'text-slate-500'}`}>Role</button>
-                        )}
-                      </div>
-                    </h4>
-                    {routingMode === 'department' ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Route to Department <span className="text-red-400">*</span></label>
-                          <select required className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={taskForm.department} onChange={e => {
-                            const nextDepartment = e.target.value;
-
-                            // Picking a department defaults to the Unassigned
-                            // queue rather than auto-selecting a person — the
-                            // department manager (or an eligible member) picks
-                            // it up from there.
-                            setTaskForm((current) => ({
-                              ...current,
-                              department: nextDepartment,
-                              assignee: '',
-                              assigneeUserId: '',
-                            }));
-                          }}>
-                            <option value="">Select Department</option>
-                            {taskRouteDepartments.map(dept => <option key={dept} value={dept}>{dept}</option>)}
-                          </select>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Assignee (Checks Workload)</label>
-                          <select required={isAdminTaskProfile || isTopManagementDepartmentName(taskForm.department)} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer disabled:opacity-50 disabled:bg-slate-100" disabled={!taskForm.department} value={taskForm.assigneeUserId || ''} onChange={e => {
-                            const selected = assigneeOptions.find((member) => member.id === e.target.value) || null;
-                            setTaskForm({
-                              ...taskForm,
-                              assignee: selected?.id === 'owner' ? 'Founder' : (selected?.name || ''),
-                              assigneeUserId: selected?.id === 'owner' ? 'owner' : (selected?.id || ''),
-                            });
-                          }}>
-                            {isTopManagementDepartmentName(taskForm.department) || isDepartmentManagerProfile
-                              ? <option value="">Select Assignee</option>
-                              : <option value="">Unassigned (Queue)</option>}
-                            {taskForm.department && assigneeOptions.map(member => {
-                              const pending = getPendingTaskCount(member.name || '');
-                              const empRole = resolveDisplayRole([member.role || '']);
-                              return (
-                                <option key={member.id} value={member.id}>
-                                  {member.name} ({empRole}) {pending > 0 ? `(${pending} tasks pending)` : `(Available)`}
-                                </option>
-                              );
-                            })}
-                          </select>
-                          {taskForm.department && normalizeRoleValue(taskForm.department) === 'super_admin' && superAdminMembers.length === 0 ? (
-                            <p className="text-[10px] font-pmedium text-red-600 mt-1">No active Super Admin member found in this workspace.</p>
-                          ) : null}
-                          {isAdminTaskProfile && taskForm.department && assigneeOptions.length === 0 ? (
-                            <p className="text-[10px] font-pmedium text-red-600 mt-1">
-                              No assigned-department managers or employees found for "{taskForm.department}".
-                            </p>
-                          ) : null}
-                          {!isAdminTaskProfile && taskForm.department && assigneeOptions.length === 0 ? (
-                            <p className="text-[10px] font-pmedium text-red-600 mt-1">
-                              No members matched for department "{taskForm.department}".
-                            </p>
-                          ) : null}
-                          {taskForm.assignee && getPendingTaskCount(taskForm.assignee) >= 3 && (
-                            <p className="text-[10px] font-pmedium text-amber-600 inline-flex items-center gap-1.5 mt-1 bg-amber-50 px-2 py-1 rounded border border-amber-100"><AlertTriangle size={12} /> High workload detected.</p>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Route to Role <span className="text-red-400">*</span></label>
-                          <select required className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={selectedRole} onChange={e => {
-                            setSelectedRole(e.target.value);
-                            handleSelectRoleAssignee(null);
-                          }}>
-                            <option value="">Select Role</option>
-                            {getAssignableRoleOptions().map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                          </select>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Assignee (Checks Workload)</label>
-                          <select required className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer disabled:opacity-50 disabled:bg-slate-100" disabled={!selectedRole} value={taskForm.assigneeUserId || ''} onChange={e => {
-                            const selected = roleAssigneeOptions.find((member) => member.id === e.target.value) || null;
-                            handleSelectRoleAssignee(selected);
-                          }}>
-                            <option value="">Select Assignee</option>
-                            {roleAssigneeOptions.map(member => {
-                              const pending = getPendingTaskCount(member.name || '');
-                              return (
-                                <option key={member.id} value={member.id}>
-                                  {member.name} {pending > 0 ? `(${pending} tasks pending)` : `(Available)`}
-                                </option>
-                              );
-                            })}
-                          </select>
-                          {selectedRole && roleAssigneeOptions.length === 0 ? (
-                            <p className="text-[10px] font-pmedium text-red-600 mt-1">No members found with this role.</p>
-                          ) : null}
-                          {taskForm.assignee && getPendingTaskCount(taskForm.assignee) >= 3 && (
-                            <p className="text-[10px] font-pmedium text-amber-600 inline-flex items-center gap-1.5 mt-1 bg-amber-50 px-2 py-1 rounded border border-amber-100"><AlertTriangle size={12} /> High workload detected.</p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  )}
 
                   <AttachmentDropzone
                     files={assignmentFiles}
@@ -2739,8 +2746,8 @@ export function TasksPage() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Submitted On</p>
-                        <p className="text-[12px] font-pmedium text-slate-900">{humanDate(viewingTask.createdAt)}</p>
+                        <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Start Date</p>
+                        <p className="text-[12px] font-pmedium text-slate-900">{humanDate(viewingTask.startDate || viewingTask.createdAt)}</p>
                       </div>
                     </div>
                   </div>
@@ -3034,7 +3041,7 @@ export function TasksPage() {
                       <div className="flex flex-col gap-1">
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Task Type <span className="text-red-400">*</span></label>
                         <select required className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={editForm.type} onChange={e => setEditForm({ ...editForm, type: e.target.value })}>
-                          {(taskTypes.length > 0 ? taskTypes : [{ id: 'standard', name: 'Standard', workflowKind: 'progress' as const }, { id: 'approval', name: 'Approval', workflowKind: 'approval' as const }]).map(t => (
+                          {(taskTypes.length > 0 ? taskTypes : [{ id: 'standard', name: 'Standard', workflowKind: 'progress' as const }, { id: 'recurring', name: 'Recurring', workflowKind: 'progress' as const }]).map(t => (
                             <option key={t.id} value={t.name}>{t.name}</option>
                           ))}
                         </select>

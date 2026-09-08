@@ -898,7 +898,11 @@ function ClientDetailsTab({
   };
 
   const handleConfirmClient = async () => {
-    if (clientMode === 'search') {
+    // When this tab renders the inline new-client form (hideSearch), the flow
+    // is always "create a new client" regardless of the persisted clientMode,
+    // so the search/continue branch must not be taken.
+    const isNewClientMode = clientMode === 'new' || hideSearch;
+    if (!isNewClientMode) {
       if (!selectedClient) {
         setClientErrors({ ...clientErrors, general: 'Please select or create a client.' });
         return;
@@ -908,7 +912,7 @@ function ClientDetailsTab({
       return;
     }
 
-    // clientMode === 'new' validate all required fields
+    // New client mode: validate all required fields
     const errors: Record<string, string> = {};
     if (!newClientForm.name.trim()) errors.name = 'Name is required.';
     if (!newClientForm.email.trim()) {
@@ -1125,7 +1129,7 @@ function ClientDetailsTab({
         >
           {isConfirming
             ? 'Saving'
-            : clientMode === 'new'
+            : clientMode === 'new' || hideSearch
               ? 'Confirm Client'
               : 'Continue with Selected Client'}
         </button>
@@ -1585,6 +1589,7 @@ function ExternalBookingDialog({
                           onClick={() => {
                             setClientSubTab(sub);
                             setClientErrors({});
+                            setClientMode(sub === 'new' ? 'new' : 'search');
                           }}
                           className={`flex-1 py-2 rounded-xl text-[11px] font-pmedium uppercase tracking-widest transition-all
                             ${isActive ? 'bg-[#2563EB] text-white shadow-sm' : 'text-[#0F172A] hover:bg-slate-200/70 hover:text-slate-900'}

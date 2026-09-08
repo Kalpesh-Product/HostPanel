@@ -32,7 +32,7 @@ import { Download, UploadCloud, X, Loader2 } from "lucide-react";
  * @param {string} [props.stagedInfo]
  * @param {() => void} [props.onConfirmImport]
  * @param {() => void} [props.onChangeFile]
- * @param {{ created: number, failed: number, fileName?: string, errors?: string[] } | null} [props.summary]
+ * @param {{ created: number, updated?: number, failed: number, fileName?: string, errors?: string[] } | null} [props.summary]
  * @param {string} [props.error]
  * @param {string[]} [props.errors]
  * @param {string} [props.selectLabel]
@@ -151,11 +151,17 @@ export default function BulkUploadModal({
             </div>
 
             {summary && (
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              <div className={`mt-3 grid gap-2 ${summary.updated !== undefined ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}>
                 <div className="rounded-xl bg-slate-50 px-3 py-2">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Created</p>
                   <p className="mt-0.5 text-[13px] font-pmedium text-slate-900">{summary.created}</p>
                 </div>
+                {summary.updated !== undefined && (
+                  <div className="rounded-xl bg-slate-50 px-3 py-2">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Updated</p>
+                    <p className="mt-0.5 text-[13px] font-pmedium text-slate-900">{summary.updated}</p>
+                  </div>
+                )}
                 <div className="rounded-xl bg-slate-50 px-3 py-2">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Failed</p>
                   <p className="mt-0.5 text-[13px] font-pmedium text-slate-900">{summary.failed}</p>

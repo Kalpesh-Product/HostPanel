@@ -704,7 +704,7 @@ export default function AccessGrantsPage() {
       users.filter(
         (user) =>
           user.roleGroup === 'Super-Admin' &&
-          user.status !== 'disabled',
+          user.status === 'joined',
       ),
     [users],
   );
@@ -2724,7 +2724,7 @@ export default function AccessGrantsPage() {
 
                     {eligibleOwnershipCandidates.length === 0 ? (
                       <p className="text-xs font-medium text-amber-600">
-                        No eligible Super Admin users are available for ownership transfer.
+                        No eligible Super Admin has joined yet. Only joined Super Admins can receive ownership.
                       </p>
                     ) : null}
 
