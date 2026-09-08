@@ -50,6 +50,11 @@ const tenantRentPaymentSchema = new Schema(
   {
     id: { type: String, default: () => `RTP-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, trim: true },
     amount: { type: Number, default: 0, min: 0 },
+    // Optional tax (e.g. GST) collected on top of this installment — resolved
+    // from workspace billing.tax at verification time; amount stays the rent.
+    taxLabel: { type: String, default: "", trim: true, maxlength: 40 },
+    taxRatePercent: { type: Number, default: 0, min: 0, max: 100 },
+    taxAmount: { type: Number, default: 0, min: 0 },
     transactionReference: { type: String, default: "", trim: true, maxlength: 160 },
     proof: { type: tenantRentProofSchema, default: () => ({}) },
     status: { type: String, default: "Submitted", trim: true, enum: ["Submitted", "Verified", "Returned"], index: true },

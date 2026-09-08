@@ -48,6 +48,9 @@ interface RentRecord {
   payments?: Array<{
     id: string;
     amount: number;
+    taxLabel?: string;
+    taxRatePercent?: number;
+    taxAmount?: number;
     transactionReference?: string;
     status: string;
     proof?: { fileName?: string; fileUrl?: string; mimeType?: string; size?: string };
@@ -365,6 +368,7 @@ function RentRow({
                 <div key={payment.id} className="flex items-center justify-between gap-3 text-[11px] border-b border-slate-100 pb-1.5 last:border-0 last:pb-0">
                   <div>
                     <span className="font-pmedium text-slate-800">{formatCurrency(payment.amount || 0)}</span>
+                    {(payment.taxAmount ?? 0) > 0 && <span className="ml-2 text-[9px] text-slate-400">+{formatCurrency(payment.taxAmount)} {payment.taxLabel || 'Tax'}</span>}
                     <span className={`ml-2 px-2 py-0.5 rounded-full text-[8px] font-pmedium uppercase tracking-wider ${getRentBadgeClass(payment.status === 'Submitted' ? 'Proof Submitted' : payment.status === 'Verified' ? 'Paid' : 'Due')}`}>
                       {payment.status}
                     </span>

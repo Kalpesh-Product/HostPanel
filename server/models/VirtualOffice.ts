@@ -49,6 +49,11 @@ const virtualOfficeRentPaymentSchema = new Schema(
     // Origin: "" = manually recorded (Sales/Finance), "advance" =
     // auto-generated from the onboarding advance months.
     source: { type: String, default: "", trim: true, maxlength: 40 },
+    // Optional tax (e.g. GST) collected on top of this payment — resolved from
+    // workspace billing.tax at record time; `amount` stays the rent portion.
+    taxLabel: { type: String, default: "", trim: true, maxlength: 40 },
+    taxRatePercent: { type: Number, default: 0, min: 0, max: 100 },
+    taxAmount: { type: Number, default: 0, min: 0 },
     receipt: { type: virtualOfficeReceiptSchema, default: () => ({}) },
   },
   { _id: false },

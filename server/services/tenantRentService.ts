@@ -1,6 +1,7 @@
 import TenantRent from "../models/TenantRent.js";
 import { TenantCompany } from "../models/TenantCompany.js";
-import { assertFinancePaymentActor, getActorName, postIncomeEntry } from "./incomeLedgerService.js";
+import Workspace from "../models/Workspace.js";
+import { assertFinancePaymentActor, getActorName, postIncomeEntry, resolveWorkspaceTaxConfig, computeTaxFields } from "./incomeLedgerService.js";
 import { uploadFileToS3 } from "../config/s3config.js";
 
 
@@ -448,6 +449,21 @@ export async function markTenantRentPaidForWorkspace(input: {
     payment = rent.payments[rent.payments.length - 1];
   }
 
+  // 1b) Optional tax (e.g. GST) on this collection — resolved from workspace
+  // settings; `payment.amount` stays the rent portion, tax stored alongside.
+  let taxFields = { taxLabel: "", taxRatePercent: 0, taxAmount: 0 };
+  if (body?.applyTax) {
+    const workspace = await Workspace.findById(workspaceId).select("preferences").lean();
+    const taxConfig = resolveWorkspaceTaxConfig(workspace);
+    if (!taxConfig) {
+      throw Object.assign(new Error("Tax is not enabled for this workspace — enable it in workspace settings first."), { statusCode: 409 });
+    }
+    taxFields = computeTaxFields(Number(payment.amount || 0), taxConfig);
+    payment.taxLabel = taxFields.taxLabel;
+    payment.taxRatePercent = taxFields.taxRatePercent;
+    payment.taxAmount = taxFields.taxAmount;
+  }
+
   // 2) Attach the host-issued receipt (finance) to this payment, if provided.
   if (file?.buffer?.length) {
     const receiptName = (file.originalname || "receipt").replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -503,10 +519,18 @@ export async function markTenantRentPaidForWorkspace(input: {
   // idempotent via the unique index. Roll back on failure (compensated rollback).
   if (fullyPaid) {
     try {
+      // Period tax total: tax captured on each verified installment.
+      const verifiedPayments = (Array.isArray(rent.payments) ? rent.payments : []).filter((p: any) => p?.status === "Verified");
+      const periodTaxAmount = verifiedPayments.reduce((s: number, p: any) => s + Number(p?.taxAmount || 0), 0);
+      const periodTaxPayment = verifiedPayments.find((p: any) => Number(p?.taxAmount || 0) > 0);
       await postIncomeEntry({
         workspaceId, source: "tenant-rent", referredId: rent.id || rent._id?.toString?.() || "",
         periodKey: rent.periodKey || "", periodLabel: rent.periodLabel || "", entityName: rent.companyName || "",
-        amount: rent.amount || 0, postedById: userId, postedByName: actorName,
+        amount: rent.amount || 0,
+        taxLabel: safeString(periodTaxPayment?.taxLabel),
+        taxRatePercent: Number(periodTaxPayment?.taxRatePercent || 0),
+        taxAmount: periodTaxAmount,
+        postedById: userId, postedByName: actorName,
         note: `Rent fully paid ${rent.periodLabel || rent.periodKey || ""}.`,
       });
     } catch (error) {

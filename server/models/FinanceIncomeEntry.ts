@@ -42,6 +42,13 @@ const financeIncomeEntrySchema = new Schema(
     // Negative ONLY for Reversal entries (corrections); validation lives in
     // the service layer, not the schema.
     amount: { type: Number, required: true },
+    // ── Optional tax captured at collection (e.g. GST from workspace settings)
+    // `amount` stays the NET revenue (P&L is never inflated by tax); the tax
+    // actually collected is stored separately. totalAmount = amount + taxAmount.
+    taxLabel: { type: String, default: "", trim: true, maxlength: 40 },
+    taxRatePercent: { type: Number, default: 0, min: 0, max: 100 },
+    taxAmount: { type: Number, default: 0, min: 0 },
+    totalAmount: { type: Number, default: 0, min: 0 },
     // When finance confirmed the payment (the recognition date).
     postedAt: { type: Date, default: Date.now, index: true },
     postedById: { type: Schema.Types.ObjectId, ref: "HostUser", default: null },

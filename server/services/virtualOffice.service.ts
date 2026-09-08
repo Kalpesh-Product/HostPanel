@@ -6,7 +6,8 @@ import HostUser from "../models/HostUser.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Workspace from "../models/Workspace.js";
 import Department from "../models/Department.js";
-import { assertFinancePaymentActor, getActorName, postIncomeEntry } from "./incomeLedgerService.js";
+import Workspace from "../models/Workspace.js";
+import { assertFinancePaymentActor, getActorName, postIncomeEntry, resolveWorkspaceTaxConfig, computeTaxFields } from "./incomeLedgerService.js";
 import { uploadFileToS3 } from "../config/s3config.js";
 
 const VIRTUAL_OFFICE_SALES_MODULE = "virtual-office-sales";
@@ -1048,6 +1049,17 @@ export async function markVirtualOfficeRentPaidForWorkspace(input: {
   }
   const originalRentStatus = record.rentStatus;
   const paymentId = new mongoose.Types.ObjectId().toString();
+  // Optional tax (e.g. GST) on this collection — resolved from workspace
+  // settings; `amount` stays the rent portion, tax stored alongside.
+  let taxFields = { taxLabel: "", taxRatePercent: 0, taxAmount: 0 };
+  if (body?.applyTax) {
+    const workspace = await Workspace.findById(workspaceId).select("preferences").lean();
+    const taxConfig = resolveWorkspaceTaxConfig(workspace);
+    if (!taxConfig) {
+      throw Object.assign(new Error("Tax is not enabled for this workspace — enable it in workspace settings first."), { statusCode: 409 });
+    }
+    taxFields = computeTaxFields(amount, taxConfig);
+  }
   const paymentRecord = {
     paymentId,
     periodStart: period.periodStart,
@@ -1055,6 +1067,9 @@ export async function markVirtualOfficeRentPaidForWorkspace(input: {
     monthLabel: new Intl.DateTimeFormat("en-IN", { month: "short", year: "numeric" }).format(period.periodStart),
     amount,
     status: "Paid",
+    taxLabel: taxFields.taxLabel,
+    taxRatePercent: taxFields.taxRatePercent,
+    taxAmount: taxFields.taxAmount,
     transactionId: normalizeText(body?.transactionId || ""),
     paymentDate: now,
     paymentMethod: normalizeText(body?.paymentMethod || ""),
@@ -1097,11 +1112,24 @@ export async function markVirtualOfficeRentPaidForWorkspace(input: {
     try {
       const periodKey = `${period.periodStart.getFullYear()}-${String(period.periodStart.getMonth() + 1).padStart(2, "0")}`;
       const periodLabel = new Intl.DateTimeFormat("en-IN", { month: "short", year: "numeric" }).format(period.periodStart);
+      // Period tax total: tax captured on every Paid payment overlapping this
+      // period (installments can each carry their own tax).
+      const periodTaxAmount = paymentRecords.reduce((s, p) => {
+        const pStart = toDateOrNull(p.periodStart) || toDateOrNull(p.paymentDate);
+        const pEnd = toDateOrNull(p.periodEnd) || toDateOrNull(p.paymentDate);
+        const overlaps = pStart && pEnd && pStart.getTime() <= period.periodEnd.getTime() && pEnd.getTime() >= period.periodStart.getTime();
+        return s + (overlaps && p.status === "Paid" ? Number(p.taxAmount || 0) : 0);
+      }, 0);
+      const periodTaxPayment = paymentRecords.find((p) => p.status === "Paid" && Number(p.taxAmount || 0) > 0);
       await postIncomeEntry({
         workspaceId, source: "virtual-office-rent",
         referredId: `${String(record._id || recordId)}:${periodKey}`,
         periodKey, periodLabel, entityName: normalizeText(record.clientName || record.brandName || ""),
-        amount: monthlyRent, postedById: userId, postedByName: actorName,
+        amount: monthlyRent,
+        taxLabel: String(periodTaxPayment?.taxLabel || taxFields.taxLabel || ""),
+        taxRatePercent: Number(periodTaxPayment?.taxRatePercent || taxFields.taxRatePercent || 0),
+        taxAmount: periodTaxAmount,
+        postedById: userId, postedByName: actorName,
         note: `Virtual office rent fully paid for ${periodLabel}.`,
       });
     } catch (error) {
