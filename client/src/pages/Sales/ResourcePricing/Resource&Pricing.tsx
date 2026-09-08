@@ -1676,10 +1676,11 @@ export default function PricingPackagesPage() {
                                               type="button"
                                               data-tour="resource-pricing-bulk-upload"
                                               onClick={handleBulkUploadClick}
-                                              className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-slate-100 hover:border-slate-500 text-slate-500 transition-all active:scale-95 shadow-sm"
+                                              className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-blue-50 hover:border-blue-200 text-slate-500 transition-all active:scale-95 shadow-sm"
+                                              title="Bulk Upload"
                                             >
-                                              <UploadCloud size={13} /> 
-                                              <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-500 text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
+                                              <UploadCloud size={16} className="text-blue-500" />
+                                              <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-[#2563EB] text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
                                             </button>
 
               </>
@@ -2580,7 +2581,7 @@ export default function PricingPackagesPage() {
                       <FormSectionHeader icon={View} label="Preview" />
                       {/* <p className="text-[11px] font-pmedium uppercase tracking-widest text-slate-400">Preview</p> */}
                       <p className="mt-1 text-sm font-pmedium text-slate-800">
-                        {resourceForm.pricePerHour ? `${formatCurrency(resourceForm.pricePerHour)} / hr${isPerPersonPricingCategory(resourceForm.resourceCategory) ? ' / person' : ''}` : 'Hourly rate not set'} &bull; {resourceForm.pricePerDay ? `${formatCurrency(resourceForm.pricePerDay)} / day${isPerPersonPricingCategory(resourceForm.resourceCategory) ? ' / person' : ''}` : 'Daily rate not set'}
+                        {resourceForm.pricePerHour ? `${formatCurrency(resourceForm.pricePerHour)} per hour${isPerPersonPricingCategory(resourceForm.resourceCategory) ? ' per person' : ''}` : 'Hourly rate not set'} &bull; {resourceForm.pricePerDay ? `${formatCurrency(resourceForm.pricePerDay)} per day${isPerPersonPricingCategory(resourceForm.resourceCategory) ? ' per person' : ''}` : 'Daily rate not set'}
                       </p>
                       <p className="mt-1 text-[11px] font-pmedium uppercase tracking-widest text-slate-400">
                         {getResourceCreditSummary({

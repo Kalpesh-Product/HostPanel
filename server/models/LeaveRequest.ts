@@ -8,6 +8,10 @@ export interface ILeaveRequest extends Document {
     employeeName: string;
     employeeId: string;
     requesterUserId?: mongoose.Types.ObjectId | null;
+    // Set instead of requesterUserId when the request is filed on behalf of
+    // an employee with no login account (e.g. housekeeping staff).
+    requesterEmployeeProfileId?: mongoose.Types.ObjectId | null;
+    createdByUserId?: mongoose.Types.ObjectId | null;
     department?: mongoose.Types.ObjectId | null;
     departments: mongoose.Types.ObjectId[];
     requesterRole: "founder" | "super_admin" | "admin" | "manager" | "employee";
@@ -80,6 +84,17 @@ const leaveRequestSchema = new Schema<ILeaveRequest>(
             ref: "HostUser",
             default: null,
             index: true,
+        },
+        requesterEmployeeProfileId: {
+            type: Schema.Types.ObjectId,
+            ref: "EmployeeProfile",
+            default: null,
+            index: true,
+        },
+        createdByUserId: {
+            type: Schema.Types.ObjectId,
+            ref: "HostUser",
+            default: null,
         },
         department: {
             type: Schema.Types.ObjectId,

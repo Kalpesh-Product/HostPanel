@@ -4,7 +4,18 @@ export interface IHousekeepingStaff extends Document {
     workspaceId: mongoose.Types.ObjectId;
     ownerId: mongoose.Types.ObjectId;
     fullName: string;
+    firstName?: string;
+    middleName?: string;
+    lastName?: string;
+    gender?: "Male" | "Female" | "Other";
+    dateOfBirth?: Date | null;
+    mobilePhone?: string;
+    memberType: "Self" | "Third Party";
     address: string;
+    country?: string;
+    state?: string;
+    city?: string;
+    pinCode?: string;
     email: string;
     phone?: string;
     jobTitle: string;
@@ -38,11 +49,74 @@ const housekeepingStaffSchema = new Schema<IHousekeepingStaff>(
             maxlength: 140,
             index: true,
         },
+        firstName: {
+            type: String,
+            default: "",
+            trim: true,
+            maxlength: 60,
+        },
+        middleName: {
+            type: String,
+            default: "",
+            trim: true,
+            maxlength: 60,
+        },
+        lastName: {
+            type: String,
+            default: "",
+            trim: true,
+            maxlength: 60,
+        },
+        gender: {
+            type: String,
+            enum: ["Male", "Female", "Other"],
+            default: undefined,
+        },
+        dateOfBirth: {
+            type: Date,
+            default: null,
+        },
+        mobilePhone: {
+            type: String,
+            default: "",
+            trim: true,
+            maxlength: 40,
+        },
+        memberType: {
+            type: String,
+            enum: ["Self", "Third Party"],
+            default: "Self",
+            index: true,
+        },
         address: {
             type: String,
             required: true,
             trim: true,
             maxlength: 240,
+        },
+        country: {
+            type: String,
+            default: "",
+            trim: true,
+            maxlength: 80,
+        },
+        state: {
+            type: String,
+            default: "",
+            trim: true,
+            maxlength: 80,
+        },
+        city: {
+            type: String,
+            default: "",
+            trim: true,
+            maxlength: 80,
+        },
+        pinCode: {
+            type: String,
+            default: "",
+            trim: true,
+            maxlength: 20,
         },
         email: {
             type: String,

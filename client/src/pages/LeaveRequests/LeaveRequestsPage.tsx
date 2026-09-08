@@ -1394,7 +1394,7 @@ export function LeaveRequestsPage() {
                           <button
                             onClick={handleApprove}
                             disabled={isSavingDecision || ((viewingRequest.days || 0) > (viewingRequest.requesterBalance || 0))}
-                            className="w-full sm:flex-[2] py-3.5 sm:py-4 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
+                            className="w-full sm:flex-1 py-3.5 sm:py-4 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
                           >
                             {isSavingDecision ? 'SAVING...' : ((viewingRequest.days || 0) > (viewingRequest.requesterBalance || 0)) ? 'INSUFFICIENT BALANCE'
                             : 'AUTHORIZE LEAVE'}

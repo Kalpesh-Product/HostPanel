@@ -74,3 +74,20 @@ export const deleteHoliday = async (holidayId: string) => {
   const response = await axiosPrivate.delete(`/api/leave-requests/holidays/${holidayId}`);
   return unwrap(response);
 };
+
+// Proxy leave requests — filed on behalf of employees onboarded with no
+// login (e.g. housekeeping staff). Routed through the same HR approval queue.
+export const getProxyLeaveRequests = async (employeeProfileId: string) => {
+  const response = await axiosPrivate.get(`/api/leave-requests/proxy/${employeeProfileId}`);
+  return unwrap(response);
+};
+
+export const createProxyLeaveRequest = async (employeeProfileId: string, payload: Record<string, any>) => {
+  const response = await axiosPrivate.post(`/api/leave-requests/proxy/${employeeProfileId}`, payload);
+  return unwrap(response);
+};
+
+export const getProxyLeaveBalance = async (employeeProfileId: string, year?: number) => {
+  const response = await axiosPrivate.get(`/api/leave-requests/proxy/${employeeProfileId}/balance`, { params: year ? { year } : undefined });
+  return unwrap(response);
+};

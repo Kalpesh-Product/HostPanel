@@ -538,6 +538,15 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/department-accesses/administration-department/tenant-companies/:id",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Administration Department", path: "/department-accesses/administration-department" },
+      { label: "Tenant Companies", path: "/department-accesses/administration-department/tenant-companies" },
+      { label: "Tenant Details" },
+    ],
+  },
+  {
     pattern: "/department-accesses/administration-department/tenant-companies",
     crumbs: [
       { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
@@ -890,6 +899,14 @@ const BreadCrumbComponent = () => {
   let breadcrumbs = matchedConfig?.crumbs || buildFallbackCrumbs(location.pathname);
   const dynamicDepartmentLabel = String(routeState.departmentLabel || "").trim();
   const dynamicDepartmentId = String(routeState.departmentId || "").trim();
+  const dynamicTenantCompanyLabel = String(routeState.tenantCompanyName || routeState.companyName || "").trim();
+  const isTenantCompanyDetailPath = Boolean(matchPath({ path: "/department-accesses/:departmentId/tenant-companies/:id", end: true }, location.pathname));
+
+  if (isTenantCompanyDetailPath && dynamicTenantCompanyLabel && breadcrumbs.length > 0) {
+    breadcrumbs = breadcrumbs.map((crumb, index) => (
+      index === breadcrumbs.length - 1 ? { ...crumb, label: dynamicTenantCompanyLabel } : crumb
+    ));
+  }
 
   if (
     routeState.fromSection === "department-accesses" &&

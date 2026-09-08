@@ -1118,6 +1118,260 @@ const buildMonthlyRowsForMember = async (memberUserId, employeeName, departmentN
   return rows;
 };
 
+// Mirrors buildMonthlyRowsForMember for staff with no login account (e.g.
+// housekeeping) — same row shape, sourced by employeeProfileId instead of
+// employeeUserId.
+const buildMonthlyRowsForEmployeeProfile = async (employeeProfileId, employeeName, departmentName, monthKey, workspace, todayKey = null, shiftId = "") => {
+  const workspaceId = workspace._id;
+  const { keys } = getMonthDateKeys(monthKey);
+  const [start, end] = [keys[0], keys[keys.length - 1]];
+  const records = await Attendance.find({
+    workspaceId,
+    employeeProfileId,
+    dateKey: { $gte: start, $lte: end },
+  })
+    .sort({ dateKey: 1, createdAt: 1 })
+    .lean()
+    .exec();
+
+  const shift = findAttendanceShift(workspace, String(shiftId || "").trim());
+  const dailyWorkingSeconds = computeDailyWorkingSeconds(workspace, shift);
+
+  const approvedLeaves = await LeaveRequest.find({
+    workspaceId,
+    requesterEmployeeProfileId: employeeProfileId,
+    status: "approved",
+    startDate: { $lte: new Date(`${end}T23:59:59.999Z`) },
+    endDate: { $gte: new Date(`${start}T00:00:00.000Z`) },
+  })
+    .select("leaveMode startDate endDate")
+    .lean()
+    .exec();
+  const leaveByDateKey = new Map();
+  for (const leave of approvedLeaves) {
+    if (String(leave.leaveMode || "full_day") !== "full_day") continue;
+    const leaveStartKey = (leave.startDate ? new Date(leave.startDate) : new Date()).toISOString().slice(0, 10);
+    const leaveEndKey = (leave.endDate ? new Date(leave.endDate) : new Date(leaveStartKey)).toISOString().slice(0, 10);
+    const from = leaveStartKey < start ? start : leaveStartKey;
+    const to = leaveEndKey > end ? end : leaveEndKey;
+    const cursor = new Date(`${from}T12:00:00.000Z`);
+    const last = new Date(`${to}T12:00:00.000Z`);
+    while (cursor <= last) {
+      const key = cursor.toISOString().slice(0, 10);
+      if (!leaveByDateKey.has(key)) leaveByDateKey.set(key, leave);
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+  }
+
+  const recordMap = buildAttendanceDateMap(records);
+  const profileId = toId(employeeProfileId);
+  const rows = [];
+  for (const dateKey of keys) {
+    const existing = recordMap.get(dateKey);
+    if (existing) {
+      rows.push({
+        ...(await formatRecordForFrontend(existing, null)),
+        userId: profileId,
+        employeeName: employeeName || existing.employeeName || "",
+        employeeRole: "Housekeeping",
+        department: departmentName || "Administration",
+      });
+      continue;
+    }
+
+    if (leaveByDateKey.has(dateKey)) {
+      rows.push({
+        recordId: `leave-${profileId}-${dateKey}`,
+        id: `leave-${profileId}-${dateKey}`,
+        userId: profileId,
+        employeeName: employeeName || "",
+        employeeId: "",
+        employeeRole: "Housekeeping",
+        department: departmentName || "Administration",
+        date: dateKey,
+        checkIn: "",
+        checkOut: "",
+        status: "on_leave",
+        source: "system",
+        checkInLocation: "",
+        checkOutLocation: "",
+        checkInSelfie: "",
+        checkOutSelfie: "",
+        workingHours: formatDuration(dailyWorkingSeconds),
+        totalHours: Number((dailyWorkingSeconds / 3600).toFixed(2)),
+        overtime: 0,
+        isPresent: true,
+        isLate: false,
+        isEarlyDeparture: false,
+        lateMinutes: 0,
+        earlyMinutes: 0,
+        breaks: [],
+        correction: null,
+      });
+      continue;
+    }
+
+    if (todayKey && dateKey > todayKey) {
+      rows.push({
+        recordId: `upcoming-${profileId}-${dateKey}`,
+        id: `upcoming-${profileId}-${dateKey}`,
+        userId: profileId,
+        employeeName: employeeName || "",
+        employeeId: "",
+        employeeRole: "Housekeeping",
+        department: departmentName || "Administration",
+        date: dateKey,
+        checkIn: "",
+        checkOut: "",
+        status: "upcoming",
+        source: "office",
+        checkInLocation: "",
+        checkOutLocation: "",
+        checkInSelfie: "",
+        checkOutSelfie: "",
+        workingHours: "--",
+        totalHours: 0,
+        overtime: 0,
+        isPresent: false,
+        isLate: false,
+        isEarlyDeparture: false,
+        lateMinutes: 0,
+        earlyMinutes: 0,
+        breaks: [],
+        correction: null,
+      });
+      continue;
+    }
+
+    const date = new Date(`${dateKey}T12:00:00.000Z`);
+    rows.push({
+      recordId: `absent-${profileId}-${dateKey}`,
+      id: `absent-${profileId}-${dateKey}`,
+      userId: profileId,
+      employeeName: employeeName || "",
+      employeeId: "",
+      employeeRole: "Housekeeping",
+      department: departmentName || "Administration",
+      date: dateKey,
+      checkIn: "",
+      checkOut: "",
+      status: date.getUTCDay() === 0 ? "sunday_off" : "absent",
+      source: "office",
+      checkInLocation: "",
+      checkOutLocation: "",
+      checkInSelfie: "",
+      checkOutSelfie: "",
+      workingHours: "--",
+      totalHours: 0,
+      overtime: 0,
+      isPresent: false,
+      isLate: false,
+      isEarlyDeparture: false,
+      lateMinutes: 0,
+      earlyMinutes: 0,
+      breaks: [],
+      correction: null,
+    });
+  }
+
+  return rows;
+};
+
+export async function getEmployeeAttendanceHistoryForProfile(actingUserId, employeeProfileId, query = {}) {
+  const { workspace } = await getWorkspaceIdFromUser(actingUserId);
+  if (!mongoose.isValidObjectId(employeeProfileId)) {
+    throw Object.assign(new Error("Invalid employee id."), { statusCode: 400 });
+  }
+  const profile = await EmployeeProfile.findOne({ _id: employeeProfileId, workspaceId: workspace._id, isHousekeepingStaff: true })
+    .populate("departments", "name")
+    .lean()
+    .exec();
+  if (!profile) throw Object.assign(new Error("Employee not found."), { statusCode: 404 });
+
+  const monthKey = query.month;
+  const timezone = normalizeTimeZone(workspace?.preferences?.timezone);
+  const todayKey = toDateKey(new Date(), timezone);
+  const departmentName = (profile.departments || []).map((d) => d?.name).filter(Boolean).join(", ") || "Administration";
+  const rows = await buildMonthlyRowsForEmployeeProfile(
+    profile._id,
+    profile.fullName || "Housekeeping Staff",
+    departmentName,
+    monthKey,
+    workspace,
+    todayKey,
+    profile.shiftId,
+  );
+
+  return {
+    employee: {
+      userId: toId(profile._id),
+      fullName: profile.fullName || "Housekeeping Staff",
+      employeeId: profile.employeeId || "",
+      role: "Housekeeping",
+      department: departmentName,
+      departments: (profile.departments || []).map((d) => d?.name).filter(Boolean),
+    },
+    records: rows,
+    stats: { weeklyHours: null },
+  };
+}
+
+// Admin-initiated correction request on behalf of a login-less employee
+// (housekeeping), scoped by employeeProfileId ownership instead of the
+// self-identity check requestAttendanceCorrection uses. Same
+// correctionRequest shape; reviewAttendanceCorrection (approve/reject) is
+// reused unmodified since it looks up by recordId alone.
+export async function requestAttendanceCorrectionForProfile(actingUserId, recordId, employeeProfileId, input = {}) {
+  const { workspace } = await getWorkspaceIdFromUser(actingUserId);
+  if (!mongoose.isValidObjectId(recordId) || !mongoose.isValidObjectId(employeeProfileId)) {
+    throw Object.assign(new Error("Invalid id."), { statusCode: 400 });
+  }
+  const profile = await EmployeeProfile.findOne({ _id: employeeProfileId, workspaceId: workspace._id, isHousekeepingStaff: true })
+    .lean()
+    .exec();
+  if (!profile) throw Object.assign(new Error("Employee not found."), { statusCode: 404 });
+
+  const record = await Attendance.findOne({ _id: recordId, workspaceId: workspace._id, employeeProfileId }).exec();
+  if (!record) throw Object.assign(new Error("Attendance record not found."), { statusCode: 404 });
+
+  const joiningDateKey = profile.joiningDate ? new Date(profile.joiningDate).toISOString().slice(0, 10) : "";
+  if (joiningDateKey && record.dateKey < joiningDateKey) {
+    throw Object.assign(new Error("Cannot request a correction for a date before this employee's joining date."), { statusCode: 400 });
+  }
+
+  const reason = String(input?.reason || "").trim();
+  if (!reason) throw Object.assign(new Error("A reason is required."), { statusCode: 400 });
+
+  const requestedCheckInAt = input?.requestedCheckIn ? parseWorkspaceDateTime(`${record.dateKey}T${input.requestedCheckIn}`, normalizeTimeZone(workspace?.preferences?.timezone)) : null;
+  const requestedCheckOutAt = input?.requestedCheckOut ? parseWorkspaceDateTime(`${record.dateKey}T${input.requestedCheckOut}`, normalizeTimeZone(workspace?.preferences?.timezone)) : null;
+  const requestedBreaks = Array.isArray(input?.breaks)
+    ? input.breaks.map((b) => ({
+      breakIndex: Number(b?.breakIndex ?? 0),
+      originalStartAt: record.breakLogs?.[b?.breakIndex]?.startAt || null,
+      originalEndAt: record.breakLogs?.[b?.breakIndex]?.endAt || null,
+      requestedStartAt: b?.requestedStart ? parseWorkspaceDateTime(`${record.dateKey}T${b.requestedStart}`, normalizeTimeZone(workspace?.preferences?.timezone)) : null,
+      requestedEndAt: b?.requestedEnd ? parseWorkspaceDateTime(`${record.dateKey}T${b.requestedEnd}`, normalizeTimeZone(workspace?.preferences?.timezone)) : null,
+    }))
+    : [];
+
+  record.correctionRequest = {
+    originalCheckInAt: record.checkInAt || null,
+    originalCheckOutAt: record.checkOutAt || null,
+    requestedCheckInAt,
+    requestedCheckOutAt,
+    requestedBreaks,
+    reason,
+    status: "pending",
+    reviewedByName: "",
+    requestedAt: new Date(),
+    reviewedAt: null,
+    reviewedReason: "",
+  };
+  await record.save();
+
+  return { attendance: await formatRecordForFrontend(record, null) };
+}
+
 const saveSelfie = async (workspaceId, userId, action, file, dateKey) => {
   if (!file) {
     return {
@@ -1660,6 +1914,231 @@ export async function endBreakAttendance(userId, selfieFile = null) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Proxy attendance — for employees onboarded with no login account (e.g.
+// housekeeping staff). An admin marks the punch on their behalf, so there's
+// no geofence/selfie capture or shift-window enforcement (those exist to
+// verify the EMPLOYEE's own device/location, which doesn't apply here). The
+// same Attendance collection and dateKey convention are used so the record
+// shows up alongside self-service attendance in shared HR reporting later.
+// ---------------------------------------------------------------------------
+
+const getWorkspaceAndProfile = async (employeeProfileId, workspaceId) => {
+  if (!mongoose.isValidObjectId(employeeProfileId)) {
+    throw Object.assign(new Error("Invalid employee id."), { statusCode: 400 });
+  }
+  const workspace = await Workspace.findById(workspaceId).lean().exec();
+  if (!workspace) throw Object.assign(new Error("Workspace not found."), { statusCode: 404 });
+  const profile = await EmployeeProfile.findOne({ _id: employeeProfileId, workspaceId: workspace._id }).exec();
+  if (!profile) throw Object.assign(new Error("Employee profile not found."), { statusCode: 404 });
+  return { workspace, profile };
+};
+
+const getOrCreateTodayProfileRecord = async (workspace, profile) => {
+  const timezone = normalizeTimeZone(workspace?.preferences?.timezone);
+  const shift = findAttendanceShift(workspace, String(profile.shiftId || "").trim());
+  const now = new Date();
+  const dateKey = getShiftAttendanceDateKey(now, timezone, shift);
+  const attendanceDate = parseWorkspaceDateTime(`${dateKey}T00:00:00`, timezone);
+
+  let record = await Attendance.findOne({ workspaceId: workspace._id, employeeProfileId: profile._id, dateKey }).exec();
+  if (!record) {
+    const { workStartMinutes, workEndMinutes, halfDayThresholdSeconds, lateThresholdMinutes, halfDayCutoffMinutes } = computeAttendanceThresholds(workspace, shift);
+    const durationMinutes = getShiftDurationMinutes(shift);
+    const expectedWorkSeconds = Math.max(0, durationMinutes - Number(shift?.breakDurationMinutes || 0)) * 60;
+    record = await Attendance.create({
+      workspaceId: workspace._id,
+      ownerId: workspace.owner,
+      employeeProfileId: profile._id,
+      employeeName: profile.fullName || "Employee",
+      employeeRole: profile.workspaceRole || null,
+      department: Array.isArray(profile.departments) && profile.departments.length > 0 ? profile.departments[0] : null,
+      attendanceDate,
+      dateKey,
+      timezone,
+      mode: "office",
+      status: "absent",
+      workStartMinutes,
+      halfDayThresholdSeconds,
+      lateThresholdMinutes,
+      halfDayCutoffMinutes,
+      shiftId: shift?.id || "",
+      shiftName: shift?.name || "",
+      shiftStartMinutes: workStartMinutes,
+      shiftEndMinutes: workEndMinutes,
+      expectedWorkSeconds,
+      isOvernightShift: isOvernightShift(shift),
+      isActiveBreak: false,
+      activeBreakStartedAt: null,
+      breakSeconds: 0,
+      workedSeconds: 0,
+      breakLogs: [],
+      punchSelfies: [],
+    });
+  }
+  return record;
+};
+
+const formatProfileAttendanceRecord = (record) => {
+  const plain = record?.toObject ? record.toObject() : { ...record };
+  const checkInDate = plain.checkInAt ? new Date(plain.checkInAt) : null;
+  const checkOutDate = plain.checkOutAt ? new Date(plain.checkOutAt) : null;
+  const now = new Date();
+  const isInProgress = Boolean(checkInDate && !checkOutDate);
+  const totalEnd = checkOutDate || (isInProgress ? now : null);
+  let totalSeconds = checkInDate && totalEnd
+    ? Math.max(0, Math.floor((totalEnd.getTime() - checkInDate.getTime()) / 1000))
+    : Math.max(0, Number(plain.workedSeconds) || 0);
+  let breakSeconds = Math.max(0, Number(plain.breakSeconds) || 0);
+  if (plain.isActiveBreak && plain.activeBreakStartedAt) {
+    breakSeconds += Math.max(0, Math.floor((now.getTime() - new Date(plain.activeBreakStartedAt).getTime()) / 1000));
+  }
+  return {
+    id: String(plain._id),
+    employeeProfileId: String(plain.employeeProfileId || ""),
+    dateKey: plain.dateKey,
+    status: plain.status,
+    checkInAt: plain.checkInAt || null,
+    checkOutAt: plain.checkOutAt || null,
+    isActiveBreak: Boolean(plain.isActiveBreak),
+    breakLogs: plain.breakLogs || [],
+    workedSeconds: Math.max(0, totalSeconds - breakSeconds),
+    breakSeconds,
+  };
+};
+
+export async function checkInAttendanceForProfile(employeeProfileId, workspaceId, markedByUserId) {
+  const { workspace, profile } = await getWorkspaceAndProfile(employeeProfileId, workspaceId);
+  const record = await getOrCreateTodayProfileRecord(workspace, profile);
+  if (record.checkInAt && !record.checkOutAt) {
+    throw Object.assign(new Error("This employee is already checked in."), { statusCode: 409 });
+  }
+  const now = new Date();
+  const timezone = normalizeTimeZone(workspace?.preferences?.timezone);
+  record.checkInAt = now;
+  record.checkOutAt = null;
+  record.isActiveBreak = false;
+  record.activeBreakStartedAt = null;
+  record.breakSeconds = 0;
+  record.workedSeconds = 0;
+  record.breakLogs = [];
+  if (
+    !Number.isFinite(record.workStartMinutes)
+    || !Number.isFinite(record.halfDayThresholdSeconds)
+    || !Number.isFinite(record.lateThresholdMinutes)
+    || !Number.isFinite(record.halfDayCutoffMinutes)
+  ) {
+    const shift = findAttendanceShift(workspace, String(profile.shiftId || "").trim());
+    const thresholds = computeAttendanceThresholds(workspace, shift);
+    record.workStartMinutes = thresholds.workStartMinutes;
+    record.shiftEndMinutes = thresholds.workEndMinutes;
+    record.halfDayThresholdSeconds = thresholds.halfDayThresholdSeconds;
+    record.lateThresholdMinutes = thresholds.lateThresholdMinutes;
+    record.halfDayCutoffMinutes = thresholds.halfDayCutoffMinutes;
+  }
+  const checkInMinutes = getShiftTimelineClockMinutes(now, timezone, record.workStartMinutes, record.shiftEndMinutes, record.isOvernightShift);
+  record.status = deriveAttendanceStatus({
+    checkInMinutes,
+    halfDayThresholdSeconds: record.halfDayThresholdSeconds,
+    lateThresholdMinutes: record.lateThresholdMinutes,
+    halfDayCutoffMinutes: record.halfDayCutoffMinutes,
+  });
+  record.markedByUserId = markedByUserId || null;
+  await record.save();
+  return { attendance: formatProfileAttendanceRecord(record) };
+}
+
+export async function startBreakAttendanceForProfile(employeeProfileId, workspaceId, markedByUserId) {
+  const { workspace, profile } = await getWorkspaceAndProfile(employeeProfileId, workspaceId);
+  const record = await getOrCreateTodayProfileRecord(workspace, profile);
+  if (!record.checkInAt || record.checkOutAt) {
+    throw Object.assign(new Error("This employee is not currently checked in."), { statusCode: 400 });
+  }
+  if (record.isActiveBreak) {
+    throw Object.assign(new Error("A break is already in progress."), { statusCode: 409 });
+  }
+  record.isActiveBreak = true;
+  record.activeBreakStartedAt = new Date();
+  record.breakLogs = Array.isArray(record.breakLogs) ? record.breakLogs : [];
+  record.breakLogs.push({ startAt: record.activeBreakStartedAt, endAt: null, durationSeconds: 0 });
+  record.status = "on_break";
+  record.markedByUserId = markedByUserId || null;
+  await record.save();
+  return { attendance: formatProfileAttendanceRecord(record) };
+}
+
+export async function endBreakAttendanceForProfile(employeeProfileId, workspaceId, markedByUserId) {
+  const { workspace, profile } = await getWorkspaceAndProfile(employeeProfileId, workspaceId);
+  const record = await getOrCreateTodayProfileRecord(workspace, profile);
+  if (!record.isActiveBreak || !record.activeBreakStartedAt) {
+    throw Object.assign(new Error("No active break found."), { statusCode: 400 });
+  }
+  const now = new Date();
+  const seconds = Math.max(0, Math.floor((now.getTime() - new Date(record.activeBreakStartedAt).getTime()) / 1000));
+  const latestBreak = Array.isArray(record.breakLogs) ? record.breakLogs[record.breakLogs.length - 1] : null;
+  if (latestBreak && !latestBreak.endAt) {
+    latestBreak.endAt = now;
+    latestBreak.durationSeconds = seconds;
+  }
+  record.breakSeconds = Math.max(0, Number(record.breakSeconds) + seconds);
+  record.isActiveBreak = false;
+  record.activeBreakStartedAt = null;
+  if (record.checkInAt) {
+    const checkInMinutes = getShiftTimelineClockMinutes(record.checkInAt, normalizeTimeZone(record.timezone), record.workStartMinutes, record.shiftEndMinutes, record.isOvernightShift);
+    record.status = deriveAttendanceStatus({
+      checkInMinutes,
+      halfDayThresholdSeconds: record.halfDayThresholdSeconds,
+      lateThresholdMinutes: record.lateThresholdMinutes,
+      halfDayCutoffMinutes: record.halfDayCutoffMinutes,
+    });
+  } else {
+    record.status = "absent";
+  }
+  record.markedByUserId = markedByUserId || null;
+  await record.save();
+  return { attendance: formatProfileAttendanceRecord(record) };
+}
+
+export async function checkOutAttendanceForProfile(employeeProfileId, workspaceId, markedByUserId) {
+  const { workspace, profile } = await getWorkspaceAndProfile(employeeProfileId, workspaceId);
+  const record = await getOrCreateTodayProfileRecord(workspace, profile);
+  if (!record.checkInAt || record.checkOutAt) {
+    throw Object.assign(new Error("This employee is not currently checked in."), { statusCode: 400 });
+  }
+  const now = new Date();
+  if (record.isActiveBreak && record.activeBreakStartedAt) {
+    const seconds = Math.max(0, Math.floor((now.getTime() - new Date(record.activeBreakStartedAt).getTime()) / 1000));
+    const latestBreak = record.breakLogs[record.breakLogs.length - 1];
+    if (latestBreak && !latestBreak.endAt) {
+      latestBreak.endAt = now;
+      latestBreak.durationSeconds = seconds;
+    }
+    record.breakSeconds = Math.max(0, Number(record.breakSeconds) + seconds);
+    record.isActiveBreak = false;
+    record.activeBreakStartedAt = null;
+  }
+  record.checkOutAt = now;
+  const workedSeconds = computeWorkedSeconds(record, now);
+  record.workedSeconds = workedSeconds;
+  const checkInMinutes = getShiftTimelineClockMinutes(record.checkInAt, normalizeTimeZone(record.timezone), record.workStartMinutes, record.shiftEndMinutes, record.isOvernightShift);
+  record.status = deriveAttendanceStatus({
+    workedSeconds,
+    checkInMinutes,
+    halfDayThresholdSeconds: record.halfDayThresholdSeconds,
+    lateThresholdMinutes: record.lateThresholdMinutes,
+    halfDayCutoffMinutes: record.halfDayCutoffMinutes,
+  });
+  record.markedByUserId = markedByUserId || null;
+  await record.save();
+  return { attendance: formatProfileAttendanceRecord(record) };
+}
+
+export async function getTodayAttendanceForProfile(employeeProfileId, workspaceId) {
+  const { workspace, profile } = await getWorkspaceAndProfile(employeeProfileId, workspaceId);
+  const record = await getOrCreateTodayProfileRecord(workspace, profile);
+  return { attendance: formatProfileAttendanceRecord(record) };
+}
+
 const getWeekDateKeys = (referenceDate, timezone, weekStartsOn = "monday") => {
   const todayKey = getZonedDateKey(referenceDate, timezone);
   const [year, month, day] = todayKey.split("-").map(Number);
@@ -1979,7 +2458,10 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
     .exec();
 
   const visibleMembers = members.filter((member) => {
-    if (toId(member?.user?._id) === toId(user._id)) return false;
+    // Everyone else uses "My Attendance" for their own record; the founder
+    // has no one above them to monitor it, so they still see their own row
+    // here.
+    if (toId(member?.user?._id) === toId(user._id) && visibleRoleBand !== "owner") return false;
     if (managedDepartmentIds === null) return true;
     if (managedDepartmentIds.length === 0) return false;
     const memberDeptIds = Array.isArray(member?.departments)
@@ -2187,6 +2669,97 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
     }
   }
 
+  // Housekeeping staff have no WorkspaceMember (no login), so they're
+  // structurally invisible to the WorkspaceMember-driven roster above.
+  // Append them here, in the same row shape, sourcing their Attendance
+  // records by employeeProfileId instead of employeeUserId. Kept simpler
+  // than the member loop above (no holiday/leave-credit day override) —
+  // a first-cut gap, not a silent omission.
+  const housekeepingFilter = { workspaceId: workspace._id, isHousekeepingStaff: true };
+  const housekeepingProfiles = await EmployeeProfile.find(housekeepingFilter)
+    .populate("departments")
+    .select("fullName employeeId departments shiftId")
+    .lean()
+    .exec();
+  const visibleHousekeepingProfiles = housekeepingProfiles.filter((profile) => {
+    if (managedDepartmentIds === null) return true;
+    if (managedDepartmentIds.length === 0) return false;
+    const profileDeptIds = Array.isArray(profile?.departments)
+      ? profile.departments.map((dept) => toId(dept?._id || dept)).filter(Boolean)
+      : [];
+    return profileDeptIds.some((deptId) => managedDepartmentIds.includes(deptId));
+  });
+  const housekeepingProfileIds = visibleHousekeepingProfiles.map((p) => p._id);
+  const housekeepingRangeRecords = housekeepingProfileIds.length
+    ? await Attendance.find({
+      workspaceId: workspace._id,
+      employeeProfileId: { $in: housekeepingProfileIds },
+      dateKey: { $gte: fromKey, $lte: toKey },
+    }).lean().exec()
+    : [];
+  const housekeepingRecordByIdAndDate = new Map(
+    housekeepingRangeRecords.map((r) => [`${toId(r.employeeProfileId)}:${r.dateKey}`, r]),
+  );
+
+  for (const profile of visibleHousekeepingProfiles) {
+    const profileId = toId(profile._id);
+    const profileDepartmentName = (profile.departments || []).map((d) => d?.name).filter(Boolean).join(", ") || "Administration";
+    const profileShift = findAttendanceShift(workspace, String(profile.shiftId || ""));
+
+    for (const dateKey of dateKeysInRange) {
+      const dateIsSunday = new Date(`${dateKey}T12:00:00.000Z`).getUTCDay() === 0;
+      const dateIsFuture = dateKey > todayKey;
+      const existing = housekeepingRecordByIdAndDate.get(`${profileId}:${dateKey}`);
+      if (existing) {
+        rows.push({
+          ...(await formatRecordForFrontend(existing, null)),
+          userId: profileId,
+          employeeName: profile.fullName || "Housekeeping Staff",
+          employeeId: profile.employeeId || "",
+          employeeRole: "Housekeeping",
+          department: profileDepartmentName,
+          shiftId: existing.shiftId || profileShift?.id || "",
+          shiftName: existing.shiftName || profileShift?.name || "Not assigned",
+          isHousekeepingStaff: true,
+        });
+        continue;
+      }
+      rows.push({
+        recordId: `absent-${profileId}-${dateKey}`,
+        id: `absent-${profileId}-${dateKey}`,
+        userId: profileId,
+        employeeName: profile.fullName || "Housekeeping Staff",
+        employeeEmail: "",
+        employeeId: profile.employeeId || "",
+        shiftId: profileShift?.id || "",
+        shiftName: profileShift?.name || "Not assigned",
+        employeeRole: "Housekeeping",
+        department: profileDepartmentName,
+        date: dateKey,
+        checkIn: "",
+        checkOut: "",
+        status: dateIsFuture ? "upcoming" : dateIsSunday ? "sunday_off" : "absent",
+        source: "office",
+        checkInLocation: "",
+        checkOutLocation: "",
+        checkInSelfie: "",
+        checkOutSelfie: "",
+        workingHours: "--",
+        totalHours: 0,
+        overtime: 0,
+        isPresent: false,
+        isLate: false,
+        isEarlyDeparture: false,
+        lateMinutes: 0,
+        earlyMinutes: 0,
+        breaks: [],
+        correction: null,
+        activeLeave: null,
+        isHousekeepingStaff: true,
+      });
+    }
+  }
+
   // Corrections are filtered by when they were *submitted*
   // (correctionRequest.requestedAt), not by the attendance day they're
   // correcting — a request filed today about yesterday's shift is a "today"
@@ -2248,6 +2821,47 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
     });
   }
 
+  const housekeepingRecordsWithCorrections = housekeepingProfileIds.length
+    ? await Attendance.find({
+      workspaceId: workspace._id,
+      employeeProfileId: { $in: housekeepingProfileIds },
+      correctionRequest: { $ne: null },
+      "correctionRequest.requestedAt": {
+        $gte: new Date(`${correctionsFromKey}T00:00:00.000Z`),
+        $lte: new Date(`${correctionsToKey}T23:59:59.999Z`),
+      },
+    }).lean().exec()
+    : [];
+  const housekeepingProfileById = new Map(visibleHousekeepingProfiles.map((p) => [toId(p._id), p]));
+  for (const record of housekeepingRecordsWithCorrections) {
+    const profile = housekeepingProfileById.get(toId(record.employeeProfileId));
+    const formatted = await formatRecordForFrontend(record, null);
+    if (!formatted.correction) continue;
+    corrections.push({
+      id: formatted.correction.requestedAt,
+      correctionId: formatted.recordId || formatted.id,
+      userId: toId(record.employeeProfileId),
+      employeeName: profile?.fullName || "Housekeeping Staff",
+      employeeId: profile?.employeeId || "",
+      employeeRole: "Housekeeping",
+      department: (profile?.departments || []).map((d) => d?.name).filter(Boolean).join(", ") || "Administration",
+      date: formatted.date || "",
+      submittedOn: record.correctionRequest?.requestedAt ? toDateKey(record.correctionRequest.requestedAt, timezone) : "",
+      requestedAt: formatted.correction?.requestedAt || "",
+      type: "correction",
+      reason: formatted.correction?.reason || "",
+      status: formatted.correction?.status || "pending",
+      originalCheckIn: formatted.correction?.originalCheckIn || formatted.checkIn,
+      originalCheckOut: formatted.correction?.originalCheckOut || formatted.checkOut,
+      requestedCheckIn: formatted.correction?.requestedCheckIn || "",
+      requestedCheckOut: formatted.correction?.requestedCheckOut || "",
+      breaks: formatted.correction?.breaks || [],
+      actionedBy: formatted.correction?.actionedBy || "",
+      rejectionReason: formatted.correction?.rejectionReason || "",
+      isHousekeepingStaff: true,
+    });
+  }
+
   return {
     records: rows,
     allRecords: rows,
@@ -2257,7 +2871,7 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
     dateFrom: fromKey,
     dateTo: toKey,
     month: keys[0]?.slice(0, 7) || "",
-    totalEmployees: uniqueVisibleMembers.length,
+    totalEmployees: uniqueVisibleMembers.length + visibleHousekeepingProfiles.length,
     canManageAttendance: visibleRoleBand !== "employee",
   };
 }

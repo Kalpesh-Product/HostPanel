@@ -2,6 +2,9 @@ import { Request, Response, NextFunction } from "express";
 import {
   createHolidayForWorkspace,
   createLeaveRequestForUser,
+  createLeaveRequestForEmployeeProfile,
+  listLeaveRequestsForEmployeeProfile,
+  getLeaveBalancesForEmployeeProfile,
   createLeaveTypeForWorkspace,
   deleteHolidayForWorkspace,
   listHolidaysForWorkspace,
@@ -25,6 +28,42 @@ const getWorkspaceId = (req: AuthenticatedRequest): string | undefined =>
   typeof req.workspaceMembership?.workspace === "string" && req.workspaceMembership.workspace
     ? req.workspaceMembership.workspace
     : undefined;
+
+export async function createLeaveRequestProxy(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = getWorkspaceId(req) || String((req.body as any)?.workspaceId || "");
+    const result = await createLeaveRequestForEmployeeProfile(
+      String(req.params.employeeProfileId),
+      req.body || {},
+      workspaceId,
+      req.user as string,
+    );
+    res.status(201).json({ success: true, message: "Leave request created successfully.", data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function listLeaveRequestsProxy(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = getWorkspaceId(req) || String((req.query as any)?.workspaceId || "");
+    const result = await listLeaveRequestsForEmployeeProfile(String(req.params.employeeProfileId), workspaceId);
+    res.status(200).json({ success: true, message: "Leave requests loaded successfully.", data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getLeaveBalanceProxy(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = getWorkspaceId(req) || String((req.query as any)?.workspaceId || "");
+    const year = req.query?.year ? Number(req.query.year) : undefined;
+    const result = await getLeaveBalancesForEmployeeProfile(String(req.params.employeeProfileId), workspaceId, year);
+    res.status(200).json({ success: true, message: "Leave balance loaded successfully.", data: result });
+  } catch (error) {
+    next(error);
+  }
+}
 
 export async function createLeaveRequest(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {

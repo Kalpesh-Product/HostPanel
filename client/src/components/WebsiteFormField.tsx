@@ -35,7 +35,7 @@ interface WebsiteFormFieldProps {
   minRows?: number;
   maxLength?: number;
   type?: string;
-  min?: number;
+  min?: number | string;
   max?: number;
   step?: number | string;
   helperText?: ReactNode;

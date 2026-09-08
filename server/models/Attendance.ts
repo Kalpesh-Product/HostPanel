@@ -40,7 +40,12 @@ export interface IAttendancePunchSelfie {
 export interface IAttendance extends Document {
     workspaceId: mongoose.Types.ObjectId;
     ownerId: mongoose.Types.ObjectId;
-    employeeUserId: mongoose.Types.ObjectId;
+    employeeUserId?: mongoose.Types.ObjectId | null;
+    // Set instead of employeeUserId for staff onboarded with no login account
+    // (e.g. housekeeping) — the attendance is entered on their behalf by an
+    // admin, identified in markedByUserId.
+    employeeProfileId?: mongoose.Types.ObjectId | null;
+    markedByUserId?: mongoose.Types.ObjectId | null;
     employeeName: string;
     employeeRole: mongoose.Types.ObjectId;
     department?: mongoose.Types.ObjectId | null;
@@ -163,8 +168,19 @@ const attendanceSchema = new Schema<IAttendance>(
         employeeUserId: {
             type: Schema.Types.ObjectId,
             ref: "HostUser",
-            required: true,
+            default: null,
             index: true,
+        },
+        employeeProfileId: {
+            type: Schema.Types.ObjectId,
+            ref: "EmployeeProfile",
+            default: null,
+            index: true,
+        },
+        markedByUserId: {
+            type: Schema.Types.ObjectId,
+            ref: "HostUser",
+            default: null,
         },
         employeeName: {
             type: String,
@@ -267,7 +283,11 @@ const attendanceSchema = new Schema<IAttendance>(
 
 attendanceSchema.index(
     { workspaceId: 1, employeeUserId: 1, dateKey: 1 },
-    { unique: true }
+    { unique: true, partialFilterExpression: { employeeUserId: { $type: "objectId" } } }
+);
+attendanceSchema.index(
+    { workspaceId: 1, employeeProfileId: 1, dateKey: 1 },
+    { unique: true, partialFilterExpression: { employeeProfileId: { $type: "objectId" } } }
 );
 attendanceSchema.index({ workspaceId: 1, dateKey: -1, employeeName: 1 });
 
