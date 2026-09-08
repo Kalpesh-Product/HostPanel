@@ -59,6 +59,8 @@ const BULK_TEMPLATE_HEADERS = [
   'HO State',
   'HO City',
   'Location',
+  'Floor',
+  'Wing',
   'Open Desks',
   'Cabin Desks',
   'Rate Per Open Desk',
@@ -94,6 +96,8 @@ const BULK_COLUMN_ALIASES = {
   hoState: ['ho state', 'head office state'],
   hoCity: ['ho city', 'head office city', 'head office location city'],
   buildingName: ['location', 'building name', 'unit'],
+  floor: ['floor'],
+  wing: ['wing'],
   openDesks: ['open desks', 'open desk count'],
   cabinDesks: ['cabin desks', 'cabin desk count'],
   ratePerOpenDesk: ['rate per open desk', 'open desk rate'],
@@ -185,11 +189,13 @@ function buildBulkTenantPayload(row) {
   const sector = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.sector)).trim() || businessType;
   const hoCity = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.hoCity)).trim();
   const hoState = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.hoState)).trim();
-  // Location only — floor/wing are deliberately left for the manager to pick
-  // from the real Resource & Pricing inventory (see Location Details), since
-  // an imported unit label ("Sunteck 701 A") won't reliably match it and a
-  // false match would misassign real desks.
+  // Location/Floor/Wing must match a real Resource & Pricing entry exactly
+  // (same text) for desks to actually get reserved out of that inventory —
+  // if they don't match, the row still imports everything else and just
+  // reports "not enough vacant desks" for that row instead of failing silently.
   const buildingName = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.buildingName)).trim();
+  const floor = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.floor)).trim();
+  const wing = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.wing)).trim();
   const openDesks = Math.max(0, Number(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.openDesks)) || 0);
   const cabinDesks = Math.max(0, Number(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.cabinDesks)) || 0);
   const ratePerOpenDesk = Math.max(0, Number(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.ratePerOpenDesk)) || 0);
@@ -226,6 +232,8 @@ function buildBulkTenantPayload(row) {
       },
       companyDetails: {
         buildingName,
+        floor,
+        wing,
         openDesks,
         cabinDesks,
         ratePerOpenDesk,
@@ -2726,7 +2734,9 @@ export default function TenantCompaniesPage() {
       { Field: 'HO Country', Requirement: 'Optional', Notes: 'Head office country.' },
       { Field: 'HO State', Requirement: 'Optional', Notes: 'Head office state.' },
       { Field: 'HO City', Requirement: 'Optional', Notes: 'Head office city.' },
-      { Field: 'Location', Requirement: 'Optional', Notes: 'Match an existing location from Resource & Pricing. Floor and wing are picked later in the manager screen (from real inventory), not imported.' },
+      { Field: 'Location', Requirement: 'Optional', Notes: 'Must match an existing location from Resource & Pricing for desks to be assigned.' },
+      { Field: 'Floor', Requirement: 'Optional', Notes: 'Must exactly match the floor text used in Resource & Pricing.' },
+      { Field: 'Wing', Requirement: 'Optional', Notes: 'Must exactly match the wing text used in Resource & Pricing, if that block has one.' },
       { Field: 'Open Desks', Requirement: 'Optional', Notes: 'Number of open desks assigned to this tenant.' },
       { Field: 'Cabin Desks', Requirement: 'Optional', Notes: 'Number of cabin desks assigned to this tenant.' },
       { Field: 'Rate Per Open Desk', Requirement: 'Optional', Notes: 'Required by the app once Open Desks is above zero.' },
@@ -2758,6 +2768,8 @@ export default function TenantCompaniesPage() {
       { Field: 'HO State', Format: 'Text', Example: 'Maharashtra', Notes: 'Optional.' },
       { Field: 'HO City', Format: 'Text', Example: 'Mumbai', Notes: 'Optional.' },
       { Field: 'Location', Format: 'Text', Example: 'Your Location Name', Notes: 'Must match a location already set up in Resource & Pricing.' },
+      { Field: 'Floor', Format: 'Text', Example: '5', Notes: 'Must match exactly (same text) as Resource & Pricing.' },
+      { Field: 'Wing', Format: 'Text', Example: 'A', Notes: 'Must match exactly (same text) as Resource & Pricing, if used.' },
       { Field: 'Open Desks', Format: 'Number', Example: '5', Notes: 'Optional.' },
       { Field: 'Cabin Desks', Format: 'Number', Example: '2', Notes: 'Optional.' },
       { Field: 'Rate Per Open Desk', Format: 'Number', Example: '9000', Notes: 'Optional.' },
@@ -2780,7 +2792,7 @@ export default function TenantCompaniesPage() {
     ], { header: ['Field', 'Format', 'Example', 'Notes'] });
 
     const workflowGuideSheet = XLSX.utils.json_to_sheet([
-      { Label: 'Draft tenant company onboarding', Notes: 'Company, contact, desks, rates, credits, and contract dates import directly. Location should match an existing Resource & Pricing location. Floor and wing are picked from real inventory when the manager edits the record, so desks get assigned to real seats.' },
+      { Label: 'Draft tenant company onboarding', Notes: 'Company, contact, desks, rates, credits, and contract dates import directly. Location, Floor, and Wing must exactly match an existing Resource & Pricing entry for desks to actually get assigned to real seats — a row with a mismatch fails cleanly and can be corrected and re-uploaded.' },
     ], { header: ['Label', 'Notes'] });
 
     XLSX.utils.book_append_sheet(workbook, tenantCompaniesSheet, 'Tenant Companies');
@@ -3849,15 +3861,16 @@ export default function TenantCompaniesPage() {
             open={isBulkUploadOpen}
             onClose={() => { setIsBulkUploadOpen(false); setBulkUploadError(''); setBulkUploadSummary(null); setBulkUploadFileName(''); setBulkUploadRows([]); }}
             title="Upload Tenant Companies"
-            description="Imports company, contact, desk counts, rates, credits, and contract dates directly. Floor and wing are picked from real inventory when the manager edits the record."
+            description="Imports company, contact, location, desk counts, rates, credits, and contract dates directly."
             fileInputRef={bulkUploadInputRef}
             onFileChange={handleBulkFileSelected}
             onDownloadTemplate={downloadBulkTemplate}
             rules={[
               'Use one row per tenant company.',
-              'Location should match an existing Resource & Pricing location, if known.',
+              'Location, Floor, and Wing must exactly match an existing Resource & Pricing entry for desks to actually get assigned.',
               'Open/cabin desks, rates, credits, and contract dates import directly if present.',
-              'Floor and wing are not imported — pick those from real inventory when editing the record, so desks get actually assigned to real seats.',
+              "If Floor/Wing don't have enough vacant desks (or don't match real inventory), that whole row fails so you can fix it and re-upload — other rows are unaffected.",
+              'Leave Floor/Wing/desk counts blank to skip seat assignment for a row — the rest of that row still imports.',
               'A Company Name matching an existing tenant updates it instead of creating a duplicate.',
               'Blank cells on an update are ignored — they never clear existing data.',
             ]}
