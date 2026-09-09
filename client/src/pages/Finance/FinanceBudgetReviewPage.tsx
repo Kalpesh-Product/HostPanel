@@ -362,7 +362,17 @@ export function FinanceBudgetReviewPage() {
                 {hasApprovalProgress(approvalFlow) ? (
                   <span className="block mt-1"><ApprovalFlowBadges flow={approvalFlow} /></span>
                 ) : (
-                  <span className={`inline-flex w-fit px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest border ${overallStatus.toLowerCase() === 'approved' || overallStatus === 'Active' ? 'bg-green-50 text-green-700 border-green-200' : overallStatus.toLowerCase() === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>{overallStatus || 'Pending'}</span>
+                  <span className={`inline-flex w-fit px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest border ${overallStatus.toLowerCase() === 'approved' || overallStatus === 'Active' ? 'bg-green-50 text-green-700 border-green-200' : overallStatus.toLowerCase() === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                    {(() => {
+                      const label = overallStatus || 'Pending';
+                      if (!['pending', 'discuss'].includes(label.toLowerCase())) return label;
+                      const ownerStatus = String(approvalFlow?.owner?.status || '').toLowerCase();
+                      const fmStatus = String(approvalFlow?.financeManager?.status || '').toLowerCase();
+                      if (ownerStatus === 'approved' && fmStatus !== 'approved') return `${label} Finance Manager`;
+                      if (fmStatus === 'approved' && ownerStatus !== 'approved') return `${label} Founder`;
+                      return label;
+                    })()}
+                  </span>
                 )}
               </div>
               <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><CheckCircle2 size={16} /></div>

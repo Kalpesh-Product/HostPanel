@@ -216,7 +216,19 @@ export function FinancePage() {
   const totalAllocated = departments.reduce((acc, curr) => acc + (curr.approvedBudget || 0) + (curr.extraGrantedYTD || 0), 0);
   const totalSpent = departments.reduce((acc, curr) => acc + curr.spentYTD, 0);
   const isActionableFinanceRequest = (request: any = {}) => ['pending', 'discuss'].includes(String(request?.status || '').toLowerCase());
-  
+
+  // Dual-approval requests read as bare "Pending" even after the Founder has
+  // already acted — spell out whose turn it actually is.
+  const getAnnualRequestDisplayStatus = (request: any = {}) => {
+    const overall = String(request?.status || '').trim();
+    if (!['pending', 'discuss'].includes(overall.toLowerCase())) return overall;
+    const ownerStatus = String(request?.approvalFlow?.owner?.status || '').toLowerCase();
+    const fmStatus = String(request?.approvalFlow?.financeManager?.status || '').toLowerCase();
+    if (ownerStatus === 'approved' && fmStatus !== 'approved') return `${overall} Finance Manager`;
+    if (fmStatus === 'approved' && ownerStatus !== 'approved') return `${overall} Founder`;
+    return overall;
+  };
+
   const pendingAnnualRequests = annualRequests.filter(isActionableFinanceRequest);
   const pendingExtraRequests = extraRequests.filter(isActionableFinanceRequest);
   const pendingActions = pendingAnnualRequests.length + pendingExtraRequests.length;
@@ -664,7 +676,7 @@ export function FinancePage() {
                           <td className="px-5 py-4 font-pmedium text-slate-500">{formatCurrency(getDepartmentActualSpend(req.department))}</td>
                           <td className="px-5 py-4">
                             <div className="flex flex-col items-start gap-1">
-                              <span className={statusPillClass(req.status)}>{req.status}</span>
+                              <span className={statusPillClass(req.status)}>{getAnnualRequestDisplayStatus(req)}</span>
                               {req.isHistorical && (
                                 <span className="inline-flex px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-[8px] font-pmedium uppercase tracking-wider">Historical</span>
                               )}
