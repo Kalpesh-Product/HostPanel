@@ -79,6 +79,29 @@ export async function getActorName(userId: any) {
  * period is never double-counted. Returns the created entry or null when one
  * already exists.
  */
+// ── Optional tax (e.g. GST) resolution ──────────────────────────────────────
+// Tax is configured in Workspace settings (preferences.billing.tax). Finance
+// only sends a tick (applyTax) — the label/rate/amount are derived HERE from
+// the stored config so client numbers can never invent tax. `amount` stays
+// the NET revenue; tax is stored separately (P&L is never inflated by tax).
+export function resolveWorkspaceTaxConfig(workspace) {
+  const tax = workspace?.preferences?.billing?.tax;
+  if (!tax?.enabled || !(Number(tax.ratePercent) > 0)) return null;
+  return { label: safeString(tax.label) || "Tax", ratePercent: Number(tax.ratePercent) };
+}
+
+export function computeTaxFields(baseAmount, taxConfig) {
+  const base = Math.max(0, Number(baseAmount) || 0);
+  if (!taxConfig) return { taxLabel: "", taxRatePercent: 0, taxAmount: 0, totalAmount: base };
+  const taxAmount = Math.round(base * (taxConfig.ratePercent / 100));
+  return {
+    taxLabel: taxConfig.label,
+    taxRatePercent: taxConfig.ratePercent,
+    taxAmount,
+    totalAmount: base + taxAmount,
+  };
+}
+
 export async function postIncomeEntry(input = {}) {
   const {
     workspaceId,
@@ -88,6 +111,9 @@ export async function postIncomeEntry(input = {}) {
     periodLabel,
     entityName,
     amount,
+    taxLabel,
+    taxRatePercent,
+    taxAmount,
     postedById,
     postedByName,
     note,
@@ -118,6 +144,10 @@ export async function postIncomeEntry(input = {}) {
       periodLabel: String(periodLabel || ""),
       entityName: String(entityName || ""),
       amount: Math.max(0, Number(amount)),
+      taxLabel: String(taxLabel || ""),
+      taxRatePercent: Math.max(0, Number(taxRatePercent) || 0),
+      taxAmount: Math.max(0, Number(taxAmount) || 0),
+      totalAmount: Math.max(0, Number(amount)) + Math.max(0, Number(taxAmount) || 0),
       postedAt: new Date(),
       postedById: postedById || null,
       postedByName: String(postedByName || ""),
@@ -178,6 +208,10 @@ function formatRevenueEntry(entry, now = new Date()) {
     category: safeString(entry?.category),
     entityName: safeString(entry?.entityName),
     amount: Number(entry?.amount || 0),
+    taxLabel: safeString(entry?.taxLabel),
+    taxRatePercent: Number(entry?.taxRatePercent || 0),
+    taxAmount: Number(entry?.taxAmount || 0),
+    totalAmount: Number(entry?.totalAmount || 0),
     revenueDate: entry?.revenueDate || null,
     revenueDateLabel: formatRevenueDateLabel(entry?.revenueDate),
     periodKey: safeString(entry?.periodKey),
@@ -283,6 +317,19 @@ export async function createRevenueEntryForWorkspace(input = {}) {
   }
 
   const paymentStatus = safeString(body.paymentStatus) === "Received" ? "Received" : "Pending";
+
+  // Optional tax (e.g. GST): Finance ticks "apply tax" — label/rate/amount are
+  // resolved server-side from the workspace's stored billing.tax config.
+  let taxFields = { taxLabel: "", taxRatePercent: 0, taxAmount: 0, totalAmount: amount };
+  if (body.applyTax) {
+    const workspace = await Workspace.findById(workspaceId).select("preferences").lean();
+    const taxConfig = resolveWorkspaceTaxConfig(workspace);
+    if (!taxConfig) {
+      throw Object.assign(new Error("Tax is not enabled for this workspace — enable it in workspace settings first."), { statusCode: 409 });
+    }
+    taxFields = computeTaxFields(amount, taxConfig);
+  }
+
   const entryCode = `REV-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const periodKey = `${revenueDate.getUTCFullYear()}-${String(revenueDate.getUTCMonth() + 1).padStart(2, "0")}`;
   const periodLabel = new Intl.DateTimeFormat("en-IN", { month: "short", year: "numeric" }).format(revenueDate);
@@ -315,6 +362,10 @@ export async function createRevenueEntryForWorkspace(input = {}) {
     periodLabel,
     entityName,
     amount,
+    taxLabel: taxFields.taxLabel,
+    taxRatePercent: taxFields.taxRatePercent,
+    taxAmount: taxFields.taxAmount,
+    totalAmount: taxFields.totalAmount,
     revenueDate,
     paymentMethod: safeString(body.paymentMethod),
     reference: safeString(body.reference),
