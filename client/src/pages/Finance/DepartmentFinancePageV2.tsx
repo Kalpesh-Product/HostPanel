@@ -1,4 +1,4 @@
-import React, { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, Wallet, TrendingDown, TrendingUp, AlertCircle,
@@ -6,7 +6,7 @@ import {
   CheckCircle2, Clock, Check, Loader2, X, FileText, FileWarning, Search, Calendar, Pencil, MessageSquare, Download
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAppConfirm } from '@/components/app/AppConfirmProvider';
 import { getStoredUser, normalizeUserRole } from '@/lib/auth-session';
@@ -104,6 +104,8 @@ interface MonthlyPlan {
   status: string;
   expenses: ExpenseData[];
 }
+
+const FM_LIST_PATH = '/department-accesses/finance-department/expenses-budget';
 
 interface BudgetRequest {
   id: string;
@@ -270,6 +272,7 @@ export function DepartmentFinancePageV2() {
   // workspaces get jan→dec; the April default keeps apr→mar).
   const monthKeys = getFiscalMonthSequence();
   const location = useLocation();
+  const navigate = useNavigate();
   const { confirm } = useAppConfirm();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const workspacePreferences = useWorkspacePreferences();
@@ -293,6 +296,7 @@ export function DepartmentFinancePageV2() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const [financeData, setFinanceData] = useState<DepartmentFinanceData | null>(null);
   const [monthlyExpenses, setMonthlyExpenses] = useState<MonthlyPlan[]>([]);
@@ -310,7 +314,6 @@ export function DepartmentFinancePageV2() {
   const [isLinkingVendor, setIsLinkingVendor] = useState(false);
   const [additionalAmount, setAdditionalAmount] = useState('');
   const [isRecordingAdditional, setIsRecordingAdditional] = useState(false);
-  const [expandedMonthKey, setExpandedMonthKey] = useState<string | null>(null);
 
   // Draft annual budget builder (month-by-month, pre-submission)
   const [draftMonths, setDraftMonths] = useState<DraftMonth[]>([]);
@@ -659,6 +662,11 @@ export function DepartmentFinancePageV2() {
       await submitBudgetRequest({
         fiscalYear: selectedFY,
         department: departmentLabel,
+        managerName:
+          (currentUser?.fullName as string) ||
+          [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(' ') ||
+          (currentUser?.name as string) ||
+          'Department Manager',
         annualBudgetRequested,
         monthlyPlan: draftMonths.map((m) => ({
           month: m.month,
@@ -1114,6 +1122,22 @@ export function DepartmentFinancePageV2() {
     { key: 'history', label: 'History' },
   ];
 
+  const PROJECTED_STATUS_FILTERS = [
+    { key: 'all', label: 'All' },
+    { key: 'waiting for approval', label: 'Waiting for Approval' },
+    { key: 'current month', label: 'Current Month' },
+    { key: 'completed', label: 'Completed' },
+    { key: 'upcoming month', label: 'Upcoming Month' },
+  ];
+
+  const EXTRA_STATUS_FILTERS = [
+    { key: 'all', label: 'All' },
+    { key: 'pending', label: 'Pending' },
+    { key: 'discuss', label: 'Discuss' },
+    { key: 'approved', label: 'Approved' },
+    { key: 'rejected', label: 'Rejected' },
+  ];
+
   const isBudgetRejected = financeData?.status?.toLowerCase() === 'rejected';
   const isBudgetDiscuss = financeData?.status?.toLowerCase() === 'discuss';
   const latestAnnualDecision = [...(financeData?.annualRequest?.approvalFlow?.decisionHistory || [])]
@@ -1162,6 +1186,18 @@ export function DepartmentFinancePageV2() {
     (sum, m) => sum + m.expenses.reduce((s, e) => s + Number(e.projectedAmount || 0), 0),
     0,
   );
+
+  const visibleMonths = statusFilter === 'all'
+    ? filteredMonthlyExpenses
+    : filteredMonthlyExpenses.filter((month) => {
+        const monthKeyNorm = String(month.monthKey || month.month || '').trim().toLowerCase();
+        const status = getFriendlyMonthStatus(deriveMonthLifecycle(monthKeyNorm, selectedFY), financeData?.status);
+        return status.label.trim().toLowerCase() === statusFilter;
+      });
+
+  const visibleExtraRequests = statusFilter === 'all'
+    ? extraRequestsFiltered
+    : extraRequestsFiltered.filter((request) => String(request.status || '').trim().toLowerCase() === statusFilter);
 
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
@@ -1220,17 +1256,20 @@ export function DepartmentFinancePageV2() {
           </div>
 
           {/* MAIN TABS */}
-          <div data-tour="dept-finance-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0">
+          <div data-tour="dept-finance-tabs" className="mb-3 flex w-full gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0 overflow-x-auto [&::-webkit-scrollbar]:hidden">
             {tabs.map((tab) => (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
+                onClick={() => { setActiveTab(tab.key); setStatusFilter('all'); }}
+                className={`flex-1 min-w-[160px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${
                   activeTab === tab.key
-                    ? 'bg-[#2563EB] text-white shadow-sm'
+                    ? 'text-white'
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
+                {activeTab === tab.key && (
+                  <motion.div layoutId="deptFinanceMainTabs" className="absolute inset-0 bg-[#2563EB] rounded-full shadow-sm z-[-1]" />
+                )}
                 {tab.label}
               </button>
             ))}
@@ -1342,10 +1381,10 @@ export function DepartmentFinancePageV2() {
 
           {/* REJECTED BANNER */}
           {isBudgetRejected && (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-xs font-bold text-rose-700 flex items-center gap-3">
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-xs font-pmedium text-rose-700 flex items-center gap-3">
               <AlertCircle size={18} className="shrink-0" />
               <div className="flex-1">
-                <span className="font-black">Budget Request Rejected</span> — Create a revision, update the budget, and resubmit it for both approvals.
+                <span className="font-pmedium">Budget Request Rejected</span> — Create a revision, update the budget, and resubmit it for both approvals.
                 {latestAnnualDecision?.note && <p className="mt-1 font-medium">Reason: {latestAnnualDecision.note}</p>}
               </div>
               <button
@@ -1359,10 +1398,10 @@ export function DepartmentFinancePageV2() {
           )}
 
           {isBudgetDiscuss && (
-            <div className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 text-xs font-bold text-blue-700 flex items-center gap-3">
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 text-xs font-pmedium text-blue-700 flex items-center gap-3">
               <MessageSquare size={18} className="shrink-0" />
               <div className="flex-1">
-                <span className="font-black">Changes Requested</span> — Review the approver comment, create a revision, and resubmit it for both approvals.
+                <span className="font-pmedium">Changes Requested</span> — Review the approver comment, create a revision, and resubmit it for both approvals.
                 {latestAnnualDecision?.note && <p className="mt-1 font-medium">Comment: {latestAnnualDecision.note}</p>}
               </div>
               <button
@@ -1377,10 +1416,10 @@ export function DepartmentFinancePageV2() {
 
           {/* PENDING BANNER */}
           {isBudgetPending && (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-xs font-bold text-amber-700 flex items-center gap-3">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-xs font-pmedium text-amber-700 flex items-center gap-3">
               <Clock size={18} className="shrink-0" />
               <div className="flex-1">
-                <span className="font-black">Budget Request Pending</span> — Your annual budget request is awaiting approval.
+                <span className="font-pmedium">Budget Request Pending</span> — Your annual budget request is awaiting approval.
                 <div className="mt-1.5">
                   <ApprovalFlowBadges flow={financeData?.approvalFlow} />
                 </div>
@@ -1397,20 +1436,20 @@ export function DepartmentFinancePageV2() {
 
           {/* HISTORICAL RECORD BANNER */}
           {isHistoricalPlan && (
-            <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-3 text-xs font-bold text-indigo-700 flex items-center gap-3">
+            <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-3 text-xs font-pmedium text-indigo-700 flex items-center gap-3">
               <Clock size={18} className="shrink-0" />
               <div className="flex-1">
-                <span className="font-black">Historical Record</span> — This budget was imported for record-keeping from a past fiscal year. It is read-only and cannot be modified.
+                <span className="font-pmedium">Historical Record</span> — This budget was imported for record-keeping from a past fiscal year. It is read-only and cannot be modified.
               </div>
             </div>
           )}
 
           {/* APPROVED BANNER */}
           {isBudgetApproved && !isHistoricalPlan && (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-xs font-bold text-emerald-700 flex items-center gap-3">
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-xs font-pmedium text-emerald-700 flex items-center gap-3">
               <CheckCircle2 size={18} className="shrink-0" />
               <div className="flex-1">
-                <span className="font-black">Budget Approved</span> — You can record expenses and link vendors within your monthly allocations.
+                <span className="font-pmedium">Budget Approved</span> — You can record expenses and link vendors within your monthly allocations.
                 <div className="mt-1.5">
                   <ApprovalFlowBadges flow={financeData?.approvalFlow} />
                 </div>
@@ -1420,27 +1459,39 @@ export function DepartmentFinancePageV2() {
 
           {/* DATA PANEL */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-            {/* SUB TABS / LABEL + SEARCH + FILTERS */}
+            {/* STATUS FILTER + FY + SEARCH — same line, just above the table */}
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-              <div className="flex bg-slate-100/50 p-1 rounded-xl w-full xl:w-auto relative border border-slate-200/50">
-                <div className="px-4 py-2 font-bold text-[13px] text-[#0F172A] flex items-center gap-2">
-                  {activeTab === 'projected' && (<><Wallet size={14} className="text-[#2563EB]" /> Monthly Plan</>)}
-                  {activeTab === 'extra' && (<><TrendingUp size={14} className="text-[#2563EB]" /> Extra Budget Requests</>)}
-                  {activeTab === 'history' && (<><CheckCircle2 size={14} className="text-[#2563EB]" /> Paid Expenses History</>)}
-                </div>
+              <div className="flex flex-1 items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden w-full xl:w-auto">
+                {activeTab === 'projected' && PROJECTED_STATUS_FILTERS.map((pill) => (
+                  <button
+                    key={pill.key}
+                    onClick={() => setStatusFilter(pill.key)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
+                      statusFilter === pill.key
+                        ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+                        : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                    }`}
+                  >
+                    {pill.label}
+                  </button>
+                ))}
+                {activeTab === 'extra' && EXTRA_STATUS_FILTERS.map((pill) => (
+                  <button
+                    key={pill.key}
+                    onClick={() => setStatusFilter(pill.key)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
+                      statusFilter === pill.key
+                        ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+                        : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                    }`}
+                  >
+                    {pill.label}
+                  </button>
+                ))}
               </div>
 
-              {/* SEARCH & FILTERS */}
+              {/* FY + SEARCH (last) + ACTIONS */}
               <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-                <div className="relative flex-1 min-w-[180px]">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                  <input
-                    data-tour="dept-finance-search"
-                    type="text" placeholder="Search..."
-                    value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
-                  />
-                </div>
                 <div className="relative">
                   <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                   <select
@@ -1452,6 +1503,15 @@ export function DepartmentFinancePageV2() {
                       <option key={year} value={year}>{year}</option>
                     ))}
                   </select>
+                </div>
+                <div className="relative w-full sm:w-64 shrink-0">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input
+                    data-tour="dept-finance-search"
+                    type="text" placeholder="Search..."
+                    value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
+                  />
                 </div>
                 {activeTab === 'projected' && (
                   <>
@@ -1657,12 +1717,12 @@ export function DepartmentFinancePageV2() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div>
                         <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Requested</p>
-                        <p className="text-sm font-bold text-slate-900">{formatCurrency(financeData.annualRequest.requestedBudget)}</p>
+                        <p className="text-sm font-pmedium text-slate-900">{formatCurrency(financeData.annualRequest.requestedBudget)}</p>
                         <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-wider text-slate-400">Revision {Number(financeData.annualRequest.revision || 1)}</p>
                       </div>
                       <div>
                         <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Previous Spend</p>
-                        <p className="text-sm font-bold text-slate-500">{formatCurrency(financeData.annualRequest.previousSpend)}</p>
+                        <p className="text-sm font-pmedium text-slate-500">{formatCurrency(financeData.annualRequest.previousSpend)}</p>
                       </div>
                       <div>
                         <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Status</p>
@@ -1697,12 +1757,10 @@ export function DepartmentFinancePageV2() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
-                    {filteredMonthlyExpenses.map((month) => {
+                    {visibleMonths.map((month) => {
                       const monthExpenses = month.expenses || [];
                       const monthKeyNorm = String(month.monthKey || month.month || '').trim().toLowerCase();
                       const status = getFriendlyMonthStatus(deriveMonthLifecycle(monthKeyNorm, selectedFY), financeData?.status);
-                      const isExpanded = expandedMonthKey === monthKeyNorm;
-                      const toggleExpand = () => setExpandedMonthKey(isExpanded ? null : monthKeyNorm);
                       const approvedMonthExpenses = monthExpenses.filter((expense) => {
                         if (String(expense.expenseTag || '').toLowerCase() !== 'add-on') return true;
                         if (hasLinkedExtraRequests) {
@@ -1715,127 +1773,49 @@ export function DepartmentFinancePageV2() {
                       const projectedTotal = approvedMonthExpenses.reduce((sum, expense) => sum + Number(expense.projectedAmount || 0), 0);
                       const actualTotal = approvedMonthExpenses.reduce((sum, expense) => sum + Number(expense.actualSpent || 0), 0);
                       return (
-                        <Fragment key={month.monthKey || month.month}>
-                          <tr className="hover:bg-blue-50/30 transition-all align-top">
-                            <td className="px-5 py-4">
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0"><Building2 size={14} /></div>
-                                <div className="min-w-0">
-                                  <div className="font-pmedium text-slate-900 leading-tight truncate">
-                                    {monthLabels[month.monthKey] || month.month}{month.title ? ` (${month.title})` : ''}
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-5 py-4 font-pmedium text-slate-500">{approvedMonthExpenses.length} Item{approvedMonthExpenses.length === 1 ? '' : 's'}</td>
-                            <td className="px-5 py-4 font-pmedium text-slate-900 whitespace-nowrap">{formatCurrency(projectedTotal)}</td>
-                            <td className="px-5 py-4 font-pmedium text-emerald-600 whitespace-nowrap">{formatCurrency(actualTotal)}</td>
-                            <td className="px-5 py-4">
-                              <span className={status.className}>{status.label}</span>
-                            </td>
-                            <td className="px-5 py-4 text-center">
-                              {approvedMonthExpenses.length > 0 ? (
-                                <button
-                                  onClick={toggleExpand}
-                                  className="px-3 py-1.5 bg-white border border-slate-200/60 rounded-lg shadow-sm hover:bg-slate-50 text-[9px] font-pmedium uppercase tracking-widest text-slate-600 transition-all inline-flex items-center gap-1.5 whitespace-nowrap"
-                                  title="View All Expenses"
-                                >
-                                  <Eye size={12} /> {isExpanded ? 'Hide' : 'Details'}
-                                </button>
-                              ) : (
-                                <span className="text-slate-300">—</span>
-                              )}
-                            </td>
-                          </tr>
-                          {isExpanded && approvedMonthExpenses.length > 0 && (
-                            <tr>
-                              <td colSpan={6} className="px-5 pb-4 bg-slate-50/40">
-                                <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-                                  <table className="w-full text-left">
-                                    <thead className="bg-slate-50 text-[9px] font-pmedium text-slate-500 uppercase tracking-widest">
-                                      <tr>
-                                        <th className="px-4 py-2.5">Expense</th>
-                                        <th className="px-4 py-2.5">Projected</th>
-                                        <th className="px-4 py-2.5">Actual</th>
-                                        <th className="px-4 py-2.5">Payment</th>
-                                        <th className="px-4 py-2.5 text-right">Action</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                      {approvedMonthExpenses.map((expense) => (
-                                        <tr key={`expanded-${expense.id}`} className="hover:bg-blue-50/30 transition-all">
-                                          <td className="px-4 py-2.5">
-                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                              <span className="font-pmedium text-slate-900">{expense.title || 'Untitled'}</span>
-                                              {String(expense.expenseTag || '').toLowerCase() === 'add-on' && (
-                                                <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-amber-700">Extra Budget</span>
-                                              )}
-                                              {extraRequests.some((request: any) =>
-                                                String(request?.status || '').toLowerCase() === 'approved' &&
-                                                String(request?.type || '').toLowerCase() === 'increase' &&
-                                                String(request?.appliedExpenseId || '') === String((expense as any)?._id || '')) && (
-                                                <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-blue-700">Projection Increased</span>
-                                              )}
-                                              {(() => {
-                                                const over = Number(expense.actualSpent || 0) - Number(expense.projectedAmount || 0);
-                                                const approvedExtra = getApprovedExtraForMonth(month.monthKey || month.month);
-                                                if (over > 0.009 && approvedExtra + 0.009 >= over) {
-                                                  return (
-                                                    <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-blue-700">
-                                                      {formatCurrency(over)} via extra budget
-                                                    </span>
-                                                  );
-                                                }
-                                                return null;
-                                              })()}
-                                            </div>
-                                            {getExpenseInvoices(expense).length > 0 && (
-                                              <div className="text-[8px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">
-                                                {getExpenseInvoices(expense).length} invoice{getExpenseInvoices(expense).length === 1 ? '' : 's'}
-                                              </div>
-                                            )}
-                                          </td>
-                                          <td className="px-4 py-2.5 font-pmedium text-slate-700">
-                                            {(() => {
-                                              const approvedIncrease = extraRequests
-                                                .filter((request: any) =>
-                                                  String(request?.status || '').toLowerCase() === 'approved' &&
-                                                  String(request?.type || '').toLowerCase() === 'increase' &&
-                                                  String(request?.appliedExpenseId || '') === String((expense as any)?._id || ''))
-                                                .reduce((sum: number, request: any) => sum + Number(request?.amount || 0), 0);
-                                              if (approvedIncrease <= 0) return formatCurrency(expense.projectedAmount);
-                                              const originalProjection = Math.max(0, Number(expense.projectedAmount || 0) - approvedIncrease);
-                                              return <span title={`Current projection: ${formatCurrency(expense.projectedAmount)}`}>{formatCurrency(originalProjection)} <span className="text-blue-600">+ {formatCurrency(approvedIncrease)}</span></span>;
-                                            })()}
-                                          </td>
-                                          <td className="px-4 py-2.5 font-pmedium text-slate-700">{formatCurrency(expense.actualSpent)}</td>
-                                          <td className="px-4 py-2.5">
-                                            <span className={statusPillClass(formatFinancePaymentStatus(expense.paymentStatus, 'Unpaid'))}>{formatFinancePaymentStatus(expense.paymentStatus, 'Unpaid')}</span>
-                                          </td>
-                                          <td className="px-4 py-2.5 text-right">
-                                            <button
-                                              onClick={() => setViewingExpense({ month, expense })}
-                                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
-                                              title="View Details"
-                                            >
-                                              <Eye size={14} strokeWidth={2.5} />
-                                            </button>
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </Fragment>
+                        <tr key={month.monthKey || month.month} className="hover:bg-slate-50/50 transition-colors group">
+                          <td className="px-5 py-4 font-pmedium text-slate-900 truncate">
+                            {monthLabels[month.monthKey] || month.month}{month.title ? ` (${month.title})` : ''}
+                          </td>
+                          <td className="px-5 py-4 font-pmedium text-slate-500">{approvedMonthExpenses.length} Item{approvedMonthExpenses.length === 1 ? '' : 's'}</td>
+                          <td className="px-5 py-4 font-pmedium text-slate-900 whitespace-nowrap">{formatCurrency(projectedTotal)}</td>
+                          <td className="px-5 py-4 font-pmedium text-emerald-600 whitespace-nowrap">{formatCurrency(actualTotal)}</td>
+                          <td className="px-5 py-4">
+                            <span className={status.className}>{status.label}</span>
+                          </td>
+                          <td className="px-5 py-4 text-center">
+                            {approvedMonthExpenses.length > 0 ? (
+                              <button
+                                onClick={() => navigate(
+                                  `${FM_LIST_PATH}/review/annual/${encodeURIComponent(financeData?.annualRequest?.id || '')}/month/${encodeURIComponent(monthKeyNorm)}`,
+                                  {
+                                    state: {
+                                      month: { key: monthKeyNorm, label: monthLabels[month.monthKey] || month.month, title: month.title || '', projected: projectedTotal, actualSpent: actualTotal, expenses: approvedMonthExpenses },
+                                      request: { department: financeData?.department || financeData?.annualRequest?.department || '' },
+                                      reviewer: 'financeManager',
+                                      revealPaymentColumns: true,
+                                      extraRequests,
+                                      fiscalYear: selectedFY,
+                                      requestId: financeData?.annualRequest?.id || '',
+                                    },
+                                  },
+                                )}
+                                className="mx-auto flex items-center justify-center p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm"
+                                title="View Month Expenses"
+                              >
+                                <Eye size={14} />
+                              </button>
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </td>
+                        </tr>
                       );
                     })}
-                    {filteredMonthlyExpenses.length === 0 && (
+                    {visibleMonths.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-semibold">
-                          No monthly plan found for this fiscal year.
+                        <td colSpan={6} className="text-center py-16 text-slate-400 font-pmedium text-xs">
+                          {filteredMonthlyExpenses.length === 0 ? 'No monthly plan found for this fiscal year.' : 'No months match this filter.'}
                         </td>
                       </tr>
                     )}
@@ -1858,21 +1838,21 @@ export function DepartmentFinancePageV2() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
-                    {extraRequestsFiltered.map((request) => (
-                      <tr key={request.id} className="hover:bg-blue-50/30 transition-all">
+                    {visibleExtraRequests.map((request) => (
+                      <tr key={request.id} className="hover:bg-slate-50/50 transition-colors group">
                         <td className="px-5 py-4 font-pmedium text-slate-900">{monthLabels[request.monthKey] || request.month}</td>
-                        <td className="px-5 py-4 font-pmedium text-slate-700">{formatCurrency(request.amount)}</td>
-                        <td className="px-5 py-4 text-xs text-slate-600 max-w-[300px] truncate">{request.reason || '-'}</td>
+                        <td className="px-5 py-4 font-pmedium text-slate-900">{formatCurrency(request.amount)}</td>
+                        <td className="px-5 py-4 text-xs font-pmedium text-slate-600 max-w-[300px] truncate">{request.reason || '-'}</td>
                         <td className="px-5 py-4">
                           <span className={statusPillClass(request.status)}>{request.status}</span>
                         </td>
                         <td className="px-5 py-4 font-pmedium text-slate-700">{request.createdAt || 'N/A'}</td>
                       </tr>
                     ))}
-                    {extraRequestsFiltered.length === 0 && (
+                    {visibleExtraRequests.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="px-6 py-16 text-center text-slate-400 font-semibold">
-                          No extra budget requests submitted for this fiscal year.
+                        <td colSpan={5} className="text-center py-16 text-slate-400 font-pmedium text-xs">
+                          No extra budget requests match this filter.
                         </td>
                       </tr>
                     )}
@@ -1900,7 +1880,7 @@ export function DepartmentFinancePageV2() {
                       const invoices = getExpenseInvoices(expense);
                       const saved = Math.max(0, Number(expense.projectedAmount || 0) - Number(expense.actualSpent || 0));
                       return (
-                        <tr key={`${month.monthKey}-${expense.id}`} className="hover:bg-blue-50/30 transition-all align-top">
+                        <tr key={`${month.monthKey}-${expense.id}`} className="hover:bg-slate-50/50 transition-colors group">
                           <td className="px-5 py-4 font-pmedium text-slate-900">{monthLabels[month.monthKey] || month.month}</td>
                           <td className="px-5 py-4">
                             <div className="font-pmedium text-slate-900">{expense.title || 'Untitled'}</div>
@@ -1930,10 +1910,10 @@ export function DepartmentFinancePageV2() {
                           <td className="px-5 py-4 text-center">
                             <button
                               onClick={() => setViewingExpense({ month, expense })}
-                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
+                              className="mx-auto flex items-center justify-center p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm"
                               title="View Details"
                             >
-                              <Eye size={15} strokeWidth={2.5} />
+                              <Eye size={14} />
                             </button>
                           </td>
                         </tr>
@@ -1941,7 +1921,7 @@ export function DepartmentFinancePageV2() {
                     })}
                     {paidExpenseHistory.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-semibold">
+                        <td colSpan={6} className="text-center py-16 text-slate-400 font-pmedium text-xs">
                           No paid expenses yet.
                         </td>
                       </tr>
@@ -1961,18 +1941,18 @@ export function DepartmentFinancePageV2() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
           <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+              <h2 className="text-xl font-pmedium text-slate-900 flex items-center gap-2">
                 <Receipt size={20} className="text-[#2563EB]" /> Expense Details
               </h2>
-              <button onClick={() => setViewingExpense(null)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm">
-                <X size={16} />
+              <button onClick={() => setViewingExpense(null)} className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110" aria-label="Close">
+                <X size={18} />
               </button>
             </div>
             <div className="p-4 sm:p-6 lg:p-8 overflow-y-auto bg-white space-y-5">
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
                   <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Month</p>
-                  <p className="text-lg font-black text-slate-900">
+                  <p className="text-lg font-pmedium text-slate-900">
                     {monthLabels[viewingExpense.month.monthKey] || viewingExpense.month.month}
                   </p>
                 </div>
@@ -1986,7 +1966,7 @@ export function DepartmentFinancePageV2() {
               <div className="space-y-4">
                 <div>
                   <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Title</p>
-                  <p className="text-sm font-bold text-slate-900">{viewingExpense.expense.title || 'Untitled'}</p>
+                  <p className="text-sm font-pmedium text-slate-900">{viewingExpense.expense.title || 'Untitled'}</p>
                 </div>
                 {viewingExpense.expense.description && (
                   <div>
@@ -1999,19 +1979,19 @@ export function DepartmentFinancePageV2() {
                 <div className="grid grid-cols-2 gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <div>
                     <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Projected</p>
-                    <p className="text-lg font-black text-slate-900">{formatCurrency(viewingExpense.expense.projectedAmount)}</p>
+                    <p className="text-lg font-pmedium text-slate-900">{formatCurrency(viewingExpense.expense.projectedAmount)}</p>
                   </div>
                   <div>
                     <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Vendor Actual</p>
-                    <p className="text-lg font-black text-slate-900">{formatCurrency(viewingExpense.expense.actualSpent)}</p>
+                    <p className="text-lg font-pmedium text-slate-900">{formatCurrency(viewingExpense.expense.actualSpent)}</p>
                   </div>
                   {(() => {
                     const invoiced = getExpenseInvoices(viewingExpense.expense).reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0);
                     const difference = Number(viewingExpense.expense.actualSpent || 0) - invoiced;
                     return (
                       <>
-                        <div><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Total Invoiced</p><p className="text-lg font-black text-slate-900">{formatCurrency(invoiced)}</p></div>
-                        <div><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Difference</p><p className={`text-lg font-black ${difference < -0.009 ? 'text-red-600' : difference > 0.009 ? 'text-amber-600' : 'text-emerald-600'}`}>{formatCurrency(Math.abs(difference))}{difference < -0.009 ? ' over' : difference > 0.009 ? ' remaining' : ' matched'}</p></div>
+                        <div><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Total Invoiced</p><p className="text-lg font-pmedium text-slate-900">{formatCurrency(invoiced)}</p></div>
+                        <div><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Difference</p><p className={`text-lg font-pmedium ${difference < -0.009 ? 'text-red-600' : difference > 0.009 ? 'text-amber-600' : 'text-emerald-600'}`}>{formatCurrency(Math.abs(difference))}{difference < -0.009 ? ' over' : difference > 0.009 ? ' remaining' : ' matched'}</p></div>
                       </>
                     );
                   })()}
@@ -2037,7 +2017,7 @@ export function DepartmentFinancePageV2() {
                         return (
                           <div key={invoice.invoiceKey} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                             <div>
-                              <p className="text-sm font-bold text-slate-900">{invoice.invoiceNumber}</p>
+                              <p className="text-sm font-pmedium text-slate-900">{invoice.invoiceNumber}</p>
                               <p className="mt-0.5 text-[10px] text-slate-500">{formatCurrency(invoice.amount)}{invoice.uploadedAtLabel ? ` • ${invoice.uploadedAtLabel}` : ''}</p>
                             </div>
                             {url && <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-pmedium uppercase tracking-wider text-blue-700 transition-colors hover:bg-blue-100"><FileText size={12} /> View</a>}
@@ -2051,7 +2031,7 @@ export function DepartmentFinancePageV2() {
                   <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Vendor</p>
                   {viewingExpense.expense.vendorName ? (
                     <div className="space-y-3">
-                      <p className="text-sm font-bold text-slate-900">{viewingExpense.expense.vendorName}</p>
+                      <p className="text-sm font-pmedium text-slate-900">{viewingExpense.expense.vendorName}</p>
                       {canRecordAdditionalPayment && (
                         <div className="space-y-2 rounded-xl border border-blue-200 bg-blue-50/60 p-3">
                           <p className="text-[10px] font-pmedium uppercase tracking-wider text-blue-700">
@@ -2196,10 +2176,10 @@ export function DepartmentFinancePageV2() {
               </div>
               <div className="space-y-4 p-5">
                 <div className="grid grid-cols-2 gap-3 rounded-xl border border-blue-100 bg-blue-50 p-3">
-                  <div><p className="text-[9px] uppercase tracking-widest text-blue-500">Approved Projection</p><p className="mt-1 text-sm font-bold text-blue-900">{formatCurrency(invoiceTarget.expense.projectedAmount)}</p></div>
-                  <div><p className="text-[9px] uppercase tracking-widest text-blue-500">Vendor Actual</p><p className="mt-1 text-sm font-bold text-blue-900">{formatCurrency(invoiceVendorActual)}</p></div>
-                  <div><p className="text-[9px] uppercase tracking-widest text-blue-500">Already Invoiced</p><p className="mt-1 text-sm font-bold text-blue-900">{formatCurrency(invoiceExistingTotal)}</p></div>
-                  <div><p className="text-[9px] uppercase tracking-widest text-blue-500">Remaining to Invoice</p><p className="mt-1 text-sm font-bold text-blue-900">{formatCurrency(Math.max(0, invoiceLimit - invoiceExistingTotal))}</p></div>
+                  <div><p className="text-[9px] uppercase tracking-widest text-blue-500">Approved Projection</p><p className="mt-1 text-sm font-pmedium text-blue-900">{formatCurrency(invoiceTarget.expense.projectedAmount)}</p></div>
+                  <div><p className="text-[9px] uppercase tracking-widest text-blue-500">Vendor Actual</p><p className="mt-1 text-sm font-pmedium text-blue-900">{formatCurrency(invoiceVendorActual)}</p></div>
+                  <div><p className="text-[9px] uppercase tracking-widest text-blue-500">Already Invoiced</p><p className="mt-1 text-sm font-pmedium text-blue-900">{formatCurrency(invoiceExistingTotal)}</p></div>
+                  <div><p className="text-[9px] uppercase tracking-widest text-blue-500">Remaining to Invoice</p><p className="mt-1 text-sm font-pmedium text-blue-900">{formatCurrency(Math.max(0, invoiceLimit - invoiceExistingTotal))}</p></div>
                 </div>
                 <div><label className="mb-1.5 block text-[10px] uppercase tracking-widest text-slate-500">Invoice Number *</label><input value={invoiceForm.invoiceNumber} onChange={(e) => setInvoiceForm((prev) => ({ ...prev, invoiceNumber: e.target.value }))} maxLength={120} placeholder="Example: INV-2026-0042" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100" /></div>
                 <div>
@@ -2530,7 +2510,7 @@ export function DepartmentFinancePageV2() {
               </div>
               <div className="flex-1 overflow-y-auto overflow-x-auto font-pmedium">
                 <table className="w-full min-w-[700px] text-left">
-                  <thead className="border-b border-slate-100/60 bg-slate-50/50 text-[10px] uppercase tracking-widest text-slate-500">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Vendor Name</th>
                       <th className="px-5 py-4">Contact Person</th>
@@ -2542,30 +2522,30 @@ export function DepartmentFinancePageV2() {
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
                     {vendors.map((vendor) => (
-                      <tr key={vendor.id} className="transition-all hover:bg-blue-50/30">
+                      <tr key={vendor.id} className="hover:bg-slate-50/50 transition-colors group">
                         <td className="px-5 py-4">
-                          <div className="text-slate-900">{vendor.name}</div>
-                          {vendor.email && <div className="mt-0.5 text-[9px] text-slate-400">{vendor.email}</div>}
+                          <div className="font-pmedium text-slate-900">{vendor.name}</div>
+                          {vendor.email && <div className="mt-0.5 text-[9px] font-pmedium text-slate-400">{vendor.email}</div>}
                         </td>
-                        <td className="px-5 py-4 text-slate-700">{vendor.contactPerson || '-'}</td>
-                        <td className="px-5 py-4 text-slate-700">{vendor.phone || '-'}</td>
-                        <td className="px-5 py-4 text-slate-700">{vendor.category || '-'}</td>
-                        <td className="px-5 py-4 text-slate-700">{vendor.paymentTerms || '-'}</td>
+                        <td className="px-5 py-4 font-pmedium text-slate-700">{vendor.contactPerson || '-'}</td>
+                        <td className="px-5 py-4 font-pmedium text-slate-700">{vendor.phone || '-'}</td>
+                        <td className="px-5 py-4 font-pmedium text-slate-700">{vendor.category || '-'}</td>
+                        <td className="px-5 py-4 font-pmedium text-slate-700">{vendor.paymentTerms || '-'}</td>
                         <td className="px-5 py-4 text-center">
                           <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => openEditVendor(vendor)}
-                              className="rounded-lg bg-slate-100 p-1.5 text-slate-600 transition-all hover:bg-emerald-100 hover:text-emerald-700"
+                              className="flex items-center justify-center p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm"
                               title="Edit Vendor"
                             >
-                              <Pencil size={15} strokeWidth={2.5} />
+                              <Pencil size={14} />
                             </button>
                             <button
                               onClick={() => setViewingVendor(vendor)}
-                              className="rounded-lg bg-slate-100 p-1.5 text-slate-600 transition-all hover:bg-blue-100 hover:text-blue-700"
+                              className="flex items-center justify-center p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm"
                               title="View Details"
                             >
-                              <Eye size={15} strokeWidth={2.5} />
+                              <Eye size={14} />
                             </button>
                           </div>
                         </td>
@@ -2573,7 +2553,7 @@ export function DepartmentFinancePageV2() {
                     ))}
                     {vendors.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="px-6 py-16 text-center text-slate-400">
+                        <td colSpan={6} className="text-center py-16 text-slate-400 font-pmedium text-xs">
                           No vendors registered.
                         </td>
                       </tr>
@@ -2608,9 +2588,10 @@ export function DepartmentFinancePageV2() {
                 <button
                   type="button"
                   onClick={closeVendorForm}
-                  className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:text-slate-700"
+                  className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110"
+                  aria-label="Close"
                 >
-                  <X size={15} />
+                  <X size={18} />
                 </button>
               </div>
               <form onSubmit={(e) => { e.preventDefault(); handleSubmitVendor(); }} className="flex-1 space-y-4 overflow-y-auto p-5 font-pmedium">
@@ -2632,7 +2613,7 @@ export function DepartmentFinancePageV2() {
                     { key: 'website', label: 'Website', type: 'text' },
                   ].map((field) => (
                     <div key={field.key}>
-                      <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-slate-500">{field.label}</label>
+                      <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-500">{field.label}</label>
                       <input
                         type={field.type}
                         value={(vendorForm as any)[field.key]}
@@ -2646,10 +2627,10 @@ export function DepartmentFinancePageV2() {
                             setVendorFormErrors((prev) => ({ ...prev, [field.key]: fieldError || '' }));
                           }
                         }}
-                        className={`w-full rounded-xl border px-3 py-2.5 text-[12px] outline-none transition-all focus:ring-2 ${
+                        className={`w-full px-3 py-2.5 rounded-xl text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:bg-white focus:ring-4 ${
                           vendorFormErrors[field.key]
-                            ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
-                            : 'border-slate-200 focus:border-[#2563EB] focus:ring-blue-100'
+                            ? 'bg-red-50 border border-red-300 focus:border-red-400 focus:ring-red-100'
+                            : 'bg-slate-50 border border-slate-200 focus:border-[#2563EB] focus:ring-blue-500/10'
                         }`}
                       />
                       {vendorFormErrors[field.key] && (
@@ -2659,21 +2640,21 @@ export function DepartmentFinancePageV2() {
                   ))}
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-slate-500">Address</label>
+                  <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Address</label>
                   <textarea
                     value={vendorForm.address}
                     onChange={(e) => setVendorForm((prev) => ({ ...prev, address: e.target.value }))}
                     rows={2}
-                    className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                    className="w-full resize-none rounded-xl bg-slate-50 border border-slate-200 px-3 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10"
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-slate-500">Notes</label>
+                  <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Notes</label>
                   <textarea
                     value={vendorForm.notes}
                     onChange={(e) => setVendorForm((prev) => ({ ...prev, notes: e.target.value }))}
                     rows={2}
-                    className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                    className="w-full resize-none rounded-xl bg-slate-50 border border-slate-200 px-3 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10"
                   />
                 </div>
                 <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">

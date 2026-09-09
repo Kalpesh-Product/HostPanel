@@ -931,16 +931,52 @@ export default function TenantCompanyDetailPage() {
 
                       <div>
                         {(() => {
+                          // Real seat codes (e.g. "ODS-701A-12") come straight from the
+                          // tenant's actual ResourceSeat assignments — prefer these over
+                          // synthesizing placeholder labels from a bare count.
+                          const realSeatLabels = Array.isArray(tenant.spaceAssigned?.assignedSeats)
+                            ? tenant.spaceAssigned.assignedSeats.filter(Boolean)
+                            : [];
                           const cabinDesks = getCabinDesksCount(tenant);
                           const openDesks = getOpenDesksCount(tenant);
 
-                          // Priority: if cabin desks exist, show CDS*.
-                          // Else if open desks exist, show ODS*.
+                          if (realSeatLabels.length > 0) {
+                            const cabinLabels = realSeatLabels.filter((label) => /^cds/i.test(label));
+                            const openLabels = realSeatLabels.filter((label) => /^ods/i.test(label));
+                            const otherLabels = realSeatLabels.filter((label) => !/^cds/i.test(label) && !/^ods/i.test(label));
+                            const seatChip = (label, colorClass) => (
+                              <span key={label} className={`inline-flex rounded-full border px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest ${colorClass}`}>
+                                {label}
+                              </span>
+                            );
+                            return (
+                              <div className="space-y-3">
+                                {cabinLabels.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {cabinLabels.map((l) => seatChip(l, 'border-violet-200 bg-violet-50 text-violet-700'))}
+                                  </div>
+                                )}
+                                {openLabels.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {openLabels.map((l) => seatChip(l, 'border-blue-200 bg-blue-50 text-blue-700'))}
+                                  </div>
+                                )}
+                                {otherLabels.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {otherLabels.map((l) => seatChip(l, 'border-slate-200 bg-slate-50 text-slate-700'))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          }
+
+                          // Legacy fallback: this tenant has desk counts but no seat
+                          // records yet (onboarded before per-seat tracking existed) —
+                          // show placeholder codes rather than nothing.
                           if (cabinDesks > 0) {
                             const labels = getDeskLabels('CDS', cabinDesks);
                             return (
                               <div>
-                                {/* <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Cabin Desks</p> */}
                                 <div className="flex flex-wrap gap-1.5 mt-1">
                                   {labels.map((l) => (
                                     <span key={l} className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-violet-700">
@@ -956,7 +992,6 @@ export default function TenantCompanyDetailPage() {
                             const labels = getDeskLabels('ODS', openDesks);
                             return (
                               <div>
-                                {/* <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Open Desks</p> */}
                                 <div className="flex flex-wrap gap-1.5 mt-1">
                                   {labels.map((l) => (
                                     <span key={l} className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">

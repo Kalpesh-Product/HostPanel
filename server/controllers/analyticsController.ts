@@ -1,6 +1,8 @@
 // @ts-nocheck
 import { Request, Response } from "express";
 import mongoose from "mongoose";
+import axios from "axios";
+import HostCompany from "../models/Company.js";
 import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import { MemberInvite } from "../models/MemberInvite.js";
@@ -887,6 +889,119 @@ const MODULE_STAT_PROVIDERS: Record<string, ProviderFn> = {
     };
   },
 
+  // Nomad Listings (wono-nomad): listings live on the external Nomads
+  // backend, not in a local collection — so counts come from the same
+  // get-listings endpoint the Listings page reads. Any backend hiccup should
+  // never break the whole analytics payload, so failures degrade to zeros.
+  "wono-nomad": async ({ objectId, since30 }) => {
+    const workspace = await Workspace.findById(objectId).select("companyId").lean().exec();
+    const companyId = String(workspace?.companyId || "").trim();
+    if (!companyId) {
+      return {
+        totalRecords: 0,
+        activeLast30Days: 0,
+        openItems: 0,
+        completionRate: null,
+        kpis: [
+          { label: "Listings", value: 0 },
+          { label: "Active", value: 0 },
+          { label: "Deleted", value: 0 },
+        ],
+        breakdown: [],
+        monthly: [],
+      };
+    }
+
+    let listings = [];
+    try {
+      const response = await axios.get(
+        `${String(process.env.REVIEW_API_BASE_URL || "https://wono.co").replace(/\/+$/, "")}/api/company/get-listings/${encodeURIComponent(companyId)}`,
+        { params: { t: Date.now() }, timeout: 5000 },
+      );
+      listings = Array.isArray(response.data) ? response.data : [];
+    } catch {
+      listings = [];
+    }
+
+    const nonDeleted = listings.filter((listing) => !listing?.isDeleted);
+    const active = nonDeleted.filter((listing) => listing?.isActive).length;
+    const deleted = listings.length - nonDeleted.length;
+    const typeUsage = new Map();
+    nonDeleted.forEach((listing) => {
+      const type = String(listing?.companyType || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (type) typeUsage.set(type, (typeUsage.get(type) || 0) + 1);
+    });
+    const addedRecently = nonDeleted.filter((listing) => {
+      const created = listing?.createdAt || listing?.timestamps?.createdAt;
+      return created ? new Date(created).getTime() >= since30.getTime() : false;
+    }).length;
+
+    return {
+      totalRecords: nonDeleted.length,
+      activeLast30Days: addedRecently,
+      openItems: Math.max(0, nonDeleted.length - active),
+      completionRate: null,
+      kpis: [
+        { label: "Listings", value: nonDeleted.length },
+        { label: "Active", value: active },
+        { label: "Inactive", value: Math.max(0, nonDeleted.length - active) },
+        { label: "Product types", value: typeUsage.size },
+      ],
+      breakdown: [
+        { label: "Active", value: active },
+        { label: "Inactive", value: Math.max(0, nonDeleted.length - active) },
+      ].filter((segment) => segment.value > 0),
+      secondaryBreakdown: Array.from(typeUsage.entries())
+        .map(([label, value]) => ({ label, value }))
+        .sort((a, b) => b.value - a.value),
+    };
+  },
+
+  // Unit Settings (workspace-settings): configuration data lives on the
+  // Workspace document itself — profile fields, preferences and enabled
+  // modules. Track how much of the unit profile is actually configured.
+  "workspace-settings": async ({ objectId }) => {
+    const workspace = await Workspace.findById(objectId).lean().exec();
+    const prefs = workspace?.preferences || {};
+    const profileFields = [
+      Boolean(workspace?.businessName),
+      Boolean(workspace?.brandName),
+      Boolean(workspace?.city),
+      Boolean(workspace?.state),
+      Boolean(workspace?.country),
+      Boolean(workspace?.address),
+    ];
+    const preferenceFields = [
+      Boolean(prefs?.timezone && prefs.timezone !== "Asia/Kolkata"),
+      Boolean(prefs?.currency && prefs.currency !== "INR"),
+      Boolean(prefs?.businessHours),
+      Boolean(prefs?.billingCustomized),
+    ];
+    const brandingFields = [
+      Boolean(workspace?.branding?.logoUrl),
+      Boolean(workspace?.branding?.primaryColor && workspace.branding.primaryColor !== "#2563EB"),
+    ];
+    const configuredFields = [...profileFields, ...preferenceFields, ...brandingFields].filter(Boolean).length;
+    const totalFields = profileFields.length + preferenceFields.length + brandingFields.length;
+
+    return {
+      totalRecords: configuredFields,
+      activeLast30Days: 0,
+      openItems: totalFields - configuredFields,
+      completionRate: totalFields > 0 ? Math.round((configuredFields / totalFields) * 100) : null,
+      kpis: [
+        { label: "Profile fields set", value: configuredFields },
+        { label: "Available fields", value: totalFields },
+        { label: "Unit name", value: workspace?.workspaceName || "--" },
+        { label: "Currency", value: prefs?.currency || "--" },
+      ],
+      breakdown: [
+        { label: "Configured", value: configuredFields },
+        { label: "Remaining", value: totalFields - configuredFields },
+      ].filter((segment) => segment.value > 0),
+    };
+  },
+
   "visitors-management": async ({ objectId, since30 }) => {
     const base = { workspace: objectId };
     const startOfToday = new Date();
@@ -1724,8 +1839,6 @@ DEPT_BREAKDOWN_SOURCES["it-repair-logs"] = DEPT_BREAKDOWN_SOURCES["maintenance-r
 // (config screens, external integrations, orchestration pages).
 const NON_TRACKABLE_MODULE_IDS = new Set([
   "dashboard",
-  "workspace-settings",
-  "wono-nomad",
   "sales-architecture",
 ]);
 

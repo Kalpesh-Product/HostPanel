@@ -487,4 +487,19 @@ export async function getAssignedSeatCountsForTenant(workspaceId: string, tenant
     return counts;
 }
 
+// Releases every seat currently assigned to a tenant, regardless of floor or
+// wing — used when a tenant company becomes inactive (contract expired) so
+// its desks go back to the vacant pool instead of permanently blocking new
+// tenants from that location.
+export async function releaseAllSeatsForTenant(workspaceId: string, tenantCompanyId: string) {
+    const result = await ResourceSeat.updateMany(
+        {
+            workspaceId: new mongoose.Types.ObjectId(workspaceId),
+            assignedTenantCompanyId: new mongoose.Types.ObjectId(tenantCompanyId),
+        },
+        { $set: { assignedTenantCompanyId: null, assignedTenantCompanyName: "", assignedAt: null } },
+    ).exec();
+    return result.modifiedCount;
+}
+
 export { emptySummary as emptySeatSummary };

@@ -2897,9 +2897,14 @@ export function TasksPage() {
                           ) : null}
                         </div>
 
+                        {getWorkflowKindForType(viewingTask.type || '') === 'progress' && (viewingTask.progress ?? 0) < 100 ? (
+                          <p className="text-[10px] font-pmedium text-slate-500">
+                            Set completion to 100% below to mark this task as completed.
+                          </p>
+                        ) : null}
                         <button
                           onClick={handleMarkCompleted}
-                          disabled={isSaving}
+                          disabled={isSaving || (getWorkflowKindForType(viewingTask.type || '') === 'progress' && (viewingTask.progress ?? 0) < 100)}
                           className="w-full py-3 sm:py-3.5 rounded-xl font-pmedium text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                           {isSaving ? 'UPDATING...' : 'Mark As Completed'}

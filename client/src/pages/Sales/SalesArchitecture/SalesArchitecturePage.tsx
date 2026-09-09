@@ -90,6 +90,18 @@ const buildResourceAreaGroups = (items = []) => {
   });
 };
 
+// The tenant record's real status has 5 values (Pending Setup, Pending Space
+// Assignment, Active, Expiring Soon, Expired) — this tab only needs the
+// simple tri-state a manager cares about for space assignment: Active (or
+// Expiring Soon, still live), Expired (contract ended), or Inactive (not yet
+// set up / no space assigned).
+function simplifiedTenantStatus(status) {
+  const s = String(status || "");
+  if (s === "Expired") return "Expired";
+  if (s === "Active" || s === "Expiring Soon") return "Active";
+  return "Inactive";
+}
+
 const getSeatLabels = (r = {}) => {
   const labels = Array.isArray(r.seatLabels) ? r.seatLabels.filter(Boolean) : [];
   if (labels.length > 0) return labels;
@@ -317,6 +329,12 @@ export default function SalesArchitecturePage() {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("architecture");
   const [viewTenantId, setViewTenantId] = useState("");
+  // Real per-seat labels actually assigned to the tenant being viewed, keyed
+  // by resourceId — a resource block can be shared across tenants, so its
+  // full seatLabels list (all possible seats) isn't specific enough; this
+  // holds only the seats within each resource that belong to this tenant.
+  const [viewTenantSeatsByResource, setViewTenantSeatsByResource] = useState({});
+  const [loadingViewTenantSeats, setLoadingViewTenantSeats] = useState(false);
   const [spaceFilter, setSpaceFilter] = useState("all"); // all | available | tenant | department | maintenance
   const [isDeptAssignModalOpen, setIsDeptAssignModalOpen] = useState(false);
   const [deptAssignSelectedId, setDeptAssignSelectedId] = useState("");
@@ -556,13 +574,15 @@ export default function SalesArchitecturePage() {
     const d = items.filter((r) => deskCats.has(r.resourceCategory));
     const deskTotals = d.reduce((acc, r) => {
       const c = deskSeatCounts(r);
+      acc.total += c.total || 0;
       acc.open += c.vacant || 0;
       acc.tenant += c.assignedToTenant || 0;
       acc.dept += c.assignedToDepartment || 0;
       return acc;
-    }, { open: 0, tenant: 0, dept: 0 });
+    }, { total: 0, open: 0, tenant: 0, dept: 0 });
     return {
       floor: f,
+      total: deskTotals.total,
       open: deskTotals.open,
       tenant: deskTotals.tenant,
       dept: deskTotals.dept,
@@ -579,11 +599,13 @@ export default function SalesArchitecturePage() {
       const c = deskSeatCounts(r);
       const existing = groups.get(key) || {
         floor: r.floor || "", wing: r.wing || "", resourceCategory: r.resourceCategory,
-        total: 0, assigned: 0, vacant: 0,
+        total: 0, assigned: 0, vacant: 0, assignedToTenant: 0, assignedToDepartment: 0,
       };
       existing.total += c.total || 0;
       existing.assigned += c.assigned || 0;
       existing.vacant += c.vacant || 0;
+      existing.assignedToTenant += c.assignedToTenant || 0;
+      existing.assignedToDepartment += c.assignedToDepartment || 0;
       groups.set(key, existing);
     });
     return Array.from(groups.values()).sort((a, b) => {
@@ -602,11 +624,13 @@ export default function SalesArchitecturePage() {
     deskSeatStatsByLocation.forEach((s) => {
       const key = `${s.floor}__${s.wing}`;
       const existing = groups.get(key) || {
-        floor: s.floor, wing: s.wing, total: 0, assigned: 0, vacant: 0, byCategory: {},
+        floor: s.floor, wing: s.wing, total: 0, assigned: 0, vacant: 0, assignedToTenant: 0, assignedToDepartment: 0, byCategory: {},
       };
       existing.total += s.total;
       existing.assigned += s.assigned;
       existing.vacant += s.vacant;
+      existing.assignedToTenant += s.assignedToTenant || 0;
+      existing.assignedToDepartment += s.assignedToDepartment || 0;
       existing.byCategory[s.resourceCategory] = { total: s.total, assigned: s.assigned, vacant: s.vacant };
       groups.set(key, existing);
     });
@@ -618,18 +642,62 @@ export default function SalesArchitecturePage() {
       });
   }, [deskSeatStatsByLocation]);
 
+  // Location-wide desk overview for the Architecture dashboard's top cards:
+  // total floors/wings in view, plus total/vacant/tenant/department desks
+  // summed across every floor+wing (i.e. across all of wingSeatStats).
+  const deskOverviewStats = useMemo(() => {
+    return wingSeatStats.reduce((acc, w) => {
+      acc.totalDesks += w.total;
+      acc.vacantDesks += w.vacant;
+      acc.tenantAssignedDesks += w.assignedToTenant || 0;
+      acc.deptAssignedDesks += w.assignedToDepartment || 0;
+      return acc;
+    }, {
+      totalFloors: availableFloors.length,
+      totalWings: availableWings.length,
+      totalDesks: 0,
+      vacantDesks: 0,
+      tenantAssignedDesks: 0,
+      deptAssignedDesks: 0,
+    });
+  }, [wingSeatStats, availableFloors, availableWings]);
+
+  // Full space-type breakdown for the Architecture tab's top card row: desks
+  // (open+cabin combined), meeting/conference rooms, and virtual offices each
+  // get a total + available count, plus desk assignment totals and overall
+  // maintenance count.
+  const topSpaceStats = useMemo(() => {
+    const availableBooking = bookingOnly.filter((r) => r.status === "Active").length;
+    const availableVO = voFiltered.filter((r) => !r.assignmentLabel && r.status === "Active").length;
+    return {
+      totalDesks: deskOverviewStats.totalDesks,
+      availableDesks: deskOverviewStats.vacantDesks,
+      totalBooking: bookingOnly.length,
+      availableBooking,
+      totalVO: voFiltered.length,
+      availableVO,
+      tenantAssignedDesks: deskOverviewStats.tenantAssignedDesks,
+      deptAssignedDesks: deskOverviewStats.deptAssignedDesks,
+      maintenance: floorStats.maintenance,
+    };
+  }, [deskOverviewStats, bookingOnly, voFiltered, floorStats.maintenance]);
+
   const tabAssignedGroups = useMemo(() => buildResourceAreaGroups(desks.filter((r) => r.assignmentLabel)), [desks]);
   const tabAvailableGroups = useMemo(() => buildResourceAreaGroups(desks.filter((r) => !r.assignmentLabel && r.status === "Active")), [desks]);
 
   const tenantAssignmentMap = useMemo(() => {
     const map = {};
+    const emptyEntry = (id, name) => ({ id, name, resources: [], seatCount: 0, openSeatCount: 0, cabinSeatCount: 0, locationLabels: new Set(), floors: new Set(), wings: new Set() });
     resources.filter((r) => r.assignmentType === "tenant").forEach((r) => {
       // Always stringify the ObjectId so the map key is consistent
       const id = String(r.assignedTenantCompanyId || "");
       if (!id) return;
-      if (!map[id]) map[id] = { id, name: r.assignedTenantCompanyName || "Unknown", resources: [], seatCount: 0, locationLabels: new Set(), floors: new Set(), wings: new Set() };
+      if (!map[id]) map[id] = emptyEntry(id, r.assignedTenantCompanyName || "Unknown");
       map[id].resources.push(r);
-      map[id].seatCount += Math.max(1, Number(r.capacity || 1));
+      const capacity = Math.max(1, Number(r.capacity || 1));
+      map[id].seatCount += capacity;
+      if (r.resourceCategory === "cabin_desk") map[id].cabinSeatCount += capacity;
+      else if (r.resourceCategory === "open_desk") map[id].openSeatCount += capacity;
       if (r.locationLabel) map[id].locationLabels.add(r.locationLabel);
       if (r.floor) map[id].floors.add(r.floor);
       if (r.wing) map[id].wings.add(r.wing);
@@ -640,9 +708,11 @@ export default function SalesArchitecturePage() {
       const resource = resources.find((r) => String(r.recordId || r.id) === row.resourceId);
       if (!resource) return;
       const id = String(row.tenantCompanyId);
-      if (!map[id]) map[id] = { id, name: row.tenantCompanyName || "Unknown", resources: [], seatCount: 0, locationLabels: new Set(), floors: new Set(), wings: new Set() };
+      if (!map[id]) map[id] = emptyEntry(id, row.tenantCompanyName || "Unknown");
       if (!map[id].resources.some((r) => String(r.recordId || r.id) === row.resourceId)) map[id].resources.push(resource);
       map[id].seatCount += row.seatCount;
+      if (resource.resourceCategory === "cabin_desk") map[id].cabinSeatCount += row.seatCount;
+      else if (resource.resourceCategory === "open_desk") map[id].openSeatCount += row.seatCount;
       if (resource.locationLabel) map[id].locationLabels.add(resource.locationLabel);
       if (resource.floor) map[id].floors.add(resource.floor);
       if (resource.wing) map[id].wings.add(resource.wing);
@@ -674,6 +744,42 @@ export default function SalesArchitecturePage() {
       };
     });
   }, [tenants, tenantAssignmentMap]);
+
+  // The tenant-detail modal (renderTenants) needs to show exactly which seat
+  // numbers this tenant holds — a shared desk resource's own seatLabels list
+  // covers every seat in the block, not just this tenant's subset, so fetch
+  // the real per-seat assignment for each resource the tenant appears in.
+  useEffect(() => {
+    if (!viewTenantId) {
+      setViewTenantSeatsByResource({});
+      return undefined;
+    }
+    const viewTenant = tenantsWithPackages.find((t) => String(t.recordId || t.id) === viewTenantId);
+    const resourceIds = (viewTenant?.assignment?.resources || [])
+      .filter((r) => r.resourceCategory === "open_desk" || r.resourceCategory === "cabin_desk")
+      .map((r) => String(r.recordId || r.id));
+
+    if (resourceIds.length === 0) {
+      setViewTenantSeatsByResource({});
+      return undefined;
+    }
+
+    let cancelled = false;
+    setLoadingViewTenantSeats(true);
+    Promise.all(resourceIds.map((resourceId) => getResourceSeats(resourceId).then((res) => [resourceId, res?.data?.data?.seats || []])))
+      .then((entries) => {
+        if (cancelled) return;
+        const byResource = {};
+        entries.forEach(([resourceId, seats]) => {
+          byResource[resourceId] = seats.filter((seat) => String(seat.assignedTenantCompanyId) === viewTenantId);
+        });
+        setViewTenantSeatsByResource(byResource);
+      })
+      .catch(() => { if (!cancelled) setViewTenantSeatsByResource({}); })
+      .finally(() => { if (!cancelled) setLoadingViewTenantSeats(false); });
+
+    return () => { cancelled = true; };
+  }, [viewTenantId, tenantsWithPackages]);
 
   const deptAssignmentMap = useMemo(() => {
     const map = {};
@@ -1007,27 +1113,31 @@ export default function SalesArchitecturePage() {
 
       {renderFilterBar(true)}
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 shrink-0">
+      <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-4 gap-2 mb-3 shrink-0">
         {[
-          { icon: LayoutGrid, label: "Total Spaces", value: floorStats.total, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', iconClass: 'bg-slate-50 text-slate-600' },
-          { icon: DoorOpen, label: "Available", value: floorStats.available, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600' },
-          { icon: Building2, label: "Tenant Assigned", value: floorStats.tenantAssigned, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-indigo-500', iconClass: 'bg-indigo-50 text-indigo-600' },
-          { icon: Briefcase, label: "Dept Assigned", value: floorStats.deptAssigned, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', iconClass: 'bg-amber-50 text-amber-600' },
-          { icon: Wrench, label: "Maintenance", value: floorStats.maintenance, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-slate-500', iconClass: 'bg-slate-100 text-slate-600' },
+          { icon: Monitor, label: "Total Desks", value: topSpaceStats.totalDesks, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md', iconClass: 'bg-slate-50 text-slate-600' },
+          { icon: DoorOpen, label: "Available Desks", value: topSpaceStats.availableDesks, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600' },
+          { icon: Presentation, label: "Meeting & Conference", value: topSpaceStats.totalBooking, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-fuchsia-500', iconClass: 'bg-fuchsia-50 text-fuchsia-600' },
+          { icon: CalendarClock, label: "M&C Available", value: topSpaceStats.availableBooking, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-fuchsia-300', iconClass: 'bg-fuchsia-50 text-fuchsia-500' },
+          { icon: Building, label: "Virtual Offices", value: topSpaceStats.totalVO, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-teal-500', iconClass: 'bg-teal-50 text-teal-600' },
+          { icon: DoorOpen, label: "VO Available", value: topSpaceStats.availableVO, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-teal-300', iconClass: 'bg-teal-50 text-teal-500' },
+          { icon: Building2, label: "Tenant Assigned Desks", value: topSpaceStats.tenantAssignedDesks, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-indigo-500', iconClass: 'bg-indigo-50 text-indigo-600' },
+          { icon: Briefcase, label: "Dept Assigned Desks", value: topSpaceStats.deptAssignedDesks, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-amber-500', iconClass: 'bg-amber-50 text-amber-600' },
+          { icon: Wrench, label: "Maintenance", value: topSpaceStats.maintenance, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-slate-500', iconClass: 'bg-slate-100 text-slate-600' },
         ].map(({ icon: Icon, label, value, cardClass, iconClass }) => (
           <div key={label} className={cardClass}>
             <div className="min-w-0">
-              <p className={`text-[10px] font-pmedium ${statTextClassFor(iconClass)} uppercase tracking-widest mb-1`}>{label}</p>
-              <p className={`text-[15px] font-pmedium ${statTextClassFor(iconClass)}`}>{value}</p>
+              <p className={`text-[8px] leading-tight font-pmedium ${statTextClassFor(iconClass)} uppercase tracking-wide mb-1`}>{label}</p>
+              <p className={`text-[13px] font-pmedium ${statTextClassFor(iconClass)}`}>{value}</p>
             </div>
-            <div className={`p-2 rounded-2xl ${iconClass} shrink-0`}><Icon size={16} /></div>
+            <div className={`p-1.5 rounded-xl ${iconClass} shrink-0`}><Icon size={14} /></div>
           </div>
         ))}
       </div>
 
       <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-        <div className="p-3 sm:p-4 lg:p-1 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 bg-slate-50/50">
-          <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden w-full xl:w-auto">
+        <div className="p-3 sm:p-4 lg:p-1 border-b border-slate-100/60 flex flex-col gap-3 bg-slate-50/50">
+          <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden w-full">
             {[
               { key: "map", label: "Floor Map" },
               { key: "dashboard", label: "Dashboard" },
@@ -1039,7 +1149,7 @@ export default function SalesArchitecturePage() {
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-2 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-2 w-full flex-wrap sm:flex-nowrap">
             <div className="relative flex-1 min-w-[180px]">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
               <input type="text" placeholder="Search space, tenant..."
@@ -1129,23 +1239,23 @@ export default function SalesArchitecturePage() {
               <h2 className="text-[15px] font-pmedium text-primary">{selectedBuilding} Floor {selectedFloor}</h2>
               <p className="text-[12px] font-pmedium text-slate-500 mt-1">Utilization: <span className="font-pmedium text-blue-600">{usagePct}%</span> ({floorStats.assigned}/{floorStats.total} seats assigned)</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
-                <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-3">Floor Inventory</p>
-                <p className="text-3xl font-pmedium text-slate-900">{floorStats.total}</p>
-              </div>
-              <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-5 rounded-[2rem] shadow-sm text-white">
-                <p className="text-[10px] font-pmedium text-emerald-100 uppercase tracking-widest mb-3">Available</p>
-                <p className="text-3xl font-pmedium text-white">{floorStats.available}</p>
-              </div>
-              <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 p-5 rounded-[2rem] shadow-sm text-white">
-                <p className="text-[10px] font-pmedium text-indigo-100 uppercase tracking-widest mb-3">Tenant Assigned</p>
-                <p className="text-3xl font-pmedium text-white">{floorStats.tenantAssigned}</p>
-              </div>
-              <div className="bg-gradient-to-br from-amber-500 to-amber-600 p-5 rounded-[2rem] shadow-sm text-white">
-                <p className="text-[10px] font-pmedium text-amber-100 uppercase tracking-widest mb-3">Dept Assigned</p>
-                <p className="text-3xl font-pmedium text-white">{floorStats.deptAssigned}</p>
-              </div>
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+              {[
+                { icon: LayoutGrid, label: "Total Floors", value: deskOverviewStats.totalFloors, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md', iconClass: 'bg-slate-50 text-slate-600' },
+                { icon: MapIcon, label: "Total Wings", value: deskOverviewStats.totalWings, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-slate-500', iconClass: 'bg-slate-100 text-slate-600' },
+                { icon: Monitor, label: "Total Desks", value: deskOverviewStats.totalDesks, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-blue-500', iconClass: 'bg-blue-50 text-blue-600' },
+                { icon: DoorOpen, label: "Vacant Seats", value: deskOverviewStats.vacantDesks, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600' },
+                { icon: Building2, label: "Tenant Assigned", value: deskOverviewStats.tenantAssignedDesks, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-indigo-500', iconClass: 'bg-indigo-50 text-indigo-600' },
+                { icon: Briefcase, label: "Dept Assigned", value: deskOverviewStats.deptAssignedDesks, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-amber-500', iconClass: 'bg-amber-50 text-amber-600' },
+              ].map(({ icon: Icon, label, value, cardClass, iconClass }) => (
+                <div key={label} className={cardClass}>
+                  <div className="min-w-0">
+                    <p className={`text-[8px] leading-tight font-pmedium ${statTextClassFor(iconClass)} uppercase tracking-wide mb-1`}>{label}</p>
+                    <p className={`text-[13px] font-pmedium ${statTextClassFor(iconClass)}`}>{value}</p>
+                  </div>
+                  <div className={`p-1.5 rounded-xl ${iconClass} shrink-0`}><Icon size={14} /></div>
+                </div>
+              ))}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {floorCards.map((f) => (
@@ -1159,8 +1269,9 @@ export default function SalesArchitecturePage() {
                     </div>
                     <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center"><LayoutGrid size={18} /></div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-xl bg-emerald-50 p-2"><p className="text-[8px] font-pmedium uppercase text-emerald-500">Open</p><p className="text-sm font-pmedium text-emerald-700">{f.open}</p></div>
+                  <div className="grid grid-cols-4 gap-2">
+                    <div className="rounded-xl bg-slate-50 p-2"><p className="text-[8px] font-pmedium uppercase text-slate-400">Total</p><p className="text-sm font-pmedium text-slate-800">{f.total}</p></div>
+                    <div className="rounded-xl bg-emerald-50 p-2"><p className="text-[8px] font-pmedium uppercase text-emerald-500">Vacant</p><p className="text-sm font-pmedium text-emerald-700">{f.open}</p></div>
                     <div className="rounded-xl bg-indigo-50 p-2"><p className="text-[8px] font-pmedium uppercase text-indigo-400">Tenant</p><p className="text-sm font-pmedium text-indigo-700">{f.tenant}</p></div>
                     <div className="rounded-xl bg-amber-50 p-2"><p className="text-[8px] font-pmedium uppercase text-amber-400">Dept</p><p className="text-sm font-pmedium text-amber-700">{f.dept}</p></div>
                   </div>
@@ -1188,18 +1299,22 @@ export default function SalesArchitecturePage() {
                         <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden mb-3">
                           <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, w.occupancyPct)}%` }} />
                         </div>
-                        <div className="grid grid-cols-3 gap-2 mb-2">
+                        <div className="grid grid-cols-4 gap-2 mb-2">
                           <div className="rounded-xl bg-white p-2 border border-slate-100">
                             <p className="text-[8px] font-pmedium uppercase text-slate-400">Total</p>
                             <p className="text-sm font-pmedium text-slate-800">{w.total}</p>
                           </div>
                           <div className="rounded-xl bg-white p-2 border border-slate-100">
-                            <p className="text-[8px] font-pmedium uppercase text-indigo-400">Assigned</p>
-                            <p className="text-sm font-pmedium text-indigo-700">{w.assigned}</p>
-                          </div>
-                          <div className="rounded-xl bg-white p-2 border border-slate-100">
                             <p className="text-[8px] font-pmedium uppercase text-emerald-500">Vacant</p>
                             <p className="text-sm font-pmedium text-emerald-700">{w.vacant}</p>
+                          </div>
+                          <div className="rounded-xl bg-white p-2 border border-slate-100">
+                            <p className="text-[8px] font-pmedium uppercase text-indigo-400">Tenant</p>
+                            <p className="text-sm font-pmedium text-indigo-700">{w.assignedToTenant || 0}</p>
+                          </div>
+                          <div className="rounded-xl bg-white p-2 border border-slate-100">
+                            <p className="text-[8px] font-pmedium uppercase text-amber-500">Dept</p>
+                            <p className="text-sm font-pmedium text-amber-700">{w.assignedToDepartment || 0}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3 text-[9px] font-pmedium text-slate-500">
@@ -1221,7 +1336,10 @@ export default function SalesArchitecturePage() {
 
   const renderTenants = () => {
     const viewTenant = viewTenantId ? tenantsWithPackages.find((t) => String(t.recordId || t.id) === viewTenantId) : null;
-    const viewTenantResources = viewTenant ? resources.filter((r) => String(r.assignedTenantCompanyId) === viewTenantId) : [];
+    // t.assignment merges legacy whole-block assignment with per-seat
+    // ResourceSeat assignment (see tenantAssignmentMap) — this is what makes
+    // seat-onboarded tenants show up here, not just the old whole-resource ones.
+    const viewTenantResources = viewTenant?.assignment?.resources || [];
 
     const fmt = (n = 0) => new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(n || 0));
     const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "--";
@@ -1252,7 +1370,7 @@ export default function SalesArchitecturePage() {
           <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
             {/* LEFT: status sub-tab pills */}
             <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-              {["All", "Active", "Expiring Soon", "Expired"].map((status) => (
+              {["All", "Active", "Expired", "Inactive"].map((status) => (
                 <button key={status} type="button" onClick={() => setTenantListFilter(status)}
                   className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
                     tenantListFilter === status
@@ -1284,14 +1402,15 @@ export default function SalesArchitecturePage() {
                   <th className="px-5 py-4 text-left">Company</th>
                   <th className="px-5 py-4 text-left">Status</th>
                   <th className="px-5 py-4 text-left">Location</th>
+                  <th className="px-5 py-4 text-center">Open Desks</th>
+                  <th className="px-5 py-4 text-center">Cabin Desks</th>
                   <th className="px-5 py-4 text-center">Assigned Seats</th>
-                  <th className="px-5 py-4 text-left">Space Blocks</th>
                   <th className="px-5 py-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100/60">
                 {tenantsWithPackages.filter((t) => {
-                  const status = String(t.status || "Active");
+                  const status = simplifiedTenantStatus(t.status);
                   const matchesStatus = tenantListFilter === "All" || status === tenantListFilter;
                   const q = tenantListSearch.trim().toLowerCase();
                   const matchesSearch = !q || [t.companyName, t.name, t.contactName, t.businessType]
@@ -1299,8 +1418,14 @@ export default function SalesArchitecturePage() {
                   return matchesStatus && matchesSearch;
                 }).map((t) => {
                   const tid = String(t.recordId || t.id);
-                  const assignedResources = resources.filter((r) => String(r.assignedTenantCompanyId) === tid);
-                  const assignedSeatCount = assignedResources.reduce((s, r) => s + Math.max(1, Number(r.capacity || 1)), 0);
+                  // t.assignment (from tenantAssignmentMap) already merges legacy
+                  // whole-block assignment with per-seat ResourceSeat assignment —
+                  // using it here (instead of re-deriving from `resources` alone)
+                  // is what makes seat-onboarded tenants actually show up.
+                  const assignedResources = t.assignment?.resources || [];
+                  const assignedSeatCount = t.assignment?.seatCount || 0;
+                  const openSeatCount = t.assignment?.openSeatCount || 0;
+                  const cabinSeatCount = t.assignment?.cabinSeatCount || 0;
                   // Location: use companyDetails building/unit, or fall back to actual assigned resource floors/wings
                   const building = t.companyDetails?.buildingName || "";
                   const unit = t.companyDetails?.unitNo || "";
@@ -1315,11 +1440,13 @@ export default function SalesArchitecturePage() {
                         <p className="text-[10px] font-pmedium text-slate-500">{t.businessType || t.contactName || "--"}</p>
                       </td>
                       <td className="px-5 py-4">
-                        <span className={`px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-wider ${
-                          String(t.status || "").toLowerCase() === "active" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
-                          String(t.status || "").includes("Expir") ? "bg-amber-50 text-amber-700 border border-amber-200" :
-                          "bg-slate-100 text-slate-600 border border-slate-200"
-                        }`}>{t.status || "Active"}</span>
+                        {(() => {
+                          const simpleStatus = simplifiedTenantStatus(t.status);
+                          const badgeClass = simpleStatus === "Active" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
+                            simpleStatus === "Expired" ? "bg-rose-50 text-rose-700 border border-rose-200" :
+                            "bg-slate-100 text-slate-600 border border-slate-200";
+                          return <span className={`px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-wider ${badgeClass}`}>{simpleStatus}</span>;
+                        })()}
                       </td>
                       <td className="px-5 py-4">
                         {locationStr ? (
@@ -1329,20 +1456,15 @@ export default function SalesArchitecturePage() {
                         )}
                       </td>
                       <td className="px-5 py-4 text-center">
+                        <span className={`text-[13px] font-pmedium ${openSeatCount > 0 ? "text-blue-700" : "text-slate-400"}`}>{openSeatCount}</span>
+                      </td>
+                      <td className="px-5 py-4 text-center">
+                        <span className={`text-[13px] font-pmedium ${cabinSeatCount > 0 ? "text-violet-700" : "text-slate-400"}`}>{cabinSeatCount}</span>
+                      </td>
+                      <td className="px-5 py-4 text-center">
                         <span className={`text-[15px] font-pmedium ${assignedSeatCount > 0 ? "text-indigo-700" : "text-slate-400"}`}>
                           {assignedSeatCount}
                         </span>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="flex flex-wrap gap-1">
-                          {assignedResources.slice(0, 4).map((r) => (
-                            <span key={r.recordId} className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[9px] font-pmedium">
-                              {r.name || r.resourceCode}
-                            </span>
-                          ))}
-                          {assignedResources.length > 4 && <span className="text-[9px] text-slate-500">+{assignedResources.length - 4} more</span>}
-                          {assignedResources.length === 0 && <span className="text-[11px] text-slate-400">No spaces assigned</span>}
-                        </div>
                       </td>
                       <td className="px-5 py-4 text-center">
                         <div className="flex items-center justify-center gap-1.5">
@@ -1368,7 +1490,7 @@ export default function SalesArchitecturePage() {
                   );
                 })}
                 {tenants.length === 0 && (
-                  <tr><td colSpan={6} className="text-center py-20 text-slate-400 font-pmedium">No tenant companies found.</td></tr>
+                  <tr><td colSpan={7} className="text-center py-20 text-slate-400 font-pmedium">No tenant companies found.</td></tr>
                 )}
               </tbody>
             </table>
@@ -1454,9 +1576,9 @@ export default function SalesArchitecturePage() {
                   {/* Assigned spaces */}
                   <div>
                     <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-2"><Users size={14} /> Assigned Space Blocks</span>
+                      <span className="flex items-center gap-2"><Users size={14} /> Assigned Space &amp; Seats</span>
                       <span className="bg-blue-50 text-blue-700 border border-blue-100 px-2.5 py-0.5 rounded-full text-[9px] font-pmedium normal-case">
-                        {viewTenantResources.reduce((s, r) => s + Math.max(1, Number(r.capacity || 1)), 0)} total seats
+                        {viewTenant?.assignment?.seatCount || 0} total seats
                       </span>
                     </h3>
                     {viewTenantResources.length === 0 ? (
@@ -1464,15 +1586,23 @@ export default function SalesArchitecturePage() {
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {viewTenantResources.map((r) => {
-                          const labels = Array.isArray(r.seatLabels) && r.seatLabels.length > 0 ? r.seatLabels : getSeatLabels(r);
+                          const isSeatTracked = r.resourceCategory === "open_desk" || r.resourceCategory === "cabin_desk";
+                          const rid = String(r.recordId || r.id);
+                          // Real seats this tenant holds in this resource block —
+                          // a block can be shared, so this can be fewer than r.capacity.
+                          const tenantSeats = isSeatTracked ? (viewTenantSeatsByResource[rid] || []) : [];
+                          const labels = isSeatTracked ? tenantSeats.map((seat) => seat.seatLabel) : getSeatLabels(r);
+                          const seatCountLabel = isSeatTracked ? `${tenantSeats.length} seat${tenantSeats.length === 1 ? "" : "s"}` : `${r.capacity} seats`;
                           return (
-                            <div key={r.recordId} className="rounded-2xl bg-slate-50/60 border border-slate-100 p-3">
+                            <div key={rid} className="rounded-2xl bg-slate-50/60 border border-slate-100 p-3">
                               <div className="flex items-center justify-between mb-1.5">
                                 <div className="min-w-0">
                                   <span className="text-[12px] font-pmedium text-slate-900 truncate block">{r.name || r.resourceCode}</span>
                                   <span className="text-[9px] font-pmedium text-slate-400 uppercase">{kindLabel(r)}</span>
                                 </div>
-                                <span className="bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-lg text-[9px] font-pmedium shrink-0 ml-2">{r.capacity} seats</span>
+                                <span className="bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-lg text-[9px] font-pmedium shrink-0 ml-2">
+                                  {isSeatTracked && loadingViewTenantSeats ? "..." : seatCountLabel}
+                                </span>
                               </div>
                               <p className="text-[10px] font-pmedium text-slate-500 mb-2">{r.locationLabel || `Floor ${r.floor}${r.wing ? ` Wing ${r.wing}` : ""}`}</p>
                               {labels.length > 0 && (

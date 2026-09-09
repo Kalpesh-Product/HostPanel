@@ -1,5 +1,5 @@
-import React from "react";
-import { Download, UploadCloud, X, Loader2 } from "lucide-react";
+import React, { useState } from "react";
+import { Download, UploadCloud, X, Loader2, ChevronDown } from "lucide-react";
 
 /**
  * Shared bulk-upload modal shell — the design introduced for Tenant Companies
@@ -63,6 +63,8 @@ export default function BulkUploadModal({
   selectLabel = "Select file",
   importLabel = "Import",
 }) {
+  const [rulesOpen, setRulesOpen] = useState(false);
+
   if (!open) return null;
 
   const rowErrors = errors && errors.length ? errors : summary?.errors;
@@ -83,8 +85,8 @@ export default function BulkUploadModal({
         onChange={onFileChange}
         className="hidden"
       />
-      <div className="w-full max-w-2xl overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70">
-        <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-start justify-between gap-3">
+      <div className="flex w-full max-w-2xl max-h-[90vh] flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70">
+        <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex items-start justify-between gap-3 shrink-0">
           <div className="min-w-0">
             <h2 className="text-base lg:text-lg font-pmedium text-slate-800">{title}</h2>
             {description && (
@@ -100,7 +102,7 @@ export default function BulkUploadModal({
           </button>
         </div>
 
-        <div className="p-4 sm:p-5 space-y-4">
+        <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1 min-h-0">
           <div className="grid gap-3 md:grid-cols-2">
             <button
               type="button"
@@ -120,15 +122,27 @@ export default function BulkUploadModal({
           </div>
 
           {rules.length > 0 && (
-            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-3">
-              <p className="text-[9px] font-pmedium uppercase tracking-[0.3em] text-slate-400">{rulesTitle}</p>
-              <div className="mt-2 grid gap-2 text-[12px] text-slate-700 md:grid-cols-2">
-                {rules.map((rule, index) => (
-                  <p key={index} className="rounded-xl bg-white px-3 py-2 font-pmedium shadow-sm">
-                    {rule}
-                  </p>
-                ))}
-              </div>
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50">
+              <button
+                type="button"
+                onClick={() => setRulesOpen((prev) => !prev)}
+                className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
+              >
+                <span className="text-[9px] font-pmedium uppercase tracking-[0.3em] text-slate-400">{rulesTitle}</span>
+                <ChevronDown
+                  size={14}
+                  className={`shrink-0 text-slate-400 transition-transform ${rulesOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+              {rulesOpen && (
+                <div className="grid gap-2 px-3 pb-3 text-[12px] text-slate-700 md:grid-cols-2">
+                  {rules.map((rule, index) => (
+                    <p key={index} className="rounded-xl bg-white px-3 py-2 font-pmedium shadow-sm">
+                      {rule}
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

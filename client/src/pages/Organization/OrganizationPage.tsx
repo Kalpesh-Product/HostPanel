@@ -1754,9 +1754,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
                     isSelfMember ||
                     isOwnerMember ||
                     isBasicPlanWorkspace ||
-                    member.status === 'disabled' ||
-                    member.status === 'invited' ||
-                    member.status === 'invite_sent' ||
+                    String(member.status || '') !== 'joined' ||
                     Boolean(member.accountDeleted) ||
                     !canChangeRoleByAccess;
 
@@ -1893,8 +1891,8 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
                                   ? "Role changes aren't needed on the Basic plan"
                                   : !canChangeRoleByAccess
                                     ? 'You do not have permission to change roles'
-                                    : member.status === 'disabled'
-                                      ? 'Enable this user before changing their role'
+                                    : String(member.status || '') !== 'joined'
+                                      ? 'User must join before their role can be changed'
                                       : 'Change Role'
                           }
                           disabled={isRoleActionDisabled}

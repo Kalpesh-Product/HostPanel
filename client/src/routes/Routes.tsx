@@ -67,6 +67,7 @@ import HRPayrollPage from "../pages/HR/HRPayrollPage";
 import HRResignationManagementPage from "../pages/HR/HRResignationManagementPage";
 import { ExpensesBudgetPage } from "../pages/Finance/ExpensesBudgetPage";
 import { FinanceBudgetReviewPage } from "../pages/Finance/FinanceBudgetReviewPage";
+import { FinanceMonthExpensesPage } from "../pages/Finance/FinanceMonthExpensesPage";
 import { FinanceDepartmentOverviewPage } from "../pages/Finance/FinanceDepartmentOverviewPage";
 import { BillingPaymentsPage } from "../pages/Finance/BillingPaymentsPage";
 import AccountingPage from "../pages/Finance/AccountingPage";
@@ -776,6 +777,10 @@ export const routes = createBrowserRouter([
                 element: <FinanceBudgetReviewPage />,
               },
               {
+                path: "extra-common-modules/finance-management/review/annual/:requestId/month/:monthKey",
+                element: <FinanceMonthExpensesPage />,
+              },
+              {
                 path: "extra-common-modules/team-management",
                 element: <TeamManagementPage />,
                 children: [
@@ -1351,6 +1356,10 @@ export const routes = createBrowserRouter([
               {
                 path: "department-accesses/finance-department/expenses-budget/review/annual/:requestId",
                 element: <FinanceBudgetReviewPage />,
+              },
+              {
+                path: "department-accesses/finance-department/expenses-budget/review/annual/:requestId/month/:monthKey",
+                element: <FinanceMonthExpensesPage />,
               },
               {
                 path: "department-accesses/finance-department/billing-payments",

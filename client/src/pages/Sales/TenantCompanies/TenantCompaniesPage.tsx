@@ -51,6 +51,7 @@ const tenantLocationOptions = [
 
 const BULK_TEMPLATE_HEADERS = [
   'Company Name',
+  'Status',
   'Contact Name',
   'Business Type',
   'Client Name',
@@ -88,6 +89,7 @@ const BULK_COLUMN_ALIASES = {
   // internal ID reference (e.g. a legacy package or building _id), not the
   // human value this field wants. Only accept unambiguous header names.
   companyName: ['company name', 'tenant company', 'tenant company name'],
+  status: ['status', 'is active', 'active'],
   contactName: ['contact name', 'contact person', 'primary contact', 'poc name'],
   businessType: ['business type', 'industry', 'sector'],
   clientName: ['client name', 'customer name', 'legal name'],
@@ -157,6 +159,19 @@ function isBulkRowEmpty(row = {}) {
   return !Object.values(row).some((value) => String(value ?? '').trim());
 }
 
+const BULK_ACTIVE_STATUS_VALUES = new Set(['active', 'yes', 'true', '1']);
+
+// Allowlist, not a blocklist: only a row explicitly marked "Active" (or left
+// blank — active is the default) gets its Location/Floor/Wing sent through
+// and desks actually assigned from real inventory. Anything else — Inactive,
+// Contract Expired, Expired, Incomplete, or any other value someone writes in
+// — still imports the rest of the row, but never touches live desk inventory.
+function isBulkRowActive(row) {
+  const raw = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.status)).trim().toLowerCase();
+  if (!raw) return true;
+  return BULK_ACTIVE_STATUS_VALUES.has(raw);
+}
+
 async function readSpreadsheetRows(file) {
   const fileName = String(file?.name || '').toLowerCase();
   const isCsv = fileName.endsWith('.csv');
@@ -193,9 +208,13 @@ function buildBulkTenantPayload(row) {
   // (same text) for desks to actually get reserved out of that inventory —
   // if they don't match, the row still imports everything else and just
   // reports "not enough vacant desks" for that row instead of failing silently.
+  // A row marked Inactive/Incomplete never touches live inventory at all —
+  // its Floor/Wing are dropped here regardless of what the sheet has, so no
+  // seat gets reserved for it.
+  const isActiveRow = isBulkRowActive(row);
   const buildingName = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.buildingName)).trim();
-  const floor = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.floor)).trim();
-  const wing = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.wing)).trim();
+  const floor = isActiveRow ? String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.floor)).trim() : '';
+  const wing = isActiveRow ? String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.wing)).trim() : '';
   const openDesks = Math.max(0, Number(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.openDesks)) || 0);
   const cabinDesks = Math.max(0, Number(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.cabinDesks)) || 0);
   const ratePerOpenDesk = Math.max(0, Number(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.ratePerOpenDesk)) || 0);
@@ -941,6 +960,7 @@ export default function TenantCompaniesPage() {
   const [tenantsSummary, setTenantsSummary] = useState({ totalTenants: 0, activeContracts: 0, expiringSoon: 0, expired: 0 });
   const tenantsRequestIdRef = useRef(0);
   const loadMoreSentinelRef = useRef(null);
+  const tenantsScrollContainerRef = useRef(null);
   const [activeTab, setActiveTab] = useState('companies');
   const [requestStatusFilter, setRequestStatusFilter] = useState('All Requests');
   const [activeModal, setActiveModal] = useState(null);
@@ -1086,7 +1106,11 @@ export default function TenantCompaniesPage() {
           loadTenantsPage(tenantsPage + 1, { replace: false });
         }
       },
-      { rootMargin: '300px' },
+      // Explicitly scope to the table's own scroll box — it's a nested
+      // scrollable region (not the page/window), and IntersectionObserver
+      // won't reliably fire against a distant ancestor's scroll position
+      // without `root` pointing at the element that actually scrolls.
+      { root: tenantsScrollContainerRef.current, rootMargin: '300px' },
     );
     observer.observe(node);
     return () => observer.disconnect();
@@ -2727,6 +2751,7 @@ export default function TenantCompaniesPage() {
 
     const requiredFieldsSheet = XLSX.utils.json_to_sheet([
       { Field: 'Company Name', Requirement: 'Required', Notes: 'Tenant company display name.' },
+      { Field: 'Status', Requirement: 'Optional', Notes: 'Only "Active" (or blank) gets Floor/Wing desks assigned from live inventory. Any other value — Inactive, Contract Expired, Incomplete, etc. — still imports the row but never touches live inventory.' },
       { Field: 'Contact Name', Requirement: 'Optional', Notes: 'Primary contact; falls back to local POC or company name.' },
       { Field: 'Business Type', Requirement: 'Optional', Notes: 'Industry or business sector.' },
       { Field: 'Client Name', Requirement: 'Optional', Notes: 'Customer-facing company label.' },
@@ -2760,6 +2785,7 @@ export default function TenantCompaniesPage() {
 
     const formatGuideSheet = XLSX.utils.json_to_sheet([
       { Field: 'Company Name', Format: 'Text', Example: 'TechTrove Innovations', Notes: 'Use the tenant company name.' },
+      { Field: 'Status', Format: 'Text', Example: 'Active', Notes: 'Only "Active" is assigned real desks. Use Inactive, Contract Expired, etc. for anything that should skip space assignment. Leave blank for Active.' },
       { Field: 'Contact Name', Format: 'Text', Example: 'Ram Thakur', Notes: 'Optional if local POC is provided.' },
       { Field: 'Business Type', Format: 'Text', Example: 'Tech', Notes: 'Optional.' },
       { Field: 'Client Name', Format: 'Text', Example: 'TechTrove Innovations', Notes: 'Optional.' },
@@ -2792,7 +2818,7 @@ export default function TenantCompaniesPage() {
     ], { header: ['Field', 'Format', 'Example', 'Notes'] });
 
     const workflowGuideSheet = XLSX.utils.json_to_sheet([
-      { Label: 'Draft tenant company onboarding', Notes: 'Company, contact, desks, rates, credits, and contract dates import directly. Location, Floor, and Wing must exactly match an existing Resource & Pricing entry for desks to actually get assigned to real seats — a row with a mismatch fails cleanly and can be corrected and re-uploaded.' },
+      { Label: 'Draft tenant company onboarding', Notes: 'Company, contact, desks, rates, credits, and contract dates import directly. Location, Floor, and Wing must exactly match an existing Resource & Pricing entry for desks to actually get assigned to real seats — a row with a mismatch fails cleanly and can be corrected and re-uploaded. Mark a row Inactive to import it without touching live desk inventory at all.' },
     ], { header: ['Label', 'Notes'] });
 
     XLSX.utils.book_append_sheet(workbook, tenantCompaniesSheet, 'Tenant Companies');
@@ -3599,7 +3625,7 @@ export default function TenantCompaniesPage() {
               </div>
             </div>
 
-            <div className={`overflow-x-auto flex-1 ${activeTab === 'companies' ? '' : 'hidden'}`}>
+            <div ref={tenantsScrollContainerRef} className={`overflow-x-auto flex-1 ${activeTab === 'companies' ? '' : 'hidden'}`}>
               <table data-tour="sales-tenant-table" className="w-full min-w-[1000px] text-left">
                 <thead className="bg-white text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100">
                   <tr>
@@ -3689,8 +3715,16 @@ export default function TenantCompaniesPage() {
                   {tenants.length > 0 && tenantsPage < tenantsTotalPages && (
                     <tr>
                       <td colSpan={6} ref={loadMoreSentinelRef} className="text-center py-6 text-slate-400 text-[11px] font-pmedium">
-                        {isLoadingMoreTenants && (
+                        {isLoadingMoreTenants ? (
                           <span className="inline-flex items-center gap-1.5"><Loader2 size={14} className="animate-spin" /> Loading more...</span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => loadTenantsPage(tenantsPage + 1, { replace: false })}
+                            className="text-[11px] font-pmedium uppercase tracking-widest text-[#2563EB] hover:text-blue-700 transition-colors"
+                          >
+                            Load more companies
+                          </button>
                         )}
                       </td>
                     </tr>
@@ -3870,7 +3904,7 @@ export default function TenantCompaniesPage() {
               'Location, Floor, and Wing must exactly match an existing Resource & Pricing entry for desks to actually get assigned.',
               'Open/cabin desks, rates, credits, and contract dates import directly if present.',
               "If Floor/Wing don't have enough vacant desks (or don't match real inventory), that whole row fails so you can fix it and re-upload — other rows are unaffected.",
-              'Leave Floor/Wing/desk counts blank to skip seat assignment for a row — the rest of that row still imports.',
+              'Only Status = Active gets real desks assigned — Inactive, Contract Expired, or anything else still imports the row but skips space assignment.',
               'A Company Name matching an existing tenant updates it instead of creating a duplicate.',
               'Blank cells on an update are ignored — they never clear existing data.',
             ]}

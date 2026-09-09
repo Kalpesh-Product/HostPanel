@@ -581,6 +581,7 @@ export default function AccessGrantsPage() {
     [linkedWorkspaces],
   );
   const selectedUserRole = normalizeRole(selectedUser?.rawRole || '');
+  const selectedUserJoined = String(selectedUser?.status || '').trim().toLowerCase() === 'joined';
   const selectedUserLocked =
     Boolean(selectedUser?.accountDeleted) ||
     String(selectedUser?.status || '').trim().toLowerCase() === 'disabled';
@@ -612,7 +613,7 @@ export default function AccessGrantsPage() {
     return transferWorkspaceOptions;
   }, [selectedUser, transferWorkspaceOptions, currentWorkspaceId]);
   const canTransferMembers =
-    canManageCrossUnitAccess && canManageSelectedUserAcrossUnits && transferTargetOptions.length > 0;
+    canManageCrossUnitAccess && canManageSelectedUserAcrossUnits && selectedUserJoined && transferTargetOptions.length > 0;
   const linkWorkspaceOptions = useMemo(() => {
     const activeWorkspaceIds = new Set(
       Array.isArray(selectedUser?.workspaceAccesses)
@@ -623,7 +624,7 @@ export default function AccessGrantsPage() {
     return transferWorkspaceOptions.filter((item) => !activeWorkspaceIds.has(String(item.id)));
   }, [selectedUser, transferWorkspaceOptions]);
   const canLinkMembers =
-    canManageCrossUnitAccess && canManageSelectedUserAcrossUnits && linkWorkspaceOptions.length > 0;
+    canManageCrossUnitAccess && canManageSelectedUserAcrossUnits && selectedUserJoined && linkWorkspaceOptions.length > 0;
   const removableWorkspaceOptions = useMemo(
     () =>
       (Array.isArray(selectedUser?.workspaceAccesses) ? selectedUser.workspaceAccesses : []).filter(
@@ -1643,9 +1644,11 @@ export default function AccessGrantsPage() {
                         currentUserId &&
                         rowUserId &&
                         currentUserId === rowUserId;
-                      const isUserDisabled = String(user.status || '').trim().toLowerCase() === 'disabled';
+                      const userStatusRaw = String(user.status || '').trim().toLowerCase();
+                      const isUserDisabled = userStatusRaw === 'disabled';
                       const isAccountDeleted = Boolean(user.accountDeleted);
-                      const isAccessLocked = isUserDisabled || isAccountDeleted;
+                      const isUserJoined = userStatusRaw === 'joined';
+                      const isAccessLocked = !isUserJoined || isAccountDeleted;
                       const normalizedDepartments = Array.isArray(user.departments)
                         ? user.departments.filter(Boolean)
                         : [];
@@ -1723,7 +1726,9 @@ export default function AccessGrantsPage() {
                                         ? 'Account deleted — access cannot be managed'
                                         : isUserDisabled
                                           ? 'Enable the user to manage sidebar access'
-                                          : 'Manage Sidebar Access'}
+                                          : !isUserJoined
+                                            ? 'User must join before access can be managed'
+                                            : 'Manage Sidebar Access'}
                                     >
                                       <Shield size={15} strokeWidth={2.5} />
                                     </button>
@@ -1742,7 +1747,9 @@ export default function AccessGrantsPage() {
                                       ? 'Account deleted — role cannot be managed'
                                       : isUserDisabled
                                         ? 'Enable the user to change their role'
-                                        : canEditAccessGrants ? 'Manage Unit Access' : canManageCrossUnitAccess ? 'Manage Unit Access' : 'View Role'}
+                                        : !isUserJoined
+                                          ? 'User must join before unit access can be managed'
+                                          : canEditAccessGrants ? 'Manage Unit Access' : canManageCrossUnitAccess ? 'Manage Unit Access' : 'View Role'}
                                   >
                                     <UserCog size={15} strokeWidth={2.5} />
                                   </button>

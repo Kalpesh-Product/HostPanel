@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import {
   Search, DollarSign, TrendingUp, CheckCircle2, Clock, AlertCircle,
   Eye, X, Check, MessageSquare, Building2,
@@ -59,8 +60,11 @@ export function FinancePage() {
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [decisionPrompt, setDecisionPrompt] = useState<{ action: 'Rejected' | 'Discuss'; request: any } | null>(null);
   const [decisionComment, setDecisionComment] = useState('');
+  const [showApproveConfirm, setShowApproveConfirm] = useState<any>(null);
   
   // Modal States
   const [viewingRequest, setViewingRequest] = useState<any>(null);
@@ -214,10 +218,40 @@ export function FinancePage() {
   const isActionableFinanceRequest = (request: any = {}) => ['pending', 'discuss'].includes(String(request?.status || '').toLowerCase());
   
   const pendingAnnualRequests = annualRequests.filter(isActionableFinanceRequest);
-  const visibleAnnualRequests = annualRequests;
   const pendingExtraRequests = extraRequests.filter(isActionableFinanceRequest);
-  const visibleExtraRequests = extraRequests;
   const pendingActions = pendingAnnualRequests.length + pendingExtraRequests.length;
+
+  const departmentOptions = Array.from(
+    new Set(departments.map((dept: any) => dept?.name).filter(Boolean)),
+  ) as string[];
+
+  const matchesDepartmentFilter = (departmentName = '') =>
+    selectedDepartment === 'all' || normalizeDepartmentKey(departmentName) === normalizeDepartmentKey(selectedDepartment);
+
+  const matchesSearchQuery = (departmentName = '', extra = '') => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+    return departmentName.toLowerCase().includes(query) || extra.toLowerCase().includes(query);
+  };
+
+  const matchesStatusFilter = (status = '') =>
+    statusFilter === 'all' || String(status || '').toLowerCase() === statusFilter;
+
+  const visibleAnnualRequests = annualRequests.filter(
+    (req: any) =>
+      matchesDepartmentFilter(req.department) &&
+      matchesSearchQuery(req.department, req.requestKey || req.id) &&
+      matchesStatusFilter(req.status),
+  );
+  const visibleExtraRequests = extraRequests.filter(
+    (req: any) =>
+      matchesDepartmentFilter(req.department) &&
+      matchesSearchQuery(req.department, req.title || req.targetTitle || '') &&
+      matchesStatusFilter(req.status),
+  );
+  const visibleDepartments = departments.filter(
+    (dept: any) => matchesDepartmentFilter(dept.name) && matchesSearchQuery(dept.name || ''),
+  );
 
   const departmentInvoiceEntries = viewingDeptOverview
     ? departmentFinance
@@ -426,6 +460,14 @@ export function FinancePage() {
     { key: 'extra', label: 'Extra Budget Requests' },
   ];
 
+  const statusFilterOptions = [
+    { key: 'all', label: 'All' },
+    { key: 'pending', label: 'Pending' },
+    { key: 'discuss', label: 'Discuss' },
+    { key: 'approved', label: 'Approved' },
+    { key: 'rejected', label: 'Rejected' },
+  ];
+
   if (!hasLoadedFinanceSnapshot && isLoadingFinance) {
     return <TablePageSkeleton rows={5} columns={5} />;
   }
@@ -453,17 +495,20 @@ export function FinancePage() {
           </div>
 
           {/* MAIN TABS */}
-          <div data-tour="finance-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0">
+          <div data-tour="finance-tabs" className="mb-3 flex w-full gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0 overflow-x-auto [&::-webkit-scrollbar]:hidden">
             {tabs.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
+                className={`flex-1 min-w-[160px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${
                   activeTab === tab.key
-                    ? 'bg-[#2563EB] text-white shadow-sm'
+                    ? 'text-white'
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
+                {activeTab === tab.key && (
+                  <motion.div layoutId="financeMainTabs" className="absolute inset-0 bg-[#2563EB] rounded-full shadow-sm z-[-1]" />
+                )}
                 {tab.label}
               </button>
             ))}
@@ -494,7 +539,7 @@ export function FinancePage() {
               </div>
               <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><AlertCircle size={16}/></div>
             </div>
-            
+
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-slate-500">
               <div className="min-w-0">
                 <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Financial Year</p>
@@ -504,46 +549,63 @@ export function FinancePage() {
             </div>
           </div>
 
+          {/* SUB TABS (Approval Center only) — full width, same style as main tabs */}
+          {activeTab === 'approvals' && (
+            <div data-tour="finance-sub-tabs" className="mb-3 flex w-full gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+              {subTabsApprovals.map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => { setApprovalSubTab(tab.key); setStatusFilter('all'); }}
+                  className={`flex-1 min-w-[220px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${
+                    approvalSubTab === tab.key
+                      ? 'text-white'
+                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  {approvalSubTab === tab.key && (
+                    <motion.div layoutId="financeSubTabs" className="absolute inset-0 bg-[#2563EB] rounded-full shadow-sm z-[-1]" />
+                  )}
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* DATA PANEL */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-            {/* INNER TABS & ACTION BAR */}
-            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-              
-              {/* Inner Tabs for Approvals, or Title for Overview */}
-              {activeTab === 'approvals' ? (
-                <div data-tour="finance-sub-tabs" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden w-full xl:w-auto">
-                  {subTabsApprovals.map(tab => (
-                    <button
-                      key={tab.key}
-                      onClick={() => setApprovalSubTab(tab.key)}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
-                        approvalSubTab === tab.key
-                          ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
-                          : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex bg-slate-100/50 p-1 rounded-xl w-full xl:w-auto relative border border-slate-200/50">
-                   <div className="px-4 py-2 font-bold text-[13px] text-[#0F172A]">Company Budget Health Tracker</div>
-                </div>
-              )}
+            {/* STATUS FILTER + FILTERS & SEARCH — same line, just above the table (Meeting Rooms pattern) */}
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50 flex flex-col xl:flex-row xl:items-center gap-3">
+              <div data-tour="finance-status-filter" className="flex flex-1 items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                {activeTab === 'approvals' && statusFilterOptions.map(pill => (
+                  <button
+                    key={pill.key}
+                    onClick={() => setStatusFilter(pill.key)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
+                      statusFilter === pill.key
+                        ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+                        : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                    }`}
+                  >
+                    {pill.label}
+                  </button>
+                ))}
+              </div>
 
-              {/* SEARCH & FILTERS */}
-              <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-                <div className="relative flex-1 min-w-[180px]">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                  <input
-                    data-tour="finance-search"
-                    type="text" placeholder="Search..."
-                    value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
-                  />
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+                <div className="relative">
+                  <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
+                  <select
+                    data-tour="finance-department-select"
+                    value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)}
+                    className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[160px]"
+                  >
+                    <option value="all">All Departments</option>
+                    {departmentOptions.map((name) => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
                 </div>
-                
+
                 <div className="relative">
                   <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                   <select
@@ -555,6 +617,15 @@ export function FinancePage() {
                       <option key={year} value={year}>{year}</option>
                     ))}
                   </select>
+                </div>
+
+                <div data-tour="finance-search" className="relative w-full sm:w-64 shrink-0">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input
+                    type="text" placeholder="Search..."
+                    value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
+                  />
                 </div>
               </div>
             </div>
@@ -576,7 +647,7 @@ export function FinancePage() {
                       </tr>
                     ) : (
                       <tr>
-                        <th className="px-5 py-4">Date & Dept</th>
+                        <th className="px-5 py-4">Department</th>
                         <th className="px-5 py-4">Amount Requested</th>
                         <th className="px-5 py-4">Justification</th>
                         <th className="px-5 py-4">Status</th>
@@ -588,54 +659,59 @@ export function FinancePage() {
                     {approvalSubTab === 'annual' ? (
                       visibleAnnualRequests.map((req) => (
                         <tr key={req.id} className="hover:bg-slate-50/50 transition-colors group">
-                          <td className="px-5 py-4">
-                            <div className="font-pmedium text-slate-900 flex items-center gap-2"><Building2 size={14} className="text-[#2563EB]"/> {req.department}</div>
-                            <div className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">REF: {req.requestKey || req.id}</div>
-                          </td>
-                          <td className="px-5 py-4 font-pmedium text-[#2563EB] text-lg">{formatCurrency(req.requestedBudget)}</td>
+                          <td className="px-5 py-4 font-pmedium text-slate-900">{req.department}</td>
+                          <td className="px-5 py-4 font-pmedium text-slate-900">{formatCurrency(req.requestedBudget)}</td>
                           <td className="px-5 py-4 font-pmedium text-slate-500">{formatCurrency(getDepartmentActualSpend(req.department))}</td>
                           <td className="px-5 py-4">
                             <div className="flex flex-col items-start gap-1">
-                              {hasApprovalProgress(req.approvalFlow)
-                                ? <ApprovalFlowBadges flow={req.approvalFlow} />
-                                : <span className={statusPillClass(req.status)}>{req.status}</span>}
+                              <span className={statusPillClass(req.status)}>{req.status}</span>
                               {req.isHistorical && (
                                 <span className="inline-flex px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-[8px] font-pmedium uppercase tracking-wider">Historical</span>
                               )}
                             </div>
                           </td>
-                          <td className="px-5 py-4 text-center">
-                            <button onClick={() => navigate(`/extra-common-modules/finance-management/review/annual/${encodeURIComponent(req.id)}`, { state: { request: req, fiscalYear: selectedFY } })} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto" title="View Request">
-                              <Eye size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">View</span>
-                            </button>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button onClick={() => navigate(`/extra-common-modules/finance-management/review/annual/${encodeURIComponent(req.id)}`, { state: { request: req, fiscalYear: selectedFY } })} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm" title="View Request">
+                                <Eye size={14} />
+                              </button>
+                              {!['approved', 'rejected'].includes(String(req.approvalFlow?.owner?.status || '').toLowerCase()) && String(req.status || '').toLowerCase() !== 'rejected' && (
+                                <>
+                                  <button onClick={() => { setDecisionComment(''); setDecisionPrompt({ action: 'Discuss', request: { ...req, type: 'annual' } }); }} className="p-2 bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 rounded-lg transition-all shadow-sm" title="Discuss">
+                                    <MessageSquare size={14} />
+                                  </button>
+                                  <button onClick={() => { setDecisionComment(''); setDecisionPrompt({ action: 'Rejected', request: { ...req, type: 'annual' } }); }} className="p-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm" title="Reject">
+                                    <XCircle size={14} />
+                                  </button>
+                                  <button onClick={() => setShowApproveConfirm(req)} className="p-2 bg-green-600 border border-green-600 text-white hover:bg-green-700 rounded-lg transition-all shadow-sm" title="Approve">
+                                    <CheckCircle2 size={14} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))
                     ) : (
                       visibleExtraRequests.map((req) => (
                         <tr key={req.id} className="hover:bg-slate-50/50 transition-colors group">
-                          <td className="px-5 py-4">
-                            <div className="font-pmedium text-slate-900">{req.department}</div>
-                            <div className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">{req.date}</div>
-                          </td>
-                          <td className="px-5 py-4 font-pmedium text-[#2563EB] text-base">{formatCurrency(req.amount)}</td>
+                          <td className="px-5 py-4 font-pmedium text-slate-900">{req.department}</td>
+                          <td className="px-5 py-4 font-pmedium text-slate-900">{formatCurrency(req.amount)}</td>
                           <td className="px-5 py-4">
                             <div className="text-xs font-pmedium text-slate-800 max-w-[250px] truncate">{req.title || req.targetTitle || 'Extra Budget'}</div>
                             <div className="mt-1 text-[10px] text-slate-500 max-w-[250px] truncate">{req.reason}</div>
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex flex-col items-start gap-1">
-                              {hasApprovalProgress(req.approvalFlow)
-                                ? <ApprovalFlowBadges flow={req.approvalFlow} />
-                                : <span className={statusPillClass(req.status)}>{req.status}</span>}
+                              <span className={statusPillClass(req.status)}>{req.status}</span>
                               {req.isHistorical && (
                                 <span className="inline-flex px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-[8px] font-pmedium uppercase tracking-wider">Historical</span>
                               )}
                             </div>
                           </td>
                           <td className="px-5 py-4 text-center">
-                            <button onClick={() => setViewingRequest({ ...req, type: 'extra' })} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto" title="View Request">
-                              <Eye size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">View</span>
+                            <button onClick={() => setViewingRequest({ ...req, type: 'extra' })} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm mx-auto" title="View Request">
+                              <Eye size={14} />
                             </button>
                           </td>
                         </tr>
@@ -666,7 +742,7 @@ export function FinancePage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
-                    {departments.map((dept) => {
+                    {visibleDepartments.map((dept) => {
                       const approvedBudget = Number(dept.approvedBudget || dept.approvedAnnualRequest?.requestedBudget || 0);
                       const remaining = approvedBudget + dept.extraGrantedYTD - dept.spentYTD;
                       const spentPercent = (dept.spentYTD / (approvedBudget + dept.extraGrantedYTD)) * 100;
@@ -701,16 +777,16 @@ export function FinancePage() {
                                 });
                               }}
                               disabled={!dept.approvedAnnualRequest?.id && !dept.approvedAnnualRequest?._id}
-                              className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto disabled:cursor-not-allowed disabled:opacity-40"
+                              className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm mx-auto disabled:cursor-not-allowed disabled:opacity-40"
                               title="View Details"
                             >
-                              <Eye size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">View</span>
+                              <Eye size={14} />
                             </button>
                           </td>
                         </tr>
                       );
                     })}
-                    {departments.length === 0 && (
+                    {visibleDepartments.length === 0 && (
                        <tr>
                          <td colSpan={6} className="text-center py-20 text-slate-400 font-pmedium">
                            No departments found.
@@ -1114,11 +1190,18 @@ export function FinancePage() {
       )}
 
       {decisionPrompt && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#0F172A]/85 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className={`px-6 py-5 text-white ${decisionPrompt.action === 'Rejected' ? 'bg-red-600' : 'bg-blue-600'}`}>
-              <h3 className="text-lg font-black">{decisionPrompt.action === 'Rejected' ? 'Reject Budget Request' : 'Request Changes'}</h3>
-              <p className="mt-1 text-xs opacity-80">{decisionPrompt.request.department}</p>
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#0F172A]/80 p-4 backdrop-blur-md" role="dialog" aria-modal="true">
+          <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50 px-6 py-5">
+              <div className="min-w-0">
+                <h3 className={`text-lg font-pmedium ${decisionPrompt.action === 'Rejected' ? 'text-red-600' : 'text-blue-600'}`}>
+                  {decisionPrompt.action === 'Rejected' ? 'Reject Budget Request' : 'Request Changes'}
+                </h3>
+                <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{decisionPrompt.request.department}</p>
+              </div>
+              <button type="button" onClick={() => { setDecisionPrompt(null); setDecisionComment(''); }} className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110" aria-label="Close">
+                <X size={18} />
+              </button>
             </div>
             <form
               className="space-y-4 p-6"
@@ -1139,16 +1222,53 @@ export function FinancePage() {
                   value={decisionComment}
                   onChange={(event) => setDecisionComment(event.target.value)}
                   placeholder={decisionPrompt.action === 'Rejected' ? 'Explain why this budget is rejected…' : 'Explain what the manager must revise…'}
-                  className="w-full resize-none rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-pmedium text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </div>
               <div className="flex gap-3">
-                <button type="button" onClick={() => { setDecisionPrompt(null); setDecisionComment(''); }} className="flex-1 rounded-xl bg-slate-100 py-3 text-xs font-pmedium text-slate-700">Cancel</button>
+                <button type="button" onClick={() => { setDecisionPrompt(null); setDecisionComment(''); }} className="flex-1 rounded-xl border border-slate-200 py-3 text-xs font-pmedium text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
                 <button disabled={isSavingDecision || !decisionComment.trim()} type="submit" className={`flex-[2] rounded-xl py-3 text-xs font-pmedium text-white disabled:opacity-50 ${decisionPrompt.action === 'Rejected' ? 'bg-red-600' : 'bg-blue-600'}`}>
                   {isSavingDecision ? 'Saving…' : decisionPrompt.action === 'Rejected' ? 'Confirm Rejection' : 'Send Back for Revision'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showApproveConfirm && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#0F172A]/80 p-4 backdrop-blur-md" role="dialog" aria-modal="true">
+          <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50 px-6 py-5">
+              <div className="min-w-0">
+                <h3 className="text-lg font-pmedium text-green-600">Approve Budget Request</h3>
+                <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{showApproveConfirm.department}</p>
+              </div>
+              <button type="button" onClick={() => setShowApproveConfirm(null)} className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110" aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+                <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                <p className="text-xs font-pmedium leading-relaxed">
+                  This will approve the full annual budget of <span className="font-pmedium">{formatCurrency(showApproveConfirm.requestedBudget)}</span> for <span className="font-pmedium">{showApproveConfirm.department}</span>. Once approved, this decision cannot be undone from this page.
+                </p>
+              </div>
+              <div className="mt-5 flex gap-3">
+                <button type="button" onClick={() => setShowApproveConfirm(null)} className="flex-1 rounded-xl border border-slate-200 py-3 text-xs font-pmedium text-slate-600 hover:bg-slate-50 transition-all">
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isSavingDecision}
+                  onClick={() => { const req = showApproveConfirm; setShowApproveConfirm(null); handleAction('annual', req.id, 'Approved'); }}
+                  className="flex-[2] rounded-xl bg-green-600 py-3 text-xs font-pmedium text-white shadow-sm hover:bg-green-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isSavingDecision ? 'Approving…' : <>Approve Budget <CheckCircle2 size={14} /></>}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

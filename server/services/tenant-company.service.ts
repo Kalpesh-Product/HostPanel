@@ -24,7 +24,7 @@ import {
   resolveTenantMonthlyRent,
   getRentPaymentWindow,
 } from "./tenantRentService.js";
-import { reconcileTenantSeatAssignments } from "./resourceSeatService.js";
+import { reconcileTenantSeatAssignments, releaseAllSeatsForTenant } from "./resourceSeatService.js";
 
 const TENANT_COMPANIES_SALES_MODULE = "tenant-companies-sales";
 const TENANT_COMPANIES_ADMIN_MODULE = "tenant-companies-admin";
@@ -1132,8 +1132,10 @@ export async function createTenantCompanyForCurrentUser(userId, input) {
   // Assign real desk seats out of the floor+wing's ResourceSeat inventory.
   // If there isn't enough vacant capacity, roll the create back rather than
   // leaving a half-onboarded record sitting on the unique companyName index
-  // (which would otherwise block the user from simply retrying).
-  if (company.companyDetails?.floor && (company.companyDetails.openDesks > 0 || company.companyDetails.cabinDesks > 0)) {
+  // (which would otherwise block the user from simply retrying). Skip
+  // entirely for a tenant whose contract is already expired — it should
+  // never hold live inventory in the first place.
+  if (status !== "Expired" && company.companyDetails?.floor && (company.companyDetails.openDesks > 0 || company.companyDetails.cabinDesks > 0)) {
     try {
       await reconcileTenantSeatAssignments(
         access.workspaceId,
@@ -1258,6 +1260,13 @@ export async function updateTenantCompanyForCurrentUser(userId, tenantCompanyId,
       company.companyDetails?.openDesks || 0,
       company.companyDetails?.cabinDesks || 0,
     );
+  }
+
+  // A tenant whose contract has now expired should not keep holding real
+  // desk inventory — release everything so a new tenant can actually be
+  // assigned that space. Runs after reconciliation above so it always wins.
+  if (company.status === "Expired") {
+    await releaseAllSeatsForTenant(access.workspaceId, company._id);
   }
 
   // Contract or rent terms may have changed — refresh this month's receivable.

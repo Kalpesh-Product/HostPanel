@@ -146,6 +146,9 @@ const MODULE_DESCRIPTIONS: Record<string, string> = {
   "maintenance-repair-logs": "Repair logs and preventive maintenance schedules.",
   "amc-maintenance-scheduler": "AMC service schedule adherence and overdue work.",
   "employee-management": "Company Management — employees, departments and the onboarding pipeline.",
+  "wono-nomad": "Nomad Listings — listings published on the Nomads network by type and activation state.",
+  "workspace-settings": "Unit Settings — your unit's profile, preferences and branding setup progress.",
+  "workspace-management": "Unit Management — linked memberships and member transfer activity across units.",
 };
 
 const BREAKDOWN_TITLES: Record<string, [string, string]> = {
@@ -181,6 +184,9 @@ const BREAKDOWN_TITLES: Record<string, [string, string]> = {
   "maintenance-repair-logs": ["Repair Status", "Service Schedule"],
   "amc-maintenance-scheduler": ["Schedule Status", "Adherence"],
   "employee-management": ["Employee Status", "Onboarding"],
+  "wono-nomad": ["Listing Status", "By Product Type"],
+  "workspace-settings": ["Setup Progress", "Profile Fields"],
+  "workspace-management": ["Transfer Flow", "Members"],
 };
 
 const STAT_CARDS = [
