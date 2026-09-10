@@ -347,7 +347,19 @@ export default function VirtualOfficeDetailPage() {
                               <td className="px-3.5 py-2 font-pmedium text-slate-800 text-xs">{p.monthLabel || formatDate(p.periodStart) || "--"}</td>
                               <td className="px-3.5 py-2 font-pmedium text-slate-600 text-xs">{formatDate(p.periodStart)} – {formatDate(p.periodEnd)}</td>
                               <td className="px-3.5 py-2 font-pmedium text-slate-900 text-sm">{fmt(p.amount)}</td>
-                              <td className="px-3.5 py-2 font-pmedium text-slate-600 text-xs">{p.paymentMethod || "--"}</td>
+                              <td className="px-3.5 py-2 font-pmedium text-slate-600 text-xs">
+                                <div className="flex items-center justify-start gap-1.5">
+                                  <span>{p.paymentMethod || "--"}</span>
+                                  {p.source === "advance" && (
+                                    <span
+                                      title={p.notes || "Covered by onboarding advance"}
+                                      className="inline-flex shrink-0 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[9px] font-pmedium uppercase tracking-widest text-violet-600"
+                                    >
+                                      Advance
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
                               <td className="px-3.5 py-2 font-pmedium text-slate-500 text-xs">{p.transactionId || "--"}</td>
                               <td className="px-3.5 py-2 text-center">
                                 <span className={`inline-flex rounded-full border px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest ${meta.className}`}>{meta.label}</span>

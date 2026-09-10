@@ -79,6 +79,9 @@ interface TenantRentRecord {
   payments?: Array<{
     id: string;
     amount: number;
+    taxLabel?: string;
+    taxRatePercent?: number;
+    taxAmount?: number;
     transactionReference?: string;
     status: string;
     proof?: { fileName?: string; fileUrl?: string; mimeType?: string; size?: string };
@@ -106,6 +109,7 @@ interface VirtualOfficeRentRecord {
     periodEnd?: string | null;
     monthLabel?: string;
     dueDateLabel?: string;
+    paidThroughLabel?: string | null;
     paidAmount?: number;
     dueAmount?: number;
     status?: string;
@@ -122,8 +126,21 @@ interface VirtualOfficeRentRecord {
     paymentDate?: string | null;
     paymentMethod?: string;
     notes?: string;
+    source?: string;
+    taxLabel?: string;
+    taxRatePercent?: number;
+    taxAmount?: number;
     receipt?: { fileName?: string; fileUrl?: string; mimeType?: string; size?: string; uploadedByName?: string; uploadedAt?: string | null } | null;
   }>;
+  openPeriods?: Array<{
+    periodStart?: string;
+    periodEnd?: string;
+    monthLabel?: string;
+    paidAmount?: number;
+    dueAmount?: number;
+    isPast?: boolean;
+  }>;
+  missedCount?: number;
 }
 
 interface RevenueRecord {
@@ -133,6 +150,10 @@ interface RevenueRecord {
   category?: string;
   entityName?: string;
   amount: number;
+  taxLabel?: string;
+  taxRatePercent?: number;
+  taxAmount?: number;
+  totalAmount?: number;
   revenueDate?: string | null;
   revenueDateLabel?: string;
   periodKey?: string;
@@ -759,11 +780,28 @@ export function BillingPaymentsPage() {
   const [voReceiptFile, setVoReceiptFile] = useState<File | null>(null);
   const [voPaymentAmount, setVoPaymentAmount] = useState('');
   const [voTransactionId, setVoTransactionId] = useState('');
+  const [voTargetPeriodStart, setVoTargetPeriodStart] = useState('');
   const [viewingBooking, setViewingBooking] = useState<BookingRecord | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<PayrollEmployee | null>(null);
   const [viewingExtraCredit, setViewingExtraCredit] = useState<ExtraCreditRequest | null>(null);
   const [viewingInvoiceUrl, setViewingInvoiceUrl] = useState<string | null>(null);
   const [isProcessingAction, setIsProcessingAction] = useState(false);
+
+  // ── Workspace tax (e.g. GST) — configured in /core-modules/workspace-settings.
+  // Finance only ticks "apply" per collection; label/rate/amount are resolved
+  // SERVER-SIDE from the stored config, so the tick is just a preference.
+  const taxConfig = workspacePreferences?.billing?.tax;
+  const taxLabel = String(taxConfig?.label || 'Tax');
+  const taxRatePercent = Number(taxConfig?.ratePercent || 0);
+  const taxAvailable = Boolean(taxConfig?.enabled && taxRatePercent > 0);
+  const computeTaxPreview = (base: number) => {
+    const safeBase = Math.max(0, Number(base) || 0);
+    const tax = taxAvailable ? Math.round(safeBase * (taxRatePercent / 100)) : 0;
+    return { tax, total: safeBase + tax };
+  };
+  const [applyRevenueTax, setApplyRevenueTax] = useState(false);
+  const [applyRentTax, setApplyRentTax] = useState(false);
+  const [applyVoTax, setApplyVoTax] = useState(false);
 
   const tabs = [
     { key: 'tenant', label: 'TENANT SECURITY DEPOSITS', icon: Building2 },
@@ -1275,6 +1313,7 @@ export function BillingPaymentsPage() {
       else {
         if (rentOfflineAmount) payload.amount = rentOfflineAmount;
         if (rentOfflineRef) payload.transactionReference = rentOfflineRef;
+        if (applyRentTax) payload.applyTax = true;
       }
       const res = await markTenantRentPaid(rent.id, payload, receiptFile || undefined);
       const updated = res?.rent || res;
@@ -1325,14 +1364,19 @@ export function BillingPaymentsPage() {
       const payload: Record<string, any> = {};
       if (voPaymentAmount) payload.amount = voPaymentAmount;
       if (voTransactionId) payload.transactionId = voTransactionId;
+      if (voTargetPeriodStart) payload.periodStart = voTargetPeriodStart;
+      if (applyVoTax) payload.applyTax = true;
       const res = await markVirtualOfficeRentPaid(vo.id, payload, voReceiptFile || undefined);
       const updated = res?.record || res;
       setVoRecords((prev) => prev.map((v) => (v.id === vo.id ? { ...v, ...updated } : v)));
       if (viewingVo?.id === vo.id) setViewingVo((prev) => (prev ? { ...prev, ...updated } : null));
-      toast.success(`Payment recorded for ${vo.clientName} (${vo.currentPeriod?.monthLabel || 'current period'}).`);
+      const targetLabel = (viewingVo?.openPeriods || []).find((p) => p.periodStart === voTargetPeriodStart)?.monthLabel
+        || vo.currentPeriod?.monthLabel || 'current period';
+      toast.success(`Payment recorded for ${vo.clientName} (${targetLabel}).`);
       setVoReceiptFile(null);
       setVoPaymentAmount('');
       setVoTransactionId('');
+      setVoTargetPeriodStart('');
       window.dispatchEvent(new Event('finance:snapshot-updated'));
     } catch (error: any) {
       toast.error(error?.message || 'Failed to record virtual office rent payment.');
@@ -1340,6 +1384,11 @@ export function BillingPaymentsPage() {
       setIsProcessingAction(false);
     }
   };
+
+  // The open (unpaid) period the Record Payment form targets — defaults to the
+  // first open period (the current cycle unless a month was missed).
+  const getVoTargetPeriod = (vo: VirtualOfficeRentRecord | null) =>
+    vo?.openPeriods?.find((p) => p.periodStart === voTargetPeriodStart) || vo?.openPeriods?.[0] || null;
 
   /* ── Handlers: Manual Revenue (Workation / Alternate) ── */
 
@@ -1360,6 +1409,7 @@ export function BillingPaymentsPage() {
     });
     setAddRevenueFile(null);
     setAddRevenueError('');
+    setApplyRevenueTax(false);
     setShowAddRevenue(true);
   };
 
@@ -1373,9 +1423,10 @@ export function BillingPaymentsPage() {
     setIsSubmittingRevenue(true);
     setAddRevenueError('');
     try {
-      await createFinanceRevenueEntry({ source, ...addRevenueForm, document: addRevenueFile || undefined });
+      await createFinanceRevenueEntry({ source, ...addRevenueForm, applyTax: applyRevenueTax || undefined, document: addRevenueFile || undefined });
       toast.success('Revenue entry created.');
       setShowAddRevenue(false);
+      setApplyRevenueTax(false);
       await refreshRevenueEntries();
       window.dispatchEvent(new Event('finance:snapshot-updated'));
     } catch (error: any) {
@@ -1814,6 +1865,7 @@ export function BillingPaymentsPage() {
                       <tr>
                         <th className="px-6 py-5">Client</th>
                         <th className="px-6 py-5 hidden sm:table-cell">Current Period</th>
+                        <th className="px-6 py-5 hidden sm:table-cell">Paid Through</th>
                         <th className="px-6 py-5 hidden sm:table-cell">Due Date</th>
                         <th className="px-6 py-5">Monthly Rent</th>
                         <th className="px-6 py-5 hidden md:table-cell">Paid / Due</th>
@@ -1829,18 +1881,33 @@ export function BillingPaymentsPage() {
                             <p className="text-[9px] font-semibold text-slate-400">{vo.recordCode}{vo.serviceName ? ` · ${vo.serviceName}` : ''}</p>
                           </td>
                           <td className="px-6 py-5 hidden sm:table-cell text-xs font-bold text-slate-700">{vo.currentPeriod?.monthLabel || '—'}</td>
+                          <td className="px-6 py-5 hidden lg:table-cell text-xs font-bold text-slate-700">{vo.currentPeriod?.paidThroughLabel || '—'}</td>
                           <td className="px-6 py-5 hidden sm:table-cell text-xs font-bold text-slate-700">{vo.currentPeriod?.dueDateLabel || vo.rentDateLabel || '—'}</td>
                           <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">{formatCurrency(vo.monthlyRent || 0)}</td>
                           <td className="px-6 py-5 hidden md:table-cell">
                             <p className="text-[10px] font-pmedium text-emerald-600">Paid: {formatCurrency(vo.currentPeriod?.paidAmount || 0)}</p>
                             <p className="text-[10px] font-pmedium text-rose-500">Due: {formatCurrency(vo.currentPeriod?.dueAmount || 0)}</p>
                           </td>
-                          <td className="px-6 py-5 text-center">{getRentStatusBadge(vo.currentPeriod?.status || vo.rentStatus || 'Due')}</td>
+                          <td className="px-6 py-5 text-center">
+                            <div className="flex flex-col items-center gap-1">
+                              {getRentStatusBadge(vo.currentPeriod?.status || vo.rentStatus || 'Due')}
+                              {(vo.missedCount ?? 0) > 0 && (
+                                <span className="text-[9px] font-pmedium text-amber-600">{vo.missedCount} missed month{(vo.missedCount ?? 0) > 1 ? 's' : ''}</span>
+                              )}
+                            </div>
+                          </td>
                           <td className="px-6 py-5 text-center">
                             <div className="flex items-center justify-center gap-1.5">
                               <button
                                 type="button"
-                                onClick={() => { setViewingVo(vo); setVoPaymentAmount(String(vo.currentPeriod?.dueAmount ?? '')); setVoTransactionId(''); setVoReceiptFile(null); }}
+                                onClick={() => {
+                                  const defaultTarget = vo.openPeriods?.find((p) => p.periodStart === vo.currentPeriod?.periodStart) || vo.openPeriods?.[0];
+                                  setViewingVo(vo);
+                                  setVoPaymentAmount('');
+                                  setVoTransactionId('');
+                                  setVoReceiptFile(null);
+                                  setVoTargetPeriodStart(defaultTarget?.periodStart || '');
+                                }}
                                 className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-pmedium uppercase transition-all shadow-sm inline-flex items-center gap-1"
                               >
                                 <Eye size={10} /> View
@@ -1850,7 +1917,7 @@ export function BillingPaymentsPage() {
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan={7} className="px-6 py-16 text-center text-slate-400 font-semibold">No virtual office rent records found.</td>
+                          <td colSpan={8} className="px-6 py-16 text-center text-slate-400 font-semibold">No virtual office rent records found.</td>
                         </tr>
                       )}
                     </tbody>
@@ -1886,7 +1953,12 @@ export function BillingPaymentsPage() {
                           </td>
                           <td className="px-6 py-5 hidden sm:table-cell text-xs font-bold text-slate-700">{entry.category || '—'}</td>
                           <td className="px-6 py-5 hidden sm:table-cell text-xs font-bold text-slate-700">{entry.revenueDateLabel || '—'}</td>
-                          <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">{formatCurrency(entry.amount || 0)}</td>
+                          <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">
+                            {formatCurrency(entry.amount || 0)}
+                            {(entry.taxAmount ?? 0) > 0 && (
+                              <p className="text-[9px] font-pmedium text-slate-400">+ {formatCurrency(entry.taxAmount)} {entry.taxLabel || 'Tax'} · Total {formatCurrency(entry.totalAmount || entry.amount || 0)}</p>
+                            )}
+                          </td>
                           <td className="px-6 py-5 hidden md:table-cell text-xs font-semibold text-slate-600">
                             {entry.paymentMethod || '—'}{entry.reference ? ` · ${entry.reference}` : ''}
                           </td>
@@ -2158,6 +2230,19 @@ export function BillingPaymentsPage() {
                   <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Amount <span className="text-red-400">*</span></label>
                   <input type="number" min="0" value={addRevenueForm.amount} onChange={(e) => setAddRevenueForm((prev) => ({ ...prev, amount: e.target.value }))} placeholder="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] outline-none transition-all" />
                 </div>
+                {taxAvailable && (
+                  <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-white p-3">
+                    <label className="flex items-center gap-2 text-[11px] font-pmedium text-slate-700 cursor-pointer">
+                      <input type="checkbox" checked={applyRevenueTax} onChange={(e) => setApplyRevenueTax(e.target.checked)} className="h-4 w-4 cursor-pointer" />
+                      Apply {taxLabel} ({taxRatePercent}%)
+                    </label>
+                    {applyRevenueTax && (
+                      <p className="text-[10px] text-slate-500 mt-1">
+                        Tax: {formatCurrency(computeTaxPreview(Number(addRevenueForm.amount) || 0).tax)} · Total collected: {formatCurrency(computeTaxPreview(Number(addRevenueForm.amount) || 0).total)} · P&L keeps the net amount.
+                      </p>
+                    )}
+                  </div>
+                )}
                 <div className="space-y-1">
                   <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Revenue Date <span className="text-red-400">*</span></label>
                   <input type="date" value={addRevenueForm.revenueDate} onChange={(e) => setAddRevenueForm((prev) => ({ ...prev, revenueDate: e.target.value }))} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] outline-none transition-all" />
@@ -2512,7 +2597,7 @@ export function BillingPaymentsPage() {
                       {viewingRent.payments.slice().reverse().map((payment) => (
                         <div key={payment.id} className="rounded-xl border border-slate-100 bg-slate-50/60 p-3 space-y-1.5">
                           <div className="flex items-center justify-between gap-2 flex-wrap">
-                            <p className="text-xs font-black text-slate-900">{formatCurrency(payment.amount || 0)}{payment.transactionReference ? ` · Ref: ${payment.transactionReference}` : ''}</p>
+                            <p className="text-xs font-black text-slate-900">{formatCurrency(payment.amount || 0)}{payment.transactionReference ? ` · Ref: ${payment.transactionReference}` : ''}{(payment.taxAmount ?? 0) > 0 ? ` · +${formatCurrency(payment.taxAmount)} ${payment.taxLabel || 'Tax'}` : ''}</p>
                             {getRentStatusBadge(payment.status === 'Submitted' ? 'Proof Submitted' : payment.status === 'Verified' ? 'Paid' : 'Due')}
                           </div>
                           <p className="text-[10px] text-slate-500">
@@ -2601,6 +2686,12 @@ export function BillingPaymentsPage() {
                         placeholder="Transaction reference (optional)"
                         className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-medium outline-none focus:border-blue-400"
                       />
+                      {taxAvailable && (
+                        <label className="flex items-center gap-2 text-[10px] font-pmedium text-slate-700 cursor-pointer sm:col-span-2">
+                          <input type="checkbox" checked={applyRentTax} onChange={(e) => setApplyRentTax(e.target.checked)} className="h-3.5 w-3.5 cursor-pointer" />
+                          Apply {taxLabel} ({taxRatePercent}%){applyRentTax && ` — Tax: ${formatCurrency(computeTaxPreview(Number(rentOfflineAmount) || viewingRent.remaining || viewingRent.amount || 0).tax)} · Total: ${formatCurrency(computeTaxPreview(Number(rentOfflineAmount) || viewingRent.remaining || viewingRent.amount || 0).total)}`}
+                        </label>
+                      )}
                     </div>
                     <div className="space-y-1">
                       <label className="block text-[9px] font-pmedium uppercase tracking-widest text-blue-500">Attach receipt (optional)</label>
@@ -2721,6 +2812,10 @@ export function BillingPaymentsPage() {
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Period Status</p>
                   <p className="text-lg font-black text-gray-900 mt-1">{viewingVo.currentPeriod?.status || '—'}</p>
                 </div>
+                <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4 sm:p-5">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-violet-600">Paid Through</p>
+                  <p className="text-lg font-black text-violet-900 mt-1">{viewingVo.currentPeriod?.paidThroughLabel || '—'}</p>
+                </div>
                 <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Rent Due Date (recurring)</p>
                   <p className="text-xs font-black text-gray-900 mt-1">{viewingVo.rentDateLabel || '—'}</p>
@@ -2743,7 +2838,7 @@ export function BillingPaymentsPage() {
                       {viewingVo.paymentRecords.slice().reverse().map((p, idx: number) => (
                         <div key={idx} className="flex items-start justify-between gap-3 text-[11px] border-b border-slate-50 pb-1.5 last:border-0">
                           <div>
-                            <p className="font-pmedium text-slate-800">{p.monthLabel || 'Period'} · {formatCurrency(p.amount || 0)} · {p.status}</p>
+                            <p className="font-pmedium text-slate-800">{p.monthLabel || 'Period'} · {formatCurrency(p.amount || 0)} · {p.status}{p.source === 'advance' ? ' · Advance' : ''}{(p.taxAmount ?? 0) > 0 ? ` · +${formatCurrency(p.taxAmount)} ${p.taxLabel || 'Tax'}` : ''}</p>
                             <p className="text-slate-400">{p.paymentDate ? new Date(p.paymentDate).toLocaleString() : ''}{p.transactionId ? ` · Ref: ${p.transactionId}` : ''}{p.notes ? ` · ${p.notes}` : ''}</p>
                           </div>
                           {p.receipt?.fileUrl && (
@@ -2759,17 +2854,36 @@ export function BillingPaymentsPage() {
                   )}
                 </div>
 
-                {viewingVo.currentPeriod && viewingVo.currentPeriod.status !== 'Paid' && (
+                {(viewingVo.openPeriods?.length ?? 0) > 0 && (
                   <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2">
                     <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Record Payment</p>
+                    {(viewingVo.openPeriods?.length ?? 0) > 1 && (
+                      <div className="space-y-1">
+                        <label className="block text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Billing period (missed months included)</label>
+                        <select
+                          value={voTargetPeriodStart}
+                          onChange={(e) => setVoTargetPeriodStart(e.target.value)}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:bg-white"
+                        >
+                          {(viewingVo.openPeriods || []).map((p) => (
+                            <option key={p.periodStart || p.monthLabel} value={p.periodStart || ''}>
+                              {p.monthLabel}{p.isPast ? ' — missed' : ''} · due {formatCurrency(p.dueAmount || 0)}
+                            </option>
+                          ))}
+                        </select>
+                        {getVoTargetPeriod(viewingVo)?.isPast && (
+                          <p className="text-[10px] text-amber-600">Settling a missed month — when fully paid it posts to that month in Accounting.</p>
+                        )}
+                      </div>
+                    )}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div className="space-y-1">
-                        <label className="block text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Amount (up to {formatCurrency(viewingVo.currentPeriod?.dueAmount || 0)})</label>
+                        <label className="block text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Amount (up to {formatCurrency(getVoTargetPeriod(viewingVo)?.dueAmount || 0)})</label>
                         <input
-                          type="number" min="0" step="0.01" max={viewingVo.currentPeriod?.dueAmount || 0}
+                          type="number" min="0" step="0.01" max={getVoTargetPeriod(viewingVo)?.dueAmount || 0}
                           value={voPaymentAmount}
                           onChange={(e) => setVoPaymentAmount(e.target.value)}
-                          placeholder={String(viewingVo.currentPeriod?.dueAmount || 0)}
+                          placeholder={String(getVoTargetPeriod(viewingVo)?.dueAmount || 0)}
                           className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:bg-white"
                         />
                       </div>
@@ -2784,6 +2898,12 @@ export function BillingPaymentsPage() {
                         />
                       </div>
                     </div>
+                    {taxAvailable && (
+                      <label className="flex items-center gap-2 text-[10px] font-pmedium text-slate-700 cursor-pointer">
+                        <input type="checkbox" checked={applyVoTax} onChange={(e) => setApplyVoTax(e.target.checked)} className="h-3.5 w-3.5 cursor-pointer" />
+                        Apply {taxLabel} ({taxRatePercent}%){applyVoTax && ` — Tax: ${formatCurrency(computeTaxPreview(Number(voPaymentAmount) || getVoTargetPeriod(viewingVo)?.dueAmount || 0).tax)} · Total: ${formatCurrency(computeTaxPreview(Number(voPaymentAmount) || getVoTargetPeriod(viewingVo)?.dueAmount || 0).total)}`}
+                      </label>
+                    )}
                     <p className="text-[10px] text-slate-400">Pay in full or in installments — a partial amount keeps the period Overdue until the balance clears.</p>
                     <div className="pt-1">
                       <label className="block text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Attach receipt (optional)</label>
@@ -2801,7 +2921,7 @@ export function BillingPaymentsPage() {
               </div>
             </div>
             <div className="px-6 sm:px-8 py-4 bg-white border-t border-slate-100 flex flex-wrap justify-end gap-2 shrink-0">
-              {viewingVo.currentPeriod && viewingVo.currentPeriod.status !== 'Paid' && (
+              {(viewingVo.openPeriods?.length ?? 0) > 0 && (
                 <button
                   type="button"
                   onClick={() => void handleMarkVoPaid(viewingVo)}
@@ -2810,13 +2930,13 @@ export function BillingPaymentsPage() {
                 >
                   <CheckCircle2 size={12} /> {isProcessingAction
                     ? 'Processing...'
-                    : Number(voPaymentAmount) > 0 && Number(voPaymentAmount) < (viewingVo.currentPeriod?.dueAmount || 0)
-                      ? `Record Partial Payment for ${viewingVo.currentPeriod.monthLabel || 'This Period'}`
-                      : `Mark ${viewingVo.currentPeriod.monthLabel || 'This Period'} as Paid`}
+                    : Number(voPaymentAmount) > 0 && Number(voPaymentAmount) < (getVoTargetPeriod(viewingVo)?.dueAmount || 0)
+                      ? `Record Partial Payment for ${getVoTargetPeriod(viewingVo)?.monthLabel || 'This Period'}`
+                      : `Mark ${getVoTargetPeriod(viewingVo)?.monthLabel || 'This Period'} as Paid`}
                 </button>
               )}
-              {viewingVo.currentPeriod?.status === 'Paid' && (
-                <span className="px-4 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 font-pmedium text-[10px] uppercase tracking-wider flex items-center gap-1.5"><CheckCircle2 size={12} /> This period is fully paid</span>
+              {(viewingVo.openPeriods?.length ?? 0) === 0 && viewingVo.currentPeriod?.status === 'Paid' && (
+                <span className="px-4 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 font-pmedium text-[10px] uppercase tracking-wider flex items-center gap-1.5"><CheckCircle2 size={12} /> All periods fully paid</span>
               )}
               {!viewingVo.currentPeriod && (
                 <span className="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-500 font-pmedium text-[10px] uppercase tracking-wider flex items-center gap-1.5">

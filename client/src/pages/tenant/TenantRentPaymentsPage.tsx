@@ -48,6 +48,9 @@ interface RentRecord {
   payments?: Array<{
     id: string;
     amount: number;
+    taxLabel?: string;
+    taxRatePercent?: number;
+    taxAmount?: number;
     transactionReference?: string;
     status: string;
     proof?: { fileName?: string; fileUrl?: string; mimeType?: string; size?: string };
@@ -344,7 +347,7 @@ function RentRow({
               onClick={onOpenPaying}
               className="px-3 py-1.5 bg-[#2563EB] text-white rounded-lg text-[9px] font-pmedium uppercase tracking-wider shadow-sm hover:bg-primary/95 transition-all inline-flex items-center gap-1"
             >
-              <Wallet size={10} /> {rent.status === 'Proof Submitted' ? 'Add Payment' : 'Pay Rent'}
+              <Wallet size={10} /> {rent.status === 'Proof Submitted' ? 'Add Payment' : rent.isOverdue ? 'Pay Overdue Rent' : 'Pay Rent'}
             </button>
           ) : (
             <span
@@ -365,6 +368,7 @@ function RentRow({
                 <div key={payment.id} className="flex items-center justify-between gap-3 text-[11px] border-b border-slate-100 pb-1.5 last:border-0 last:pb-0">
                   <div>
                     <span className="font-pmedium text-slate-800">{formatCurrency(payment.amount || 0)}</span>
+                    {(payment.taxAmount ?? 0) > 0 && <span className="ml-2 text-[9px] text-slate-400">+{formatCurrency(payment.taxAmount)} {payment.taxLabel || 'Tax'}</span>}
                     <span className={`ml-2 px-2 py-0.5 rounded-full text-[8px] font-pmedium uppercase tracking-wider ${getRentBadgeClass(payment.status === 'Submitted' ? 'Proof Submitted' : payment.status === 'Verified' ? 'Paid' : 'Due')}`}>
                       {payment.status}
                     </span>
@@ -442,7 +446,7 @@ function PayingRow({
               placeholder={String(remaining)}
               className="w-full px-3 py-2.5 bg-white border border-blue-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB]"
             />
-            <p className="text-[10px] text-slate-400">You can pay in full or in installments — pay part now and the rest later, as long as it's within the payment window.</p>
+            <p className="text-[10px] text-slate-400">You can pay in full or in installments — pay part now and the rest later. Late payments stay marked Overdue until Finance verifies them.</p>
           </div>
 
           <input ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden"
