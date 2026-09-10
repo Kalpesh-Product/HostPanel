@@ -4410,10 +4410,10 @@ export default function VisitorsManagementPage() {
                     const normalizedStatusKey = normalizeText(vis.statusKey || '').replace(/[_-]+/g, ' ');
                     const normalizedApprovalStatus = normalizeText(vis.approvalStatus || '');
                     const hasCheckInTime = Boolean(vis.checkInAt || (String(vis.checkIn || '').trim() && String(vis.checkIn).trim() !== '--:--'));
-                    const isCheckedIn = checkedInVisitorIds.has(String(visitorId)) || hasCheckInTime || normalizedStatus === 'checked in' || normalizedStatusKey === 'checked in';
-                    const isApproved = normalizedApprovalStatus === 'approved' && !isCheckedIn;
-                    const isRejected = normalizedApprovalStatus === 'rejected' || normalizedStatus === 'rejected' || normalizedStatusKey === 'rejected';
                     const isCheckedOut = isVisitorCheckedOut(vis);
+                    const isCheckedIn = !isCheckedOut && (checkedInVisitorIds.has(String(visitorId)) || hasCheckInTime || normalizedStatus === 'checked in' || normalizedStatusKey === 'checked in');
+                    const isApproved = normalizedApprovalStatus === 'approved' && !isCheckedIn && !isCheckedOut;
+                    const isRejected = normalizedApprovalStatus === 'rejected' || normalizedStatus === 'rejected' || normalizedStatusKey === 'rejected';
 
                     return (
                       <tr key={visitorId} className="hover:bg-slate-50/50 transition-colors group">
@@ -4456,7 +4456,7 @@ export default function VisitorsManagementPage() {
                           </div>
                         </td>
                         <td className="px-5 py-4 align-top">
-                          <div className="flex flex-col items-start gap-2">
+                          <div className="flex flex-col items-center gap-2">
                             <div className="flex items-center gap-1.5">
                               <button title="View details" onClick={() => setViewingVisitor(vis)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all">
                                 <Eye size={15} strokeWidth={2.5} />
@@ -4474,19 +4474,21 @@ export default function VisitorsManagementPage() {
                                 <button title="Check in visitor" onClick={() => handleAllowEntry(vis)} className="p-1.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg transition-all">
                                   <CheckCircle2 size={15} strokeWidth={2.5} />
                                 </button>
-                              ) : (
+                              ) : isCheckedOut ? null : (
                                 <button title={isRejected ? 'Rejected' : 'Awaiting approval'} type="button" disabled className={`p-1.5 rounded-lg transition-all ${isRejected ? 'bg-red-50 text-red-400' : 'bg-amber-50 text-amber-500'} cursor-not-allowed`}>
                                   {isRejected ? <XCircle size={15} strokeWidth={2.5} /> : <Clock size={15} strokeWidth={2.5} />}
                                 </button>
                               )}
                             </div>
-                            {isCheckedIn ? (
+                            {(isCheckedIn || isCheckedOut) ? (
                               <button
                                 type="button"
                                 title={
-                                  visitorAccess.modes.walkin_booking
-                                    ? "Open a walk-in booking pre-filled with this visitor's details. Completing the booking checks them out and converts them to a client."
-                                    : "Upgrade your plan to convert visitors to clients."
+                                  isCheckedOut
+                                    ? "Open a walk-in booking pre-filled with this visitor's details. Completing the booking converts them to a client."
+                                    : visitorAccess.modes.walkin_booking
+                                      ? "Open a walk-in booking pre-filled with this visitor's details. Completing the booking checks them out and converts them to a client."
+                                      : "Upgrade your plan to convert visitors to clients."
                                 }
                                 onClick={() => {
                                   if (!visitorAccess.modes.walkin_booking) {
@@ -4759,7 +4761,6 @@ export default function VisitorsManagementPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100/60">
                   {displayedHistory.map((vis) => {
-                    const isCheckedOut = isVisitorCheckedOut(vis);
                     return (
                     <tr key={vis.id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-5 py-4 align-top">
@@ -4808,11 +4809,6 @@ export default function VisitorsManagementPage() {
                           <button title="View details" onClick={() => setViewingVisitor(vis)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all">
                             <Eye size={15} strokeWidth={2.5} />
                           </button>
-                          {!isCheckedOut && (
-                            <button title="Print badge" onClick={() => handlePrintBadge(vis)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200/70 hover:text-slate-700 rounded-lg transition-all">
-                              <Printer size={15} strokeWidth={2.5} />
-                            </button>
-                          )}
                         </div>
                       </td>
                     </tr>

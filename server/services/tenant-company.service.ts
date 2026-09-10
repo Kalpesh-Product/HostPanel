@@ -798,11 +798,31 @@ export async function listTenantCompaniesForCurrentUser(userId, query = {}) {
 
   const [total, companies, packages, totalTenants, activeContracts, expiringSoon, expired] = await Promise.all([
     TenantCompany.countDocuments(listFilter),
-    TenantCompany.find(listFilter)
-      .sort({ createdAt: -1, tenantNumber: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean(),
+    (async () => {
+      // Ordering: Active (incl. Expiring Soon) on top, then Expired, then the
+      // rest (Pending Setup / Pending Space Assignment). Within each group sort
+      // alphabetically by company name. We only pull the sort keys first, then
+      // fetch the exact page's docs in that order.
+      const sortCandidates = await TenantCompany.find(listFilter, {
+        _id: 1,
+        status: 1,
+        companyName: 1,
+      })
+        .lean()
+        .exec();
+      const statusRank = (s) =>
+        s === "Active" || s === "Expiring Soon" ? 1 : s === "Expired" ? 2 : 3;
+      sortCandidates.sort(
+        (a, b) =>
+          statusRank(a.status) - statusRank(b.status) ||
+          String(a.companyName || "").localeCompare(String(b.companyName || ""), undefined, { sensitivity: "base" }),
+      );
+      const pageIds = sortCandidates.slice(skip, skip + limit).map((d) => d._id);
+      if (!pageIds.length) return [];
+      const pageDocs = await TenantCompany.find({ _id: { $in: pageIds } }).lean().exec();
+      const byId = new Map(pageDocs.map((c) => [String(c._id), c]));
+      return pageIds.map((id) => byId.get(String(id))).filter(Boolean);
+    })(),
     PlansPricing.find({ workspaceId: new mongoose.Types.ObjectId(workspaceId), category: "Tenant" })
       .sort({ sortOrder: 1, name: 1 })
       .lean(),

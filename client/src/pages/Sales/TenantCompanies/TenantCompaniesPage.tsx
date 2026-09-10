@@ -981,9 +981,9 @@ export default function TenantCompaniesPage() {
     [currentUser],
   );
 
-  // Search box updates on every keystroke; debounce it before it drives a server request.
+  // Debounce drives the server request (reduced from 400ms → 200ms for faster feel).
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery.trim()), 400);
+    const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery.trim()), 200);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -1612,6 +1612,19 @@ export default function TenantCompaniesPage() {
       .some((employee) => employee.role === 'Manager');
 
   const [tenants, setTenants] = useState([]);
+
+  // Instant client-side filter — shows matching rows immediately while
+  // the server request runs in the background for full pagination.
+  const displayedTenants = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return tenants;
+    return tenants.filter(t =>
+      (t.companyName || '').toLowerCase().includes(q) ||
+      (t.contactName || '').toLowerCase().includes(q) ||
+      (t.tenantCode || '').toLowerCase().includes(q)
+    );
+  }, [tenants, searchQuery]);
+
   // The Requests tab needs credit requests aggregated across every tenant company,
   // not just the 25-at-a-time page loaded for the Companies tab, so it's backed by
   // its own full fetch instead of `tenants`.
@@ -3629,25 +3642,25 @@ export default function TenantCompaniesPage() {
               <table data-tour="sales-tenant-table" className="w-full min-w-[1000px] text-left">
                 <thead className="bg-white text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100">
                   <tr>
-                    <th className="px-3.5 py-2 min-w-[240px]">Company Info</th>
-                    <th className="px-3.5 py-2 min-w-[200px]">Contact Details</th>
+                    <th className="px-3.5 py-2 w-[50px] text-center">Sr No</th>
+                    <th className="px-3.5 py-2 min-w-[220px]">Company Info</th>
+                    <th className="px-3.5 py-2 min-w-[180px]">Contact Details</th>
                     <th className="px-3.5 py-2">Contract Period</th>
-                    <th className="px-3.5 py-2">Package & Credits</th>
+                    <th className="px-3.5 py-2 text-center">Credits</th>
                     <th className="px-3.5 py-2 text-center">Status</th>
-                    <th className="px-3.5 py-2 text-center">Actions</th>
+                    <th className="px-3.5 py-2 text-center w-[120px]">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {tenants.map((tenant) => (
+                  {displayedTenants.map((tenant, idx) => (
                     <tr key={tenant.id} className="hover:bg-blue-50/30 transition-all group">
+                      <td className="px-3.5 py-2 text-center text-[11px] font-pmedium text-slate-400">
+                        {idx + 1}
+                      </td>
                       <td className="px-3.5 py-2">
                         <div className="flex items-center gap-3">
-                          {/* <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-[11px] font-black shadow-sm shrink-0 border border-slate-200">
-                            {getInitials(tenant.companyName)}
-                          </div> */}
                           <div>
                             <p className="font-pmedium text-xs text-slate-800 text-sm break-words" title={tenant.companyName}>{tenant.companyName}</p>
-                            {/* <p className="text-[8px] font-pmedium text-slate-600 uppercase tracking-widest mt-0.5">{tenant.id}</p> */}
                           </div>
                         </div>
                       </td>
@@ -3666,55 +3679,55 @@ export default function TenantCompaniesPage() {
                           <p className="text-xs font-pmedium text-slate-700">{tenant.contractEnd}</p>
                         </div>
                       </td>
-                      <td className="px-3.5 py-2 space-y-1.5">
-                        {/* <span className="inline-block px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded text-[9px] font-pmedium uppercase tracking-wider">
-                          {tenant.packageName || tenant.package}
-                        </span> */}
-                        <div className="flex items-center gap-1 text-[11px] font-pmedium text-slate-800">
-                          <CreditCard size={12} className="text-slate-600" /> {tenant.creditsRemaining ?? 0} / {tenant.creditsAllocated ?? 0} Cr
+                      <td className="px-3.5 py-2">
+                        <div className="flex items-center gap-1 text-[11px] font-pmedium text-slate-800 whitespace-nowrap">
+                          <CreditCard size={12} className="text-slate-600 shrink-0" /><span className="shrink-0">{tenant.creditsRemaining ?? 0}</span>/<span className="shrink-0">{tenant.creditsAllocated ?? 0}</span><span className="shrink-0"> Cr</span>
                         </div>
                       </td>
                       <td className="px-3.5 py-2 text-center">
                         {getStatusBadge(tenant.status)}
                       </td>
                       <td className="px-3.5 py-2">
-                        <div className="flex flex-wrap items-center justify-center gap-2 transition-opacity">
-                          <button onClick={() => navigate(`/department-accesses/sales-department/tenant-companies/${tenant.recordId || tenant.id}`)} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm" title="View Profile">
-                            <Eye size={14} />
+                        <div className="flex items-center justify-center gap-1">
+                          <button onClick={() => navigate(`/department-accesses/sales-department/tenant-companies/${tenant.recordId || tenant.id}`)} className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-md transition-all" title="View">
+                            <Eye size={13} />
                           </button>
                           <button onClick={() => {
                             const hydratedTenant = buildHydratedTenantSnapshot(tenant);
                             setCompanyForm(prepareCompanyFormForTenant(hydratedTenant));
                             setSelectedTenant(hydratedTenant); setAgreementFiles([]); setActiveModal('edit');
                           }}
-                            className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 rounded-lg transition-all shadow-sm" title="Edit Contact/Package"
+                            className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 rounded-md transition-all" title="Edit"
                           >
-                            <Edit size={14} />
+                            <Edit size={13} />
                           </button>
                           <button onClick={() => {
                             const hydratedTenant = buildHydratedTenantSnapshot(tenant);
                             setCompanyForm(prepareCompanyFormForTenant(hydratedTenant));
                             setSelectedTenant(hydratedTenant); setAgreementFiles([]); setActiveModal('renew');
                           }}
-                            className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-green-50 hover:text-green-600 hover:border-green-200 rounded-lg transition-all shadow-sm" title="Renew Contract"
+                            className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:bg-green-50 hover:text-green-600 hover:border-green-200 rounded-md transition-all" title="Renew"
                           >
-                            <RefreshCw size={14} />
+                            <RefreshCw size={13} />
                           </button>
                         </div>
                       </td>
                     </tr>
                   ))}
+                  {displayedTenants.length === 0 && tenants.length > 0 && searchQuery.trim() && !isFilteringTenants && (
+                    <tr><td colSpan={7} className="text-center py-20 text-slate-400 font-pmedium bg-slate-50/50">No companies match your search.</td></tr>
+                  )}
                   {tenants.length === 0 && !isFilteringTenants && (
-                    <tr><td colSpan={6} className="text-center py-20 text-slate-400 font-pmedium bg-slate-50/50">No companies match the current filters.</td></tr>
+                    <tr><td colSpan={7} className="text-center py-20 text-slate-400 font-pmedium bg-slate-50/50">No companies match the current filters.</td></tr>
                   )}
                   {isFilteringTenants && (
-                    <tr><td colSpan={6} className="text-center py-16 text-slate-400 font-pmedium bg-slate-50/50">
+                    <tr><td colSpan={7} className="text-center py-16 text-slate-400 font-pmedium bg-slate-50/50">
                       <span className="inline-flex items-center gap-1.5"><Loader2 size={14} className="animate-spin" /> Searching...</span>
                     </td></tr>
                   )}
                   {tenants.length > 0 && tenantsPage < tenantsTotalPages && (
                     <tr>
-                      <td colSpan={6} ref={loadMoreSentinelRef} className="text-center py-6 text-slate-400 text-[11px] font-pmedium">
+                      <td colSpan={7} ref={loadMoreSentinelRef} className="text-center py-6 text-slate-400 text-[11px] font-pmedium">
                         {isLoadingMoreTenants ? (
                           <span className="inline-flex items-center gap-1.5"><Loader2 size={14} className="animate-spin" /> Loading more...</span>
                         ) : (

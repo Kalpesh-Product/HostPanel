@@ -787,22 +787,9 @@ export const checkOutVisitor = async (req, res, next) => {
 
     const visitor = await VisitorLog.findOne({ _id: req.params.visitorId, workspace: workspace._id });
     if (!visitor) return res.status(404).json({ message: "Visitor record not found." });
-    if (visitor.status === "checked_out") {
-      return res.status(200).json({ message: "Visitor already checked out.", data: { visitor: formatVisitor(visitor) } });
-    }
-    if (visitor.status !== "checked_in") {
-      return res.status(400).json({ message: "Only checked-in visitors can be checked out." });
-    }
 
-    visitor.status = "checked_out";
-    visitor.checkOutAt = new Date();
-    visitor.checkedOutByUser = req.user;
-    visitor.checkedOutByName = await getActorDisplayName(toId(req.user));
-    if (req.body?.notes) {
-      visitor.notes = [visitor.notes, String(req.body.notes).trim()].filter(Boolean).join("\n");
-    }
-
-    // Auto-create/upsert a Client record when visitor is being converted
+    // Auto-create/upsert a Client record when a visitor is being converted to a client.
+    // This runs before the status checks so an already checked-out visitor can still be converted.
     let createdClient = null;
     if (req.body?.convertedToClient) {
       const visitorEmail = (visitor.email || "").toLowerCase().trim();
@@ -838,6 +825,30 @@ export const checkOutVisitor = async (req, res, next) => {
       } catch (clientErr) {
         console.warn("Failed to create/upsert client on visitor checkout:", clientErr.message);
       }
+    }
+
+    if (visitor.status === "checked_out") {
+      if (visitor.isModified("convertedToClient") || visitor.isModified("convertedClientId")) {
+        await visitor.save();
+      }
+      return res.status(200).json({
+        message: "Visitor already checked out.",
+        data: {
+          visitor: formatVisitor(visitor),
+          client: createdClient ? { id: String(createdClient._id), name: createdClient.name } : null,
+        },
+      });
+    }
+    if (visitor.status !== "checked_in") {
+      return res.status(400).json({ message: "Only checked-in visitors can be checked out." });
+    }
+
+    visitor.status = "checked_out";
+    visitor.checkOutAt = new Date();
+    visitor.checkedOutByUser = req.user;
+    visitor.checkedOutByName = await getActorDisplayName(toId(req.user));
+    if (req.body?.notes) {
+      visitor.notes = [visitor.notes, String(req.body.notes).trim()].filter(Boolean).join("\n");
     }
 
     await visitor.save();
