@@ -196,10 +196,15 @@ const CompanySettingsDashboard = () => {
               totalMembers={access.metrics.totalMembers}
               moduleMap={access.moduleMap}
               grantedModuleIds={access.grantedModuleIds}
+              enabledModuleIds={access.enabledModuleIds}
             />
           )}
           {access.plan === "professional" && (
-            <ProfessionalDashboard onUpgradeClick={() => setShowUpgradeModal(true)} />
+            <ProfessionalDashboard
+              onUpgradeClick={() => setShowUpgradeModal(true)}
+              enabledModuleIds={access.enabledModuleIds}
+              grantedModuleIds={access.grantedModuleIds}
+            />
           )}
           {access.plan === "custom" && <CustomDashboard access={access} />}
           {access.plan !== "basic" && customDepartments.length > 0 && (

@@ -1191,11 +1191,12 @@ export function AttendancePage() {
                 blue: 'border-l-blue-500 bg-blue-50 text-blue-600',
                 slate: 'border-l-slate-500 bg-slate-50 text-slate-600',
               };
-              const iconBg = colorMap[card.color]?.split('bg-')[1]?.split(' ')[0] ? `bg-${colorMap[card.color].split('bg-')[1].split(' ')[0]}` : 'bg-slate-50';
+              const iconBg = colorMap[card.color] ? `bg-${card.color}-50 text-${card.color}-600` : 'bg-slate-50 text-slate-600';
+              const labelColor = colorMap[card.color] ? `text-${card.color}-600` : 'text-slate-400';
               return (
                 <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-${card.color}-500`}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className={`text-[10px] font-pmedium ${labelColor} uppercase tracking-widest mb-1`}>{card.label}</p>
                     <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${iconBg}`}><Icon size={16} /></div>
@@ -1384,7 +1385,7 @@ export function AttendancePage() {
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                       ))}
                     </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2563EB] pointer-events-none" size={11} />
+                    {/* <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2563EB] pointer-events-none" size={11} /> */}
                   </div>
                   {activeTab === 'my-attendance' && (
                     <button

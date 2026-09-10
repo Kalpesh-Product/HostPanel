@@ -123,7 +123,8 @@ export async function releaseResourceAssignment(request: AuthenticatedRequest, r
         const workspaceId = getWorkspaceId(request);
         const ownerId = getUserId(request);
         const resourceId = request.params.resourceId as string;
-        const result = await releaseResourceAssignmentForOwner(workspaceId, ownerId, resourceId);
+        const virtualOfficeId = request.query.virtualOfficeId as string || request.body?.virtualOfficeId || "";
+        const result = await releaseResourceAssignmentForOwner(workspaceId, ownerId, resourceId, virtualOfficeId);
 
         response.status(200).json({
             success: true,

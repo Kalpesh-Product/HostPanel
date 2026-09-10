@@ -291,6 +291,8 @@ const transformBooking = (booking: any, currentUserId?: string, fallbackTimezone
         bookedByName: booking.bookedByName || ownerName || "",
         bookedForName,
         bookedByUserId,
+        department: booking.department || "",
+        departmentId: booking.departmentId ? String(booking.departmentId) : "",
         // The workspace member who performed the frontdesk action (creator of the
         // booking), always the populated owner — independent of who the booking
         // is for (client, on-behalf member, etc).
@@ -823,11 +825,21 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
         // over the logged-in actor's identity so on-behalf bookings link correctly.
         let tenantBookingCompanyId = null;
         let tenantBookingCompanyName = null;
+        let tenantEmployeeDepartment = "";
         if ((req.body.bookingType || "Internal") === "Tenant") {
             const resolved = await resolveTenantCompany(req.body, hostUser);
             if (!resolved) return res.status(400).json({ message: "A tenant company is required for tenant bookings" });
             tenantBookingCompanyId = resolved.tenantBookingCompanyId;
             tenantBookingCompanyName = resolved.tenantBookingCompanyName;
+            const tenantEmployee = await TenantEmployee.findOne({
+                tenantCompanyId: tenantBookingCompanyId,
+                status: "Active",
+                $or: [
+                    { userId: req.user },
+                    { email: normalizeEmail(hostUser?.email || "") },
+                ],
+            }).lean().exec();
+            tenantEmployeeDepartment = String(tenantEmployee?.department || "").trim();
         }
 
         const booking = await createBookingWithUniqueCode({
@@ -851,7 +863,7 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
             bookingType: req.body.bookingType || "Internal",
             timezone: workspaceLocalization.timezone,
             currency: workspaceLocalization.currency,
-            department: req.body.department,
+            department: req.body.department || tenantEmployeeDepartment,
             departmentId: req.body.departmentId && mongoose.Types.ObjectId.isValid(req.body.departmentId) ? new mongoose.Types.ObjectId(String(req.body.departmentId)) : null,
             invites,
             status: "confirmed",

@@ -3642,12 +3642,12 @@ export default function TenantCompaniesPage() {
                     <tr key={tenant.id} className="hover:bg-blue-50/30 transition-all group">
                       <td className="px-3.5 py-2">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-[11px] font-black shadow-sm shrink-0 border border-slate-200">
+                          {/* <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-[11px] font-black shadow-sm shrink-0 border border-slate-200">
                             {getInitials(tenant.companyName)}
-                          </div>
+                          </div> */}
                           <div>
-                            <p className="font-pmedium text-primary text-sm break-words" title={tenant.companyName}>{tenant.companyName}</p>
-                            <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mt-0.5">{tenant.id}</p>
+                            <p className="font-pmedium text-xs text-slate-800 text-sm break-words" title={tenant.companyName}>{tenant.companyName}</p>
+                            {/* <p className="text-[8px] font-pmedium text-slate-600 uppercase tracking-widest mt-0.5">{tenant.id}</p> */}
                           </div>
                         </div>
                       </td>
@@ -3667,11 +3667,11 @@ export default function TenantCompaniesPage() {
                         </div>
                       </td>
                       <td className="px-3.5 py-2 space-y-1.5">
-                        <span className="inline-block px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded text-[9px] font-pmedium uppercase tracking-wider">
+                        {/* <span className="inline-block px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded text-[9px] font-pmedium uppercase tracking-wider">
                           {tenant.packageName || tenant.package}
-                        </span>
-                        <div className="flex items-center gap-1 text-[10px] font-pmedium text-slate-600">
-                          <CreditCard size={12} className="text-slate-400" /> {tenant.creditsRemaining ?? 0} / {tenant.creditsAllocated ?? 0} Cr
+                        </span> */}
+                        <div className="flex items-center gap-1 text-[11px] font-pmedium text-slate-800">
+                          <CreditCard size={12} className="text-slate-600" /> {tenant.creditsRemaining ?? 0} / {tenant.creditsAllocated ?? 0} Cr
                         </div>
                       </td>
                       <td className="px-3.5 py-2 text-center">

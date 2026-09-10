@@ -856,16 +856,16 @@ export function DepartmentInventoryPage() {
           {/* STAT CARDS */}
           <div data-tour="dept-inventory-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             {[
-              { label: 'Tracked Items', value: totalItems, icon: Box, iconBg: 'bg-blue-50 text-blue-600', border: '' },
-              { label: 'Available Stock', value: availableStock, icon: ShieldCheck, iconBg: 'bg-emerald-50 text-emerald-600', border: 'border-l-4 border-l-emerald-500' },
-              { label: 'Total Stock', value: totalStock, icon: History, iconBg: 'bg-purple-50 text-purple-600', border: 'border-l-4 border-l-purple-500' },
-              { label: 'Low Stock Alerts', value: lowStockItems, icon: TrendingDown, iconBg: 'bg-red-50 text-red-500', border: 'border-l-4 border-l-red-500' },
+              { label: 'Tracked Items', value: totalItems, icon: Box, iconBg: 'bg-blue-50 text-blue-600', border: '', labelClass: 'text-slate-400' },
+              { label: 'Available Stock', value: availableStock, icon: ShieldCheck, iconBg: 'bg-emerald-50 text-emerald-600', border: 'border-l-4 border-l-emerald-500', labelClass: 'text-emerald-600' },
+              { label: 'Total Stock', value: totalStock, icon: History, iconBg: 'bg-purple-50 text-purple-600', border: 'border-l-4 border-l-purple-500', labelClass: 'text-purple-600' },
+              { label: 'Low Stock Alerts', value: lowStockItems, icon: TrendingDown, iconBg: 'bg-red-50 text-red-500', border: 'border-l-4 border-l-red-500', labelClass: 'text-red-500' },
             ].map((card, idx) => {
               const Icon = card.icon;
               return (
                 <div key={idx} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.border}`}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className={`text-[10px] font-pmedium ${card.labelClass} uppercase tracking-widest mb-1`}>{card.label}</p>
                     <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${card.iconBg} shrink-0`}><Icon size={16} /></div>

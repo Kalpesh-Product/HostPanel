@@ -84,7 +84,8 @@ const virtualOfficeSchema = new Schema(
     // Space allocation — which workspace location/floor/wing this virtual
     // office's desks sit in, picked from what Resource Management has on
     // file. Physical desk-by-desk assignment happens separately in Sales
-    // Architecture (Resource.assignedVirtualOfficeId).
+    // Architecture (Resource.assignedVirtualOfficeIds — one space can be
+    // shared by multiple virtual office companies).
     spaceLocation: { type: String, default: "", trim: true, maxlength: 120 },
     spaceFloor: { type: String, default: "", trim: true, maxlength: 60 },
     spaceWing: { type: String, default: "", trim: true, maxlength: 10 },

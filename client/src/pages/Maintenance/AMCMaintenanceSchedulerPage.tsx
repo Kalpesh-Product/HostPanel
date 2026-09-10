@@ -383,10 +383,11 @@ export default function AMCMaintenanceSchedulerPage() {
               const Icon = card.icon;
               const borderColors = ['', 'border-l-4 border-l-emerald-500', 'border-l-4 border-l-amber-500', 'border-l-4 border-l-red-500', 'border-l-4 border-l-blue-500'];
               const iconClasses = ['bg-slate-50 text-slate-600', 'bg-emerald-50 text-emerald-600', 'bg-amber-50 text-amber-600', 'bg-red-50 text-red-600', 'bg-blue-50 text-blue-600'];
+              const labelClasses = ['text-slate-400', 'text-emerald-600', 'text-amber-600', 'text-red-600', 'text-blue-600'];
               return (
                 <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className={`text-[10px] font-pmedium uppercase tracking-widest mb-1 ${labelClasses[idx] || 'text-slate-400'}`}>{card.label}</p>
                     <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>

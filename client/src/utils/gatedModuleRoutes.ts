@@ -7,12 +7,26 @@
 // never part of the module-access system, so inverting it wholesale would
 // wrongly gate core always-on pages.
 export const GATED_MODULE_ROUTES: Array<{ route: string; moduleId: string }> = [
+  // Key Apps (Basic+)
+  { route: "/key-apps/website-builder", moduleId: "website-builder" },
+  { route: "/key-apps/wono-nomad", moduleId: "wono-nomad" },
+  { route: "/key-apps/nomad-listings", moduleId: "wono-nomad" },
+  { route: "/key-apps/all-leads", moduleId: "website-leads" },
+  { route: "/key-apps/reviews", moduleId: "website-review" },
+
   // Core Modules (Professional+)
   { route: "/common-modules/tickets", moduleId: "tickets" },
   { route: "/common-modules/meeting-room-booking", moduleId: "meeting-room-system" },
   { route: "/common-modules/calendar", moduleId: "calendar" },
+  { route: "/common-modules/customer-support", moduleId: "customer-support" },
+  { route: "/core-modules/organization-management", moduleId: "organization-management" },
+  { route: "/core-modules/access-grants", moduleId: "access-grants" },
+  { route: "/core-modules/analytics", moduleId: "analytics" },
   { route: "/core-modules/workspace-settings", moduleId: "workspace-settings" },
   { route: "/core-modules/workspace-management", moduleId: "workspace-management" },
+
+  // Visitor Management (Basic+; the whole module lives under /visitors/*)
+  { route: "/visitors", moduleId: "visitor-management" },
 
   // Finance Department (Custom-only)
   { route: "/department-accesses/finance-department/expenses-budget", moduleId: "finance-budget" },
@@ -59,6 +73,17 @@ export const GATED_MODULE_ROUTES: Array<{ route: string; moduleId: string }> = [
   { route: "/extra-common-modules/reports", moduleId: "reports" },
   { route: "/common-modules/tasks", moduleId: "tasks" },
   { route: "/common-modules/leave-requests", moduleId: "leave-requests" },
+
+  // Legacy route trees still wired into Routes.tsx that belong to a real
+  // module (Assets / Tasks). The tasks-domain KRA/KPA review pages under
+  // /performance and /tasks/:department/monthly-KPA were previously hit by a
+  // stale substring permission check in MainLayout; gating them under the
+  // Tasks module keeps them protected consistently with the sidebar while
+  // allowing every member with the Tasks module (a baseline common module)
+  // through.
+  { route: "/assets", moduleId: "assets" },
+  { route: "/tasks", moduleId: "tasks" },
+  { route: "/performance", moduleId: "tasks" },
 ];
 
 // Longest route first so a more specific entry (e.g. an exact route that is

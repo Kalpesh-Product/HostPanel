@@ -139,16 +139,16 @@ export function ResignationRequestTab() {
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 shrink-0" data-tour="resignation-summary">
         {[
-          { key: 'total', label: 'Total', value: stats.total, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', icon: LogOut, iconClass: 'bg-slate-50 text-slate-600' },
-          { key: 'pending', label: 'Pending', value: stats.pending, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', icon: Clock, iconClass: 'bg-amber-50 text-amber-600' },
-          { key: 'approved', label: 'Approved', value: stats.approved, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', icon: AlertTriangle, iconClass: 'bg-blue-50 text-blue-600' },
-          { key: 'completed', label: 'Completed', value: stats.completed, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', icon: Archive, iconClass: 'bg-emerald-50 text-emerald-600' },
+          { key: 'total', label: 'Total', value: stats.total, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', icon: LogOut, iconClass: 'bg-slate-50 text-slate-600', labelClass: 'text-slate-400' },
+          { key: 'pending', label: 'Pending', value: stats.pending, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', icon: Clock, iconClass: 'bg-amber-50 text-amber-600', labelClass: 'text-amber-600' },
+          { key: 'approved', label: 'Approved', value: stats.approved, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', icon: AlertTriangle, iconClass: 'bg-blue-50 text-blue-600', labelClass: 'text-blue-600' },
+          { key: 'completed', label: 'Completed', value: stats.completed, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', icon: Archive, iconClass: 'bg-emerald-50 text-emerald-600', labelClass: 'text-emerald-600' },
         ].map((card) => {
           const Icon = card.icon;
           return (
             <div key={card.key} className={card.cardClass}>
               <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                <p className={`text-[10px] font-pmedium ${card.labelClass} uppercase tracking-widest mb-1`}>{card.label}</p>
                 <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
               </div>
               <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}><Icon size={16}/></div>

@@ -519,6 +519,24 @@ export async function updateResourceForOwner(workspaceId: string, ownerId: strin
     };
 }
 
+function getAssignedVirtualOffices(resource: any) {
+    const ids = Array.isArray(resource?.assignedVirtualOfficeIds)
+        ? resource.assignedVirtualOfficeIds.map((v: any) => String(v).trim()).filter(Boolean)
+        : [];
+    const names = Array.isArray(resource?.assignedVirtualOfficeNames)
+        ? resource.assignedVirtualOfficeNames.map((n: any) => String(n).trim()).filter(Boolean)
+        : [];
+    return { ids, names };
+}
+
+function describeCurrentAssigneeName(resource: any = {}) {
+    const vos = getAssignedVirtualOffices(resource);
+    if (resource.assignedTenantCompanyName) return resource.assignedTenantCompanyName;
+    if (resource.assignedDepartmentName) return resource.assignedDepartmentName;
+    if (vos.names.length > 0) return vos.names.length === 1 ? vos.names[0] : `${vos.names.slice(0, 2).join(", ")}${vos.names.length > 2 ? ` and ${vos.names.length - 2} more` : ""}`;
+    return "another department or company";
+}
+
 export async function assignResourceForOwner(workspaceId: string, ownerId: string, resourceId: string, input: any) {
     const validationError = validateAssignInput(input);
     if (validationError) {
@@ -542,23 +560,12 @@ export async function assignResourceForOwner(workspaceId: string, ownerId: strin
     }
 
     const assignmentType = input.assignmentType || "tenant";
+    const { ids: currentVOIds, names: currentVONames } = getAssignedVirtualOffices(resource);
 
-    // Once a resource is assigned to a tenant, virtual office, or department
-    // it can't be silently handed off to someone else — release it first.
-    // Re-submitting the same assignee (e.g. re-saving) is a no-op, not a conflict.
-    const currentAssigneeId = resource!.assignedTenantCompanyId || resource!.assignedVirtualOfficeId || resource!.assignedDepartmentId;
-    if (currentAssigneeId) {
-        const requestedId = assignmentType === "tenant" ? input.tenantCompanyId
-            : assignmentType === "virtualOffice" ? input.virtualOfficeId
-            : input.departmentId || input.departmentName;
-        const isSameAssignee = requestedId && String(currentAssigneeId) === String(requestedId);
-        if (!isSameAssignee) {
-            const currentAssigneeName = resource!.assignedTenantCompanyName || resource!.assignedVirtualOfficeName || resource!.assignedDepartmentName || "another department or company";
-            const error: any = new Error(`This resource is already assigned to ${currentAssigneeName}. Release it before assigning it elsewhere.`);
-            error.statusCode = 409;
-            throw error;
-        }
-    }
+    // A resource held exclusively by a tenant or department can't be shared
+    // with virtual office companies. Only virtual offices can multiply on one
+    // resource — every other assignee remains exclusive.
+    const heldByTenantOrDept = Boolean(resource!.assignedTenantCompanyId || resource!.assignedDepartmentId);
 
     if (assignmentType === "tenant") {
         if (!input.tenantCompanyId) {
@@ -566,30 +573,40 @@ export async function assignResourceForOwner(workspaceId: string, ownerId: strin
             error.statusCode = 400;
             throw error;
         }
+        const sameTenant = resource!.assignedTenantCompanyId && String(resource!.assignedTenantCompanyId) === String(input.tenantCompanyId);
+        if (!sameTenant && (heldByTenantOrDept || currentVOIds.length > 0)) {
+            const error: any = new Error(`This resource is already assigned to ${describeCurrentAssigneeName(resource)}. Release it before assigning it elsewhere.`);
+            error.statusCode = 409;
+            throw error;
+        }
 
-        resource!.assignedTenantCompanyId = input.tenantCompanyId
-            ? (new mongoose.Types.ObjectId(input.tenantCompanyId) as any)
-            : null;
-        resource!.assignedTenantCompanyName = normalizeResourceName(
-            input.tenantCompanyName || input.tenantCompanyId || "",
-        );
-        resource!.assignedVirtualOfficeId = null as any;
-        resource!.assignedVirtualOfficeName = "";
+        resource!.assignedTenantCompanyId = new mongoose.Types.ObjectId(String(input.tenantCompanyId)) as any;
+        resource!.assignedTenantCompanyName = normalizeResourceName(input.tenantCompanyName || input.tenantCompanyId || "");
         resource!.assignedDepartmentId = "";
         resource!.assignedDepartmentName = "";
+        resource!.assignedVirtualOfficeIds = [];
+        resource!.assignedVirtualOfficeNames = [];
     } else if (assignmentType === "virtualOffice") {
         if (!input.virtualOfficeId) {
             const error: any = new Error("Virtual office company is required for virtual office assignment.");
             error.statusCode = 400;
             throw error;
         }
+        if (heldByTenantOrDept) {
+            const error: any = new Error(`This resource is already assigned to ${describeCurrentAssigneeName(resource)}. Release it before assigning it to a virtual office company.`);
+            error.statusCode = 409;
+            throw error;
+        }
 
-        resource!.assignedVirtualOfficeId = input.virtualOfficeId
-            ? (new mongoose.Types.ObjectId(input.virtualOfficeId) as any)
-            : null;
-        resource!.assignedVirtualOfficeName = normalizeResourceName(
-            input.virtualOfficeName || input.virtualOfficeId || "",
-        );
+        // Many-to-many: one space can host multiple virtual office companies.
+        const voId = String(input.virtualOfficeId);
+        const voName = normalizeResourceName(input.virtualOfficeName || voId);
+        if (!currentVOIds.includes(voId)) {
+            currentVOIds.push(voId);
+            currentVONames.push(voName);
+        }
+        resource!.assignedVirtualOfficeIds = currentVOIds;
+        resource!.assignedVirtualOfficeNames = currentVONames;
         resource!.assignedTenantCompanyId = null as any;
         resource!.assignedTenantCompanyName = "";
         resource!.assignedDepartmentId = "";
@@ -597,11 +614,17 @@ export async function assignResourceForOwner(workspaceId: string, ownerId: strin
     } else {
         const departmentId = input.departmentId || input.departmentName || "";
         const departmentName = input.departmentName || input.departmentId || "";
+        const sameDept = resource!.assignedDepartmentId && String(resource!.assignedDepartmentId) === String(departmentId);
+        if (!sameDept && (heldByTenantOrDept || currentVOIds.length > 0)) {
+            const error: any = new Error(`This resource is already assigned to ${describeCurrentAssigneeName(resource)}. Release it before assigning it elsewhere.`);
+            error.statusCode = 409;
+            throw error;
+        }
 
         resource!.assignedTenantCompanyId = null as any;
         resource!.assignedTenantCompanyName = "";
-        resource!.assignedVirtualOfficeId = null as any;
-        resource!.assignedVirtualOfficeName = "";
+        resource!.assignedVirtualOfficeIds = [];
+        resource!.assignedVirtualOfficeNames = [];
         resource!.assignedDepartmentId = normalizeResourceName(departmentId);
         resource!.assignedDepartmentName = normalizeResourceName(departmentName);
     }
@@ -616,7 +639,7 @@ export async function assignResourceForOwner(workspaceId: string, ownerId: strin
     };
 }
 
-export async function releaseResourceAssignmentForOwner(workspaceId: string, ownerId: string, resourceId: string) {
+export async function releaseResourceAssignmentForOwner(workspaceId: string, ownerId: string, resourceId: string, virtualOfficeId = "") {
     const resource = await Resource.findById(resourceId).exec();
     ensureResourceTenant(resource, workspaceId);
 
@@ -626,10 +649,32 @@ export async function releaseResourceAssignmentForOwner(workspaceId: string, own
         throw error;
     }
 
+    // Releasing a specific virtual office company removes only that company
+    // from a shared space — the rest of the assignees stay put.
+    if (virtualOfficeId) {
+        const { ids, names } = getAssignedVirtualOffices(resource);
+        const index = ids.findIndex((id: string) => id === String(virtualOfficeId));
+        if (index === -1) {
+            const error: any = new Error("This virtual office company is not assigned to this resource.");
+            error.statusCode = 409;
+            throw error;
+        }
+        ids.splice(index, 1);
+        names.splice(index, 1);
+        resource!.assignedVirtualOfficeIds = ids;
+        resource!.assignedVirtualOfficeNames = names;
+        if (ids.length === 0) resource!.assignedAt = null as any;
+        healStaleResourceType(resource);
+        await resource!.save();
+        return {
+            resource: formatResource(resource),
+        };
+    }
+
     resource!.assignedTenantCompanyId = null as any;
     resource!.assignedTenantCompanyName = "";
-    resource!.assignedVirtualOfficeId = null as any;
-    resource!.assignedVirtualOfficeName = "";
+    resource!.assignedVirtualOfficeIds = [];
+    resource!.assignedVirtualOfficeNames = [];
     resource!.assignedDepartmentId = "";
     resource!.assignedDepartmentName = "";
     resource!.assignedAt = null as any;

@@ -90,6 +90,7 @@ interface TicketItem {
   assignedTo: string;
   assignedToName: string;
   submittedBy: string;
+  submittedByDept: string;
   tenantCompanyId: string;
   tenantCompanyName: string;
   createdAt: string;
@@ -112,8 +113,11 @@ const EMPTY_FORM = {
 
 export default function TenantTicketsPage() {
   const currentUser = getStoredUser() || {};
-  const userRole = getStoredTenantRole() || 'tenant-employee';
-  const canManageTenant = isTenantAdminRole(userRole) || isTenantManagerRole(userRole);
+  const userRole = currentUser?.tenantRole || getStoredTenantRole() || 'tenant-employee';
+  const isTenantAdmin = isTenantAdminRole(userRole);
+  const isTenantManager = isTenantManagerRole(userRole);
+  const currentUserDepartment = normalizeText(currentUser?.tenantDepartment || currentUser?.department || currentUser?.workspaceMembership?.tenantDepartment || currentUser?.workspaceMembership?.department || '');
+  const currentUserDepartmentKey = normalizeId(currentUserDepartment);
   const tenantCompanyName = currentUser?.tenantCompanyName || currentUser?.workspaceMembership?.tenantCompanyName || getStoredTenantCompanyName() || 'Tenant Workspace';
   const tenantCompanyId = normalizeId(currentUser?.tenantCompanyId || currentUser?.workspaceMembership?.tenantCompanyId || getStoredTenantCompanyId() || '');
   const currentUserId = getCurrentUserId(currentUser);
@@ -184,14 +188,25 @@ export default function TenantTicketsPage() {
   const isClosedOrResolved = useCallback((ticket: TicketItem) =>
     ['closed', 'resolved'].includes(normalizeId(ticket.status)), []);
 
-  // Main tabs: Company Tickets (managers only) → Raised Tickets → History.
+  const isDepartmentTicket = useCallback((ticket: TicketItem) => {
+    if (!currentUserDepartmentKey) return false;
+    return normalizeId(ticket.submittedByDept || '') === currentUserDepartmentKey;
+  }, [currentUserDepartmentKey]);
+
+  // Main tabs: Admin sees company tickets, managers see their department tickets, employees keep raised/history.
   const mainTabs = useMemo(() => {
     const tabs: Array<{ key: string; label: string; openCount: number }> = [];
-    if (canManageTenant) {
+    if (isTenantAdmin) {
       tabs.push({
         key: 'company',
         label: 'Company Tickets',
         openCount: tenantTickets.filter((t) => !isClosedOrResolved(t) && ['open', 'new', 'pending'].includes(normalizeId(t.status))).length,
+      });
+    } else if (isTenantManager) {
+      tabs.push({
+        key: 'department',
+        label: 'Department Tickets',
+        openCount: tenantTickets.filter((t) => isDepartmentTicket(t) && !isClosedOrResolved(t) && ['open', 'new', 'pending'].includes(normalizeId(t.status))).length,
       });
     }
     tabs.push({
@@ -201,18 +216,19 @@ export default function TenantTicketsPage() {
     });
     tabs.push({ key: 'history', label: 'History', openCount: 0 });
     return tabs;
-  }, [canManageTenant, isClosedOrResolved, isMyTicket, tenantTickets]);
+  }, [isClosedOrResolved, isDepartmentTicket, isMyTicket, isTenantAdmin, isTenantManager, tenantTickets]);
 
-  const [activeTab, setActiveTab] = useState(canManageTenant ? 'company' : 'raised');
+  const [activeTab, setActiveTab] = useState(isTenantAdmin ? 'company' : isTenantManager ? 'department' : 'raised');
 
   const switchMainTab = (key: string) => { setActiveTab(key); setFilterStatus('all'); setSearchQuery(''); };
 
   const tabScopedTickets = useMemo(() => {
     if (activeTab === 'company') return tenantTickets.filter((t) => !isClosedOrResolved(t));
+    if (activeTab === 'department') return tenantTickets.filter((t) => isDepartmentTicket(t) && !isClosedOrResolved(t));
     if (activeTab === 'raised') return tenantTickets.filter((t) => isMyTicket(t) && !isClosedOrResolved(t));
-    // History: resolved/closed tickets — company-wide for managers, own for everyone else.
-    return tenantTickets.filter((t) => (canManageTenant || isMyTicket(t)) && isClosedOrResolved(t));
-  }, [activeTab, canManageTenant, isClosedOrResolved, isMyTicket, tenantTickets]);
+    // History: admins see company-wide, managers see their department, employees see their own.
+    return tenantTickets.filter((t) => (isTenantAdmin || (isTenantManager && isDepartmentTicket(t)) || isMyTicket(t)) && isClosedOrResolved(t));
+  }, [activeTab, isClosedOrResolved, isDepartmentTicket, isMyTicket, isTenantAdmin, isTenantManager, tenantTickets]);
 
   const visibleTickets = useMemo(() => {
     const query = normalizeId(searchQuery);
@@ -281,7 +297,7 @@ export default function TenantTicketsPage() {
         requesterUserId: currentUserId || undefined,
         requesterName: currentUserName,
         submittedBy: currentUserName,
-        submittedByDept: 'tenant-company-employee',
+        submittedByDept: currentUserDepartment || 'tenant-company-employee',
         source: 'Tenant Portal',
       };
       const createdTicket = await createTicket(payload);
@@ -302,9 +318,11 @@ export default function TenantTicketsPage() {
 
   const emptyStateMessage = activeTab === 'company'
     ? 'No active company tickets.'
-    : activeTab === 'raised'
-      ? 'You have not raised any active tickets yet.'
-      : 'No resolved or closed tickets in history yet.';
+    : activeTab === 'department'
+      ? 'No active department tickets.'
+      : activeTab === 'raised'
+        ? 'You have not raised any active tickets yet.'
+        : 'No resolved or closed tickets in history yet.';
 
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-pmedium text-[12px]">

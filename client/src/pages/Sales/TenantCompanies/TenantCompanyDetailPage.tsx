@@ -45,7 +45,7 @@ function empName(e = {}) { return String(e.name || e.fullName || e.email || 'Unn
 // Bulk Upload – template & row parsing
 // ---------------------------------------------------------------------------
 const BULK_SHEET_NAME = 'Employees';
-const BULK_HEADERS = ['Name', 'Email', 'Phone', 'Designation', 'Role'];
+const BULK_HEADERS = ['Name', 'Email', 'Phone', 'Designation', 'Department'];
 
 function readBulkCell(row, ...keys) {
   for (const key of keys) {
@@ -58,31 +58,31 @@ function readBulkCell(row, ...keys) {
 
 function mapBulkRole(raw) {
   const key = String(raw || '').trim().toLowerCase();
+  if (key === 'admin') return 'Admin';
   if (key === 'manager') return 'Manager';
   if (key === 'employee') return 'Employee';
   return '';
 }
 
-function parseBulkEmployeeRow(row, hasManager) {
+function parseBulkEmployeeRow(row) {
   const name = readBulkCell(row, 'Name', 'name', 'Employee Name', 'employeeName');
   const email = readBulkCell(row, 'Email', 'email').toLowerCase();
   const phone = readBulkCell(row, 'Phone', 'phone', 'Mobile', 'mobileNo');
   const designation = readBulkCell(row, 'Designation', 'designation');
-  const role = mapBulkRole(readBulkCell(row, 'Role', 'role'));
+  const department = readBulkCell(row, 'Department', 'department');
+  const role = 'Employee';
 
   if (!name) return { issue: 'Missing Name' };
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { issue: 'Missing or invalid Email' };
   if (!phone) return { issue: 'Missing Phone' };
   if (!designation) return { issue: 'Missing Designation' };
-  if (!role) return { issue: 'Role must be "Manager" or "Employee"' };
-  if (role === 'Manager' && hasManager) return { issue: 'A manager is already assigned to this tenant' };
 
-  return { payload: { name, email, phone, designation, role } };
+  return { payload: { name, email, phone, role, department, designation } };
 }
 
 function buildBulkTemplateWorkbook() {
   const workbook = XLSX.utils.book_new();
-  const uploadSheet = XLSX.utils.aoa_to_sheet([BULK_HEADERS, ['Jane Doe', 'jane.doe@company.com', '9876543210', 'Software Engineer', 'Employee']]);
+  const uploadSheet = XLSX.utils.aoa_to_sheet([BULK_HEADERS, ['Jane Doe', 'jane.doe@company.com', '9876543210', 'Software Engineer', 'Operations']]);
   XLSX.utils.book_append_sheet(workbook, uploadSheet, BULK_SHEET_NAME);
 
   const instructionsSheet = XLSX.utils.aoa_to_sheet([
@@ -91,7 +91,8 @@ function buildBulkTemplateWorkbook() {
     ['Email', 'Used for invite/login. Must be unique per tenant. Required.'],
     ['Phone', 'Contact number. Required.'],
     ['Designation', "Employee's job title. Required."],
-    ['Role', 'Must be exactly "Manager" or "Employee". Only one Manager is allowed per tenant company — additional Manager rows will be skipped.'],
+    ['Department', 'Optional for bulk upload. If left blank, it can be assigned manually later before sending the invite.'],
+    ['Role', 'Bulk upload imports every row as Employee. Assign Admin or Manager manually before inviting.'],
   ]);
   XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instructions');
 
@@ -214,8 +215,8 @@ export default function TenantCompanyDetailPage() {
   const [addModal, setAddModal] = useState(false);
   const [viewEmp, setViewEmp] = useState(null);
   const [editEmp, setEditEmp] = useState(null);
-  const [addF, setAddF] = useState({ name: '', email: '', phone: '', designation: '', role: '' });
-  const [editF, setEditF] = useState({ name: '', phone: '', designation: '', role: 'Employee' });
+  const [addF, setAddF] = useState({ name: '', email: '', phone: '', role: '', department: '', designation: '' });
+  const [editF, setEditF] = useState({ name: '', phone: '', role: 'Employee', department: '', designation: '' });
   const [sendingInviteId, setSendingInviteId] = useState('');
 
   // Bulk upload
@@ -255,7 +256,7 @@ export default function TenantCompanyDetailPage() {
     if (!tenant?.employees) return [];
     const seen = new Set();
     return (Array.isArray(tenant.employees) ? tenant.employees : [])
-      .map(e => ({ ...e, name: empName(e), email: String(e.email || '').trim().toLowerCase(), designation: String(e.designation || '').trim(), role: e.role || (tenant.managerEmployeeId && String(tenant.managerEmployeeId) === String(e.id) ? 'Manager' : 'Employee'), status: e.status || 'Active' }))
+      .map(e => ({ ...e, name: empName(e), email: String(e.email || '').trim().toLowerCase(), department: String(e.department || '').trim(), designation: String(e.designation || '').trim(), role: e.role || (tenant.managerEmployeeId && String(tenant.managerEmployeeId) === String(e.id) ? 'Manager' : 'Employee'), status: e.status || 'Active' }))
       .filter(e => e.name || e.email)
       .filter(e => { const k = e.email || e.id || e.name; if (seen.has(k)) return false; seen.add(k); return true; });
   }, [tenant]);
@@ -264,6 +265,21 @@ export default function TenantCompanyDetailPage() {
     if (!tenant?.managerEmployeeId || !employees.length) return null;
     return employees.find(e => String(e.id) === String(tenant.managerEmployeeId)) || null;
   }, [tenant, employees]);
+
+  const departmentOptions = useMemo(() => Array.from(new Set([
+    ...(Array.isArray(tenant?.departments) ? tenant.departments : []),
+    ...employees.map(e => e.department),
+  ].map(v => String(v || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [tenant, employees]);
+
+  const managerDepartmentSet = useMemo(() => new Set(employees
+    .filter(e => e.role === 'Manager' && e.status !== 'Inactive')
+    .map(e => String(e.department || '').trim().toLowerCase())
+    .filter(Boolean)), [employees]);
+
+  const addManagerDepartmentTaken = addF.role === 'Manager' && managerDepartmentSet.has(String(addF.department || '').trim().toLowerCase());
+  const editManagerDepartmentTaken = editF.role === 'Manager'
+    && String(editEmp?.id || '') !== String(employees.find(e => e.role === 'Manager' && String(e.department || '').trim().toLowerCase() === String(editF.department || '').trim().toLowerCase())?.id || '')
+    && managerDepartmentSet.has(String(editF.department || '').trim().toLowerCase());
 
   // Base credits are the monthly base (e.g., 20) while additional sales-added credits (e.g., 600)
   // should show under "Purchased". Backend credit-add currently increments `creditsAllocated`,
@@ -327,14 +343,14 @@ export default function TenantCompanyDetailPage() {
       if (p.tenant) setTenant(prev => ({ ...prev, ...p.tenant }));
       toast.success('Employee added.');
       setAddModal(false);
-      setAddF({ name: '', email: '', phone: '', designation: '', role: '' });
+      setAddF({ name: '', email: '', phone: '', role: '', department: '', designation: '' });
     } catch (err) {
       toast.error(err?.response?.data?.message || err?.message || 'Failed');
     } finally {
       setIsSaving(false);
     }
   };
-  const hEdit = async e => { e.preventDefault(); if (!tenant || !editEmp || isSaving) return; setIsSaving(true); try { await updateTenantCompanyEmployee(tenant.recordId || tenant.id, editEmp.id || '', editF); toast.success('Updated.'); setEditEmp(null); setEditF({ name: '', phone: '', designation: '', role: 'Employee' }); refresh(); } catch (err) { toast.error(err?.message || 'Failed'); } finally { setIsSaving(false); } };
+  const hEdit = async e => { e.preventDefault(); if (!tenant || !editEmp || isSaving) return; setIsSaving(true); try { await updateTenantCompanyEmployee(tenant.recordId || tenant.id, editEmp.id || '', editF); toast.success('Updated.'); setEditEmp(null); setEditF({ name: '', phone: '', role: 'Employee', department: '', designation: '' }); refresh(); } catch (err) { toast.error(err?.message || 'Failed'); } finally { setIsSaving(false); } };
   const hToggle = async emp => { if (!tenant || isSaving) return; setIsSaving(true); try { const ns = emp.status === 'Inactive' ? 'Active' : 'Inactive'; await updateTenantCompanyEmployeeStatus(tenant.recordId || tenant.id, emp.id, { status: ns }); toast.success(ns === 'Active' ? 'Activated.' : 'Deactivated.'); refresh(); } catch (err) { toast.error(err?.message || 'Failed'); } finally { setIsSaving(false); } };
   const hDel = async eid => { if (!tenant || isSaving) return; setIsSaving(true); try { await deleteTenantCompanyEmployee(tenant.recordId || tenant.id, eid); toast.success('Removed.'); setViewEmp(null); refresh(); } catch (err) { toast.error(err?.message || 'Failed'); } finally { setIsSaving(false); } };
   const hSetMgr = async eid => { if (!tenant || isSaving) return; setIsSaving(true); try { await updateTenantCompanyManager(tenant.recordId || tenant.id, { employeeId: eid }); toast.success('Manager updated.'); setMgrModal(false); refresh(); } catch (err) { toast.error(err?.message || 'Failed'); } finally { setIsSaving(false); } };
@@ -389,14 +405,12 @@ export default function TenantCompanyDetailPage() {
     setBulkImporting(true);
     let created = 0, skipped = 0;
     const issues = [];
-    let hasManager = Boolean(mgrEmp);
     for (let i = 0; i < bulkRows.length; i++) {
-      const result = parseBulkEmployeeRow(bulkRows[i], hasManager);
+      const result = parseBulkEmployeeRow(bulkRows[i]);
       if (result.issue) { skipped++; issues.push(`Row ${i + 2}: ${result.issue}`); continue; }
       try {
         await addTenantCompanyEmployee(tenant.recordId || tenant.id, result.payload);
         created++;
-        if (result.payload.role === 'Manager') hasManager = true;
       } catch (err) {
         skipped++;
         issues.push(`Row ${i + 2}: ${err?.response?.data?.message || err?.message || 'Creation failed'}`);
@@ -666,7 +680,7 @@ export default function TenantCompanyDetailPage() {
                       <tbody className="divide-y divide-slate-100/60">
                         {employees.map(emp => {
                           const meta = empStatusMeta(emp);
-                          const isMgr = mgrEmp && String(mgrEmp.id) === String(emp.id);
+                          const isMgr = emp.role === 'Manager' || (mgrEmp && String(mgrEmp.id) === String(emp.id));
                           return (
                             <tr key={emp.id || emp.email || emp.name} className="hover:bg-slate-50/50 transition-colors group">
                               <td className="px-5 py-4">
@@ -677,7 +691,7 @@ export default function TenantCompanyDetailPage() {
                                       <p className="text-sm font-pmedium text-slate-900 truncate">{empName(emp)}</p>
                                       {isMgr && <span className="px-1.5 py-0.5 bg-[#2563EB]/10 text-[#2563EB] rounded-md text-[8px] font-pmedium uppercase tracking-widest">Manager</span>}
                                     </div>
-                                    <p className="text-[10px] font-pmedium text-slate-500">{emp.designation || 'No designation'}</p>
+                                    <p className="text-[10px] font-pmedium text-slate-500">{emp.department || 'No department'} - {emp.designation || 'No designation'}</p>
                                   </div>
                                 </div>
                               </td>
@@ -1067,7 +1081,7 @@ export default function TenantCompanyDetailPage() {
           <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-md h-auto rounded-t-[32px] sm:rounded-[32px] shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <h3 className="text-sm font-black text-slate-900">Add Employee</h3>
-              <button onClick={() => { setAddModal(false); setAddF({ name: '', email: '', phone: '', designation: '', role: '' }); }}
+              <button onClick={() => { setAddModal(false); setAddF({ name: '', email: '', phone: '', role: '', department: '', designation: '' }); }}
                 className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all"><X size={16} /></button>
             </div>
             <form onSubmit={hAdd} className="p-5 space-y-4 overflow-y-auto">
@@ -1087,24 +1101,34 @@ export default function TenantCompanyDetailPage() {
                   className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-500" placeholder="Phone number" />
               </div>
               <div>
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Role *</label>
+                <select value={addF.role} onChange={e => {
+                  const role = e.target.value;
+                  setAddF({ ...addF, role, department: role === 'Admin' ? 'All' : addF.department === 'All' ? '' : addF.department });
+                }} required
+                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm">
+                  <option value="" disabled>Select role</option>
+                  <option value="Admin">Admin</option>
+                  <option value="Manager">Manager</option>
+                  <option value="Employee">Employee</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Department *</label>
+                <input list="tenant-department-options" type="text" value={addF.role === 'Admin' ? 'All' : addF.department} disabled={addF.role === 'Admin'} onChange={e => setAddF({ ...addF, department: e.target.value })} required={addF.role !== 'Admin'}
+                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-500 disabled:bg-slate-100 disabled:text-slate-500" placeholder="Type or select department" />
+                <datalist id="tenant-department-options">{departmentOptions.map(dept => <option key={dept} value={dept} />)}</datalist>
+                {addManagerDepartmentTaken && <p className="mt-1.5 text-[10px] font-pmedium text-red-500">Manager already added for this department.</p>}
+              </div>
+              <div>
                 <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Designation *</label>
                 <input type="text" value={addF.designation} onChange={e => setAddF({ ...addF, designation: e.target.value })} required
                   className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-500" placeholder="Designation" />
               </div>
-              <div>
-                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Role *</label>
-                <select value={addF.role} onChange={e => setAddF({ ...addF, role: e.target.value })} required
-                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm">
-                  <option value="" disabled>Select role</option>
-                  <option value="Manager" disabled={Boolean(mgrEmp)}>Manager{mgrEmp ? ' (Already assigned)' : ''}</option>
-                  <option value="Employee">Employee</option>
-                </select>
-                {mgrEmp && <p className="mt-1.5 text-[10px] font-pmedium text-slate-500">Use Change Manager to assign a different manager.</p>}
-              </div>
               <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => { setAddModal(false); setAddF({ name: '', email: '', phone: '', designation: '', role: '' }); }}
+                <button type="button" onClick={() => { setAddModal(false); setAddF({ name: '', email: '', phone: '', role: '', department: '', designation: '' }); }}
                   className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-pmedium text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
-                <button type="submit" disabled={isSaving}
+                <button type="submit" disabled={isSaving || addManagerDepartmentTaken}
                   className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl text-[10px] font-pmedium shadow-sm hover:bg-[#2563EB]/90 disabled:cursor-not-allowed disabled:opacity-60 transition-all">{isSaving && <Loader2 size={13} className="animate-spin" />}{isSaving ? 'Adding...' : 'Add Employee'}</button>
               </div>
             </form>
@@ -1124,9 +1148,9 @@ export default function TenantCompanyDetailPage() {
         onFileChange={hBulkFileChange}
         onDownloadTemplate={hBulkDownloadTemplate}
         rules={[
-          'Fill in Name, Email, Phone, Designation and Role per row.',
-          'Role must be exactly "Manager" or "Employee".',
-          'Only one Manager is allowed per tenant company.',
+          'Fill in Name, Email, Phone and Designation per row.',
+          'Department is optional in bulk upload and can be assigned manually later.',
+          'Bulk upload imports every row as Employee. Assign Admin or Manager manually before sending an invite.',
         ]}
         fileName={bulkFileName}
         isImporting={bulkImporting}
@@ -1157,6 +1181,7 @@ export default function TenantCompanyDetailPage() {
             <div className="grid gap-3 p-5 sm:grid-cols-2">
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Email</p><p className="mt-0.5 break-all text-xs font-pmedium text-slate-900">{viewEmp.email}</p></div>
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Role</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{viewEmp.role || 'Employee'}</p></div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Department</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{viewEmp.department || (viewEmp.role === 'Admin' ? 'All' : 'N/A')}</p></div>
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Account Status</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{empStatusMeta(viewEmp).label}</p></div>
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Designation</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{viewEmp.designation || 'N/A'}</p></div>
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Phone</p><p className="mt-0.5 text-xs font-pmedium text-slate-900">{viewEmp.phone || 'N/A'}</p></div>
@@ -1170,7 +1195,7 @@ export default function TenantCompanyDetailPage() {
                   {empStatusMeta(viewEmp).label === 'Invited' ? 'Resend Invite' : 'Send Invite'}
                 </button>
               )}
-              <button onClick={() => { setEditEmp(viewEmp); setEditF({ name: viewEmp?.name || '', phone: viewEmp?.phone || '', designation: viewEmp?.designation || '', role: viewEmp?.role || 'Employee' }); }}
+              <button onClick={() => { setEditEmp(viewEmp); setEditF({ name: viewEmp?.name || '', phone: viewEmp?.phone || '', role: viewEmp?.role || 'Employee', department: viewEmp?.department || (viewEmp?.role === 'Admin' ? 'All' : ''), designation: viewEmp?.designation || '' }); }}
                 className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl text-[10px] font-pmedium uppercase tracking-widest text-blue-600 hover:bg-blue-100 transition-all">Edit</button>
               <button onClick={() => hToggle(viewEmp)}
                 className={`px-3 py-2 rounded-xl text-[10px] font-pmedium uppercase tracking-widest transition-all ${viewEmp.status === 'Inactive' ? 'bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-100' : 'bg-red-50 border border-red-200 text-red-600 hover:bg-red-100'}`}>
@@ -1193,7 +1218,7 @@ export default function TenantCompanyDetailPage() {
           <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-md h-auto rounded-t-[32px] sm:rounded-[32px] shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <h3 className="text-sm font-black text-slate-900">Edit Employee</h3>
-              <button onClick={() => { setEditEmp(null); setEditF({ name: '', phone: '', designation: '', role: 'Employee' }); }}
+              <button onClick={() => { setEditEmp(null); setEditF({ name: '', phone: '', role: 'Employee', department: '', designation: '' }); }}
                 className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all"><X size={16} /></button>
             </div>
             <form onSubmit={hEdit} className="p-5 space-y-4 overflow-y-auto">
@@ -1208,14 +1233,33 @@ export default function TenantCompanyDetailPage() {
                   className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm" />
               </div>
               <div>
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Role</label>
+                <select value={editF.role} onChange={e => {
+                  const role = e.target.value;
+                  setEditF({ ...editF, role, department: role === 'Admin' ? 'All' : editF.department === 'All' ? '' : editF.department });
+                }}
+                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm">
+                  <option value="Admin">Admin</option>
+                  <option value="Manager">Manager</option>
+                  <option value="Employee">Employee</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Department</label>
+                <input list="tenant-edit-department-options" type="text" value={editF.role === 'Admin' ? 'All' : editF.department} disabled={editF.role === 'Admin'} onChange={e => setEditF({ ...editF, department: e.target.value })} required={editF.role !== 'Admin'}
+                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm disabled:bg-slate-100 disabled:text-slate-500" placeholder="Type or select department" />
+                <datalist id="tenant-edit-department-options">{departmentOptions.map(dept => <option key={dept} value={dept} />)}</datalist>
+                {editManagerDepartmentTaken && <p className="mt-1.5 text-[10px] font-pmedium text-red-500">Manager already added for this department.</p>}
+              </div>
+              <div>
                 <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Designation</label>
                 <input type="text" value={editF.designation} onChange={e => setEditF({ ...editF, designation: e.target.value })}
                   className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm" />
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => { setEditEmp(null); setEditF({ name: '', phone: '', designation: '', role: 'Employee' }); }}
+                <button type="button" onClick={() => { setEditEmp(null); setEditF({ name: '', phone: '', role: 'Employee', department: '', designation: '' }); }}
                   className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-pmedium text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
-                <button type="submit" disabled={isSaving}
+                <button type="submit" disabled={isSaving || editManagerDepartmentTaken}
                   className="flex items-center gap-2 px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl text-[10px] font-pmedium shadow-sm hover:bg-[#2563EB]/90 disabled:cursor-not-allowed disabled:opacity-60 transition-all">{isSaving ? <><Loader2 size={13} className="animate-spin" /> Saving...</> : <><Save size={13} /> Save Employee</>}</button>
               </div>
             </form>
@@ -1253,7 +1297,7 @@ export default function TenantCompanyDetailPage() {
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-pmedium ${isCurrent ? 'bg-[#2563EB] text-white' : 'bg-slate-100 text-slate-600'}`}>{initials(emp)}</div>
                       <div>
                         <p className="text-xs font-pmedium text-slate-900">{empName(emp)}</p>
-                        <p className="text-[9px] text-slate-500">{emp.designation || emp.email}</p>
+                        <p className="text-[9px] text-slate-500">{emp.department || 'No department'} - {emp.designation || emp.email}</p>
                       </div>
                     </div>
                     {isCurrent ? (

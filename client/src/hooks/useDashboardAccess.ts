@@ -35,6 +35,11 @@ export interface DashboardAccessResult {
   /** True if the given module ID is accessible for this workspace/plan */
   hasModule: (id: string) => boolean;
   enabledModuleIds: Set<string>;
+  /** Raw per-workspace enabled module ids from the module-access-map (the
+   *  sidebar's workspace axis). Unlike enabledModuleIds it does NOT union in
+   *  plan defaults, so it is the exact set a module must belong to before it
+   *  can be unlocked for any role. */
+  workspaceEnabledModuleIds: string[];
   workspaceName: string;
   /** Normalized role band for the current member — drives which dashboard renders */
   roleBand: RoleBand;
@@ -132,6 +137,11 @@ export default function useDashboardAccess(): DashboardAccessResult {
       ? data.enabledModuleIds
       : [];
 
+    // Raw workspace-axis ids, exposed separately from the plan-union set.
+    const workspaceEnabledModuleIds: string[] = extraIds
+      .map((id: string) => String(id || "").trim())
+      .filter(Boolean);
+
     const allIds = new Set<string>([...planDefaultIds, ...extraIds]);
 
     const grantedModuleIds = new Set<string>(
@@ -197,6 +207,7 @@ export default function useDashboardAccess(): DashboardAccessResult {
       isLoading: isModuleMapLoading || isOverviewLoading,
       hasModule: (id: string) => hasEquivalentModuleId(allIds, id),
       enabledModuleIds: allIds,
+      workspaceEnabledModuleIds,
       workspaceName: String(data?.workspaceName || ""),
       roleBand: normalizedRoleBand,
       departmentNames: Array.isArray(me?.departmentNames) ? me.departmentNames : [],

@@ -389,11 +389,11 @@ function CalendarPageSkeleton() {
 }
 
 const summaryCards = [
-  { label: 'Holidays', key: 'holidays', icon: CalendarIcon, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-rose-500', iconClass: 'bg-rose-50 text-rose-600' },
-  { label: 'Bookings', key: 'bookings', icon: CalendarDays, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', iconClass: 'bg-blue-50 text-blue-600' },
-  { label: 'Tasks', key: 'tasks', icon: CheckCircle2, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600' },
-  { label: 'Tickets', key: 'tickets', icon: Ticket, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-purple-500', iconClass: 'bg-purple-50 text-purple-600' },
-  { label: 'Events', key: 'events', icon: CalendarDays, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-cyan-500', iconClass: 'bg-cyan-50 text-cyan-600' },
+  { label: 'Holidays', key: 'holidays', icon: CalendarIcon, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-rose-500', iconClass: 'bg-rose-50 text-rose-600', labelClass: 'text-rose-600' },
+  { label: 'Bookings', key: 'bookings', icon: CalendarDays, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', iconClass: 'bg-blue-50 text-blue-600', labelClass: 'text-blue-600' },
+  { label: 'Tasks', key: 'tasks', icon: CheckCircle2, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600', labelClass: 'text-emerald-600' },
+  { label: 'Tickets', key: 'tickets', icon: Ticket, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-purple-500', iconClass: 'bg-purple-50 text-purple-600', labelClass: 'text-purple-600' },
+  { label: 'Events', key: 'events', icon: CalendarDays, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-cyan-500', iconClass: 'bg-cyan-50 text-cyan-600', labelClass: 'text-cyan-600' },
 ] as const;
 
 function UnifiedCalendar() {
@@ -569,7 +569,7 @@ function UnifiedCalendar() {
               return (
                 <div key={card.key} className={card.cardClass}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className={`text-[10px] font-pmedium uppercase tracking-widest mb-1 ${card.labelClass}`}>{card.label}</p>
                     {showLoadingState ? (
                       <Skeleton className="h-5 w-10 rounded-lg" />
                     ) : (
@@ -657,7 +657,7 @@ function UnifiedCalendar() {
                           className={`min-h-[110px] border-b border-r border-slate-100 p-1.5 hover:bg-blue-50/30 transition-colors cursor-pointer ${isToday ? 'bg-blue-50/50' : 'bg-white'}`}
                           onClick={() => setSelectedDate(date)}
                         >
-                          <div className={`text-[11px] font-black mb-1 ${isToday ? 'bg-[#2563EB] text-white w-6 h-6 rounded-full flex items-center justify-center' : 'text-slate-950'}`}>
+                          <div className={`text-[11px] font-pmedium mb-1 ${isToday ? 'bg-[#2563EB] text-white w-6 h-6 rounded-full flex items-center justify-center' : 'text-slate-800'}`}>
                             {day}
                           </div>
                           <div className="space-y-0.5">

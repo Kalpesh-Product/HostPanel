@@ -148,11 +148,11 @@ export default function MonthWiseBirthdaysTab({ employees }: MonthWiseBirthdaysT
       });
   }, [parsed, selectedMonth, searchQuery]);
 
-  const statCards: Array<{ label: string; value: number; icon: React.ComponentType<{ size?: number }>; toneClass: string; borderClass: string }> = [
-    { label: "Total Birthdays", value: stats.total, icon: Users, toneClass: "bg-blue-50 text-[#2563EB]", borderClass: "" },
-    { label: "This Month", value: stats.thisMonth, icon: CalendarDays, toneClass: "bg-violet-50 text-violet-600", borderClass: "border-l-4 border-l-violet-500" },
-    { label: "Today", value: stats.today, icon: Cake, toneClass: "bg-emerald-50 text-emerald-600", borderClass: "border-l-4 border-l-emerald-500" },
-    { label: "Upcoming", value: stats.upcoming, icon: Gift, toneClass: "bg-amber-50 text-amber-600", borderClass: "border-l-4 border-l-amber-500" },
+  const statCards: Array<{ label: string; value: number; icon: React.ComponentType<{ size?: number }>; toneClass: string; borderClass: string; labelClass: string }> = [
+    { label: "Total Birthdays", value: stats.total, icon: Users, toneClass: "bg-blue-50 text-[#2563EB]", borderClass: "", labelClass: "text-slate-400" },
+    { label: "This Month", value: stats.thisMonth, icon: CalendarDays, toneClass: "bg-violet-50 text-violet-600", borderClass: "border-l-4 border-l-violet-500", labelClass: "text-violet-600" },
+    { label: "Today", value: stats.today, icon: Cake, toneClass: "bg-emerald-50 text-emerald-600", borderClass: "border-l-4 border-l-emerald-500", labelClass: "text-emerald-600" },
+    { label: "Upcoming", value: stats.upcoming, icon: Gift, toneClass: "bg-amber-50 text-amber-600", borderClass: "border-l-4 border-l-amber-500", labelClass: "text-amber-600" },
   ];
 
   return (
@@ -167,7 +167,7 @@ export default function MonthWiseBirthdaysTab({ employees }: MonthWiseBirthdaysT
               className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.borderClass}`}
             >
               <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                <p className={`text-[10px] font-pmedium ${card.labelClass} uppercase tracking-widest mb-1`}>{card.label}</p>
                 <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
               </div>
               <div className={`p-2 rounded-2xl ${card.toneClass} shrink-0`}>

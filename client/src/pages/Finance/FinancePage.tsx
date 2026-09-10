@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Search, DollarSign, TrendingUp, CheckCircle2, Clock, AlertCircle,
+  Search, DollarSign, TrendingUp, CheckCircle2, AlertCircle,
   Eye, X, Check, MessageSquare, Building2,
-  Calendar, Filter, Plus, FileText, Receipt, FileWarning, Download,
-  AlertTriangle, XCircle, PieChart
+  Calendar, Filter, Plus, FileText, FileWarning, Download,
+  AlertTriangle, XCircle
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getStoredUser } from '@/lib/auth-session';
@@ -16,7 +16,6 @@ import { statusPillClass } from '../../lib/status-pill';
 import { ApprovalFlowBadges, hasApprovalProgress } from '../../components/finance/ApprovalFlowBadges';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
-import { formatFinancePaymentStatus } from '@/features/finance/utils/paymentStatus';
 
 // Axios errors carry the API's real message inside response.data.message.
 function getApiErrorMessage(error: any, fallback: string): string {
@@ -218,8 +217,9 @@ export function FinancePage() {
   const isActionableFinanceRequest = (request: any = {}) => ['pending', 'discuss'].includes(String(request?.status || '').toLowerCase());
 
   // Dual-approval requests read as bare "Pending" even after the Founder has
-  // already acted — spell out whose turn it actually is.
-  const getAnnualRequestDisplayStatus = (request: any = {}) => {
+  // already acted — spell out whose turn it actually is. Used for both annual
+  // and extra budget requests, which share the same approvalFlow shape.
+  const getDualApprovalDisplayStatus = (request: any = {}) => {
     const overall = String(request?.status || '').trim();
     if (!['pending', 'discuss'].includes(overall.toLowerCase())) return overall;
     const ownerStatus = String(request?.approvalFlow?.owner?.status || '').toLowerCase();
@@ -295,71 +295,6 @@ export function FinancePage() {
   const viewingDepartmentFinancePlan = viewingDeptOverview
     ? departmentFinance.find((plan) => plan?.department === viewingDeptOverview.name)
     : null;
-
-  // Full month-by-month detail for the request the founder is reviewing.
-  // Prefers the department plan (expenses are joined server-side), falls back
-  // to whatever breakdown was stored on the annual request itself.
-  const viewingRequestDetail = React.useMemo(() => {
-    if (!viewingRequest) return null;
-    const plan = departmentFinance.find((p: any) => p?.department === viewingRequest.department);
-    const fallbackMonths = Array.isArray(viewingRequest.monthlyBreakdown)
-      ? viewingRequest.monthlyBreakdown
-      : Array.isArray(viewingRequest.monthlyPlan)
-        ? viewingRequest.monthlyPlan
-        : [];
-    const sourceMonths =
-      Array.isArray(plan?.monthlyPlan) && plan.monthlyPlan.length > 0 ? plan.monthlyPlan : fallbackMonths;
-    const deptName = String(viewingRequest.department || '');
-    const months = sourceMonths.map((m: any, idx: number) => ({
-      key: m?.monthKey || m?.month || `m-${idx}`,
-      label: m?.month || m?.title || `Month ${idx + 1}`,
-      title: m?.title || '',
-      projected: Number(m?.projectedBudget ?? m?.amount ?? 0),
-      actualSpent: Number(m?.actualSpent ?? 0),
-      expenses: (Array.isArray(m?.expenses) ? m.expenses : []).filter((e: any) => {
-        const tag = String(e?.expenseTag || '').toLowerCase();
-        if (tag !== 'add-on') return true;
-        // Approved extras surface as sanctioned lines.
-        return extraRequests.some((r: any) =>
-          String(r?.status || '').toLowerCase() === 'approved' &&
-          String(r?.department || '') === deptName &&
-          String(r?.monthKey || r?.month || '').toLowerCase() === String(m?.monthKey || m?.month || '').toLowerCase()
-        );
-      }),
-    }));
-    return { plan: plan || null, months };
-  }, [viewingRequest, departmentFinance, extraRequests]);
-
-  // Approved requests reveal vendor / payment / invoice detail columns,
-  // mirroring the finance manager's Budget Review modal.
-  const isViewingApprovedRequest = String(viewingRequest?.status || '').toLowerCase() === 'approved';
-
-  // Which approval step does the CURRENT user own? Founder/owner-side roles act on the
-  // "owner" step; finance managers act on the "financeManager" step.
-  const viewingUserScope = /finance[-_ ]?manager|^finance$/.test(normalizedCurrentUserRole)
-    ? 'financeManager'
-    : 'owner';
-  // Role strings can be unreliable, so first check which steps THIS user id
-  // actually decided (approverUserId is stamped server-side on every decision).
-  const currentApproverUserId = String(currentUser?._id || currentUser?.id || '');
-  const viewingMyStepStatus = (() => {
-    const flow: any = viewingRequest?.approvalFlow;
-    if (!flow) return '';
-    for (const key of ['owner', 'financeManager']) {
-      const step = flow[key];
-      const status = String(step?.status || '').toLowerCase();
-      if (
-        (status === 'approved' || status === 'rejected') &&
-        currentApproverUserId &&
-        String(step?.approverUserId || '') === currentApproverUserId
-      ) {
-        return status;
-      }
-    }
-    return String(flow[viewingUserScope]?.status || '').toLowerCase();
-  })();
-  // Only a real decision (approved/rejected) locks the current user out of acting again.
-  const viewingHasDecided = viewingMyStepStatus === 'approved' || viewingMyStepStatus === 'rejected';
 
   const departmentRegisteredVendors = Array.isArray(viewingDepartmentFinancePlan?.vendors)
     ? viewingDepartmentFinancePlan.vendors
@@ -676,7 +611,7 @@ export function FinancePage() {
                           <td className="px-5 py-4 font-pmedium text-slate-500">{formatCurrency(getDepartmentActualSpend(req.department))}</td>
                           <td className="px-5 py-4">
                             <div className="flex flex-col items-start gap-1">
-                              <span className={statusPillClass(req.status)}>{getAnnualRequestDisplayStatus(req)}</span>
+                              <span className={statusPillClass(req.status)}>{getDualApprovalDisplayStatus(req)}</span>
                               {req.isHistorical && (
                                 <span className="inline-flex px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-[8px] font-pmedium uppercase tracking-wider">Historical</span>
                               )}
@@ -695,7 +630,7 @@ export function FinancePage() {
                                   <button onClick={() => { setDecisionComment(''); setDecisionPrompt({ action: 'Rejected', request: { ...req, type: 'annual' } }); }} className="p-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm" title="Reject">
                                     <XCircle size={14} />
                                   </button>
-                                  <button onClick={() => setShowApproveConfirm(req)} className="p-2 bg-green-600 border border-green-600 text-white hover:bg-green-700 rounded-lg transition-all shadow-sm" title="Approve">
+                                  <button onClick={() => setShowApproveConfirm({ ...req, type: 'annual' })} className="p-2 bg-green-600 border border-green-600 text-white hover:bg-green-700 rounded-lg transition-all shadow-sm" title="Approve">
                                     <CheckCircle2 size={14} />
                                   </button>
                                 </>
@@ -715,16 +650,31 @@ export function FinancePage() {
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex flex-col items-start gap-1">
-                              <span className={statusPillClass(req.status)}>{req.status}</span>
+                              <span className={statusPillClass(req.status)}>{getDualApprovalDisplayStatus(req)}</span>
                               {req.isHistorical && (
                                 <span className="inline-flex px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-[8px] font-pmedium uppercase tracking-wider">Historical</span>
                               )}
                             </div>
                           </td>
-                          <td className="px-5 py-4 text-center">
-                            <button onClick={() => setViewingRequest({ ...req, type: 'extra' })} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm mx-auto" title="View Request">
-                              <Eye size={14} />
-                            </button>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button onClick={() => setViewingRequest({ ...req, type: 'extra' })} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm" title="View Request">
+                                <Eye size={14} />
+                              </button>
+                              {!['approved', 'rejected'].includes(String(req.approvalFlow?.owner?.status || '').toLowerCase()) && String(req.status || '').toLowerCase() !== 'rejected' && (
+                                <>
+                                  <button onClick={() => { setDecisionComment(''); setDecisionPrompt({ action: 'Discuss', request: { ...req, type: 'extra' } }); }} className="p-2 bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 rounded-lg transition-all shadow-sm" title="Discuss">
+                                    <MessageSquare size={14} />
+                                  </button>
+                                  <button onClick={() => { setDecisionComment(''); setDecisionPrompt({ action: 'Rejected', request: { ...req, type: 'extra' } }); }} className="p-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm" title="Reject">
+                                    <XCircle size={14} />
+                                  </button>
+                                  <button onClick={() => setShowApproveConfirm({ ...req, type: 'extra' })} className="p-2 bg-green-600 border border-green-600 text-white hover:bg-green-700 rounded-lg transition-all shadow-sm" title="Approve">
+                                    <CheckCircle2 size={14} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -817,386 +767,60 @@ export function FinancePage() {
       
       {/* MODALS */}
       {viewingRequest && viewingRequest.type === 'extra' && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2.5rem] w-full max-w-lg sm:max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-4 sm:p-6 lg:p-8 bg-slate-900 border-b border-slate-800 flex justify-between items-center shrink-0">
-              <div>
-                <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2"><AlertCircle size={18} className="sm:w-5 sm:h-5" /> Extra Budget</h2>
-                <p className="text-[9px] sm:text-[10px] font-pmedium text-slate-400 uppercase">REF: {viewingRequest.requestKey || viewingRequest.id} • Revision {Number(viewingRequest.revision || 1)}</p>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#0F172A]/80 backdrop-blur-md" role="dialog" aria-modal="true">
+          <div className="flex max-h-[90vh] w-full max-w-lg sm:max-w-2xl flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50 px-6 py-5">
+              <div className="min-w-0">
+                <h2 className="text-lg font-pmedium text-slate-900">Extra Budget Request</h2>
+                <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mt-0.5">• Revision {Number(viewingRequest.revision || 1)}</p>
               </div>
-              <button onClick={() => setViewingRequest(null)} className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
-            </div>
-
-            <div className="p-4 sm:p-6 lg:p-8 overflow-y-auto flex-1 bg-white space-y-4 sm:space-y-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 pb-4 border-b border-gray-100">
-                <div>
-                  <p className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase mb-1">Department</p>
-                  <p className="text-xl sm:text-2xl font-black text-gray-900 flex items-center gap-2"><Building2 size={16} className="sm:w-5 sm:h-5 text-amber-500" /> {viewingRequest.department}</p>
-                  <p className="mt-1 text-[10px] font-pmedium text-gray-400">Submitted by {viewingRequest.submittedByName || 'Dept. Manager'} {viewingRequest.date || viewingRequest.submittedAtLabel ? `• ${viewingRequest.date || viewingRequest.submittedAtLabel}` : ''}</p>
-                </div>
-                <div className="text-left sm:text-right">
-                  <p className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase mb-1">Requested</p>
-                  <p className="text-2xl sm:text-3xl font-black text-amber-600">{formatCurrency(viewingRequest.amount)}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase mb-2">Expense Title</p>
-                  <p className="text-sm font-black text-gray-900">{viewingRequest.title || viewingRequest.targetTitle || 'Extra Budget'}</p>
-                </div>
-                <div>
-                  <p className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase mb-2">Requested Month</p>
-                  <p className="text-sm font-black text-gray-900">{viewingRequest.month || viewingRequest.monthKey || '—'}</p>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase mb-2 flex items-center gap-1.5"><FileText size={12} className="sm:w-3.5 sm:h-3.5" /> Justification</p>
-                <div className="text-xs sm:text-sm font-medium text-gray-800 leading-relaxed bg-gray-50 border border-gray-200 p-3 sm:p-5 rounded-xl whitespace-pre-line">
-                  {viewingRequest.reason || viewingRequest.breakdown || 'No additional justification provided.'}
-                </div>
-              </div>
-
-              <div>
-                <p className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase mb-2">Approval Status</p>
-                {hasApprovalProgress(viewingRequest.approvalFlow)
-                  ? <ApprovalFlowBadges flow={viewingRequest.approvalFlow} />
-                  : <span className={statusPillClass(viewingRequest.status)}>{viewingRequest.status}</span>}
-              </div>
-            </div>
-
-            {(() => {
-              const requestStatus = String(viewingRequest.status || '').toLowerCase();
-              const actionable = requestStatus === 'pending' && !viewingHasDecided;
-              if (actionable) {
-                return (
-                  <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-3 gap-2.5 shrink-0">
-                    <button disabled={isSavingDecision} onClick={() => { setDecisionComment(''); setDecisionPrompt({ action: 'Discuss', request: viewingRequest }); }} className="min-w-0 px-3 py-3 bg-white border border-blue-200 text-blue-600 rounded-xl font-pmedium hover:bg-blue-50 transition-all text-[11px] flex items-center justify-center gap-1.5">
-                      <MessageSquare size={14} /> REQUEST CHANGES
-                    </button>
-                    <button disabled={isSavingDecision} onClick={() => { setDecisionComment(''); setDecisionPrompt({ action: 'Rejected', request: viewingRequest }); }} className="min-w-0 px-3 py-3 bg-white border border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-[11px] flex items-center justify-center gap-1.5">
-                      <XCircle size={14} /> REJECT
-                    </button>
-                    <button disabled={isSavingDecision} onClick={() => handleAction('extra', viewingRequest.id, 'Approved')} className="min-w-0 px-3 py-3 bg-green-600 text-white rounded-xl font-pmedium shadow-sm hover:bg-green-700 transition-all text-[11px] flex items-center justify-center gap-1.5">
-                      APPROVE <CheckCircle2 size={14} />
-                    </button>
-                  </div>
-                );
-              }
-              if (viewingMyStepStatus === 'approved' || viewingMyStepStatus === 'rejected') {
-                return (
-                  <div className="p-4 sm:p-6 bg-emerald-50/60 border-t border-gray-100 flex items-center justify-between gap-3 shrink-0">
-                    <span className="flex items-center gap-2 text-[11px] font-pmedium uppercase tracking-wider text-emerald-700"><CheckCircle2 size={14} /> You have already {viewingMyStepStatus} this request.</span>
-                    <button onClick={() => setViewingRequest(null)} className="px-8 py-3 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-sm">CLOSE</button>
-                  </div>
-                );
-              }
-              return <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-100"><button onClick={() => setViewingRequest(null)} className="w-full py-3 bg-white border border-gray-200 text-gray-700 rounded-xl font-pmedium hover:bg-gray-100 transition-all text-sm">CLOSE</button></div>;
-            })()}
-          </div>
-        </div>
-      )}
-
-      {viewingRequest && viewingRequest.type === 'annual' && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full sm:w-[95vw] max-w-[1500px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
-              <div>
-                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-blue-500/20 text-blue-300 border-blue-400/30 mb-2 inline-block">
-                  {viewingRequest.type === 'annual' ? 'Annual Budget Request' : 'Extra Budget Request'}
-                </span>
-                <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1">
-                  <PieChart size={20} /> Budget Review
-                </h2>
-                <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">REF: {viewingRequest.requestKey || viewingRequest.id} • Revision {Number(viewingRequest.revision || 1)}</p>
-              </div>
-              <button onClick={() => setViewingRequest(null)} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all">
-                <X size={16} />
+              <button onClick={() => setViewingRequest(null)} className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110" aria-label="Close">
+                <X size={18} />
               </button>
             </div>
 
-            <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
-              <div className="px-6 sm:px-8 py-5 grid grid-cols-2 sm:grid-cols-4 gap-4 border-b border-gray-100 bg-white">
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5 flex flex-col gap-1">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Department</p>
-                  <p className="text-sm sm:text-base font-black text-gray-900 flex items-center gap-1.5 mt-0.5">
-                    <Building2 size={14} className="text-[#2563EB] shrink-0" /> {viewingRequest.department}
-                  </p>
+            <div className="flex-1 space-y-5 overflow-y-auto p-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 pb-4 border-b border-slate-100">
+                <div>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Department</p>
+                  <p className="text-lg font-pmedium text-slate-900 flex items-center gap-2"><Building2 size={16} className="text-amber-500" /> {viewingRequest.department}</p>
+                  <p className="mt-1 text-[10px] font-pmedium text-slate-400">Submitted by {viewingRequest.submittedByName || 'Not available'} {viewingRequest.date || viewingRequest.submittedAtLabel ? `• ${viewingRequest.date || viewingRequest.submittedAtLabel}` : ''}</p>
                 </div>
-                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:p-5 flex flex-col gap-1">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-600">Total Requested</p>
-                  <p className="text-xl sm:text-2xl font-black text-blue-900 mt-0.5">{formatCurrency(viewingRequest.type === 'annual' ? viewingRequest.requestedBudget : viewingRequest.amount)}</p>
-                </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5 flex flex-col gap-1">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Submitted By</p>
-                  <p className="text-sm font-black text-gray-900 mt-0.5">{viewingRequest.submittedByName || 'Dept. Manager'}</p>
-                  <p className="text-[10px] font-pmedium text-gray-400">{viewingRequest.date || viewingRequest.submittedAtLabel || ''}</p>
-                </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5 flex flex-col gap-1">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Status</p>
-                  {hasApprovalProgress(viewingRequest.approvalFlow) ? (
-                    <span className="mt-1"><ApprovalFlowBadges flow={viewingRequest.approvalFlow} /></span>
-                  ) : (
-                    <span className={`mt-1 inline-flex w-fit px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest border ${String(viewingRequest.status).toLowerCase() === 'approved' ? 'bg-green-50 text-green-700 border-green-200' : String(viewingRequest.status).toLowerCase() === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>{viewingRequest.status}</span>
-                  )}
+                <div className="text-left sm:text-right">
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Requested</p>
+                  <p className="text-xl font-pmedium text-slate-900">{formatCurrency(viewingRequest.amount)}</p>
                 </div>
               </div>
 
-              <div className="px-6 sm:px-8 py-4 border-b border-gray-100 bg-white">
-                <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1.5 flex items-center gap-1.5">
-                  <FileText size={11} /> Business Justification
-                </p>
-                <p className="text-xs sm:text-sm font-medium text-gray-700 leading-relaxed">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Expense Title</p>
+                  <p className="text-sm font-pmedium text-slate-900">{viewingRequest.title || viewingRequest.targetTitle || 'Extra Budget'}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Requested Month</p>
+                  <p className="text-sm font-pmedium text-slate-900">{viewingRequest.month || viewingRequest.monthKey || '—'}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1.5 flex items-center gap-1.5"><FileText size={12} /> Justification</p>
+                <p className="text-xs font-pmedium text-slate-600 leading-relaxed bg-slate-50 border border-slate-200 p-3 rounded-xl whitespace-pre-line">
                   {viewingRequest.reason || viewingRequest.breakdown || 'No additional justification provided.'}
                 </p>
               </div>
 
-              <div className="px-4 sm:px-8 py-6">
-              {viewingRequest.type === 'annual' && (
-                <div>
-                  <h4 className="mb-3 flex items-center gap-2 text-[10px] sm:text-xs font-pmedium uppercase tracking-widest text-gray-900">
-                    <Calendar size={13} className="text-[#2563EB]" /> Monthly Expense Plan
-                    {viewingRequestDetail && viewingRequestDetail.months.length > 0 && (
-                      <span className="ml-1 text-gray-400 font-bold normal-case tracking-normal">({viewingRequestDetail.months.length} months)</span>
-                    )}
-                  </h4>
-                  {!viewingRequestDetail || viewingRequestDetail.months.length === 0 ? (
-                    <p className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-400">No monthly breakdown has been submitted for this request.</p>
-                  ) : (
-                    <div className="max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                      <div className="overflow-x-auto">
-                        <table className="w-full table-fixed text-left" style={{ minWidth: isViewingApprovedRequest ? '1410px' : '1050px' }}>
-                          <thead className="sticky top-0 z-10">
-                            <tr className="border-b border-slate-200 bg-slate-50">
-                              <th className="w-[290px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Expense</th>
-                              <th className="px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Description</th>
-                              <th className="w-[130px] px-4 py-3.5 text-right text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Projected</th>
-                              <th className="w-[130px] px-4 py-3.5 text-right text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Actual</th>
-                              <th className="w-[120px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Due</th>
-                              {isViewingApprovedRequest && <>
-                                <th className="w-[220px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Vendor</th>
-                                <th className="w-[160px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Payment</th>
-                                <th className="w-[160px] px-4 py-3.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">Invoice</th>
-                              </>}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {viewingRequestDetail.months.map((month) => {
-                              const expenses = Array.isArray(month.expenses) ? month.expenses : [];
-                              const colSpan = isViewingApprovedRequest ? 8 : 5;
-                              return (
-                                <React.Fragment key={month.key}>
-                                  <tr className="border-y border-blue-100 bg-blue-50/80">
-                                    <td colSpan={colSpan} className="px-4 py-3">
-                                      <div className="flex flex-wrap items-center justify-between gap-3">
-                                        <span className="flex min-w-0 items-center gap-2 text-[11px] font-pmedium uppercase tracking-widest text-slate-900">
-                                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-[#2563EB] shadow-sm">
-                                            <Calendar size={13} />
-                                          </span>
-                                          {month.label}{month.title ? ` — ${month.title}` : ''}
-                                        </span>
-                                        <div className="flex flex-wrap items-center gap-2">
-                                          <span className="rounded-full border border-blue-200 bg-white px-2.5 py-1 text-[10px] font-pmedium text-slate-700">
-                                            Projected <span className="text-[#2563EB]">{formatCurrency(month.projected)}</span>
-                                          </span>
-                                          {isViewingApprovedRequest && month.actualSpent > 0 && (
-                                            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-pmedium text-emerald-700">
-                                              Used {formatCurrency(month.actualSpent)}
-                                            </span>
-                                          )}
-                                          <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-slate-500">
-                                            {expenses.length} planned
-                                          </span>
-                                        </div>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                  {expenses.length === 0 ? (
-                                    <tr className="bg-white">
-                                      <td colSpan={colSpan} className="px-4 py-5 text-center text-[11px] font-bold text-slate-400">
-                                        No expenses listed for this month.
-                                      </td>
-                                    </tr>
-                                  ) : (
-                                    expenses.map((exp: any, eIdx: number) => {
-                                      const invoiceUrl = exp.invoiceUrl || exp.invoiceFile || '';
-                                      const invoices = Array.isArray(exp.invoices) && exp.invoices.length > 0
-                                        ? exp.invoices
-                                        : (exp.invoiceNumber || invoiceUrl
-                                          ? [{ invoiceNumber: exp.invoiceNumber, amount: exp.invoiceAmount, invoiceUrl }]
-                                          : []);
-                                      const paymentStatus = String(exp.paymentStatus || '');
-                                      const approvedIncrease = (Array.isArray(extraRequests) ? extraRequests : [])
-                                        .filter((request: any) =>
-                                          String(request?.status || '').toLowerCase() === 'approved' &&
-                                          String(request?.type || '').toLowerCase() === 'increase' &&
-                                          String(request?.appliedExpenseId || '') === String(exp?._id || exp?.id || ''))
-                                        .reduce((sum: number, request: any) => sum + Number(request?.amount || 0), 0);
-                                      const currentProjection = Number(exp.projectedAmount || 0);
-                                      const originalProjection = Math.max(0, currentProjection - approvedIncrease);
-                                      const actualAmount = Number(exp.actualAmount ?? exp.actualSpent ?? 0);
-                                      return (
-                                        <tr key={`${month.key}-exp-${exp.id || eIdx}`} className="border-b border-slate-100 bg-white transition-colors hover:bg-blue-50/40">
-                                        <td className="px-4 py-4 align-top">
-                                          <div className="flex items-start gap-2">
-                                            {String(exp.expenseTag || '').toLowerCase() === 'add-on' && (
-                                              <span className="mt-0.5 shrink-0 rounded-md border border-amber-200 bg-amber-100 px-1.5 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-amber-700">Extra</span>
-                                            )}
-                                            <p className="min-w-0 break-words text-xs font-black leading-snug text-slate-900 sm:text-sm">{exp.title || exp.expenseLabel || `Expense ${eIdx + 1}`}</p>
-                                          </div>
-                                          {(() => {
-                                            const projectedAmt = Number(exp.projectedAmount ?? 0);
-                                            const over = Number(exp.actualAmount ?? exp.actualSpent ?? 0) - projectedAmt;
-                                            if (over <= 0.009) return null;
-                                            const approvedExtra = (Array.isArray(extraRequests) ? extraRequests : [])
-                                              .filter((r: any) =>
-                                                String(r?.status || '').toLowerCase() === 'approved' &&
-                                                String(r?.department || '') === String(viewingRequest?.department || '') &&
-                                                String(r?.monthKey || r?.month || '').toLowerCase() === month.key.toLowerCase())
-                                              .reduce((sum: number, r: any) => sum + Number(r?.amount || 0), 0);
-                                            if (approvedExtra + 0.009 < over) return null;
-                                            return (
-                                              <span className="mt-2 inline-flex max-w-full items-center gap-1.5 whitespace-normal rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-blue-700">
-                                                {formatCurrency(over)} via extra budget
-                                              </span>
-                                            );
-                                          })()}
-                                        </td>
-                                          <td className="px-4 py-4 align-top">
-                                            <p className="break-words text-[11px] font-medium leading-relaxed text-slate-500 sm:text-xs">{exp.description || '—'}</p>
-                                          </td>
-                                          <td className="px-4 py-4 text-right align-top">
-                                            {approvedIncrease > 0 ? (
-                                              <div title={`Current projection: ${formatCurrency(currentProjection)}`}>
-                                                <p className="whitespace-nowrap text-xs font-black text-slate-700 sm:text-sm">
-                                                  {formatCurrency(originalProjection)} <span className="text-[#2563EB]">+ {formatCurrency(approvedIncrease)}</span>
-                                                </p>
-                                                <span className="mt-1 inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-blue-700">Projection Increased</span>
-                                              </div>
-                                            ) : (
-                                              <p className="whitespace-nowrap text-xs font-black text-[#2563EB] sm:text-sm">{formatCurrency(currentProjection)}</p>
-                                            )}
-                                          </td>
-                                          <td className="px-4 py-4 text-right align-top">
-                                            <p className={`whitespace-nowrap text-xs font-black sm:text-sm ${actualAmount > currentProjection ? 'text-rose-600' : actualAmount > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                                              {formatCurrency(actualAmount)}
-                                            </p>
-                                          </td>
-                                          <td className="px-4 py-4 align-top">
-                                            <p className="text-xs font-bold text-slate-600">{exp.dueDate || '—'}</p>
-                                          </td>
-                                          {isViewingApprovedRequest && <>
-                                            <td className="px-4 py-4 align-top">
-                                              {exp.vendorName ? (
-                                                <div className="min-w-0">
-                                                  <p className="break-words text-xs font-black text-slate-900">{exp.vendorName}</p>
-                                                  {exp.vendorContactPerson && <p className="mt-0.5 break-words text-[10px] font-medium text-slate-400">{exp.vendorContactPerson}</p>}
-                                                </div>
-                                              ) : (
-                                                <span className="text-[9px] font-pmedium uppercase tracking-widest text-slate-300">Not Assigned</span>
-                                              )}
-                                            </td>
-                                            <td className="px-4 py-4 align-top">
-                                              <span className={`inline-flex whitespace-normal px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest ${paymentStatus.includes('Done') || paymentStatus.includes('Paid') ? 'bg-green-50 text-green-700 border border-green-200' : paymentStatus.includes('Invoice') ? 'bg-blue-50 text-blue-700 border border-blue-200' : paymentStatus.includes('Pending') ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
-                                                {formatFinancePaymentStatus(exp.paymentStatus)}
-                                              </span>
-                                            </td>
-                                            <td className="px-4 py-4 align-top">
-                                              {invoices.length > 0 ? (
-                                                <div className="space-y-2">
-                                                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">
-                                                    {invoices.length} invoice{invoices.length === 1 ? '' : 's'}
-                                                  </p>
-                                                  {invoices.map((invoice: any, invoiceIndex: number) => {
-                                                    const fileUrl = invoice?.invoiceUrl || invoice?.url || invoice?.invoiceFile || '';
-                                                    const label = invoice?.invoiceNumber || `Invoice ${invoiceIndex + 1}`;
-                                                    const content = (
-                                                      <>
-                                                        <Receipt size={11} className="shrink-0" />
-                                                        <span className="min-w-0 truncate font-black">{label}</span>
-                                                        {Number(invoice?.amount || 0) > 0 && <span className="ml-auto shrink-0">{formatCurrency(invoice.amount)}</span>}
-                                                      </>
-                                                    );
-                                                    return fileUrl ? (
-                                                      <a key={invoice?.invoiceKey || `${label}-${invoiceIndex}`} href={fileUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-2 text-[10px] text-blue-700 transition-colors hover:bg-blue-100" title={`View ${label}`}>
-                                                        {content}
-                                                      </a>
-                                                    ) : (
-                                                      <div key={invoice?.invoiceKey || `${label}-${invoiceIndex}`} className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[10px] text-slate-600">
-                                                        {content}
-                                                      </div>
-                                                    );
-                                                  })}
-                                                </div>
-                                              ) : (
-                                                <span className="text-[9px] font-pmedium uppercase tracking-widest text-slate-300">No Invoice</span>
-                                              )}
-                                            </td>
-                                          </>}
-                                        </tr>
-                                      );
-                                    })
-                                  )}
-                                </React.Fragment>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {viewingRequest.type === 'extra' && viewingRequest.monthKey && (
-                <p className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-pmedium text-amber-800">
-                  <Clock size={13} /> Requested for month: <span className="uppercase tracking-wider">{viewingRequest.month}</span> ({viewingRequest.monthKey})
-                </p>
-              )}
-              {viewingRequest.type === 'extra' && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Expense Title</p>
-                  <p className="mt-1 text-sm font-black text-slate-900">{viewingRequest.title || viewingRequest.targetTitle || 'Extra Budget'}</p>
-                </div>
-              )}
+              <div>
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1.5">Approval Status</p>
+                {hasApprovalProgress(viewingRequest.approvalFlow)
+                  ? <ApprovalFlowBadges flow={viewingRequest.approvalFlow} />
+                  : <span className={statusPillClass(viewingRequest.status)}>{getDualApprovalDisplayStatus(viewingRequest)}</span>}
               </div>
             </div>
 
-            {(() => {
-              const requestStatus = String(viewingRequest.status || '').toLowerCase();
-              const actionable = requestStatus === 'pending' && !viewingHasDecided;
-              if (actionable) {
-                return (
-                  <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex gap-3 sm:gap-4 shrink-0">
-                    <button disabled={isSavingDecision} onClick={() => { setDecisionComment(''); setDecisionPrompt({ action: 'Discuss', request: viewingRequest }); }} className="flex-1 py-3.5 bg-white border-2 border-slate-200 text-slate-700 rounded-xl font-pmedium hover:bg-slate-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
-                      <MessageSquare size={14} /> DISCUSS
-                    </button>
-                    <button disabled={isSavingDecision} onClick={() => { setDecisionComment(''); setDecisionPrompt({ action: 'Rejected', request: viewingRequest }); }} className="flex-1 py-3.5 bg-white border-2 border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
-                      <XCircle size={14} /> REJECT REQUEST
-                    </button>
-                    <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Approved')} className="flex-[2] py-3.5 bg-green-600 text-white rounded-xl font-pmedium shadow-lg shadow-green-200 hover:bg-green-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
-                      APPROVE BUDGET <CheckCircle2 size={14} />
-                    </button>
-                  </div>
-                );
-              }
-              if (viewingMyStepStatus === 'approved' || viewingMyStepStatus === 'rejected') {
-                return (
-                  <div className="px-6 sm:px-8 py-4 bg-emerald-50/60 border-t border-gray-100 flex items-center justify-between gap-3 shrink-0">
-                    <span className="flex items-center gap-2 text-[11px] font-pmedium uppercase tracking-wider text-emerald-700">
-                      <CheckCircle2 size={14} /> You have already {viewingMyStepStatus === 'approved' ? 'approved' : 'rejected'} this request.
-                    </span>
-                    <button onClick={() => setViewingRequest(null)} className="px-8 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-sm">CLOSE</button>
-                  </div>
-                );
-              }
-              return (
-                <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex justify-end shrink-0">
-                  <button onClick={() => setViewingRequest(null)} className="px-8 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-sm">CLOSE</button>
-                </div>
-              );
-            })()}
+            <div className="flex justify-end border-t border-slate-100 bg-slate-50 px-6 py-4">
+              <button onClick={() => setViewingRequest(null)} className="rounded-xl bg-slate-100 px-6 py-2.5 text-xs font-pmedium text-slate-700 hover:bg-slate-200">CLOSE</button>
+            </div>
           </div>
         </div>
       )}
@@ -1239,7 +863,7 @@ export function FinancePage() {
               </div>
               <div className="flex gap-3">
                 <button type="button" onClick={() => { setDecisionPrompt(null); setDecisionComment(''); }} className="flex-1 rounded-xl border border-slate-200 py-3 text-xs font-pmedium text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
-                <button disabled={isSavingDecision || !decisionComment.trim()} type="submit" className={`flex-[2] rounded-xl py-3 text-xs font-pmedium text-white disabled:opacity-50 ${decisionPrompt.action === 'Rejected' ? 'bg-red-600' : 'bg-blue-600'}`}>
+                <button disabled={isSavingDecision || !decisionComment.trim()} type="submit" className={`flex-1 rounded-xl py-3 text-xs font-pmedium text-white disabled:opacity-50 ${decisionPrompt.action === 'Rejected' ? 'bg-red-600' : 'bg-blue-600'}`}>
                   {isSavingDecision ? 'Saving…' : decisionPrompt.action === 'Rejected' ? 'Confirm Rejection' : 'Send Back for Revision'}
                 </button>
               </div>
@@ -1264,7 +888,7 @@ export function FinancePage() {
               <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
                 <AlertCircle size={16} className="mt-0.5 shrink-0" />
                 <p className="text-xs font-pmedium leading-relaxed">
-                  This will approve the full annual budget of <span className="font-pmedium">{formatCurrency(showApproveConfirm.requestedBudget)}</span> for <span className="font-pmedium">{showApproveConfirm.department}</span>. Once approved, this decision cannot be undone from this page.
+                  This will approve the {showApproveConfirm.type === 'extra' ? 'extra budget request' : 'full annual budget'} of <span className="font-pmedium">{formatCurrency(showApproveConfirm.type === 'extra' ? showApproveConfirm.amount : showApproveConfirm.requestedBudget)}</span> for <span className="font-pmedium">{showApproveConfirm.department}</span>. Once approved, this decision cannot be undone from this page.
                 </p>
               </div>
               <div className="mt-5 flex gap-3">
@@ -1274,8 +898,8 @@ export function FinancePage() {
                 <button
                   type="button"
                   disabled={isSavingDecision}
-                  onClick={() => { const req = showApproveConfirm; setShowApproveConfirm(null); handleAction('annual', req.id, 'Approved'); }}
-                  className="flex-[2] rounded-xl bg-green-600 py-3 text-xs font-pmedium text-white shadow-sm hover:bg-green-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  onClick={() => { const req = showApproveConfirm; setShowApproveConfirm(null); handleAction(req.type, req.id, 'Approved'); }}
+                  className="flex-1 rounded-xl bg-green-600 py-3 text-xs font-pmedium text-white shadow-sm hover:bg-green-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {isSavingDecision ? 'Approving…' : <>Approve Budget <CheckCircle2 size={14} /></>}
                 </button>

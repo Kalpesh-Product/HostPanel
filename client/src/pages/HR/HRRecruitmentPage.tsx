@@ -1461,18 +1461,21 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
           value: activeJobs, icon: CheckCircle2,
           class: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500",
           iconClass: "bg-emerald-50 text-emerald-600",
+          labelClass: "text-emerald-600",
         },
         {
           key: "vacancies", label: "Total Vacancies",
           value: totalVacancies, icon: Users,
           class: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500",
           iconClass: "bg-amber-50 text-amber-500",
+          labelClass: "text-amber-600",
         },
         {
           key: "filled", label: "Filled",
           value: filledVacancies, icon: UserCheck,
           class: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500",
           iconClass: "bg-blue-50 text-blue-600",
+          labelClass: "text-blue-600",
         },
       ];
     }
@@ -1488,18 +1491,21 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
         value: recruitmentSummary.selectedCount || candidates.filter((c) => c.status === "Selected").length,
         icon: UserCheck, class: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-green-500",
         iconClass: "bg-green-50 text-green-500",
+        labelClass: "text-green-600",
       },
       {
         key: "onboarded", label: "Onboarded",
         value: recruitmentSummary.onboardedCount || candidates.filter((c) => c.status === "Converted to Employee").length,
         icon: UserPlus, class: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-teal-500",
         iconClass: "bg-teal-50 text-teal-600",
+        labelClass: "text-teal-600",
       },
       {
         key: "screening", label: "In Screening",
         value: candidates.filter((c) => c.status === "Screening").length,
         icon: Clock, class: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500",
         iconClass: "bg-amber-50 text-amber-500",
+        labelClass: "text-amber-600",
       },
     ];
   }, [recruitmentSummary, candidates, jobOpenings, activeTab]);
@@ -1584,7 +1590,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
               return (
                 <div key={card.key} className={card.class}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className={`text-[10px] font-pmedium uppercase tracking-widest mb-1 ${(card as any).labelClass || "text-slate-400"}`}>{card.label}</p>
                     <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                   </div>
                   <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}>

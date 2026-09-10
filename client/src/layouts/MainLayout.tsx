@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useEffect, useRef, useState } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { Drawer, IconButton, useMediaQuery } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import Sidebar from "../components/Sidebar";
@@ -11,7 +11,6 @@ import Footer from "../components/Footer";
 import { useSidebar } from "../context/SideBarContext";
 import ScrollToTop from "../components/ScrollToTop";
 import useAuth from "../hooks/useAuth";
-import { PERMISSIONS } from "../constants/permissions";
 import AiChat from "../components/AiChat";
 import ModuleAccessGuard from "../routes/ModuleAccessGuard";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -27,7 +26,6 @@ const MainLayout = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const dummyRef = useRef<HTMLDivElement | null>(null);
   const location = useLocation();
-  const navigate = useNavigate();
   const { isSidebarOpen } = useSidebar();
   const { isTourAvailable, startCurrentTour } = usePageTour();
 
@@ -43,27 +41,6 @@ const MainLayout = () => {
   const unseenCount = notifications.filter(
     (n: any) => !n.readAt,
   ).length;
-  useEffect(() => {
-    const pathname = location.pathname;
-    const rawPermissions: string[] = auth?.user?.permissions?.permissions || [];
-
-    const guardedRoutes = Object.values(PERMISSIONS).filter((perm) => perm.route);
-    const currentRoutePermission = guardedRoutes.find((perm) => {
-      const route = perm.route;
-      if (route.startsWith("/")) {
-        return pathname === route || pathname.startsWith(route + "/");
-      }
-      return pathname.includes(route);
-    });
-
-    if (currentRoutePermission) {
-      const userHasPermission = rawPermissions.includes(currentRoutePermission.value);
-
-      if (!userHasPermission) {
-        navigate("/unauthorized");
-      }
-    }
-  }, [location.pathname, auth, navigate]);
 
   const hasTenantRole = Boolean(auth?.user?.tenantRole);
   const isTenantRoute = location.pathname.startsWith("/dashboard/tenant") || (hasTenantRole && location.pathname.startsWith("/profile/"));

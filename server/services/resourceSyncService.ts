@@ -169,10 +169,12 @@ export function formatResource(roomDoc: any, seatSummary?: { total: number; assi
         assignmentLabel = resolvedSeatSummary!.assigned > 0 ? `${resolvedSeatSummary!.assigned}/${resolvedSeatSummary!.total} seats assigned` : "";
         assignmentType = resolvedSeatSummary!.assigned === 0 ? "" : resolvedSeatSummary!.assigned >= resolvedSeatSummary!.total ? "seatsFull" : "seatsPartial";
     } else {
-        assignmentLabel = room.assignedTenantCompanyName || room.assignedVirtualOfficeName || room.assignedDepartmentName || "";
+        const assignedVOIds = Array.isArray(room.assignedVirtualOfficeIds) ? room.assignedVirtualOfficeIds : (room.assignedVirtualOfficeId ? [room.assignedVirtualOfficeId] : []);
+        const assignedVONames = Array.isArray(room.assignedVirtualOfficeNames) ? room.assignedVirtualOfficeNames : (room.assignedVirtualOfficeName ? [room.assignedVirtualOfficeName] : []);
+        assignmentLabel = room.assignedTenantCompanyName || assignedVONames.join(", ") || room.assignedDepartmentName || "";
         assignmentType = room.assignedTenantCompanyId
             ? "tenant"
-            : room.assignedVirtualOfficeId
+            : assignedVOIds.length > 0
                 ? "virtualOffice"
                 : room.assignedDepartmentName
                     ? "department"
@@ -189,8 +191,10 @@ export function formatResource(roomDoc: any, seatSummary?: { total: number; assi
         inventoryMode,
         assignedTenantCompanyId: room.assignedTenantCompanyId || null,
         assignedTenantCompanyName: room.assignedTenantCompanyName || "",
-        assignedVirtualOfficeId: room.assignedVirtualOfficeId || null,
-        assignedVirtualOfficeName: room.assignedVirtualOfficeName || "",
+        assignedVirtualOfficeIds: Array.isArray(room.assignedVirtualOfficeIds) ? room.assignedVirtualOfficeIds : (room.assignedVirtualOfficeId ? [room.assignedVirtualOfficeId] : []),
+        assignedVirtualOfficeNames: Array.isArray(room.assignedVirtualOfficeNames) ? room.assignedVirtualOfficeNames : (room.assignedVirtualOfficeName ? [room.assignedVirtualOfficeName] : []),
+        assignedVirtualOfficeId: (Array.isArray(room.assignedVirtualOfficeIds) ? room.assignedVirtualOfficeIds[0] : room.assignedVirtualOfficeId) || null,
+        assignedVirtualOfficeName: (Array.isArray(room.assignedVirtualOfficeNames) ? room.assignedVirtualOfficeNames[0] : room.assignedVirtualOfficeName) || "",
         assignedDepartmentId: room.assignedDepartmentId || "",
         assignedDepartmentName: room.assignedDepartmentName || "",
         assignmentLabel,
@@ -247,6 +251,8 @@ function buildSyncedResourceDoc(workspace: any, room: any, index: number) {
         inventoryMode,
         assignedTenantCompanyId: room.assignedTenantCompanyId || null,
         assignedTenantCompanyName: room.assignedTenantCompanyName || "",
+        assignedVirtualOfficeIds: Array.isArray(room.assignedVirtualOfficeIds) ? room.assignedVirtualOfficeIds : (room.assignedVirtualOfficeId ? [room.assignedVirtualOfficeId] : []),
+        assignedVirtualOfficeNames: Array.isArray(room.assignedVirtualOfficeNames) ? room.assignedVirtualOfficeNames : (room.assignedVirtualOfficeName ? [room.assignedVirtualOfficeName] : []),
         assignedDepartmentId: room.assignedDepartmentId || "",
         assignedDepartmentName: room.assignedDepartmentName || "",
         assignedAt: room.assignedAt || null,

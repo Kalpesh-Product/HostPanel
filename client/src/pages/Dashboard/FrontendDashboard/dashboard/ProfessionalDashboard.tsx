@@ -24,7 +24,7 @@ import {
   StatCard, QuickLink, SectionCard, RecentItem, DonutWidget, BarWidget,
 } from "./DashboardShared";
 import type { QuickLinkItem } from "./DashboardShared";
-import { statusBadgeColor, humanRelTime } from "./dashboardUtils";
+import { statusBadgeColor, humanRelTime, pickCardCols, hasModuleUse } from "./dashboardUtils";
 import { getStoredUser } from "../../../../lib/auth-session";
 import { getTenantCompanies } from "../../../../services/tenant-companies";
 import { getMeetingRoomBookings } from "../../../../services/meeting-room-bookings";
@@ -34,6 +34,10 @@ import PlanDashboardSkeleton from "./PlanDashboardSkeleton";
 
 interface ProfessionalDashboardProps {
   onUpgradeClick?: () => void;
+  /** Modules included in the plan + enabled for this workspace (from useDashboardAccess). */
+  enabledModuleIds: Set<string>;
+  /** Per-member module grants — a denied module's card is never rendered. */
+  grantedModuleIds: Set<string>;
 }
 
 // Shown instead of the four activity rows until the workspace has real data
@@ -76,9 +80,21 @@ const GettingStartedCard = () => {
   );
 };
 
-const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) => {
+const ProfessionalDashboard = ({ onUpgradeClick, enabledModuleIds, grantedModuleIds }: ProfessionalDashboardProps) => {
   const axiosPrivate = useAxiosPrivate();
   const navigate = useNavigate();
+
+  // A card only renders when its module is both included in the plan/
+  // workspace (enabled axis) AND granted to the current member (access axis).
+  const canUse = (id: string) => hasModuleUse(grantedModuleIds, enabledModuleIds, id);
+  const canUseAny = (ids: string[]) => ids.some(canUse);
+  const showTenants = canUseAny(["tenant-companies-admin", "tenant-companies-sales"]);
+  const showBookings = canUse("meeting-room-system");
+  const showTickets = canUse("tickets");
+  const showVisitors = canUseAny(["visitors-management", "visitor-management"]);
+  const showWebsite = canUse("website-builder");
+  const showOrg = canUse("organization-management");
+  const showCalendar = canUse("calendar");
 
   // Bookings are fetched per-workspace; resolve it the same way the meeting rooms page does.
   const storedUser = getStoredUser();
@@ -100,6 +116,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
       return Array.isArray(d) ? d : [];
     },
     staleTime: 5 * 60 * 1000,
+    enabled: showTenants,
   });
 
   const { data: bookingsRaw = [], isLoading: bookingsLoading } = useQuery({
@@ -112,6 +129,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
       return Array.isArray(list) ? list : [];
     },
     staleTime: 5 * 60 * 1000,
+    enabled: showBookings && Boolean(dashboardWorkspaceId),
   });
 
   const { data: ticketsRaw = [], isLoading: ticketsLoading } = useQuery({
@@ -121,6 +139,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
       return Array.isArray(d) ? d : [];
     },
     staleTime: 5 * 60 * 1000,
+    enabled: showTickets,
   });
 
   const { data: visitorsRaw = [], isLoading: visitorsLoading } = useQuery({
@@ -132,6 +151,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
       return Array.isArray(d) ? d : [];
     },
     staleTime: 5 * 60 * 1000,
+    enabled: showVisitors,
   });
 
   // ── Derived stats ──────────────────────────────────────────────────────────
@@ -314,13 +334,13 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
   // niche side feature, not core to what this plan unlocks, so it's left
   // off the dashboard (still reachable from the sidebar).
   const quickLinks: QuickLinkItem[] = [
-    { icon: Building2, label: "Tenant Companies", description: "Manage tenants & agreements", route: "/department-accesses/sales-department/tenant-companies", color: "#1E3D73" },
-    { icon: CalendarCheck, label: "Meeting Rooms", description: "View & manage bookings", route: "/common-modules/meeting-room-booking", color: "#2563EB" },
-    { icon: Ticket, label: "Customer Support", description: "Handle open tickets", route: "/common-modules/customer-support", color: "#ef4444" },
-    { icon: UserPlus, label: "Visitor Management", description: "Check-in / check-out", route: "/visitors/visitor-management", color: "#80bf01" },
-    { icon: Globe, label: "Website Builder", description: "Build & manage your site", route: "/key-apps/website-builder", color: "#7c3aed" },
-    { icon: LayoutGrid, label: "Organization", description: "Departments & members", route: "/core-modules/organization-management", color: "#0891b2" },
-    { icon: Calendar, label: "Calendar", description: "View events & schedules", route: "/common-modules/calendar", color: "#059669" },
+    ...(showTenants ? [{ icon: Building2, label: "Tenant Companies", description: "Manage tenants & agreements", route: "/department-accesses/sales-department/tenant-companies", color: "#1E3D73" }] : []),
+    ...(showBookings ? [{ icon: CalendarCheck, label: "Meeting Rooms", description: "View & manage bookings", route: "/common-modules/meeting-room-booking", color: "#2563EB" }] : []),
+    ...(showTickets ? [{ icon: Ticket, label: "Customer Support", description: "Handle open tickets", route: "/common-modules/customer-support", color: "#ef4444" }] : []),
+    ...(showVisitors ? [{ icon: UserPlus, label: "Visitor Management", description: "Check-in / check-out", route: "/visitors/visitor-management", color: "#80bf01" }] : []),
+    ...(showWebsite ? [{ icon: Globe, label: "Website Builder", description: "Build & manage your site", route: "/key-apps/website-builder", color: "#7c3aed" }] : []),
+    ...(showOrg ? [{ icon: LayoutGrid, label: "Organization", description: "Departments & members", route: "/core-modules/organization-management", color: "#0891b2" }] : []),
+    ...(showCalendar ? [{ icon: Calendar, label: "Calendar", description: "View events & schedules", route: "/common-modules/calendar", color: "#059669" }] : []),
   ];
 
   // Nothing logged yet anywhere — show a getting-started checklist instead
@@ -329,9 +349,11 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
     tenantsRaw.length === 0 && bookingsRaw.length === 0 &&
     ticketsRaw.length === 0 && visitorsRaw.length === 0;
 
-  if (tenantsLoading || bookingsLoading || ticketsLoading || visitorsLoading) {
+  if ((showTenants && tenantsLoading) || (showBookings && bookingsLoading) || (showTickets && ticketsLoading) || (showVisitors && visitorsLoading)) {
     return <PlanDashboardSkeleton plan="professional" />;
   }
+
+  const overviewCardCount = [showTenants, showBookings, showTickets, showVisitors].filter(Boolean).length;
 
   return (
     <div className="flex flex-col gap-5">
@@ -353,15 +375,16 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
         <ArrowRight size={14} className="text-accent flex-shrink-0" />
       </div>
 
-      {/* Professional-plan module overview — one actionable number per domain */}
+      {overviewCardCount > 0 && (
       <div data-tour="professional-overview">
-        <WidgetSection layout={4} title="Overview" border normalCase>
-          <StatCard icon={Building2} label="Total Tenants" value={tenantStats.total} sub={`${tenantStats.active} active`} color="#1E3D73" route="/department-accesses/sales-department/tenant-companies" />
-          <StatCard icon={CalendarCheck} label="Bookings Today" value={bookingStats.todayCount} sub={`${bookingStats.confirmed} confirmed overall`} color="#2563EB" route="/common-modules/meeting-room-booking" />
-          <StatCard icon={Ticket} label="Open Tickets" value={ticketStats.open} sub={`${ticketStats.inProgress} in progress`} color="#ef4444" route="/common-modules/customer-support" />
-          <StatCard icon={Eye} label="Visitors Today" value={visitorStats.todayCount} sub={`${visitorStats.checkedIn} checked in`} color="#80bf01" route="/visitors/visitor-management" />
+        <WidgetSection layout={pickCardCols(overviewCardCount)} title="Overview" border normalCase>
+          {showTenants && <StatCard icon={Building2} label="Total Tenants" value={tenantStats.total} sub={`${tenantStats.active} active`} color="#1E3D73" route="/department-accesses/sales-department/tenant-companies" />}
+          {showBookings && <StatCard icon={CalendarCheck} label="Bookings Today" value={bookingStats.todayCount} sub={`${bookingStats.confirmed} confirmed overall`} color="#2563EB" route="/common-modules/meeting-room-booking" />}
+          {showTickets && <StatCard icon={Ticket} label="Open Tickets" value={ticketStats.open} sub={`${ticketStats.inProgress} in progress`} color="#ef4444" route="/common-modules/customer-support" />}
+          {showVisitors && <StatCard icon={Eye} label="Visitors Today" value={visitorStats.todayCount} sub={`${visitorStats.checkedIn} checked in`} color="#80bf01" route="/visitors/visitor-management" />}
         </WidgetSection>
       </div>
+      )}
 
       {/* Quick links */}
       <div data-tour="professional-quick-links">
@@ -378,6 +401,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
       ) : (
         <>
           {/* Recent visitors and visitor type */}
+          {showVisitors && (
           <div data-tour="professional-visitors" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <SectionCard title="Recent Visitors" linkLabel="View all" linkRoute="/visitors/visitor-management">
               {recentVisitors.length > 0 ? recentVisitors.map((v: any, i: number) => (
@@ -393,8 +417,10 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
             </SectionCard>
             <DonutWidget title="Visitor Type" series={visitorDonut.series} labels={visitorDonut.labels} colors={visitorDonut.colors} centerLabel="Visitors" />
           </div>
+          )}
 
           {/* Recent bookings and booking status */}
+          {showBookings && (
           <div data-tour="professional-bookings" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <SectionCard title="Recent Bookings" linkLabel="View all" linkRoute="/common-modules/meeting-room-booking">
               {recentBookings.length > 0 ? recentBookings.map((b: any, i: number) => (
@@ -403,8 +429,10 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
             </SectionCard>
             <DonutWidget title="Booking Status" series={bookingDonut.series} labels={bookingDonut.labels} colors={bookingDonut.colors} centerLabel="Bookings" />
           </div>
+          )}
 
           {/* Recent tickets and ticket status */}
+          {showTickets && (
           <div data-tour="professional-tickets" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <SectionCard title="Recent Tickets" linkLabel="View all" linkRoute="/common-modules/customer-support">
               {recentTickets.length > 0 ? recentTickets.map((t: any, i: number) => (
@@ -413,8 +441,10 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
             </SectionCard>
             <DonutWidget title="Ticket Status" series={ticketDonut.series} labels={ticketDonut.labels} colors={ticketDonut.colors} centerLabel="Tickets" />
           </div>
+          )}
 
           {/* Recent tenants and tenant status */}
+          {showTenants && (
           <div data-tour="professional-tenants" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <SectionCard title="Recent Tenants" linkLabel="View all" linkRoute="/department-accesses/sales-department/tenant-companies">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -436,9 +466,10 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
             </SectionCard>
             <DonutWidget title="Tenant Status" series={tenantDonut.series} labels={tenantDonut.labels} colors={tenantDonut.colors} centerLabel="Tenants" />
           </div>
+          )}
 
           {/* Expiry alert */}
-          {tenantStats.expiringSoon > 0 && (
+          {showTenants && tenantStats.expiringSoon > 0 && (
             <div data-tour="professional-expiry-alert" className="flex items-center gap-3 p-4 rounded-xl border-2 border-amber-300 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors" onClick={() => navigate("/department-accesses/sales-department/tenant-companies")}>
               <AlertCircle size={20} className="text-amber-600 flex-shrink-0" />
               <div>
@@ -451,15 +482,21 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
 
           {/* Monthly operational trends — side by side instead of stacked full-width */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {showBookings && (
             <div data-tour="professional-booking-trend">
               <BarWidget title="Monthly Bookings (FY)" chartId="pro-monthly-bookings" series={bookingsByMonth} options={bookingBarOptions} height={220} />
             </div>
+            )}
+            {showTickets && (
             <div data-tour="professional-ticket-trend">
               <BarWidget title="Monthly Tickets (FY)" chartId="pro-monthly-tickets" series={ticketsByMonth} options={ticketBarOptions} height={220} />
             </div>
+            )}
+            {showTenants && (
             <div data-tour="professional-tenant-trend">
               <BarWidget title="Monthly Tenants (FY)" chartId="pro-monthly-tenants" series={tenantsByMonth} options={tenantBarOptions} height={220} />
             </div>
+            )}
           </div>
         </>
       )}

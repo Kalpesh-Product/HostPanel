@@ -20,8 +20,9 @@ export const assignResource = async (recordId: string, payload: Record<string, a
   return axiosPrivate.patch(`/api/v1/resources/${recordId}/assignment`, payload);
 };
 
-export const releaseResourceAssignment = async (recordId: string) => {
-  return axiosPrivate.delete(`/api/v1/resources/${recordId}/assignment`);
+export const releaseResourceAssignment = async (recordId: string, virtualOfficeId?: string) => {
+  const params = virtualOfficeId ? { params: { virtualOfficeId } } : {};
+  return axiosPrivate.delete(`/api/v1/resources/${recordId}/assignment`, params);
 };
 
 export const getResourceSeats = async (recordId: string) => {

@@ -130,7 +130,12 @@ const toneFor = (r = {}, isPackageLocked = false) => {
   if (r.status === "Disabled") return ["bg-slate-100 border-slate-200 text-slate-500", "bg-slate-50 border-slate-200", "Disabled", "text-slate-500"];
   if (isPackageLocked) return ["bg-indigo-50 border-indigo-200 border-dashed text-indigo-700", "bg-indigo-50 border-indigo-300", r.assignedTenantCompanyName || "Package", "text-indigo-600"];
   if (r.assignmentType === "tenant") return ["bg-indigo-50 border-indigo-200 text-indigo-700", "bg-indigo-50 border-indigo-300", r.assignedTenantCompanyName || "Tenant", "text-indigo-600"];
-  if (r.assignmentType === "virtualOffice") return ["bg-teal-50 border-teal-200 text-teal-700", "bg-teal-50 border-teal-300", r.assignedVirtualOfficeName || "Virtual Office", "text-teal-600"];
+  if (r.assignmentType === "virtualOffice") {
+    const voLabel = (Array.isArray(r.assignedVirtualOfficeNames) && r.assignedVirtualOfficeNames.length
+      ? (r.assignedVirtualOfficeNames.length === 1 ? r.assignedVirtualOfficeNames[0] : `${r.assignedVirtualOfficeNames.length} companies`)
+      : r.assignedVirtualOfficeName) || "Virtual Office";
+    return ["bg-teal-50 border-teal-200 text-teal-700", "bg-teal-50 border-teal-300", voLabel, "text-teal-600"];
+  }
   if (r.assignmentType === "department") return ["bg-amber-50 border-amber-200 text-amber-700", "bg-amber-50 border-amber-300", r.assignedDepartmentName || "Department", "text-amber-600"];
   if (r.assignmentType === "seatsFull") return ["bg-indigo-50 border-indigo-200 text-indigo-700", "bg-indigo-50 border-indigo-300", "Fully Assigned", "text-indigo-600"];
   if (r.assignmentType === "seatsPartial") return ["bg-amber-50 border-amber-200 text-amber-700", "bg-amber-50 border-amber-300", "Partially Assigned", "text-amber-600"];
@@ -165,8 +170,14 @@ function deriveType(cat = "") {
 function normalizeResource(r = {}) {
   const floor = String(r.floor || "").trim() || floors[0];
   const wing = String(r.wing || "").trim().toUpperCase();
-  const assignmentLabel = r.assignmentLabel || r.assignedTenantCompanyName || r.assignedDepartmentName || "";
-  const assignmentType = r.assignmentType || (r.assignedTenantCompanyId ? "tenant" : r.assignedDepartmentName ? "department" : "");
+  const assignedVirtualOfficeIds = Array.isArray(r.assignedVirtualOfficeIds)
+    ? r.assignedVirtualOfficeIds.map((id) => String(id)).filter(Boolean)
+    : (r.assignedVirtualOfficeId ? [String(r.assignedVirtualOfficeId)] : []);
+  const assignedVirtualOfficeNames = Array.isArray(r.assignedVirtualOfficeNames)
+    ? r.assignedVirtualOfficeNames.map((n) => String(n).trim()).filter(Boolean)
+    : (r.assignedVirtualOfficeName ? [String(r.assignedVirtualOfficeName).trim()] : []);
+  const assignmentLabel = r.assignmentLabel || r.assignedTenantCompanyName || assignedVirtualOfficeNames.join(", ") || r.assignedDepartmentName || "";
+  const assignmentType = r.assignmentType || (r.assignedTenantCompanyId ? "tenant" : assignedVirtualOfficeIds.length > 0 ? "virtualOffice" : r.assignedDepartmentName ? "department" : "");
   return {
     ...r,
     recordId: r.recordId || r._id || r.id || r.resourceCode,
@@ -183,6 +194,10 @@ function normalizeResource(r = {}) {
     status: r.status || "Active",
     assignedTenantCompanyId: r.assignedTenantCompanyId || null,
     assignedTenantCompanyName: r.assignedTenantCompanyName || "",
+    assignedVirtualOfficeIds,
+    assignedVirtualOfficeNames,
+    assignedVirtualOfficeId: assignedVirtualOfficeIds[0] || null,
+    assignedVirtualOfficeName: assignedVirtualOfficeNames[0] || "",
     assignedDepartmentId: r.assignedDepartmentId || "",
     assignedDepartmentName: r.assignedDepartmentName || "",
     assignmentLabel, assignmentType,
@@ -238,7 +253,7 @@ function SpaceCard({ resource, selected, disabled, packageLocked, onToggle, onMa
   const locked = packageLocked || disabled;
   const isAssigned = Boolean(resource.assignmentLabel);
   const isDesk = deskCats.has(resource.resourceCategory);
-  const assignedTo = resource.assignedTenantCompanyName || resource.assignedVirtualOfficeName || resource.assignedDepartmentName || (isDesk ? "" : resource.assignmentLabel) || "";
+  const assignedTo = resource.assignedTenantCompanyName || (Array.isArray(resource.assignedVirtualOfficeNames) && resource.assignedVirtualOfficeNames.length ? resource.assignedVirtualOfficeNames.join(", ") : resource.assignedVirtualOfficeName || "") || resource.assignedDepartmentName || (isDesk ? "" : resource.assignmentLabel) || "";
   const assignmentIconClass = resource.assignmentType === "tenant" || resource.assignmentType === "seatsFull" ? "text-indigo-500" : resource.assignmentType === "virtualOffice" ? "text-teal-500" : "text-amber-500";
   const assignmentTextClass = resource.assignmentType === "tenant" || resource.assignmentType === "seatsFull" ? "text-indigo-700" : resource.assignmentType === "virtualOffice" ? "text-teal-700" : "text-amber-700";
   return (
@@ -812,11 +827,15 @@ export default function SalesArchitecturePage() {
   const voAssignmentMap = useMemo(() => {
     const map = {};
     voResources.filter((r) => r.assignmentType === "virtualOffice").forEach((r) => {
-      const id = String(r.assignedVirtualOfficeId || "");
-      if (!id) return;
-      if (!map[id]) map[id] = { id, name: r.assignedVirtualOfficeName || "Unknown", resources: [], seatCount: 0 };
-      map[id].resources.push(r);
-      map[id].seatCount += Math.max(1, Number(r.capacity || 1));
+      const ids = (Array.isArray(r.assignedVirtualOfficeIds) && r.assignedVirtualOfficeIds.length) ? r.assignedVirtualOfficeIds : (r.assignedVirtualOfficeId ? [r.assignedVirtualOfficeId] : []);
+      const names = (Array.isArray(r.assignedVirtualOfficeNames) && r.assignedVirtualOfficeNames.length) ? r.assignedVirtualOfficeNames : (r.assignedVirtualOfficeName ? [r.assignedVirtualOfficeName] : []);
+      ids.forEach((rawId, i) => {
+        const id = String(rawId);
+        if (!id) return;
+        if (!map[id]) map[id] = { id, name: names[i] || "Unknown", resources: [], seatCount: 0 };
+        map[id].resources.push(r);
+        map[id].seatCount += Math.max(1, Number(r.capacity || 1));
+      });
     });
     return Object.values(map);
   }, [voResources]);
@@ -826,9 +845,11 @@ export default function SalesArchitecturePage() {
   // no company row to release from, so we surface them explicitly.
   const orphanedVOResources = useMemo(() => {
     const activeIds = new Set(virtualOffices.map((v) => String(v._id || v.recordId)).filter(Boolean));
-    return voResources.filter(
-      (r) => r.assignmentType === "virtualOffice" && r.assignedVirtualOfficeId && !activeIds.has(String(r.assignedVirtualOfficeId)),
-    );
+    return voResources.filter((r) => {
+      if (r.assignmentType !== "virtualOffice") return false;
+      const ids = (Array.isArray(r.assignedVirtualOfficeIds) && r.assignedVirtualOfficeIds.length) ? r.assignedVirtualOfficeIds : (r.assignedVirtualOfficeId ? [r.assignedVirtualOfficeId] : []);
+      return ids.length > 0 && !ids.some((id) => activeIds.has(String(id)));
+    });
   }, [voResources, virtualOffices]);
   const orphanedVOSeatCount = useMemo(
     () => orphanedVOResources.reduce((s, r) => s + Math.max(1, Number(r.capacity || 1)), 0),
@@ -845,16 +866,35 @@ export default function SalesArchitecturePage() {
   const voSelectedResources = useMemo(() => voResources.filter((r) => voSelectedIds.includes(String(r.recordId || r.id))), [voResources, voSelectedIds]);
   const voSelectedSeatCount = useMemo(() => voSelectedResources.reduce((s, r) => s + Math.max(1, Number(r.capacity || 1)), 0), [voSelectedResources]);
   const toggleVOResource = (r) => {
-    if (r.status !== "Active" || r.assignmentLabel) return;
+    // A virtual office space can be shared by multiple companies, so an
+    // already-assigned space stays selectable — only maintenance/disabled
+    // spaces and spaces held by a tenant or department are excluded.
+    if (r.status !== "Active" || r.assignedTenantCompanyId || r.assignedDepartmentId) return;
     const id = String(r.recordId || r.id);
     setVoSelectedIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   };
   const clearVOSelection = () => setVoSelectedIds([]);
 
   const saveVOAssignment = async () => {
-    const ids = voSelectedResources.map((r) => String(r.recordId || r.id)).filter(Boolean);
     const company = virtualOffices.find((v) => String(v._id || v.recordId) === String(selectedVOCompanyId)) || null;
-    if (!ids.length || !company) return;
+    if (!company) return;
+    const companyId = String(company._id || company.recordId || "");
+    // Spaces already hosting this company are skipped (sharing is handled by
+    // the server as an additive assignment, so re-adding is a no-op anyway).
+    const ids = voSelectedResources
+      .filter((r) => {
+        const assignedIds = (Array.isArray(r.assignedVirtualOfficeIds) && r.assignedVirtualOfficeIds.length)
+          ? r.assignedVirtualOfficeIds.map((id) => String(id))
+          : (r.assignedVirtualOfficeId ? [String(r.assignedVirtualOfficeId)] : []);
+        return !assignedIds.includes(companyId);
+      })
+      .map((r) => String(r.recordId || r.id)).filter(Boolean);
+    if (!ids.length) {
+      toast.info("All selected spaces are already assigned to this company.");
+      clearVOSelection();
+      setIsVOAssignModalOpen(false);
+      return;
+    }
     setSaving(true); setError("");
     const payload = {
       assignmentType: "virtualOffice",
@@ -1006,7 +1046,7 @@ export default function SalesArchitecturePage() {
     finally { setSaving(false); }
   };
 
-  const releaseSpacesByIds = async (ids = []) => {
+  const releaseSpacesByIds = async (ids = [], virtualOfficeId = "") => {
     const releasable = ids.map(String).filter((rid) => !packageLockedIds.has(rid));
     if (!releasable.length) {
       toast.info("No releasable spaces for this assignment.");
@@ -1019,7 +1059,9 @@ export default function SalesArchitecturePage() {
         if (target && deskCats.has(target.resourceCategory)) {
           await releaseAllAssignedSeatsForResource(rid);
         } else {
-          await releaseResourceAssignment(rid);
+          // For a shared virtual office space, only the specific company is
+          // removed — the rest of the companies on that space stay put.
+          await releaseResourceAssignment(rid, virtualOfficeId || undefined);
         }
       }
       await refreshResources();
@@ -1115,12 +1157,12 @@ export default function SalesArchitecturePage() {
 
       <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-4 gap-2 mb-3 shrink-0">
         {[
-          { icon: Monitor, label: "Total Desks", value: topSpaceStats.totalDesks, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md', iconClass: 'bg-slate-50 text-slate-600' },
+          { icon: Monitor, label: "Total Desks", value: topSpaceStats.totalDesks, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-slate-500', iconClass: 'bg-slate-50 text-slate-600' },
           { icon: DoorOpen, label: "Available Desks", value: topSpaceStats.availableDesks, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600' },
           { icon: Presentation, label: "Meeting & Conference", value: topSpaceStats.totalBooking, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-fuchsia-500', iconClass: 'bg-fuchsia-50 text-fuchsia-600' },
-          { icon: CalendarClock, label: "M&C Available", value: topSpaceStats.availableBooking, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-fuchsia-300', iconClass: 'bg-fuchsia-50 text-fuchsia-500' },
+          // { icon: CalendarClock, label: "M&C Available", value: topSpaceStats.availableBooking, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-fuchsia-300', iconClass: 'bg-fuchsia-50 text-fuchsia-500' },
           { icon: Building, label: "Virtual Offices", value: topSpaceStats.totalVO, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-teal-500', iconClass: 'bg-teal-50 text-teal-600' },
-          { icon: DoorOpen, label: "VO Available", value: topSpaceStats.availableVO, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-teal-300', iconClass: 'bg-teal-50 text-teal-500' },
+          // { icon: DoorOpen, label: "VO Available", value: topSpaceStats.availableVO, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-teal-300', iconClass: 'bg-teal-50 text-teal-500' },
           { icon: Building2, label: "Tenant Assigned Desks", value: topSpaceStats.tenantAssignedDesks, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-indigo-500', iconClass: 'bg-indigo-50 text-indigo-600' },
           { icon: Briefcase, label: "Dept Assigned Desks", value: topSpaceStats.deptAssignedDesks, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-amber-500', iconClass: 'bg-amber-50 text-amber-600' },
           { icon: Wrench, label: "Maintenance", value: topSpaceStats.maintenance, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-slate-500', iconClass: 'bg-slate-100 text-slate-600' },
@@ -1143,7 +1185,7 @@ export default function SalesArchitecturePage() {
               { key: "dashboard", label: "Dashboard" },
             ].map((tab) => (
               <button key={tab.key} onClick={() => setViewMode(tab.key)}
-                className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${viewMode === tab.key ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200" : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"}`}
+                className={`flex-1 px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap text-center transition-all ${viewMode === tab.key ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200" : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"}`}
               >
                 {tab.label}
               </button>
@@ -1241,7 +1283,7 @@ export default function SalesArchitecturePage() {
             </div>
             <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
               {[
-                { icon: LayoutGrid, label: "Total Floors", value: deskOverviewStats.totalFloors, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md', iconClass: 'bg-slate-50 text-slate-600' },
+                { icon: LayoutGrid, label: "Total Floors", value: deskOverviewStats.totalFloors, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-slate-500', iconClass: 'bg-slate-50 text-slate-600' },
                 { icon: MapIcon, label: "Total Wings", value: deskOverviewStats.totalWings, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-slate-500', iconClass: 'bg-slate-100 text-slate-600' },
                 { icon: Monitor, label: "Total Desks", value: deskOverviewStats.totalDesks, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-blue-500', iconClass: 'bg-blue-50 text-blue-600' },
                 { icon: DoorOpen, label: "Vacant Seats", value: deskOverviewStats.vacantDesks, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600' },
@@ -1634,7 +1676,12 @@ export default function SalesArchitecturePage() {
 
   const renderVirtualOffices = () => {
     const viewVO = viewVOId ? virtualOffices.find((v) => String(v._id || v.recordId) === viewVOId) : null;
-    const viewVOResources = viewVO ? voResources.filter((r) => String(r.assignedVirtualOfficeId) === viewVOId) : [];
+    const viewVOResources = viewVO ? voResources.filter((r) => {
+      const ids = (Array.isArray(r.assignedVirtualOfficeIds) && r.assignedVirtualOfficeIds.length)
+        ? r.assignedVirtualOfficeIds.map((id) => String(id))
+        : (r.assignedVirtualOfficeId ? [String(r.assignedVirtualOfficeId)] : []);
+      return ids.includes(viewVOId);
+    }) : [];
     const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "--");
 
     return (
@@ -1727,7 +1774,12 @@ export default function SalesArchitecturePage() {
                   return matchesStatus && matchesSearch;
                 }).map((v) => {
                   const vid = String(v._id || v.recordId);
-                  const assignedResources = voResources.filter((r) => String(r.assignedVirtualOfficeId) === vid);
+                  const assignedResources = voResources.filter((r) => {
+                    const ids = (Array.isArray(r.assignedVirtualOfficeIds) && r.assignedVirtualOfficeIds.length)
+                      ? r.assignedVirtualOfficeIds.map((id) => String(id))
+                      : (r.assignedVirtualOfficeId ? [String(r.assignedVirtualOfficeId)] : []);
+                    return ids.includes(vid);
+                  });
                   const assignedSeatCount = assignedResources.reduce((s, r) => s + Math.max(1, Number(r.capacity || 1)), 0);
                   const assignedFloors = Array.from(new Set(assignedResources.map((r) => r.floor).filter(Boolean))).sort();
                   const assignedWings = Array.from(new Set(assignedResources.map((r) => r.wing).filter(Boolean))).sort();
@@ -1778,7 +1830,7 @@ export default function SalesArchitecturePage() {
                           {assignedResources.length > 0 && (
                             <button
                               onClick={() => {
-                                setReleaseTarget({ type: "virtualOffice", name: v.clientName || v.brandName, resources: assignedResources });
+                                setReleaseTarget({ type: "virtualOffice", name: v.clientName || v.brandName, virtualOfficeId: vid, resources: assignedResources });
                                 setReleaseSelectedIds(assignedResources.map((r) => String(r.recordId || r.id)));
                               }}
                               disabled={saving}
@@ -2331,7 +2383,8 @@ export default function SalesArchitecturePage() {
 
                 <div className="space-y-3">
                   {(() => {
-                    const availableVOResources = voResources.filter((r) => !r.assignmentLabel && r.status === "Active" &&
+                    const availableVOResources = voResources.filter((r) => r.status === "Active" &&
+                      !r.assignedTenantCompanyId && !r.assignedDepartmentId &&
                       (voSelectedFloor === "All" || r.floor === voSelectedFloor) &&
                       (voSelectedWing === "All" || r.wing === voSelectedWing)
                     );
@@ -2347,12 +2400,18 @@ export default function SalesArchitecturePage() {
                           {availableVOResources.map((r) => {
                             const id = String(r.recordId || r.id);
                             const isSelected = voSelectedIds.includes(id);
+                            const sharedNames = (Array.isArray(r.assignedVirtualOfficeNames) && r.assignedVirtualOfficeNames.length)
+                              ? r.assignedVirtualOfficeNames
+                              : (r.assignedVirtualOfficeName ? [String(r.assignedVirtualOfficeName)] : []);
+                            const isShared = sharedNames.length > 0;
                             return (
                               <button key={id} type="button" onClick={() => toggleVOResource(r)}
                                 className={`group flex min-h-[72px] flex-col justify-between rounded-xl border-2 p-2.5 text-left transition-all ${
                                   isSelected
                                     ? "border-blue-400 bg-blue-50 ring-2 ring-blue-300 shadow-md scale-[1.01]"
-                                    : "border-slate-200 bg-white hover:border-slate-300 hover:-translate-y-0.5 hover:shadow-sm"
+                                    : isShared
+                                      ? "border-teal-200 bg-teal-50/50 hover:border-teal-300"
+                                      : "border-slate-200 bg-white hover:border-slate-300 hover:-translate-y-0.5 hover:shadow-sm"
                                 }`}
                               >
                                 <div className="flex items-start justify-between gap-1">
@@ -2366,6 +2425,11 @@ export default function SalesArchitecturePage() {
                                   {isSelected && <CheckCircle2 size={14} className="text-blue-500 shrink-0" />}
                                 </div>
                                 <p className="mt-1 text-[8px] font-pmedium text-slate-400">{r.locationLabel || "--"}</p>
+                                {isShared && (
+                                  <span className="mt-1 inline-flex items-center gap-1 text-[8px] font-pmedium text-teal-700 bg-teal-100/70 border border-teal-200 rounded-full px-1.5 py-0.5">
+                                    <Users size={9} /> {sharedNames.length === 1 ? sharedNames[0] : `${sharedNames.length} companies (${sharedNames.slice(0, 2).join(", ")}${sharedNames.length > 2 ? "…" : ""})`}
+                                  </span>
+                                )}
                               </button>
                             );
                           })}
@@ -2632,7 +2696,7 @@ export default function SalesArchitecturePage() {
                 <button onClick={() => { setReleaseTarget(null); setReleaseSelectedIds([]); }} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[12px] hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
                 <button
                   onClick={async () => {
-                    await releaseSpacesByIds(releaseSelectedIds);
+                    await releaseSpacesByIds(releaseSelectedIds, releaseTarget?.type === "virtualOffice" ? releaseTarget.virtualOfficeId || "" : "");
                     setReleaseTarget(null);
                     setReleaseSelectedIds([]);
                   }}

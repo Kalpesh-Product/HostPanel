@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, Wallet, TrendingDown, TrendingUp, AlertCircle,
   Send, Plus, Eye, Receipt, UserPlus, UploadCloud,
-  CheckCircle2, Clock, Check, Loader2, X, FileText, FileWarning, Search, Calendar, Pencil, MessageSquare, Download
+  CheckCircle2, Clock, Check, Loader2, X, FileText, FileWarning, Search, Calendar, Pencil, MessageSquare, Download,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -104,8 +104,6 @@ interface MonthlyPlan {
   status: string;
   expenses: ExpenseData[];
 }
-
-const FM_LIST_PATH = '/department-accesses/finance-department/expenses-budget';
 
 interface BudgetRequest {
   id: string;
@@ -213,6 +211,18 @@ function getFriendlyMonthStatus(monthStatus: string | undefined, planStatus: str
   }
 }
 
+// Dual-approval requests read as bare "Pending" even after one approver has
+// already acted — spell out whose turn it actually is.
+function getDualApprovalDisplayStatus(request: any = {}): string {
+  const overall = String(request?.status || '').trim();
+  if (!['pending', 'discuss'].includes(overall.toLowerCase())) return overall;
+  const ownerStatus = String(request?.approvalFlow?.owner?.status || '').toLowerCase();
+  const fmStatus = String(request?.approvalFlow?.financeManager?.status || '').toLowerCase();
+  if (ownerStatus === 'approved' && fmStatus !== 'approved') return `${overall} Finance Manager`;
+  if (fmStatus === 'approved' && ownerStatus !== 'approved') return `${overall} Founder`;
+  return overall;
+}
+
 // ─── Vendor form validation ─────────────────────────────────────────────────
 function validateVendorForm(form: Record<string, any>): Record<string, string> {
   const errors: Record<string, string> = {};
@@ -284,7 +294,8 @@ export function DepartmentFinancePageV2() {
   // Payments are Finance-only (segregation of duties). Hide the Mark-as-Paid
   // action from department members; Finance-side roles and managers of the
   // Finance department still see it.
-  const FINANCE_PAYMENT_ROLES = ['owner', 'founder', 'super_admin', 'admin', 'finance_manager', 'finance'];
+  // "admin" is deliberately excluded — marking an expense paid is Finance/Founder-only.
+  const FINANCE_PAYMENT_ROLES = ['owner', 'founder', 'super_admin', 'finance_manager', 'finance'];
   const memberDepartmentNames = memberDepartments.map((d) => d.trim().toLowerCase()).filter(Boolean);
   const canManagePayments =
     FINANCE_PAYMENT_ROLES.includes(userRole) ||
@@ -306,6 +317,7 @@ export function DepartmentFinancePageV2() {
   // Modal state
   const [viewingExpense, setViewingExpense] = useState<{ month: MonthlyPlan; expense: ExpenseData } | null>(null);
   const [viewingVendor, setViewingVendor] = useState<VendorData | null>(null);
+  const [viewingExtraRequest, setViewingExtraRequest] = useState<ExtraBudgetRequest | null>(null);
   const [showVendorForm, setShowVendorForm] = useState(false);  const [showImportModal, setShowImportModal] = useState(false);
   const [showExtraBudgetForm, setShowExtraBudgetForm] = useState(false);
   const [showVendorList, setShowVendorList] = useState(false);
@@ -964,7 +976,7 @@ export function DepartmentFinancePageV2() {
     setIsSendingReminder(true);
     try {
       await sendReminder({ planId: financeData?.plan?._id, fiscalYear: selectedFY, department: departmentLabel });
-      toast.success('Reminder sent to finance team.');
+      toast.success('Reminder sent to whoever still needs to approve this budget.');
     } catch (error: any) {
       toast.error(getApiErrorMessage(error, 'Failed to send reminder.'));
     } finally {
@@ -1146,9 +1158,9 @@ export function DepartmentFinancePageV2() {
   const isBudgetPending = financeData?.status?.toLowerCase() === 'pending';
   const isBudgetApproved = financeData?.status?.toLowerCase() === 'approved';
   const isHistoricalPlan = financeData?.plan?.isHistorical === true;
-  // Departments can only link vendors / record actuals once the annual budget
-  // is approved; finance-privileged roles keep access for corrections.
-  const canRecordSpend = !isHistoricalPlan && (isBudgetApproved || FINANCE_PAYMENT_ROLES.includes(userRole));
+  // Vendor linking / recording actuals is locked until the annual budget is
+  // approved — no role bypass, this applies regardless of who's viewing.
+  const canRecordSpend = !isHistoricalPlan && isBudgetApproved;
   // Inline guard: the linked vendor's actual cost may exceed this expense's own
   // projection only by the month's unused APPROVED extra-budget headroom.
   const expenseDetail = viewingExpense?.expense;
@@ -1207,28 +1219,11 @@ export function DepartmentFinancePageV2() {
           <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                {memberDepartments.length > 1 ? (
-                  <span className="relative inline-flex items-center">
-                    <Building2 size={14} className="absolute left-2.5 text-[#2563EB] pointer-events-none" />
-                    <select
-                      value={departmentLabel}
-                      onChange={(e) => setSelectedDepartment(e.target.value)}
-                      title="You manage more than one department — switch which one you're viewing"
-                      className="pl-7 pr-2 py-1 bg-blue-50/60 hover:bg-blue-50 border border-blue-100 text-primary rounded-lg text-title font-pmedium uppercase outline-none cursor-pointer appearance-none"
-                    >
-                      {memberDepartments.map((dept) => (
-                        <option key={dept} value={dept}>{dept}</option>
-                      ))}
-                    </select>
-                  </span>
-                ) : (
-                  departmentLabel
-                )}
-                {' '}Finance Management
+                {departmentLabel} Finance Management
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
                 Track projected budgets, extra requests, and expense history for your department for {selectedFY}.
-                {memberDepartments.length > 1 && ' Use the department switcher above to manage your other department.'}
+                {memberDepartments.length > 1 && ' Use the department filter below to switch to your other department.'}
               </p>
               {financeData?.healthStatus && (
                 <span className={statusPillClass(financeData.healthStatus)}>
@@ -1490,8 +1485,24 @@ export function DepartmentFinancePageV2() {
                 ))}
               </div>
 
-              {/* FY + SEARCH (last) + ACTIONS */}
+              {/* DEPARTMENT + FY + SEARCH (last) + ACTIONS */}
               <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+                {memberDepartments.length > 1 && (
+                  <div className="relative">
+                    <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
+                    <select
+                      data-tour="dept-finance-department-select"
+                      value={departmentLabel}
+                      onChange={(e) => setSelectedDepartment(e.target.value)}
+                      title="You manage more than one department — switch which one you're viewing"
+                      className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[140px]"
+                    >
+                      {memberDepartments.map((dept) => (
+                        <option key={dept} value={dept}>{dept}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className="relative">
                   <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                   <select
@@ -1542,7 +1553,7 @@ export function DepartmentFinancePageV2() {
                     </button>
                     <button
                       onClick={openIncreaseForm}
-                      className="bg-white border border-[#2563EB]/40 text-[#2563EB] px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-50 active:scale-95 transition-all whitespace-nowrap"
+                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                       title="Top-up an existing budget line that exceeded its projection"
                     >
                       <TrendingUp size={14} /> Increase Projected
@@ -1753,7 +1764,7 @@ export function DepartmentFinancePageV2() {
                       <th className="px-5 py-4">Projected Total</th>
                       <th className="px-5 py-4">Actual Total</th>
                       <th className="px-5 py-4">Status</th>
-                      <th className="px-5 py-4 text-center">Action</th>
+                      <th className="px-5 py-4 text-center">View</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
@@ -1786,20 +1797,9 @@ export function DepartmentFinancePageV2() {
                           <td className="px-5 py-4 text-center">
                             {approvedMonthExpenses.length > 0 ? (
                               <button
-                                onClick={() => navigate(
-                                  `${FM_LIST_PATH}/review/annual/${encodeURIComponent(financeData?.annualRequest?.id || '')}/month/${encodeURIComponent(monthKeyNorm)}`,
-                                  {
-                                    state: {
-                                      month: { key: monthKeyNorm, label: monthLabels[month.monthKey] || month.month, title: month.title || '', projected: projectedTotal, actualSpent: actualTotal, expenses: approvedMonthExpenses },
-                                      request: { department: financeData?.department || financeData?.annualRequest?.department || '' },
-                                      reviewer: 'financeManager',
-                                      revealPaymentColumns: true,
-                                      extraRequests,
-                                      fiscalYear: selectedFY,
-                                      requestId: financeData?.annualRequest?.id || '',
-                                    },
-                                  },
-                                )}
+                                onClick={() => navigate(`/extra-common-modules/finance-management/month/${encodeURIComponent(monthKeyNorm)}`, {
+                                  state: { fiscalYear: selectedFY, department: departmentLabel },
+                                })}
                                 className="mx-auto flex items-center justify-center p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm"
                                 title="View Month Expenses"
                               >
@@ -1835,6 +1835,7 @@ export function DepartmentFinancePageV2() {
                       <th className="px-5 py-4">Reason</th>
                       <th className="px-5 py-4">Status</th>
                       <th className="px-5 py-4">Submitted</th>
+                      <th className="px-5 py-4 text-center">View</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
@@ -1844,14 +1845,27 @@ export function DepartmentFinancePageV2() {
                         <td className="px-5 py-4 font-pmedium text-slate-900">{formatCurrency(request.amount)}</td>
                         <td className="px-5 py-4 text-xs font-pmedium text-slate-600 max-w-[300px] truncate">{request.reason || '-'}</td>
                         <td className="px-5 py-4">
-                          <span className={statusPillClass(request.status)}>{request.status}</span>
+                          {hasApprovalProgress((request as any).approvalFlow) ? (
+                            <ApprovalFlowBadges flow={(request as any).approvalFlow} />
+                          ) : (
+                            <span className={statusPillClass(request.status)}>{getDualApprovalDisplayStatus(request)}</span>
+                          )}
                         </td>
                         <td className="px-5 py-4 font-pmedium text-slate-700">{request.createdAt || 'N/A'}</td>
+                        <td className="px-5 py-4 text-center">
+                          <button
+                            onClick={() => setViewingExtraRequest(request)}
+                            className="mx-auto flex items-center justify-center p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm"
+                            title="View Request"
+                          >
+                            <Eye size={14} />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                     {visibleExtraRequests.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="text-center py-16 text-slate-400 font-pmedium text-xs">
+                        <td colSpan={6} className="text-center py-16 text-slate-400 font-pmedium text-xs">
                           No extra budget requests match this filter.
                         </td>
                       </tr>
@@ -1936,10 +1950,82 @@ export function DepartmentFinancePageV2() {
 
       {/* ═══════════════════════════ MODALS ═══════════════════════════ */}
 
+      {/* Extra Budget Request Detail Modal */}
+      {viewingExtraRequest && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#0F172A]/80 backdrop-blur-md" role="dialog" aria-modal="true">
+          <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50 px-6 py-5">
+              <div className="min-w-0">
+                <h2 className="text-lg font-pmedium text-slate-900">Extra Budget Request</h2>
+                <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mt-0.5">
+                  • Revision {Number((viewingExtraRequest as any).revision || 1)}
+                </p>
+              </div>
+              <button onClick={() => setViewingExtraRequest(null)} className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110" aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 space-y-5 overflow-y-auto p-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 pb-4 border-b border-slate-100">
+                <div>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Month</p>
+                  <p className="text-lg font-pmedium text-slate-900">{monthLabels[viewingExtraRequest.monthKey] || viewingExtraRequest.month}</p>
+                  <p className="mt-1 text-[10px] font-pmedium text-slate-400">
+                    Submitted by {(viewingExtraRequest as any).submittedByName || 'Not available'} {viewingExtraRequest.createdAt ? `• ${viewingExtraRequest.createdAt}` : ''}
+                  </p>
+                </div>
+                <div className="text-left sm:text-right">
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Requested</p>
+                  <p className="text-xl font-pmedium text-slate-900">{formatCurrency(viewingExtraRequest.amount)}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Request Type</p>
+                  <p className="text-sm font-pmedium text-slate-900">
+                    {(viewingExtraRequest as any).type === 'increase' ? 'Increase Projected' : 'New Expense'}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">
+                    {(viewingExtraRequest as any).type === 'increase' ? 'Applied To' : 'Expense Title'}
+                  </p>
+                  <p className="text-sm font-pmedium text-slate-900">
+                    {(viewingExtraRequest as any).targetTitle || (viewingExtraRequest as any).title || 'Extra Budget'}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1.5">Justification</p>
+                <p className="text-xs font-pmedium text-slate-600 leading-relaxed bg-slate-50 border border-slate-200 p-3 rounded-xl whitespace-pre-line">
+                  {viewingExtraRequest.reason || 'No additional justification provided.'}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1.5">Approval Status</p>
+                {hasApprovalProgress((viewingExtraRequest as any).approvalFlow) ? (
+                  <ApprovalFlowBadges flow={(viewingExtraRequest as any).approvalFlow} />
+                ) : (
+                  <span className={statusPillClass(viewingExtraRequest.status)}>{getDualApprovalDisplayStatus(viewingExtraRequest)}</span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end border-t border-slate-100 bg-slate-50 px-6 py-4">
+              <button onClick={() => setViewingExtraRequest(null)} className="rounded-xl bg-slate-100 px-6 py-2.5 text-xs font-pmedium text-slate-700 hover:bg-slate-200">CLOSE</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Expense Detail Modal */}
       {viewingExpense && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-md" role="dialog" aria-modal="true">
+          <div className="bg-white rounded-[1.75rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <h2 className="text-xl font-pmedium text-slate-900 flex items-center gap-2">
                 <Receipt size={20} className="text-[#2563EB]" /> Expense Details
@@ -1971,7 +2057,7 @@ export function DepartmentFinancePageV2() {
                 {viewingExpense.expense.description && (
                   <div>
                     <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-1">Description</p>
-                    <p className="text-xs text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <p className="text-xs font-pmedium text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-200">
                       {viewingExpense.expense.description}
                     </p>
                   </div>
@@ -2018,7 +2104,7 @@ export function DepartmentFinancePageV2() {
                           <div key={invoice.invoiceKey} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                             <div>
                               <p className="text-sm font-pmedium text-slate-900">{invoice.invoiceNumber}</p>
-                              <p className="mt-0.5 text-[10px] text-slate-500">{formatCurrency(invoice.amount)}{invoice.uploadedAtLabel ? ` • ${invoice.uploadedAtLabel}` : ''}</p>
+                              <p className="mt-0.5 text-[10px] font-pmedium text-slate-500">{formatCurrency(invoice.amount)}{invoice.uploadedAtLabel ? ` • ${invoice.uploadedAtLabel}` : ''}</p>
                             </div>
                             {url && <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-pmedium uppercase tracking-wider text-blue-700 transition-colors hover:bg-blue-100"><FileText size={12} /> View</a>}
                           </div>
@@ -2045,7 +2131,7 @@ export function DepartmentFinancePageV2() {
                               value={additionalAmount}
                               onChange={(e) => setAdditionalAmount(e.target.value)}
                               placeholder={`Remaining: ${formatCurrency(expenseRemaining)}`}
-                              className="w-full sm:flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                              className="w-full sm:flex-1 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10"
                             />
                             <button
                               type="button"
@@ -2056,7 +2142,7 @@ export function DepartmentFinancePageV2() {
                               {isRecordingAdditional ? 'Recording…' : 'Record Additional Payment'}
                             </button>
                           </div>
-                          <p className="text-[9px] font-medium text-slate-500">
+                          <p className="text-[9px] font-pmedium text-slate-500">
                             The amount adds to this line's Actual and the line re-enters Payment Pending until Finance executes it.
                           </p>
                         </div>
@@ -2083,7 +2169,7 @@ export function DepartmentFinancePageV2() {
                             value={selectedVendorToLink}
                             onChange={(e) => setSelectedVendorToLink(e.target.value)}
                             disabled={!canRecordSpend || addonLinkLocked}
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none transition-all focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                            className="w-full rounded-xl bg-slate-50 border border-slate-200 px-3 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 disabled:cursor-not-allowed disabled:text-slate-400"
                           >
                             <option value="">Select a registered vendor…</option>
                             {vendors.map((vendor) => (
@@ -2103,10 +2189,10 @@ export function DepartmentFinancePageV2() {
                             onChange={(e) => setActualAmountToPay(e.target.value)}
                             disabled={!canRecordSpend || addonLinkLocked}
                             placeholder={`Projected: ${formatCurrency(viewingExpense.expense.projectedAmount || viewingExpense.expense.amount || 0)}`}
-                            className={`w-full rounded-xl border px-3 py-2.5 text-[12px] outline-none transition-all focus:ring-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 ${
+                            className={`w-full rounded-xl border px-3 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none transition-all focus:ring-4 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 ${
                               actualOverProjected
                                 ? 'border-red-300 bg-red-50 focus:border-red-400 focus:ring-red-100'
-                                : 'border-blue-200 bg-blue-50 focus:border-[#2563EB] focus:ring-blue-100'
+                                : 'border-blue-200 bg-blue-50 focus:border-[#2563EB] focus:ring-blue-500/10'
                             }`}
                           />
                           {actualOverProjected ? (
@@ -2116,7 +2202,7 @@ export function DepartmentFinancePageV2() {
                                 : `Actual cannot exceed the projected amount (${formatCurrency(expenseProjected)}). File an extra budget request for the additional funds.`}
                             </p>
                           ) : (
-                            <p className="text-[10px] text-slate-400">This value becomes the expense Actual and monthly Actual Spent.</p>
+                            <p className="text-[10px] font-pmedium text-slate-400">This value becomes the expense Actual and monthly Actual Spent.</p>
                           )}
                         </div>
                       </div>
@@ -2130,35 +2216,26 @@ export function DepartmentFinancePageV2() {
                       </button>
                     </div>
                   ) : (
-                    <p className="text-xs text-slate-500">No vendors registered yet — add one first, then link it here.</p>
+                    <p className="text-xs font-pmedium text-slate-500">No vendors registered yet — add one first, then link it here.</p>
                   )}
                 </div>
               </div>
             </div>
-            <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex items-center justify-between gap-3 sm:gap-4 shrink-0">
-              <div className="flex gap-3 sm:gap-4">
-                {canManagePayments && viewingExpense.expense.paymentStatus !== 'Paid' && (
-                  <button
-                    onClick={() => handleMarkPaid(viewingExpense.month, viewingExpense.expense)}
-                    className="px-5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all flex items-center gap-1.5"
-                  >
-                    <CheckCircle2 size={14} /> Mark as Paid
-                  </button>
-                )}
+            <div className="px-6 sm:px-8 py-5 bg-slate-50 border-t border-slate-100 flex items-center gap-3 sm:gap-4 shrink-0">
+              {canManagePayments && viewingExpense.expense.paymentStatus !== 'Paid' && (
                 <button
-                  onClick={() => openInvoiceForm(viewingExpense.month, viewingExpense.expense)}
-                  className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                  onClick={() => handleMarkPaid(viewingExpense.month, viewingExpense.expense)}
+                  className="px-5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all flex items-center gap-1.5"
                 >
-                  <UploadCloud size={14} />
-                  Add Invoice
+                  <CheckCircle2 size={14} /> Mark as Paid
                 </button>
-              </div>
+              )}
               <button
-                type="button"
-                onClick={() => setViewingExpense(null)}
-                className="px-5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all flex items-center gap-1.5"
+                onClick={() => openInvoiceForm(viewingExpense.month, viewingExpense.expense)}
+                className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
               >
-                Submit
+                <UploadCloud size={14} />
+                Add Invoice
               </button>
             </div>
           </div>

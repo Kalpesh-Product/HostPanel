@@ -19,7 +19,7 @@ import {
   StatCard, QuickLink, SectionCard, RecentItem, DonutWidget, BarWidget,
 } from "./DashboardShared";
 import type { QuickLinkItem } from "./DashboardShared";
-import { statusBadgeColor, humanRelTime } from "./dashboardUtils";
+import { statusBadgeColor, humanRelTime, hasModuleUse, pickCardCols } from "./dashboardUtils";
 import { ICON_BY_ID, DEFAULT_SECTION_ROUTES } from "../ModuleCardsLanding";
 import type { WorkspaceModuleSection } from "../../../../hooks/useDashboardAccess";
 import dayjs from "dayjs";
@@ -35,6 +35,7 @@ interface BasicDashboardProps {
    * Actions reflects what the workspace has instead of a hand-picked subset. */
   moduleMap: { sections: WorkspaceModuleSection[] };
   grantedModuleIds: Set<string>;
+  enabledModuleIds: Set<string>;
 }
 
 // The shared module catalog (ModuleCardsLanding) doesn't carry a route for
@@ -109,13 +110,20 @@ const GettingStartedCard = () => {
   );
 };
 
-const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap, grantedModuleIds }: BasicDashboardProps) => {
+const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap, grantedModuleIds, enabledModuleIds }: BasicDashboardProps) => {
   const axiosPrivate = useAxiosPrivate();
   const selectedCompany = useSelector((state: any) => state.company.selectedCompany);
   const { auth } = useAuth();
 
   const workspaceId = selectedCompany?.workspaceId || auth?.user?.primaryWorkspace || auth?.user?.workspaceMembership?.workspace || auth?.user?.workspaceId || "";
   const companyId = selectedCompany?.companyId || auth?.user?.companyId || "";
+
+  // A card only renders when its module is both included in the plan/
+  // workspace (enabled axis) AND granted to the current member (access axis).
+  const canUse = (id: string) => hasModuleUse(grantedModuleIds, enabledModuleIds, id);
+  const showVisitors = canUse("visitors-management");
+  const showLeads = canUse("website-leads");
+  const showOrg = canUse("organization-management");
 
   // ── Visitors (same endpoint as the Visitor Management terminal) ──────────────
   const { data: visitorsRaw = [], isLoading: visitorsLoading } = useQuery({
@@ -126,12 +134,13 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
       return Array.isArray(visitors) ? visitors : [];
     },
     staleTime: 5 * 60 * 1000,
+    enabled: showVisitors,
   });
 
   // ── Website leads (same endpoint as CompanyLeads) ──────────────────────────
   const { data: leadsRaw = [], isLoading: leadsLoading } = useQuery({
     queryKey: ["dashboard-leads-basic", companyId, workspaceId],
-    enabled: !!(companyId || workspaceId),
+    enabled: showLeads && !!(companyId || workspaceId),
     queryFn: async () => {
       const res = await axiosPrivate.get(
         `/api/leads/get-leads?companyId=${encodeURIComponent(companyId)}&workspaceId=${encodeURIComponent(workspaceId)}`,
@@ -266,9 +275,11 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
     return links;
   }, [moduleMap, grantedModuleIds]);
 
-  if (visitorsLoading || leadsLoading) {
+  if ((showVisitors && visitorsLoading) || (showLeads && leadsLoading)) {
     return <PlanDashboardSkeleton plan="basic" />;
   }
+
+  const overviewCardCount = [showVisitors, showLeads, showOrg].filter(Boolean).length;
 
   return (
     <div className="flex flex-col gap-5">
@@ -289,21 +300,23 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
         <ArrowRight size={14} className="text-accent flex-shrink-0" />
       </div>
 
-      {/* Today at a glance — one card per key question */}
+      {overviewCardCount > 0 && (
       <div data-tour="dashboard-overview">
-        <WidgetSection layout={3} title="Overview" border normalCase>
-          <StatCard icon={Eye} label="Visitors Today" value={visitorStats.todayCount} sub={`${visitorStats.checkedIn} currently on-site`} color="#80bf01" route="/visitors/visitor-management" />
-          <StatCard icon={UserPlus} label="Website Leads" value={leadStats.total} sub={`${leadStats.newLeads} awaiting follow-up`} color="#1E3D73" route="/key-apps/website-builder/leads" />
-          <StatCard icon={Users} label="Active Members" value={orgStats.activeMembers} sub={`${orgStats.totalMembers} total members`} color="#0891b2" route="/core-modules/organization-management" />
+        <WidgetSection layout={pickCardCols(overviewCardCount)} title="Overview" border normalCase>
+          {showVisitors && <StatCard icon={Eye} label="Visitors Today" value={visitorStats.todayCount} sub={`${visitorStats.checkedIn} currently on-site`} color="#80bf01" route="/visitors/visitor-management" />}
+          {showLeads && <StatCard icon={UserPlus} label="Website Leads" value={leadStats.total} sub={`${leadStats.newLeads} awaiting follow-up`} color="#1E3D73" route="/key-apps/website-builder/leads" />}
+          {showOrg && <StatCard icon={Users} label="Active Members" value={orgStats.activeMembers} sub={`${orgStats.totalMembers} total members`} color="#0891b2" route="/core-modules/organization-management" />}
         </WidgetSection>
       </div>
+      )}
 
-      {/* Quick actions — the four essentials, one row */}
+      {quickLinks.length > 0 && (
       <div data-tour="dashboard-quick-links">
-        <WidgetSection layout={4} title="Quick Actions" border normalCase>
+        <WidgetSection layout={pickCardCols(quickLinks.length)} title="Quick Actions" border normalCase>
           {quickLinks.map((ql, i) => <QuickLink key={i} {...ql} />)}
         </WidgetSection>
       </div>
+      )}
 
       {isNewWorkspace ? (
         /* First run — one checklist beats four empty "No data yet" panels */
@@ -313,6 +326,7 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
       ) : (
         <>
           {/* Leads — recent enquiries + stage breakdown */}
+          {showLeads && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div data-tour="dashboard-recent-leads">
               <SectionCard title="Recent Leads" linkLabel="View all" linkRoute="/key-apps/website-builder/leads">
@@ -346,8 +360,10 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
               />
             </div>
           </div>
+          )}
 
           {/* Visitors — recent activity + monthly trend (FY) */}
+          {showVisitors && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div data-tour="dashboard-recent-visitors">
               <SectionCard title="Recent Visitors" linkLabel="View all" linkRoute="/visitors/visitor-management">
@@ -383,6 +399,7 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
               />
             </div>
           </div>
+          )}
         </>
       )}
 

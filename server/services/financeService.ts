@@ -9,6 +9,7 @@ import { TenantCompany } from "../models/TenantCompany.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Workspace from "../models/Workspace.js";
 import { parseFiscalYearRange } from "../utils/fiscalYear.js";
+import { notifyMultipleRecipients } from "../utils/notify.js";
 
 // Roles that oversee all departments (owner-side / finance-side) and are exempt
 // from the own-department restriction on department finance mutations.
@@ -1771,6 +1772,44 @@ export async function uploadInvoiceForDepartmentInternal(input: {
   return { plan, expense: updated };
 }
 
+// Resolves which workspace members still owe a decision on a two-step
+// approval flow, using the same owner/financeManager eligibility rules the
+// approval-decision endpoint itself enforces (financeController.ts) — so a
+// reminder always reaches whoever is actually allowed to unblock it.
+async function resolvePendingApprovalRecipients(
+  workspaceId: mongoose.Types.ObjectId,
+  approvalFlow: any,
+): Promise<{ owner: string[]; financeManager: string[] }> {
+  const ownerStatus = String(approvalFlow?.owner?.status || "").toLowerCase();
+  const fmStatus = String(approvalFlow?.financeManager?.status || "").toLowerCase();
+  const needsOwner = ownerStatus !== "approved" && ownerStatus !== "rejected";
+  const needsFinanceManager = fmStatus !== "approved" && fmStatus !== "rejected";
+  if (!needsOwner && !needsFinanceManager) return { owner: [], financeManager: [] };
+
+  const members = await WorkspaceMember.find({ workspace: workspaceId, isActive: true })
+    .select("user role departments")
+    .populate("role", "name")
+    .populate("departments", "name")
+    .lean()
+    .exec();
+
+  const ownerRecipients = new Set<string>();
+  const financeManagerRecipients = new Set<string>();
+  for (const member of members) {
+    const roleName = normalizeFinanceRoleName((member as any).role);
+    const isOwnerRole = ["owner", "founder", "super_admin", "admin"].includes(roleName);
+    const isFinanceDepartmentMember = Array.isArray((member as any).departments) &&
+      (member as any).departments.some((department: any) => normalizeFinanceRoleName(department?.name) === "finance");
+    const isFinanceManagerRole = ["finance_manager", "finance"].includes(roleName) ||
+      (roleName === "manager" && isFinanceDepartmentMember);
+    const userId = String((member as any).user || "");
+    if (!userId) continue;
+    if (needsOwner && isOwnerRole) ownerRecipients.add(userId);
+    if (needsFinanceManager && isFinanceManagerRole) financeManagerRecipients.add(userId);
+  }
+  return { owner: Array.from(ownerRecipients), financeManager: Array.from(financeManagerRecipients) };
+}
+
 export async function sendReminderForDepartmentInternal(input: {
   workspaceId: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
@@ -1810,6 +1849,46 @@ export async function sendReminderForDepartmentInternal(input: {
   if (!Array.isArray(plan.reminders)) plan.reminders = [];
   plan.reminders.unshift(reminder as any);
   await plan.save();
+
+  // Notify whichever approver(s) haven't decided yet — not a blind broadcast.
+  const { owner: ownerRecipients, financeManager: financeManagerRecipients } =
+    await resolvePendingApprovalRecipients(workspaceId, (plan as any).approvalFlow);
+  const requestId = safeString((plan as any).requestId, "");
+  const dedupeStamp = new Date().toISOString().slice(0, 10);
+  const notifyJobs: Array<Promise<any>> = [];
+  if (ownerRecipients.length > 0) {
+    notifyJobs.push(notifyMultipleRecipients(ownerRecipients, {
+      workspaceId: String(workspaceId),
+      actorUserId: String(input.userId),
+      type: "finance_reminder",
+      category: "system",
+      title: "Budget Approval Reminder",
+      description: `${plan.department}'s annual budget request is waiting on your approval.`,
+      entityType: "annual-finance-request",
+      entityId: requestId || null,
+      targetUrl: requestId ? `/extra-common-modules/finance-management/review/annual/${requestId}` : "/extra-common-modules/finance-management",
+      priority: "high",
+      isActionRequired: true,
+      dedupeKey: `finance-reminder-owner-${planId}-${dedupeStamp}`,
+    }));
+  }
+  if (financeManagerRecipients.length > 0) {
+    notifyJobs.push(notifyMultipleRecipients(financeManagerRecipients, {
+      workspaceId: String(workspaceId),
+      actorUserId: String(input.userId),
+      type: "finance_reminder",
+      category: "system",
+      title: "Budget Approval Reminder",
+      description: `${plan.department}'s annual budget request is waiting on your approval.`,
+      entityType: "annual-finance-request",
+      entityId: requestId || null,
+      targetUrl: requestId ? `/department-accesses/finance-department/expenses-budget/review/annual/${requestId}` : "/department-accesses/finance-department/expenses-budget",
+      priority: "high",
+      isActionRequired: true,
+      dedupeKey: `finance-reminder-fm-${planId}-${dedupeStamp}`,
+    }));
+  }
+  await Promise.allSettled(notifyJobs);
 
   return { plan, reminders: plan.reminders };
 }

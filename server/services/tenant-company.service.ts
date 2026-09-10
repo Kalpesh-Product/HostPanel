@@ -137,11 +137,26 @@ function formatFileSize(bytes = 0) {
 }
 
 function normalizeTenantCompanyEmployeeRole(value = "") {
-  return normalizeText(value) === "Manager" ? "Manager" : "Employee";
+  const normalized = normalizeText(value);
+  if (normalized === "Admin") return "Admin";
+  if (normalized === "Manager") return "Manager";
+  return "Employee";
 }
 
 function getTenantRoleKey(role = "Employee") {
-  return normalizeTenantCompanyEmployeeRole(role) === "Manager" ? "tenant-manager" : "tenant-employee";
+  const normalized = normalizeTenantCompanyEmployeeRole(role);
+  if (normalized === "Admin") return "tenant-admin";
+  if (normalized === "Manager") return "tenant-manager";
+  return "tenant-employee";
+}
+
+function normalizeTenantEmployeeDepartment(value = "", role = "Employee") {
+  return normalizeTenantCompanyEmployeeRole(role) === "Admin" ? "All" : normalizeText(value);
+}
+
+function mergeTenantDepartments(company, ...values) {
+  const existing = Array.isArray(company?.departments) ? company.departments : [];
+  return Array.from(new Set([...existing, ...values].map((value) => normalizeText(value)).filter(Boolean)));
 }
 
 function validateRequiredTenantEmployeeInput(input = {}) {
@@ -169,8 +184,15 @@ function validateRequiredTenantEmployeeInput(input = {}) {
     throw err;
   }
 
-  if (!["Employee", "Manager"].includes(normalizeText(input.role))) {
+  const normalizedRole = normalizeTenantCompanyEmployeeRole(input.role);
+  if (!["Admin", "Employee", "Manager"].includes(normalizedRole)) {
     const err = new Error("Select a valid employee role.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (normalizedRole === "Manager" && !normalizeText(input.department)) {
+    const err = new Error("Department is required for manager role.");
     err.statusCode = 400;
     throw err;
   }
@@ -578,6 +600,7 @@ async function formatTenantCompany(company, preloaded = null) {
   const managerEmployee = company.managerEmployeeId
     ? employees.find((e) => e.id === company.managerEmployeeId) || null
     : employees.find((e) => e.role === "Manager") || null;
+  const tenantDepartments = mergeTenantDepartments(company, ...employees.map((employee) => employee.department));
   const status = deriveTenantStatus(company.contractEnd);
   const creditsAllocated = Number(company.creditsAllocated || 0);
   const creditsUsed = Number(company.creditsUsed || 0);
@@ -688,6 +711,7 @@ async function formatTenantCompany(company, preloaded = null) {
     status,
     notes: company.notes || "",
     managerEmployeeId: company.managerEmployeeId || null,
+    departments: tenantDepartments,
     managerEmployee,
     customerDetails: company.customerDetails || {},
     companyDetails: { ...(company.companyDetails || {}), status },
@@ -1403,8 +1427,9 @@ export async function addTenantCompanyEmployeeForCurrentUser(userId, tenantCompa
   const name = normalizeText(input.name);
   const email = normalizeText(input.email || "").toLowerCase();
   const phone = normalizeText(input.phone || "");
-  const designation = normalizeText(input.designation || "");
   const role = normalizeTenantCompanyEmployeeRole(input.role || "Employee");
+  const department = normalizeTenantEmployeeDepartment(input.department || "", role);
+  const designation = normalizeText(input.designation || "");
 
   const existingEmployee = email
     ? await TenantEmployee.findOne({ tenantCompanyId: company._id, email }).lean().exec()
@@ -1423,10 +1448,11 @@ export async function addTenantCompanyEmployeeForCurrentUser(userId, tenantCompa
     const existingManager = await TenantEmployee.findOne({
       tenantCompanyId: company._id,
       role: "Manager",
+      department,
       ...(existingEmployee?.id ? { id: { $ne: existingEmployee.id } } : {}),
     }).lean().exec();
     if (existingManager) {
-      const err = new Error("This tenant company already has a manager. Use Change Manager to assign someone else.");
+      const err = new Error(`A manager is already assigned for ${department}.`);
       err.statusCode = 409;
       throw err;
     }
@@ -1440,6 +1466,7 @@ export async function addTenantCompanyEmployeeForCurrentUser(userId, tenantCompa
     name,
     email,
     phone,
+    department,
     designation,
     role,
     status: "Active",
@@ -1470,11 +1497,15 @@ export async function addTenantCompanyEmployeeForCurrentUser(userId, tenantCompa
     employeeDoc = await TenantEmployee.create(employeeData);
   }
 
-  if (role === "Manager") {
+  company.departments = mergeTenantDepartments(company, department);
+
+  if (role === "Manager" && !company.managerEmployeeId) {
     company.managerEmployeeId = employeeId;
     await company.save();
   } else if (company.managerEmployeeId === employeeId) {
     company.managerEmployeeId = null;
+    await company.save();
+  } else if (company.isModified?.("departments")) {
     await company.save();
   }
 
@@ -1562,17 +1593,23 @@ export async function updateTenantCompanyEmployeeForCurrentUser(userId, tenantCo
 
   if (input.name !== undefined) employee.name = normalizeText(input.name);
   if (input.phone !== undefined) employee.phone = normalizeText(input.phone);
+  const nextRole = input.role !== undefined ? normalizeTenantCompanyEmployeeRole(input.role) : normalizeTenantCompanyEmployeeRole(employee.role);
+  if (input.department !== undefined || input.role !== undefined) {
+    employee.department = normalizeTenantEmployeeDepartment(input.department ?? employee.department, nextRole);
+    company.departments = mergeTenantDepartments(company, employee.department);
+  }
   if (input.designation !== undefined) employee.designation = normalizeText(input.designation);
   if (input.role !== undefined) {
-    const newRole = normalizeTenantCompanyEmployeeRole(input.role);
-    if (newRole === "Manager" && employee.role !== "Manager") {
+    const newRole = nextRole;
+    if (newRole === "Manager" && (employee.role !== "Manager" || normalizeText(input.department || ""))) {
       const existingManager = await TenantEmployee.findOne({
         tenantCompanyId: company._id,
         role: "Manager",
+        department: employee.department,
         id: { $ne: employee.id },
       }).lean().exec();
       if (existingManager) {
-        const err = new Error("This tenant company already has a manager. Use Change Manager to assign someone else.");
+        const err = new Error(`A manager is already assigned for ${employee.department}.`);
         err.statusCode = 409;
         throw err;
       }
@@ -1580,13 +1617,16 @@ export async function updateTenantCompanyEmployeeForCurrentUser(userId, tenantCo
     employee.role = newRole;
     employee.tenantRole = getTenantRoleKey(newRole);
     if (newRole === "Manager") {
-      company.managerEmployeeId = employee.id;
-      await company.save();
+      if (!company.managerEmployeeId) {
+        company.managerEmployeeId = employee.id;
+        await company.save();
+      }
     } else if (company.managerEmployeeId === employee.id) {
       company.managerEmployeeId = null;
       await company.save();
     }
   }
+  if (company.isModified?.("departments")) await company.save();
   await employee.save();
 
   return {
@@ -1686,16 +1726,25 @@ export async function assignTenantCompanyManagerForCurrentUser(userId, tenantCom
     throw err;
   }
 
+  const managerDepartment = normalizeTenantEmployeeDepartment(input.department || targetEmployee.department, "Manager");
+  if (!managerDepartment) {
+    const err = new Error("Department is required to assign a manager.");
+    err.statusCode = 400;
+    throw err;
+  }
+
   await TenantEmployee.updateMany(
-    { tenantCompanyId: company._id, id: { $ne: input.employeeId } },
+    { tenantCompanyId: company._id, department: managerDepartment, id: { $ne: input.employeeId }, role: "Manager" },
     { $set: { role: "Employee", tenantRole: getTenantRoleKey("Employee") } }
   );
 
+  targetEmployee.department = managerDepartment;
   targetEmployee.role = "Manager";
   targetEmployee.tenantRole = getTenantRoleKey("Manager");
   await targetEmployee.save();
 
-  company.managerEmployeeId = targetEmployee.id;
+  if (!company.managerEmployeeId) company.managerEmployeeId = targetEmployee.id;
+  company.departments = mergeTenantDepartments(company, managerDepartment);
   await company.save();
 
   return {

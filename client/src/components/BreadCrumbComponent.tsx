@@ -202,6 +202,14 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/extra-common-modules/finance-management/month/:monthKey",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
+      { label: "Finance Management", path: "/extra-common-modules/finance-management" },
+      { label: "Monthly Expenses" },
+    ],
+  },
+  {
     pattern: "/extra-common-modules/finance-management/review/annual/:requestId",
     crumbs: [
       { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },

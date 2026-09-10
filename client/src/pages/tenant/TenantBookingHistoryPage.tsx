@@ -33,7 +33,8 @@ const MAIN_TABS = [
   { key: 'my', label: 'My Bookings' },
   { key: 'invites', label: 'Invites' },
 ];
-const MANAGER_TAB = { key: 'company', label: 'Company View' };
+const ADMIN_TAB = { key: 'company', label: 'Company Bookings' };
+const MANAGER_TAB = { key: 'department', label: 'Department Bookings' };
 
 const SUB_TABS = [
   { key: 'upcoming', label: 'Upcoming' },
@@ -251,7 +252,10 @@ function parseWingFromLocation(location: string): string {
 export default function TenantBookingHistoryPage() {
   const currentUser = getStoredUser() || {};
   const userRole = currentUser?.tenantRole || getStoredTenantRole() || 'tenant-employee';
-  const canManageTenant = isTenantAdminRole(userRole) || isTenantManagerRole(userRole);
+  const isTenantAdmin = isTenantAdminRole(userRole);
+  const isTenantManager = isTenantManagerRole(userRole);
+  const canManageTenant = isTenantAdmin || isTenantManager;
+  const currentUserDepartment = normalizeId(currentUser?.tenantDepartment || currentUser?.department || currentUser?.workspaceMembership?.tenantDepartment || currentUser?.workspaceMembership?.department || '');
   const currentUserId = getCurrentUserId(currentUser);
   const currentUserName = getCurrentUserName(currentUser);
   const currentUserEmail = normalizeId(currentUser?.email || '');
@@ -265,7 +269,7 @@ export default function TenantBookingHistoryPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [noticeMessage, setNoticeMessage] = useState('');
   const [bookings, setBookings] = useState<Record<string, any>[]>([]);
-  const [mainTab, setMainTab] = useState('my');
+  const [mainTab, setMainTab] = useState(isTenantAdmin ? 'company' : isTenantManager ? 'department' : 'my');
   const [subTab, setSubTab] = useState('upcoming');
   const [selectedBooking, setSelectedBooking] = useState<Record<string, any> | null>(null);
   const [cancelModal, setCancelModal] = useState<Record<string, any> | null>(null);
@@ -352,9 +356,18 @@ export default function TenantBookingHistoryPage() {
   }, [currentUserEmail, currentUserId, currentUserName, tenantBookings]);
 
   const companyBookings = useMemo(() => {
-    if (!canManageTenant) return myBookings;
+    if (!isTenantAdmin) return myBookings;
     return tenantBookings.filter((b) => !isMyBooking(b, currentUserId, currentUserName, currentUserEmail) && !isAcceptedInviteForUser(b, currentUserId, currentUserEmail));
-  }, [canManageTenant, currentUserEmail, currentUserId, currentUserName, myBookings, tenantBookings]);
+  }, [currentUserEmail, currentUserId, currentUserName, isTenantAdmin, myBookings, tenantBookings]);
+
+  const departmentBookings = useMemo(() => {
+    if (!isTenantManager || !currentUserDepartment) return [];
+    return tenantBookings.filter((b) =>
+      normalizeId(b?.department || b?.departmentName || '') === currentUserDepartment &&
+      !isMyBooking(b, currentUserId, currentUserName, currentUserEmail) &&
+      !isAcceptedInviteForUser(b, currentUserId, currentUserEmail)
+    );
+  }, [currentUserDepartment, currentUserEmail, currentUserId, currentUserName, isTenantManager, tenantBookings]);
   const inviteBookings = useMemo(
     () => tenantBookings.filter((b) => {
       const invite = getInviteForUser(b, currentUserId, currentUserEmail);
@@ -365,7 +378,7 @@ export default function TenantBookingHistoryPage() {
     [currentUserEmail, currentUserId, tenantBookings],
   );
 
-  const activeScope = mainTab === 'company' ? companyBookings : mainTab === 'invites' ? inviteBookings : myBookings;
+  const activeScope = mainTab === 'company' ? companyBookings : mainTab === 'department' ? departmentBookings : mainTab === 'invites' ? inviteBookings : myBookings;
 
   const visibleBookings = useMemo(() => {
     return activeScope.filter((b) => {
@@ -473,12 +486,13 @@ export default function TenantBookingHistoryPage() {
   useEffect(() => {
     if (mainTab === 'invites' && inviteBookings.length > 0) return;
     if (mainTab === 'company' && companyBookings.length > 0) return;
+    if (mainTab === 'department' && departmentBookings.length > 0) return;
     const hasUpcoming = activeScope.some(isFutureBooking);
     const hasPast = activeScope.some(isPastBooking);
     const nextSubTab = hasUpcoming ? 'upcoming' : hasPast ? 'past' : 'upcoming';
     if (visibleBookings.length === 0 && activeScope.length > 0) setSubTab(nextSubTab);
     if (!canManageTenant && myBookings.length === 0 && tenantBookings.length > 0) setMainTab('my');
-  }, [activeScope, canManageTenant, companyBookings.length, inviteBookings.length, mainTab, myBookings.length, tenantBookings.length, visibleBookings.length]);
+  }, [activeScope, canManageTenant, companyBookings.length, departmentBookings.length, inviteBookings.length, mainTab, myBookings.length, tenantBookings.length, visibleBookings.length]);
 
   const loadRescheduleInvitees = async (booking: Record<string, any>) => {
     setIsRescheduleInviteesLoading(true);
@@ -649,7 +663,7 @@ export default function TenantBookingHistoryPage() {
 
   if (isLoading) return <TablePageSkeleton />;
 
-  const visibleMainTabs = canManageTenant ? [MANAGER_TAB, ...MAIN_TABS] : MAIN_TABS;
+  const visibleMainTabs = isTenantAdmin ? [ADMIN_TAB, ...MAIN_TABS] : isTenantManager ? [MANAGER_TAB, ...MAIN_TABS] : MAIN_TABS;
 
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-pmedium text-[12px]">
@@ -763,7 +777,7 @@ export default function TenantBookingHistoryPage() {
                     const inviteStatus = invite?.status || booking?.currentInviteStatus || '';
                     const inviteDisplayStatus = normalizeId(bookingStatus) === 'cancelled' ? 'cancelled' : normalizeId(inviteStatus);
                     const areInviteActionsDisabled = inviteDisplayStatus === 'cancelled' || inviteDisplayStatus !== 'pending';
-                    const canManageAll = canManageTenant && mainTab === 'company';
+                    const canManageAll = (isTenantAdmin && mainTab === 'company') || (isTenantManager && mainTab === 'department');
                     const canRescheduleOrCancel = (isBooker || canManageAll) && normalizeId(bookingStatus) === 'booked';
                     const canExtendBooking = (isBooker || isAcceptedInvite || canManageAll) && normalizeId(bookingStatus) === 'in progress';
 

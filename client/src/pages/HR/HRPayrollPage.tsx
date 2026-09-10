@@ -1596,7 +1596,7 @@ export default function HRPayrollPage() {
               return (
                 <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.className}`}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className={`text-[10px] font-pmedium uppercase tracking-widest mb-1 ${card.valueClass || "text-slate-400"}`}>{card.label}</p>
                     {isLoadingActive ? (
                       <Skeleton className="h-6 w-20 mt-1" />
                     ) : card.type === "currency" ? (

@@ -6,6 +6,41 @@
 
 import { formatWorkspaceCurrency } from "../../../../lib/workspaceLocalization";
 
+// The "visitors-management" (Administration Department, plural) and
+// "visitor-management" (Key Apps, singular) ids point at the same page and
+// are granted interchangeably across the catalog and role grants — access
+// checks must accept either spelling.
+const VISITOR_EQUIVALENT_MODULE_IDS = ["visitor-management", "visitors-management"];
+
+/**
+ * True when a module is both included in the plan/workspace (enabled) and
+ * actually granted to the current member. This is the single axis every
+ * dashboard card must be gated on: a card only renders when the workspace
+ * has the module AND the user's access includes it — an access-denied module
+ * never surfaces a card on any dashboard.
+ */
+export const hasModuleUse = (
+  grantedIds: Set<string>,
+  enabledIds: Set<string>,
+  moduleId: string,
+): boolean => {
+  const candidates =
+    moduleId === "visitor-management" || moduleId === "visitors-management"
+      ? VISITOR_EQUIVALENT_MODULE_IDS
+      : [moduleId];
+  return candidates.some((id) => enabledIds.has(id) && grantedIds.has(id));
+};
+
+export const resolveWorkspaceId = (storedUser: any): string =>
+  String(
+    storedUser?.workspaceMembership?.workspaceId ||
+      storedUser?.workspaceMembership?.workspace ||
+      storedUser?.primaryWorkspace ||
+      storedUser?.workspace?.id ||
+      storedUser?.workspaceId ||
+      "",
+  );
+
 export const fmtINR = (n: number, currency = "INR") =>
   formatWorkspaceCurrency(Number(n || 0), currency, {
     style: "currency",

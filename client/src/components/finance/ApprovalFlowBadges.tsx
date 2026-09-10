@@ -44,33 +44,41 @@ export function ApprovalFlowBadges({ flow }: { flow?: ApprovalFlowLike | null })
   if (!ownerApproved && !fmApproved && !rejected && !changesRequested) return null;
 
   const tips = [stepTip("Founder", flow?.owner), stepTip("Finance Manager", flow?.financeManager)].filter(Boolean);
+  const tipText = tips.join(" | ") || undefined;
 
-  let cls: string;
-  let text: string;
   if (rejected) {
-    cls = "border-red-200 bg-red-50 text-red-700";
-    text = "Rejected";
-  } else if (changesRequested) {
-    cls = "border-blue-200 bg-blue-50 text-blue-700";
-    text = "Changes Requested";
-  } else if (ownerApproved && fmApproved) {
-    cls = "border-emerald-200 bg-emerald-50 text-emerald-700";
-    text = "Approved";
-  } else if (ownerApproved) {
-    cls = "border-amber-200 bg-amber-50 text-amber-700";
-    text = "Founder Approved";
-  } else {
-    cls = "border-amber-200 bg-amber-50 text-amber-700";
-    text = "Finance Mgr Approved";
+    return (
+      <span title={tipText} className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-red-700">
+        <Clock size={9} /> Rejected
+      </span>
+    );
   }
-
+  if (changesRequested) {
+    return (
+      <span title={tipText} className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-blue-700">
+        <Clock size={9} /> Changes Requested
+      </span>
+    );
+  }
+  if (ownerApproved && fmApproved) {
+    return (
+      <span title={tipText} className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-emerald-700">
+        <Check size={9} strokeWidth={3} /> Approved
+      </span>
+    );
+  }
+  // One side has approved and the other hasn't — show the approved half in
+  // green so it's immediately clear WHO has already signed off, and the
+  // still-waiting half in amber so it's clear who hasn't.
+  const [approvedLabel, pendingLabel] = ownerApproved
+    ? ["Founder Approved", "Finance Manager Pending"]
+    : ["Finance Manager Approved", "Founder Pending"];
   return (
-    <span
-      title={tips.join(" | ") || undefined}
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest ${cls}`}
-    >
-      {ownerApproved && fmApproved && !rejected && !changesRequested ? <Check size={9} strokeWidth={3} /> : <Clock size={9} />}
-      {text}
+    <span title={tipText} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest">
+      <Clock size={9} className="text-amber-500 shrink-0" />
+      <span className="text-emerald-600">{approvedLabel}</span>
+      <span className="text-slate-300">•</span>
+      <span className="text-amber-600">{pendingLabel}</span>
     </span>
   );
 }

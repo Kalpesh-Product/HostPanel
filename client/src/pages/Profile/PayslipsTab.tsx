@@ -195,10 +195,11 @@ export function PayslipsTab() {
           const Icon = card.icon;
           const borderColors = ['border-l-4 border-l-blue-500', 'border-l-4 border-l-emerald-500'];
           const iconClasses = ['bg-blue-50 text-blue-600', 'bg-emerald-50 text-emerald-600'];
+          const labelColors = ['text-blue-600', 'text-emerald-600'];
           return (
             <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
               <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                <p className={`text-[10px] font-pmedium ${labelColors[idx] || 'text-slate-400'} uppercase tracking-widest mb-1`}>{card.label}</p>
                 <p className={`text-[15px] font-pmedium truncate ${card.isCurrency ? 'text-blue-600' : 'text-slate-900'}`}>{card.value}</p>
               </div>
               <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>

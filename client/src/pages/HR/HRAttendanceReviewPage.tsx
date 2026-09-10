@@ -110,6 +110,7 @@ interface StatCard {
   icon: React.ComponentType<{ size?: number; className?: string }>;
   cardClass: string;
   iconClass: string;
+  labelClass?: string;
 }
 
 interface GeofenceConfig {
@@ -1092,16 +1093,19 @@ export default function HRAttendanceReviewPage() {
           key: "present", label: "Present", value: stats.present,
           icon: CheckCircle2, cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500",
           iconClass: "bg-emerald-50 text-emerald-600",
+          labelClass: "text-emerald-600",
         },
         {
           key: "late", label: "Late", value: stats.late,
           icon: AlertTriangle, cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500",
           iconClass: "bg-amber-50 text-amber-600",
+          labelClass: "text-amber-600",
         },
         {
           key: "absent", label: "Absent", value: stats.absent,
           icon: XCircle, cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-rose-500",
           iconClass: "bg-rose-50 text-rose-600",
+          labelClass: "text-rose-600",
         },
       ];
     }
@@ -1115,16 +1119,19 @@ export default function HRAttendanceReviewPage() {
         key: "pending", label: "Pending", value: stats.pendingCorrections,
         icon: AlertCircle, cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500",
         iconClass: "bg-amber-50 text-amber-600",
+        labelClass: "text-amber-600",
       },
       {
         key: "approved", label: "Approved", value: stats.approvedCorrections,
         icon: CheckCircle2, cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500",
         iconClass: "bg-blue-50 text-blue-600",
+        labelClass: "text-blue-600",
       },
       {
         key: "rejected", label: "Rejected", value: stats.rejectedCorrections,
         icon: XCircle, cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-rose-500",
         iconClass: "bg-rose-50 text-rose-600",
+        labelClass: "text-rose-600",
       },
     ];
   }, [activeTab, stats]);
@@ -1184,7 +1191,7 @@ export default function HRAttendanceReviewPage() {
               return (
                 <div key={card.key} className={card.cardClass}>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">
+                    <p className={`text-[10px] font-pmedium uppercase tracking-widest mb-1 ${card.labelClass || "text-slate-400"}`}>
                       {card.label}
                     </p>
                     <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>

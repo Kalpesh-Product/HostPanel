@@ -53,6 +53,17 @@ const toId = (value) => String(value || "");
 // everyone by default, on top of whatever department/role defaults apply.
 const BASELINE_MODULE_IDS = [...COMMON_MODULE_IDS, ...EXTRA_COMMON_MODULE_IDS];
 
+// Common modules are the baseline for every role. Extra-common modules
+// (assets, inventory, finance-management, reports) are only added to the
+// baseline for manager-level bands and above — a plain employee gets just
+// the common set by default; any extra-common module is granted to them
+// explicitly (department assignment, manager hand-out, or master panel) when
+// needed.
+const getBaselineModuleIdsForRole = (roleBand = "employee") =>
+  roleBand === "employee"
+    ? COMMON_MODULE_IDS
+    : [...COMMON_MODULE_IDS, ...EXTRA_COMMON_MODULE_IDS];
+
 const VISITOR_MANAGEMENT_MODULE_IDS = ["visitor-management", "visitors-management"];
 const VISITOR_MANAGEMENT_FULL_GRANT_IDS = [
   ...VISITOR_MANAGEMENT_MODULE_IDS,
@@ -415,7 +426,7 @@ const computeMembershipDefaultModuleIds = async ({
 
   const result = new Set(
     [
-      ...BASELINE_MODULE_IDS,
+      ...getBaselineModuleIdsForRole(roleBand),
       ...departmentDefaultIds,
       ...superAdminDefaultIds,
       ...managerOrgGrantIds,
@@ -2148,7 +2159,7 @@ export const inviteOrganizationMember = async (req, res, next) => {
       .select("grantedModules")
       .lean();
     const nextGrantedModules = mergeGrantedModules(existingMemberForGrants?.grantedModules, [
-      ...BASELINE_MODULE_IDS,
+      ...getBaselineModuleIdsForRole(inviteRoleBand),
       ...departmentDefaultIds,
       ...superAdminDefaultIds,
       ...managerOrgGrantIds,
@@ -2582,7 +2593,7 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
     // so they can in turn add their own department's employees.
     const managerOrgGrantIds = nextRoleBand === "manager" ? MANAGER_DEFAULT_ORG_GRANT_IDS : [];
     const nextAutoGrantIds = new Set(
-      [...BASELINE_MODULE_IDS, ...departmentDefaultIds, ...superAdminDefaultIds, ...managerOrgGrantIds].map(toId),
+      [...getBaselineModuleIdsForRole(nextRoleBand), ...departmentDefaultIds, ...superAdminDefaultIds, ...managerOrgGrantIds].map(toId),
     );
 
     const retainedGrantedModules = (Array.isArray(member.grantedModules) ? member.grantedModules : []).filter(
@@ -2594,7 +2605,7 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
       },
     );
     member.grantedModules = mergeGrantedModules(retainedGrantedModules, [
-      ...BASELINE_MODULE_IDS,
+      ...getBaselineModuleIdsForRole(nextRoleBand),
       ...departmentDefaultIds,
       ...superAdminDefaultIds,
       ...managerOrgGrantIds,

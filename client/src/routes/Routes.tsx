@@ -143,6 +143,7 @@ import { InventoryPage } from "../pages/Inventory/InventoryPage";
 import { DepartmentInventoryPage } from "../pages/Inventory/DepartmentInventoryPage";
 import { FinancePage } from "../pages/Finance/FinancePage";
 import { DepartmentFinancePageV2 } from "../pages/Finance/DepartmentFinancePageV2";
+import { DepartmentMonthExpensesPage } from "../pages/Finance/DepartmentMonthExpensesPage";
 import { TasksPage } from "../pages/Tasks/TasksPage";
 import { LeaveRequestsPage } from "../pages/LeaveRequests/LeaveRequestsPage";
 
@@ -771,6 +772,10 @@ export const routes = createBrowserRouter([
               {
                 path: "extra-common-modules/finance-management",
                 element: <FinanceRoute />,
+              },
+              {
+                path: "extra-common-modules/finance-management/month/:monthKey",
+                element: <DepartmentMonthExpensesPage />,
               },
               {
                 path: "extra-common-modules/finance-management/review/annual/:requestId",

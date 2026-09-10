@@ -602,7 +602,7 @@ export const login = async (req, res, next) => {
     if (tenantEmp) {
       const tenantCompany = await TenantCompany.findById(tenantEmp.tenantCompanyId).lean().exec();
       if (tenantCompany) {
-        tenantRole = tenantEmp.role === "Manager" ? "tenant-manager" : "tenant-employee";
+        tenantRole = tenantEmp.role === "Admin" ? "tenant-admin" : tenantEmp.role === "Manager" ? "tenant-manager" : "tenant-employee";
         tenantCompanyId = String(tenantCompany._id);
         tenantCompanyName = tenantCompany.companyName || "";
         tenantWorkspaceId = String(tenantCompany.workspaceId || "");
@@ -639,6 +639,7 @@ export const login = async (req, res, next) => {
         tenantCompanyId,
         tenantCompanyName,
         tenantLastLoginAt,
+        tenantDepartment: tenantEmp?.department || "",
       },
       accessToken,
       refreshToken,
@@ -1675,7 +1676,8 @@ export const getTenantRegisterPrefill = async (req, res, next) => {
       fullName: employee.name || "",
       email: employee.email || "",
       role: employee.role || "Employee",
-      tenantRole: employee.role === "Manager" ? "tenant-manager" : "tenant-employee",
+      tenantRole: employee.role === "Admin" ? "tenant-admin" : employee.role === "Manager" ? "tenant-manager" : "tenant-employee",
+      department: employee.department || "",
       companyName: company.companyName || "",
       tenantCompanyId: String(company._id),
       inviteToken,
@@ -1757,10 +1759,14 @@ export const registerTenantEmployee = async (req, res, next) => {
     employee.registeredAt = now;
     employee.updatedAt = now;
 
-    if (employee.role === "Manager") {
+    if (employee.role === "Admin") {
+      employee.tenantRole = "tenant-admin";
+    } else if (employee.role === "Manager") {
       employee.tenantRole = "tenant-manager";
-      company.managerEmployeeId = employee.id;
-      await company.save();
+      if (!company.managerEmployeeId) {
+        company.managerEmployeeId = employee.id;
+        await company.save();
+      }
     } else {
       employee.tenantRole = "tenant-employee";
     }
@@ -2006,10 +2012,14 @@ export const verifyTenantRegisterOtpAndComplete = async (req, res, next) => {
     employee.inviteAcceptedAt = now;
     employee.registeredAt = now;
     employee.updatedAt = now;
-    if (employee.role === "Manager") {
+    if (employee.role === "Admin") {
+      employee.tenantRole = "tenant-admin";
+    } else if (employee.role === "Manager") {
       employee.tenantRole = "tenant-manager";
-      company.managerEmployeeId = employee.id;
-      await company.save();
+      if (!company.managerEmployeeId) {
+        company.managerEmployeeId = employee.id;
+        await company.save();
+      }
     } else {
       employee.tenantRole = "tenant-employee";
     }
@@ -2061,7 +2071,7 @@ export const getTenantProfile = async (req, res, next) => {
           .lean()
           .exec()
       : null;
-    const roleLabel = emp.role === "Manager" ? "Tenant Manager" : "Tenant Employee";
+    const roleLabel = emp.role === "Admin" ? "Tenant Admin" : emp.role === "Manager" ? "Tenant Manager" : "Tenant Employee";
 
     res.status(200).json({
       employee: {
@@ -2069,8 +2079,9 @@ export const getTenantProfile = async (req, res, next) => {
         email: emp.email || "",
         phone: emp.phone || "",
         designation: emp.designation || "",
+        department: emp.department || "",
         role: roleLabel,
-        tenantRole: emp.role === "Manager" ? "tenant-manager" : "tenant-employee",
+        tenantRole: emp.role === "Admin" ? "tenant-admin" : emp.role === "Manager" ? "tenant-manager" : "tenant-employee",
         profilePictureUrl:
           hostUser?.profilePicture?.url ||
           hostUser?.profileImage ||

@@ -326,7 +326,7 @@ const DeepDiveCard = ({ entry }: { entry: AnalyticsModuleEntry }) => {
               className={`bg-white p-5 rounded-[2rem] border border-slate-100 border-l-4 ${card.borderClass} shadow-sm flex justify-between items-center transition-all hover:shadow-md`}
             >
               <div className="min-w-0">
-                <p className="text-[9px] font-pmedium uppercase tracking-widest mb-1 text-slate-400">{card.label}</p>
+                <p className="text-[9px] font-pmedium uppercase tracking-widest mb-1" style={{ color: card.color }}>{card.label}</p>
                 <p className="text-[14px] font-pmedium text-slate-900">{card.value}</p>
               </div>
               <div className="p-2 rounded-2xl shrink-0" style={{ backgroundColor: `${card.color}18` }}>
@@ -637,7 +637,7 @@ const AnalyticsPage = () => {
             className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.borderClass}`}
           >
             <div className="min-w-0">
-              <p className="text-[10px] font-pmedium uppercase tracking-widest mb-1 text-slate-400">{card.label}</p>
+              <p className="text-[10px] font-pmedium uppercase tracking-widest mb-1" style={{ color: card.color }}>{card.label}</p>
               <p className="text-[15px] font-pmedium text-slate-900">{statValues[card.key]}</p>
             </div>
             <div className="p-2 rounded-2xl shrink-0" style={{ backgroundColor: `${card.color}18` }}>

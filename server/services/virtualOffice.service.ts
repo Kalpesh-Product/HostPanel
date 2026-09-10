@@ -488,13 +488,16 @@ export async function listVirtualOfficesForCurrentUser(userId, query = {}) {
 }
 
 // Mirrors formatTenantCompany()'s space/spaceAssigned computation in
-// tenant-company.service.ts, sourced from Resource.assignedVirtualOfficeId
+// tenant-company.service.ts, sourced from Resource.assignedVirtualOfficeIds
 // instead of assignedTenantCompanyId — so the detail page's Space
 // Allocation tab reads the same shape as the tenant equivalent.
 async function getSpaceAllocationForRecord(record) {
   const assignedResources = await Resource.find({
     workspaceId: record.workspaceId,
-    assignedVirtualOfficeId: record._id,
+    $or: [
+      { assignedVirtualOfficeIds: record._id },
+      { assignedVirtualOfficeId: record._id },
+    ],
   }).sort({ floor: 1, wing: 1, name: 1 }).lean().exec();
 
   const assignedResourceLabels = assignedResources
@@ -747,32 +750,43 @@ export async function deleteVirtualOfficeForCurrentUser(userId, recordId) {
   ensureExists(record, access.workspaceId);
 
   // Release any architecture spaces assigned to this virtual office before
-  // deleting the record. Leaving assignedVirtualOfficeId dangling would orphan
-  // those resources — they'd still count as "assigned" in Sales Architecture
-  // with no company row left to release them from.
+  // deleting the record. A space can host multiple virtual office companies —
+  // removing this record only drops THIS company from the shared space.
   const assignedResources = await Resource.find({
     workspaceId: access.workspaceId,
-    assignedVirtualOfficeId: record._id,
+    $or: [
+      { assignedVirtualOfficeIds: record._id },
+      { assignedVirtualOfficeId: record._id },
+    ],
   })
-    .select("_id name resourceCode assignedVirtualOfficeName assignedAt")
+    .select("_id name resourceCode assignedVirtualOfficeIds assignedVirtualOfficeNames assignedAt")
     .lean()
     .exec();
 
-  if (assignedResources.length > 0) {
-    await Resource.updateMany(
-      { workspaceId: access.workspaceId, assignedVirtualOfficeId: record._id },
+  let releasedCount = 0;
+  for (const resource of assignedResources) {
+    releasedCount += 1;
+    const ids = Array.isArray(resource.assignedVirtualOfficeIds) ? resource.assignedVirtualOfficeIds.map((id) => String(id)) : [];
+    const names = Array.isArray(resource.assignedVirtualOfficeNames) ? resource.assignedVirtualOfficeNames.map((n) => String(n).trim()) : [];
+    const index = ids.findIndex((id) => id === String(record._id));
+    if (index !== -1) {
+      ids.splice(index, 1);
+      if (index < names.length) names.splice(index, 1);
+    }
+    await Resource.updateOne(
+      { _id: resource._id, workspaceId: access.workspaceId },
       {
         $set: {
-          assignedVirtualOfficeId: null,
-          assignedVirtualOfficeName: "",
-          assignedAt: null,
+          assignedVirtualOfficeIds: ids,
+          assignedVirtualOfficeNames: names,
+          assignedAt: ids.length === 0 ? null : resource.assignedAt || null,
         },
       },
     );
   }
 
   await VirtualOffice.deleteOne({ _id: recordId });
-  return { success: true, releasedResources: assignedResources.length };
+  return { success: true, releasedResources: releasedCount };
 }
 
 export async function recordRentPaymentForCurrentUser(userId, recordId, input = {}) {

@@ -100,10 +100,22 @@ function MetricCard({ icon: Icon, label, value, tone = "blue" }) {
     slate: "",
   }[tone];
 
+  const labelToneClassName = {
+    blue: "text-blue-600",
+    emerald: "text-emerald-600",
+    amber: "text-amber-600",
+    violet: "text-violet-600",
+    rose: "text-rose-600",
+    cyan: "text-cyan-600",
+    orange: "text-orange-600",
+    indigo: "text-indigo-600",
+    slate: "text-slate-400",
+  }[tone];
+
   return (
     <div className={`w-full bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${accentClassName}`}>
       <div className="min-w-0">
-        <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">
+        <p className={`text-[10px] font-pmedium ${labelToneClassName} uppercase tracking-widest mb-1`}>
           {label}
         </p>
         <p className="text-[15px] font-pmedium text-slate-900 truncate">{value}</p>

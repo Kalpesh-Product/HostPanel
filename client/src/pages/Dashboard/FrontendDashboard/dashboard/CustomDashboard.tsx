@@ -16,7 +16,7 @@
  *  6. Recent + status pairs (tenants, bookings/tickets, leads/leave requests)
  *  7. Monthly trend bar charts
  */
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import WidgetSection from "../../../../components/WidgetSection";
@@ -31,8 +31,9 @@ import {
 import {
   StatCard, QuickLink, SectionCard, RecentItem, DonutWidget, BarWidget,
 } from "./DashboardShared";
-import type { QuickLinkItem } from "./DashboardShared";
-import { statusBadgeColor, humanRelTime, fmtINR, pickCardCols } from "./dashboardUtils";
+import type { QuickLinkItem, StatCardProps } from "./DashboardShared";
+import { statusBadgeColor, humanRelTime, fmtINR, pickCardCols, hasModuleUse, resolveWorkspaceId } from "./dashboardUtils";
+import { getStoredUser } from "../../../../lib/auth-session";
 import useWorkspacePreferences from "../../../../hooks/useWorkspacePreferences";
 import { getTenantCompanies } from "../../../../services/tenant-companies";
 import { getMeetingRoomBookings } from "../../../../services/meeting-room-bookings";
@@ -75,21 +76,36 @@ const toQuickLink = (id: string, label: string): QuickLinkItem | null => {
 };
 
 const CustomDashboard = ({ access }: CustomDashboardProps) => {
-  const { hasModule, enabledModuleIds, moduleMap, roleBand, departmentNames } = access;
+  const { enabledModuleIds, grantedModuleIds, moduleMap, roleBand, departmentNames } = access;
   const axiosPrivate = useAxiosPrivate();
   const navigate = useNavigate();
   const workspacePreferences = useWorkspacePreferences();
 
-  const showTenants = hasModule("tenant-companies-admin");
-  const showBookings = hasModule("meeting-room-system") || hasModule("bookings");
-  const showTickets = hasModule("tickets");
-  const showVisitors = hasModule("visitors-management") || hasModule("visitor-management");
-  const showFinance = hasModule("billing-payments") || hasModule("finance-budget");
-  const showHR = hasModule("employee-management") || hasModule("payroll-management");
-  const showSales = hasModule("leads-management") || hasModule("sales-architecture");
-  const showWebsite = hasModule("website-builder");
-  const showLeaveRequests = hasModule("leave-requests");
-  const showAttendance = hasModule("attendance");
+  const storedUser = getStoredUser();
+  const dashboardWorkspaceId = resolveWorkspaceId(storedUser);
+
+  // A card only renders when its module is both included in the plan/
+  // workspace (enabled axis) AND granted to the current member (access axis).
+  // A plan-locked or access-denied module never surfaces a card here.
+  const canUse = useCallback(
+    (id: string) => hasModuleUse(grantedModuleIds, enabledModuleIds, id),
+    [grantedModuleIds, enabledModuleIds],
+  );
+  const canUseAny = useCallback(
+    (ids: string[]) => ids.some(canUse),
+    [canUse],
+  );
+
+  const showTenants = canUseAny(["tenant-companies-admin", "tenant-companies-sales"]);
+  const showBookings = canUseAny(["meeting-room-system", "bookings"]);
+  const showTickets = canUse("tickets");
+  const showVisitors = canUseAny(["visitors-management", "visitor-management"]);
+  const showFinance = canUseAny(["billing-payments", "finance-budget"]);
+  const showHR = canUseAny(["employee-management", "payroll-management"]);
+  const showSales = canUseAny(["leads-management", "sales-architecture", "website-leads"]);
+  const showWebsite = canUse("website-builder");
+  const showLeaveRequests = canUse("leave-requests");
+  const showAttendance = canUse("attendance");
 
   // ── Data fetching (conditional, but hooks must always run) ────────────────
 
@@ -98,7 +114,7 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
     queryFn: async () => {
       if (!showTenants) return [];
       const res = await getTenantCompanies();
-      const d = res?.data?.data ?? res?.data ?? res;
+      const d = res?.data?.tenants ?? res?.data?.data?.tenants ?? [];
       return Array.isArray(d) ? d : [];
     },
     staleTime: 5 * 60 * 1000,
@@ -106,13 +122,15 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
   });
 
   const { data: bookingsRaw = [] } = useQuery({
-    queryKey: ["dashboard-bookings"],
+    queryKey: ["dashboard-bookings", dashboardWorkspaceId],
     queryFn: async () => {
-      const d = await getMeetingRoomBookings();
-      return Array.isArray(d) ? d : [];
+      if (!dashboardWorkspaceId) return [];
+      const d = await getMeetingRoomBookings(dashboardWorkspaceId);
+      const list = (d as any)?.bookings ?? d;
+      return Array.isArray(list) ? list : [];
     },
     staleTime: 5 * 60 * 1000,
-    enabled: showBookings,
+    enabled: showBookings && Boolean(dashboardWorkspaceId),
   });
 
   const { data: ticketsRaw = [] } = useQuery({
@@ -128,8 +146,10 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
   const { data: visitorsRaw = [] } = useQuery({
     queryKey: ["dashboard-visitors-full"],
     queryFn: async () => {
-      const res = await axiosPrivate.get("/api/visitors/fetch-visitors");
-      return Array.isArray(res?.data) ? res.data : [];
+      // Real endpoint: /api/v1/visitors → { data: { visitors: [...] } }.
+      const res = await axiosPrivate.get("/api/v1/visitors", { params: { limit: 200 } });
+      const d = res?.data?.data?.visitors ?? res?.data?.visitors;
+      return Array.isArray(d) ? d : [];
     },
     staleTime: 5 * 60 * 1000,
     enabled: showVisitors,
@@ -153,14 +173,16 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
   });
 
   const { data: leadsRaw = [] } = useQuery({
-    queryKey: ["dashboard-leads"],
+    queryKey: ["dashboard-leads", dashboardWorkspaceId],
     queryFn: async () => {
-      const res = await axiosPrivate.get("/api/v1/website-leads");
-      const d = res?.data?.data ?? res?.data ?? [];
-      return Array.isArray(d) ? d : [];
+      if (!dashboardWorkspaceId) return [];
+      const res = await axiosPrivate.get("/api/leads/get-leads", {
+        params: { workspaceId: dashboardWorkspaceId },
+      });
+      return Array.isArray(res?.data) ? res.data : [];
     },
     staleTime: 5 * 60 * 1000,
-    enabled: showSales || showWebsite,
+    enabled: (showSales || showWebsite) && Boolean(dashboardWorkspaceId),
   });
 
   const { data: leaveRequestsRaw = [] } = useQuery({
@@ -180,10 +202,10 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
   const longTailModuleIds = useMemo(() => {
     const ids = new Set<string>();
     enabledModuleIds.forEach((id) => {
-      if (!BESPOKE_MODULE_IDS.has(id)) ids.add(id);
+      if (!BESPOKE_MODULE_IDS.has(id) && canUse(id)) ids.add(id);
     });
     return ids;
-  }, [enabledModuleIds]);
+  }, [enabledModuleIds, canUse]);
   const { cards: longTailCards } = useModuleStats(longTailModuleIds);
 
   // ── Derived stats ──────────────────────────────────────────────────────────
@@ -218,9 +240,11 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
   const visitorStats = useMemo(() => {
     const todayStr = new Date().toISOString().split("T")[0];
     const todayCount = visitorsRaw.filter((v: any) =>
-      (v.dateOfVisit || v.checkInTime || v.createdAt || "").startsWith(todayStr)
+      (v.checkInAt || v.createdAt || "").startsWith(todayStr)
     ).length;
-    const checkedIn = visitorsRaw.filter((v: any) => v.isCheckedIn || v.checkedIn || false).length;
+    const checkedIn = visitorsRaw.filter((v: any) =>
+      String(v.status || "").toLowerCase() === "checked_in" || (v.checkInAt && !v.checkOutAt)
+    ).length;
     return { todayCount, checkedIn };
   }, [visitorsRaw]);
 
@@ -240,7 +264,7 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
   }, [payrollSnap]);
 
   const leadStats = useMemo(() => {
-    const newLeads = leadsRaw.filter((l: any) => !l.isContacted && !l.contacted && (l.status || "Pending") === "Pending").length;
+    const newLeads = leadsRaw.filter((l: any) => (l.status || "Pending") === "Pending").length;
     return { total: leadsRaw.length, newLeads };
   }, [leadsRaw]);
 
@@ -290,7 +314,7 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
   // (Booking Revenue verbatim, employee count in Net Payable's sub-text) —
   // repeating them here just doubled the same numbers on one page.
   const bespokeStatCards = useMemo(() => {
-    const cards = [];
+    const cards: StatCardProps[] = [];
     if (showTenants) cards.push({ icon: Building2, label: "Total Tenants", value: tenantStats.total, sub: `${tenantStats.active} active`, color: "#1E3D73", route: "/company-settings/companies" });
     if (showBookings) cards.push({ icon: CalendarCheck, label: "Total Bookings", value: bookingStats.total, sub: `${bookingStats.todayCount} today`, color: "#2563EB", route: "/app/meeting-rooms" });
     if (showTickets) cards.push({ icon: Ticket, label: "Support Tickets", value: ticketStats.total, sub: `${ticketStats.open} open`, color: "#ef4444", route: "/app/tickets" });
@@ -325,25 +349,25 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
       for (const item of section.items || []) {
         if (item.isGroup) {
           for (const tab of item.tabs || []) {
-            if (tab.id === "attendance" || !enabledModuleIds.has(tab.id)) continue;
+            if (tab.id === "attendance" || !canUse(tab.id)) continue;
             const link = toQuickLink(tab.id, tab.label || tab.id);
             if (link) links.push(link);
           }
           continue;
         }
-        if (item.id === "attendance" || !enabledModuleIds.has(item.id)) continue;
+        if (item.id === "attendance" || !canUse(item.id)) continue;
         const link = toQuickLink(item.id, flatModuleLabels.get(item.id) || item.id);
         if (link) links.push(link);
       }
     }
     return links;
-  }, [moduleMap, enabledModuleIds, flatModuleLabels]);
+  }, [moduleMap, canUse, flatModuleLabels]);
 
   const quickLinks = useMemo(() => {
     const links: QuickLinkItem[] = [
-      { icon: MapIcon, label: "Wono Nomad Listings", description: "Manage nomad space listings", route: "/key-apps/nomad-listings", color: "#059669" },
-      { icon: LayoutGrid, label: "Organization", description: "Departments & members", route: "/core-modules/organization-management", color: "#0891b2" },
-      { icon: BarChart3, label: "Reports", description: "Analytics & export", route: "/app/reports", color: "#059669" },
+      ...(canUse("wono-nomad") ? [{ icon: MapIcon, label: "Wono Nomad Listings", description: "Manage nomad space listings", route: "/key-apps/nomad-listings", color: "#059669" }] : []),
+      ...(canUse("organization-management") ? [{ icon: LayoutGrid, label: "Organization", description: "Departments & members", route: "/core-modules/organization-management", color: "#0891b2" }] : []),
+      ...(canUse("reports") ? [{ icon: BarChart3, label: "Reports", description: "Analytics & export", route: "/app/reports", color: "#059669" }] : []),
       ...(showWebsite ? [{ icon: Globe, label: "Website Builder", description: "Build & manage your site", route: "/key-apps/website-builder", color: "#7c3aed" }] : []),
       ...dynamicQuickLinks,
     ];
@@ -353,7 +377,7 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
       seenRoutes.add(link.route);
       return true;
     });
-  }, [dynamicQuickLinks, showWebsite]);
+  }, [dynamicQuickLinks, showWebsite, canUse]);
 
   const profileLinks: QuickLinkItem[] = [
     { icon: UserCog, label: "My Profile", description: "Your personal account details", route: "/profile/my-profile", color: "#1E3D73" },
@@ -376,8 +400,8 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
     [tenantsRaw]);
   const recentVisitors = useMemo(() =>
     [...visitorsRaw].sort((a: any, b: any) =>
-      new Date(b.checkInTime || b.dateOfVisit || b.createdAt || 0).getTime() -
-      new Date(a.checkInTime || a.dateOfVisit || a.createdAt || 0).getTime()
+      new Date(b.checkInAt || b.createdAt || 0).getTime() -
+      new Date(a.checkInAt || a.createdAt || 0).getTime()
     ).slice(0, 5),
     [visitorsRaw]);
   const recentLeads = useMemo(() =>
@@ -451,16 +475,18 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
           {showTeamStatus && <TeamLiveStatusCard viewAllRoute="/common-modules/attendance" />}
           {showVisitors && (
             <SectionCard title="Recent Visitors" linkLabel="View all" linkRoute="/visitors/visitor-management">
-              {recentVisitors.length > 0 ? recentVisitors.map((v: any, i: number) => (
+              {recentVisitors.length > 0 ? recentVisitors.map((v: any, i: number) => {
+                const vStatus = String(v.status || "").toLowerCase();
+                return (
                 <RecentItem
                   key={v.id || i}
-                  title={v.fullName || v.name || "Visitor"}
-                  sub={v.purpose || v.visitorType || "—"}
-                  badge={v.isCheckedIn || v.checkedIn ? "Checked In" : "Logged"}
-                  badgeColor={statusBadgeColor(v.isCheckedIn || v.checkedIn ? "active" : "completed")}
-                  time={humanRelTime(v.checkInTime || v.dateOfVisit || v.createdAt)}
+                  title={v.fullName || v.firstName || "Visitor"}
+                  sub={v.purpose || v.company || "Visit"}
+                  badge={vStatus === "checked_in" ? "Checked In" : vStatus === "checked_out" ? "Checked Out" : vStatus === "pending" ? "Pending" : "Logged"}
+                  badgeColor={statusBadgeColor(vStatus === "checked_in" ? "active" : vStatus === "pending" ? "pending" : "completed")}
+                  time={humanRelTime(v.checkInAt || v.createdAt)}
                 />
-              )) : <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No visitors logged yet</p></div>}
+              )}) : <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No visitors logged yet</p></div>}
             </SectionCard>
           )}
           {showVisitors && (

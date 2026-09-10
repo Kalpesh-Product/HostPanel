@@ -307,9 +307,9 @@ export default function HRDocumentsPage(): React.ReactElement {
   }, [documentRecords]);
 
   const statCards = [
-    { label: "Total Vault Files", value: cardValues.totalDocuments, icon: FolderClosed, toneClass: "bg-blue-50 text-blue-600", accentClass: "" },
-    { label: "Active Employee Folders", value: cardValues.activeEmployees, icon: CheckCircle2, toneClass: "bg-emerald-50 text-emerald-600", accentClass: "border-l-4 border-l-emerald-500" },
-    { label: "Inactive / Ex-Employees", value: cardValues.inactiveEmployees, icon: XCircle, toneClass: "bg-slate-100 text-slate-500", accentClass: "border-l-4 border-l-slate-400" },
+    { label: "Total Vault Files", value: cardValues.totalDocuments, icon: FolderClosed, toneClass: "bg-blue-50 text-blue-600", accentClass: "", labelClass: "text-slate-400" },
+    { label: "Active Employee Folders", value: cardValues.activeEmployees, icon: CheckCircle2, toneClass: "bg-emerald-50 text-emerald-600", accentClass: "border-l-4 border-l-emerald-500", labelClass: "text-emerald-600" },
+    { label: "Inactive / Ex-Employees", value: cardValues.inactiveEmployees, icon: XCircle, toneClass: "bg-slate-100 text-slate-500", accentClass: "border-l-4 border-l-slate-400", labelClass: "text-slate-400" },
   ];
 
   return (
@@ -370,7 +370,7 @@ export default function HRDocumentsPage(): React.ReactElement {
                   className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.accentClass}`}
                 >
                   <div className="min-w-0">
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className={`text-[10px] font-pmedium ${card.labelClass || "text-slate-400"} uppercase tracking-widest mb-1`}>{card.label}</p>
                     {isLoading ? (
                       <div className="h-[22px] w-16 bg-slate-200 rounded animate-pulse" />
                     ) : (

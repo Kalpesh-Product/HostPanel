@@ -7,6 +7,7 @@ export interface ITenantEmployee extends Document {
   name: string;
   email: string;
   phone: string;
+  department: string;
   designation: string;
   userId?: mongoose.Types.ObjectId | null;
   inviteId?: mongoose.Types.ObjectId | null;
@@ -20,7 +21,7 @@ export interface ITenantEmployee extends Document {
   lastLoginAt?: Date | null;
   tenantRole: string;
   tenantCompanyName: string;
-  role: "Employee" | "Manager";
+  role: "Admin" | "Employee" | "Manager";
   status: "Active" | "Inactive";
   createdAt?: Date;
   updatedAt?: Date;
@@ -49,6 +50,7 @@ const tenantEmployeeSchema = new Schema<ITenantEmployee>(
     name: { type: String, default: "", trim: true, maxlength: 140 },
     email: { type: String, default: "", trim: true, lowercase: true, maxlength: 160, index: true },
     phone: { type: String, default: "", trim: true, maxlength: 40 },
+    department: { type: String, default: "", trim: true, maxlength: 120, index: true },
     designation: { type: String, default: "", trim: true, maxlength: 120 },
     userId: { type: Schema.Types.ObjectId, ref: "HostUser", default: null, index: true },
     inviteId: { type: Schema.Types.ObjectId, ref: "MemberInvite", default: null, index: true },
@@ -62,13 +64,14 @@ const tenantEmployeeSchema = new Schema<ITenantEmployee>(
     lastLoginAt: { type: Date, default: null },
     tenantRole: { type: String, default: "", trim: true, maxlength: 40 },
     tenantCompanyName: { type: String, default: "", trim: true, maxlength: 160 },
-    role: { type: String, default: "Employee", trim: true, enum: ["Employee", "Manager"] },
+    role: { type: String, default: "Employee", trim: true, enum: ["Admin", "Employee", "Manager"] },
     status: { type: String, default: "Active", trim: true, enum: ["Active", "Inactive"] },
   },
   { timestamps: true }
 );
 
 tenantEmployeeSchema.index({ workspaceId: 1, email: 1 });
+tenantEmployeeSchema.index({ tenantCompanyId: 1, department: 1, role: 1 });
 
 export const TenantEmployee =
   (mongoose.models.TenantEmployee as mongoose.Model<ITenantEmployee>) ||

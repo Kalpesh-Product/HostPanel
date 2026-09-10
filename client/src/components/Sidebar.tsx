@@ -69,6 +69,7 @@ import {
   LayoutGrid,
   Factory,
   UsersRound,
+  Search,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -592,11 +593,13 @@ interface NavGroupProps {
   pathname: string;
   onNavigate: (item: NavNode, sectionKey?: string) => void;
   sectionKey?: string;
+  forceOpen?: boolean;
 }
 
-const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey }: NavGroupProps) => {
+const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey, forceOpen = false }: NavGroupProps) => {
   const [isOpen, setIsOpen] = useState(item.defaultOpen !== false);
   const hasChildren = Boolean(item.children?.length);
+  const isGroupOpen = forceOpen || isOpen;
   const isActive = (() => {
     if (!item.route) return false;
     if (item.id === "website-builder") {
@@ -621,7 +624,7 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey
         collapsed={collapsed}
         depth={depth}
         hasChildren={hasChildren}
-        isOpen={isOpen}
+        isOpen={isGroupOpen}
         onClick={handleClick}
         isRed={item.isRed}
         isActive={isActive}
@@ -633,7 +636,7 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey
         forceSmall={!hasChildren && depth > 0}
         tooltip={collapsed ? item.label : undefined}
       />
-      {hasChildren && isOpen && !collapsed && (
+      {hasChildren && isGroupOpen && !collapsed && (
         <div className="mt-1 flex flex-col gap-1">
           {item.children?.map((child) => (
             <NavGroup
@@ -644,6 +647,7 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey
               pathname={pathname}
               onNavigate={onNavigate}
               sectionKey={sectionKey}
+              forceOpen={forceOpen}
             />
           ))}
         </div>
@@ -717,6 +721,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   const [workspaceAccessMap, setWorkspaceAccessMap] = useState<WorkspaceAccessMapState | null>(null);
   const [isSidebarHydrated, setIsSidebarHydrated] = useState(false);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const [moduleSearch, setModuleSearch] = useState("");
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isUpgradeSubmitting, setIsUpgradeSubmitting] = useState(false);
   const [requestedUpgradePlan, setRequestedUpgradePlan] = useState("");
@@ -1521,6 +1526,36 @@ useEffect(() => {
         )}
       </div>
 
+      {isSidebarHydrated && !collapsed ? (
+        <div className="px-4 pb-2">
+          <div className="relative">
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
+            />
+            <input
+              type="text"
+              value={moduleSearch}
+              onChange={(event) => setModuleSearch(event.target.value)}
+              placeholder="Search modules"
+              aria-label="Search modules"
+              autoComplete="off"
+              className="h-9 w-full rounded-md border border-black/15 bg-white pl-9 pr-8 font-pmedium text-xs text-slate-800 outline-none transition-colors placeholder:text-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/15"
+            />
+            {moduleSearch ? (
+              <button
+                type="button"
+                onClick={() => setModuleSearch("")}
+                aria-label="Clear module search"
+                className="absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-slate-500 hover:bg-black/5 hover:text-black/70"
+              >
+                <X size={14} />
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex-1 overflow-y-auto pb-3 space-y-0 hideScrollBar">
         {!isSidebarHydrated ? (
           <SidebarLoadingSkeleton collapsed={collapsed} />
@@ -1634,7 +1669,29 @@ useEffect(() => {
               (a, b) => orderIndex(a.key) - orderIndex(b.key),
             );
 
-            return reordered;
+            const searchQuery = moduleSearch.trim().toLocaleLowerCase();
+            if (!searchQuery) return reordered;
+
+            const filterModuleTree = (nodes: NavNode[]): NavNode[] =>
+              nodes.flatMap((node) => {
+                const labelMatches = node.label.toLocaleLowerCase().includes(searchQuery);
+                const matchingChildren = node.children
+                  ? filterModuleTree(node.children)
+                  : [];
+
+                if (!labelMatches && matchingChildren.length === 0) return [];
+                return [{
+                  ...node,
+                  children: matchingChildren.length > 0 ? matchingChildren : undefined,
+                }];
+              });
+
+            return reordered
+              .map((section) => ({
+                ...section,
+                items: filterModuleTree(section.items),
+              }))
+              .filter((section) => section.items.length > 0);
           })().map((section) => (
 
 
@@ -1690,7 +1747,7 @@ useEffect(() => {
                           ) : null}
                         </div>
 
-                        {openSections["add-ons"] && section.items.length > 0 && (
+                        {(openSections["add-ons"] || Boolean(moduleSearch.trim())) && section.items.length > 0 && (
                           <div className="mt-1 space-y-1">
                             {section.items.map((item) => (
                               <NavGroup
@@ -1700,6 +1757,7 @@ useEffect(() => {
                                 pathname={location.pathname}
                                 onNavigate={onNavigate}
                                 sectionKey="add-ons"
+                                forceOpen={Boolean(moduleSearch.trim())}
                               />
                             ))}
                           </div>
@@ -1735,13 +1793,13 @@ useEffect(() => {
                         className="flex w-full items-center justify-between text-left font-['Poppins'] text-xs font-semibold uppercase tracking-wide text-black/80"
                       >
                         <span>{section.title}</span>
-                        {openSections?.[section.key] ?? isSectionOpenByDefault(section.key) ? (
+                        {(Boolean(moduleSearch.trim()) || (openSections?.[section.key] ?? isSectionOpenByDefault(section.key))) ? (
                           <ChevronUp size={16} className="shrink-0" />
                         ) : (
                           <ChevronDown size={16} className="shrink-0" />
                         )}
                       </button>
-                      {(openSections?.[section.key] ?? isSectionOpenByDefault(section.key)) ? (
+                      {(Boolean(moduleSearch.trim()) || (openSections?.[section.key] ?? isSectionOpenByDefault(section.key))) ? (
                         <div className="space-y-1">
                           {section.items.map((item) => (
                             <NavGroup
@@ -1751,6 +1809,7 @@ useEffect(() => {
                               pathname={location.pathname}
                               onNavigate={onNavigate}
                               sectionKey={section.key}
+                              forceOpen={Boolean(moduleSearch.trim())}
                             />
                           ))}
                         </div>

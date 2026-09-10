@@ -166,9 +166,9 @@ const TeamManagementTab = () => {
   }, [employees]);
 
   const statCards = [
-    { key: "total", label: "Total Employees", value: stats.total, icon: Users, toneClass: "bg-blue-50 text-[#2563EB]", borderClass: "" },
-    { key: "active", label: "Active", value: stats.active, icon: UserCheck, toneClass: "bg-emerald-50 text-emerald-600", borderClass: "border-l-4 border-l-emerald-500" },
-    { key: "inactive", label: "Inactive", value: stats.inactive, icon: UserX, toneClass: "bg-rose-50 text-rose-600", borderClass: "border-l-4 border-l-rose-500" },
+    { key: "total", label: "Total Employees", value: stats.total, icon: Users, toneClass: "bg-blue-50 text-[#2563EB]", borderClass: "", labelClass: "text-slate-400" },
+    { key: "active", label: "Active", value: stats.active, icon: UserCheck, toneClass: "bg-emerald-50 text-emerald-600", borderClass: "border-l-4 border-l-emerald-500", labelClass: "text-emerald-600" },
+    { key: "inactive", label: "Inactive", value: stats.inactive, icon: UserX, toneClass: "bg-rose-50 text-rose-600", borderClass: "border-l-4 border-l-rose-500", labelClass: "text-rose-600" },
   ];
 
   const visible = useMemo(() => {
@@ -224,7 +224,7 @@ const TeamManagementTab = () => {
               className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.borderClass}`}
             >
               <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                <p className={`text-[10px] font-pmedium ${card.labelClass || "text-slate-400"} uppercase tracking-widest mb-1`}>{card.label}</p>
                 <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
               </div>
               <div className={`p-2 rounded-2xl ${card.toneClass} shrink-0`}>

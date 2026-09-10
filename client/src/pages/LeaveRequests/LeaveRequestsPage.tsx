@@ -618,16 +618,16 @@ export function LeaveRequestsPage() {
   );
   const availableBalance = Object.values(leaveBalances).reduce((sum, balance) => sum + Math.max(0, Number(balance.remaining) || 0), 0);
 
-  const tabCards = useMemo((): { key: string; label: string; value: number | string; cardClass: string; icon: any; iconClass: string }[] => {
+  const tabCards = useMemo((): { key: string; label: string; value: number | string; cardClass: string; icon: any; iconClass: string; labelClass?: string }[] => {
     if (activeTab === 'my-leaves') {
       const takenThisMonth = allEntries.filter((i) => isMyEntry(i) && isInThisMonth(i.startDate || '')).reduce((sum, i) => sum + (i.days || 0), 0);
       const myPending = allEntries.filter((i) => isMyEntry(i) && i.status === 'pending').length;
       const myApproved = allEntries.filter((i) => isMyEntry(i) && i.status === 'approved').length;
       return [
         { key: 'available', label: 'Available', value: `${availableBalance} Days`, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', icon: CalendarDays, iconClass: 'bg-slate-50 text-slate-600' },
-        { key: 'taken', label: 'Taken This Month', value: `${takenThisMonth} Day${takenThisMonth !== 1 ? 's' : ''}`, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', icon: Clock, iconClass: 'bg-amber-50 text-amber-600' },
-        { key: 'pending', label: 'My Pending', value: myPending, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', icon: Clock, iconClass: 'bg-blue-50 text-blue-600' },
-        { key: 'approved', label: 'My Approved', value: myApproved, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', icon: CheckCircle2, iconClass: 'bg-emerald-50 text-emerald-600' },
+        { key: 'taken', label: 'Taken This Month', value: `${takenThisMonth} Day${takenThisMonth !== 1 ? 's' : ''}`, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', icon: Clock, iconClass: 'bg-amber-50 text-amber-600', labelClass: 'text-amber-600' },
+        { key: 'pending', label: 'My Pending', value: myPending, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', icon: Clock, iconClass: 'bg-blue-50 text-blue-600', labelClass: 'text-blue-600' },
+        { key: 'approved', label: 'My Approved', value: myApproved, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', icon: CheckCircle2, iconClass: 'bg-emerald-50 text-emerald-600', labelClass: 'text-emerald-600' },
       ];
     } else if (activeTab === 'assigned-dept-leaves') {
       const deptTotal = allEntries.filter(isDeptEntry).length;
@@ -636,9 +636,9 @@ export function LeaveRequestsPage() {
       const deptApproved = allEntries.filter((i) => isDeptEntry(i) && i.status === 'approved').length;
       return [
         { key: 'total', label: 'Dept Total', value: deptTotal, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', icon: Users, iconClass: 'bg-slate-50 text-slate-600' },
-        { key: 'onleave', label: 'On Leave Today', value: onLeaveToday, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', icon: Users, iconClass: 'bg-amber-50 text-amber-600' },
-        { key: 'pending', label: 'Pending', value: deptPending, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', icon: Clock, iconClass: 'bg-blue-50 text-blue-600' },
-        { key: 'approved', label: 'Approved', value: deptApproved, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', icon: CheckCircle2, iconClass: 'bg-emerald-50 text-emerald-600' },
+        { key: 'onleave', label: 'On Leave Today', value: onLeaveToday, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', icon: Users, iconClass: 'bg-amber-50 text-amber-600', labelClass: 'text-amber-600' },
+        { key: 'pending', label: 'Pending', value: deptPending, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', icon: Clock, iconClass: 'bg-blue-50 text-blue-600', labelClass: 'text-blue-600' },
+        { key: 'approved', label: 'Approved', value: deptApproved, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', icon: CheckCircle2, iconClass: 'bg-emerald-50 text-emerald-600', labelClass: 'text-emerald-600' },
       ];
     } else if (activeTab === 'leave-requests') {
       const totalInQueue = allEntries.filter((i) => canViewApprovalQueueRequest(i, isMyEntry(i))).length;
@@ -647,9 +647,9 @@ export function LeaveRequestsPage() {
       const queueRejected = allEntries.filter((i) => i.status === 'rejected' && canViewApprovalQueueRequest(i, isMyEntry(i))).length;
       return [
         { key: 'total', label: 'Total in Queue', value: totalInQueue, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', icon: AlertCircle, iconClass: 'bg-slate-50 text-slate-600' },
-        { key: 'pending', label: 'Pending Action', value: pendingAction, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', icon: Clock, iconClass: 'bg-amber-50 text-amber-600' },
-        { key: 'approved', label: 'Approved', value: queueApproved, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', icon: CheckCircle2, iconClass: 'bg-emerald-50 text-emerald-600' },
-        { key: 'rejected', label: 'Rejected', value: queueRejected, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-red-500', icon: XCircle, iconClass: 'bg-red-50 text-red-600' },
+        { key: 'pending', label: 'Pending Action', value: pendingAction, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', icon: Clock, iconClass: 'bg-amber-50 text-amber-600', labelClass: 'text-amber-600' },
+        { key: 'approved', label: 'Approved', value: queueApproved, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', icon: CheckCircle2, iconClass: 'bg-emerald-50 text-emerald-600', labelClass: 'text-emerald-600' },
+        { key: 'rejected', label: 'Rejected', value: queueRejected, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-red-500', icon: XCircle, iconClass: 'bg-red-50 text-red-600', labelClass: 'text-red-600' },
       ];
     } else {
       const onLeaveToday = allEntries.filter(isOnLeaveToday).length;
@@ -657,9 +657,9 @@ export function LeaveRequestsPage() {
       const totalPending = allEntries.filter((i) => i.status === 'pending').length;
       return [
         { key: 'total', label: 'Total Requests', value: allEntries.length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', icon: AlertCircle, iconClass: 'bg-slate-50 text-slate-600' },
-        { key: 'onleave', label: 'On Leave Today', value: onLeaveToday, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', icon: Users, iconClass: 'bg-amber-50 text-amber-600' },
-        { key: 'pending', label: 'Pending', value: totalPending, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', icon: Clock, iconClass: 'bg-blue-50 text-blue-600' },
-        { key: 'approved', label: 'Approved This Month', value: approvedThisMonth, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', icon: CheckCircle2, iconClass: 'bg-emerald-50 text-emerald-600' },
+        { key: 'onleave', label: 'On Leave Today', value: onLeaveToday, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', icon: Users, iconClass: 'bg-amber-50 text-amber-600', labelClass: 'text-amber-600' },
+        { key: 'pending', label: 'Pending', value: totalPending, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', icon: Clock, iconClass: 'bg-blue-50 text-blue-600', labelClass: 'text-blue-600' },
+        { key: 'approved', label: 'Approved This Month', value: approvedThisMonth, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', icon: CheckCircle2, iconClass: 'bg-emerald-50 text-emerald-600', labelClass: 'text-emerald-600' },
       ];
     }
   }, [allEntries, activeTab, availableBalance, isMyEntry, isInThisMonth, isOnLeaveToday, isDeptEntry, canViewApprovalQueueRequest]);
@@ -894,7 +894,7 @@ export function LeaveRequestsPage() {
                 return (
                   <div key={card.key} className={card.cardClass}>
                     <div className="min-w-0">
-                      <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                      <p className={`text-[10px] font-pmedium uppercase tracking-widest mb-1 ${card.labelClass || "text-slate-400"}`}>{card.label}</p>
                       <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                     </div>
                     <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}><Icon size={16} /></div>

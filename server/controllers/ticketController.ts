@@ -189,7 +189,7 @@ export const createTicket = async (req: Request, res: Response): Promise<void> =
             requesterUserId: ownerId,
             submittedBy: isTenantRequester ? requesterName : payload.submittedBy,
             submittedByDept: isTenantRequester
-                ? "tenant-company-employee"
+                ? payload.submittedByDept || "tenant-company-employee"
                 : payload.submittedByDept,
             department: targetDepartment,
             assignedTo: payload.assignedTo || `${targetDepartment} Queue`,
