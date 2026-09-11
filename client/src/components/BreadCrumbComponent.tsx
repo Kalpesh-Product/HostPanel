@@ -145,6 +145,13 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/common-modules/printouts",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      { label: "Printouts" },
+    ],
+  },
+  {
     pattern: "/common-modules/customer-support",
     crumbs: [
       { label: SECTION_LABELS.common, path: "/common-modules" },
@@ -577,6 +584,14 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
       { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
       { label: "Administration Department", path: "/department-accesses/administration-department" },
       { label: "Bookings" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/administration-department/printouts",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Administration Department", path: "/department-accesses/administration-department" },
+      { label: "Printout Management" },
     ],
   },
   {

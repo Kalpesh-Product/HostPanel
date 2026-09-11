@@ -14,6 +14,7 @@ const MODULE_GROUPS = [
       { id: "tickets", label: "Tickets", route: "/tickets", implemented: true },
       { id: "leave-requests", label: "Leave Requests", implemented: false },
       { id: "meeting-room-system", label: "Meeting Room Booking", route: "/meetings/meeting-rooms", implemented: true },
+      { id: "printout-management", label: "Printouts", route: "/common-modules/printouts", implemented: true },
       { id: "calendar", label: "Calendar", route: "/calendar", implemented: true },
     ],
   },
@@ -129,6 +130,7 @@ const MODULE_GROUPS = [
           { id: "visitors-management", label: "Visitors Management", route: "/visitors/visitor-management", implemented: true },
           { id: "resource-management", label: "Resource Management", implemented: false },
           { id: "house-keeping", label: "House Keeping", implemented: false },
+          { id: "printout-management", label: "Printout Management", route: "/department-accesses/administration-department/printouts", implemented: true },
 
         ],
       },
@@ -209,6 +211,7 @@ export const COMMON_MODULE_IDS = [
   "tickets",
   "leave-requests",
   "meeting-room-system",
+  "printout-management",
   "calendar",
 ];
 
@@ -343,6 +346,7 @@ const PROFESSIONAL_DEFAULT_IDS = new Set([
   "visitors_standard_type_tenant",
   "tickets",
   "meeting-room-system",
+  "printout-management",
   "calendar",
   "workspace-settings",
   "workspace-management",

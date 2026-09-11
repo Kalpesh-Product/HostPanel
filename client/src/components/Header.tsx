@@ -226,6 +226,7 @@ const Header = ({
       "co-founder": "Founder",
       "master-admin": "Founder",
       "super-admin": "Super Admin",
+      "tenant-admin": "Tenant Admin",
       "tenant-manager": "Tenant Manager",
       "tenant-employee": "Tenant Employee",
     };
@@ -261,9 +262,11 @@ const Header = ({
 
   const tenantRoleFromAuth = auth?.user?.tenantRole || '';
   const roleLabel = hasTenantRole
-    ? tenantRoleFromAuth === "tenant-manager"
-      ? "Tenant Manager"
-      : "Tenant Employee"
+    ? tenantRoleFromAuth === "tenant-admin"
+      ? "Tenant Admin"
+      : tenantRoleFromAuth === "tenant-manager"
+        ? "Tenant Manager"
+        : "Tenant Employee"
     : isFounderRole || isFounderByFlag || hasFounderPermission
       ? "Founder"
       : formatRoleLabel(normalizedRole, departmentName);

@@ -314,7 +314,10 @@ const tenantCompanySchema = new Schema(
     departments: { type: [String], default: [], set: (items: any[]) => Array.from(new Set((Array.isArray(items) ? items : []).map((item) => String(item || "").trim()).filter(Boolean))) },
     status: {
       type: String, required: true, trim: true,
-      enum: ["Pending Setup", "Pending Space Assignment", "Active", "Expiring Soon", "Expired"],
+      // "Inactive" is the only value here that isn't date-derived — it's a
+      // manual override set when a company declines to renew an expired
+      // contract (see formatTenantCompany / updateTenantCompanyForCurrentUser).
+      enum: ["Pending Setup", "Pending Space Assignment", "Active", "Expiring Soon", "Expired", "Inactive"],
       index: true,
     },
     notes: { type: String, default: "", trim: true, maxlength: 1000 },

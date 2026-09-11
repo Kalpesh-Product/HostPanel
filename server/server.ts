@@ -39,6 +39,7 @@ import visitorRoutes from "./routes/visitorRoutes.js";
 import assetRoutes from "./routes/assetRoutes.js";
 import meetingRoomRoutes from "./routes/meetingRoomRoutes.js";
 import ticketRoutes from "./routes/ticketRoutes.js";
+import printoutRoutes from "./routes/printoutRoutes.js";
 import resourceRoutes from "./routes/resourceRoutes.js";
 import plansPricingRoutes from "./routes/plansPricing.routes.js";
 import tenantCompanyRoutes from "./routes/tenant-company.routes.js";
@@ -181,6 +182,7 @@ app.use("/api/meeting-rooms", verifyJwt, blockWriteIfImpersonating, meetingRoomR
 app.use("/api/calendar", verifyJwt, blockWriteIfImpersonating, calendarRoutes);
 app.use("/api/notifications", verifyJwt, blockWriteIfImpersonating, notificationRoutes);
 app.use("/api/tickets", verifyJwt, blockWriteIfImpersonating, ticketRoutes);
+app.use("/api/printouts", verifyJwt, blockWriteIfImpersonating, printoutRoutes);
 app.use("/api/v1/resources", verifyJwt, blockWriteIfImpersonating, resourceRoutes);
 app.use("/api/v1/pricing-packages", verifyJwt, blockWriteIfImpersonating, plansPricingRoutes);
 app.use("/api/v1/tenant-companies", verifyJwt, blockWriteIfImpersonating, tenantCompanyRoutes);

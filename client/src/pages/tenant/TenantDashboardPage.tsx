@@ -12,6 +12,7 @@ import {
   History,
   MapPin,
   Plus,
+  ReceiptIndianRupee,
   Ticket,
   UserCheck,
   Users,
@@ -227,7 +228,7 @@ export default function TenantDashboardPage() {
   const companyContact = currentCompany?.contactName || currentUser?.fullName || 'Company contact';
   const companyManager = currentCompany?.managerEmployee
     || currentCompany?.employees?.find((employee: Record<string, any>) => normalizeId(employee?.id) === normalizeId(currentCompany?.managerEmployeeId))
-    || currentCompany?.employees?.find((employee: Record<string, any>) => normalizeId(employee?.role) === 'manager' || normalizeId(employee?.role) === 'tenant-manager')
+    || currentCompany?.employees?.find((employee: Record<string, any>) => normalizeId(employee?.role) === 'manager' || normalizeId(employee?.role) === 'tenant-manager' || normalizeId(employee?.role) === 'admin' || normalizeId(employee?.role) === 'tenant-admin')
     || null;
 
   const visibleBookings = useMemo(() => {
@@ -472,7 +473,7 @@ export default function TenantDashboardPage() {
                   {tenantCompanyName}
                 </span>
                 <span className={`rounded-full px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider border ${canManageTenant ? 'bg-violet-50 text-violet-700 border-violet-100' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                  {canManageTenant ? 'Tenant Manager' : 'Tenant Employee'}
+                  {isTenantAdminRole(userRole) ? 'Tenant Admin' : canManageTenant ? 'Tenant Manager' : 'Tenant Employee'}
                 </span>
                 {/* <p className="text-xs font-pmedium text-slate-500">
                   Your tenant workspace at a glance — rooms, bookings, tickets and credits.
@@ -504,6 +505,34 @@ export default function TenantDashboardPage() {
               </div>
             ))}
           </div>
+
+          {/* ── Rent Due Banner (1st - 11th of every month) ── */}
+          {(() => {
+            const today = new Date();
+            const dayOfMonth = today.getDate();
+            if (dayOfMonth < 1 || dayOfMonth > 11) return null;
+            const monthName = today.toLocaleString('en-US', { month: 'long' });
+            const year = today.getFullYear();
+            const daysLeft = 11 - dayOfMonth;
+            return (
+              <Link to="/dashboard/tenant/rent-payments" className="block rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4 transition-all hover:shadow-md hover:border-amber-300 group">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0 group-hover:bg-amber-200 transition-colors">
+                      <ReceiptIndianRupee size={18} />
+                    </div>
+                    <div>
+                      <p className="text-[12px] font-pmedium text-amber-800">Rent is due for {monthName} {year}</p>
+                      <p className="text-[10px] font-pmedium text-amber-600 mt-0.5">{daysLeft} day{daysLeft !== 1 ? 's' : ''} left to submit payment</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] font-pmedium uppercase tracking-widest text-amber-700 group-hover:text-amber-800 transition-colors">
+                    Pay Now <ChevronRight size={13} />
+                  </div>
+                </div>
+              </Link>
+            );
+          })()}
 
           {/* ── Upcoming Bookings + Room Pool ── */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">

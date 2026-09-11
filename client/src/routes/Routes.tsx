@@ -133,8 +133,11 @@ import AMCMaintenanceSchedulerPage from "../pages/Maintenance/AMCMaintenanceSche
 import ITRepairLogsPage from "../pages/IT/ITRepairLogsPage";
 import SystemAccessManagementPage from "../pages/IT/SystemAccessManagementPage";
 import { TicketsPage } from "../pages/Tickets/TicketsPage";
+import PrintoutsPage from "../pages/Printouts/PrintoutsPage";
+import PrintoutManagementPage from "../pages/Administration/Printouts/PrintoutManagementPage";
 import TenantDashboardPage from "../pages/tenant/TenantDashboardPage";
 import TenantMeetingRoomBookingPage from "../pages/tenant/TenantMeetingRoomBookingPage";
+import TenantPrintoutsPage from "../pages/tenant/TenantPrintoutsPage";
 import TenantBookingHistoryPage from "../pages/tenant/TenantBookingHistoryPage";
 import TenantBuyCreditsPage from "../pages/tenant/TenantBuyCreditsPage";
 import TenantRentPaymentsPage from "../pages/tenant/TenantRentPaymentsPage";
@@ -454,6 +457,7 @@ export const routes = createBrowserRouter([
                     children: [
                       { index: true, element: <TenantDashboardPage /> },
                       { path: "meeting-room-booking", element: <TenantMeetingRoomBookingPage /> },
+                      { path: "printouts", element: <TenantPrintoutsPage /> },
                       { path: "booking-history", element: <TenantBookingHistoryPage /> },
                       { path: "buy-credits", element: <TenantBuyCreditsPage /> },
                       { path: "rent-payments", element: <TenantRentPaymentsPage /> },
@@ -718,6 +722,10 @@ export const routes = createBrowserRouter([
               {
                 path: "common-modules/meeting-room-booking",
                 element: <MeetingRoomsPage />,
+              },
+              {
+                path: "common-modules/printouts",
+                element: <PrintoutsPage />,
               },
               {
                 path: "common-modules/calendar",
@@ -1277,6 +1285,10 @@ export const routes = createBrowserRouter([
               {
                 path: "department-accesses/administration-department/house-keeping",
                 element: <AdministrationHousekeepingPage />,
+              },
+              {
+                path: "department-accesses/administration-department/printouts",
+                element: <PrintoutManagementPage />,
               },
               {
                 path: "administration/*",

@@ -64,6 +64,10 @@ function buildTenantStatusFilter(status, now = new Date()) {
       return { contractEnd: { $lt: now } };
     case "Pending Space Assignment":
       return { $or: [{ contractEnd: null }, { contractEnd: { $exists: false } }] };
+    case "Inactive":
+      // The only status that isn't date-derived — a manual override, so it's
+      // filtered off the stored field instead of contractEnd.
+      return { status: "Inactive" };
     default:
       return null;
   }
@@ -418,50 +422,32 @@ function ensureTenantCompanyExists(company, workspaceId) {
 async function sendEmployeeInviteEmail(email, name, invitedByName, role, companyName, inviteUrl) {
   try {
     const { sendMail } = await import("../config/mailer.js");
-    const EMAIL_FONT = "'Poppins','Segoe UI',Arial,sans-serif";
+    const { renderNotificationEmail } = await import("../utils/emailTemplates.js");
     await sendMail({
       to: email,
       subject: `You're invited to join ${companyName} as a ${role}`,
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-        <body style="margin:0;padding:0;background:#f8fafc;font-family:${EMAIL_FONT};">
-          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
-            <tr><td align="center">
-              <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);font-family:${EMAIL_FONT};">
-                <tr><td style="background:#2563EB;padding:32px 40px;">
-                  <p style="margin:0;font-size:22px;font-weight:600;color:#ffffff;letter-spacing:-0.3px;font-family:${EMAIL_FONT};">You're Invited &#128227;</p>
-                  <p style="margin:8px 0 0;font-size:13px;font-weight:500;color:#bfdbfe;font-family:${EMAIL_FONT};">Join ${companyName} as a ${role}</p>
-                </td></tr>
-                <tr><td style="padding:32px 40px;">
-                  <p style="margin:0 0 24px;font-size:15px;font-weight:500;color:#334155;font-family:${EMAIL_FONT};">Hi <strong>${name}</strong>,</p>
-                  <p style="margin:0 0 24px;font-size:15px;font-weight:400;color:#334155;line-height:1.6;font-family:${EMAIL_FONT};">
-                    <strong>${invitedByName}</strong> has invited you to join <strong>${companyName}</strong> as a
-                    <strong>${role}</strong>. Click the button below to set up your account and get started.
-                  </p>
-                  <table cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
-                    <tr>
-                      <td align="center" style="background:#2563EB;border-radius:8px;padding:0;">
-                        <a href="${inviteUrl}" style="display:inline-block;padding:14px 40px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;font-family:${EMAIL_FONT};">Accept Invitation</a>
-                      </td>
-                    </tr>
-                  </table>
-                  <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;margin-bottom:24px;">
-                    <tr><td style="padding:14px 18px;font-size:12px;font-weight:500;color:#64748b;font-family:${EMAIL_FONT};">
-                      This invite link will expire in <strong>7 days</strong>. If you have any questions, please contact your manager.
-                    </td></tr>
-                  </table>
-                </td></tr>
-                <tr><td style="background:#f1f5f9;padding:20px 40px;border-top:1px solid #e2e8f0;">
-                  <p style="margin:0;font-size:11px;font-weight:500;color:#94a3b8;font-family:${EMAIL_FONT};">This is an automated invitation. Please do not reply to this email.</p>
-                </td></tr>
-              </table>
-            </td></tr>
-          </table>
-        </body>
-        </html>
-      `,
+      html: renderNotificationEmail({
+        heroTitle: "You're Invited to WONO",
+        heroSubtitle: `Join ${companyName} as a ${role}`,
+        greetingHtml: `
+          <p style="margin:0 0 4px;">Hello ${name},</p>
+          <p class="email-text" style="margin:0;"><strong>${invitedByName}</strong> has invited you to join <b class="email-heading">${companyName}</b> as a <strong>${role}</strong>. Click the button below to set up your account and get started.</p>
+        `,
+        detailsTitle: "Invitation Details",
+        detailRows: [
+          ["Company", companyName],
+          ["Role", role],
+          ["Invited By", invitedByName],
+        ],
+        ctaButton: {
+          label: "Accept Invitation",
+          href: inviteUrl,
+          caption: "Your name and email will be prefilled — you only need to set your password and verify OTP.",
+        },
+        noteHtml:
+          "This invite link expires in 7 days.<br/>This invitation is intended only for you — for your security, do not share this link with anyone.<br/>This is an automated invitation. Please do not reply to this email.",
+        signOffHtml: `<strong>${companyName}</strong><br/>Powered by WONO`,
+      }),
     });
   } catch (err) {
     console.error("[tenant-company] invite email failed:", err?.message);
@@ -471,42 +457,34 @@ async function sendEmployeeInviteEmail(email, name, invitedByName, role, company
 async function sendEmployeeAccessEmail(email, name, companyName, loginUrl) {
   try {
     const { sendMail } = await import("../config/mailer.js");
+    const { renderNotificationEmail } = await import("../utils/emailTemplates.js");
     await sendMail({
       to: email,
       subject: `Access granted to ${companyName}`,
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head><meta charset="utf-8"></head>
-        <body style="margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-serif;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:40px 20px;">
-            <tr><td align="center">
-              <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
-                <tr><td style="background:#1e3a5f;padding:32px 40px;text-align:center;">
-                  <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;">Access Granted</h1>
-                </td></tr>
-                <tr><td style="padding:36px 40px 28px;">
-                  <p style="margin:0 0 16px;font-size:15px;color:#333;line-height:1.6;">Hello ${name},</p>
-                  <p style="margin:0 0 16px;font-size:15px;color:#333;line-height:1.6;">
-                    You now have access to <strong>${companyName}</strong> as a team member. Sign in with your existing credentials to continue.
-                  </p>
-                  <table cellpadding="0" cellspacing="0" style="margin:24px 0;">
-                    <tr>
-                      <td align="center" style="background:#2563eb;border-radius:8px;padding:0;">
-                        <a href="${loginUrl}" style="display:inline-block;padding:14px 40px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">Sign In</a>
-                      </td>
-                    </tr>
-                  </table>
-                </td></tr>
-                <tr><td style="padding:20px 40px;border-top:1px solid #eee;text-align:center;">
-                  <p style="margin:0;font-size:12px;color:#aaa;">&copy; ${new Date().getFullYear()} WONO Nomads. All rights reserved.</p>
-                </td></tr>
-              </table>
-            </td></tr>
-          </table>
-        </body>
-        </html>
-      `,
+      html: renderNotificationEmail({
+        heroTitle: "Your Access Is Ready",
+        heroSubtitle: `You now have access to ${companyName}`,
+        greetingHtml: `
+          <p style="margin:0 0 4px;">Hello ${name},</p>
+          <p class="email-text" style="margin:0;">You now have access to <b class="email-heading">${companyName}</b> as a team member. Sign in with your existing credentials to continue.</p>
+        `,
+        detailsTitle: "Access Details",
+        detailRows: [
+          ["Company", companyName],
+          ["Status", "Active"],
+        ],
+        ctaButton: {
+          label: "Sign In",
+          href: loginUrl,
+          caption: "Use your existing WONO credentials to access your company workspace.",
+        },
+        whatNextItems: [
+          `Sign in with your credentials to access ${companyName}.`,
+          "Explore the tenant dashboard to manage bookings, tickets and credits.",
+        ],
+        noteHtml: `This is an automated notification. If you did not expect this email, please contact support at response@wono.co.`,
+        signOffHtml: `<strong>${companyName}</strong><br/>Powered by WONO`,
+      }),
     });
   } catch (err) {
     console.error("[tenant-company] access email failed:", err?.message);
@@ -601,7 +579,10 @@ async function formatTenantCompany(company, preloaded = null) {
     ? employees.find((e) => e.id === company.managerEmployeeId) || null
     : employees.find((e) => e.role === "Manager") || null;
   const tenantDepartments = mergeTenantDepartments(company, ...employees.map((employee) => employee.department));
-  const status = deriveTenantStatus(company.contractEnd);
+  // "Inactive" is a manual override (company declined to renew an expired
+  // contract) — everything else is always re-derived from contractEnd so the
+  // stored value can never go stale.
+  const status = company.status === "Inactive" ? "Inactive" : deriveTenantStatus(company.contractEnd);
   const creditsAllocated = Number(company.creditsAllocated || 0);
   const creditsUsed = Number(company.creditsUsed || 0);
   const creditsRemaining = Math.max(0, creditsAllocated - creditsUsed);
@@ -1287,7 +1268,12 @@ export async function updateTenantCompanyForCurrentUser(userId, tenantCompanyId,
     }
   }
 
-  company.status = deriveTenantStatus(company.contractEnd);
+  // "Inactive" is a manual override (company declined to renew) — only that
+  // exact value can bypass normal date-derived status; anything else always
+  // re-derives from contractEnd so the stored value can't go stale.
+  company.status = normalizeText(input.status) === "Inactive"
+    ? "Inactive"
+    : deriveTenantStatus(company.contractEnd);
   await company.save();
 
   // Desk counts, rate, or floor/wing may have changed — reconcile the tenant's
@@ -1306,10 +1292,11 @@ export async function updateTenantCompanyForCurrentUser(userId, tenantCompanyId,
     );
   }
 
-  // A tenant whose contract has now expired should not keep holding real
-  // desk inventory — release everything so a new tenant can actually be
-  // assigned that space. Runs after reconciliation above so it always wins.
-  if (company.status === "Expired") {
+  // A tenant whose contract has now expired — or who declined to renew — should
+  // not keep holding real desk inventory — release everything so a new tenant
+  // can actually be assigned that space. Runs after reconciliation above so it
+  // always wins.
+  if (company.status === "Expired" || company.status === "Inactive") {
     await releaseAllSeatsForTenant(access.workspaceId, company._id);
   }
 
@@ -1338,7 +1325,7 @@ export async function renewTenantCompanyForCurrentUser(userId, tenantCompanyId, 
   ensureTenantCompanyExists(company, access.workspaceId);
 
   const contractStart = input.contractStart ? new Date(input.contractStart) : new Date();
-  const contractDurationMonths = Math.max(3, Number(input.contractDurationMonths || 12));
+  const contractDurationMonths = Math.max(1, Number(input.contractDurationMonths || 12));
   const contractEnd = buildContractEndDate(contractStart, contractDurationMonths);
 
   company.contractStart = contractStart;

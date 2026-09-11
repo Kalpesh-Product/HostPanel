@@ -42,6 +42,36 @@ const uploadImages = multer({
   },
 });
 
-export { uploadImages };
+// Multer config for printout requests — office documents in addition to the
+// image/pdf/csv types `upload` already allows, since people print Word/Excel/
+// PowerPoint files as often as PDFs.
+const uploadDocuments = multer({
+  storage,
+  limits: {
+    fileSize: 20 * 1024 * 1024, // 20 MB
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimeTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "text/csv",
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ];
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Unsupported file type. Please upload a PDF, Word, Excel, PowerPoint, CSV, or image file."), false);
+    }
+  },
+});
+
+export { uploadImages, uploadDocuments };
 export default upload;
 

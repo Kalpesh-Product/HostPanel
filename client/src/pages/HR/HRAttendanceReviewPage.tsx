@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Search, Eye, X, Clock, CheckCircle2, XCircle, AlertCircle,
@@ -25,6 +26,9 @@ import {
   updateAttendanceSettings,
 } from "@/services/attendance";
 import { formatTime12h } from "@/utils/time";
+import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
 
 /* ───────────────────────────── Types ───────────────────────────── */
 
@@ -534,6 +538,31 @@ export default function HRAttendanceReviewPage() {
   const currentCustomFrom = customRangeByTab[activeTab]?.from || getLocalDateString();
   const currentCustomTo = customRangeByTab[activeTab]?.to || getLocalDateString();
   const [showCustomRangePopup, setShowCustomRangePopup] = useState(false);
+  const customRangeBtnRef = useRef<HTMLButtonElement>(null);
+  const [customRangePos, setCustomRangePos] = useState<{ top: number; left: number } | null>(null);
+  const CUSTOM_RANGE_POPUP_WIDTH = 320;
+  const updateCustomRangePos = () => {
+    const rect = customRangeBtnRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setCustomRangePos({
+      top: rect.bottom + 8,
+      left: Math.min(
+        Math.max(rect.right - CUSTOM_RANGE_POPUP_WIDTH, 8),
+        window.innerWidth - CUSTOM_RANGE_POPUP_WIDTH - 8
+      ),
+    });
+  };
+  useEffect(() => {
+    if (!showCustomRangePopup) return;
+    updateCustomRangePos();
+    const handle = () => updateCustomRangePos();
+    window.addEventListener("scroll", handle, true);
+    window.addEventListener("resize", handle);
+    return () => {
+      window.removeEventListener("scroll", handle, true);
+      window.removeEventListener("resize", handle);
+    };
+  }, [showCustomRangePopup]);
   const setDateFilterModeForTab = (key: "today" | "month" | "custom") => {
     setDateFilterMode((prev) => ({ ...prev, [activeTab]: key }));
     setShowCustomRangePopup(key === "custom");
@@ -1248,6 +1277,7 @@ export default function HRAttendanceReviewPage() {
                       ))}
                       {currentDateFilterMode === "custom" && (
                         <button
+                          ref={customRangeBtnRef}
                           type="button"
                           onClick={() => setShowCustomRangePopup((open) => !open)}
                           className={`inline-flex h-[30px] w-[30px] items-center justify-center rounded-lg transition-all ${
@@ -1263,29 +1293,56 @@ export default function HRAttendanceReviewPage() {
                       )}
                     </div>
 
-                    {currentDateFilterMode === "custom" && showCustomRangePopup && (
-                      <div className="absolute right-0 top-full z-30 mt-2 w-[320px] rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="relative flex-1">
-                            <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
-                            <input
-                              type="date"
-                              value={currentCustomFrom}
-                              onChange={(e) => setCustomFromForTab(e.target.value)}
-                              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-8 pr-2 text-[11px] font-pmedium text-[#0F172A] outline-none focus:border-[#2563EB]"
+                    {currentDateFilterMode === "custom" && showCustomRangePopup && customRangePos && createPortal(
+                      <div
+                        className="fixed z-[9999] w-[320px] rounded-2xl border border-slate-200 bg-white p-3 shadow-xl"
+                        style={{ top: customRangePos.top, left: customRangePos.left }}
+                      >
+                        <LocalizationProvider dateAdapter={AdapterDayjs}>
+                          <div className="flex items-center justify-between gap-2">
+                            <DatePicker
+                              label="From"
+                              value={dayjs(currentCustomFrom)}
+                              onChange={(date) => {
+                                if (date && date.isValid()) setCustomFromForTab(date.format("YYYY-MM-DD"));
+                              }}
+                              maxDate={dayjs(currentCustomTo)}
+                              format="DD-MM-YYYY"
+                              slotProps={{
+                                textField: {
+                                  size: "small",
+                                  fullWidth: true,
+                                  sx: {
+                                    "& .MuiInputBase-input": { fontSize: 11, padding: "8.5px 8px" },
+                                    "& .MuiInputLabel-root": { fontSize: 11 },
+                                  },
+                                },
+                                popper: { className: "z-[9999]" },
+                              }}
+                            />
+                            <span className="text-[11px] font-pmedium text-slate-400">to</span>
+                            <DatePicker
+                              label="To"
+                              value={dayjs(currentCustomTo)}
+                              onChange={(date) => {
+                                if (date && date.isValid()) setCustomToForTab(date.format("YYYY-MM-DD"));
+                              }}
+                              minDate={dayjs(currentCustomFrom)}
+                              format="DD-MM-YYYY"
+                              slotProps={{
+                                textField: {
+                                  size: "small",
+                                  fullWidth: true,
+                                  sx: {
+                                    "& .MuiInputBase-input": { fontSize: 11, padding: "8.5px 8px" },
+                                    "& .MuiInputLabel-root": { fontSize: 11 },
+                                  },
+                                },
+                                popper: { className: "z-[9999]" },
+                              }}
                             />
                           </div>
-                          <span className="text-[11px] font-pmedium text-slate-400">to</span>
-                          <div className="relative flex-1">
-                            <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
-                            <input
-                              type="date"
-                              value={currentCustomTo}
-                              onChange={(e) => setCustomToForTab(e.target.value)}
-                              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-8 pr-2 text-[11px] font-pmedium text-[#0F172A] outline-none focus:border-[#2563EB]"
-                            />
-                          </div>
-                        </div>
+                        </LocalizationProvider>
                         <button
                           type="button"
                           onClick={() => setShowCustomRangePopup(false)}
@@ -1293,7 +1350,8 @@ export default function HRAttendanceReviewPage() {
                         >
                           Apply Range
                         </button>
-                      </div>
+                      </div>,
+                      document.body
                     )}
                   </div>
 

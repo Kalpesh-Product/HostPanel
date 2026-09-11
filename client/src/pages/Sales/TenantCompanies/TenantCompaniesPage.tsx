@@ -5,7 +5,7 @@ import {
   Building, Search, Plus, Eye, Edit, CalendarDays, LayoutGrid,
   CheckCircle2, AlertTriangle, XCircle, Mail, Phone, Clock,
   CreditCard, X, ArrowRight, Save, RefreshCw, Briefcase,
-  FileText, UserPlus, UploadCloud,
+  FileText, UserPlus, UploadCloud, Ban,
   Users, History, MapPin, Building2, Loader2, Tag
 } from 'lucide-react';
 import BulkUploadModal from '../../../components/BulkUploadModal';
@@ -36,6 +36,7 @@ import { createReport } from '../../../services/reports';
 import ExportReportModal, { type ExportParams } from "../../../components/ExportReportModal";
 import ReportExportButton from "@/components/ReportExportButton";
 import { downloadReportFile } from '../../../utils/report-download';
+import { exportRowsAsCsv, exportRowsAsPdf, type ExportColumn } from '../../../utils/exportTable';
 import PageFrame from '../../../components/Pages/PageFrame';
 import { SalesTenantCompaniesSkeleton } from '../../../components/ui/SalesPageSkeletons';
 import { formatWorkspaceCurrency } from '../../../lib/workspaceLocalization';
@@ -371,39 +372,140 @@ function buildTenantCompanyExportRows(company = {}) {
   return rows;
 }
 
-function buildTenantCompaniesExportRows(companies = [], filters = {}) {
-  const visibleCompanies = Array.isArray(companies) ? companies.slice(0, 150) : [];
-  const rows = [
-    { label: 'Total Companies', value: String(visibleCompanies.length) },
-    { label: 'Active Contracts', value: String(visibleCompanies.filter((company) => company.status === 'Active').length) },
-    { label: 'Expiring Soon', value: String(visibleCompanies.filter((company) => company.status === 'Expiring Soon').length) },
-    { label: 'Total Credits Issued', value: String(visibleCompanies.reduce((sum, company) => sum + Number(company.creditsAllocated || 0), 0)) },
-    { label: 'Search Filter', value: filters.searchQuery || 'All' },
-    { label: 'Status Filter', value: filters.statusFilter || 'All Status' },
-    { label: 'Package Filter', value: filters.packageFilter || 'All Packages' },
-  ];
+// "Active"/"Expiring Soon" are the only lifecycle states still receiving
+// service; the API never returns a separate boolean — Active/Inactive here
+// is derived to match the badge convention used elsewhere on this page
+// (see getStatusBadge below).
+function getTenantActiveStatusLabel(status = '') {
+  const raw = String(status || '').trim();
+  return raw === 'Active' || raw === 'Expiring Soon' ? 'Active' : 'Inactive';
+}
 
-  visibleCompanies.forEach((company, index) => {
-    rows.push({
-      label: `${index + 1}. ${company.companyName || 'Tenant Company'}`,
-      value: [
-        company.status ? `Status: ${company.status}` : '',
-        company.packageName || company.package ? `Plan: ${company.packageName || company.package}` : '',
-        company.contactName ? `Contact: ${company.contactName}` : '',
-        company.contractStart || company.contractEnd ? `Contract: ${company.contractStart || '-'} to ${company.contractEnd || '-'}` : '',
-        company.creditsAllocated != null ? `Credits: ${company.creditsUsed || 0}/${company.creditsAllocated || 0}` : '',
-      ].filter(Boolean).join(' | '),
-    });
+// Full column set for the tenant companies CSV/PDF export — mirrors every
+// field the bulk upload template accepts (BULK_TEMPLATE_HEADERS above) plus
+// status, credits, billing and POC data, so the export is a complete record
+// of what's in the system rather than a truncated summary.
+const TENANT_COMPANIES_EXPORT_COLUMNS: ExportColumn[] = [
+  { header: 'Tenant Code', key: 'tenantCode' },
+  { header: 'Company Name', key: 'companyName', width: 1.6 },
+  { header: 'Status', key: 'status' },
+  { header: 'Active/Inactive', key: 'activeStatus' },
+  { header: 'Business Type', key: 'businessType' },
+  { header: 'Client Name', key: 'clientName', width: 1.4 },
+  { header: 'Sector', key: 'sector' },
+  { header: 'Contact Name', key: 'contactName' },
+  { header: 'Email', key: 'email', width: 1.4 },
+  { header: 'Phone', key: 'phone' },
+  { header: 'HO Country', key: 'hoCountry' },
+  { header: 'HO State', key: 'hoState' },
+  { header: 'HO City', key: 'hoCity' },
+  { header: 'Location', key: 'buildingName' },
+  { header: 'Unit No', key: 'unitNo' },
+  { header: 'Floor', key: 'floor' },
+  { header: 'Wing', key: 'wing' },
+  { header: 'Open Desks', key: 'openDesks' },
+  { header: 'Cabin Desks', key: 'cabinDesks' },
+  { header: 'Rate Per Open Desk', key: 'ratePerOpenDesk' },
+  { header: 'Rate Per Cabin Desk', key: 'ratePerCabinDesk' },
+  { header: 'Package/Plan', key: 'planType' },
+  { header: 'Contract Start', key: 'contractStart' },
+  { header: 'Contract End', key: 'contractEnd' },
+  { header: 'Contract Duration (Months)', key: 'contractDurationMonths' },
+  { header: 'Lock-in Period (Months)', key: 'lockInPeriod' },
+  { header: 'Annual Increment %', key: 'annualIncrementPercent' },
+  { header: 'Credits Per Seat', key: 'creditsPerSeat' },
+  { header: 'Total Meeting Credits', key: 'totalMeetingCredits' },
+  { header: 'Credits Allocated', key: 'creditsAllocated' },
+  { header: 'Credits Used', key: 'creditsUsed' },
+  { header: 'Credits Remaining', key: 'creditsRemaining' },
+  { header: 'Purchased Credits', key: 'purchasedCredits' },
+  { header: 'Monthly Rent', key: 'monthlyRent' },
+  { header: 'Total Contract Amount', key: 'totalContractAmount' },
+  { header: 'Security Deposit Amount', key: 'securityDepositAmount' },
+  { header: 'Security Deposit Status', key: 'securityDepositPaidStatus' },
+  { header: 'Local POC Name', key: 'localPocName' },
+  { header: 'Local POC Email', key: 'localPocEmail' },
+  { header: 'Local POC Phone', key: 'localPocPhone' },
+  { header: 'HO POC Name', key: 'hoPocName' },
+  { header: 'HO POC Email', key: 'hoPocEmail' },
+  { header: 'HO POC Phone', key: 'hoPocPhone' },
+  { header: 'Assigned Area', key: 'assignedArea' },
+  { header: 'Location Labels', key: 'locationLabels', width: 1.4 },
+  { header: 'Employees', key: 'employeeCount' },
+  { header: 'Manager', key: 'managerName' },
+  { header: 'Notes', key: 'notes', width: 1.6 },
+];
+
+// Builds one flat row per tenant straight off the raw API objects (before any
+// page-level normalization drops fields), so every uploaded/stored value —
+// not just what's rendered in the table — makes it into the export.
+function buildTenantCompaniesFullExportRows(companies = []) {
+  return (Array.isArray(companies) ? companies : []).map((tenant) => {
+    const customerDetails = tenant.customerDetails || {};
+    const companyDetails = tenant.companyDetails || {};
+    const agreementDetails = tenant.agreementDetails || {};
+    const pocDetails = tenant.pocDetails || {};
+    const packageDetails = tenant.packageDetails || {};
+    const billingDetails = tenant.billingDetails || {};
+    const addOnCredits = tenant.addOnCredits || {};
+    const spaceAssigned = tenant.spaceAssigned || {};
+    const employees = Array.isArray(tenant.employees) ? tenant.employees : [];
+    const locationLabels = Array.isArray(tenant.packageLocationLabels) ? tenant.packageLocationLabels : [];
+    const status = String(tenant.status || '');
+    const creditsAllocated = Number(tenant.creditsAllocated || 0);
+    const creditsUsed = Number(tenant.creditsUsed || 0);
+
+    return {
+      tenantCode: tenant.id || tenant.tenantCode || '',
+      companyName: tenant.companyName || '',
+      status: status || '-',
+      activeStatus: getTenantActiveStatusLabel(status),
+      businessType: tenant.businessType || '',
+      clientName: customerDetails.clientName || '',
+      sector: customerDetails.sector || '',
+      contactName: tenant.contactName || '',
+      email: tenant.email || '',
+      phone: tenant.phone || '',
+      hoCountry: customerDetails.hoCountry || '',
+      hoState: customerDetails.hoState || '',
+      hoCity: customerDetails.hoCity || '',
+      buildingName: companyDetails.buildingName || '',
+      unitNo: companyDetails.unitNo || '',
+      floor: companyDetails.floor || '',
+      wing: companyDetails.wing || '',
+      openDesks: companyDetails.openDesks ?? '',
+      cabinDesks: companyDetails.cabinDesks ?? '',
+      ratePerOpenDesk: companyDetails.ratePerOpenDesk ?? '',
+      ratePerCabinDesk: companyDetails.ratePerCabinDesk ?? '',
+      planType: tenant.packageName || tenant.package || tenant.planType || '',
+      contractStart: tenant.contractStart || '',
+      contractEnd: tenant.contractEnd || '',
+      contractDurationMonths: tenant.contractDurationMonths ?? '',
+      lockInPeriod: agreementDetails.lockInPeriod ?? '',
+      annualIncrementPercent: agreementDetails.annualIncrementPercent ?? '',
+      creditsPerSeat: packageDetails.creditsPerSeat ?? '',
+      totalMeetingCredits: agreementDetails.totalMeetingCredits ?? '',
+      creditsAllocated,
+      creditsUsed,
+      creditsRemaining: tenant.creditsRemaining ?? Math.max(0, creditsAllocated - creditsUsed),
+      purchasedCredits: addOnCredits.purchasedCredits ?? 0,
+      monthlyRent: billingDetails.monthlyRent ?? '',
+      totalContractAmount: billingDetails.totalContractAmount ?? '',
+      securityDepositAmount: billingDetails.securityDepositAmount ?? '',
+      securityDepositPaidStatus: billingDetails.securityDepositPaidStatus || '',
+      localPocName: pocDetails.localPocName || '',
+      localPocEmail: pocDetails.localPocEmail || '',
+      localPocPhone: pocDetails.localPocPhone || '',
+      hoPocName: pocDetails.hoPocName || '',
+      hoPocEmail: pocDetails.hoPocEmail || '',
+      hoPocPhone: pocDetails.hoPocPhone || '',
+      assignedArea: spaceAssigned.area || '',
+      locationLabels: locationLabels.join(', '),
+      employeeCount: employees.length,
+      managerName: tenant.managerEmployee?.name || '',
+      notes: tenant.notes || '',
+    };
   });
-
-  if ((companies || []).length > visibleCompanies.length) {
-    rows.push({
-      label: 'Additional Companies',
-      value: `${companies.length - visibleCompanies.length} more companies were omitted to keep the report readable.`,
-    });
-  }
-
-  return rows;
 }
 
 function formatInteger(value = 0) {
@@ -729,6 +831,7 @@ function calculateTenantBillingSummary(form = {}) {
   const endDate = agreementDetails.endDate || form.endDate || '';
   const selectedDuration = (() => {
     const duration = String(form.contractDuration || '').trim().toLowerCase();
+    if (duration === '1 month') return 1;
     if (duration === '3 months') return 3;
     if (duration === '6 months') return 6;
     if (duration === '1 year') return 12;
@@ -795,8 +898,8 @@ function calculateTenantBillingSummary(form = {}) {
     }
   }
 
-  if (!durationMonths || durationMonths < 3) {
-    validationErrors.push('Contract duration must be at least 3 months.');
+  if (!durationMonths || durationMonths < 1) {
+    validationErrors.push('Contract duration must be at least 1 month.');
   }
 
   if ([cabinDesks, openDesks, ratePerCabinDesk, ratePerOpenDesk].some((value) => Number(value) < 0)) {
@@ -844,7 +947,7 @@ function validateTenantCompanyOnboarding(form = {}, hasAgreementDocument = false
   if (!String(companyDetails.floor || '').trim()) errors.floor = 'Select a floor for the assigned desks.';
   if (openDesks > 0 && Number(companyDetails.ratePerOpenDesk || 0) <= 0) errors.ratePerOpenDesk = 'Enter the open desk rate.';
   if (cabinDesks > 0 && Number(companyDetails.ratePerCabinDesk || 0) <= 0) errors.ratePerCabinDesk = 'Enter the cabin desk rate.';
-  if (calculateTenantBillingSummary(form).durationMonths < 3) errors.contractDuration = 'Contract duration must be at least 3 months.';
+  if (calculateTenantBillingSummary(form).durationMonths < 1) errors.contractDuration = 'Contract duration must be at least 1 month.';
   const startDate = String(agreementDetails.startDate || form.startDate || '').trim(), endDate = String(agreementDetails.endDate || form.endDate || '').trim();
   if (!startDate) errors.startDate = 'Agreement start date is required.';
   if (!endDate) errors.endDate = 'Agreement end date is required.';
@@ -948,6 +1051,7 @@ export default function TenantCompaniesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingReport, setIsExportingReport] = useState('');
+  const [markingInactiveId, setMarkingInactiveId] = useState('');
   const [showExportModal, setShowExportModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
@@ -970,7 +1074,12 @@ export default function TenantCompaniesPage() {
   const [resources, setResources] = useState([]);
   const currentUser = useFreshCurrentUser();
   const { plan } = useDashboardAccess();
-  const showReportExports = canExportReports(plan);
+  // Report exports are normally Custom-plan only (canExportReports), but the
+  // tenant companies CSV/PDF export is also offered on Professional — Sales
+  // is a Professional-plan module (see PROFESSIONAL_EXTRA_IDS in
+  // workspacePlanAccess.ts) and this listing export was specifically asked
+  // for on that tier.
+  const showReportExports = canExportReports(plan) || plan === 'professional';
   const navigate = useNavigate();
   const workspacePreferences = useWorkspacePreferences();
   const formatCurrency = (value = 0) =>
@@ -1177,6 +1286,7 @@ export default function TenantCompaniesPage() {
 
   const durationLabelFromMonths = (months) => {
     const value = Number(months || 0);
+    if (value === 1) return '1 month';
     if (value === 3) return '3 months';
     if (value === 6) return '6 months';
     if (value === 12) return '1 year';
@@ -1186,11 +1296,12 @@ export default function TenantCompaniesPage() {
 
   const resolveDurationMonths = (duration, customMonths) => {
     const normalized = String(duration || '').trim().toLowerCase();
+    if (normalized === '1 month') return 1;
     if (normalized === '3 months') return 3;
     if (normalized === '6 months') return 6;
     if (normalized === '1 year') return 12;
     if (normalized === '2 years') return 24;
-    if (normalized === 'custom') return Math.max(3, Number(customMonths || 3) || 3);
+    if (normalized === 'custom') return Math.max(1, Number(customMonths || 1) || 1);
     return 12;
   };
 
@@ -1534,7 +1645,8 @@ export default function TenantCompaniesPage() {
       return { contractDuration: '', customDurationMonths: '' };
     }
 
-    const resolvedMonths = Math.max(3, parsedMonths);
+    const resolvedMonths = Math.max(1, parsedMonths);
+    if (resolvedMonths === 1) return { contractDuration: '1 month', customDurationMonths: '' };
     if (resolvedMonths === 3) return { contractDuration: '3 months', customDurationMonths: '' };
     if (resolvedMonths === 6) return { contractDuration: '6 months', customDurationMonths: '' };
     if (resolvedMonths === 12) return { contractDuration: '1 year', customDurationMonths: '' };
@@ -1797,7 +1909,7 @@ export default function TenantCompaniesPage() {
   // the real ResourceSeat inventory (not the tenant's own current assignment).
   const [deskVacancy, setDeskVacancy] = useState(null);
   useEffect(() => {
-    if (activeModal === 'renew' || !selectedDeskFloor) {
+    if (!selectedDeskFloor) {
       setDeskVacancy(null);
       return undefined;
     }
@@ -1845,10 +1957,10 @@ export default function TenantCompaniesPage() {
     });
   };
 
-  // Seats this tenant already holds at the selected floor+wing (edit mode
+  // Seats this tenant already holds at the selected floor+wing (edit/renew
   // only, and only while floor+wing hasn't changed from what's saved — moving
   // location releases all of them, so the vacancy cap shouldn't include them).
-  const isEditingSameDeskLocation = activeModal === 'edit'
+  const isEditingSameDeskLocation = (activeModal === 'edit' || activeModal === 'renew')
     && String(selectedTenant?.companyDetails?.floor || '').trim() === selectedDeskFloor
     && String(selectedTenant?.companyDetails?.wing || '').trim() === selectedDeskWing;
   const ownHeldOpenDesks = isEditingSameDeskLocation ? Number(selectedTenant?.companyDetails?.openDesks || 0) : 0;
@@ -2192,7 +2304,7 @@ export default function TenantCompaniesPage() {
   const hasExistingAgreementDocuments = tenantAgreementDocuments.length > 0;
   const canSaveTenantCompany = activeModal === 'add' || activeModal === 'renew' || hasExistingAgreementDocuments || agreementFiles.length > 0;
   const contractDurationMonthsValue = Number(billingSummary.durationMonths);
-  const isContractDurationInvalid = !Number.isFinite(contractDurationMonthsValue) || contractDurationMonthsValue < 3;
+  const isContractDurationInvalid = !Number.isFinite(contractDurationMonthsValue) || contractDurationMonthsValue < 1;
   const onboardingValidationErrors = useMemo(
     () => validateTenantCompanyOnboarding(companyForm, hasExistingAgreementDocuments || agreementFiles.length > 0),
     [agreementFiles.length, companyForm, hasExistingAgreementDocuments],
@@ -2205,7 +2317,7 @@ export default function TenantCompaniesPage() {
   // Companies list now loads 25-at-a-time via infinite scroll (server-side
   // search/status/package filtering), so `tenants` only holds what's been
   // scrolled into view — export needs the complete matching set regardless.
-  const handleExportCompaniesReport = async ({ format, dataWindow, period, reportMonth }: ExportParams) => {
+  const handleExportCompaniesReport = async ({ format }: ExportParams) => {
     const reportFormat = format === 'Excel' ? 'Excel' : 'PDF';
     setIsExportingReport(reportFormat);
 
@@ -2222,32 +2334,16 @@ export default function TenantCompaniesPage() {
         return;
       }
 
-      const response = await createReport({
-        title: 'Sales Tenant Companies',
-        department: 'Sales',
-        category: 'Other',
-        dataWindow,
-        reportMonth,
-        period: period || 'Tenant Companies',
-        generatedBy: currentUserName,
-        format: reportFormat,
-        description: 'Sales tenant companies listing and contract summary.',
-        sourceType: 'department-roster',
-        sourceRef: 'sales-tenant-companies',
-        reportRows: buildTenantCompaniesExportRows(exportTenants, {
-          searchQuery,
-          statusFilter,
-          packageFilter,
-        }),
-        monthlyData: [],
-      });
+      const rows = buildTenantCompaniesFullExportRows(exportTenants);
+      const filename = `Tenant-Companies-${new Date().toISOString().slice(0, 10)}`;
 
-      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
+      if (reportFormat === 'Excel') {
+        exportRowsAsCsv(filename, TENANT_COMPANIES_EXPORT_COLUMNS, rows);
+      } else {
+        exportRowsAsPdf(filename, 'Tenant Companies', TENANT_COMPANIES_EXPORT_COLUMNS, rows);
+      }
 
-      const createdReportId = response?.data?.report?.recordId;
-      window.dispatchEvent(new Event('reports:refresh'));
-      toast.success(reportFormat === 'PDF' ? 'Tenant companies report saved to Reports.' : 'Tenant companies report saved to Reports. Preview it before downloading.');
-      navigate(createdReportId ? `/dashboard/reports?reportId=${createdReportId}` : '/dashboard/reports');
+      toast.success(`Exported ${rows.length} tenant ${rows.length === 1 ? 'company' : 'companies'}.`);
     } catch (error) {
       toast.error(error?.message || 'Unable to export tenant companies report.');
     } finally {
@@ -2505,8 +2601,8 @@ export default function TenantCompaniesPage() {
       return;
     }
 
-    const monthsToAdd = Math.max(3, toNumber(
-      resolveDurationMonths(companyForm.contractDuration, companyForm.customDurationMonths) || 3,
+    const monthsToAdd = Math.max(1, toNumber(
+      resolveDurationMonths(companyForm.contractDuration, companyForm.customDurationMonths) || 1,
     ));
     const endDate = addDateOffset(startDate, monthsToAdd, -1);
     const annualIncrement = billingSummary.monthlyRent > 0 ? String(Math.round(billingSummary.monthlyRent * 0.1)) : '';
@@ -2616,10 +2712,20 @@ export default function TenantCompaniesPage() {
     }
 
     if (isContractDurationInvalid) {
-      const durationError = 'Contract duration must be at least 3 months.';
+      const durationError = 'Contract duration must be at least 1 month.';
       setFormError(durationError);
       toast.error(durationError);
       return;
+    }
+
+    if (activeModal === 'renew') {
+      const renewStartDate = companyForm.agreementDetails?.startDate || companyForm.startDate;
+      if (!renewStartDate) {
+        const startError = 'Select a start date to renew the contract.';
+        setFormError(startError);
+        toast.error(startError);
+        return;
+      }
     }
 
     if (activeModal !== 'renew' && !hasExistingAgreementDocuments && agreementFiles.length === 0) {
@@ -2637,11 +2743,26 @@ export default function TenantCompaniesPage() {
 
     setIsSaving(true);
     try {
-      const agreementMonths = Math.max(3, toNumber(
-        resolveDurationMonths(companyForm.contractDuration, companyForm.customDurationMonths) || 3,
+      const agreementMonths = Math.max(1, toNumber(
+        resolveDurationMonths(companyForm.contractDuration, companyForm.customDurationMonths) || 1,
       ));
       const submissionForm = activeModal === 'renew'
-        ? companyForm
+        ? {
+          // Renewal only ever changes the term (dates/duration), desks and
+          // rent — total contract amount and security deposit stay whatever
+          // they already were on the original contract; a renewal doesn't
+          // re-collect a deposit.
+          ...companyForm,
+          startDate: companyForm.agreementDetails?.startDate || companyForm.startDate,
+          endDate: companyForm.agreementDetails?.endDate || companyForm.endDate,
+          contractStart: companyForm.agreementDetails?.startDate || companyForm.startDate || null,
+          contractDurationMonths: agreementMonths,
+          billingDetails: {
+            ...(companyForm.billingDetails || {}),
+            contractDurationMonths: agreementMonths,
+            monthlyRent: billingSummary.monthlyRent,
+          },
+        }
         : {
           ...companyForm,
           ...buildDurationFields(agreementMonths),
@@ -3139,6 +3260,25 @@ export default function TenantCompaniesPage() {
     return null;
   };
 
+  // For a company whose contract has expired and isn't renewing — marks it
+  // Inactive (a manual override the API respects instead of re-deriving
+  // status from contractEnd; see formatTenantCompany server-side) and
+  // releases whatever desks it was still holding.
+  const handleMarkTenantInactive = async (tenant) => {
+    const tenantId = tenant?.recordId || tenant?.id;
+    if (!tenantId || markingInactiveId) return;
+    setMarkingInactiveId(tenantId);
+    try {
+      const response = await updateTenantCompany(tenantId, { status: 'Inactive' });
+      syncTenantCollections(response?.data || {}, tenantId);
+      toast.success(`${tenant.companyName || 'Tenant company'} marked inactive.`);
+    } catch (error) {
+      toast.error(error?.message || 'Unable to mark tenant company inactive.');
+    } finally {
+      setMarkingInactiveId('');
+    }
+  };
+
   const handlePackageSelection = (pricingPackageId) => {
     if (pricingPackageId === '__custom__') {
       if (isTenantPackageLocked) {
@@ -3506,10 +3646,16 @@ export default function TenantCompaniesPage() {
       case 'Pending Space Assignment': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><LayoutGrid size={12} /> Inactive</span>;
       case 'Active': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><CheckCircle2 size={12} /> Active</span>;
       case 'Expiring Soon': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><AlertTriangle size={12} /> Expiring Soon</span>;
-      case 'Expired': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 border border-red-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><XCircle size={12} /> Contract Expired · Inactive</span>;
+      case 'Expired': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 border border-red-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><XCircle size={12} /> Contract Expired</span>;
+      case 'Inactive': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-md text-[10px] font-pmedium uppercase tracking-wider"><Ban size={12} /> Inactive</span>;
       default: return null;
     }
   };
+
+  // Renew re-orders the shared form (contract duration + dates first, then
+  // desks, then credits) and drops fields that don't apply to a renewal
+  // (total contract amount / security deposit — see handleSaveCompany).
+  const isRenewMode = activeModal === 'renew';
 
   if (isLoading) return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
@@ -3602,7 +3748,7 @@ export default function TenantCompaniesPage() {
             <div className={`p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 shrink-0 bg-slate-50/50 ${activeTab === 'companies' ? '' : 'hidden'}`}>
               {/* LEFT: status sub-tab pills */}
               <div data-tour="sales-tenant-status-filters" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-                {['All Status', 'Active', 'Expiring Soon', 'Expired'].map((status) => (
+                {['All Status', 'Active', 'Expiring Soon', 'Expired', 'Inactive'].map((status) => (
                   <button
                     key={status}
                     type="button"
@@ -3689,27 +3835,51 @@ export default function TenantCompaniesPage() {
                       </td>
                       <td className="px-3.5 py-2">
                         <div className="flex items-center justify-center gap-1">
-                          <button onClick={() => navigate(`/department-accesses/sales-department/tenant-companies/${tenant.recordId || tenant.id}`)} className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-md transition-all" title="View">
-                            <Eye size={13} />
-                          </button>
-                          <button onClick={() => {
-                            const hydratedTenant = buildHydratedTenantSnapshot(tenant);
-                            setCompanyForm(prepareCompanyFormForTenant(hydratedTenant));
-                            setSelectedTenant(hydratedTenant); setAgreementFiles([]); setActiveModal('edit');
-                          }}
-                            className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 rounded-md transition-all" title="Edit"
-                          >
-                            <Edit size={13} />
-                          </button>
-                          <button onClick={() => {
-                            const hydratedTenant = buildHydratedTenantSnapshot(tenant);
-                            setCompanyForm(prepareCompanyFormForTenant(hydratedTenant));
-                            setSelectedTenant(hydratedTenant); setAgreementFiles([]); setActiveModal('renew');
-                          }}
-                            className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:bg-green-50 hover:text-green-600 hover:border-green-200 rounded-md transition-all" title="Renew"
-                          >
-                            <RefreshCw size={13} />
-                          </button>
+                          {tenant.status === 'Expired' ? (
+                            <>
+                              <button onClick={() => {
+                                const hydratedTenant = buildHydratedTenantSnapshot(tenant);
+                                const preparedForm = prepareCompanyFormForTenant(hydratedTenant);
+                                // Renewal always starts from a blank date — the
+                                // hydrated value is the *original* contract's
+                                // start date, which doesn't apply to a new term.
+                                setCompanyForm({
+                                  ...preparedForm,
+                                  startDate: '',
+                                  endDate: '',
+                                  agreementDetails: { ...(preparedForm.agreementDetails || {}), startDate: '', endDate: '' },
+                                });
+                                setSelectedTenant(hydratedTenant); setAgreementFiles([]); setActiveModal('renew');
+                              }}
+                                className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:bg-green-50 hover:text-green-600 hover:border-green-200 rounded-md transition-all" title="Renew"
+                              >
+                                <RefreshCw size={13} />
+                              </button>
+                              <button
+                                onClick={() => handleMarkTenantInactive(tenant)}
+                                disabled={markingInactiveId === (tenant.recordId || tenant.id)}
+                                className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Mark Inactive"
+                              >
+                                <Ban size={13} />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button onClick={() => navigate(`/department-accesses/sales-department/tenant-companies/${tenant.recordId || tenant.id}`)} className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-md transition-all" title="View">
+                                <Eye size={13} />
+                              </button>
+                              <button onClick={() => {
+                                const hydratedTenant = buildHydratedTenantSnapshot(tenant);
+                                setCompanyForm(prepareCompanyFormForTenant(hydratedTenant));
+                                setSelectedTenant(hydratedTenant); setAgreementFiles([]); setActiveModal('edit');
+                              }}
+                                className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 rounded-md transition-all" title="Edit"
+                              >
+                                <Edit size={13} />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -3996,10 +4166,12 @@ export default function TenantCompaniesPage() {
                     </div>
                   )}
 
-                  <div data-tenant-validation="billing" className="order-6 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
-                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><CreditCard size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">6. Billing Details</span></h4>
+                  <div data-tenant-validation="billing" className={`${isRenewMode ? 'order-1' : 'order-6'} rounded-2xl border border-slate-200 bg-white p-4 space-y-3`}>
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><CreditCard size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">{isRenewMode ? '1. Contract Duration & Billing' : '6. Billing Details'}</span></h4>
                     <p className="text-[10px] font-pmedium text-slate-400">
-                      Monthly rent is calculated from desk allocation. Security deposit can be set by percentage or amount — the other auto-calculates.
+                      {isRenewMode
+                        ? 'Pick the new term\'s start date — the end date and rent are calculated automatically.'
+                        : 'Monthly rent is calculated from desk allocation. Security deposit can be set by percentage or amount — the other auto-calculates.'}
                     </p>
                     {formError && (
                       <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-[10px] font-pmedium uppercase tracking-widest text-rose-700">
@@ -4027,6 +4199,31 @@ export default function TenantCompaniesPage() {
                         />
                         <TenantFieldError message={visibleCompanyErrors.contractDuration} />
                       </div>
+                      {isRenewMode && (
+                        <>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Start Date <span className="text-red-400">*</span></label>
+                            <input
+                              type="date"
+                              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                              value={companyForm.agreementDetails.startDate}
+                              onChange={(e) => setCompanyForm((prev) => ({
+                                ...prev,
+                                startDate: e.target.value,
+                                agreementDetails: {
+                                  ...(prev.agreementDetails || {}),
+                                  startDate: e.target.value,
+                                },
+                              }))}
+                            />
+                            <TenantFieldError message={visibleCompanyErrors.startDate} />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">End Date</label>
+                            <input type="date" className="w-full px-3 py-2.5 bg-slate-100 border border-transparent rounded-xl text-[12px] font-pmedium text-slate-500 outline-none cursor-not-allowed" value={companyForm.agreementDetails.endDate} readOnly />
+                          </div>
+                        </>
+                      )}
                       <div className="space-y-1">
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Monthly Rent</label>
                         <input
@@ -4036,55 +4233,61 @@ export default function TenantCompaniesPage() {
                           readOnly
                         />
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Total Contract Amount</label>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 outline-none"
-                          value={formatCurrency(billingSummary.totalContractAmount)}
-                          readOnly
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Security Deposit (%)</label>
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                          value={billingSummary.securityDepositInputMode === 'amount'
-                            ? billingSummary.securityDepositPercent
-                            : (companyForm.billingDetails?.securityDepositPercent ?? '')}
-                          onChange={(e) => setCompanyForm((prev) => ({
-                            ...prev,
-                            billingDetails: {
-                              ...(prev.billingDetails || {}),
-                              securityDepositPercent: e.target.value,
-                              securityDepositInputMode: 'percent',
-                            },
-                          }))}
-                        />
-                        <p className="text-[9px] font-pregular text-slate-400">Enter either the % or the amount — the other auto-calculates.</p>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Security Deposit Amount</label>
-                        <input
-                          type="number"
-                          min="0"
-                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                          value={billingSummary.securityDepositInputMode === 'percent'
-                            ? billingSummary.securityDepositAmount
-                            : (companyForm.billingDetails?.securityDepositAmount ?? '')}
-                          onChange={(e) => setCompanyForm((prev) => ({
-                            ...prev,
-                            billingDetails: {
-                              ...(prev.billingDetails || {}),
-                              securityDepositAmount: e.target.value,
-                              securityDepositInputMode: 'amount',
-                            },
-                          }))}
-                        />
-                      </div>
+                      {!isRenewMode && (
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Total Contract Amount</label>
+                          <input
+                            type="text"
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 outline-none"
+                            value={formatCurrency(billingSummary.totalContractAmount)}
+                            readOnly
+                          />
+                        </div>
+                      )}
+                      {!isRenewMode && (
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Security Deposit (%)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                            value={billingSummary.securityDepositInputMode === 'amount'
+                              ? billingSummary.securityDepositPercent
+                              : (companyForm.billingDetails?.securityDepositPercent ?? '')}
+                            onChange={(e) => setCompanyForm((prev) => ({
+                              ...prev,
+                              billingDetails: {
+                                ...(prev.billingDetails || {}),
+                                securityDepositPercent: e.target.value,
+                                securityDepositInputMode: 'percent',
+                              },
+                            }))}
+                          />
+                          <p className="text-[9px] font-pregular text-slate-400">Enter either the % or the amount — the other auto-calculates.</p>
+                        </div>
+                      )}
+                      {!isRenewMode && (
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Security Deposit Amount</label>
+                          <input
+                            type="number"
+                            min="0"
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                            value={billingSummary.securityDepositInputMode === 'percent'
+                              ? billingSummary.securityDepositAmount
+                              : (companyForm.billingDetails?.securityDepositAmount ?? '')}
+                            onChange={(e) => setCompanyForm((prev) => ({
+                              ...prev,
+                              billingDetails: {
+                                ...(prev.billingDetails || {}),
+                                securityDepositAmount: e.target.value,
+                                securityDepositInputMode: 'amount',
+                              },
+                            }))}
+                          />
+                        </div>
+                      )}
                       <div className="space-y-1">
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Rent Due Date</label>
                         <input
@@ -4095,17 +4298,19 @@ export default function TenantCompaniesPage() {
                         />
                         <p className="text-[9px] font-pregular text-slate-400">First rent due date — rent then recurs on this day every month (short months use the last day).</p>
                       </div>
-                      <div className="space-y-1 md:col-span-2">
-                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Security Deposit Paid</label>
-                        <select
-                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
-                          value={companyForm.billingDetails?.securityDepositPaidStatus || 'Pending'}
-                          onChange={(e) => updateCompanySection('billingDetails', 'securityDepositPaidStatus', e.target.value)}
-                        >
-                          <option value="Pending">Pending</option>
-                          <option value="Paid">Paid</option>
-                        </select>
-                      </div>
+                      {!isRenewMode && (
+                        <div className="space-y-1 md:col-span-2">
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Security Deposit Paid</label>
+                          <select
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                            value={companyForm.billingDetails?.securityDepositPaidStatus || 'Pending'}
+                            onChange={(e) => updateCompanySection('billingDetails', 'securityDepositPaidStatus', e.target.value)}
+                          >
+                            <option value="Pending">Pending</option>
+                            <option value="Paid">Paid</option>
+                          </select>
+                        </div>
+                      )}
                     </div>
                     {/* <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                          <div className="space-y-1">
@@ -4345,9 +4550,8 @@ export default function TenantCompaniesPage() {
                     </div>
                   )}
 
-                  {activeModal !== 'renew' && (
-                    <div data-tenant-validation="company" className="order-4 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
-                      <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Building size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">4. Location Details</span></h4>
+                  <div data-tenant-validation="company" className={`${isRenewMode ? 'order-2' : 'order-4'} rounded-2xl border border-slate-200 bg-white p-4 space-y-3`}>
+                      <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Building size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">{isRenewMode ? '2. Desks Assignment' : '4. Location Details'}</span></h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Location <span className="text-red-400">*</span></label>
@@ -4435,8 +4639,7 @@ export default function TenantCompaniesPage() {
                           </select>
                         </div>
                       </div>
-                    </div>
-                  )}
+                  </div>
 
                   {activeModal !== 'renew' && (
                     <div data-tenant-validation="agreement" className="order-7 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
@@ -4530,8 +4733,8 @@ export default function TenantCompaniesPage() {
                     </div>
                   )}
 
-                  <div data-tenant-validation="space" className="order-5 rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
-                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Briefcase size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">5. Credits Allocation</span></h4>
+                  <div data-tenant-validation="space" className={`${isRenewMode ? 'order-3' : 'order-5'} rounded-2xl border border-slate-200 bg-white p-4 space-y-4`}>
+                    <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2"><span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Briefcase size={16} /></span><span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">{isRenewMode ? '3. Credits Allocation' : '5. Credits Allocation'}</span></h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-5 bg-slate-50 border border-slate-200 rounded-2xl">
                       <div className="space-y-1">
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Credits Per Seat</label>

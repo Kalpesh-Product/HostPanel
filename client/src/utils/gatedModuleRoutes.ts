@@ -17,6 +17,7 @@ export const GATED_MODULE_ROUTES: Array<{ route: string; moduleId: string }> = [
   // Core Modules (Professional+)
   { route: "/common-modules/tickets", moduleId: "tickets" },
   { route: "/common-modules/meeting-room-booking", moduleId: "meeting-room-system" },
+  { route: "/common-modules/printouts", moduleId: "printout-management" },
   { route: "/common-modules/calendar", moduleId: "calendar" },
   { route: "/common-modules/customer-support", moduleId: "customer-support" },
   { route: "/core-modules/organization-management", moduleId: "organization-management" },

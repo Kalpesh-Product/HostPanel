@@ -40,6 +40,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { downloadReportFile } from '@/utils/report-download';
+import { exportRowsAsCsv, exportRowsAsPdf, type ExportColumn } from '@/utils/exportTable';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -429,6 +430,142 @@ function buildTenantCompanyExportRows(company: TenantCompany): Array<{ label: st
     });
   });
   return rows;
+}
+
+// "Active"/"Expiring Soon" are the only lifecycle states still receiving
+// service; the API never returns a separate boolean — Active/Inactive here
+// is derived to match the badge convention used elsewhere on this page
+// (see getStatusBadge below).
+function getTenantActiveStatusLabel(status: string = ''): string {
+  const raw = String(status || '').trim();
+  return raw === 'Active' || raw === 'Expiring Soon' ? 'Active' : 'Inactive';
+}
+
+// Full column set for the tenant companies CSV/PDF export — every field the
+// bulk upload accepts plus status, credits, billing and POC data, so the
+// export is a complete record of what's in the system rather than a
+// truncated label/value summary.
+const TENANT_COMPANIES_EXPORT_COLUMNS: ExportColumn[] = [
+  { header: 'Tenant Code', key: 'tenantCode' },
+  { header: 'Company Name', key: 'companyName', width: 1.6 },
+  { header: 'Status', key: 'status' },
+  { header: 'Active/Inactive', key: 'activeStatus' },
+  { header: 'Business Type', key: 'businessType' },
+  { header: 'Client Name', key: 'clientName', width: 1.4 },
+  { header: 'Sector', key: 'sector' },
+  { header: 'Contact Name', key: 'contactName' },
+  { header: 'Email', key: 'email', width: 1.4 },
+  { header: 'Phone', key: 'phone' },
+  { header: 'HO Country', key: 'hoCountry' },
+  { header: 'HO State', key: 'hoState' },
+  { header: 'HO City', key: 'hoCity' },
+  { header: 'Location', key: 'buildingName' },
+  { header: 'Unit No', key: 'unitNo' },
+  { header: 'Floor', key: 'floor' },
+  { header: 'Wing', key: 'wing' },
+  { header: 'Open Desks', key: 'openDesks' },
+  { header: 'Cabin Desks', key: 'cabinDesks' },
+  { header: 'Rate Per Open Desk', key: 'ratePerOpenDesk' },
+  { header: 'Rate Per Cabin Desk', key: 'ratePerCabinDesk' },
+  { header: 'Package/Plan', key: 'planType' },
+  { header: 'Contract Start', key: 'contractStart' },
+  { header: 'Contract End', key: 'contractEnd' },
+  { header: 'Contract Duration (Months)', key: 'contractDurationMonths' },
+  { header: 'Lock-in Period (Months)', key: 'lockInPeriod' },
+  { header: 'Annual Increment %', key: 'annualIncrementPercent' },
+  { header: 'Credits Per Seat', key: 'creditsPerSeat' },
+  { header: 'Total Meeting Credits', key: 'totalMeetingCredits' },
+  { header: 'Credits Allocated', key: 'creditsAllocated' },
+  { header: 'Credits Used', key: 'creditsUsed' },
+  { header: 'Credits Remaining', key: 'creditsRemaining' },
+  { header: 'Purchased Credits', key: 'purchasedCredits' },
+  { header: 'Monthly Rent', key: 'monthlyRent' },
+  { header: 'Total Contract Amount', key: 'totalContractAmount' },
+  { header: 'Security Deposit Amount', key: 'securityDepositAmount' },
+  { header: 'Security Deposit Status', key: 'securityDepositPaidStatus' },
+  { header: 'Local POC Name', key: 'localPocName' },
+  { header: 'Local POC Email', key: 'localPocEmail' },
+  { header: 'Local POC Phone', key: 'localPocPhone' },
+  { header: 'HO POC Name', key: 'hoPocName' },
+  { header: 'HO POC Email', key: 'hoPocEmail' },
+  { header: 'HO POC Phone', key: 'hoPocPhone' },
+  { header: 'Assigned Area', key: 'assignedArea' },
+  { header: 'Location Labels', key: 'locationLabels', width: 1.4 },
+  { header: 'Employees', key: 'employeeCount' },
+  { header: 'Manager', key: 'managerName' },
+  { header: 'Notes', key: 'notes', width: 1.6 },
+];
+
+// Builds one flat row per tenant straight off the raw API objects (before
+// normalizeTenantCompany drops fields it doesn't need for the UI, like
+// floor/wing), so every uploaded/stored value makes it into the export.
+function buildTenantCompaniesFullExportRows(companies: Record<string, any>[] = []): Record<string, any>[] {
+  return (Array.isArray(companies) ? companies : []).map((tenant) => {
+    const customerDetails = tenant.customerDetails || {};
+    const companyDetails = tenant.companyDetails || {};
+    const agreementDetails = tenant.agreementDetails || {};
+    const pocDetails = tenant.pocDetails || {};
+    const packageDetails = tenant.packageDetails || {};
+    const billingDetails = tenant.billingDetails || {};
+    const addOnCredits = tenant.addOnCredits || {};
+    const spaceAssigned = tenant.spaceAssigned || {};
+    const employees = Array.isArray(tenant.employees) ? tenant.employees : [];
+    const locationLabels = Array.isArray(tenant.packageLocationLabels) ? tenant.packageLocationLabels : [];
+    const status = String(tenant.status || '');
+    const creditsAllocated = Number(tenant.creditsAllocated || 0);
+    const creditsUsed = Number(tenant.creditsUsed || 0);
+
+    return {
+      tenantCode: tenant.id || tenant.tenantCode || '',
+      companyName: tenant.companyName || '',
+      status: status || '-',
+      activeStatus: getTenantActiveStatusLabel(status),
+      businessType: tenant.businessType || '',
+      clientName: customerDetails.clientName || '',
+      sector: customerDetails.sector || '',
+      contactName: tenant.contactName || '',
+      email: tenant.email || '',
+      phone: tenant.phone || '',
+      hoCountry: customerDetails.hoCountry || '',
+      hoState: customerDetails.hoState || '',
+      hoCity: customerDetails.hoCity || '',
+      buildingName: companyDetails.buildingName || '',
+      unitNo: companyDetails.unitNo || '',
+      floor: companyDetails.floor || '',
+      wing: companyDetails.wing || '',
+      openDesks: companyDetails.openDesks ?? '',
+      cabinDesks: companyDetails.cabinDesks ?? '',
+      ratePerOpenDesk: companyDetails.ratePerOpenDesk ?? '',
+      ratePerCabinDesk: companyDetails.ratePerCabinDesk ?? '',
+      planType: tenant.packageName || tenant.package || tenant.planType || '',
+      contractStart: tenant.contractStart || '',
+      contractEnd: tenant.contractEnd || '',
+      contractDurationMonths: tenant.contractDurationMonths ?? '',
+      lockInPeriod: agreementDetails.lockInPeriod ?? '',
+      annualIncrementPercent: agreementDetails.annualIncrementPercent ?? '',
+      creditsPerSeat: packageDetails.creditsPerSeat ?? '',
+      totalMeetingCredits: agreementDetails.totalMeetingCredits ?? '',
+      creditsAllocated,
+      creditsUsed,
+      creditsRemaining: tenant.creditsRemaining ?? Math.max(0, creditsAllocated - creditsUsed),
+      purchasedCredits: addOnCredits.purchasedCredits ?? 0,
+      monthlyRent: billingDetails.monthlyRent ?? '',
+      totalContractAmount: billingDetails.totalContractAmount ?? '',
+      securityDepositAmount: billingDetails.securityDepositAmount ?? '',
+      securityDepositPaidStatus: billingDetails.securityDepositPaidStatus || '',
+      localPocName: pocDetails.localPocName || '',
+      localPocEmail: pocDetails.localPocEmail || '',
+      localPocPhone: pocDetails.localPocPhone || '',
+      hoPocName: pocDetails.hoPocName || '',
+      hoPocEmail: pocDetails.hoPocEmail || '',
+      hoPocPhone: pocDetails.hoPocPhone || '',
+      assignedArea: spaceAssigned.area || '',
+      locationLabels: locationLabels.join(', '),
+      employeeCount: employees.length,
+      managerName: tenant.managerEmployee?.name || '',
+      notes: tenant.notes || '',
+    };
+  });
 }
 
 function normalizeText(value: string = ''): string {
@@ -1115,7 +1252,7 @@ export default function AdministrationTenantCompaniesPage() {
   // The list now loads 25-at-a-time via infinite scroll (server-side
   // search/status/package filtering), so `companies` only holds what's been
   // scrolled into view — export needs the complete matching set regardless.
-  const handleExportCompaniesReport = async ({ format, dataWindow, period, reportMonth }: ExportParams) => {
+  const handleExportCompaniesReport = async ({ format }: ExportParams) => {
     const reportFormat = format === 'Excel' ? 'Excel' : 'PDF';
     setIsExportingReport(reportFormat);
     try {
@@ -1125,40 +1262,22 @@ export default function AdministrationTenantCompaniesPage() {
         ...(packageFilter !== 'All Packages' ? { packageFilter } : {}),
       });
       const rawExportTenants = Array.isArray(exportResponse?.data?.tenants) ? exportResponse.data.tenants : [];
-      const exportCompanies = rawExportTenants.map((company: Record<string, unknown>) => normalizeTenantCompany(company, packageLookupRef.current));
 
-      if (exportCompanies.length === 0) {
+      if (rawExportTenants.length === 0) {
         toast.error('There are no tenant companies to export.');
         return;
       }
 
-      const response = await createReport({
-        title: 'Administration Tenant Companies',
-        department: 'Administration',
-        category: 'Other',
-        dataWindow,
-        reportMonth,
-        period: period || 'Tenant Companies',
-        generatedBy: 'Administration Manager',
-        format: reportFormat,
-        description: 'Administration tenant companies listing and contract summary.',
-        sourceType: 'department-roster',
-        sourceRef: 'administration-tenant-companies',
-        reportRows: exportCompanies.map((company, index) => ({
-          label: `${index + 1}. ${company.name || 'Tenant Company'}`,
-          value: [
-            company.status ? `Status: ${company.status}` : '',
-            company.planType ? `Plan: ${company.planType}` : '',
-            company.contactPerson ? `Contact: ${company.contactPerson}` : '',
-            company.contractStart || company.contractEnd ? `Contract: ${company.contractStart || '-'} to ${company.contractEnd || '-'}` : '',
-            company.creditsAllocated != null ? `Credits: ${company.creditsUsed || 0}/${company.creditsAllocated || 0}` : '',
-          ].filter(Boolean).join(' | '),
-        })),
-        monthlyData: [],
-      });
-      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
-      window.dispatchEvent(new Event('reports:refresh'));
-      toast.success(reportFormat === 'PDF' ? 'Tenant companies report saved to Reports.' : 'Tenant companies report saved to Reports. Preview it before downloading.');
+      const rows = buildTenantCompaniesFullExportRows(rawExportTenants);
+      const filename = `Tenant-Companies-${new Date().toISOString().slice(0, 10)}`;
+
+      if (reportFormat === 'Excel') {
+        exportRowsAsCsv(filename, TENANT_COMPANIES_EXPORT_COLUMNS, rows);
+      } else {
+        exportRowsAsPdf(filename, 'Tenant Companies', TENANT_COMPANIES_EXPORT_COLUMNS, rows);
+      }
+
+      toast.success(`Exported ${rows.length} tenant ${rows.length === 1 ? 'company' : 'companies'}.`);
     } catch (error) {
       toast.error((error as Error)?.message || 'Unable to export tenant companies report.');
     } finally {

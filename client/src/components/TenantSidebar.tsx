@@ -5,6 +5,7 @@ import {
   ChevronUp,
   LayoutDashboard,
   CalendarCheck,
+  Printer,
   Clock,
   HandCoins,
   ReceiptIndianRupee,
@@ -145,6 +146,7 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate }: {
 const tenantNavNodes: NavNode[] = [
   { id: "tenant-dashboard", label: "Dashboard", icon: LayoutDashboard, route: "/dashboard/tenant" },
   { id: "tenant-meeting-room-booking", label: "Meeting Room Booking", icon: CalendarCheck, route: "/dashboard/tenant/meeting-room-booking" },
+  { id: "tenant-printouts", label: "Printouts", icon: Printer, route: "/dashboard/tenant/printouts" },
   { id: "tenant-booking-history", label: "Booking History", icon: Clock, route: "/dashboard/tenant/booking-history" },
   { id: "tenant-buy-credits", label: "Buy Credits", icon: HandCoins, route: "/dashboard/tenant/buy-credits", rolesAllowed: ["manager", "admin"] },
   { id: "tenant-rent-payments", label: "Rent Payments", icon: ReceiptIndianRupee, route: "/dashboard/tenant/rent-payments", rolesAllowed: ["manager", "admin"] },

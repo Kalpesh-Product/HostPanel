@@ -39,6 +39,7 @@ const BASIC_IDS = [
 const PROFESSIONAL_EXTRA_IDS = [
   "tickets",
   "meeting-room-system",
+  "printout-management",
   "calendar",
   "workspace-settings",
   // Administration Department (tenant-companies-admin, bookings,
