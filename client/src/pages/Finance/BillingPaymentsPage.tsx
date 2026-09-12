@@ -3107,45 +3107,43 @@ export function BillingPaymentsPage() {
               </div>
               <button onClick={() => setViewingExtraCredit(null)} className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110"><X size={16} /></button>
             </div>
-            <div className="overflow-y-auto flex-1 bg-white">
-              <div className="px-6 sm:px-8 py-5 grid grid-cols-2 gap-4 border-b border-slate-100 bg-white">
-                <div className="rounded-2xl border border-purple-100 bg-purple-50 p-4 sm:p-5">
+            <div className="flex-1 space-y-5 overflow-y-auto p-6">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-purple-100 bg-purple-50 p-4">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-purple-600">Credits Requested</p>
                   <p className="text-xl font-pmedium text-purple-900 mt-1">{viewingExtraCredit.requestedCredits || 0}</p>
                 </div>
-                <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 sm:p-5">
+                <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-amber-600">Total Amount</p>
                   <p className="text-xl font-pmedium text-amber-900 mt-1">{formatCurrency(viewingExtraCredit.totalAmount || 0)}</p>
                 </div>
               </div>
-              <div className="px-6 sm:px-8 py-5 space-y-4 bg-white">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Tenant Code</p>
-                    <p className="font-pmedium text-slate-900">{viewingExtraCredit.tenantCompanyCode || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Status</p>
-                    <div>{getStatusBadge(getCreditRequestStatusLabel(viewingExtraCredit.status))}</div>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Transaction ID</p>
-                    <p className="font-pmedium text-slate-700">{viewingExtraCredit.paymentTransactionId || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Invoice</p>
-                    <p className="font-pmedium text-blue-600">{viewingExtraCredit.invoiceNumber || 'Pending'}</p>
-                  </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Tenant Code</p>
+                  <p className="font-pmedium text-slate-900">{viewingExtraCredit.tenantCompanyCode || '-'}</p>
                 </div>
-                {viewingExtraCredit.paymentFailureReason && (
-                  <div className="rounded-xl bg-red-50 border border-red-200 p-4">
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-red-600 mb-1">Failure Reason</p>
-                    <p className="text-xs font-pmedium text-red-700">{viewingExtraCredit.paymentFailureReason}</p>
-                  </div>
-                )}
+                <div>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Status</p>
+                  <div>{getStatusBadge(getCreditRequestStatusLabel(viewingExtraCredit.status))}</div>
+                </div>
+                <div>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Transaction ID</p>
+                  <p className="font-pmedium text-slate-700">{viewingExtraCredit.paymentTransactionId || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Invoice</p>
+                  <p className="font-pmedium text-blue-600">{viewingExtraCredit.invoiceNumber || 'Pending'}</p>
+                </div>
               </div>
+              {viewingExtraCredit.paymentFailureReason && (
+                <div className="rounded-xl bg-red-50 border border-red-200 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-red-600 mb-1">Failure Reason</p>
+                  <p className="text-xs font-pmedium text-red-700">{viewingExtraCredit.paymentFailureReason}</p>
+                </div>
+              )}
             </div>
-            <div className="px-6 sm:px-8 py-5 bg-white border-t border-slate-100 flex flex-wrap gap-3 shrink-0">
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center justify-end gap-3 shrink-0">
               {viewingExtraCredit.status !== 'COMPLETED' && viewingExtraCredit.status !== 'REJECTED' && (
                 <>
                   <button
