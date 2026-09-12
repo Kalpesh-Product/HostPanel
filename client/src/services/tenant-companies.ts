@@ -110,6 +110,10 @@ export const updateTenantCompanyManager = async (tenantCompanyId: string, payloa
   return axiosPrivate.patch(`/api/v1/tenant-companies/${tenantCompanyId}/manager`, payload);
 };
 
+export const updateTenantCompanyAdmin = async (tenantCompanyId: string, payload: Record<string, any>) => {
+  return axiosPrivate.patch(`/api/v1/tenant-companies/${tenantCompanyId}/admin`, payload);
+};
+
 export const assignTenantCompanySpace = async (tenantCompanyId: string, payload: Record<string, any>) => {
   return axiosPrivate.post(`/api/v1/tenant-companies/${tenantCompanyId}/space`, payload);
 };

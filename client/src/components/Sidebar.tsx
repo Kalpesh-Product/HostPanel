@@ -263,7 +263,7 @@ const departmentModules: NavNode[] = [
     icon: WalletCards,
     defaultOpen: false,
     children: [
-      { id: "finance-budget", label: "Finance & Budget", icon: PiggyBank, route: "/department-accesses/finance-department/expenses-budget", disabled: false },
+      { id: "Expenses-budget", label: "Expenses & Budget", icon: PiggyBank, route: "/department-accesses/finance-department/expenses-budget", disabled: false },
       { id: "billing-payments", label: "Billing & Payments", icon: Receipt, route: "/department-accesses/finance-department/billing-payments", disabled: false },
       { id: "accounting", label: "Accounting", icon: Calculator, route: "/department-accesses/finance-department/accounting", disabled: false },
     ],

@@ -16,6 +16,7 @@ import {
   updateTenantCompanyEmployeeStatusForCurrentUser,
   deleteTenantCompanyEmployeeForCurrentUser,
   assignTenantCompanyManagerForCurrentUser,
+  assignTenantCompanyAdminForCurrentUser,
   uploadTenantCompanyAgreementDocumentsForCurrentUser,
   getMyTenantCompanyVisitorRequestsForCurrentUser,
   reviewMyTenantCompanyVisitorRequestForCurrentUser,
@@ -205,6 +206,16 @@ export const assignTenantCompanyManager = async (req: Request, res: Response, ne
   try {
     const userId = req.user?.id || req.user?._id || req.user;
     const result = await assignTenantCompanyManagerForCurrentUser(userId, req.params.id, req.body);
+    return res.status(200).json(result);
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+export const assignTenantCompanyAdmin = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id || req.user?._id || req.user;
+    const result = await assignTenantCompanyAdminForCurrentUser(userId, req.params.id, req.body);
     return res.status(200).json(result);
   } catch (error: any) {
     next(error);

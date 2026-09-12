@@ -25,6 +25,7 @@ import {
   DollarSign,
   Download,
   MessageSquare,
+  UserPlus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -853,6 +854,12 @@ export const getMyApprovalDecision = (flow: any): string => {
   return scoped === 'approved' || scoped === 'rejected' ? scoped : '';
 };
 
+// Table-row action buttons (Discuss/Reject/Approve) only surface while the
+// Finance Manager hasn't yet acted and the request is still awaiting review —
+// mirrors the founder's Approval Center gating on FinancePage.tsx.
+const isActionableForFinance = (approvalFlow: any, status: string): boolean =>
+  !getMyApprovalDecision(approvalFlow) && String(status || '').toLowerCase() === 'pending review';
+
 export function ExpensesBudgetPage() {
   const navigate = useNavigate();
   const [isLoadingFinance, setIsLoadingFinance] = useState(true);
@@ -957,6 +964,7 @@ export function ExpensesBudgetPage() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [deptFilter, setDeptFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const [viewingBudget, setViewingBudget] = useState<Budget | null>(null);
   const [viewingExpense, setViewingExpense] = useState<any>(null);
@@ -964,6 +972,8 @@ export function ExpensesBudgetPage() {
   const [viewingInvoice, setViewingInvoice] = useState<any>(null);
   const [rejectingRequest, setRejectingRequest] = useState<any>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [showApproveConfirm, setShowApproveConfirm] = useState<any>(null);
+  const [isSavingDecision, setIsSavingDecision] = useState(false);
   const [temporaryFounderOverride, setTemporaryFounderOverride] = useState(false);
   const [departments, setDepartments] = useState<string[]>([]);
   const [allWorkspaceDepartments, setAllWorkspaceDepartments] = useState<string[]>([]);
@@ -1104,14 +1114,56 @@ export function ExpensesBudgetPage() {
 
   /* ── Derived data ── */
 
-  const visibleEstimatedBudgets = estimatedBudgets.filter((budget) => deptFilter === 'All' || budget.department === deptFilter);
-  const visibleExtraBudgets = extraBudgets.filter((extra) => deptFilter === 'All' || extra.department === deptFilter);
+  // Sub-tab-style status filters, scoped per tab since each tab has its own
+  // status vocabulary — mirrors the founder's Approval Center filter row.
+  const ESTIMATED_STATUS_FILTERS = [
+    { key: 'all', label: 'All' },
+    { key: 'pending review', label: 'Pending Review' },
+    { key: 'changes requested', label: 'Changes Requested' },
+    { key: 'active', label: 'Approved' },
+    { key: 'rejected', label: 'Rejected' },
+  ];
+  const EXTRA_STATUS_FILTERS = [
+    { key: 'all', label: 'All' },
+    { key: 'pending review', label: 'Pending Review' },
+    { key: 'changes requested', label: 'Changes Requested' },
+    { key: 'approved', label: 'Approved' },
+    { key: 'rejected', label: 'Rejected' },
+  ];
+  const LEDGER_STATUS_FILTERS = [
+    { key: 'all', label: 'All' },
+    { key: 'planned', label: 'Planned' },
+    { key: 'payment pending', label: 'Payment Pending' },
+    { key: 'payment done - invoice pending', label: 'Payment Done' },
+    { key: 'invoice shared', label: 'Invoice Shared' },
+  ];
+  const activeStatusFilterOptions = activeTab === 'estimated'
+    ? ESTIMATED_STATUS_FILTERS
+    : activeTab === 'extra'
+      ? EXTRA_STATUS_FILTERS
+      : LEDGER_STATUS_FILTERS;
+
+  const visibleEstimatedBudgets = estimatedBudgets.filter((budget) => {
+    const matchesDept = deptFilter === 'All' || budget.department === deptFilter;
+    const matchesStatus = statusFilter === 'all' || String(budget.status || '').toLowerCase() === statusFilter;
+    const query = searchQuery.trim().toLowerCase();
+    const matchesSearch = !query || [budget.department, budget.details].filter(Boolean).join(' ').toLowerCase().includes(query);
+    return matchesDept && matchesStatus && matchesSearch;
+  });
+  const visibleExtraBudgets = extraBudgets.filter((extra) => {
+    const matchesDept = deptFilter === 'All' || extra.department === deptFilter;
+    const matchesStatus = statusFilter === 'all' || String(extra.status || '').toLowerCase() === statusFilter;
+    const query = searchQuery.trim().toLowerCase();
+    const matchesSearch = !query || [extra.department, extra.title, extra.details].filter(Boolean).join(' ').toLowerCase().includes(query);
+    return matchesDept && matchesStatus && matchesSearch;
+  });
   const visibleLedger = ledger.filter((entry) => {
     const haystack = [entry.department, entry.vendor, entry.item, entry.invoice, entry.invoiceNumber, entry.monthTitle, entry.month]
       .filter(Boolean).join(' ').toLowerCase();
+    const matchesStatus = statusFilter === 'all' || String(entry.paymentStatus || entry.status || '').trim().toLowerCase() === statusFilter;
     // `ledger` is already curated by shouldIncludeExpenseInLedger (paid history
     // + pending-payment queue); here we only apply the user's view filters.
-    return (deptFilter === 'All' || entry.department === deptFilter) && haystack.includes(searchQuery.toLowerCase());
+    return (deptFilter === 'All' || entry.department === deptFilter) && matchesStatus && haystack.includes(searchQuery.trim().toLowerCase());
   });
 
   const statCards = useMemo(() => {
@@ -1167,6 +1219,8 @@ export function ExpensesBudgetPage() {
   /* ── Approval / Rejection handlers ── */
 
   const handleApproveEstimated = (req: Budget) => {
+    if (isSavingDecision) return;
+    setIsSavingDecision(true);
     applyFinanceApprovalDecision('annual', req.id, {
       status: 'Approved',
       fiscalYear: selectedFY,
@@ -1185,13 +1239,17 @@ export function ExpensesBudgetPage() {
           : `Estimated annual budget approved for ${req.department}.`);
         setTemporaryFounderOverride(false);
         setViewingBudget(null);
+        setShowApproveConfirm(null);
       })
-      .catch((error: any) => { toast.error(error?.message || 'Failed to approve estimated budget.'); });
+      .catch((error: any) => { toast.error(error?.message || 'Failed to approve estimated budget.'); })
+      .finally(() => setIsSavingDecision(false));
   };
 
-  const handleApproveExtra = () => {
-    if (!viewingExtra?.id) return;
-    applyFinanceApprovalDecision('extra', viewingExtra.id, {
+  const handleApproveExtra = (requestOverride?: ExtraBudget) => {
+    const req = requestOverride || viewingExtra;
+    if (!req?.id || isSavingDecision) return;
+    setIsSavingDecision(true);
+    applyFinanceApprovalDecision('extra', req.id, {
       status: 'Approved',
       fiscalYear: selectedFY,
       temporaryFounderOverride,
@@ -1205,17 +1263,20 @@ export function ExpensesBudgetPage() {
         setExtraBudgets(Array.isArray(payload.extraRequests) ? payload.extraRequests.map(mapExtraRequestToBudget) : []);
         syncExpenseHistoryFromPayload(payload, enrichedAnnualRequests);
         toast.success(temporaryFounderOverride
-          ? `Extra budget approved with temporary Founder override for ${viewingExtra.department}.`
-          : `Extra budget approved for ${viewingExtra.department}.`);
+          ? `Extra budget approved with temporary Founder override for ${req.department}.`
+          : `Extra budget approved for ${req.department}.`);
         setTemporaryFounderOverride(false);
         setViewingExtra(null);
+        setShowApproveConfirm(null);
       })
-      .catch((error: any) => { toast.error(error?.message || 'Failed to approve extra budget.'); });
+      .catch((error: any) => { toast.error(error?.message || 'Failed to approve extra budget.'); })
+      .finally(() => setIsSavingDecision(false));
   };
 
   const handleRejectConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!rejectingRequest) return;
+    if (!rejectingRequest || isSavingDecision) return;
+    setIsSavingDecision(true);
     const decision = rejectingRequest.decisionAction === 'Discuss' ? 'Discuss' : 'Rejected';
     if (rejectingRequest.modalType === 'estimated') {
       try {
@@ -1230,7 +1291,7 @@ export function ExpensesBudgetPage() {
         toast.success(decision === 'Discuss' ? `Changes requested from ${rejectingRequest.department}.` : `Request rejected for ${rejectingRequest.department}.`);
         setRejectingRequest(null);
         setRejectReason('');
-      } catch (error: any) { toast.error(error?.message || 'Failed to reject annual budget.'); }
+      } catch (error: any) { toast.error(error?.message || 'Failed to reject annual budget.'); } finally { setIsSavingDecision(false); }
     } else if (rejectingRequest.modalType === 'extra') {
       try {
         await applyFinanceApprovalDecision('extra', rejectingRequest.id, { status: decision, fiscalYear: selectedFY, note: rejectReason.trim() });
@@ -1244,11 +1305,12 @@ export function ExpensesBudgetPage() {
         toast.success(decision === 'Discuss' ? `Changes requested from ${rejectingRequest.department}.` : `Request rejected for ${rejectingRequest.department}.`);
         setRejectingRequest(null);
         setRejectReason('');
-      } catch (error: any) { toast.error(error?.message || 'Failed to reject extra budget.'); }
+      } catch (error: any) { toast.error(error?.message || 'Failed to reject extra budget.'); } finally { setIsSavingDecision(false); }
     } else {
       toast.success(`Request rejected for ${rejectingRequest.department}.`);
       setRejectingRequest(null);
       setRejectReason('');
+      setIsSavingDecision(false);
     }
   };
 
@@ -1420,12 +1482,12 @@ export function ExpensesBudgetPage() {
               <p className="text-xs font-pmedium text-slate-500 mt-1">Core Module | Budget planning & expense tracking</p>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
-              <div className="flex items-center gap-2 bg-white border border-gray-200 px-4 py-2.5 rounded-xl shadow-sm">
+              <div className="flex items-center gap-2 bg-white border border-slate-200 px-4 py-2.5 rounded-xl shadow-sm">
                 <Calendar size={18} className="text-[#2563EB]" />
                 <select
                   value={selectedFY}
                   onChange={(e) => setSelectedFY(e.target.value)}
-                  className="bg-transparent font-black text-[#0F172A] outline-none cursor-pointer border-none text-xs"
+                  className="bg-transparent font-pmedium text-[#0F172A] outline-none cursor-pointer border-none text-xs"
                 >
                   {fiscalYearOptions.map((year: string) => (
                     <option key={year} value={year}>{year}{year === DEFAULT_FISCAL_YEAR ? ' (Default)' : ''}</option>
@@ -1440,13 +1502,13 @@ export function ExpensesBudgetPage() {
                                 title="Upload a historical (already closed) budget for records"
                               >
                                 <History size={16} className="text-blue-500" />
-                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-blue-500 text-white px-1.5 py-0.5 rounded">HISTORICAL</span>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-blue-500 text-white px-1.5 py-0.5 rounded">HISTORICAL</span>
                               </button>
             </div>
           </div>
 
           {errorMessage && (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700 flex items-center justify-between gap-4">
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-pmedium text-rose-700 flex items-center justify-between gap-4">
               <span>{errorMessage}</span>
               <button
                 type="button"
@@ -1475,7 +1537,7 @@ export function ExpensesBudgetPage() {
               <button
                 key={tab.key}
                 type="button"
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => { setActiveTab(tab.key); setStatusFilter('all'); }}
                 className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
                   activeTab === tab.key
                     ? "bg-[#2563EB] text-white shadow-sm"
@@ -1511,22 +1573,38 @@ export function ExpensesBudgetPage() {
           {/* ── Data Panel ── */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
             {/* Data panel header row */}
-            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
-              <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row xl:items-center gap-3 bg-slate-50/50">
+              <div className="flex flex-1 items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                {activeStatusFilterOptions.map((pill) => (
+                  <button
+                    key={pill.key}
+                    type="button"
+                    onClick={() => setStatusFilter(pill.key)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
+                      statusFilter === pill.key
+                        ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+                        : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                    }`}
+                  >
+                    {pill.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto shrink-0">
                 <select
-                  className="w-full sm:w-36 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
+                  className="w-full sm:w-36 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-pmedium text-slate-700 outline-none cursor-pointer"
                   value={deptFilter}
                   onChange={(e) => setDeptFilter(e.target.value)}
                 >
                   <option>All</option>
                   {departments.map((d: string) => <option key={d} value={d}>{d}</option>)}
                 </select>
-                <div className="relative min-w-[200px] flex-1">
+                <div className="relative min-w-[200px] flex-1 sm:w-64 sm:flex-none">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                   <input
                     type="text"
                     placeholder="Search..."
-                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-pmedium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
@@ -1536,7 +1614,7 @@ export function ExpensesBudgetPage() {
 
             {/* Content */}
             <div className="overflow-x-auto flex-1">
-              <table className="w-full text-left min-w-[700px]">
+              <table className="w-full text-left min-w-[960px]">
 
                 {activeTab === 'estimated' && (
                   <>
@@ -1559,12 +1637,12 @@ export function ExpensesBudgetPage() {
                           <tr key={budget.id} className="hover:bg-blue-50/30 transition-all">
                             <td className="px-6 py-5 space-y-0.5">
                               {/* <p className="text-[9px] sm:text-[10px] font-pmedium text-blue-600 uppercase">{budget.id}</p> */}
-                              <p className="text-[10px] sm:text-xs font-bold text-slate-500">{budget.date}</p>
+                              <p className="text-[10px] sm:text-xs font-pmedium text-slate-500">{budget.date}</p>
                             </td>
                             <td className="px-6 py-5">
-                              <p className="font-black text-slate-900 text-xs sm:text-sm flex items-center gap-1 sm:gap-2"><Building2 size={12} className="sm:w-3.5 sm:h-3.5 text-slate-400" /> {budget.department}</p>
+                              <p className="font-pmedium text-slate-900 text-xs sm:text-sm flex items-center gap-1 sm:gap-2"><Building2 size={12} className="sm:w-3.5 sm:h-3.5 text-slate-400" /> {budget.department}</p>
                             </td>
-                            <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">
+                            <td className="px-6 py-5 font-pmedium text-slate-900 text-xs sm:text-sm">
                               {budget.status === 'Active' ? formatCurrency(budget.approved) : formatCurrency(budget.requested)}
                             </td>
                             <td className="px-6 py-5 hidden sm:table-cell">
@@ -1573,10 +1651,10 @@ export function ExpensesBudgetPage() {
                                   <div className="w-full bg-slate-100 rounded-full h-1.5 sm:h-2 overflow-hidden">
                                     <div className={`h-full rounded-full ${usagePercent > 85 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${usagePercent}%` }}></div>
                                   </div>
-                                  <p className="text-[9px] font-bold text-slate-500 mt-1">{formatCurrency(budget.used || 0)} used</p>
+                                  <p className="text-[9px] font-pmedium text-slate-500 mt-1">{formatCurrency(budget.used || 0)} used</p>
                                 </>
                               ) : (
-                                <span className="text-[9px] font-bold text-slate-400 uppercase">Pending</span>
+                                <span className="text-[9px] font-pmedium text-slate-400 uppercase">Pending</span>
                               )}
                             </td>
                             <td className="px-6 py-5 text-center">
@@ -1589,17 +1667,48 @@ export function ExpensesBudgetPage() {
                                 )}
                               </div>
                             </td>
-                            <td className="px-6 py-5 text-center">
-                              <button onClick={() => { setTemporaryFounderOverride(false); navigate(`/department-accesses/finance-department/expenses-budget/review/annual/${encodeURIComponent(budget.id)}`, { state: { request: budget, fiscalYear: selectedFY } }); }} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto">
-                                <Eye size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">View</span>
-                              </button>
+                            <td className="px-6 py-5">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  onClick={() => { setTemporaryFounderOverride(false); navigate(`/department-accesses/finance-department/expenses-budget/review/annual/${encodeURIComponent(budget.id)}`, { state: { request: budget, fiscalYear: selectedFY } }); }}
+                                  className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm"
+                                  title="View Request"
+                                >
+                                  <Eye size={14} />
+                                </button>
+                                {isActionableForFinance(budget.approvalFlow, budget.status) && (
+                                  <>
+                                    <button
+                                      onClick={() => { setTemporaryFounderOverride(false); setRejectReason(''); setRejectingRequest({ ...budget, modalType: 'estimated', decisionAction: 'Discuss' }); }}
+                                      className="p-2 bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 rounded-lg transition-all shadow-sm"
+                                      title="Discuss"
+                                    >
+                                      <MessageSquare size={14} />
+                                    </button>
+                                    <button
+                                      onClick={() => { setTemporaryFounderOverride(false); setRejectReason(''); setRejectingRequest({ ...budget, modalType: 'estimated' }); }}
+                                      className="p-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm"
+                                      title="Reject"
+                                    >
+                                      <XCircle size={14} />
+                                    </button>
+                                    <button
+                                      onClick={() => { setTemporaryFounderOverride(false); setShowApproveConfirm({ ...budget, modalType: 'estimated' }); }}
+                                      className="p-2 bg-green-600 border border-green-600 text-white hover:bg-green-700 rounded-lg transition-all shadow-sm"
+                                      title="Approve"
+                                    >
+                                      <CheckCircle2 size={14} />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );
                       })}
                       {visibleEstimatedBudgets.length === 0 && (
                         <tr>
-                          <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-semibold">
+                          <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-pmedium">
                             No projected budget requests found.
                           </td>
                         </tr>
@@ -1625,31 +1734,62 @@ export function ExpensesBudgetPage() {
                         <tr key={extra.id} className="hover:bg-slate-50 transition-all">
                           <td className="px-6 py-5 space-y-0.5">
                             {/* <p className="text-[9px] sm:text-[10px] font-pmedium text-amber-600 uppercase">{extra.id}</p> */}
-                            <p className="text-[10px] sm:text-xs font-bold text-slate-500">{extra.date}</p>
+                            <p className="text-[10px] sm:text-xs font-pmedium text-slate-500">{extra.date}</p>
                           </td>
                           <td className="px-6 py-5">
-                            <p className="font-black text-slate-900 text-xs sm:text-sm flex items-center gap-1 sm:gap-2"><Building2 size={12} className="sm:w-3.5 sm:h-3.5 text-slate-400" /> {extra.department}</p>
+                            <p className="font-pmedium text-slate-900 text-xs sm:text-sm flex items-center gap-1 sm:gap-2"><Building2 size={12} className="sm:w-3.5 sm:h-3.5 text-slate-400" /> {extra.department}</p>
                             <p className="mt-1 text-[10px] font-pmedium text-slate-500">{extra.title}</p>
                           </td>
-                          <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">{formatCurrency(extra.requested)}</td>
+                          <td className="px-6 py-5 font-pmedium text-slate-900 text-xs sm:text-sm">{formatCurrency(extra.requested)}</td>
                           <td className="px-6 py-5 hidden md:table-cell">
-                            <p className="text-xs font-medium text-slate-600 truncate max-w-[200px]">{extra.details}</p>
+                            <p className="text-xs font-pmedium text-slate-600 truncate max-w-[200px]">{extra.details}</p>
                           </td>
                           <td className="px-6 py-5 text-center">
                             {hasApprovalProgress(extra.approvalFlow)
                               ? <ApprovalFlowBadges flow={extra.approvalFlow} />
                               : getStatusBadge(extra.status)}
                           </td>
-                          <td className="px-6 py-5 text-center">
-                            <button onClick={() => { setTemporaryFounderOverride(false); setViewingExtra(extra); }} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto">
-                              <Eye size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">Review</span>
-                            </button>
+                          <td className="px-6 py-5">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => { setTemporaryFounderOverride(false); setViewingExtra(extra); }}
+                                className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm"
+                                title="View Request"
+                              >
+                                <Eye size={14} />
+                              </button>
+                              {isActionableForFinance(extra.approvalFlow, extra.status) && (
+                                <>
+                                  <button
+                                    onClick={() => { setTemporaryFounderOverride(false); setRejectReason(''); setRejectingRequest({ ...extra, modalType: 'extra', decisionAction: 'Discuss' }); }}
+                                    className="p-2 bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 rounded-lg transition-all shadow-sm"
+                                    title="Discuss"
+                                  >
+                                    <MessageSquare size={14} />
+                                  </button>
+                                  <button
+                                    onClick={() => { setTemporaryFounderOverride(false); setRejectReason(''); setRejectingRequest({ ...extra, modalType: 'extra' }); }}
+                                    className="p-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm"
+                                    title="Reject"
+                                  >
+                                    <XCircle size={14} />
+                                  </button>
+                                  <button
+                                    onClick={() => { setTemporaryFounderOverride(false); setShowApproveConfirm({ ...extra, modalType: 'extra' }); }}
+                                    className="p-2 bg-green-600 border border-green-600 text-white hover:bg-green-700 rounded-lg transition-all shadow-sm"
+                                    title="Approve"
+                                  >
+                                    <CheckCircle2 size={14} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
                       {visibleExtraBudgets.length === 0 && (
                         <tr>
-                            <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-semibold">
+                            <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-pmedium">
                               No extra budget requests found.
                             </td>
                         </tr>
@@ -1662,8 +1802,10 @@ export function ExpensesBudgetPage() {
                   <>
                     <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                       <tr>
-                        <th className="px-6 py-5">Date & ID</th>
-                        <th className="px-6 py-5">Dept & Vendor</th>
+                        <th className="px-6 py-5">Date</th>
+                        <th className="px-6 py-5">Month</th>
+                        <th className="px-6 py-5">Department</th>
+                        <th className="px-6 py-5">Vendor</th>
                         <th className="px-6 py-5 hidden md:table-cell">Item</th>
                         <th className="px-6 py-5">Amount</th>
                         <th className="px-6 py-5 text-center">Status</th>
@@ -1673,49 +1815,66 @@ export function ExpensesBudgetPage() {
                     <tbody className="divide-y divide-slate-100/60">
                       {visibleLedger.map((log) => (
                         <tr key={log.id} className="hover:bg-slate-50 transition-all">
-                          <td className="px-6 py-5 space-y-0.5">
-                            {/* <p className="text-[9px] sm:text-[10px] font-pmedium text-slate-500 uppercase">{log.id}</p> */}
-                            <p className="text-[10px] sm:text-xs font-bold text-slate-900 flex items-center gap-1">
-                              <CheckCircle2 size={10} className="sm:w-3 sm:h-3 text-green-500" />
-                              <span className="leading-snug">{log.dateLabel || log.paidDate}</span>
+                          <td className="px-6 py-5">
+                            <p className="text-[10px] sm:text-xs font-pmedium text-slate-900 flex items-center gap-1">
+                              <CheckCircle2 size={10} className="sm:w-3 sm:h-3 text-green-500 shrink-0" />
+                              <span className="leading-snug">{log.paidDate || '—'}</span>
                             </p>
                           </td>
-                          <td className="px-6 py-5 space-y-0.5">
-                            <p className="font-black text-slate-900 text-xs sm:text-sm flex items-center gap-1"><Building2 size={10} className="sm:w-3 sm:h-3 text-slate-400" /> {log.department}</p>
-                            <p className="text-[9px] sm:text-[10px] font-pmedium text-slate-600">{log.vendor}</p>
+                          <td className="px-6 py-5">
+                            <p className="font-pmedium text-slate-700 text-xs sm:text-sm flex items-center gap-1"><Calendar size={10} className="sm:w-3 sm:h-3 text-slate-400" /> {log.monthTitle || log.month || '—'}</p>
+                          </td>
+                          <td className="px-6 py-5">
+                            <p className="font-pmedium text-slate-900 text-xs sm:text-sm flex items-center gap-1"><Building2 size={10} className="sm:w-3 sm:h-3 text-slate-400" /> {log.department}</p>
+                          </td>
+                          <td className="px-6 py-5">
+                            <p className="font-pmedium text-slate-700 text-xs sm:text-sm flex items-center gap-1"><UserPlus size={10} className="sm:w-3 sm:h-3 text-slate-400" /> {log.vendor}</p>
                           </td>
                           <td className="px-6 py-5 hidden md:table-cell">
-                            <p className="font-bold text-slate-800 text-xs truncate max-w-[150px]">{log.item}</p>
-                            <p className="text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase">PO: {log.refPoId}</p>
+                            <p className="font-pmedium text-slate-800 text-xs truncate max-w-[150px]">{log.item}</p>
                           </td>
-                          <td className="px-6 py-5 font-black text-red-600 text-xs sm:text-sm">-{formatCurrency(log.amount)}</td>
+                          <td className="px-6 py-5 font-pmedium text-red-600 text-xs sm:text-sm">-{formatCurrency(log.amount)}</td>
                           <td className="px-6 py-5 text-center">
                             {getStatusBadge(formatFinancePaymentStatus(log.paymentStatus || log.status, 'Planned'))}
                           </td>
-                          <td className="px-6 py-5 text-center">
-                            <div className="flex flex-wrap items-center justify-center gap-2">
+                          <td className="px-6 py-5">
+                            <div className="flex items-center justify-center gap-1.5">
                               <button
                                 type="button"
                                 onClick={() => setViewingExpense(log)}
-                                className="px-2 sm:px-3 py-1 sm:py-1.5 bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all flex items-center gap-1 shadow-sm"
+                                className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm"
+                                title="View Details"
                               >
-                                <Eye size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">View Details</span>
+                                <Eye size={14} />
                               </button>
+                              {canMarkExpenseAsPaid(log) && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleMarkPaidForExpense(log)}
+                                  disabled={isUpdatingExpense}
+                                  className="p-2 bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all shadow-sm disabled:opacity-50"
+                                  title="Mark Paid"
+                                >
+                                  <CheckCircle2 size={14} />
+                                </button>
+                              )}
                               {log.invoiceUrl ? (
                                 <button
                                   type="button"
                                   onClick={() => window.open(log.invoiceUrl, '_blank', 'noopener,noreferrer')}
-                                  className="px-2 sm:px-3 py-1 sm:py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all flex items-center gap-1 shadow-sm"
+                                  className="p-2 bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all shadow-sm"
+                                  title="View Invoice"
                                 >
-                                  <FileText size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">Invoice</span>
+                                  <FileText size={14} />
                                 </button>
                               ) : (
                                 <button
                                   type="button"
                                   disabled
-                                  className="px-2 sm:px-3 py-1 sm:py-1.5 bg-slate-50 text-slate-400 border border-slate-200 rounded-lg text-[9px] sm:text-[10px] font-pmedium uppercase transition-all flex items-center gap-1 shadow-sm cursor-not-allowed"
+                                  className="p-2 bg-white border border-slate-200 text-slate-300 rounded-lg shadow-sm cursor-not-allowed"
+                                  title="No invoice uploaded"
                                 >
-                                  <FileText size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">Invoice</span>
+                                  <FileText size={14} />
                                 </button>
                               )}
                             </div>
@@ -1724,7 +1883,7 @@ export function ExpensesBudgetPage() {
                       ))}
                       {visibleLedger.length === 0 && (
                         <tr>
-                          <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-semibold">
+                          <td colSpan={8} className="px-6 py-16 text-center text-slate-400 font-pmedium">
                             No expense history found.
                           </td>
                         </tr>
@@ -1748,7 +1907,7 @@ export function ExpensesBudgetPage() {
                 <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-blue-500/20 text-blue-300 border-blue-400/30 mb-2 inline-block">
                   Annual Budget Request
                 </span>
-                <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1">
+                <h2 className="text-xl sm:text-2xl font-pmedium text-white flex items-center gap-2 mt-1">
                   <PieChart size={20} /> Budget Review
                 </h2>
                 <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">REF: {viewingBudget.requestKey || viewingBudget.id} • Revision {Number(viewingBudget.revision || 1)}</p>
@@ -1759,43 +1918,43 @@ export function ExpensesBudgetPage() {
             </div>
 
             <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
-              <div className="px-6 sm:px-8 py-5 grid grid-cols-2 sm:grid-cols-4 gap-4 border-b border-gray-100 bg-white">
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5 flex flex-col gap-1">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Department</p>
-                  <p className="text-sm sm:text-base font-black text-gray-900 flex items-center gap-1.5 mt-0.5">
+              <div className="px-6 sm:px-8 py-5 grid grid-cols-2 sm:grid-cols-4 gap-4 border-b border-slate-100 bg-white">
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:p-5 flex flex-col gap-1">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Department</p>
+                  <p className="text-sm sm:text-base font-pmedium text-slate-900 flex items-center gap-1.5 mt-0.5">
                     <Building2 size={14} className="text-[#2563EB] shrink-0" /> {viewingBudget.department}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:p-5 flex flex-col gap-1">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-600">Total Requested</p>
-                  <p className="text-xl sm:text-2xl font-black text-blue-900 mt-0.5">{formatCurrency(viewingBudget.requested)}</p>
+                  <p className="text-xl sm:text-2xl font-pmedium text-blue-900 mt-0.5">{formatCurrency(viewingBudget.requested)}</p>
                 </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5 flex flex-col gap-1">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Submitted By</p>
-                  <p className="text-sm font-black text-gray-900 mt-0.5">{viewingBudget.submittedByName || 'Dept. Manager'}</p>
-                  <p className="text-[10px] font-pmedium text-gray-400">{viewingBudget.date}</p>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:p-5 flex flex-col gap-1">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Submitted By</p>
+                  <p className="text-sm font-pmedium text-slate-900 mt-0.5">{viewingBudget.submittedByName || 'Dept. Manager'}</p>
+                  <p className="text-[10px] font-pmedium text-slate-400">{viewingBudget.date}</p>
                 </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5 flex flex-col gap-1">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Status</p>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:p-5 flex flex-col gap-1">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Status</p>
                   <span className={`mt-1.5 inline-flex px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-widest w-fit ${viewingBudget.status === 'Active' ? 'bg-green-50 text-green-700 border border-green-200' : viewingBudget.status === 'Rejected' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>{viewingBudget.status}</span>
                 </div>
               </div>
 
-              <div className="px-6 sm:px-8 py-4 border-b border-gray-100 bg-white">
-                <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1.5 flex items-center gap-1.5">
+              <div className="px-6 sm:px-8 py-4 border-b border-slate-100 bg-white">
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1.5 flex items-center gap-1.5">
                   <FileText size={11} /> Business Justification
                 </p>
-                <p className="text-xs sm:text-sm font-medium text-gray-700 leading-relaxed">
+                <p className="text-xs sm:text-sm font-pmedium text-slate-700 leading-relaxed">
                   {viewingBudget.details || 'No additional justification provided.'}
                 </p>
               </div>
 
               <div className="px-4 sm:px-8 py-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-                  <h4 className="text-[10px] sm:text-xs font-pmedium text-gray-900 uppercase tracking-widest flex items-center gap-2">
+                  <h4 className="text-[10px] sm:text-xs font-pmedium text-slate-900 uppercase tracking-widest flex items-center gap-2">
                     <Calendar size={13} className="text-[#2563EB]" /> Monthly Expense Plan
                     {Array.isArray(viewingBudget.monthlyBreakdown) && (
-                      <span className="ml-1 text-gray-400 font-bold normal-case tracking-normal">
+                      <span className="ml-1 text-slate-400 font-pmedium normal-case tracking-normal">
                         ({viewingBudget.monthlyBreakdown.length} months)
                       </span>
                     )}
@@ -1887,7 +2046,7 @@ export function ExpensesBudgetPage() {
                                         )}
                                         <div className="min-w-0 flex-1">
                                           <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-                                            <p className="min-w-0 break-words text-xs font-black leading-snug text-slate-900 sm:text-sm">{expense.expenseLabel || expense.title || `Expense ${eIdx + 1}`}</p>
+                                            <p className="min-w-0 break-words text-xs font-pmedium leading-snug text-slate-900 sm:text-sm">{expense.expenseLabel || expense.title || `Expense ${eIdx + 1}`}</p>
                                             <div className="flex shrink-0 items-center gap-2">
                                               {(() => {
                                                 const over = Number(expense.actualAmount ?? expense.actualSpent ?? 0) - Number(expense.projectedAmount ?? getBudgetExpenseAmount(expense));
@@ -1921,7 +2080,7 @@ export function ExpensesBudgetPage() {
                                       ) : null}
                                     </td>
                                     <td className="px-4 py-4 align-top">
-                                      <p className="break-words text-[11px] font-medium leading-relaxed text-slate-500 sm:text-xs">{getBudgetExpenseDetails(expense) || '—'}</p>
+                                      <p className="break-words text-[11px] font-pmedium leading-relaxed text-slate-500 sm:text-xs">{getBudgetExpenseDetails(expense) || '—'}</p>
                                     </td>
                                     <td className="px-4 py-4 text-right align-top">
                                       {(() => {
@@ -1933,12 +2092,12 @@ export function ExpensesBudgetPage() {
                                             String(request?.appliedExpenseId || '') === String(expense?._id || expense?.id || ''))
                                           .reduce((sum, request) => sum + Number(request?.requested || request?.approved || 0), 0);
                                         if (approvedIncrease <= 0) {
-                                          return <p className="whitespace-nowrap text-xs font-black text-[#2563EB] sm:text-sm">{formatCurrency(currentProjection)}</p>;
+                                          return <p className="whitespace-nowrap text-xs font-pmedium text-[#2563EB] sm:text-sm">{formatCurrency(currentProjection)}</p>;
                                         }
                                         const originalProjection = Math.max(0, currentProjection - approvedIncrease);
                                         return (
                                           <div title={`Current projection: ${formatCurrency(currentProjection)}`}>
-                                            <p className="whitespace-nowrap text-xs font-black text-slate-700 sm:text-sm">
+                                            <p className="whitespace-nowrap text-xs font-pmedium text-slate-700 sm:text-sm">
                                               {formatCurrency(originalProjection)} <span className="text-[#2563EB]">+ {formatCurrency(approvedIncrease)}</span>
                                             </p>
                                             <span className="mt-1 inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest text-blue-700">Projection Increased</span>
@@ -1951,21 +2110,21 @@ export function ExpensesBudgetPage() {
                                         const actualAmount = Number(expense.actualAmount ?? expense.actualSpent ?? 0);
                                         const currentProjection = Number(expense.projectedAmount ?? getBudgetExpenseAmount(expense));
                                         return (
-                                          <p className={`whitespace-nowrap text-xs font-black sm:text-sm ${actualAmount > currentProjection ? 'text-rose-600' : actualAmount > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                          <p className={`whitespace-nowrap text-xs font-pmedium sm:text-sm ${actualAmount > currentProjection ? 'text-rose-600' : actualAmount > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
                                             {formatCurrency(actualAmount)}
                                           </p>
                                         );
                                       })()}
                                     </td>
                                     <td className="px-4 py-4 align-top">
-                                      <p className="text-xs font-bold text-slate-600">{expense.dueDate ? formatDateLabel(expense.dueDate) : '—'}</p>
+                                      <p className="text-xs font-pmedium text-slate-600">{expense.dueDate ? formatDateLabel(expense.dueDate) : '—'}</p>
                                     </td>
                                     {viewingBudget.status === 'Active' && <>
                                       <td className="px-4 py-4 align-top">
                                         {expense.vendorName ? (
                                           <div className="min-w-0">
-                                            <p className="break-words text-xs font-black text-slate-900">{expense.vendorName}</p>
-                                            {expense.vendorContact && <p className="mt-0.5 break-words text-[10px] font-medium text-slate-400">{expense.vendorContact}</p>}
+                                            <p className="break-words text-xs font-pmedium text-slate-900">{expense.vendorName}</p>
+                                            {expense.vendorContact && <p className="mt-0.5 break-words text-[10px] font-pmedium text-slate-400">{expense.vendorContact}</p>}
                                             {(expense.poId || expense.vendorId) && <p className="mt-0.5 break-words text-[9px] font-pmedium uppercase tracking-wider text-blue-600">PO: {expense.poId || expense.vendorId}</p>}
                                           </div>
                                         ) : (
@@ -1999,7 +2158,7 @@ export function ExpensesBudgetPage() {
                                                 const content = (
                                                   <>
                                                     <Receipt size={11} className="shrink-0" />
-                                                    <span className="min-w-0 truncate font-black">{label}</span>
+                                                    <span className="min-w-0 truncate font-pmedium">{label}</span>
                                                     {Number(invoice?.amount || 0) > 0 && <span className="ml-auto shrink-0">{formatCurrency(invoice.amount)}</span>}
                                                   </>
                                                 );
@@ -2021,7 +2180,7 @@ export function ExpensesBudgetPage() {
                                   </tr>
                                   )) : (
                                    <tr className="bg-white">
-                                     <td colSpan={colSpan} className="px-4 py-5 text-center text-[11px] font-bold text-slate-400">
+                                     <td colSpan={colSpan} className="px-4 py-5 text-center text-[11px] font-pmedium text-slate-400">
                                        No expenses listed for this month.
                                      </td>
                                      </tr>
@@ -2032,7 +2191,7 @@ export function ExpensesBudgetPage() {
                           })
                         ) : (
                           <tr>
-                            <td colSpan={viewingBudget.status === 'Active' ? 8 : 5} className="px-4 py-12 text-center text-sm font-bold text-slate-400">
+                            <td colSpan={viewingBudget.status === 'Active' ? 8 : 5} className="px-4 py-12 text-center text-sm font-pmedium text-slate-400">
                               No monthly breakdown has been submitted for this request.
                             </td>
                           </tr>
@@ -2050,11 +2209,11 @@ export function ExpensesBudgetPage() {
               const founderAlreadyApproved = String(viewingBudget.approvalFlow?.owner?.status || '').toLowerCase() === 'approved';
               if (!myDecision && overall === 'pending review') {
                 return (
-                  <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 shrink-0">
+                  <div className="px-6 sm:px-8 py-5 bg-white border-t border-slate-100 shrink-0">
                     {!founderAlreadyApproved && (
                       <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
                         <input type="checkbox" checked={temporaryFounderOverride} onChange={(event) => setTemporaryFounderOverride(event.target.checked)} className="mt-0.5 h-4 w-4 accent-amber-600" />
-                        <span><span className="block text-[11px] font-pmedium">Founder is on leave — use temporary override</span><span className="mt-0.5 block text-[9px] font-medium text-amber-700">Approves both Founder and Finance steps under your user ID and records an audit warning.</span></span>
+                        <span><span className="block text-[11px] font-pmedium">Temporary Override Budget Request</span><span className="mt-0.5 block text-[9px] font-pmedium text-amber-700">Approves both Founder and Finance steps under your user ID and records an audit warning.</span></span>
                       </label>
                     )}
                     <div className="flex gap-3 sm:gap-4">
@@ -2067,17 +2226,17 @@ export function ExpensesBudgetPage() {
               }
               if (myDecision) {
                 return (
-                  <div className="px-6 sm:px-8 py-4 bg-emerald-50/60 border-t border-gray-100 flex items-center justify-between gap-3 shrink-0">
+                  <div className="px-6 sm:px-8 py-4 bg-emerald-50/60 border-t border-slate-100 flex items-center justify-between gap-3 shrink-0">
                     <span className="flex items-center gap-2 text-[11px] font-pmedium uppercase tracking-wider text-emerald-700">
                       <CheckCircle2 size={14} /> You have already {myDecision} this request.
                     </span>
-                    <button onClick={() => { setViewingExpense(null); setViewingBudget(null); }} className="px-8 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-sm">CLOSE</button>
+                    <button onClick={() => { setViewingExpense(null); setViewingBudget(null); }} className="px-8 py-3.5 bg-slate-100 text-slate-700 rounded-xl font-pmedium hover:bg-slate-200 transition-all text-sm">CLOSE</button>
                   </div>
                 );
               }
               return (
-                <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex justify-end shrink-0">
-                  <button onClick={() => { setViewingExpense(null); setViewingBudget(null); }} className="px-8 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-sm">CLOSE</button>
+                <div className="px-6 sm:px-8 py-5 bg-white border-t border-slate-100 flex justify-end shrink-0">
+                  <button onClick={() => { setViewingExpense(null); setViewingBudget(null); }} className="px-8 py-3.5 bg-slate-100 text-slate-700 rounded-xl font-pmedium hover:bg-slate-200 transition-all text-sm">CLOSE</button>
                 </div>
               );
             })()}
@@ -2087,100 +2246,99 @@ export function ExpensesBudgetPage() {
 
       {/* ── View Expense Modal ── */}
       {viewingExpense && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-[#0F172A]/85 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2.5rem] w-full max-w-5xl xl:max-w-6xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-4 sm:p-6 lg:p-8 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
-              <div>
-                <p className="text-[9px] sm:text-[10px] font-pmedium text-blue-300 uppercase tracking-widest">{viewingExpense.monthTitle || viewingExpense.month || 'Expense'}</p>
-                <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2 mt-1"><DollarSign size={18} className="sm:w-5 sm:h-5 text-blue-400" /> {viewingExpense.expenseLabel || viewingExpense.title || 'Expense Details'}</h2>
-                <p className="text-[11px] sm:text-xs text-slate-400 mt-2 max-w-2xl">{viewingExpense.description || 'No description provided.'}</p>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-[#0F172A]/80 backdrop-blur-md" onClick={closeExpenseDetails}>
+          <div className="flex max-h-[90vh] w-full max-w-lg sm:max-w-2xl flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50 px-6 py-5 shrink-0">
+              <div className="min-w-0">
+                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest">{viewingExpense.monthTitle || viewingExpense.month || 'Expense'}</p>
+                <h2 className="text-lg font-pmedium text-slate-900 flex items-center gap-2 mt-1"> {viewingExpense.expenseLabel || viewingExpense.title || 'Expense Details'}</h2>
+                <p className="text-[11px] font-pmedium text-slate-500 mt-2 max-w-2xl">{viewingExpense.description || 'No description provided.'}</p>
               </div>
-              <button onClick={closeExpenseDetails} className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all">
-                <X size={16} />
+              <button onClick={closeExpenseDetails} className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110" aria-label="Close">
+                <X size={18} />
               </button>
             </div>
 
-            <div className="p-4 sm:p-6 lg:p-8 overflow-y-auto bg-white space-y-5">
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Projected</p>
-                  <p className="mt-1 text-lg sm:text-xl font-black text-gray-900">{formatCurrency(viewingExpense.projectedAmount || 0)}</p>
-                </div>
-                <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-600">Actual</p>
-                  <p className="mt-1 text-lg sm:text-xl font-black text-gray-900">{formatCurrency(viewingExpense.actualAmount || 0)}</p>
-                </div>
-                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Line Item</p>
-                  <p className="mt-1 text-lg sm:text-xl font-black text-gray-900">{viewingExpense.expenseLabel || viewingExpense.title || 'Expense 1'}</p>
+            <div className="flex-1 space-y-5 overflow-y-auto p-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="flex items-center gap-1.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400"><Building2 size={12} /> Department</p>
+                  <p className="mt-1 text-sm font-pmedium text-slate-900 truncate">{viewingExpense.department || 'Unassigned'}</p>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Status</p>
-                  <p className="mt-1 text-lg sm:text-xl font-black text-gray-900">{formatFinancePaymentStatus(viewingExpense.paymentStatus)}</p>
+                  <p className="flex items-center gap-1.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400"><Calendar size={12} /> Month</p>
+                  <p className="mt-1 text-sm font-pmedium text-slate-900 truncate">{viewingExpense.monthTitle || viewingExpense.month || 'Unknown'}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="flex items-center gap-1.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400"><FileText size={12} /> Line Item</p>
+                  <p className="mt-1 text-sm font-pmedium text-slate-900 truncate">{viewingExpense.expenseLabel || viewingExpense.title || 'Expense 1'}</p>
+                </div>
+                <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                  <p className="flex items-center gap-1.5 text-[9px] font-pmedium uppercase tracking-widest text-blue-600"><DollarSign size={12} /> Projected</p>
+                  <p className="mt-1 text-lg font-pmedium text-slate-900">{formatCurrency(viewingExpense.projectedAmount || 0)}</p>
+                </div>
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                  <p className="flex items-center gap-1.5 text-[9px] font-pmedium uppercase tracking-widest text-emerald-600"><TrendingUp size={12} /> Actual</p>
+                  <p className="mt-1 text-lg font-pmedium text-slate-900">{formatCurrency(viewingExpense.actualAmount || 0)}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="flex items-center gap-1.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400"><CheckCircle2 size={12} /> Status</p>
+                  <p className="mt-1 text-sm font-pmedium text-slate-900 truncate">{formatFinancePaymentStatus(viewingExpense.paymentStatus)}</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="rounded-2xl border border-gray-200 p-4 sm:p-5">
-                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500 mb-3">Vendor Details</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">ID</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorId || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Name</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorName || 'Not assigned'}</p></div>
-                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Contact Person</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorContactPerson || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Phone</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorPhone || 'Not set'}</p></div>
-                    <div className="sm:col-span-2"><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Email</p><p className="font-bold text-gray-900 mt-1 break-words">{viewingExpense.vendorEmail || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Category</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorCategory || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Payment Terms</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorPaymentTerms || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">GSTIN</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorGstin || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">PAN Number</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorPanNumber || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Bank Name</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorBankName || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Account Name</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorAccountName || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Account Number</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorAccountNumber || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">IFSC Code</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorIfscCode || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">UPI ID</p><p className="font-bold text-gray-900 mt-1">{viewingExpense.vendorUpiId || 'Not set'}</p></div>
-                    <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Website</p><p className="font-bold text-gray-900 mt-1 break-words">{viewingExpense.vendorWebsite || 'Not set'}</p></div>
-                    <div className="sm:col-span-2"><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Address</p><p className="font-medium text-gray-700 mt-1 whitespace-pre-line">{viewingExpense.vendorAddress || 'Not set'}</p></div>
-                    <div className="sm:col-span-2"><p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Notes</p><p className="font-medium text-gray-700 mt-1 whitespace-pre-line">{viewingExpense.notes || 'Not set'}</p></div>
+              {(() => {
+                const vendorFields = [
+                  { label: 'Name', value: viewingExpense.vendorName },
+                  { label: 'Contact Person', value: viewingExpense.vendorContactPerson },
+                  { label: 'Phone', value: viewingExpense.vendorPhone },
+                  { label: 'Email', value: viewingExpense.vendorEmail, span: true },
+                  { label: 'GSTIN', value: viewingExpense.vendorGstin },
+                  { label: 'Bank Details', value: viewingExpense.vendorBankName && viewingExpense.vendorAccountNumber ? `${viewingExpense.vendorBankName} • ${viewingExpense.vendorAccountNumber}` : viewingExpense.vendorBankName || viewingExpense.vendorAccountNumber },
+                ].filter((field) => Boolean(field.value));
+                return (
+                  <div>
+                    <p className="mb-1.5 flex items-center gap-1.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400"><UserPlus size={12} /> Vendor</p>
+                    {vendorFields.length > 0 ? (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                        {vendorFields.map((field) => (
+                          <div key={field.label} className={field.span ? 'sm:col-span-2' : undefined}>
+                            <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{field.label}</p>
+                            <p className="mt-0.5 font-pmedium text-slate-900 break-words">{field.value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs font-pmedium text-slate-400">No vendor assigned to this expense yet.</p>
+                    )}
                   </div>
-                </div>
+                );
+              })()}
 
-                <div className="rounded-2xl border border-gray-200 p-4 sm:p-5">
-                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500 mb-3">Invoice & Status</p>
-                  <div className="space-y-3 text-sm">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Payment Status</span>
-                      <span className={`px-2.5 py-1 rounded-md text-[9px] font-pmedium uppercase tracking-widest border ${(viewingExpense.paymentStatus || '').includes('Paid') || (viewingExpense.paymentStatus || '').includes('Done') ? 'bg-green-50 text-green-700 border-green-200' : (viewingExpense.paymentStatus || '').includes('Invoice') ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                        {formatFinancePaymentStatus(viewingExpense.paymentStatus)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Invoice Number</span>
-                      <span className="font-bold text-gray-900 text-right">{viewingExpense.invoiceNumber || 'Not uploaded'}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Invoice File</span>
-                      <span className="font-bold text-gray-900 text-right">{viewingExpense.invoiceNumber || (viewingExpense.invoiceUrl ? 'Uploaded' : 'Not uploaded')}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Month</span>
-                      <span className="font-bold text-gray-900 text-right">{viewingExpense.monthTitle || viewingExpense.month || 'Unknown'}</span>
-                    </div>
-                  </div>
-                  {canMarkExpenseAsPaid(viewingExpense) ? (
-                    <div className="mt-4">
-                      <button
-                        type="button"
-                        onClick={() => handleMarkPaidForExpense(viewingExpense)}
-                        disabled={isUpdatingExpense}
-                        className="inline-flex items-center gap-2 rounded-xl bg-blue-100 px-4 py-3 text-[10px] font-pmedium uppercase tracking-widest text-blue-700 hover:bg-blue-200 transition-all disabled:opacity-60"
-                      >
-                        <CheckCircle2 size={14} />
-                        {isUpdatingExpense ? 'Marking...' : 'Mark Paid'}
-                      </button>
-                    </div>
-                  ) : null}
+              <div>
+                <p className="mb-1.5 flex items-center gap-1.5 text-[9px] font-pmedium uppercase tracking-widest text-slate-400"><Receipt size={12} /> Invoice</p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 flex flex-wrap items-center justify-between gap-3">
+                  <span className="font-pmedium text-slate-900">{viewingExpense.invoiceNumber || (viewingExpense.invoiceUrl ? 'Uploaded' : 'Not uploaded')}</span>
+                  <span className={`px-2.5 py-1 rounded-md text-[9px] font-pmedium uppercase tracking-widest border ${(viewingExpense.paymentStatus || '').includes('Paid') || (viewingExpense.paymentStatus || '').includes('Done') ? 'bg-green-50 text-green-700 border-green-200' : (viewingExpense.paymentStatus || '').includes('Invoice') ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                    {formatFinancePaymentStatus(viewingExpense.paymentStatus)}
+                  </span>
                 </div>
               </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
+              <button onClick={closeExpenseDetails} className="rounded-xl bg-slate-100 px-6 py-2.5 text-xs font-pmedium text-slate-700 hover:bg-slate-200 transition-all">CLOSE</button>
+              {canMarkExpenseAsPaid(viewingExpense) && (
+                <button
+                  type="button"
+                  onClick={() => handleMarkPaidForExpense(viewingExpense)}
+                  disabled={isUpdatingExpense}
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-pmedium text-white shadow-sm hover:bg-emerald-700 transition-all disabled:opacity-50"
+                >
+                  <CheckCircle2 size={14} />
+                  {isUpdatingExpense ? 'Marking…' : 'Mark Paid'}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -2188,84 +2346,58 @@ export function ExpensesBudgetPage() {
 
       {/* ── View Extra Modal ── */}
       {viewingExtra && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2.5rem] w-full max-w-lg sm:max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-4 sm:p-6 lg:p-8 bg-slate-900 border-b border-slate-800 flex justify-between items-center shrink-0">
-              <div>
-                <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2"><AlertCircle size={18} className="sm:w-5 sm:h-5" /> Extra Budget</h2>
-                <p className="text-[9px] sm:text-[10px] font-pmedium text-slate-400 uppercase">{viewingExtra.id}</p>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#0F172A]/80 backdrop-blur-md" onClick={() => setViewingExtra(null)}>
+          <div className="flex max-h-[90vh] w-full max-w-lg sm:max-w-2xl flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50 px-6 py-5 shrink-0">
+              <div className="min-w-0">
+                <h2 className="text-lg font-pmedium text-slate-900">Extra Budget Request</h2>
+                <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mt-0.5">• Revision {Number(viewingExtra.revision || 1)}</p>
               </div>
-              <button onClick={() => setViewingExtra(null)} className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
+              <button onClick={() => setViewingExtra(null)} className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110" aria-label="Close"><X size={18} /></button>
             </div>
 
-            <div className="p-4 sm:p-6 lg:p-8 overflow-y-auto flex-1 bg-white space-y-4 sm:space-y-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 pb-4 border-b border-gray-100">
+            <div className="flex-1 space-y-5 overflow-y-auto p-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 pb-4 border-b border-slate-100">
                 <div>
-                  <p className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase mb-1">Department</p>
-                  <p className="text-xl sm:text-2xl font-black text-gray-900 flex items-center gap-2"><Building2 size={16} className="sm:w-5 sm:h-5 text-amber-500" /> {viewingExtra.department}</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Department</p>
+                  <p className="text-lg font-pmedium text-slate-900 flex items-center gap-2"><Building2 size={16} className="text-amber-500" /> {viewingExtra.department}</p>
+                  <p className="mt-1 text-[10px] font-pmedium text-slate-400">Submitted by {viewingExtra.submittedByName || 'Not available'} {viewingExtra.date ? `• ${viewingExtra.date}` : ''}</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase mb-1">Requested</p>
-                  <p className="text-2xl sm:text-3xl font-black text-amber-600">{formatCurrency(viewingExtra.requested)}</p>
+                <div className="text-left sm:text-right">
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Requested</p>
+                  <p className="text-xl font-pmedium text-slate-900">{formatCurrency(viewingExtra.requested)}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Expense Title</p>
+                  <p className="text-sm font-pmedium text-slate-900">{viewingExtra.title || 'Extra Budget'}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Requested Month</p>
+                  <p className="text-sm font-pmedium text-slate-900">{viewingExtra.month || viewingExtra.monthKey || '—'}</p>
                 </div>
               </div>
 
               <div>
-                <p className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase mb-2">Expense Title</p>
-                <p className="text-sm font-black text-gray-900">{viewingExtra.title}</p>
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1.5 flex items-center gap-1.5"><FileText size={12} /> Justification</p>
+                <p className="text-xs sm:text-sm font-pmedium text-slate-600 leading-relaxed bg-slate-50 border border-slate-200 p-3 rounded-xl whitespace-pre-line">
+                  {viewingExtra.details || 'No additional justification provided.'}
+                </p>
               </div>
 
               <div>
-                <p className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase mb-2 flex items-center gap-1.5"><FileText size={12} className="sm:w-3.5 sm:h-3.5" /> Justification</p>
-                <div className="text-xs sm:text-sm font-medium text-gray-800 leading-relaxed bg-gray-50 border border-gray-200 p-3 sm:p-5 rounded-xl whitespace-pre-line">
-                  {viewingExtra.details}
-                </div>
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1.5">Approval Status</p>
+                {hasApprovalProgress(viewingExtra.approvalFlow)
+                  ? <ApprovalFlowBadges flow={viewingExtra.approvalFlow} />
+                  : getStatusBadge(viewingExtra.status)}
               </div>
-
-              {viewingExtra.status === 'Pending Review' && (
-                <div className="p-3 sm:p-4 bg-amber-50 border border-amber-200 rounded-xl text-center">
-                  <p className="text-[10px] sm:text-xs font-bold text-amber-800">This request will be approved or rejected as-is.</p>
-                </div>
-              )}
             </div>
 
-            {(() => {
-              const overall = String(viewingExtra.status || '').toLowerCase();
-              const myDecision = getMyApprovalDecision(viewingExtra.approvalFlow);
-              const founderAlreadyApproved = String(viewingExtra.approvalFlow?.owner?.status || '').toLowerCase() === 'approved';
-              if (!myDecision && overall === 'pending review') {
-                return (
-                  <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 shrink-0">
-                    {!founderAlreadyApproved && (
-                      <label className="mb-3 flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
-                        <input type="checkbox" checked={temporaryFounderOverride} onChange={(event) => setTemporaryFounderOverride(event.target.checked)} className="mt-0.5 h-4 w-4 accent-amber-600" />
-                        <span><span className="block text-[11px] font-pmedium">Founder is on leave — use temporary override</span><span className="mt-0.5 block text-[9px] font-medium text-amber-700">Approves both steps under your user ID and records an audit warning.</span></span>
-                      </label>
-                    )}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                      <button onClick={() => { setTemporaryFounderOverride(false); setRejectReason(''); setRejectingRequest({ ...viewingExtra, modalType: 'extra', decisionAction: 'Discuss' }); setViewingExtra(null); }} className="min-w-0 px-3 py-3 bg-white border border-blue-200 text-blue-600 rounded-xl font-pmedium hover:bg-blue-50 transition-all text-[11px] flex items-center justify-center gap-1.5"><MessageSquare size={14} className="sm:w-4 sm:h-4" /> REQUEST CHANGES</button>
-                      <button onClick={() => { setTemporaryFounderOverride(false); setRejectReason(''); setRejectingRequest({ ...viewingExtra, modalType: 'extra' }); setViewingExtra(null); }} className="min-w-0 px-3 py-3 bg-white border border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-[11px] flex items-center justify-center gap-1.5"><XCircle size={14} className="sm:w-4 sm:h-4" /> REJECT</button>
-                      <button onClick={handleApproveExtra} className="min-w-0 px-3 py-3 bg-green-600 text-white rounded-xl font-pmedium shadow-sm hover:bg-green-700 transition-all text-[11px] flex items-center justify-center gap-1.5">APPROVE <CheckCircle2 size={14} className="sm:w-4 sm:h-4" /></button>
-                    </div>
-                  </div>
-                );
-              }
-              if (myDecision) {
-                return (
-                  <div className="p-4 sm:p-6 bg-emerald-50/60 border-t border-gray-100 flex items-center justify-between gap-3 shrink-0">
-                    <span className="flex items-center gap-2 text-[11px] font-pmedium uppercase tracking-wider text-emerald-700">
-                      <CheckCircle2 size={14} /> You have already {myDecision} this request.
-                    </span>
-                    <button onClick={() => setViewingExtra(null)} className="px-8 py-3 sm:py-3.5 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-sm">CLOSE</button>
-                  </div>
-                );
-              }
-              return (
-                <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-100 shrink-0">
-                  <button onClick={() => setViewingExtra(null)} className="w-full py-3 sm:py-3.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-pmedium hover:bg-gray-100 transition-all text-xs sm:text-sm">CLOSE</button>
-                </div>
-              );
-            })()}
+            <div className="flex justify-end border-t border-slate-100 bg-slate-50 px-6 py-4">
+              <button onClick={() => setViewingExtra(null)} className="rounded-xl bg-slate-100 px-6 py-2.5 text-xs font-pmedium text-slate-700 hover:bg-slate-200">CLOSE</button>
+            </div>
           </div>
         </div>
       )}
@@ -2276,7 +2408,7 @@ export function ExpensesBudgetPage() {
           <div className="bg-white rounded-2xl sm:rounded-[2.5rem] w-full max-w-sm shadow-2xl overflow-hidden flex flex-col animate-in zoom-in duration-200">
             <div className="p-4 sm:p-6 lg:p-8 bg-slate-900 text-white flex justify-between items-center shrink-0">
               <div>
-                <h2 className="text-lg sm:text-xl font-black flex items-center gap-2"><Receipt size={18} className="sm:w-5 sm:h-5" /> Invoice</h2>
+                <h2 className="text-lg sm:text-xl font-pmedium flex items-center gap-2"><Receipt size={18} className="sm:w-5 sm:h-5" /> Invoice</h2>
                 <p className="text-[9px] sm:text-[10px] font-pmedium text-slate-400 uppercase">{viewingInvoice.department}</p>
               </div>
               <button onClick={() => setViewingInvoice(null)} className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-red-500 transition-all"><X size={16} /></button>
@@ -2284,8 +2416,8 @@ export function ExpensesBudgetPage() {
 
             <div className="p-6 sm:p-8 text-center bg-white">
               <FileText size={40} className="mx-auto text-[#2563EB] mb-4 w-10 h-10 sm:w-12 sm:h-12" />
-              <p className="font-bold text-gray-900 mb-2 text-sm sm:text-base">{viewingInvoice.invoice}</p>
-              <p className="text-[10px] sm:text-xs font-bold text-gray-500 mb-6">PO: {viewingInvoice.refPoId}</p>
+              <p className="font-pmedium text-slate-900 mb-2 text-sm sm:text-base">{viewingInvoice.invoice}</p>
+              <p className="text-[10px] sm:text-xs font-pmedium text-slate-500 mb-6">PO: {viewingInvoice.refPoId}</p>
               <button className="w-full py-3 sm:py-3.5 bg-blue-50 text-[#2563EB] border border-blue-200 rounded-xl font-pmedium text-xs sm:text-sm hover:bg-blue-100 transition-all flex items-center justify-center gap-2">
                 <DownloadCloud size={14} className="sm:w-4 sm:h-4" /> DOWNLOAD
               </button>
@@ -2296,34 +2428,97 @@ export function ExpensesBudgetPage() {
 
       {/* ── Rejection Modal ── */}
       {rejectingRequest && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-[#0F172A]/90 backdrop-blur-md">
-          <div className="bg-white rounded-2xl sm:rounded-[2.5rem] w-full max-w-sm sm:max-w-md shadow-2xl overflow-hidden flex flex-col animate-in zoom-in duration-200">
-            <div className={`p-4 sm:p-6 lg:p-8 text-white flex justify-between items-center ${rejectingRequest.decisionAction === 'Discuss' ? 'bg-blue-600' : 'bg-red-600'}`}>
-              <div>
-                <h2 className="text-lg sm:text-xl font-black flex items-center gap-2">{rejectingRequest.decisionAction === 'Discuss' ? <MessageSquare size={18} /> : <XCircle size={18} />} {rejectingRequest.decisionAction === 'Discuss' ? 'Request Changes' : 'Deny Request'}</h2>
-                <p className="text-[9px] sm:text-[10px] font-pmedium text-red-200 uppercase">{rejectingRequest.department} Dept</p>
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#0F172A]/80 p-4 backdrop-blur-md">
+          <div className="flex max-h-[90vh] w-full max-w-sm sm:max-w-md flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50 px-6 py-5">
+              <div className="min-w-0">
+                <h3 className={`text-lg font-pmedium flex items-center gap-2 ${rejectingRequest.decisionAction === 'Discuss' ? 'text-blue-600' : 'text-red-600'}`}>
+                  {rejectingRequest.decisionAction === 'Discuss' ? <MessageSquare size={18} /> : <XCircle size={18} />} {rejectingRequest.decisionAction === 'Discuss' ? 'Request Changes' : 'Deny Request'}
+                </h3>
+                <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{rejectingRequest.department} Dept</p>
               </div>
-              <button onClick={() => setRejectingRequest(null)} className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-slate-900 transition-all"><X size={16} /></button>
+              <button type="button" onClick={() => setRejectingRequest(null)} className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110" aria-label="Close">
+                <X size={18} />
+              </button>
             </div>
 
-            <form onSubmit={handleRejectConfirm} className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 bg-white">
-              <div className="p-3 sm:p-4 bg-red-50 rounded-xl border border-red-100">
-                <p className="text-[9px] sm:text-[10px] font-pmedium text-red-400 uppercase mb-1">Amount</p>
-                <p className="text-xl sm:text-2xl font-black text-red-600">{formatCurrency(rejectingRequest.requested || rejectingRequest.amount)}</p>
+            <form onSubmit={handleRejectConfirm} className="space-y-4 p-6">
+              <div className="rounded-xl border border-red-100 bg-red-50 p-4">
+                <p className="text-[10px] font-pmedium uppercase tracking-widest text-red-400 mb-1">Amount</p>
+                <p className="text-xl font-pmedium text-red-600">{formatCurrency(rejectingRequest.requested || rejectingRequest.amount)}</p>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[9px] sm:text-[10px] font-pmedium text-gray-500 uppercase">{rejectingRequest.decisionAction === 'Discuss' ? 'Changes Required' : 'Reason for Rejection'} *</label>
-                <textarea required rows={3} placeholder={rejectingRequest.decisionAction === 'Discuss' ? 'Explain what the manager must revise...' : 'Explain why this request is denied...'} className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl font-medium text-gray-700 focus:border-blue-500 outline-none resize-none text-sm" value={rejectReason} onChange={e => setRejectReason(e.target.value)} />
+              <div>
+                <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
+                  {rejectingRequest.decisionAction === 'Discuss' ? 'Changes Required' : 'Reason for Rejection'} *
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  placeholder={rejectingRequest.decisionAction === 'Discuss' ? 'Explain what the manager must revise…' : 'Explain why this request is denied…'}
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-pmedium text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  value={rejectReason}
+                  onChange={e => setRejectReason(e.target.value)}
+                />
               </div>
 
-              <div className="flex gap-3 sm:gap-4 pt-2">
-                <button type="button" onClick={() => setRejectingRequest(null)} className="flex-1 py-3 sm:py-3.5 bg-gray-100 text-gray-700 rounded-xl font-pmedium hover:bg-gray-200 transition-all text-xs sm:text-sm">Cancel</button>
-                <button type="submit" className={`flex-[2] py-3 sm:py-3.5 text-white rounded-xl font-pmedium transition-all text-xs sm:text-sm flex items-center justify-center gap-2 ${rejectingRequest.decisionAction === 'Discuss' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'}`}>
-                  Confirm
+              <div className="flex gap-3">
+                <button type="button" disabled={isSavingDecision} onClick={() => setRejectingRequest(null)} className="flex-1 rounded-xl border border-slate-200 py-3 text-xs font-pmedium text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-50">Cancel</button>
+                <button disabled={isSavingDecision || !rejectReason.trim()} type="submit" className={`flex-1 rounded-xl py-3 text-xs font-pmedium text-white disabled:opacity-50 ${rejectingRequest.decisionAction === 'Discuss' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'}`}>
+                  {isSavingDecision ? 'Saving…' : 'Confirm'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Approve Confirmation Modal (table-row Approve action) ── */}
+      {showApproveConfirm && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-[#0F172A]/80 backdrop-blur-md">
+          <div className="flex w-full max-w-md flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50 px-6 py-5">
+              <div className="min-w-0">
+                <h3 className="text-lg font-pmedium text-green-600">Approve Budget Request</h3>
+                <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{showApproveConfirm.department}</p>
+              </div>
+              <button type="button" onClick={() => { setShowApproveConfirm(null); setTemporaryFounderOverride(false); }} className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110" aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+                <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                <p className="text-xs font-pmedium leading-relaxed">
+                  This will approve the {showApproveConfirm.modalType === 'extra' ? 'extra budget request' : 'annual budget'} of <span className="font-pmedium">{formatCurrency(showApproveConfirm.requested)}</span> for <span className="font-pmedium">{showApproveConfirm.department}</span>.
+                </p>
+              </div>
+
+              {String(showApproveConfirm.approvalFlow?.owner?.status || '').toLowerCase() !== 'approved' && (
+                <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+                  <input type="checkbox" checked={temporaryFounderOverride} onChange={(event) => setTemporaryFounderOverride(event.target.checked)} className="mt-0.5 h-4 w-4 accent-amber-600" />
+                  <span><span className="block text-[11px] font-pmedium">Temporary Override Budget Request</span><span className="mt-0.5 block text-[9px] font-pmedium text-amber-700">Approves both Founder and Finance steps under your user ID and records an audit warning.</span></span>
+                </label>
+              )}
+
+              <div className="mt-5 flex gap-3">
+                <button type="button" disabled={isSavingDecision} onClick={() => { setShowApproveConfirm(null); setTemporaryFounderOverride(false); }} className="flex-1 rounded-xl border border-slate-200 py-3 text-xs font-pmedium text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-50">
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isSavingDecision}
+                  onClick={() => {
+                    const req = showApproveConfirm;
+                    if (req.modalType === 'extra') handleApproveExtra(req as ExtraBudget);
+                    else handleApproveEstimated(req as Budget);
+                  }}
+                  className="flex-1 rounded-xl bg-green-600 py-3 text-xs font-pmedium text-white shadow-sm hover:bg-green-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isSavingDecision ? 'Approving…' : <>Approve Budget <CheckCircle2 size={14} /></>}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -2335,32 +2530,32 @@ export function ExpensesBudgetPage() {
             <div className="px-6 py-5 bg-slate-900 flex justify-between items-start">
               <div>
                 <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-blue-500/20 text-blue-300 border-blue-400/30 inline-block">Records Only</span>
-                <h3 className="text-lg font-black text-white flex items-center gap-2 mt-1"><History size={16} /> Upload Historical Budget</h3>
+                <h3 className="text-lg font-pmedium text-white flex items-center gap-2 mt-1"><History size={16} /> Upload Historical Budget</h3>
                 <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">Past fiscal years • No approval flow • Read-only record</p>
               </div>
               <button onClick={() => setShowHistoricalImport(false)} className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={14} /></button>
             </div>
             <div className="p-6 space-y-4">
-              <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-medium text-amber-800">
+              <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-pmedium text-amber-800">
                 Use this only for budgets that were already approved and fully settled outside the panel. Imported records are immutable and cannot be modified later.
               </p>
               <label className="block">
                 <span className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Department *</span>
-                <select value={historicalDepartment} onChange={(e) => setHistoricalDepartment(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] font-medium text-slate-800 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100">
+                <select value={historicalDepartment} onChange={(e) => setHistoricalDepartment(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] font-pmedium text-slate-800 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100">
                   <option value="">Select department…</option>
                   {allWorkspaceDepartments.map((d) => <option key={d} value={d}>{d}</option>)}
                 </select>
               </label>
               <label className="block">
                 <span className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Fiscal Year (past only) *</span>
-                <select value={historicalFY} onChange={(e) => setHistoricalFY(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] font-medium text-slate-800 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100">
+                <select value={historicalFY} onChange={(e) => setHistoricalFY(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] font-pmedium text-slate-800 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100">
                   <option value="">Select fiscal year…</option>
                   {historicalFYOptions.map((fy) => <option key={fy} value={fy}>{fy}</option>)}
                 </select>
               </label>
               <label className="block">
                 <span className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Budget file (.xlsx / .csv) *</span>
-                <input type="file" accept=".xlsx,.xls,.csv" onChange={(e) => setHistoricalFile(e.target.files?.[0] || null)} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] font-medium text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-[10px] file:font-pmedium file:uppercase file:tracking-wider file:text-blue-700" />
+                <input type="file" accept=".xlsx,.xls,.csv" onChange={(e) => setHistoricalFile(e.target.files?.[0] || null)} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] font-pmedium text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-[10px] file:font-pmedium file:uppercase file:tracking-wider file:text-blue-700" />
               </label>
               <button type="button" onClick={handleDownloadHistoricalTemplate} className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600 hover:underline">Download template</button>
               <div className="flex gap-3 pt-1">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -7,12 +8,15 @@ import {
   Building2,
   Calendar,
   Download,
+  Eye,
+  Filter,
   Lock,
   Receipt,
   Search,
   ShieldCheck,
   TrendingUp,
   Users,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
@@ -283,12 +287,12 @@ function PnlSection({ title, tone, icon: Icon, rows, totalLabel, totalValue, cur
       </h3>
       <div className="space-y-2 sm:space-y-3">
         {rows.map(([label, amount]) => (
-          <div key={label} className="flex justify-between text-xs font-bold text-gray-700 sm:text-sm">
+          <div key={label} className="flex justify-between text-xs font-pmedium text-gray-700 sm:text-sm">
             <span>{label}</span>
             <span>{money(amount, currency)}</span>
           </div>
         ))}
-        <div className={`flex justify-between border-t border-gray-100 pt-2 text-sm font-black sm:pt-3 sm:text-lg ${totalClass}`}>
+        <div className={`flex justify-between border-t border-gray-100 pt-2 text-sm font-pmedium sm:pt-3 sm:text-lg ${totalClass}`}>
           <span>{totalLabel}</span>
           <span>{money(totalValue, currency)}</span>
         </div>
@@ -310,7 +314,12 @@ export default function AccountingPage(): React.ReactElement {
   const [showExportModal, setShowExportModal] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(String(DEFAULT_MONTH));
   const [selectedYear, setSelectedYear] = useState(String(DEFAULT_YEAR));
-  const [ledgerFilter, setLedgerFilter] = useState('All Types');
+  const [activeLedgerSubTab, setActiveLedgerSubTab] = useState('all');
+  const [activeDepartmentSubTab, setActiveDepartmentSubTab] = useState('all');
+  const [departmentSearchQuery, setDepartmentSearchQuery] = useState('');
+  const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState('all');
+  const [viewingLedgerEntry, setViewingLedgerEntry] = useState<LedgerEntry | null>(null);
+  const [viewingDepartmentRow, setViewingDepartmentRow] = useState<DepartmentRow | null>(null);
   const [data, setData] = useState<{
     finance: Record<string, unknown>;
     tenantBills: Record<string, unknown>[];
@@ -648,14 +657,48 @@ export default function AccountingPage(): React.ReactElement {
   const pendingPayments = useMemo(() => displayLedger.filter((e) => e.type === 'Expense' && !text(e.status).includes('paid')).reduce((s, e) => s + Number(e.amount || 0), 0), [displayLedger]);
   const netProfitVal = totalRevenue - totalExpenses;
 
+  const departmentOptions = useMemo(() => {
+    return Array.from(new Set(departmentRows.map((dept) => dept.name).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  }, [departmentRows]);
+
   const filteredLedger = useMemo(() => {
     const q = text(searchQuery);
     return displayLedger.filter((entry) => {
-      const matchesSearch = !q || text(`${entry.entity} ${entry.ref} ${entry.source} ${entry.dept}`).includes(q);
-      const matchesType = ledgerFilter === 'All Types' || entry.type === ledgerFilter;
+      const matchesSearch = !q || text(`${entry.entity} ${entry.ref} ${entry.source} ${entry.dept} ${entry.status}`).includes(q);
+      const matchesType = activeLedgerSubTab === 'all' || text(entry.type) === activeLedgerSubTab;
       return matchesSearch && matchesType;
     });
-  }, [ledgerFilter, searchQuery, displayLedger]);
+  }, [activeLedgerSubTab, searchQuery, displayLedger]);
+
+  const filteredDepartmentRows = useMemo(() => {
+    const q = text(departmentSearchQuery);
+    return departmentRows.filter((dept) => {
+      const matchesSearch = !q || text(`${dept.name} ${dept.id}`).includes(q);
+      const matchesDepartment = selectedDepartmentFilter === 'all' || dept.name === selectedDepartmentFilter;
+      const isOverBudget = dept.remaining < 0 || dept.usage >= 100;
+      const isWatch = !isOverBudget && dept.usage >= 75;
+      const isHealthy = !isOverBudget && dept.usage < 75;
+      const matchesStatus =
+        activeDepartmentSubTab === 'all' ||
+        (activeDepartmentSubTab === 'healthy' && isHealthy) ||
+        (activeDepartmentSubTab === 'watch' && isWatch) ||
+        (activeDepartmentSubTab === 'over' && isOverBudget);
+      return matchesSearch && matchesDepartment && matchesStatus;
+    });
+  }, [activeDepartmentSubTab, departmentRows, departmentSearchQuery, selectedDepartmentFilter]);
+
+  const ledgerSubTabs = [
+    { key: 'all', label: 'All Entries', count: displayLedger.length },
+    { key: 'income', label: 'Income', count: displayLedger.filter((entry) => entry.type === 'Income').length },
+    { key: 'expense', label: 'Expense', count: displayLedger.filter((entry) => entry.type === 'Expense').length },
+  ];
+
+  const departmentSubTabs = [
+    { key: 'all', label: 'All Departments', count: departmentRows.length },
+    { key: 'healthy', label: 'Healthy', count: departmentRows.filter((dept) => dept.remaining >= 0 && dept.usage < 75).length },
+    { key: 'watch', label: 'Watch', count: departmentRows.filter((dept) => dept.remaining >= 0 && dept.usage >= 75 && dept.usage < 100).length },
+    { key: 'over', label: 'Over Budget', count: departmentRows.filter((dept) => dept.remaining < 0 || dept.usage >= 100).length },
+  ];
 
   const handleExportAccountingReport = useCallback(
     async ({ format, dataWindow, period, reportMonth, dateFrom, dateTo }: ExportParams) => {
@@ -768,31 +811,31 @@ export default function AccountingPage(): React.ReactElement {
               <p className="text-xs font-pmedium text-slate-500 mt-1">Core Module | Ledger, department budgets & P&amp;L reports</p>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
-              <div className="flex items-center gap-2 bg-white border border-gray-200 px-4 py-2.5 rounded-xl shadow-sm">
+              <div className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50/50 px-4 py-2.5 text-[#2563EB] shadow-sm">
                 <Calendar size={14} className="text-[#2563EB]" />
                 <select
                   value={selectedFiscalYear}
                   onChange={(e) => setSelectedFiscalYear(e.target.value)}
-                  className="bg-transparent text-[10px] font-pmedium uppercase tracking-widest text-slate-700 outline-none"
+                  className="cursor-pointer bg-transparent text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] outline-none"
                 >
                   {FISCAL_YEAR_OPTIONS.map((fy: string) => (
                     <option key={fy} value={fy}>{fy}</option>
                   ))}
                 </select>
               </div>
-                              <ReportExportButton onClick={() => setShowExportModal(true)} />
+              <ReportExportButton onClick={() => setShowExportModal(true)} />
             </div>
           </div>
 
           {/* ═══ ERROR BANNER ═══ */}
           {loadError && (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-xs font-bold text-rose-700 flex items-center gap-2">
+            <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-pmedium text-rose-700">
               <AlertTriangle size={14} /> {loadError}
             </div>
           )}
 
           {/* ═══ PILL TABS (DESIGN.md: pill-style with blue active bg) ═══ */}
-          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div className="mb-3 flex w-full gap-1.5 overflow-x-auto rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0 [&::-webkit-scrollbar]:hidden">
             {([
               ['ledger', Receipt, 'Ledger'],
               ['departments', Building2, 'Departments'],
@@ -802,17 +845,48 @@ export default function AccountingPage(): React.ReactElement {
                 key={id}
                 type="button"
                 onClick={() => setActiveTab(id)}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                className={`relative z-10 flex flex-1 min-w-[150px] items-center justify-center gap-2 rounded-full px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${
                   activeTab === id
-                    ? 'bg-[#2563EB] text-white shadow-sm'
+                    ? 'text-white'
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
+                {activeTab === id && (
+                  <motion.div layoutId="accountingTabs" className="absolute inset-0 z-[-1] rounded-full bg-[#2563EB] shadow-sm" />
+                )}
                 <Icon size={14} className="shrink-0" />
                 {label}
               </button>
             ))}
           </div>
+
+          {(activeTab === 'ledger' || activeTab === 'departments') && (
+            <div className="mb-3 flex w-full gap-1.5 overflow-x-auto rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0 [&::-webkit-scrollbar]:hidden">
+              {(activeTab === 'ledger' ? ledgerSubTabs : departmentSubTabs).map((tab) => {
+                const isActive = activeTab === 'ledger' ? activeLedgerSubTab === tab.key : activeDepartmentSubTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => {
+                      if (activeTab === 'ledger') {
+                        setActiveLedgerSubTab(tab.key);
+                      } else {
+                        setActiveDepartmentSubTab(tab.key);
+                      }
+                    }}
+                    className={`relative z-10 flex min-w-[150px] flex-1 items-center justify-center gap-2 rounded-full px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${isActive ? 'text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                  >
+                    {isActive && (
+                      <motion.div layoutId={`accounting-${activeTab}-subtabs`} className="absolute inset-0 z-[-1] rounded-full bg-[#2563EB] shadow-sm" />
+                    )}
+                    <span>{tab.label}</span>
+                    <span className={`rounded-full px-1.5 py-0.5 text-[9px] ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>{tab.count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* ═══ STAT CARDS (DESIGN.md: border-l-4 accent per card, tab-aware) ═══ */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
@@ -857,26 +931,21 @@ export default function AccountingPage(): React.ReactElement {
           {/* ═══ DATA PANEL ═══ */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
             {/* ── Panel Header ── */}
-            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row xl:items-center xl:justify-end gap-3 bg-slate-50/50">
               {activeTab === 'ledger' && (
-                <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                  <select className="w-auto rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[10px] font-pmedium text-blue-700 shadow-sm outline-none" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+                  <select className="w-auto min-w-[92px] rounded-lg border border-blue-100 bg-blue-50/50 px-3 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm outline-none cursor-pointer" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
                     {MONTH_OPTIONS.map((m) => (<option key={m.value} value={String(m.value)}>{m.label}</option>))}
                   </select>
-                  <select className="w-auto rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[10px] font-pmedium text-blue-700 shadow-sm outline-none" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
+                  <select className="w-auto min-w-[92px] rounded-lg border border-blue-100 bg-blue-50/50 px-3 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm outline-none cursor-pointer" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
                     {YEAR_OPTIONS.map((y) => (<option key={y} value={String(y)}>{y}</option>))}
                   </select>
-                  <select className="w-auto rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[10px] font-pmedium text-gray-700 shadow-sm outline-none" value={ledgerFilter} onChange={(e) => setLedgerFilter(e.target.value)}>
-                    <option>All Types</option>
-                    <option>Income</option>
-                    <option>Expense</option>
-                  </select>
-                  <div className="relative w-full min-w-[220px] sm:w-64">
-                    <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                  <div className="relative w-full sm:w-64 shrink-0">
+                    <Search className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                     <input
                       type="text"
                       placeholder="Search entity, ref, department..."
-                      className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-[11px] font-bold outline-none shadow-sm focus:ring-2 focus:ring-[#2563EB]"
+                      className="w-full rounded-lg border border-slate-200/60 bg-white py-2.5 pl-9 pr-4 text-[12px] font-pmedium text-[#0F172A] outline-none transition-all placeholder:text-slate-500 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -884,12 +953,39 @@ export default function AccountingPage(): React.ReactElement {
                 </div>
               )}
 
+
+              {activeTab === 'departments' && (
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+                  <div className="relative">
+                    <Filter className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#2563EB]" />
+                    <select
+                      className="w-full min-w-[170px] rounded-lg border border-blue-100 bg-blue-50/50 py-2.5 pl-9 pr-4 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm outline-none cursor-pointer"
+                      value={selectedDepartmentFilter}
+                      onChange={(e) => setSelectedDepartmentFilter(e.target.value)}
+                    >
+                      <option value="all">All Departments</option>
+                      {departmentOptions.map((name) => (<option key={name} value={name}>{name}</option>))}
+                    </select>
+                  </div>
+                  <div className="relative w-full sm:w-64 shrink-0">
+                    <Search className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search department..."
+                      className="w-full rounded-lg border border-slate-200/60 bg-white py-2.5 pl-9 pr-4 text-[12px] font-pmedium text-[#0F172A] outline-none transition-all placeholder:text-slate-500 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                      value={departmentSearchQuery}
+                      onChange={(e) => setDepartmentSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
               {activeTab === 'pnl' && (
-                <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                  <select className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[10px] font-pmedium text-blue-700 shadow-sm outline-none" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+                  <select className="rounded-lg border border-blue-100 bg-blue-50/50 px-3 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm outline-none cursor-pointer" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
                     {MONTH_OPTIONS.map((m) => (<option key={m.value} value={String(m.value)}>{m.label}</option>))}
                   </select>
-                  <select className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[10px] font-pmedium text-blue-700 shadow-sm outline-none" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
+                  <select className="rounded-lg border border-blue-100 bg-blue-50/50 px-3 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm outline-none cursor-pointer" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
                     {YEAR_OPTIONS.map((y) => (<option key={y} value={String(y)}>{y}</option>))}
                   </select>
                 </div>
@@ -899,8 +995,8 @@ export default function AccountingPage(): React.ReactElement {
             {/* ── Tab Content ── */}
             <div className="flex-1 overflow-x-auto">
               {activeTab === 'ledger' && (
-                <table className="min-w-[900px] w-full text-left">
-                  <thead className="sticky top-0 z-10 border-b border-gray-100 bg-white text-[10px] font-pmedium uppercase tracking-widest text-gray-400">
+                <table className="w-full min-w-[900px] text-left">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-4 py-4 sm:px-6 sm:py-5">Date & ID</th>
                       <th className="px-4 py-4 sm:px-6 sm:py-5">Type</th>
@@ -908,16 +1004,16 @@ export default function AccountingPage(): React.ReactElement {
                       <th className="px-4 py-4 sm:px-6 sm:py-5">Entity</th>
                       <th className="px-4 py-4 sm:px-6 sm:py-5">Department</th>
                       <th className="px-4 py-4 sm:px-6 sm:py-5 text-right">Amount</th>
+                      <th className="px-4 py-4 sm:px-6 sm:py-5 text-center">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-slate-100/60">
                     {filteredLedger.map((entry) => (
-                      <tr key={entry.id} className="transition hover:bg-slate-50">
+                      <tr key={entry.id} className="transition-colors hover:bg-slate-50/50 group">
                         <td className="space-y-0.5 px-4 py-4 sm:px-6 sm:py-5">
-                          <p className="flex items-center gap-1 text-xs font-bold text-gray-900">
+                          <p className="flex items-center gap-1 text-xs font-pmedium text-slate-900">
                             <Calendar size={10} /> {entry.date}
                           </p>
-                          {/* <p className="text-[8px] font-black uppercase text-gray-500 sm:text-[9px]">{entry.id}</p> */}
                         </td>
                         <td className="px-4 py-4 sm:px-6 sm:py-5">
                           <span className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-[8px] font-pmedium uppercase tracking-wider ${entry.type === 'Income' ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
@@ -926,28 +1022,43 @@ export default function AccountingPage(): React.ReactElement {
                           </span>
                         </td>
                         <td className="px-4 py-4 sm:px-6 sm:py-5">
-                          <p className="text-xs font-bold text-gray-800">{entry.source}</p>
-                          <p className="mt-0.5 text-[8px] font-bold uppercase text-gray-500">Ref: {entry.ref}</p>
+                          <p className="text-xs font-pmedium text-slate-800">{entry.source}</p>
+                          <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-wider text-slate-500">Ref: {entry.ref}</p>
                         </td>
                         <td className="px-4 py-4 sm:px-6 sm:py-5">
-                          <p className="text-xs font-bold text-gray-900">{entry.entity}</p>
-                          {entry.status ? <p className="mt-0.5 text-[9px] font-bold text-blue-600">{entry.status}</p> : null}
+                          <p className="text-xs font-pmedium text-slate-900">{entry.entity}</p>
+                          {entry.status ? <p className="mt-0.5 text-[9px] font-pmedium text-blue-600">{entry.status}</p> : null}
                         </td>
                         <td className="px-4 py-4 sm:px-6 sm:py-5">
-                          <p className="text-xs font-bold text-gray-700">{entry.dept}</p>
+                          <p className="text-xs font-pmedium text-slate-700">{entry.dept}</p>
                         </td>
-                        <td className={`px-4 py-4 text-right text-base font-black sm:px-6 sm:py-5 ${entry.type === 'Income' ? 'text-green-600' : 'text-red-600'}`}>
+                        <td className={`px-4 py-4 text-right text-sm font-pmedium sm:px-6 sm:py-5 ${entry.type === 'Income' ? 'text-green-600' : 'text-red-600'}`}>
                           {entry.type === 'Income' ? '+' : '-'}{money(entry.amount)}
+                        </td>
+                        <td className="px-4 py-4 text-center sm:px-6 sm:py-5">
+                          <button
+                            type="button"
+                            onClick={() => setViewingLedgerEntry(entry)}
+                            className="mx-auto flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-900"
+                            title="View Entry"
+                          >
+                            <Eye size={14} />
+                          </button>
                         </td>
                       </tr>
                     ))}
+                    {filteredLedger.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="py-16 text-center text-xs font-pmedium text-slate-400">No ledger entries found.</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               )}
 
               {activeTab === 'departments' && (
-                <table className="min-w-[800px] w-full text-left">
-                  <thead className="sticky top-0 z-10 border-b border-gray-100 bg-white text-[10px] font-pmedium uppercase tracking-widest text-gray-400">
+                <table className="w-full min-w-[800px] text-left">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-4 py-4 sm:px-6 sm:py-5">Department</th>
                       <th className="px-4 py-4 sm:px-6 sm:py-5">Assigned</th>
@@ -955,26 +1066,27 @@ export default function AccountingPage(): React.ReactElement {
                       <th className="px-4 py-4 sm:px-6 sm:py-5">Extra</th>
                       <th className="px-4 py-4 sm:px-6 sm:py-5 text-center">Usage</th>
                       <th className="px-4 py-4 sm:px-6 sm:py-5 text-right">Remaining</th>
+                      <th className="px-4 py-4 sm:px-6 sm:py-5 text-center">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {departmentRows.map((dept) => {
+                  <tbody className="divide-y divide-slate-100/60">
+                    {filteredDepartmentRows.map((dept) => {
                       const danger = dept.usage >= 90 || dept.remaining < 0;
                       return (
-                        <tr key={dept.id} className="transition hover:bg-blue-50/30">
+                        <tr key={dept.id} className="transition-colors hover:bg-slate-50/50 group">
                           <td className="px-4 py-4 sm:px-6 sm:py-5">
-                            <p className="flex items-center gap-2 text-xs font-black text-gray-900 sm:text-sm">
+                            <p className="flex items-center gap-2 text-xs font-pmedium text-slate-900 sm:text-sm">
                               <Building2 size={14} className="text-blue-600" />
                               {dept.name}
                             </p>
-                            <p className="mt-0.5 text-[8px] font-bold uppercase text-gray-400">{dept.id}</p>
+                            <p className="mt-0.5 text-[9px] font-pmedium uppercase tracking-wider text-slate-400">{dept.id}</p>
                           </td>
-                          <td className="px-4 py-4 sm:px-6 sm:py-5 text-xs font-black text-gray-900 sm:text-sm">{money(dept.assigned)}</td>
-                          <td className="px-4 py-4 sm:px-6 sm:py-5 text-xs font-black text-gray-900 sm:text-sm">{money(dept.used)}</td>
+                          <td className="px-4 py-4 sm:px-6 sm:py-5 text-xs font-pmedium text-slate-900 sm:text-sm">{money(dept.assigned)}</td>
+                          <td className="px-4 py-4 sm:px-6 sm:py-5 text-xs font-pmedium text-slate-900 sm:text-sm">{money(dept.used)}</td>
                           <td className="px-4 py-4 sm:px-6 sm:py-5 text-center">
                             {dept.extra > 0
                               ? <span className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-pmedium text-amber-700">{money(dept.extra)}</span>
-                              : <span className="text-xs font-bold text-gray-400">--</span>}
+                              : <span className="text-xs font-pmedium text-slate-400">--</span>}
                           </td>
                           <td className="px-4 py-4 sm:px-6 sm:py-5">
                             <div className="mb-1.5 flex justify-between text-[9px] font-pmedium uppercase tracking-widest">
@@ -985,24 +1097,41 @@ export default function AccountingPage(): React.ReactElement {
                               <div className={`h-full rounded-full ${danger ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${dept.usage}%` }} />
                             </div>
                           </td>
-                          <td className="px-4 py-4 text-right text-xs font-black sm:px-6 sm:py-5 sm:text-sm">
+                          <td className="px-4 py-4 text-right text-xs font-pmedium sm:px-6 sm:py-5 sm:text-sm">
                             <span className={dept.remaining < 0 ? 'text-red-600' : 'text-slate-900'}>{money(dept.remaining)}</span>
+                          </td>
+                          <td className="px-4 py-4 text-center sm:px-6 sm:py-5">
+                            <button
+                              type="button"
+                              onClick={() => setViewingDepartmentRow(dept)}
+                              className="mx-auto flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-900"
+                              title="View Department"
+                            >
+                              <Eye size={14} />
+                            </button>
                           </td>
                         </tr>
                       );
                     })}
+                    {filteredDepartmentRows.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="py-16 text-center text-xs font-pmedium text-slate-400">No departments found.</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               )}
 
+
+
               {activeTab === 'pnl' && (
-                <div className="flex justify-center bg-slate-50 p-4 sm:p-6 md:p-10">
-                  <div className="w-full max-w-4xl overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-lg">
+                <div className="flex justify-center bg-slate-50/50 p-4 sm:p-6 md:p-8">
+                  <div className="w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
                     <div className="bg-slate-900 p-6 text-center text-white sm:p-8">
                       <h2 className="mb-1 flex items-center justify-center gap-2 text-lg font-pmedium uppercase tracking-widest sm:text-2xl">
                         <BarChart3 size={20} /> Profit & Loss
                       </h2>
-                      <p className="text-xs font-bold text-slate-400 sm:text-sm">{selectedPeriodLabel} Report</p>
+                      <p className="text-xs font-pmedium text-slate-400 sm:text-sm">{selectedPeriodLabel} Report</p>
                     </div>
                     <div className="flex items-center justify-center gap-2 border-b border-blue-100 bg-blue-50 p-2 text-[10px] font-pmedium text-blue-800 sm:text-xs">
                       <ShieldCheck size={14} className="text-blue-600" />
@@ -1013,7 +1142,7 @@ export default function AccountingPage(): React.ReactElement {
                       <PnlSection title="COGS" tone="orange" icon={Building2} rows={[['Department Costs', pnlData.cogsDepartment], ['Extra Budget Costs', pnlData.cogsExtra]]} totalLabel="Total COGS" totalValue={pnlData.cogsTotal} currency={currency} />
                       <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-100 p-3 sm:p-4">
                         <span className="text-[10px] font-pmedium uppercase tracking-widest text-gray-600 sm:text-xs">Gross Profit</span>
-                        <span className="text-lg font-black text-gray-900 sm:text-xl">{money(pnlData.grossProfit)}</span>
+                        <span className="text-lg font-pmedium text-gray-900 sm:text-xl">{money(pnlData.grossProfit)}</span>
                       </div>
                       <PnlSection title="OPEX" tone="red" icon={ArrowDownRight} rows={[['Payroll', pnlData.payroll], ['Admin / Other', pnlData.admin]]} totalLabel="Total Expenses" totalValue={pnlData.opexTotal} currency={currency} />
                       <div className={`flex flex-col gap-3 rounded-2xl border-2 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6 ${pnlData.netProfit >= 0 ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
@@ -1021,7 +1150,7 @@ export default function AccountingPage(): React.ReactElement {
                           <span className={`text-xs font-pmedium uppercase tracking-widest sm:text-sm ${pnlData.netProfit >= 0 ? 'text-green-700' : 'text-red-700'}`}>Net Profit</span>
                           <p className={`mt-1 text-[10px] font-pmedium uppercase ${pnlData.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>Margin: {pnlData.margin}%</p>
                         </div>
-                        <span className={`text-2xl font-black tracking-tight sm:text-4xl ${pnlData.netProfit >= 0 ? 'text-green-700' : 'text-red-700'}`}>{money(pnlData.netProfit)}</span>
+                        <span className={`text-2xl font-pmedium sm:text-4xl ${pnlData.netProfit >= 0 ? 'text-green-700' : 'text-red-700'}`}>{money(pnlData.netProfit)}</span>
                       </div>
                     </div>
                   </div>
@@ -1033,6 +1162,91 @@ export default function AccountingPage(): React.ReactElement {
         </div>
       </PageFrame>
 
+      {viewingLedgerEntry && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-[#0F172A]/80 p-4 backdrop-blur-md" role="dialog" aria-modal="true">
+          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50 px-6 py-5">
+              <div className="min-w-0">
+                <h3 className="flex items-center gap-2 text-lg font-pmedium text-slate-900"><Receipt size={18} className="text-[#2563EB]" /> Ledger Entry</h3>
+                <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{viewingLedgerEntry.source}</p>
+              </div>
+              <button type="button" onClick={() => setViewingLedgerEntry(null)} className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110" aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="grid gap-3 p-6 sm:grid-cols-2">
+              {[
+                ['Date', viewingLedgerEntry.date],
+                ['Type', viewingLedgerEntry.type],
+                ['Entity', viewingLedgerEntry.entity],
+                ['Department', viewingLedgerEntry.dept],
+                ['Reference', viewingLedgerEntry.ref],
+                ['Status', viewingLedgerEntry.status || '--'],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{label}</p>
+                  <p className="mt-1 text-sm font-pmedium text-slate-900">{value}</p>
+                </div>
+              ))}
+              <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 sm:col-span-2">
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-500">Amount</p>
+                <p className={`mt-1 text-xl font-pmedium ${viewingLedgerEntry.type === 'Income' ? 'text-green-600' : 'text-red-600'}`}>
+                  {viewingLedgerEntry.type === 'Income' ? '+' : '-'}{money(viewingLedgerEntry.amount)}
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end border-t border-slate-100 bg-slate-50 px-6 py-4">
+              <button type="button" onClick={() => setViewingLedgerEntry(null)} className="rounded-xl bg-slate-100 px-6 py-2.5 text-xs font-pmedium text-slate-700 transition-all hover:bg-slate-200">CLOSE</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewingDepartmentRow && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-[#0F172A]/80 p-4 backdrop-blur-md" role="dialog" aria-modal="true">
+          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50 px-6 py-5">
+              <div className="min-w-0">
+                <h3 className="flex items-center gap-2 text-lg font-pmedium text-slate-900"><Building2 size={18} className="text-[#2563EB]" /> {viewingDepartmentRow.name}</h3>
+                <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Department budget summary</p>
+              </div>
+              <button type="button" onClick={() => setViewingDepartmentRow(null)} className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110" aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-4 p-6">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  ['Assigned', money(viewingDepartmentRow.assigned)],
+                  ['Used', money(viewingDepartmentRow.used)],
+                  ['Extra', money(viewingDepartmentRow.extra)],
+                  ['Remaining', money(viewingDepartmentRow.remaining)],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{label}</p>
+                    <p className="mt-1 text-sm font-pmedium text-slate-900">{value}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="mb-2 flex items-center justify-between text-[10px] font-pmedium uppercase tracking-widest">
+                  <span className="text-slate-500">Budget Usage</span>
+                  <span className={viewingDepartmentRow.remaining < 0 || viewingDepartmentRow.usage >= 90 ? 'text-red-600' : 'text-green-600'}>{Math.round(viewingDepartmentRow.usage)}%</span>
+                </div>
+                <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div className={`h-full rounded-full ${viewingDepartmentRow.remaining < 0 || viewingDepartmentRow.usage >= 90 ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${viewingDepartmentRow.usage}%` }} />
+                </div>
+                <p className="mt-3 text-xs font-pmedium text-slate-500">
+                  {viewingDepartmentRow.remaining < 0 ? 'This department has crossed its approved allocation.' : viewingDepartmentRow.usage >= 75 ? 'This department is nearing its approved allocation.' : 'This department is within the approved allocation.'}
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end border-t border-slate-100 bg-slate-50 px-6 py-4">
+              <button type="button" onClick={() => setViewingDepartmentRow(null)} className="rounded-xl bg-slate-100 px-6 py-2.5 text-xs font-pmedium text-slate-700 transition-all hover:bg-slate-200">CLOSE</button>
+            </div>
+          </div>
+        </div>
+      )}
       <ExportReportModal
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}

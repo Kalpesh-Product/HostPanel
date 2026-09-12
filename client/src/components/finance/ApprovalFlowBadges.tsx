@@ -71,14 +71,14 @@ export function ApprovalFlowBadges({ flow }: { flow?: ApprovalFlowLike | null })
   // green so it's immediately clear WHO has already signed off, and the
   // still-waiting half in amber so it's clear who hasn't.
   const [approvedLabel, pendingLabel] = ownerApproved
-    ? ["Founder Approved", "Finance Manager Pending"]
-    : ["Finance Manager Approved", "Founder Pending"];
+    ? ["Founder Approved", "Finance Mgr Pending"]
+    : ["Finance Mgr Approved", "Founder Pending"];
   return (
-    <span title={tipText} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest">
-      <Clock size={9} className="text-amber-500 shrink-0" />
-      <span className="text-emerald-600">{approvedLabel}</span>
-      <span className="text-slate-300">•</span>
-      <span className="text-amber-600">{pendingLabel}</span>
+    <span title={tipText} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[8px] font-pmedium uppercase tracking-widest">
+      <Clock size={9} className="shrink-0 text-amber-500" />
+      <span className="whitespace-nowrap text-emerald-600">{approvedLabel}</span>
+      <span className="shrink-0 text-slate-300">•</span>
+      <span className="whitespace-nowrap text-amber-600">{pendingLabel}</span>
     </span>
   );
 }

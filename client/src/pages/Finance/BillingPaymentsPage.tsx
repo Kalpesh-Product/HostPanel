@@ -1608,12 +1608,12 @@ export function BillingPaymentsPage() {
               <p className="text-xs font-pmedium text-slate-500 mt-1">Core Module | Invoicing, payroll & payment management</p>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
-              <div className="flex items-center gap-2 bg-white border border-gray-200 px-4 py-2.5 rounded-xl shadow-sm">
+              <div className="flex items-center gap-2 bg-white border border-slate-200 px-4 py-2.5 rounded-xl shadow-sm">
                 <Calendar size={18} className="text-[#2563EB]" />
                 <select
                   value={selectedFY}
                   onChange={(e) => setSelectedFY(e.target.value)}
-                  className="bg-transparent font-black text-[#0F172A] outline-none cursor-pointer border-none text-xs"
+                  className="bg-transparent font-pmedium text-[#0F172A] outline-none cursor-pointer border-none text-xs"
                 >
                   {fiscalYearOptions.map((year: string) => (
                     <option key={year} value={year}>{year}{year === DEFAULT_FISCAL_YEAR ? ' (Default)' : ''}</option>
@@ -1634,7 +1634,7 @@ export function BillingPaymentsPage() {
           </div>
 
           {errorMessage && (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700 flex items-center justify-between gap-4">
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-pmedium text-rose-700 flex items-center justify-between gap-4">
               <span>{errorMessage}</span>
               <button
                 type="button"
@@ -1657,7 +1657,7 @@ export function BillingPaymentsPage() {
                     type="button"
                     role="tab"
                     aria-selected={activeTab === tab.key}
-                    onClick={() => setActiveTab(tab.key)}
+                    onClick={() => { setActiveTab(tab.key); setStatusFilter('All'); }}
                     className={`flex min-w-[8.5rem] flex-none items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all sm:min-w-[10rem] ${
                       activeTab === tab.key
                         ? 'bg-[#2563EB] text-white shadow-sm'
@@ -1696,55 +1696,37 @@ export function BillingPaymentsPage() {
 
           {/* ── Data Panel ── */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
-              <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
-                <select
-                  className="w-full sm:w-44 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option>All</option>
-                  {activeTab === 'rent' ? (
-                    <>
-                      <option>Due</option>
-                      <option>Proof Submitted</option>
-                      <option>Paid</option>
-                      <option>Overdue</option>
-                    </>
-                  ) : activeTab === 'workation' || activeTab === 'alternateRevenue' ? (
-                    <>
-                      <option>Pending</option>
-                      <option>Received</option>
-                      <option>Reversal</option>
-                    </>
-                  ) : activeTab === 'virtualOffice' ? (
-                    <>
-                      <option>Paid</option>
-                      <option>Due</option>
-                      <option>Partially Paid</option>
-                      <option>Overdue</option>
-                    </>
-                  ) : (
-                    <>
-                      <option>Paid</option>
-                      <option>Pending</option>
-                      <option>Generated</option>
-                      <option>Sent</option>
-                      <option>Failed</option>
-                      <option>Rejected</option>
-                    </>
-                  )}
-                </select>
-                <div className="relative min-w-[200px] flex-1">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row xl:items-center gap-3 bg-slate-50/50">
+              <div className="flex flex-1 items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                {activeTab !== 'history' && (
+                  activeTab === 'rent' ? ['All', 'Due', 'Proof Submitted', 'Paid', 'Overdue']
+                    : activeTab === 'workation' || activeTab === 'alternateRevenue' ? ['All', 'Pending', 'Received', 'Reversal']
+                    : activeTab === 'virtualOffice' ? ['All', 'Paid', 'Due', 'Partially Paid', 'Overdue']
+                    : ['All', 'Paid', 'Pending', 'Generated', 'Sent', 'Failed', 'Rejected']
+                ).map((opt: string) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setStatusFilter(opt)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
+                      statusFilter === opt
+                        ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+                        : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                    }`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+              <div className="relative w-full xl:w-64 shrink-0">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-pmedium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
             </div>
 
@@ -1768,36 +1750,37 @@ export function BillingPaymentsPage() {
                       {visibleTenantBills.length > 0 ? visibleTenantBills.map((bill) => (
                         <tr key={bill.id} className="hover:bg-blue-50/30 transition-all">
                           <td className="px-6 py-5">
-                            <p className="font-black text-slate-900 text-xs sm:text-sm flex items-center gap-1.5"><Building2 size={13} className="text-slate-400" /> {bill.company}</p>
+                            <p className="font-pmedium text-slate-900 text-xs sm:text-sm flex items-center gap-1.5"><Building2 size={13} className="text-slate-400" /> {bill.company}</p>
                           </td>
                           <td className="px-6 py-5">
-                            <p className="font-bold text-slate-700 text-xs">{bill.packageName || bill.package || '-'}</p>
-                            <p className="text-[9px] font-semibold text-slate-400">{bill.seats} seats | {bill.contractDurationMonths}m</p>
+                            <p className="font-pmedium text-slate-700 text-xs">{bill.packageName || bill.package || '-'}</p>
+                            <p className="text-[9px] font-pmedium text-slate-400">{bill.seats} seats | {bill.contractDurationMonths}m</p>
                           </td>
-                          <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">{formatCurrency(bill.securityDepositAmount || 0)}</td>
+                          <td className="px-6 py-5 font-pmedium text-slate-900 text-xs sm:text-sm">{formatCurrency(bill.securityDepositAmount || 0)}</td>
                           <td className="px-6 py-5 hidden sm:table-cell">
                             {bill.invoiceNumber ? (
                               <div className="space-y-0.5">
                                 <p className="text-[10px] font-pmedium text-blue-600">{bill.invoiceNumber}</p>
-                                <p className="text-[9px] font-semibold text-slate-400">{bill.invoiceStatus}</p>
+                                <p className="text-[9px] font-pmedium text-slate-400">{bill.invoiceStatus}</p>
                               </div>
                             ) : (
-                              <span className="text-[9px] font-bold text-slate-400 uppercase">Not Generated</span>
+                              <span className="text-[9px] font-pmedium text-slate-400 uppercase">Not Generated</span>
                             )}
                           </td>
                           <td className="px-6 py-5 text-center">{getStatusBadge(bill.securityDepositPaidStatus || bill.invoiceStatus)}</td>
                           <td className="px-6 py-5 text-center">
                             <button
                               onClick={() => setViewingTenantBill(bill)}
-                              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto"
+                              className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm mx-auto"
+                              title="View"
                             >
-                              <Eye size={10} /> View
+                              <Eye size={14} />
                             </button>
                           </td>
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-semibold">No tenant billing records found.</td>
+                          <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-pmedium">No tenant billing records found.</td>
                         </tr>
                       )}
                     </tbody>
@@ -1821,15 +1804,15 @@ export function BillingPaymentsPage() {
                       {visibleRentRecords.length > 0 ? visibleRentRecords.map((rent) => (
                         <tr key={rent.recordId || rent.id} className="hover:bg-blue-50/30 transition-all">
                           <td className="px-6 py-5">
-                            <p className="font-black text-slate-900 text-xs sm:text-sm flex items-center gap-1.5"><Building2 size={13} className="text-slate-400" /> {rent.companyName}</p>
-                            <p className="text-[9px] font-semibold text-slate-400">{rent.tenantCode || rent.id}</p>
+                            <p className="font-pmedium text-slate-900 text-xs sm:text-sm flex items-center gap-1.5"><Building2 size={13} className="text-slate-400" /> {rent.companyName}</p>
+                            <p className="text-[9px] font-pmedium text-slate-400">{rent.tenantCode || rent.id}</p>
                           </td>
-                          <td className="px-6 py-5 font-bold text-slate-700 text-xs">{rent.periodLabel || rent.periodKey || '-'}</td>
-                          <td className="px-6 py-5 hidden sm:table-cell text-xs font-bold text-slate-700">{rent.dueDateLabel || '-'}</td>
-                          <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">
+                          <td className="px-6 py-5 font-pmedium text-slate-700 text-xs">{rent.periodLabel || rent.periodKey || '-'}</td>
+                          <td className="px-6 py-5 hidden sm:table-cell text-xs font-pmedium text-slate-700">{rent.dueDateLabel || '-'}</td>
+                          <td className="px-6 py-5 font-pmedium text-slate-900 text-xs sm:text-sm">
                             {formatCurrency(rent.amount || 0)}
                             {rent.status !== 'Paid' && typeof rent.remaining === 'number' && rent.remaining < (rent.amount || 0) && (
-                              <p className="text-[9px] font-bold text-rose-500">Remaining: {formatCurrency(rent.remaining)}</p>
+                              <p className="text-[9px] font-pmedium text-rose-500">Remaining: {formatCurrency(rent.remaining)}</p>
                             )}
                           </td>
                           <td className="px-6 py-5 hidden md:table-cell">
@@ -1838,22 +1821,23 @@ export function BillingPaymentsPage() {
                                 <FileText size={11} /> View
                               </a>
                             ) : (
-                              <span className="text-[9px] font-bold text-slate-400 uppercase">Not Submitted</span>
+                              <span className="text-[9px] font-pmedium text-slate-400 uppercase">Not Submitted</span>
                             )}
                           </td>
                           <td className="px-6 py-5 text-center">{getRentStatusBadge(rent.isOverdue ? 'Overdue' : rent.status)}</td>
                           <td className="px-6 py-5 text-center">
                             <button
                               onClick={() => setViewingRent(rent)}
-                              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto"
+                              className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm mx-auto"
+                              title="View"
                             >
-                              <Eye size={10} /> View
+                              <Eye size={14} />
                             </button>
                           </td>
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan={7} className="px-6 py-16 text-center text-slate-400 font-semibold">No tenant rent records found.</td>
+                          <td colSpan={7} className="px-6 py-16 text-center text-slate-400 font-pmedium">No tenant rent records found.</td>
                         </tr>
                       )}
                     </tbody>
@@ -1878,13 +1862,13 @@ export function BillingPaymentsPage() {
                       {visibleVoRecords.length > 0 ? visibleVoRecords.map((vo) => (
                         <tr key={vo.id} className="hover:bg-blue-50/30 transition-all">
                           <td className="px-6 py-5">
-                            <p className="font-black text-slate-900 text-xs sm:text-sm flex items-center gap-1.5"><Building2 size={13} className="text-slate-400" /> {vo.clientName || '—'}</p>
-                            <p className="text-[9px] font-semibold text-slate-400">{vo.recordCode}{vo.serviceName ? ` · ${vo.serviceName}` : ''}</p>
+                            <p className="font-pmedium text-slate-900 text-xs sm:text-sm flex items-center gap-1.5"><Building2 size={13} className="text-slate-400" /> {vo.clientName || '—'}</p>
+                            <p className="text-[9px] font-pmedium text-slate-400">{vo.recordCode}{vo.serviceName ? ` · ${vo.serviceName}` : ''}</p>
                           </td>
-                          <td className="px-6 py-5 hidden sm:table-cell text-xs font-bold text-slate-700">{vo.currentPeriod?.monthLabel || '—'}</td>
-                          <td className="px-6 py-5 hidden lg:table-cell text-xs font-bold text-slate-700">{vo.currentPeriod?.paidThroughLabel || '—'}</td>
-                          <td className="px-6 py-5 hidden sm:table-cell text-xs font-bold text-slate-700">{vo.currentPeriod?.dueDateLabel || vo.rentDateLabel || '—'}</td>
-                          <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">{formatCurrency(vo.monthlyRent || 0)}</td>
+                          <td className="px-6 py-5 hidden sm:table-cell text-xs font-pmedium text-slate-700">{vo.currentPeriod?.monthLabel || '—'}</td>
+                          <td className="px-6 py-5 hidden lg:table-cell text-xs font-pmedium text-slate-700">{vo.currentPeriod?.paidThroughLabel || '—'}</td>
+                          <td className="px-6 py-5 hidden sm:table-cell text-xs font-pmedium text-slate-700">{vo.currentPeriod?.dueDateLabel || vo.rentDateLabel || '—'}</td>
+                          <td className="px-6 py-5 font-pmedium text-slate-900 text-xs sm:text-sm">{formatCurrency(vo.monthlyRent || 0)}</td>
                           <td className="px-6 py-5 hidden md:table-cell">
                             <p className="text-[10px] font-pmedium text-emerald-600">Paid: {formatCurrency(vo.currentPeriod?.paidAmount || 0)}</p>
                             <p className="text-[10px] font-pmedium text-rose-500">Due: {formatCurrency(vo.currentPeriod?.dueAmount || 0)}</p>
@@ -1909,16 +1893,17 @@ export function BillingPaymentsPage() {
                                   setVoReceiptFile(null);
                                   setVoTargetPeriodStart(defaultTarget?.periodStart || '');
                                 }}
-                                className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-pmedium uppercase transition-all shadow-sm inline-flex items-center gap-1"
+                                className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm"
+                                title="View"
                               >
-                                <Eye size={10} /> View
+                                <Eye size={14} />
                               </button>
                             </div>
                           </td>
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan={8} className="px-6 py-16 text-center text-slate-400 font-semibold">No virtual office rent records found.</td>
+                          <td colSpan={8} className="px-6 py-16 text-center text-slate-400 font-pmedium">No virtual office rent records found.</td>
                         </tr>
                       )}
                     </tbody>
@@ -1942,25 +1927,25 @@ export function BillingPaymentsPage() {
                       {visibleRevenueRecords.length > 0 ? visibleRevenueRecords.map((entry) => (
                         <tr key={entry.id} className="hover:bg-blue-50/30 transition-all">
                           <td className="px-6 py-5">
-                            <p className="font-black text-slate-900 text-xs sm:text-sm flex items-center gap-1.5">
+                            <p className="font-pmedium text-slate-900 text-xs sm:text-sm flex items-center gap-1.5">
                               {activeTab === 'workation' ? <Briefcase size={13} className="text-slate-400" /> : <Coins size={13} className="text-slate-400" />} {entry.entityName || '—'}
                             </p>
-                            <p className="text-[9px] font-semibold text-slate-400">
+                            <p className="text-[9px] font-pmedium text-slate-400">
                               {entry.entryCode}{entry.billingPeriodLabel ? ` · ${entry.billingPeriodLabel}` : ''}
                               {entry.document?.fileUrl && (
                                 <> · <a href={entry.document.fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 inline-flex items-center gap-0.5"><FileText size={9} /> Document</a></>
                               )}
                             </p>
                           </td>
-                          <td className="px-6 py-5 hidden sm:table-cell text-xs font-bold text-slate-700">{entry.category || '—'}</td>
-                          <td className="px-6 py-5 hidden sm:table-cell text-xs font-bold text-slate-700">{entry.revenueDateLabel || '—'}</td>
-                          <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">
+                          <td className="px-6 py-5 hidden sm:table-cell text-xs font-pmedium text-slate-700">{entry.category || '—'}</td>
+                          <td className="px-6 py-5 hidden sm:table-cell text-xs font-pmedium text-slate-700">{entry.revenueDateLabel || '—'}</td>
+                          <td className="px-6 py-5 font-pmedium text-slate-900 text-xs sm:text-sm">
                             {formatCurrency(entry.amount || 0)}
                             {(entry.taxAmount ?? 0) > 0 && (
                               <p className="text-[9px] font-pmedium text-slate-400">+ {formatCurrency(entry.taxAmount)} {entry.taxLabel || 'Tax'} · Total {formatCurrency(entry.totalAmount || entry.amount || 0)}</p>
                             )}
                           </td>
-                          <td className="px-6 py-5 hidden md:table-cell text-xs font-semibold text-slate-600">
+                          <td className="px-6 py-5 hidden md:table-cell text-xs font-pmedium text-slate-600">
                             {entry.paymentMethod || '—'}{entry.reference ? ` · ${entry.reference}` : ''}
                           </td>
                           <td className="px-6 py-5 text-center">{getRentStatusBadge(entry.status)}</td>
@@ -1972,25 +1957,25 @@ export function BillingPaymentsPage() {
                                   onClick={() => void handleConfirmRevenue(entry)}
                                   disabled={isProcessingAction}
                                   title="Recognize this revenue as received"
-                                  className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-[9px] font-bold uppercase tracking-wider shadow-sm hover:bg-emerald-700 transition-all disabled:opacity-60 inline-flex items-center gap-1"
+                                  className="p-2 bg-green-600 border border-green-600 text-white hover:bg-green-700 rounded-lg transition-all shadow-sm disabled:opacity-60"
                                 >
-                                  <CheckCircle2 size={10} /> Confirm
+                                  <CheckCircle2 size={14} />
                                 </button>
                               )}
                               <button
                                 type="button"
                                 onClick={() => { setViewingRevenue(entry); setShowReverseRevenue(false); setReverseReason(''); }}
                                 title="View details"
-                                className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-pmedium uppercase transition-all shadow-sm inline-flex items-center gap-1"
+                                className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm"
                               >
-                                <Eye size={10} /> View
+                                <Eye size={14} />
                               </button>
                             </div>
                           </td>
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan={7} className="px-6 py-16 text-center text-slate-400 font-semibold">
+                          <td colSpan={7} className="px-6 py-16 text-center text-slate-400 font-pmedium">
                             No revenue entries yet. Use "Add Revenue" to record {activeTab === 'workation' ? 'workation' : 'alternate'} income.
                           </td>
                         </tr>
@@ -2015,28 +2000,29 @@ export function BillingPaymentsPage() {
                       {visibleBookings.length > 0 ? visibleBookings.map((booking) => (
                         <tr key={booking.id} className="hover:bg-blue-50/30 transition-all">
                           <td className="px-6 py-5">
-                            <p className="font-black text-slate-900 text-xs sm:text-sm">{booking.bookedByName || 'Guest'}</p>
-                            {booking.clientCompany && <p className="text-[9px] font-semibold text-slate-400">{booking.clientCompany}</p>}
+                            <p className="font-pmedium text-slate-900 text-xs sm:text-sm">{booking.bookedByName || 'Guest'}</p>
+                            {booking.clientCompany && <p className="text-[9px] font-pmedium text-slate-400">{booking.clientCompany}</p>}
                           </td>
-                          <td className="px-6 py-5 font-bold text-slate-700 text-xs">{booking.roomName || booking.resourceName || '-'}</td>
+                          <td className="px-6 py-5 font-pmedium text-slate-700 text-xs">{booking.roomName || booking.resourceName || '-'}</td>
                           <td className="px-6 py-5">
-                            <p className="text-xs font-bold text-slate-700">{booking.date || booking.dateLabel || '-'}</p>
-                            <p className="text-[9px] font-semibold text-slate-400">{booking.startTime || booking.timeSlot || ''}{booking.startTime && booking.endTime ? ` - ${booking.endTime}` : ''}</p>
+                            <p className="text-xs font-pmedium text-slate-700">{booking.date || booking.dateLabel || '-'}</p>
+                            <p className="text-[9px] font-pmedium text-slate-400">{booking.startTime || booking.timeSlot || ''}{booking.startTime && booking.endTime ? ` - ${booking.endTime}` : ''}</p>
                           </td>
-                          <td className="px-6 py-5 hidden sm:table-cell font-black text-slate-900 text-xs sm:text-sm">{formatCurrency(booking.totalAmount || booking.amount || 0)}</td>
+                          <td className="px-6 py-5 hidden sm:table-cell font-pmedium text-slate-900 text-xs sm:text-sm">{formatCurrency(booking.totalAmount || booking.amount || 0)}</td>
                           <td className="px-6 py-5 text-center">{getStatusBadge(booking.paymentStatus || booking.invoiceStatus)}</td>
                           <td className="px-6 py-5 text-center">
                             <button
                               onClick={() => setViewingBooking(booking)}
-                              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto"
+                              className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm mx-auto"
+                              title="View"
                             >
-                              <Eye size={10} /> View
+                              <Eye size={14} />
                             </button>
                           </td>
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-semibold">No booking records found.</td>
+                          <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-pmedium">No booking records found.</td>
                         </tr>
                       )}
                     </tbody>
@@ -2061,35 +2047,36 @@ export function BillingPaymentsPage() {
                         return (
                           <tr key={emp.id} className="hover:bg-blue-50/30 transition-all">
                             <td className="px-6 py-5">
-                              <p className="font-black text-slate-900 text-xs sm:text-sm flex items-center gap-1.5"><User size={13} className="text-slate-400" /> {emp.name || 'Unknown'}</p>
-                              {emp.employeeId && <p className="text-[9px] font-semibold text-slate-400">ID: {emp.employeeId}</p>}
+                              <p className="font-pmedium text-slate-900 text-xs sm:text-sm flex items-center gap-1.5"><User size={13} className="text-slate-400" /> {emp.name || 'Unknown'}</p>
+                              {emp.employeeId && <p className="text-[9px] font-pmedium text-slate-400">ID: {emp.employeeId}</p>}
                             </td>
-                            <td className="px-6 py-5 font-bold text-slate-700 text-xs">{emp.department || '-'}</td>
-                            <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">{formatCurrency(emp.financials?.netSalary || 0)}</td>
+                            <td className="px-6 py-5 font-pmedium text-slate-700 text-xs">{emp.department || '-'}</td>
+                            <td className="px-6 py-5 font-pmedium text-slate-900 text-xs sm:text-sm">{formatCurrency(emp.financials?.netSalary || 0)}</td>
                             <td className="px-6 py-5 hidden sm:table-cell">
                               {emp.bankDetails?.bankName ? (
                                 <div className="space-y-0.5">
                                   <p className="text-[10px] font-pmedium text-slate-700">{emp.bankDetails.bankName}</p>
-                                  <p className="text-[9px] font-semibold text-slate-400">{emp.bankDetails.accountHolderName} | {emp.bankDetails.accountNumber}</p>
+                                  <p className="text-[9px] font-pmedium text-slate-400">{emp.bankDetails.accountHolderName} | {emp.bankDetails.accountNumber}</p>
                                 </div>
                               ) : (
-                                <span className="text-[9px] font-bold text-slate-400 uppercase">Not Available</span>
+                                <span className="text-[9px] font-pmedium text-slate-400 uppercase">Not Available</span>
                               )}
                             </td>
                             <td className="px-6 py-5 text-center">{getStatusBadge(payStatus)}</td>
                             <td className="px-6 py-5 text-center">
                               <button
                                 onClick={() => setViewingEmployee(emp)}
-                                className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto"
+                                className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm mx-auto"
+                                title="View"
                               >
-                                <Eye size={10} /> View
+                                <Eye size={14} />
                               </button>
                             </td>
                           </tr>
                         );
                       }) : (
                         <tr>
-                          <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-semibold">No payroll records found.</td>
+                          <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-pmedium">No payroll records found.</td>
                         </tr>
                       )}
                     </tbody>
@@ -2112,30 +2099,31 @@ export function BillingPaymentsPage() {
                       {visibleExtraCredits.length > 0 ? visibleExtraCredits.map((cr) => (
                         <tr key={cr._id || cr.id} className="hover:bg-blue-50/30 transition-all">
                           <td className="px-6 py-5">
-                            <p className="font-black text-slate-900 text-xs sm:text-sm">{cr.tenantCompanyName || cr.tenantCompanyCode || '-'}</p>
+                            <p className="font-pmedium text-slate-900 text-xs sm:text-sm">{cr.tenantCompanyName || cr.tenantCompanyCode || '-'}</p>
                           </td>
-                          <td className="px-6 py-5 font-bold text-slate-700 text-xs">{cr.requestedCredits || 0}</td>
-                          <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">{formatCurrency(cr.totalAmount || 0)}</td>
+                          <td className="px-6 py-5 font-pmedium text-slate-700 text-xs">{cr.requestedCredits || 0}</td>
+                          <td className="px-6 py-5 font-pmedium text-slate-900 text-xs sm:text-sm">{formatCurrency(cr.totalAmount || 0)}</td>
                           <td className="px-6 py-5 hidden sm:table-cell">
                             {cr.invoiceNumber ? (
                               <p className="text-[10px] font-pmedium text-blue-600">{cr.invoiceNumber}</p>
                             ) : (
-                              <span className="text-[9px] font-bold text-slate-400 uppercase">Pending</span>
+                              <span className="text-[9px] font-pmedium text-slate-400 uppercase">Pending</span>
                             )}
                           </td>
                           <td className="px-6 py-5 text-center">{getStatusBadge(getCreditRequestStatusLabel(cr.status))}</td>
                           <td className="px-6 py-5 text-center">
                             <button
                               onClick={() => setViewingExtraCredit(cr)}
-                              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-pmedium uppercase transition-all shadow-sm flex items-center gap-1 mx-auto"
+                              className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm mx-auto"
+                              title="View"
                             >
-                              <Eye size={10} /> View
+                              <Eye size={14} />
                             </button>
                           </td>
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-semibold">No extra credit requests found.</td>
+                          <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-pmedium">No extra credit requests found.</td>
                         </tr>
                       )}
                     </tbody>
@@ -2157,16 +2145,16 @@ export function BillingPaymentsPage() {
                     <tbody className="divide-y divide-slate-100/60">
                       {transactionHistory.length > 0 ? transactionHistory.map((tx) => (
                         <tr key={tx.id} className="hover:bg-slate-50 transition-all">
-                          <td className="px-6 py-5 font-bold text-slate-700 text-xs">{tx.date || '-'}</td>
-                          <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">{tx.entity}</td>
+                          <td className="px-6 py-5 font-pmedium text-slate-700 text-xs">{tx.date || '-'}</td>
+                          <td className="px-6 py-5 font-pmedium text-slate-900 text-xs sm:text-sm">{tx.entity}</td>
                           <td className="px-6 py-5"><span className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-md text-[9px] font-pmedium uppercase tracking-wider">{tx.type}</span></td>
-                          <td className="px-6 py-5 font-black text-slate-900 text-xs sm:text-sm">{formatCurrency(tx.amount)}</td>
+                          <td className="px-6 py-5 font-pmedium text-slate-900 text-xs sm:text-sm">{formatCurrency(tx.amount)}</td>
                           <td className="px-6 py-5 hidden sm:table-cell text-[10px] font-pmedium text-slate-500">{tx.ref || '-'}</td>
-                          <td className="px-6 py-5 text-[10px] font-medium text-slate-600 max-w-[200px] truncate">{tx.details || '-'}</td>
+                          <td className="px-6 py-5 text-[10px] font-pmedium text-slate-600 max-w-[200px] truncate">{tx.details || '-'}</td>
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-semibold">No transaction history found.</td>
+                          <td colSpan={6} className="px-6 py-16 text-center text-slate-400 font-pmedium">No transaction history found.</td>
                         </tr>
                       )}
                     </tbody>
@@ -2182,20 +2170,20 @@ export function BillingPaymentsPage() {
       {/* ── Add Revenue Modal (Workation / Alternate) ── */}
       {showAddRevenue && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
+          <div className="bg-white rounded-[1.75rem] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-5 bg-slate-50 border-b border-slate-100 flex justify-between items-start shrink-0">
               <div>
-                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-blue-500/20 text-blue-300 border-blue-400/30 mb-2 inline-block">Manual Revenue</span>
-                <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1">
+                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-blue-50 text-blue-600 border-blue-200 mb-2 inline-block">Manual Revenue</span>
+                <h2 className="text-lg font-pmedium text-slate-900 flex items-center gap-2 mt-1">
                   {activeTab === 'workation' ? <Briefcase size={20} /> : <Coins size={20} />} Add {activeTab === 'workation' ? 'Workation' : 'Alternate'} Revenue
                 </h2>
                 <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">
                   {activeTab === 'workation' ? 'Workation packages, extensions and add-ons' : 'Events, café, printing, parking, day passes, commissions and more'}
                 </p>
               </div>
-              <button onClick={() => setShowAddRevenue(false)} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
+              <button onClick={() => setShowAddRevenue(false)} className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110"><X size={16} /></button>
             </div>
-            <div className="overflow-y-auto flex-1 bg-[#F8FAFC] px-6 sm:px-8 py-5">
+            <div className="overflow-y-auto flex-1 bg-white px-6 sm:px-8 py-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Client / Customer Name <span className="text-red-400">*</span></label>
@@ -2296,108 +2284,106 @@ export function BillingPaymentsPage() {
       {/* ── View Revenue Entry Modal (details + reverse) ── */}
       {viewingRevenue && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
+          <div className="bg-white rounded-[1.75rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-5 bg-slate-50 border-b border-slate-100 flex justify-between items-start shrink-0">
               <div>
-                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-blue-500/20 text-blue-300 border-blue-400/30 mb-2 inline-block">
+                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-blue-50 text-blue-600 border-blue-200 mb-2 inline-block">
                   {viewingRevenue.source === 'workation-revenue' ? 'Workation Revenue' : 'Alternate Revenue'}
                 </span>
-                <h2 className="text-xl font-black text-white flex items-center gap-2 mt-1">
+                <h2 className="text-lg font-pmedium text-slate-900 flex items-center gap-2 mt-1">
                   {viewingRevenue.source === 'workation-revenue' ? <Briefcase size={18} /> : <Coins size={18} />} {viewingRevenue.entityName || '—'}
                 </h2>
                 <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">{viewingRevenue.entryCode}</p>
               </div>
-              <button onClick={() => { setViewingRevenue(null); setShowReverseRevenue(false); setReverseReason(''); }} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
+              <button onClick={() => { setViewingRevenue(null); setShowReverseRevenue(false); setReverseReason(''); }} className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110"><X size={16} /></button>
             </div>
-            <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
-              <div className="px-6 sm:px-8 py-5 grid grid-cols-2 gap-4 border-b border-gray-100 bg-white">
-                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+            <div className="flex-1 space-y-5 overflow-y-auto p-6">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-600">Amount</p>
-                  <p className="text-xl font-black text-blue-900 mt-1">{formatCurrency(viewingRevenue.amount || 0)}</p>
+                  <p className="text-xl font-pmedium text-blue-900 mt-1">{formatCurrency(viewingRevenue.amount || 0)}</p>
                 </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Status</p>
-                  <p className="text-lg font-black text-gray-900 mt-1">{viewingRevenue.status || '—'}</p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Status</p>
+                  <p className="text-lg font-pmedium text-slate-900 mt-1">{viewingRevenue.status || '—'}</p>
                 </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Category</p>
-                  <p className="text-xs font-black text-gray-900 mt-1">{viewingRevenue.category || '—'}</p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Category</p>
+                  <p className="text-xs font-pmedium text-slate-900 mt-1">{viewingRevenue.category || '—'}</p>
                 </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Revenue Date</p>
-                  <p className="text-xs font-black text-gray-900 mt-1">{viewingRevenue.revenueDateLabel || '—'}</p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Revenue Date</p>
+                  <p className="text-xs font-pmedium text-slate-900 mt-1">{viewingRevenue.revenueDateLabel || '—'}</p>
                 </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Payment Method</p>
-                  <p className="text-xs font-black text-gray-900 mt-1">{viewingRevenue.paymentMethod || '—'}</p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Payment Method</p>
+                  <p className="text-xs font-pmedium text-slate-900 mt-1">{viewingRevenue.paymentMethod || '—'}</p>
                 </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Reference</p>
-                  <p className="text-xs font-black text-gray-900 mt-1 break-all">{viewingRevenue.reference || '—'}</p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Reference</p>
+                  <p className="text-xs font-pmedium text-slate-900 mt-1 break-all">{viewingRevenue.reference || '—'}</p>
                 </div>
                 {viewingRevenue.billingPeriodLabel && (
-                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 col-span-2">
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Billing Period</p>
-                    <p className="text-xs font-black text-gray-900 mt-1">{viewingRevenue.billingPeriodLabel}</p>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 col-span-2">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Billing Period</p>
+                    <p className="text-xs font-pmedium text-slate-900 mt-1">{viewingRevenue.billingPeriodLabel}</p>
                   </div>
                 )}
                 {viewingRevenue.note && (
-                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 col-span-2">
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Description</p>
-                    <p className="text-xs font-semibold text-gray-800 mt-1">{viewingRevenue.note}</p>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 col-span-2">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Description</p>
+                    <p className="text-xs font-pmedium text-slate-800 mt-1">{viewingRevenue.note}</p>
                   </div>
                 )}
               </div>
 
-              <div className="px-6 sm:px-8 py-5 space-y-3">
-                {viewingRevenue.document?.fileUrl && (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><FileText size={13} /></div>
-                      <p className="text-[12px] font-pmedium text-slate-900 truncate">{viewingRevenue.document.fileName || 'Supporting document'}</p>
-                    </div>
-                    <button type="button" onClick={() => window.open(viewingRevenue.document?.fileUrl, '_blank', 'noopener,noreferrer')} className="px-4 py-2 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-primary/95 transition-all shrink-0 flex items-center gap-1.5">
-                      <Eye size={12} /> View
-                    </button>
+              {viewingRevenue.document?.fileUrl && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><FileText size={13} /></div>
+                    <p className="text-[12px] font-pmedium text-slate-900 truncate">{viewingRevenue.document.fileName || 'Supporting document'}</p>
                   </div>
-                )}
+                  <button type="button" onClick={() => window.open(viewingRevenue.document?.fileUrl, '_blank', 'noopener,noreferrer')} className="px-4 py-2 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-primary/95 transition-all shrink-0 flex items-center gap-1.5">
+                    <Eye size={12} /> View
+                  </button>
+                </div>
+              )}
 
-                {viewingRevenue.isReceived && (
-                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-600">Confirmed Received</p>
-                    <p className="text-xs font-semibold text-emerald-800 mt-1">{viewingRevenue.confirmedByName || '—'}{viewingRevenue.confirmedAt ? ` · ${new Date(viewingRevenue.confirmedAt).toLocaleString()}` : ''}</p>
+              {viewingRevenue.isReceived && (
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-600">Confirmed Received</p>
+                  <p className="text-xs font-pmedium text-emerald-800 mt-1">{viewingRevenue.confirmedByName || '—'}{viewingRevenue.confirmedAt ? ` · ${new Date(viewingRevenue.confirmedAt).toLocaleString()}` : ''}</p>
+                </div>
+              )}
+
+              {viewingRevenue.postedByName && (
+                <p className="text-[11px] text-slate-500">Recorded by <span className="font-pmedium text-slate-800">{viewingRevenue.postedByName}</span></p>
+              )}
+
+              {Array.isArray(viewingRevenue.events) && viewingRevenue.events.length > 0 && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">Audit Trail</p>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    {viewingRevenue.events.slice().reverse().map((event, idx: number) => (
+                      <div key={idx} className="flex items-start gap-2 text-[11px]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5 shrink-0" />
+                        <p className="text-slate-600">
+                          <span className="font-pmedium text-slate-800">{event.actorName || 'System'}</span> — {event.note || event.action}
+                          <span className="text-slate-400"> ({event.at ? new Date(event.at).toLocaleString() : ''})</span>
+                        </p>
+                      </div>
+                    ))}
                   </div>
-                )}
+                </div>
+              )}
 
-                {viewingRevenue.postedByName && (
-                  <p className="text-[11px] text-slate-500">Recorded by <span className="font-pmedium text-slate-800">{viewingRevenue.postedByName}</span></p>
-                )}
-
-                {Array.isArray(viewingRevenue.events) && viewingRevenue.events.length > 0 && (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">Audit Trail</p>
-                    <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                      {viewingRevenue.events.slice().reverse().map((event, idx: number) => (
-                        <div key={idx} className="flex items-start gap-2 text-[11px]">
-                          <span className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5 shrink-0" />
-                          <p className="text-slate-600">
-                            <span className="font-pmedium text-slate-800">{event.actorName || 'System'}</span> — {event.note || event.action}
-                            <span className="text-slate-400"> ({event.at ? new Date(event.at).toLocaleString() : ''})</span>
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {showReverseRevenue && (
-                  <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 space-y-2">
-                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-rose-600">Reverse this entry (reason required)</p>
-                    <p className="text-[11px] text-slate-500">A reversal entry of <strong className="text-rose-600">{formatCurrency(viewingRevenue.amount || 0)}</strong> will be appended. The original entry stays untouched for audit, and the two net to zero in the P&L.</p>
-                    <textarea rows={2} value={reverseReason} onChange={(e) => setReverseReason(e.target.value)} placeholder="Reason (required) — e.g. wrong amount / duplicate entry" className="w-full px-3 py-2 bg-white border border-rose-200 rounded-xl text-xs font-medium outline-none focus:border-rose-400" />
-                  </div>
-                )}
-              </div>
+              {showReverseRevenue && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 space-y-2">
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-rose-600">Reverse this entry (reason required)</p>
+                  <p className="text-[11px] text-slate-500">A reversal entry of <strong className="text-rose-600">{formatCurrency(viewingRevenue.amount || 0)}</strong> will be appended. The original entry stays untouched for audit, and the two net to zero in the P&L.</p>
+                  <textarea rows={2} value={reverseReason} onChange={(e) => setReverseReason(e.target.value)} placeholder="Reason (required) — e.g. wrong amount / duplicate entry" className="w-full px-3 py-2 bg-white border border-rose-200 rounded-xl text-xs font-pmedium outline-none focus:border-rose-400" />
+                </div>
+              )}
             </div>
             <div className="px-6 sm:px-8 py-4 bg-white border-t border-slate-100 flex flex-wrap justify-end gap-2 shrink-0">
               {showReverseRevenue ? (
@@ -2425,65 +2411,63 @@ export function BillingPaymentsPage() {
       {/* ── View Tenant Bill Modal ── */}
       {viewingTenantBill && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
+          <div className="bg-white rounded-[1.75rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-5 bg-slate-50 border-b border-slate-100 flex justify-between items-start shrink-0">
               <div>
-                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-blue-500/20 text-blue-300 border-blue-400/30 mb-2 inline-block">Tenant Security Deposit</span>
-                <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1"><Building2 size={20} /> {viewingTenantBill.company}</h2>
+                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-blue-50 text-blue-600 border-blue-200 mb-2 inline-block">Tenant Security Deposit</span>
+                <h2 className="text-lg font-pmedium text-slate-900 flex items-center gap-2 mt-1"><Building2 size={20} /> {viewingTenantBill.company}</h2>
                 <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">ID: {viewingTenantBill.recordId || viewingTenantBill.id}</p>
               </div>
-              <button onClick={() => setViewingTenantBill(null)} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
+              <button onClick={() => setViewingTenantBill(null)} className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110"><X size={16} /></button>
             </div>
-            <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
-              <div className="px-6 sm:px-8 py-5 grid grid-cols-2 sm:grid-cols-3 gap-4 border-b border-gray-100 bg-white">
-                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:p-5">
+            <div className="flex-1 space-y-5 overflow-y-auto p-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-600">Security Deposit</p>
-                  <p className="text-xl font-black text-blue-900 mt-1">{formatCurrency(viewingTenantBill.securityDepositAmount || 0)}</p>
+                  <p className="text-xl font-pmedium text-blue-900 mt-1">{formatCurrency(viewingTenantBill.securityDepositAmount || 0)}</p>
                 </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Monthly Rent</p>
-                  <p className="text-lg font-black text-gray-900 mt-1">{formatCurrency(viewingTenantBill.monthlyRent || 0)}</p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Monthly Rent</p>
+                  <p className="text-lg font-pmedium text-slate-900 mt-1">{formatCurrency(viewingTenantBill.monthlyRent || 0)}</p>
                 </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Contract</p>
-                  <p className="text-lg font-black text-gray-900 mt-1">{viewingTenantBill.contractDurationMonths || 0} months</p>
-                  <p className="text-[10px] font-pmedium text-gray-400">{viewingTenantBill.seats} seats</p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Contract</p>
+                  <p className="text-lg font-pmedium text-slate-900 mt-1">{viewingTenantBill.contractDurationMonths || 0} months</p>
+                  <p className="text-[10px] font-pmedium text-slate-400">{viewingTenantBill.seats} seats</p>
                 </div>
               </div>
-              <div className="px-6 sm:px-8 py-5 space-y-4 bg-white">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Package</p>
-                    <p className="font-black text-gray-900">{viewingTenantBill.packageName || viewingTenantBill.package || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Cycle</p>
-                    <p className="font-black text-gray-900">{viewingTenantBill.cycle || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Due Date</p>
-                    <p className="font-bold text-gray-700">{viewingTenantBill.dueDate || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Total Contract</p>
-                    <p className="font-black text-gray-900">{formatCurrency(viewingTenantBill.totalContractAmount || 0)}</p>
-                  </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Package</p>
+                  <p className="font-pmedium text-slate-900">{viewingTenantBill.packageName || viewingTenantBill.package || '-'}</p>
                 </div>
-                <div className="border-t border-gray-100 pt-4">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-2">Invoice Status</p>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-bold">Status:</span>
-                    {getStatusBadge(viewingTenantBill.invoiceStatus || 'Pending')}
-                    {viewingTenantBill.invoiceNumber && <span className="text-xs font-bold text-blue-600 ml-2">{viewingTenantBill.invoiceNumber}</span>}
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-bold">Payment:</span>
-                    {getStatusBadge(viewingTenantBill.securityDepositPaidStatus || 'Pending')}
-                  </div>
+                <div>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Cycle</p>
+                  <p className="font-pmedium text-slate-900">{viewingTenantBill.cycle || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Due Date</p>
+                  <p className="font-pmedium text-slate-700">{viewingTenantBill.dueDate || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Total Contract</p>
+                  <p className="font-pmedium text-slate-900">{formatCurrency(viewingTenantBill.totalContractAmount || 0)}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">Invoice Status</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-pmedium text-slate-500">Status:</span>
+                  {getStatusBadge(viewingTenantBill.invoiceStatus || 'Pending')}
+                  {viewingTenantBill.invoiceNumber && <span className="text-xs font-pmedium text-blue-600 ml-2">{viewingTenantBill.invoiceNumber}</span>}
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-pmedium text-slate-500">Payment:</span>
+                  {getStatusBadge(viewingTenantBill.securityDepositPaidStatus || 'Pending')}
                 </div>
               </div>
             </div>
-            <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex flex-wrap gap-3 shrink-0">
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center justify-end gap-3 shrink-0">
               {viewingTenantBill.securityDepositPaidStatus !== 'Paid' && (
                 <button
                   type="button"
@@ -2541,64 +2525,69 @@ export function BillingPaymentsPage() {
       {/* ── View Tenant Rent Modal ── */}
       {viewingRent && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
+          <div className="bg-white rounded-[1.75rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-5 bg-slate-50 border-b border-slate-100 flex justify-between items-start shrink-0">
               <div>
-                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-emerald-500/20 text-emerald-300 border-emerald-400/30 mb-2 inline-block">Tenant Rent</span>
-                <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1"><Building2 size={20} /> {viewingRent.companyName}</h2>
+                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-emerald-50 text-emerald-600 border-emerald-200 mb-2 inline-block">Tenant Rent</span>
+                <h2 className="text-lg font-pmedium text-slate-900 flex items-center gap-2 mt-1"><Building2 size={20} /> {viewingRent.companyName}</h2>
                 <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">{viewingRent.tenantCode || 'Tenant'} · {viewingRent.periodLabel || viewingRent.periodKey} · {viewingRent.id}</p>
               </div>
-              <button onClick={() => { setViewingRent(null); setShowRentReturn(false); setRentReturnNote(''); setRentReturnPaymentId(''); setRentReceiptFiles({}); setShowRentOfflineForm(false); setRentOfflineAmount(''); setRentOfflineRef(''); setRentOfflineReceiptFile(null); }} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
+              <button onClick={() => { setViewingRent(null); setShowRentReturn(false); setRentReturnNote(''); setRentReturnPaymentId(''); setRentReceiptFiles({}); setShowRentOfflineForm(false); setRentOfflineAmount(''); setRentOfflineRef(''); setRentOfflineReceiptFile(null); }} className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110"><X size={16} /></button>
             </div>
-            <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
-              <div className="px-6 sm:px-8 py-5 grid grid-cols-2 sm:grid-cols-3 gap-4 border-b border-gray-100 bg-white">
-                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:p-5">
+            <div className="flex-1 space-y-5 overflow-y-auto p-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-600">Rent Amount</p>
-                  <p className="text-xl font-black text-blue-900 mt-1">{formatCurrency(viewingRent.amount || 0)}</p>
+                  <p className="text-xl font-pmedium text-blue-900 mt-1">{formatCurrency(viewingRent.amount || 0)}</p>
                 </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Due Date</p>
-                  <p className="text-lg font-black text-gray-900 mt-1">{viewingRent.dueDateLabel || '-'}</p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Due Date</p>
+                  <p className="text-lg font-pmedium text-slate-900 mt-1">{viewingRent.dueDateLabel || '-'}</p>
                 </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Status</p>
-                  <p className="text-lg font-black text-gray-900 mt-1">{viewingRent.isOverdue ? 'Overdue' : viewingRent.status}</p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Status</p>
+                  <p className="text-lg font-pmedium text-slate-900 mt-1">{viewingRent.isOverdue ? 'Overdue' : viewingRent.status}</p>
                 </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Transaction Reference</p>
-                  <p className="text-xs font-black text-gray-900 mt-1 break-all">{viewingRent.transactionReference || '—'}</p>
+                {viewingRent.transactionReference && (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Transaction Reference</p>
+                    <p className="text-xs font-pmedium text-slate-900 mt-1 break-all">{viewingRent.transactionReference}</p>
+                  </div>
+                )}
+                {viewingRent.submittedByName && (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Submitted By</p>
+                    <p className="text-xs font-pmedium text-slate-900 mt-1">{viewingRent.submittedByName}</p>
+                    <p className="text-[10px] font-pmedium text-slate-400">{viewingRent.submittedAt ? new Date(viewingRent.submittedAt).toLocaleString() : ''}</p>
+                  </div>
+                )}
+                {viewingRent.verifiedByName && (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Verified By</p>
+                    <p className="text-xs font-pmedium text-slate-900 mt-1">{viewingRent.verifiedByName}</p>
+                    <p className="text-[10px] font-pmedium text-slate-400">{viewingRent.paidAt ? new Date(viewingRent.paidAt).toLocaleString() : ''}</p>
+                  </div>
+                )}
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Payment Window</p>
+                  <p className="text-xs font-pmedium text-slate-900 mt-1">{viewingRent.paymentWindowLabel || '—'}</p>
+                  <p className="text-[10px] font-pmedium text-slate-400">{viewingRent.isWithinPaymentWindow ? 'Open — tenant can submit proof' : 'Closed — finance records manually'}</p>
                 </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Submitted By</p>
-                  <p className="text-xs font-black text-gray-900 mt-1">{viewingRent.submittedByName || '—'}</p>
-                  <p className="text-[10px] font-pmedium text-gray-400">{viewingRent.submittedAt ? new Date(viewingRent.submittedAt).toLocaleString() : ''}</p>
-                </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Verified By</p>
-                  <p className="text-xs font-black text-gray-900 mt-1">{viewingRent.verifiedByName || '—'}</p>
-                  <p className="text-[10px] font-pmedium text-gray-400">{viewingRent.paidAt ? new Date(viewingRent.paidAt).toLocaleString() : ''}</p>
-                </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Payment Window</p>
-                  <p className="text-xs font-black text-gray-900 mt-1">{viewingRent.paymentWindowLabel || '—'}</p>
-                  <p className="text-[10px] font-pmedium text-gray-400">{viewingRent.isWithinPaymentWindow ? 'Open — tenant can submit proof' : 'Closed — finance records manually'}</p>
-                </div>
-                <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 sm:p-5">
+                <div className="rounded-xl border border-rose-100 bg-rose-50 p-4">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-rose-500">Remaining</p>
-                  <p className="text-xl font-black text-rose-900 mt-1">{formatCurrency(viewingRent.remaining ?? viewingRent.amount ?? 0)}</p>
-                  <p className="text-[10px] font-pmedium text-gray-400">Verified so far: {formatCurrency(viewingRent.verifiedTotal || 0)}</p>
+                  <p className="text-xl font-pmedium text-rose-900 mt-1">{formatCurrency(viewingRent.remaining ?? viewingRent.amount ?? 0)}</p>
+                  <p className="text-[10px] font-pmedium text-slate-400">Verified so far: {formatCurrency(viewingRent.verifiedTotal || 0)}</p>
                 </div>
               </div>
 
-              <div className="px-6 sm:px-8 py-5 space-y-3">
-                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">Installments</p>
                   {(viewingRent.payments && viewingRent.payments.length > 0) ? (
                     <div className="space-y-2">
                       {viewingRent.payments.slice().reverse().map((payment) => (
                         <div key={payment.id} className="rounded-xl border border-slate-100 bg-slate-50/60 p-3 space-y-1.5">
                           <div className="flex items-center justify-between gap-2 flex-wrap">
-                            <p className="text-xs font-black text-slate-900">{formatCurrency(payment.amount || 0)}{payment.transactionReference ? ` · Ref: ${payment.transactionReference}` : ''}{(payment.taxAmount ?? 0) > 0 ? ` · +${formatCurrency(payment.taxAmount)} ${payment.taxLabel || 'Tax'}` : ''}</p>
+                            <p className="text-xs font-pmedium text-slate-900">{formatCurrency(payment.amount || 0)}{payment.transactionReference ? ` · Ref: ${payment.transactionReference}` : ''}{(payment.taxAmount ?? 0) > 0 ? ` · +${formatCurrency(payment.taxAmount)} ${payment.taxLabel || 'Tax'}` : ''}</p>
                             {getRentStatusBadge(payment.status === 'Submitted' ? 'Proof Submitted' : payment.status === 'Verified' ? 'Paid' : 'Due')}
                           </div>
                           <p className="text-[10px] text-slate-500">
@@ -2637,7 +2626,7 @@ export function BillingPaymentsPage() {
                                   type="button"
                                   onClick={() => void handleVerifyRentPayment(viewingRent, payment.id, rentReceiptFiles[payment.id])}
                                   disabled={isProcessingAction}
-                                  className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-[9px] font-bold uppercase tracking-wider shadow-sm hover:bg-emerald-700 transition-all disabled:opacity-60 inline-flex items-center gap-1"
+                                  className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-[9px] font-pmedium uppercase tracking-wider shadow-sm hover:bg-emerald-700 transition-all disabled:opacity-60 inline-flex items-center gap-1"
                                 >
                                   <CheckCircle2 size={10} /> Verify &amp; Save
                                 </button>
@@ -2659,18 +2648,18 @@ export function BillingPaymentsPage() {
                     viewingRent.paymentProof?.fileUrl ? (
                       <div className="flex items-center justify-between gap-3">
                         <p className="text-[11px] text-slate-500">Legacy proof: {viewingRent.paymentProof.fileName || 'payment-proof'}</p>
-                        <button type="button" onClick={() => window.open(viewingRent.paymentProof?.fileUrl, '_blank', 'noopener,noreferrer')} className="px-3 py-1.5 bg-[#2563EB] text-white rounded-lg text-[9px] font-bold uppercase tracking-wider shadow-sm hover:bg-primary/95 transition-all inline-flex items-center gap-1">
+                        <button type="button" onClick={() => window.open(viewingRent.paymentProof?.fileUrl, '_blank', 'noopener,noreferrer')} className="px-3 py-1.5 bg-[#2563EB] text-white rounded-lg text-[9px] font-pmedium uppercase tracking-wider shadow-sm hover:bg-primary/95 transition-all inline-flex items-center gap-1">
                           <Eye size={10} /> View Proof
                         </button>
                       </div>
                     ) : (
-                      <p className="text-[11px] text-slate-400 font-semibold">No installments submitted yet.</p>
+                      <p className="text-[11px] text-slate-400 font-pmedium">No installments submitted yet.</p>
                     )
                   )}
                 </div>
 
                 {showRentOfflineForm && viewingRent.status !== 'Paid' && (
-                  <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 space-y-2">
+                  <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-2">
                     <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Record an offline payment</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <input
@@ -2678,14 +2667,14 @@ export function BillingPaymentsPage() {
                         value={rentOfflineAmount}
                         onChange={(e) => setRentOfflineAmount(e.target.value)}
                         placeholder={`Amount (remaining: ${formatCurrency(viewingRent.remaining ?? viewingRent.amount ?? 0)})`}
-                        className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-medium outline-none focus:border-blue-400"
+                        className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-pmedium outline-none focus:border-blue-400"
                       />
                       <input
                         type="text"
                         value={rentOfflineRef}
                         onChange={(e) => setRentOfflineRef(e.target.value)}
                         placeholder="Transaction reference (optional)"
-                        className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-medium outline-none focus:border-blue-400"
+                        className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-pmedium outline-none focus:border-blue-400"
                       />
                       {taxAvailable && (
                         <label className="flex items-center gap-2 text-[10px] font-pmedium text-slate-700 cursor-pointer sm:col-span-2">
@@ -2714,21 +2703,21 @@ export function BillingPaymentsPage() {
                 )}
 
                 {viewingRent.rejection?.reason && (
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
                     <p className="text-[10px] font-pmedium uppercase tracking-widest text-amber-600">Last Returned Reason</p>
-                    <p className="text-xs font-semibold text-amber-800 mt-1">{viewingRent.rejection.reason}{viewingRent.rejection.rejectedByName ? ` — ${viewingRent.rejection.rejectedByName}` : ''}</p>
+                    <p className="text-xs font-pmedium text-amber-800 mt-1">{viewingRent.rejection.reason}{viewingRent.rejection.rejectedByName ? ` — ${viewingRent.rejection.rejectedByName}` : ''}</p>
                   </div>
                 )}
 
                 {showRentReturn && (
-                  <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 space-y-2">
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 space-y-2">
                     <p className="text-[10px] font-pmedium uppercase tracking-widest text-rose-600">Return proof to tenant (reason required)</p>
                     <textarea
                       value={rentReturnNote}
                       onChange={(e) => setRentReturnNote(e.target.value)}
                       rows={2}
                       placeholder="e.g. Amount mismatch with the invoice"
-                      className="w-full px-3 py-2 bg-white border border-rose-200 rounded-xl text-xs font-medium outline-none focus:border-rose-400"
+                      className="w-full px-3 py-2 bg-white border border-rose-200 rounded-xl text-xs font-pmedium outline-none focus:border-rose-400"
                     />
                     <div className="flex justify-end gap-2">
                       <button type="button" onClick={() => { setShowRentReturn(false); setRentReturnNote(''); setRentReturnPaymentId(''); }} className="px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl font-pmedium text-[10px] uppercase tracking-widest">Cancel</button>
@@ -2740,7 +2729,7 @@ export function BillingPaymentsPage() {
                 )}
 
                 {Array.isArray(viewingRent.actionHistory) && viewingRent.actionHistory.length > 0 && (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">Audit Trail</p>
                     <div className="space-y-1.5 max-h-40 overflow-y-auto">
                       {viewingRent.actionHistory.slice().reverse().map((entry, idx: number) => (
@@ -2755,10 +2744,8 @@ export function BillingPaymentsPage() {
                     </div>
                   </div>
                 )}
-
-              </div>
             </div>
-            <div className="px-6 sm:px-8 py-4 bg-white border-t border-slate-100 flex flex-wrap justify-end gap-2 shrink-0">
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center justify-end gap-3 shrink-0">
               {viewingRent.status !== 'Paid' && !showRentOfflineForm && (
                 <button
                   type="button"
@@ -2790,49 +2777,48 @@ export function BillingPaymentsPage() {
       {/* ── View Virtual Office Rent Modal ── */}
       {viewingVo && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
+          <div className="bg-white rounded-[1.75rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-5 bg-slate-50 border-b border-slate-100 flex justify-between items-start shrink-0">
               <div>
-                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-violet-500/20 text-violet-300 border-violet-400/30 mb-2 inline-block">Virtual Office Rent</span>
-                <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1"><Building2 size={20} /> {viewingVo.clientName || 'Virtual Office'}</h2>
+                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-violet-50 text-violet-600 border-violet-200 mb-2 inline-block">Virtual Office Rent</span>
+                <h2 className="text-lg font-pmedium text-slate-900 flex items-center gap-2 mt-1"><Building2 size={20} /> {viewingVo.clientName || 'Virtual Office'}</h2>
                 <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">{viewingVo.recordCode}{viewingVo.serviceName ? ` · ${viewingVo.serviceName}` : ''}</p>
               </div>
-              <button onClick={() => { setViewingVo(null); setVoReceiptFile(null); setVoPaymentAmount(''); setVoTransactionId(''); }} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
+              <button onClick={() => { setViewingVo(null); setVoReceiptFile(null); setVoPaymentAmount(''); setVoTransactionId(''); }} className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110"><X size={16} /></button>
             </div>
-            <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
-              <div className="px-6 sm:px-8 py-5 grid grid-cols-2 sm:grid-cols-3 gap-4 border-b border-gray-100 bg-white">
-                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:p-5">
+            <div className="flex-1 space-y-5 overflow-y-auto p-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-600">Monthly Rent</p>
-                  <p className="text-xl font-black text-blue-900 mt-1">{formatCurrency(viewingVo.monthlyRent || 0)}</p>
+                  <p className="text-xl font-pmedium text-blue-900 mt-1">{formatCurrency(viewingVo.monthlyRent || 0)}</p>
                 </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Current Period</p>
-                  <p className="text-lg font-black text-gray-900 mt-1">{viewingVo.currentPeriod?.monthLabel || '—'}</p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Current Period</p>
+                  <p className="text-lg font-pmedium text-slate-900 mt-1">{viewingVo.currentPeriod?.monthLabel || '—'}</p>
                 </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Period Status</p>
-                  <p className="text-lg font-black text-gray-900 mt-1">{viewingVo.currentPeriod?.status || '—'}</p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Period Status</p>
+                  <p className="text-lg font-pmedium text-slate-900 mt-1">{viewingVo.currentPeriod?.status || '—'}</p>
                 </div>
-                <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4 sm:p-5">
+                <div className="rounded-xl border border-violet-100 bg-violet-50 p-4">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-violet-600">Paid Through</p>
-                  <p className="text-lg font-black text-violet-900 mt-1">{viewingVo.currentPeriod?.paidThroughLabel || '—'}</p>
+                  <p className="text-lg font-pmedium text-violet-900 mt-1">{viewingVo.currentPeriod?.paidThroughLabel || '—'}</p>
                 </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Rent Due Date (recurring)</p>
-                  <p className="text-xs font-black text-gray-900 mt-1">{viewingVo.rentDateLabel || '—'}</p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Rent Due Date (recurring)</p>
+                  <p className="text-xs font-pmedium text-slate-900 mt-1">{viewingVo.rentDateLabel || '—'}</p>
                 </div>
-                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 sm:p-5">
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">Paid This Period</p>
-                  <p className="text-xs font-black text-emerald-900 mt-1">{formatCurrency(viewingVo.currentPeriod?.paidAmount || 0)}</p>
+                  <p className="text-xs font-pmedium text-emerald-900 mt-1">{formatCurrency(viewingVo.currentPeriod?.paidAmount || 0)}</p>
                 </div>
-                <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 sm:p-5">
+                <div className="rounded-xl border border-rose-100 bg-rose-50 p-4">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-rose-500">Due This Period</p>
-                  <p className="text-xs font-black text-rose-900 mt-1">{formatCurrency(viewingVo.currentPeriod?.dueAmount || 0)}</p>
+                  <p className="text-xs font-pmedium text-rose-900 mt-1">{formatCurrency(viewingVo.currentPeriod?.dueAmount || 0)}</p>
                 </div>
               </div>
 
-              <div className="px-6 sm:px-8 py-5 space-y-3">
-                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">Payment History</p>
                   {(viewingVo.paymentRecords || []).length > 0 ? (
                     <div className="space-y-1.5 max-h-48 overflow-y-auto">
@@ -2851,12 +2837,12 @@ export function BillingPaymentsPage() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-[11px] text-slate-400 font-semibold">No rent payments recorded yet.</p>
+                    <p className="text-[11px] text-slate-400 font-pmedium">No rent payments recorded yet.</p>
                   )}
                 </div>
 
                 {(viewingVo.openPeriods?.length ?? 0) > 0 && (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
                     <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Record Payment</p>
                     {(viewingVo.openPeriods?.length ?? 0) > 1 && (
                       <div className="space-y-1">
@@ -2864,7 +2850,7 @@ export function BillingPaymentsPage() {
                         <select
                           value={voTargetPeriodStart}
                           onChange={(e) => setVoTargetPeriodStart(e.target.value)}
-                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:bg-white"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-pmedium outline-none focus:border-[#2563EB] focus:bg-white"
                         >
                           {(viewingVo.openPeriods || []).map((p) => (
                             <option key={p.periodStart || p.monthLabel} value={p.periodStart || ''}>
@@ -2885,7 +2871,7 @@ export function BillingPaymentsPage() {
                           value={voPaymentAmount}
                           onChange={(e) => setVoPaymentAmount(e.target.value)}
                           placeholder={String(getVoTargetPeriod(viewingVo)?.dueAmount || 0)}
-                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:bg-white"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-pmedium outline-none focus:border-[#2563EB] focus:bg-white"
                         />
                       </div>
                       <div className="space-y-1">
@@ -2895,7 +2881,7 @@ export function BillingPaymentsPage() {
                           value={voTransactionId}
                           onChange={(e) => setVoTransactionId(e.target.value)}
                           placeholder="e.g. UPI / bank txn id"
-                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:bg-white"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-pmedium outline-none focus:border-[#2563EB] focus:bg-white"
                         />
                       </div>
                     </div>
@@ -2918,10 +2904,8 @@ export function BillingPaymentsPage() {
                     </div>
                   </div>
                 )}
-
-              </div>
             </div>
-            <div className="px-6 sm:px-8 py-4 bg-white border-t border-slate-100 flex flex-wrap justify-end gap-2 shrink-0">
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center justify-end gap-3 shrink-0">
               {(viewingVo.openPeriods?.length ?? 0) > 0 && (
                 <button
                   type="button"
@@ -2952,60 +2936,58 @@ export function BillingPaymentsPage() {
       {/* ── View Booking Modal ── */}
       {viewingBooking && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
+          <div className="bg-white rounded-[1.75rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-5 bg-slate-50 border-b border-slate-100 flex justify-between items-start shrink-0">
               <div>
-                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-amber-500/20 text-amber-300 border-amber-400/30 mb-2 inline-block">Meeting Room Booking</span>
-                <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1"><Calendar size={20} /> {viewingBooking.bookedByName || 'Guest Booking'}</h2>
+                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-amber-50 text-amber-600 border-amber-200 mb-2 inline-block">Meeting Room Booking</span>
+                <h2 className="text-lg font-pmedium text-slate-900 flex items-center gap-2 mt-1"><Calendar size={20} /> {viewingBooking.bookedByName || 'Guest Booking'}</h2>
                 <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">Code: {viewingBooking.bookingCode || viewingBooking.recordId || viewingBooking.id}</p>
               </div>
-              <button onClick={() => setViewingBooking(null)} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
+              <button onClick={() => setViewingBooking(null)} className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110"><X size={16} /></button>
             </div>
-            <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
-              <div className="px-6 sm:px-8 py-5 grid grid-cols-2 sm:grid-cols-3 gap-4 border-b border-gray-100 bg-white">
-                <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 sm:p-5">
+            <div className="flex-1 space-y-5 overflow-y-auto p-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-amber-600">Total Amount</p>
-                  <p className="text-xl font-black text-amber-900 mt-1">{formatCurrency(viewingBooking.totalAmount || viewingBooking.amount || 0)}</p>
+                  <p className="text-xl font-pmedium text-amber-900 mt-1">{formatCurrency(viewingBooking.totalAmount || viewingBooking.amount || 0)}</p>
                 </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Room</p>
-                  <p className="text-lg font-black text-gray-900 mt-1">{viewingBooking.roomName || viewingBooking.resourceName || '-'}</p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Room</p>
+                  <p className="text-lg font-pmedium text-slate-900 mt-1">{viewingBooking.roomName || viewingBooking.resourceName || '-'}</p>
                 </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Payment Mode</p>
-                  <p className="text-lg font-black text-gray-900 mt-1">{viewingBooking.paymentMode || '-'}</p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Payment Mode</p>
+                  <p className="text-lg font-pmedium text-slate-900 mt-1">{viewingBooking.paymentMode || '-'}</p>
                 </div>
               </div>
-              <div className="px-6 sm:px-8 py-5 space-y-4 bg-white">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Date</p>
-                    <p className="font-black text-gray-900">{viewingBooking.date || viewingBooking.dateLabel || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Time</p>
-                    <p className="font-black text-gray-900">{viewingBooking.startTime || viewingBooking.timeSlot || '-'}{viewingBooking.endTime ? ` - ${viewingBooking.endTime}` : ''}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Transaction ID</p>
-                    <p className="font-bold text-gray-700">{viewingBooking.transactionId || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Booking Source</p>
-                    <p className="font-bold text-gray-700">{viewingBooking.bookingSource || '-'}</p>
-                  </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Date</p>
+                  <p className="font-pmedium text-slate-900">{viewingBooking.date || viewingBooking.dateLabel || '-'}</p>
                 </div>
-                <div className="border-t border-gray-100 pt-4">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-2">Invoice & Payment</p>
-                  <div className="flex flex-wrap gap-3">
-                    <span className="text-xs font-bold">Invoice: {getStatusBadge(viewingBooking.invoiceStatus || 'Pending')}</span>
-                    <span className="text-xs font-bold">Payment: {getStatusBadge(viewingBooking.paymentStatus || 'Pending')}</span>
-                  </div>
-                  {viewingBooking.invoiceNumber && <p className="text-xs font-bold text-blue-600 mt-1">{viewingBooking.invoiceNumber}</p>}
+                <div>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Time</p>
+                  <p className="font-pmedium text-slate-900">{viewingBooking.startTime || viewingBooking.timeSlot || '-'}{viewingBooking.endTime ? ` - ${viewingBooking.endTime}` : ''}</p>
                 </div>
+                <div>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Transaction ID</p>
+                  <p className="font-pmedium text-slate-700">{viewingBooking.transactionId || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Booking Source</p>
+                  <p className="font-pmedium text-slate-700">{viewingBooking.bookingSource || '-'}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">Invoice & Payment</p>
+                <div className="flex flex-wrap gap-3">
+                  <span className="text-xs font-pmedium text-slate-500">Invoice: {getStatusBadge(viewingBooking.invoiceStatus || 'Pending')}</span>
+                  <span className="text-xs font-pmedium text-slate-500">Payment: {getStatusBadge(viewingBooking.paymentStatus || 'Pending')}</span>
+                </div>
+                {viewingBooking.invoiceNumber && <p className="text-xs font-pmedium text-blue-600 mt-1">{viewingBooking.invoiceNumber}</p>}
               </div>
             </div>
-            <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex flex-wrap gap-3 shrink-0">
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center justify-end gap-3 shrink-0">
               {!viewingBooking.invoiceNumber && (
                 <button
                   type="button"
@@ -3053,52 +3035,52 @@ export function BillingPaymentsPage() {
       {/* ── View Employee Payroll Modal ── */}
       {viewingEmployee && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
+          <div className="bg-white rounded-[1.75rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-5 bg-slate-50 border-b border-slate-100 flex justify-between items-start shrink-0">
               <div>
-                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-green-500/20 text-green-300 border-green-400/30 mb-2 inline-block">Payroll</span>
-                <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1"><User size={20} /> {viewingEmployee.name || 'Employee'}</h2>
+                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-green-50 text-green-600 border-green-200 mb-2 inline-block">Payroll</span>
+                <h2 className="text-lg font-pmedium text-slate-900 flex items-center gap-2 mt-1"><User size={20} /> {viewingEmployee.name || 'Employee'}</h2>
                 <p className="text-[10px] font-pmedium text-slate-400 uppercase mt-0.5">{viewingEmployee.department} | {viewingEmployee.employeeId || viewingEmployee.profileId || ''}</p>
               </div>
-              <button onClick={() => setViewingEmployee(null)} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
+              <button onClick={() => setViewingEmployee(null)} className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110"><X size={16} /></button>
             </div>
-            <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
-              <div className="px-6 sm:px-8 py-5 grid grid-cols-2 gap-4 border-b border-gray-100 bg-white">
-                <div className="rounded-2xl border border-green-100 bg-green-50 p-4 sm:p-5">
+            <div className="flex-1 space-y-5 overflow-y-auto p-6">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-green-100 bg-green-50 p-4">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-green-600">Net Salary</p>
-                  <p className="text-xl font-black text-green-900 mt-1">{formatCurrency(viewingEmployee.financials?.netSalary || 0)}</p>
+                  <p className="text-xl font-pmedium text-green-900 mt-1">{formatCurrency(viewingEmployee.financials?.netSalary || 0)}</p>
                 </div>
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:p-5">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Status</p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Status</p>
                   <div className="mt-1">{getStatusBadge(viewingEmployee.payment?.status || viewingEmployee.financials?.paymentStatus || 'Pending')}</div>
                 </div>
               </div>
-              <div className="px-6 sm:px-8 py-5 space-y-4 bg-white">
-                <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-2">Bank Details</p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Bank</p><p className="font-black text-gray-900">{viewingEmployee.bankDetails?.bankName || viewingEmployee.bankName || '-'}</p></div>
-                  <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Account Holder</p><p className="font-black text-gray-900">{viewingEmployee.bankDetails?.accountHolderName || viewingEmployee.accountHolderName || '-'}</p></div>
-                  <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Account Number</p><p className="font-black text-gray-900">{viewingEmployee.bankDetails?.accountNumber || viewingEmployee.accountNumberMasked || viewingEmployee.accountNumber || '-'}</p></div>
-                  <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">IFSC</p><p className="font-black text-gray-900">{viewingEmployee.bankDetails?.ifscCode || viewingEmployee.ifscCode || '-'}</p></div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">Bank Details</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Bank</p><p className="font-pmedium text-slate-900">{viewingEmployee.bankDetails?.bankName || viewingEmployee.bankName || '-'}</p></div>
+                  <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Account Holder</p><p className="font-pmedium text-slate-900">{viewingEmployee.bankDetails?.accountHolderName || viewingEmployee.accountHolderName || '-'}</p></div>
+                  <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Account Number</p><p className="font-pmedium text-slate-900">{viewingEmployee.bankDetails?.accountNumber || viewingEmployee.accountNumberMasked || viewingEmployee.accountNumber || '-'}</p></div>
+                  <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">IFSC</p><p className="font-pmedium text-slate-900">{viewingEmployee.bankDetails?.ifscCode || viewingEmployee.ifscCode || '-'}</p></div>
                 </div>
-                {viewingEmployee.payslip?.id && (
-                  <div className="border-t border-gray-100 pt-4">
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-2">Payslip</p>
-                    <p className="text-xs font-bold text-blue-600">ID: {viewingEmployee.payslip.id}</p>
-                    {(viewingEmployee.payslip.fileUrl || viewingEmployee.payslip.payslipUrl || viewingEmployee.payslip.url) && (
-                      <button
-                        type="button"
-                        onClick={() => window.open(viewingEmployee.payslip.fileUrl || viewingEmployee.payslip.payslipUrl || viewingEmployee.payslip.url, '_blank', 'noopener,noreferrer')}
-                        className="mt-1 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
-                      >
-                        <FileText size={12} /> View Payslip
-                      </button>
-                    )}
-                  </div>
-                )}
               </div>
+              {viewingEmployee.payslip?.id && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">Payslip</p>
+                  <p className="text-xs font-pmedium text-blue-600">ID: {viewingEmployee.payslip.id}</p>
+                  {(viewingEmployee.payslip.fileUrl || viewingEmployee.payslip.payslipUrl || viewingEmployee.payslip.url) && (
+                    <button
+                      type="button"
+                      onClick={() => window.open(viewingEmployee.payslip.fileUrl || viewingEmployee.payslip.payslipUrl || viewingEmployee.payslip.url, '_blank', 'noopener,noreferrer')}
+                      className="mt-1 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                    >
+                      <FileText size={12} /> View Payslip
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex flex-wrap gap-3 shrink-0">
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center justify-end gap-3 shrink-0">
               {(viewingEmployee.payment?.status || viewingEmployee.financials?.paymentStatus || 'Pending') !== 'Paid' && (
                 <button
                   type="button"
@@ -3117,53 +3099,53 @@ export function BillingPaymentsPage() {
       {/* ── View Extra Credit Modal ── */}
       {viewingExtraCredit && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl sm:rounded-[2rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 sm:px-8 py-5 bg-slate-900 border-b border-slate-800 flex justify-between items-start shrink-0">
+          <div className="bg-white rounded-[1.75rem] w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-5 bg-slate-50 border-b border-slate-100 flex justify-between items-start shrink-0">
               <div>
-                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-purple-500/20 text-purple-300 border-purple-400/30 mb-2 inline-block">Extra Credit Request</span>
-                <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-1"><CreditCard size={20} /> {viewingExtraCredit.tenantCompanyName || viewingExtraCredit.tenantCompanyCode || 'Extra Credit'}</h2>
+                <span className="px-2 py-0.5 rounded border text-[9px] font-pmedium uppercase tracking-widest bg-purple-50 text-purple-600 border-purple-200 mb-2 inline-block">Extra Credit Request</span>
+                <h2 className="text-lg font-pmedium text-slate-900 flex items-center gap-2 mt-1"><CreditCard size={20} /> {viewingExtraCredit.tenantCompanyName || viewingExtraCredit.tenantCompanyCode || 'Extra Credit'}</h2>
               </div>
-              <button onClick={() => setViewingExtraCredit(null)} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={16} /></button>
+              <button onClick={() => setViewingExtraCredit(null)} className="shrink-0 rounded-full bg-white p-2 text-slate-500 shadow-sm transition-transform hover:scale-110"><X size={16} /></button>
             </div>
-            <div className="overflow-y-auto flex-1 bg-[#F8FAFC]">
-              <div className="px-6 sm:px-8 py-5 grid grid-cols-2 gap-4 border-b border-gray-100 bg-white">
+            <div className="overflow-y-auto flex-1 bg-white">
+              <div className="px-6 sm:px-8 py-5 grid grid-cols-2 gap-4 border-b border-slate-100 bg-white">
                 <div className="rounded-2xl border border-purple-100 bg-purple-50 p-4 sm:p-5">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-purple-600">Credits Requested</p>
-                  <p className="text-xl font-black text-purple-900 mt-1">{viewingExtraCredit.requestedCredits || 0}</p>
+                  <p className="text-xl font-pmedium text-purple-900 mt-1">{viewingExtraCredit.requestedCredits || 0}</p>
                 </div>
                 <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 sm:p-5">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-amber-600">Total Amount</p>
-                  <p className="text-xl font-black text-amber-900 mt-1">{formatCurrency(viewingExtraCredit.totalAmount || 0)}</p>
+                  <p className="text-xl font-pmedium text-amber-900 mt-1">{formatCurrency(viewingExtraCredit.totalAmount || 0)}</p>
                 </div>
               </div>
               <div className="px-6 sm:px-8 py-5 space-y-4 bg-white">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Tenant Code</p>
-                    <p className="font-black text-gray-900">{viewingExtraCredit.tenantCompanyCode || '-'}</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Tenant Code</p>
+                    <p className="font-pmedium text-slate-900">{viewingExtraCredit.tenantCompanyCode || '-'}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Status</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Status</p>
                     <div>{getStatusBadge(getCreditRequestStatusLabel(viewingExtraCredit.status))}</div>
                   </div>
                   <div>
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Transaction ID</p>
-                    <p className="font-bold text-gray-700">{viewingExtraCredit.paymentTransactionId || '-'}</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Transaction ID</p>
+                    <p className="font-pmedium text-slate-700">{viewingExtraCredit.paymentTransactionId || '-'}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400 mb-1">Invoice</p>
-                    <p className="font-bold text-blue-600">{viewingExtraCredit.invoiceNumber || 'Pending'}</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Invoice</p>
+                    <p className="font-pmedium text-blue-600">{viewingExtraCredit.invoiceNumber || 'Pending'}</p>
                   </div>
                 </div>
                 {viewingExtraCredit.paymentFailureReason && (
                   <div className="rounded-xl bg-red-50 border border-red-200 p-4">
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-red-600 mb-1">Failure Reason</p>
-                    <p className="text-xs font-bold text-red-700">{viewingExtraCredit.paymentFailureReason}</p>
+                    <p className="text-xs font-pmedium text-red-700">{viewingExtraCredit.paymentFailureReason}</p>
                   </div>
                 )}
               </div>
             </div>
-            <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex flex-wrap gap-3 shrink-0">
+            <div className="px-6 sm:px-8 py-5 bg-white border-t border-slate-100 flex flex-wrap gap-3 shrink-0">
               {viewingExtraCredit.status !== 'COMPLETED' && viewingExtraCredit.status !== 'REJECTED' && (
                 <>
                   <button

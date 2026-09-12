@@ -8,7 +8,7 @@ import {
   LayoutGrid, Loader2,
   Banknote, UploadCloud, Send
 } from 'lucide-react';
-import { getTenantCompany, addTenantCompanyEmployee, sendTenantCompanyEmployeeInvite, updateTenantCompanyEmployee, updateTenantCompanyEmployeeStatus, deleteTenantCompanyEmployee, updateTenantCompanyManager } from '../../../services/tenant-companies';
+import { getTenantCompany, addTenantCompanyEmployee, sendTenantCompanyEmployeeInvite, updateTenantCompanyEmployee, updateTenantCompanyEmployeeStatus, deleteTenantCompanyEmployee, updateTenantCompanyAdmin } from '../../../services/tenant-companies';
 import { getBookingsByTenantCompany } from '../../../services/meeting-room-bookings';
 import PageFrame from '../../../components/Pages/PageFrame';
 import BulkUploadModal from '../../../components/BulkUploadModal';
@@ -215,8 +215,8 @@ export default function AdministrationTenantCompanyDetailPage() {
   const [addModal, setAddModal] = useState(false);
   const [viewEmp, setViewEmp] = useState(null);
   const [editEmp, setEditEmp] = useState(null);
-  const [addF, setAddF] = useState({ name: '', email: '', phone: '', designation: '', role: '' });
-  const [editF, setEditF] = useState({ name: '', phone: '', designation: '', role: 'Employee' });
+  const [addF, setAddF] = useState({ name: '', email: '', phone: '', designation: '', role: '', department: '' });
+  const [editF, setEditF] = useState({ name: '', phone: '', designation: '', role: 'Employee', department: '' });
   const [sendingInviteId, setSendingInviteId] = useState('');
 
   // Bulk upload
@@ -265,6 +265,32 @@ export default function AdministrationTenantCompanyDetailPage() {
     if (!tenant?.managerEmployeeId || !employees.length) return null;
     return employees.find(e => String(e.id) === String(tenant.managerEmployeeId)) || null;
   }, [tenant, employees]);
+
+  const departmentOptions = useMemo(() => Array.from(new Set([
+    ...(Array.isArray(tenant?.departments) ? tenant.departments : []),
+    ...employees.map(e => e.department),
+  ].map(v => String(v || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [tenant, employees]);
+
+  // Manager is per-department (multiple managers across departments), while
+  // Admin is company-wide — exactly one, and that Admin doubles as the
+  // company's primary contact / managerEmployeeId slot.
+  const managerDepartmentSet = useMemo(() => new Set(employees
+    .filter(e => e.role === 'Manager' && e.status !== 'Inactive')
+    .map(e => String(e.department || '').trim().toLowerCase())
+    .filter(Boolean)), [employees]);
+  const addManagerDepartmentTaken = addF.role === 'Manager' && managerDepartmentSet.has(String(addF.department || '').trim().toLowerCase());
+  const editManagerDepartmentTaken = editF.role === 'Manager'
+    && String(editEmp?.id || '') !== String(employees.find(e => e.role === 'Manager' && String(e.department || '').trim().toLowerCase() === String(editF.department || '').trim().toLowerCase())?.id || '')
+    && managerDepartmentSet.has(String(editF.department || '').trim().toLowerCase());
+
+  const existingAdminEmployee = useMemo(
+    () => employees.find(e => e.role === 'Admin' && e.status !== 'Inactive') || null,
+    [employees],
+  );
+  const addAdminTaken = addF.role === 'Admin' && Boolean(existingAdminEmployee);
+  const editAdminTaken = editF.role === 'Admin'
+    && String(editEmp?.id || '') !== String(existingAdminEmployee?.id || '')
+    && Boolean(existingAdminEmployee);
 
   // Base credits are the monthly base (e.g., 20) while additional sales-added credits (e.g., 600)
   // should show under "Purchased". Backend credit-add currently increments `creditsAllocated`,
@@ -339,17 +365,17 @@ export default function AdministrationTenantCompanyDetailPage() {
       if (p.tenant) setTenant(prev => ({ ...prev, ...p.tenant }));
       toast.success('Employee added.');
       setAddModal(false);
-      setAddF({ name: '', email: '', phone: '', designation: '', role: '' });
+      setAddF({ name: '', email: '', phone: '', designation: '', role: '', department: '' });
     } catch (err) {
       toast.error(err?.response?.data?.message || err?.message || 'Failed');
     } finally {
       setIsSaving(false);
     }
   };
-  const hEdit = async e => { e.preventDefault(); if (!tenant || !editEmp || isSaving) return; setIsSaving(true); try { await updateTenantCompanyEmployee(tenant.recordId || tenant.id, editEmp.id || '', editF); toast.success('Updated.'); setEditEmp(null); setEditF({ name: '', phone: '', designation: '', role: 'Employee' }); refresh(); } catch (err) { toast.error(err?.message || 'Failed'); } finally { setIsSaving(false); } };
+  const hEdit = async e => { e.preventDefault(); if (!tenant || !editEmp || isSaving) return; setIsSaving(true); try { await updateTenantCompanyEmployee(tenant.recordId || tenant.id, editEmp.id || '', editF); toast.success('Updated.'); setEditEmp(null); setEditF({ name: '', phone: '', designation: '', role: 'Employee', department: '' }); refresh(); } catch (err) { toast.error(err?.message || 'Failed'); } finally { setIsSaving(false); } };
   const hToggle = async emp => { if (!tenant || isSaving) return; setIsSaving(true); try { const ns = emp.status === 'Inactive' ? 'Active' : 'Inactive'; await updateTenantCompanyEmployeeStatus(tenant.recordId || tenant.id, emp.id, { status: ns }); toast.success(ns === 'Active' ? 'Activated.' : 'Deactivated.'); refresh(); } catch (err) { toast.error(err?.message || 'Failed'); } finally { setIsSaving(false); } };
   const hDel = async eid => { if (!tenant || isSaving) return; setIsSaving(true); try { await deleteTenantCompanyEmployee(tenant.recordId || tenant.id, eid); toast.success('Removed.'); setViewEmp(null); refresh(); } catch (err) { toast.error(err?.message || 'Failed'); } finally { setIsSaving(false); } };
-  const hSetMgr = async eid => { if (!tenant || isSaving) return; setIsSaving(true); try { await updateTenantCompanyManager(tenant.recordId || tenant.id, { employeeId: eid }); toast.success('Manager updated.'); setMgrModal(false); refresh(); } catch (err) { toast.error(err?.message || 'Failed'); } finally { setIsSaving(false); } };
+  const hSetAdmin = async eid => { if (!tenant || isSaving) return; setIsSaving(true); try { await updateTenantCompanyAdmin(tenant.recordId || tenant.id, { employeeId: eid }); toast.success('Admin updated.'); setMgrModal(false); refresh(); } catch (err) { toast.error(err?.message || 'Failed'); } finally { setIsSaving(false); } };
   const hSendInvite = async emp => {
     if (!tenant || sendingInviteId) return;
     setSendingInviteId(emp.id);
@@ -565,15 +591,15 @@ export default function AdministrationTenantCompanyDetailPage() {
 
                   <div className="space-y-4">
                     <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
-                      <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><UserCog size={14} /> Manager Assignment</h3>
+                      <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><UserCog size={14} /> Admin Assignment</h3>
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Current Manager</p>
-                          <p className="text-sm font-pmedium text-slate-900 mt-1">{mgrEmp ? empName(mgrEmp) : tenant.contactName || 'No manager assigned'}</p>
-                          {mgrEmp && <p className="text-[10px] font-pmedium text-slate-500 mt-0.5">{mgrEmp.email}</p>}
+                          <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Current Admin</p>
+                          <p className="text-sm font-pmedium text-slate-900 mt-1">{existingAdminEmployee ? empName(existingAdminEmployee) : tenant.contactName || 'No admin assigned'}</p>
+                          {existingAdminEmployee && <p className="text-[10px] font-pmedium text-slate-500 mt-0.5">{existingAdminEmployee.email}</p>}
                         </div>
-                        <span className={`px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-wider border ${mgrEmp || tenant.contactName ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
-                          {mgrEmp || tenant.contactName ? 'Assigned' : 'Pending'}
+                        <span className={`px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-wider border ${existingAdminEmployee || tenant.contactName ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+                          {existingAdminEmployee || tenant.contactName ? 'Assigned' : 'Pending'}
                         </span>
                       </div>
                     </div>
@@ -657,7 +683,7 @@ export default function AdministrationTenantCompanyDetailPage() {
                 headerRight={<>
                   <button onClick={() => setMgrModal(true)}
                     data-tour="tenant-detail-change-manager"
-                    className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200/60 text-slate-700 rounded-xl text-[10px] font-pmedium hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"><UserCog size={12} /> Change Manager</button>
+                    className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200/60 text-slate-700 rounded-xl text-[10px] font-pmedium hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"><UserCog size={12} /> Change Admin</button>
                   <button type="button" onClick={openBulkModal}
                     data-tour="tenant-detail-bulk-upload-employees"
                     className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-blue-50 hover:border-blue-200 text-slate-500 transition-all active:scale-95 shadow-sm" title="Bulk Upload">
@@ -678,16 +704,21 @@ export default function AdministrationTenantCompanyDetailPage() {
                       <tbody className="divide-y divide-slate-100/60">
                         {employees.map(emp => {
                           const meta = empStatusMeta(emp);
-                          const isMgr = mgrEmp && String(mgrEmp.id) === String(emp.id);
+                          // Role is the source of truth — not managerEmployeeId,
+                          // which only ever points at one record and can't
+                          // represent per-department Managers.
+                          const isAdmin = emp.role === 'Admin';
+                          const isManagerRole = emp.role === 'Manager';
                           return (
                             <tr key={emp.id || emp.email || emp.name} className="hover:bg-slate-50/50 transition-colors group">
                               <td className="px-5 py-4">
                                 <div className="flex items-center gap-3">
-                                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black ${isMgr ? 'bg-[#2563EB] text-white' : 'bg-slate-100 text-slate-600'}`}>{initials(emp)}</div>
+                                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black ${isAdmin ? 'bg-[#2563EB] text-white' : 'bg-slate-100 text-slate-600'}`}>{initials(emp)}</div>
                                   <div className="min-w-0">
                                     <div className="flex items-center gap-2">
                                       <p className="text-sm font-pmedium text-slate-900 truncate">{empName(emp)}</p>
-                                      {isMgr && <span className="px-1.5 py-0.5 bg-[#2563EB]/10 text-[#2563EB] rounded-md text-[8px] font-pmedium uppercase tracking-widest">Manager</span>}
+                                      {isAdmin && <span className="px-1.5 py-0.5 bg-[#2563EB]/10 text-[#2563EB] rounded-md text-[8px] font-pmedium uppercase tracking-widest">Admin</span>}
+                                      {isManagerRole && <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-md text-[8px] font-pmedium uppercase tracking-widest">Manager</span>}
                                     </div>
                                     <p className="text-[10px] font-pmedium text-slate-500">{emp.designation || 'No designation'}</p>
                                   </div>
@@ -711,7 +742,7 @@ export default function AdministrationTenantCompanyDetailPage() {
                                   <button onClick={() => hToggle(emp)} className={`p-1.5 rounded-lg transition-all ${emp.status === 'Inactive' ? 'bg-red-50 text-red-500 hover:bg-red-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`} title={emp.status === 'Inactive' ? 'Activate' : 'Deactivate'}>
                                     {emp.status === 'Inactive' ? <ToggleLeft size={15} /> : <ToggleRight size={15} />}
                                   </button>
-                                  {emp.status !== 'Inactive' && !isMgr && (
+                                  {emp.status !== 'Inactive' && !isAdmin && (
                                     <button onClick={() => hDel(emp.id)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-600 rounded-lg transition-all" title="Remove"><X size={13} /></button>
                                   )}
                                 </div>
@@ -1033,7 +1064,7 @@ export default function AdministrationTenantCompanyDetailPage() {
           <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-md h-auto rounded-t-[32px] sm:rounded-[32px] shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <h3 className="text-sm font-pmedium text-slate-900">Add Employee</h3>
-              <button onClick={() => { setAddModal(false); setAddF({ name: '', email: '', phone: '', designation: '', role: '' }); }}
+              <button onClick={() => { setAddModal(false); setAddF({ name: '', email: '', phone: '', designation: '', role: '', department: '' }); }}
                 className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all"><X size={16} /></button>
             </div>
             <form onSubmit={hAdd} className="p-5 space-y-4 overflow-y-auto">
@@ -1059,18 +1090,29 @@ export default function AdministrationTenantCompanyDetailPage() {
               </div>
               <div>
                 <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Role *</label>
-                <select value={addF.role} onChange={e => setAddF({ ...addF, role: e.target.value })} required
+                <select value={addF.role} onChange={e => {
+                  const role = e.target.value;
+                  setAddF({ ...addF, role, department: role === 'Admin' ? 'All' : addF.department === 'All' ? '' : addF.department });
+                }} required
                   className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm">
                   <option value="" disabled>Select role</option>
-                  <option value="Manager" disabled={Boolean(mgrEmp)}>Manager{mgrEmp ? ' (Already assigned)' : ''}</option>
+                  <option value="Admin" disabled={Boolean(existingAdminEmployee)}>Admin{existingAdminEmployee ? ' (already assigned)' : ''}</option>
+                  <option value="Manager">Manager</option>
                   <option value="Employee">Employee</option>
                 </select>
-                {mgrEmp && <p className="mt-1.5 text-[10px] font-pmedium text-slate-500">Use Change Manager to assign a different manager.</p>}
+                {addAdminTaken && <p className="mt-1.5 text-[10px] font-pmedium text-red-500">{existingAdminEmployee?.name || 'Someone'} is already this company's Admin — change their role first to reassign it.</p>}
+              </div>
+              <div>
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Department *</label>
+                <input list="tenant-department-options" type="text" value={addF.role === 'Admin' ? 'All' : addF.department} disabled={addF.role === 'Admin'} onChange={e => setAddF({ ...addF, department: e.target.value })} required={addF.role !== 'Admin'}
+                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm placeholder:text-slate-500 disabled:bg-slate-100 disabled:text-slate-500" placeholder="Type or select department" />
+                <datalist id="tenant-department-options">{departmentOptions.map(dept => <option key={dept} value={dept} />)}</datalist>
+                {addManagerDepartmentTaken && <p className="mt-1.5 text-[10px] font-pmedium text-red-500">Manager already added for this department.</p>}
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => { setAddModal(false); setAddF({ name: '', email: '', phone: '', designation: '', role: '' }); }}
+                <button type="button" onClick={() => { setAddModal(false); setAddF({ name: '', email: '', phone: '', designation: '', role: '', department: '' }); }}
                   className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-pmedium text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
-                <button type="submit" disabled={isSaving}
+                <button type="submit" disabled={isSaving || addManagerDepartmentTaken || addAdminTaken}
                   className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl text-[10px] font-pmedium shadow-sm hover:bg-[#2563EB]/90 disabled:cursor-not-allowed disabled:opacity-60 transition-all">{isSaving && <Loader2 size={13} className="animate-spin" />}{isSaving ? 'Adding...' : 'Add Employee'}</button>
               </div>
             </form>
@@ -1136,7 +1178,7 @@ export default function AdministrationTenantCompanyDetailPage() {
                   {empStatusMeta(viewEmp).label === 'Invited' ? 'Resend Invite' : 'Send Invite'}
                 </button>
               )}
-              <button onClick={() => { setEditEmp(viewEmp); setEditF({ name: viewEmp?.name || '', phone: viewEmp?.phone || '', designation: viewEmp?.designation || '', role: viewEmp?.role || 'Employee' }); }}
+              <button onClick={() => { setEditEmp(viewEmp); setEditF({ name: viewEmp?.name || '', phone: viewEmp?.phone || '', designation: viewEmp?.designation || '', role: viewEmp?.role || 'Employee', department: viewEmp?.department || '' }); }}
                 className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl text-[10px] font-pmedium uppercase tracking-widest text-blue-600 hover:bg-blue-100 transition-all">Edit</button>
               <button onClick={() => hToggle(viewEmp)}
                 className={`px-3 py-2 rounded-xl text-[10px] font-pmedium uppercase tracking-widest transition-all ${viewEmp.status === 'Inactive' ? 'bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-100' : 'bg-red-50 border border-red-200 text-red-600 hover:bg-red-100'}`}>
@@ -1159,7 +1201,7 @@ export default function AdministrationTenantCompanyDetailPage() {
           <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-md h-auto rounded-t-[32px] sm:rounded-[32px] shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <h3 className="text-sm font-pmedium text-slate-900">Edit Employee</h3>
-              <button onClick={() => { setEditEmp(null); setEditF({ name: '', phone: '', designation: '', role: 'Employee' }); }}
+              <button onClick={() => { setEditEmp(null); setEditF({ name: '', phone: '', designation: '', role: 'Employee', department: '' }); }}
                 className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all"><X size={16} /></button>
             </div>
             <form onSubmit={hEdit} className="p-5 space-y-4 overflow-y-auto">
@@ -1178,10 +1220,30 @@ export default function AdministrationTenantCompanyDetailPage() {
                 <input type="text" value={editF.designation} onChange={e => setEditF({ ...editF, designation: e.target.value })}
                   className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm" />
               </div>
+              <div>
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Role</label>
+                <select value={editF.role} onChange={e => {
+                  const role = e.target.value;
+                  setEditF({ ...editF, role, department: role === 'Admin' ? 'All' : editF.department === 'All' ? '' : editF.department });
+                }}
+                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm">
+                  <option value="Admin" disabled={editAdminTaken}>Admin{editAdminTaken ? ' (already assigned)' : ''}</option>
+                  <option value="Manager">Manager</option>
+                  <option value="Employee">Employee</option>
+                </select>
+                {editAdminTaken && <p className="mt-1.5 text-[10px] font-pmedium text-red-500">{existingAdminEmployee?.name || 'Someone'} is already this company's Admin — change their role first to reassign it.</p>}
+              </div>
+              <div>
+                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Department</label>
+                <input list="tenant-edit-department-options" type="text" value={editF.role === 'Admin' ? 'All' : editF.department} disabled={editF.role === 'Admin'} onChange={e => setEditF({ ...editF, department: e.target.value })} required={editF.role !== 'Admin'}
+                  className="mt-1 w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm disabled:bg-slate-100 disabled:text-slate-500" placeholder="Type or select department" />
+                <datalist id="tenant-edit-department-options">{departmentOptions.map(dept => <option key={dept} value={dept} />)}</datalist>
+                {editManagerDepartmentTaken && <p className="mt-1.5 text-[10px] font-pmedium text-red-500">Manager already added for this department.</p>}
+              </div>
               <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => { setEditEmp(null); setEditF({ name: '', phone: '', designation: '', role: 'Employee' }); }}
+                <button type="button" onClick={() => { setEditEmp(null); setEditF({ name: '', phone: '', designation: '', role: 'Employee', department: '' }); }}
                   className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-pmedium text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
-                <button type="submit" disabled={isSaving}
+                <button type="submit" disabled={isSaving || editManagerDepartmentTaken || editAdminTaken}
                   className="flex items-center gap-2 px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl text-[10px] font-pmedium shadow-sm hover:bg-[#2563EB]/90 disabled:cursor-not-allowed disabled:opacity-60 transition-all">{isSaving ? <><Loader2 size={13} className="animate-spin" /> Saving...</> : <><Save size={13} /> Save Employee</>}</button>
               </div>
             </form>
@@ -1190,31 +1252,32 @@ export default function AdministrationTenantCompanyDetailPage() {
       )}
 
       {/* ================================================================ */}
-      {/* CHANGE MANAGER MODAL */}
+      {/* CHANGE ADMIN MODAL */}
       {/* ================================================================ */}
       {mgrModal && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm">
           <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-md h-auto rounded-t-[32px] sm:rounded-[32px] shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
-              <h3 className="text-sm font-pmedium text-slate-900">Change Manager</h3>
+              <h3 className="text-sm font-pmedium text-slate-900">Change Admin</h3>
               <button onClick={() => setMgrModal(false)}
                 className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all"><X size={16} /></button>
             </div>
             <div className="p-5 space-y-2 overflow-y-auto">
-              {mgrEmp && (
+              {existingAdminEmployee && (
                 <div className="mb-4 p-3 rounded-xl bg-blue-50 border border-blue-100">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-500">Current Manager</p>
-                  <p className="text-sm font-pmedium text-blue-800 mt-1">{empName(mgrEmp)}</p>
-                  <p className="text-[10px] text-blue-600">{mgrEmp.email}</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-blue-500">Current Admin</p>
+                  <p className="text-sm font-pmedium text-blue-800 mt-1">{empName(existingAdminEmployee)}</p>
+                  <p className="text-[10px] text-blue-600">{existingAdminEmployee.email}</p>
                 </div>
               )}
-              <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-3">Select New Manager</p>
+              <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-3">Select New Admin</p>
+              <p className="text-[9px] font-pmedium text-slate-400 mb-3">Admin is company-wide and master access — picking someone here demotes the current Admin to Employee.</p>
               {employees.filter(e => e.status !== 'Inactive').map(emp => {
-                const isCurrent = mgrEmp && String(mgrEmp.id) === String(emp.id);
+                const isCurrent = emp.role === 'Admin';
                 return (
                   <div key={emp.id || emp.email}
                     className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${isCurrent ? 'border-blue-200 bg-blue-50/50' : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'}`}
-                    onClick={() => { if (!isCurrent) hSetMgr(emp.id); }}>
+                    onClick={() => { if (!isCurrent) hSetAdmin(emp.id); }}>
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-pmedium ${isCurrent ? 'bg-[#2563EB] text-white' : 'bg-slate-100 text-slate-600'}`}>{initials(emp)}</div>
                       <div>

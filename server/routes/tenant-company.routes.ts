@@ -16,6 +16,7 @@ import {
   updateTenantCompanyEmployeeStatus,
   deleteTenantCompanyEmployee,
   assignTenantCompanyManager,
+  assignTenantCompanyAdmin,
   getMyTenantCompanyVisitorRequests,
   reviewMyTenantCompanyVisitorRequest,
   uploadTenantCompanyAgreementDocuments,
@@ -69,8 +70,9 @@ router.patch("/:id/employees/:employeeId", updateTenantCompanyEmployee);
 router.patch("/:id/employees/:employeeId/status", updateTenantCompanyEmployeeStatus);
 router.delete("/:id/employees/:employeeId", deleteTenantCompanyEmployee);
 
-// Manager
+// Manager (per-department) / Admin (company-wide, unique)
 router.patch("/:id/manager", assignTenantCompanyManager);
+router.patch("/:id/admin", assignTenantCompanyAdmin);
 
 // Agreement documents
 router.post("/:id/agreement-documents", upload.array("documents"), uploadTenantCompanyAgreementDocuments);

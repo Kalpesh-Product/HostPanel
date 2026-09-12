@@ -1451,6 +1451,21 @@ export async function addTenantCompanyEmployeeForCurrentUser(userId, tenantCompa
     }
   }
 
+  if (role === "Admin") {
+    // Company-wide, unlike Manager below — a tenant company has exactly one
+    // Admin, who doubles as the company's primary contact / manager slot.
+    const existingAdmin = await TenantEmployee.findOne({
+      tenantCompanyId: company._id,
+      role: "Admin",
+      ...(existingEmployee?.id ? { id: { $ne: existingEmployee.id } } : {}),
+    }).lean().exec();
+    if (existingAdmin) {
+      const err = new Error(`${company.companyName || "This company"} already has an Admin (${existingAdmin.name}). Change their role first if you want to reassign it.`);
+      err.statusCode = 409;
+      throw err;
+    }
+  }
+
   if (role === "Manager") {
     const existingManager = await TenantEmployee.findOne({
       tenantCompanyId: company._id,
@@ -1506,7 +1521,13 @@ export async function addTenantCompanyEmployeeForCurrentUser(userId, tenantCompa
 
   company.departments = mergeTenantDepartments(company, department);
 
-  if (role === "Manager" && !company.managerEmployeeId) {
+  // Admin always claims the company's primary-contact/manager slot (there's
+  // only ever one). Manager only claims it as a fallback while no Admin
+  // exists yet — the uniqueness check above means this can never collide.
+  if (role === "Admin") {
+    company.managerEmployeeId = employeeId;
+    await company.save();
+  } else if (role === "Manager" && !company.managerEmployeeId) {
     company.managerEmployeeId = employeeId;
     await company.save();
   } else if (company.managerEmployeeId === employeeId) {
@@ -1608,6 +1629,20 @@ export async function updateTenantCompanyEmployeeForCurrentUser(userId, tenantCo
   if (input.designation !== undefined) employee.designation = normalizeText(input.designation);
   if (input.role !== undefined) {
     const newRole = nextRole;
+    if (newRole === "Admin" && employee.role !== "Admin") {
+      // Company-wide, unlike Manager below — a tenant company has exactly
+      // one Admin, who doubles as the company's primary contact / manager slot.
+      const existingAdmin = await TenantEmployee.findOne({
+        tenantCompanyId: company._id,
+        role: "Admin",
+        id: { $ne: employee.id },
+      }).lean().exec();
+      if (existingAdmin) {
+        const err = new Error(`${company.companyName || "This company"} already has an Admin (${existingAdmin.name}). Change their role first if you want to reassign it.`);
+        err.statusCode = 409;
+        throw err;
+      }
+    }
     if (newRole === "Manager" && (employee.role !== "Manager" || normalizeText(input.department || ""))) {
       const existingManager = await TenantEmployee.findOne({
         tenantCompanyId: company._id,
@@ -1623,7 +1658,13 @@ export async function updateTenantCompanyEmployeeForCurrentUser(userId, tenantCo
     }
     employee.role = newRole;
     employee.tenantRole = getTenantRoleKey(newRole);
-    if (newRole === "Manager") {
+    // Admin always claims the company's primary-contact/manager slot (there's
+    // only ever one). Manager only claims it as a fallback while no Admin
+    // exists yet — the uniqueness check above means this can never collide.
+    if (newRole === "Admin") {
+      company.managerEmployeeId = employee.id;
+      await company.save();
+    } else if (newRole === "Manager") {
       if (!company.managerEmployeeId) {
         company.managerEmployeeId = employee.id;
         await company.save();
@@ -1758,6 +1799,56 @@ export async function assignTenantCompanyManagerForCurrentUser(userId, tenantCom
     tenant: await formatTenantCompany(company),
     manager: targetEmployee,
     message: "Tenant company manager updated successfully.",
+  };
+}
+
+// Admin is company-wide and unique (unlike Manager above, which is
+// per-department) — reassigning it means demoting whoever currently holds it.
+export async function assignTenantCompanyAdminForCurrentUser(userId, tenantCompanyId, input) {
+  const access = await resolveWorkspaceAccess(userId);
+  if (!access.isAdmin && !access.hasSalesAccess && !access.hasAdminAccess) {
+    const err = new Error("You do not have permission to assign admin.");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const company = await TenantCompany.findById(tenantCompanyId);
+  ensureTenantCompanyExists(company, access.workspaceId);
+
+  const targetEmployee = await TenantEmployee.findOne({ tenantCompanyId: company._id, id: input.employeeId });
+  if (!targetEmployee) {
+    const err = new Error("Tenant employee not found.");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (targetEmployee.status === "Inactive") {
+    const err = new Error("Inactive employees cannot be assigned as admin.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (targetEmployee.role !== "Admin") {
+    // The previous Admin's department ("All") means nothing to a demoted
+    // Employee — clear it rather than leaving a stale value behind.
+    await TenantEmployee.updateMany(
+      { tenantCompanyId: company._id, role: "Admin", id: { $ne: input.employeeId } },
+      { $set: { role: "Employee", department: "", tenantRole: getTenantRoleKey("Employee") } }
+    );
+
+    targetEmployee.department = "All";
+    targetEmployee.role = "Admin";
+    targetEmployee.tenantRole = getTenantRoleKey("Admin");
+    await targetEmployee.save();
+  }
+
+  company.managerEmployeeId = targetEmployee.id;
+  await company.save();
+
+  return {
+    tenant: await formatTenantCompany(company),
+    admin: targetEmployee,
+    message: "Tenant company admin updated successfully.",
   };
 }
 

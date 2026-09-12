@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
-  Printer, Plus, X, Paperclip, Clock, Pencil,
-  Search, ListChecks, Hourglass, XCircle, CheckCircle2,
+  Printer, Plus, X, Paperclip, Clock, Pencil, Eye, XCircle as CancelIcon,
+  Search, ListChecks, Hourglass, XCircle, CheckCircle2, AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import PageFrame from '@/components/Pages/PageFrame';
@@ -23,6 +23,7 @@ const DOCUMENT_TYPES = [
 ];
 
 const STATUS_OPTIONS = ['Pending', 'In Progress', 'Completed', 'Rejected', 'Cancelled'];
+const REFRESH_INTERVAL_MS = 15000;
 
 interface PrintoutRequestRecord {
   _id: string;
@@ -68,20 +69,28 @@ export default function PrintoutsPage() {
   const [fileError, setFileError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const loadRequests = async () => {
-    setLoading(true);
+  const [viewingRequest, setViewingRequest] = useState<PrintoutRequestRecord | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<PrintoutRequestRecord | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+
+  const loadRequests = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const data = await getPrintoutRequests({ mine: 'true', includeCancelled: 'true' });
       setRequests(Array.isArray(data) ? data : []);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to load printout requests');
+      if (!silent) toast.error(err?.response?.data?.message || 'Failed to load printout requests');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadRequests();
+    // Keep this list current with what Administration is doing to it (accept/
+    // reject/complete) without requiring a manual page refresh.
+    const interval = setInterval(() => loadRequests(true), REFRESH_INTERVAL_MS);
+    return () => clearInterval(interval);
   }, []);
 
   const stats = useMemo(() => ({
@@ -166,13 +175,18 @@ export default function PrintoutsPage() {
     }
   };
 
-  const cancelRequest = async (requestId: string) => {
+  const confirmCancel = async () => {
+    if (!cancelTarget) return;
+    setCancelling(true);
     try {
-      await updatePrintoutRequest(requestId, { status: 'Cancelled' });
+      await updatePrintoutRequest(cancelTarget._id, { status: 'Cancelled' });
       toast.success('Request cancelled');
+      setCancelTarget(null);
       loadRequests();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to cancel request');
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -184,7 +198,7 @@ export default function PrintoutsPage() {
   };
 
   const renderAttachments = (attachments?: { id: string; url: string; name: string }[]) => {
-    if (!attachments || attachments.length === 0) return <span className="text-slate-400">—</span>;
+    if (!attachments || attachments.length === 0) return <span className="text-slate-400 font-pmedium">—</span>;
     return (
       <div className="flex flex-col gap-1">
         {attachments.map((a) => (
@@ -212,13 +226,43 @@ export default function PrintoutsPage() {
 
   const statusFootnote = (request: PrintoutRequestRecord) => {
     if (request.status === 'Completed' && request.printedByName) {
-      return <p className="text-[10px] text-slate-400 mt-0.5">Printed by {request.printedByName}</p>;
+      return <p className="text-[10px] font-pmedium text-slate-400 mt-0.5">Printed by {request.printedByName}</p>;
     }
     if (request.status === 'Rejected' && request.rejectionReason) {
-      return <p className="text-[10px] text-slate-400 mt-0.5">{request.rejectionReason}</p>;
+      return <p className="text-[10px] font-pmedium text-slate-400 mt-0.5">{request.rejectionReason}</p>;
     }
     return null;
   };
+
+  const rowActions = (request: PrintoutRequestRecord) => (
+    <div className="flex items-center gap-1.5">
+      <button
+        onClick={() => setViewingRequest(request)}
+        className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
+        title="View"
+      >
+        <Eye size={15} strokeWidth={2.5} />
+      </button>
+      {isOwnPendingRequest(request) && (
+        <>
+          <button
+            onClick={() => openEditModal(request)}
+            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-all"
+            title="Edit"
+          >
+            <Pencil size={15} strokeWidth={2.5} />
+          </button>
+          <button
+            onClick={() => setCancelTarget(request)}
+            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-rose-100 hover:text-rose-700 rounded-lg transition-all"
+            title="Cancel"
+          >
+            <CancelIcon size={15} strokeWidth={2.5} />
+          </button>
+        </>
+      )}
+    </div>
+  );
 
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
@@ -228,7 +272,6 @@ export default function PrintoutsPage() {
           {/* HEADER */}
           <div className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-3">
             <div className="flex items-center gap-3">
-              
               <div>
                 <h2 className="text-title font-pmedium text-primary uppercase">Printouts</h2>
                 <p className="text-xs font-pmedium text-slate-500 mt-1">Send a document to the front desk to get it printed.</p>
@@ -300,6 +343,7 @@ export default function PrintoutsPage() {
                 <table className="hidden lg:table w-full text-left">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
+                      <th className="px-4 py-3">Print ID</th>
                       <th className="px-4 py-3">Request</th>
                       <th className="px-4 py-3">Copies</th>
                       <th className="px-4 py-3">Priority</th>
@@ -312,39 +356,20 @@ export default function PrintoutsPage() {
                   <tbody className="divide-y divide-slate-100">
                     {displayedRequests.map((request) => (
                       <tr key={request._id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-4 py-3">
-                          <p className="text-[12px] font-pmedium text-[#0F172A]">{request.title}</p>
-                          <p className="text-[10px] text-slate-400">{request.requestCode}</p>
-                        </td>
-                        <td className="px-4 py-3 text-[12px] text-slate-700">{request.copies}</td>
-                        <td className="px-4 py-3 text-[12px] text-slate-700">{request.priority}</td>
+                        <td className="px-4 py-3 text-[12px] font-pmedium text-slate-500">{request.requestCode}</td>
+                        <td className="px-4 py-3 text-[12px] font-pmedium text-[#0F172A]">{request.title}</td>
+                        <td className="px-4 py-3 text-[12px] font-pmedium text-slate-700">{request.copies}</td>
+                        <td className="px-4 py-3 text-[12px] font-pmedium text-slate-700">{request.priority}</td>
                         <td className="px-4 py-3">{renderAttachments(request.attachments)}</td>
                         <td className="px-4 py-3">
                           <span className={statusPillClass(request.status)}>{request.status}</span>
                           {statusFootnote(request)}
                         </td>
-                        <td className="px-4 py-3 text-[11px] text-slate-500">
+                        <td className="px-4 py-3 text-[11px] font-pmedium text-slate-500">
                           <span className="flex items-center gap-1"><Clock size={11} className="text-slate-400" /> {humanDate(request.createdAt)}</span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          {isOwnPendingRequest(request) ? (
-                            <div className="flex items-center justify-end gap-3">
-                              <button
-                                onClick={() => openEditModal(request)}
-                                className="inline-flex items-center gap-1 text-[11px] font-pmedium text-blue-600 hover:underline"
-                              >
-                                <Pencil size={11} /> Edit
-                              </button>
-                              <button
-                                onClick={() => cancelRequest(request._id)}
-                                className="text-[11px] font-pmedium text-rose-600 hover:underline"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-[11px] text-slate-400">—</span>
-                          )}
+                          <div className="flex items-center justify-end">{rowActions(request)}</div>
                         </td>
                       </tr>
                     ))}
@@ -357,8 +382,8 @@ export default function PrintoutsPage() {
                     <div key={request._id} className="bg-white border border-slate-200/60 p-4 sm:p-5 rounded-[20px] shadow-sm flex flex-col gap-3">
                       <div className="flex justify-between items-start gap-3">
                         <div className="min-w-0">
-                          <h3 className="font-semibold text-[#0F172A] text-[13px] sm:text-[14px] truncate">{request.title}</h3>
-                          <p className="text-[10px] text-slate-400">{request.requestCode}</p>
+                          <h3 className="font-pmedium text-[#0F172A] text-[13px] sm:text-[14px] truncate">{request.title}</h3>
+                          <p className="text-[10px] font-pmedium text-slate-400">{request.requestCode}</p>
                         </div>
                         <div className="flex flex-col items-end shrink-0">
                           <span className={statusPillClass(request.status)}>{request.status}</span>
@@ -368,11 +393,11 @@ export default function PrintoutsPage() {
                       <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
                         <div>
                           <span className="text-[9px] text-slate-400 uppercase font-pmedium tracking-widest block">Copies</span>
-                          <span className="text-[11px] font-semibold text-[#0F172A] block">{request.copies}</span>
+                          <span className="text-[11px] font-pmedium text-[#0F172A] block">{request.copies}</span>
                         </div>
                         <div>
                           <span className="text-[9px] text-slate-400 uppercase font-pmedium tracking-widest block">Priority</span>
-                          <span className="text-[11px] font-semibold text-[#0F172A] block">{request.priority}</span>
+                          <span className="text-[11px] font-pmedium text-[#0F172A] block">{request.priority}</span>
                         </div>
                         <div className="col-span-2">
                           <span className="text-[9px] text-slate-400 uppercase font-pmedium tracking-widest block">Attachments</span>
@@ -380,30 +405,15 @@ export default function PrintoutsPage() {
                         </div>
                       </div>
                       <div className="flex justify-between items-center border-t border-slate-100/60 pt-3">
-                        <span className="font-semibold text-slate-500 text-[11px] flex items-center gap-1.5"><Clock size={12} /> {humanDate(request.createdAt)}</span>
-                        {isOwnPendingRequest(request) && (
-                          <div className="flex items-center gap-3">
-                            <button
-                              onClick={() => openEditModal(request)}
-                              className="inline-flex items-center gap-1 text-[11px] font-pmedium text-blue-600 hover:underline"
-                            >
-                              <Pencil size={11} /> Edit
-                            </button>
-                            <button
-                              onClick={() => cancelRequest(request._id)}
-                              className="text-[11px] font-pmedium text-rose-600 hover:underline"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        )}
+                        <span className="font-pmedium text-slate-500 text-[11px] flex items-center gap-1.5"><Clock size={12} /> {humanDate(request.createdAt)}</span>
+                        {rowActions(request)}
                       </div>
                     </div>
                   ))}
                 </div>
 
                 {displayedRequests.length === 0 && (
-                  <div className="text-center py-20 text-slate-400 font-semibold">
+                  <div className="text-center py-20 text-slate-400 font-pmedium">
                     No printout requests found.
                   </div>
                 )}
@@ -413,6 +423,7 @@ export default function PrintoutsPage() {
         </div>
       </PageFrame>
 
+      {/* NEW / EDIT REQUEST MODAL */}
       {showNewRequest && (
         <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={closeRequestModal}>
           <div className="bg-white rounded-[2rem] max-w-lg w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
@@ -431,7 +442,7 @@ export default function PrintoutsPage() {
                 <input
                   value={form.title}
                   onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                  className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-[12px]"
+                  className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-[12px] font-pmedium"
                   placeholder="e.g. Signed offer letter"
                   required
                 />
@@ -441,7 +452,7 @@ export default function PrintoutsPage() {
                 <textarea
                   value={form.notes}
                   onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                  className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-[12px] min-h-[70px]"
+                  className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-[12px] font-pmedium min-h-[70px]"
                   placeholder="Anything the front desk should know"
                 />
               </div>
@@ -453,7 +464,7 @@ export default function PrintoutsPage() {
                     min={1}
                     value={form.copies}
                     onChange={(e) => setForm((f) => ({ ...f, copies: e.target.value }))}
-                    className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-[12px]"
+                    className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-[12px] font-pmedium"
                   />
                 </div>
                 <div>
@@ -461,7 +472,7 @@ export default function PrintoutsPage() {
                   <select
                     value={form.priority}
                     onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
-                    className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-[12px]"
+                    className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-[12px] font-pmedium"
                   >
                     <option value="Low">Low</option>
                     <option value="Medium">Medium</option>
@@ -473,7 +484,7 @@ export default function PrintoutsPage() {
                   <select
                     value={form.colorMode}
                     onChange={(e) => setForm((f) => ({ ...f, colorMode: e.target.value }))}
-                    className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-[12px]"
+                    className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-[12px] font-pmedium"
                   >
                     <option value="Black & White">Black & White</option>
                     <option value="Color">Color</option>
@@ -484,7 +495,7 @@ export default function PrintoutsPage() {
                   <select
                     value={form.paperSize}
                     onChange={(e) => setForm((f) => ({ ...f, paperSize: e.target.value }))}
-                    className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-[12px]"
+                    className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-[12px] font-pmedium"
                   >
                     <option value="A4">A4</option>
                     <option value="A3">A3</option>
@@ -503,7 +514,7 @@ export default function PrintoutsPage() {
                 Double-sided
               </label>
               {editingRequestId ? (
-                <p className="text-[11px] text-slate-400 italic">Attachments can't be changed here — cancel and resubmit if you need to swap the document.</p>
+                <p className="text-[11px] font-pmedium text-slate-400 italic">Attachments can't be changed here — cancel and resubmit if you need to swap the document.</p>
               ) : (
                 <AttachmentDropzone
                   files={files}
@@ -525,6 +536,103 @@ export default function PrintoutsPage() {
                 {submitting ? 'Saving…' : editingRequestId ? 'Save Changes' : 'Submit Request'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW MODAL */}
+      {viewingRequest && (
+        <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={() => setViewingRequest(null)}>
+          <div className="bg-white rounded-[2rem] max-w-lg w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+            <div className="p-5 border-b border-slate-100 bg-blue-50/30 flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white">
+                  <Eye size={16} />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-base font-pmedium text-slate-800 truncate">{viewingRequest.title}</h2>
+                  <p className="text-[11px] font-pmedium text-slate-500">{viewingRequest.requestCode}</p>
+                </div>
+              </div>
+              <button onClick={() => setViewingRequest(null)} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 shrink-0"><X size={16} /></button>
+            </div>
+            <div className="p-5 space-y-4 overflow-y-auto">
+              <div>
+                <span className={statusPillClass(viewingRequest.status)}>{viewingRequest.status}</span>
+                {statusFootnote(viewingRequest)}
+              </div>
+              <div className="grid grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                <div>
+                  <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Copies</p>
+                  <p className="text-[12px] font-pmedium text-slate-900">{viewingRequest.copies}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Priority</p>
+                  <p className="text-[12px] font-pmedium text-slate-900">{viewingRequest.priority}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Color</p>
+                  <p className="text-[12px] font-pmedium text-slate-900">{viewingRequest.colorMode || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Paper Size</p>
+                  <p className="text-[12px] font-pmedium text-slate-900">{viewingRequest.paperSize || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Double-sided</p>
+                  <p className="text-[12px] font-pmedium text-slate-900">{viewingRequest.doubleSided ? 'Yes' : 'No'}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Submitted</p>
+                  <p className="text-[12px] font-pmedium text-slate-900">{humanDate(viewingRequest.createdAt)}</p>
+                </div>
+              </div>
+              {viewingRequest.notes ? (
+                <div>
+                  <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1.5">Notes / Instructions</p>
+                  <p className="text-[12px] font-pmedium text-slate-900 leading-relaxed bg-slate-50/60 p-3 rounded-xl border border-slate-100">{viewingRequest.notes}</p>
+                </div>
+              ) : null}
+              <div>
+                <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1.5">Attachments</p>
+                {renderAttachments(viewingRequest.attachments)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CANCEL CONFIRM MODAL */}
+      {cancelTarget && (
+        <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3" onClick={() => !cancelling && setCancelTarget(null)}>
+          <div className="bg-white rounded-[2rem] max-w-sm w-full shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 space-y-4">
+              <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-600">
+                <AlertTriangle size={22} />
+              </div>
+              <div>
+                <h2 className="text-[15px] font-pmedium text-slate-800">Cancel this request?</h2>
+                <p className="text-[12px] font-pmedium text-slate-500 mt-1.5 leading-relaxed">
+                  <span className="font-pmedium text-slate-700">{cancelTarget.title}</span> ({cancelTarget.requestCode}) will be cancelled and removed from Administration's queue. This can't be undone.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 border-t border-slate-100 bg-slate-50/50 p-4">
+              <button
+                onClick={() => setCancelTarget(null)}
+                disabled={cancelling}
+                className="flex-1 rounded-2xl bg-white border border-slate-200 py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-60"
+              >
+                Keep Request
+              </button>
+              <button
+                onClick={confirmCancel}
+                disabled={cancelling}
+                className="flex-1 rounded-2xl bg-rose-600 py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-white hover:bg-rose-700 transition-all disabled:opacity-60"
+              >
+                {cancelling ? 'Cancelling…' : 'Cancel Request'}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -72,7 +72,7 @@ const MODULE_GROUPS = [
       { id: "virtual-office-sales", label: "Virtual Offices", route: "/sales-crm/virtual-offices", implemented: true },
       { id: "resource-pricing", label: "Resource & Pricing", route: "/sales-crm/resource-pricing", implemented: true },
       { id: "sales-architecture", label: "Sales Architecture", route: "/sales-crm/sales-architecture", implemented: true },
-      { id: "finance-budget", label: "Finance & Budget", implemented: false },
+      { id: "finance-budget", label: "Expenses & Budget", implemented: false },
       { id: "billing-payments", label: "Billing & Payments", implemented: false },
       { id: "accounting", label: "Accounting", implemented: false },
       { id: "maintenance-repair-logs", label: "Maintenance Repair Logs", implemented: false },
@@ -151,7 +151,7 @@ const MODULE_GROUPS = [
         label: "Finance Department",
         isGroup: true,
         tabs: [
-          { id: "finance-budget", label: "Finance & Budget", implemented: false },
+          { id: "finance-budget", label: "Expenses & Budget", implemented: false },
           { id: "billing-payments", label: "Billing & Payments", implemented: false },
           { id: "accounting", label: "Accounting", implemented: false },
         ],

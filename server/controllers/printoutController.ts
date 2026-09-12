@@ -136,7 +136,7 @@ const notifyAdministrationOfNewRequest = async (
             entityType: "printout_request",
             entityId: String(request._id),
             entityCode: request.requestCode,
-            targetUrl: "/common-modules/printouts",
+            targetUrl: "/department-accesses/administration-department/printouts",
             data: { requestCode: request.requestCode, copies: request.copies, priority: request.priority },
             priority: request.priority === "High" ? "high" : "normal",
             isActionRequired: true,

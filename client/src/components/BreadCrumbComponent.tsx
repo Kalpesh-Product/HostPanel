@@ -751,6 +751,16 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/department-accesses/finance-department/expenses-budget/review/annual/:requestId/month/:monthKey",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Finance Department", path: "/department-accesses/finance-department" },
+      { label: "Expenses & Budget", path: "/department-accesses/finance-department/expenses-budget" },
+      { label: "Annual Budget Review" },
+      { label: "Monthly Expenses" },
+    ],
+  },
+  {
     pattern: "/department-accesses/finance-department/billing-payments",
     crumbs: [
       { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
