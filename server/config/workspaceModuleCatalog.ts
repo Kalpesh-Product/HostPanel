@@ -14,7 +14,7 @@ const MODULE_GROUPS = [
       { id: "tickets", label: "Tickets", route: "/tickets", implemented: true },
       { id: "leave-requests", label: "Leave Requests", implemented: false },
       { id: "meeting-room-system", label: "Meeting Room Booking", route: "/meetings/meeting-rooms", implemented: true },
-      { id: "printout-management", label: "Printouts", route: "/common-modules/printouts", implemented: true },
+      { id: "printouts", label: "Printouts", route: "/common-modules/printouts", implemented: true },
       { id: "calendar", label: "Calendar", route: "/calendar", implemented: true },
     ],
   },
@@ -211,7 +211,7 @@ export const COMMON_MODULE_IDS = [
   "tickets",
   "leave-requests",
   "meeting-room-system",
-  "printout-management",
+  "printouts",
   "calendar",
 ];
 
@@ -346,6 +346,11 @@ const PROFESSIONAL_DEFAULT_IDS = new Set([
   "visitors_standard_type_tenant",
   "tickets",
   "meeting-room-system",
+  "printouts",
+  // "printout-management" (the Administration Department admin console) is
+  // a separate id from "printouts" (the common self-service module) so
+  // master panel can toggle them independently — both default on at
+  // Professional though, since Administration needs it to process requests.
   "printout-management",
   "calendar",
   "workspace-settings",

@@ -39,6 +39,10 @@ const BASIC_IDS = [
 const PROFESSIONAL_EXTRA_IDS = [
   "tickets",
   "meeting-room-system",
+  "printouts",
+  // "printout-management" (Administration Department admin console) is a
+  // separate id from "printouts" (common self-service module) so master
+  // panel can toggle them independently — see workspaceModuleCatalog.ts.
   "printout-management",
   "calendar",
   "workspace-settings",
