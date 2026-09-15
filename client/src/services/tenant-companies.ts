@@ -63,6 +63,14 @@ export const renewTenantCompany = async (id: string, payload: Record<string, any
   return axiosPrivate.post(`/api/v1/tenant-companies/${id}/renew`, payload);
 };
 
+export const deactivateTenantCompany = async (id: string) => {
+  return axiosPrivate.post(`/api/v1/tenant-companies/${id}/deactivate`);
+};
+
+export const reactivateTenantCompany = async (id: string, payload: Record<string, any>) => {
+  return axiosPrivate.post(`/api/v1/tenant-companies/${id}/reactivate`, payload);
+};
+
 export const addTenantCompanyEmployee = async (id: string, payload: Record<string, any>) => {
   return axiosPrivate.post(`/api/v1/tenant-companies/${id}/employees`, payload);
 };

@@ -55,13 +55,17 @@ function combineFilters(...filters) {
 // read off the possibly-stale stored `status` field).
 function buildTenantStatusFilter(status, now = new Date()) {
   const soon = new Date(now.getTime() + 30 * 86400000);
+  // "Inactive" is a manual override that wins over the date-derived status
+  // (see formatTenantCompany) — a company deactivated early (post lock-in,
+  // before its contractEnd) or left Inactive after expiring must not also
+  // count as Active/Expiring Soon/Expired just because its dates say so.
   switch (status) {
     case "Active":
-      return { contractEnd: { $gt: soon } };
+      return { contractEnd: { $gt: soon }, status: { $ne: "Inactive" } };
     case "Expiring Soon":
-      return { contractEnd: { $gte: now, $lte: soon } };
+      return { contractEnd: { $gte: now, $lte: soon }, status: { $ne: "Inactive" } };
     case "Expired":
-      return { contractEnd: { $lt: now } };
+      return { contractEnd: { $lt: now }, status: { $ne: "Inactive" } };
     case "Pending Space Assignment":
       return { $or: [{ contractEnd: null }, { contractEnd: { $exists: false } }] };
     case "Inactive":
@@ -119,6 +123,24 @@ function buildContractEndDate(start, durationMonths) {
   end.setMonth(end.getMonth() + Number(durationMonths || 0));
   end.setDate(end.getDate() - 1);
   return end;
+}
+
+// End of the lock-in commitment — contractStart + lockInPeriod months. Unlike
+// buildContractEndDate this has no "-1 day" adjustment: it's a running period,
+// not an inclusive calendar range. Returns null when there's no lock-in set.
+function buildLockInEndDate(contractStart, lockInMonths) {
+  const startDate = toDateOrNull(contractStart);
+  const months = Math.max(0, Number(lockInMonths || 0));
+  if (!startDate || months <= 0) return null;
+  const end = new Date(startDate);
+  end.setMonth(end.getMonth() + months);
+  return end;
+}
+
+function isTenantLockInOver(company, now = new Date()) {
+  const lockInEnd = buildLockInEndDate(company?.contractStart, company?.agreementDetails?.lockInPeriod);
+  if (!lockInEnd) return true;
+  return now.getTime() >= lockInEnd.getTime();
 }
 
 // Next date the annual rent increment kicks in — contract start plus whole
@@ -686,6 +708,9 @@ async function formatTenantCompany(company, preloaded = null) {
     contractStartAt: company.contractStart || null,
     contractEndAt: company.contractEnd || null,
     contractDurationMonths: Number(company.contractDurationMonths || 0),
+    lockInEndDate: formatDate(buildLockInEndDate(company.contractStart, company.agreementDetails?.lockInPeriod)),
+    lockInEndAt: buildLockInEndDate(company.contractStart, company.agreementDetails?.lockInPeriod),
+    lockInOver: isTenantLockInOver(company),
     creditsAllocated,
     creditsUsed,
     creditsRemaining,
@@ -1415,6 +1440,141 @@ export async function assignTenantCompanySpaceForCurrentUser(userId, tenantCompa
   return {
     tenant: await formatTenantCompany(company),
     message: "Tenant space assignment saved successfully.",
+  };
+}
+
+// Early exit: an Active/Expiring-Soon tenant leaving after their lock-in has
+// ended. Releases every desk they hold back to the vacant pool and marks them
+// Inactive — reactivating later requires assigning them a fresh space (see
+// reactivateTenantCompanyForCurrentUser).
+export async function deactivateTenantCompanyForCurrentUser(userId, tenantCompanyId) {
+  const access = await resolveWorkspaceAccess(userId);
+  if (!access.isAdmin && !access.hasSalesAccess && !access.hasAdminAccess) {
+    const err = new Error("You do not have permission to deactivate tenant companies.");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const company = await TenantCompany.findById(tenantCompanyId);
+  ensureTenantCompanyExists(company, access.workspaceId);
+
+  const currentStatus = company.status === "Inactive" ? "Inactive" : deriveTenantStatus(company.contractEnd);
+  if (currentStatus !== "Active" && currentStatus !== "Expiring Soon") {
+    const err = new Error("Only active tenants can be deactivated.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!isTenantLockInOver(company)) {
+    const err = new Error(
+      `This tenant is locked in until ${formatDate(buildLockInEndDate(company.contractStart, company.agreementDetails?.lockInPeriod))}; it cannot be deactivated before then.`,
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  await releaseAllSeatsForTenant(access.workspaceId, company._id);
+
+  if (company.companyDetails) {
+    company.companyDetails.openDesks = 0;
+    company.companyDetails.cabinDesks = 0;
+  }
+  company.space = { floor: "", seats: [], assignedDate: null };
+  company.status = "Inactive";
+  company.inactivePeriods = [...(company.inactivePeriods || []), { from: new Date(), to: null }];
+
+  await company.save();
+
+  return {
+    tenant: await formatTenantCompany(company),
+    message: `${company.companyName || "Tenant company"} deactivated — assigned space released.`,
+  };
+}
+
+// Brings an Inactive tenant back, assigning them a (possibly new) space from
+// current availability and recalculating rent off that space — the security
+// deposit and original contract dates/lock-in are untouched here; the deposit
+// is only settled at true contract end.
+export async function reactivateTenantCompanyForCurrentUser(userId, tenantCompanyId, input = {}) {
+  const access = await resolveWorkspaceAccess(userId);
+  if (!access.isAdmin && !access.hasSalesAccess && !access.hasAdminAccess) {
+    const err = new Error("You do not have permission to reactivate tenant companies.");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const company = await TenantCompany.findById(tenantCompanyId);
+  ensureTenantCompanyExists(company, access.workspaceId);
+
+  if (company.status !== "Inactive") {
+    const err = new Error("Only inactive tenants can be reactivated.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const floor = normalizeText(input.floor || "");
+  const wing = normalizeText(input.wing || "");
+  const buildingName = normalizeText(input.buildingName || company.companyDetails?.buildingName || "");
+  const openDesks = Math.max(0, Number(input.openDesks || 0));
+  const cabinDesks = Math.max(0, Number(input.cabinDesks || 0));
+  const ratePerOpenDesk = Math.max(0, Number(input.ratePerOpenDesk || 0));
+  const ratePerCabinDesk = Math.max(0, Number(input.ratePerCabinDesk || 0));
+
+  if (!floor || (openDesks <= 0 && cabinDesks <= 0)) {
+    const err = new Error("Select a floor and at least one desk to reactivate this tenant.");
+    err.statusCode = 400;
+    throw err;
+  }
+  if ((openDesks > 0 && ratePerOpenDesk <= 0) || (cabinDesks > 0 && ratePerCabinDesk <= 0)) {
+    const err = new Error("Set a rate for every desk type being assigned.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Throws a 409 if the floor/wing doesn't have enough vacant desks — nothing
+  // below has mutated the company doc yet, so a failure here leaves it as-is.
+  await reconcileTenantSeatAssignments(
+    access.workspaceId,
+    access.workspace.ownerId || userId,
+    company._id,
+    company.companyName,
+    floor,
+    wing,
+    openDesks,
+    cabinDesks,
+  );
+
+  company.companyDetails = {
+    ...(company.companyDetails || {}),
+    buildingName,
+    floor,
+    wing,
+    openDesks,
+    ratePerOpenDesk,
+    cabinDesks,
+    ratePerCabinDesk,
+  };
+  company.space = { floor, seats: [], assignedDate: new Date() };
+  company.status = "Active";
+
+  const openPeriod = [...(company.inactivePeriods || [])].reverse().find((period) => !period.to);
+  if (openPeriod) openPeriod.to = new Date();
+
+  if (company.billingDetails) {
+    company.billingDetails.monthlyRent = resolveTenantMonthlyRent(company);
+  }
+
+  await company.save();
+
+  try {
+    await ensureCurrentMonthRentRecordForCompany(company);
+  } catch (rentError) {
+    console.error("Failed to refresh rent record after reactivation:", rentError?.message || rentError);
+  }
+
+  return {
+    tenant: await formatTenantCompany(company),
+    message: `${company.companyName || "Tenant company"} reactivated with new space assignment.`,
   };
 }
 

@@ -9,6 +9,8 @@ import {
   createTenantCompanyForCurrentUser,
   updateTenantCompanyForCurrentUser,
   renewTenantCompanyForCurrentUser,
+  deactivateTenantCompanyForCurrentUser,
+  reactivateTenantCompanyForCurrentUser,
   assignTenantCompanySpaceForCurrentUser,
   addTenantCompanyEmployeeForCurrentUser,
   sendTenantCompanyEmployeeInviteForCurrentUser,
@@ -136,6 +138,26 @@ export const renewTenantCompany = async (req: Request, res: Response, next: Next
   try {
     const userId = req.user?.id || req.user?._id || req.user;
     const result = await renewTenantCompanyForCurrentUser(userId, req.params.id, req.body);
+    return res.status(200).json(result);
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+export const deactivateTenantCompany = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id || req.user?._id || req.user;
+    const result = await deactivateTenantCompanyForCurrentUser(userId, req.params.id);
+    return res.status(200).json(result);
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+export const reactivateTenantCompany = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id || req.user?._id || req.user;
+    const result = await reactivateTenantCompanyForCurrentUser(userId, req.params.id, req.body);
     return res.status(200).json(result);
   } catch (error: any) {
     next(error);

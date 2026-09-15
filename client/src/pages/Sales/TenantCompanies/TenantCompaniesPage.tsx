@@ -5,7 +5,7 @@ import {
   Building, Search, Plus, Eye, Edit, CalendarDays, LayoutGrid,
   CheckCircle2, AlertTriangle, XCircle, Mail, Phone, Clock,
   CreditCard, X, ArrowRight, Save, RefreshCw, Briefcase,
-  FileText, UserPlus, UploadCloud, Ban,
+  FileText, UserPlus, UploadCloud, Ban, UserCheck,
   Users, History, MapPin, Building2, Loader2, Tag
 } from 'lucide-react';
 import BulkUploadModal from '../../../components/BulkUploadModal';
@@ -17,6 +17,8 @@ import {
   getTenantCompanies,
   getTenantCompanySectors,
   renewTenantCompany,
+  deactivateTenantCompany,
+  reactivateTenantCompany,
   uploadTenantCompanyAgreementDocuments,
   updateTenantCompanyCreditRequest,
   updateTenantCompany,
@@ -1052,6 +1054,15 @@ export default function TenantCompaniesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingReport, setIsExportingReport] = useState('');
   const [markingInactiveId, setMarkingInactiveId] = useState('');
+  const [deactivateTarget, setDeactivateTarget] = useState(null);
+  const [isDeactivating, setIsDeactivating] = useState(false);
+  const [reactivateTarget, setReactivateTarget] = useState(null);
+  const [reactivateForm, setReactivateForm] = useState({
+    buildingName: '', floor: '', wing: '', openDesks: '', cabinDesks: '', ratePerOpenDesk: '', ratePerCabinDesk: '',
+  });
+  const [isReactivating, setIsReactivating] = useState(false);
+  const [reactivateError, setReactivateError] = useState('');
+  const [reactivateVacancy, setReactivateVacancy] = useState(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
@@ -1933,6 +1944,159 @@ export default function TenantCompaniesPage() {
       ...prev,
       companyDetails: { ...(prev.companyDetails || {}), buildingName, floor: '', wing: '' },
     }));
+  };
+
+  // Reactivation ("Activate" on an Inactive tenant) picks a fresh space from
+  // current availability — its own small form, independent of companyForm/
+  // add-edit-renew, since that shared form carries a lot of validation
+  // (agreement documents, contract duration, billing summary) that doesn't
+  // apply here. Options mirror the desk-picker above but keyed off reactivateForm.
+  const reactivateFloorOptions = useMemo(() => {
+    const floors = new Set();
+    resources.forEach((resource) => {
+      if (isDeskResource(resource) && String(resource.location || '').trim() === reactivateForm.buildingName && resource.floor) {
+        floors.add(String(resource.floor).trim());
+      }
+    });
+    return [...floors].sort();
+  }, [resources, reactivateForm.buildingName]);
+
+  const reactivateWingOptions = useMemo(() => {
+    const wings = new Set();
+    resources.forEach((resource) => {
+      if (
+        isDeskResource(resource)
+        && String(resource.location || '').trim() === reactivateForm.buildingName
+        && String(resource.floor || '').trim() === reactivateForm.floor
+        && resource.wing
+      ) {
+        wings.add(String(resource.wing).trim());
+      }
+    });
+    return [...wings].sort();
+  }, [resources, reactivateForm.buildingName, reactivateForm.floor]);
+
+  const reactivateHasActiveDeskResource = (category) => resources.some((resource) =>
+    resource.resourceCategory === category
+    && isDeskResource(resource)
+    && String(resource.location || '').trim() === reactivateForm.buildingName
+    && String(resource.floor || '').trim() === reactivateForm.floor
+    && String(resource.wing || '').trim() === reactivateForm.wing,
+  );
+  const reactivateMaxOpenDesks = reactivateVacancy ? (reactivateHasActiveDeskResource('open_desk') ? reactivateVacancy.open_desk : 0) : null;
+  const reactivateMaxCabinDesks = reactivateVacancy ? (reactivateHasActiveDeskResource('cabin_desk') ? reactivateVacancy.cabin_desk : 0) : null;
+
+  useEffect(() => {
+    if (activeModal !== 'reactivateSpace' || !reactivateForm.floor) {
+      setReactivateVacancy(null);
+      return undefined;
+    }
+    let cancelled = false;
+    getResourceSeatSummary({ floor: reactivateForm.floor, wing: reactivateForm.wing })
+      .then((response) => {
+        if (cancelled) return;
+        const rows = response?.data?.data?.summary;
+        const summaryRows = Array.isArray(rows) ? rows : [];
+        setReactivateVacancy({
+          open_desk: summaryRows.find((row) => row.resourceCategory === 'open_desk')?.vacant ?? 0,
+          cabin_desk: summaryRows.find((row) => row.resourceCategory === 'cabin_desk')?.vacant ?? 0,
+        });
+      })
+      .catch(() => { if (!cancelled) setReactivateVacancy(null); });
+    return () => { cancelled = true; };
+  }, [activeModal, reactivateForm.floor, reactivateForm.wing]);
+
+  const openReactivateModal = (tenant) => {
+    setReactivateTarget(tenant);
+    setReactivateForm({
+      buildingName: tenant.companyDetails?.buildingName || '',
+      floor: tenant.companyDetails?.floor || '',
+      wing: tenant.companyDetails?.wing || '',
+      openDesks: '',
+      cabinDesks: '',
+      ratePerOpenDesk: tenant.companyDetails?.ratePerOpenDesk ? String(tenant.companyDetails.ratePerOpenDesk) : '',
+      ratePerCabinDesk: tenant.companyDetails?.ratePerCabinDesk ? String(tenant.companyDetails.ratePerCabinDesk) : '',
+    });
+    setReactivateError('');
+    setActiveModal('reactivateSpace');
+  };
+
+  const closeReactivateModal = () => {
+    setActiveModal(null);
+    setReactivateTarget(null);
+    setReactivateError('');
+  };
+
+  const handleReactivateLocationChange = (buildingName) => setReactivateForm((prev) => ({ ...prev, buildingName, floor: '', wing: '' }));
+  const handleReactivateFloorChange = (floor) => setReactivateForm((prev) => ({ ...prev, floor, wing: '' }));
+  const handleReactivateWingChange = (wing) => setReactivateForm((prev) => ({ ...prev, wing }));
+  const handleReactivateDeskCountChange = (field, maxAllowed, rawValue) => {
+    const parsed = Math.max(0, parseInt(rawValue, 10) || 0);
+    const clamped = Number.isFinite(maxAllowed) && maxAllowed !== null ? Math.min(parsed, maxAllowed) : parsed;
+    setReactivateForm((prev) => ({ ...prev, [field]: String(clamped) }));
+  };
+
+  const reactivateMonthlyRentPreview = (
+    Number(reactivateForm.cabinDesks || 0) * Number(reactivateForm.ratePerCabinDesk || 0)
+    + Number(reactivateForm.openDesks || 0) * Number(reactivateForm.ratePerOpenDesk || 0)
+  ) * 30;
+
+  const handleDeactivateTenant = async () => {
+    if (!deactivateTarget || isDeactivating) return;
+    const tenantId = deactivateTarget.recordId || deactivateTarget.id;
+    setIsDeactivating(true);
+    try {
+      const response = await deactivateTenantCompany(tenantId);
+      syncTenantCollections(response?.data || {}, tenantId);
+      adjustTenantsSummaryForStatusChange(deactivateTarget.status, response?.data?.tenant?.status);
+      toast.success(response?.data?.message || `${deactivateTarget.companyName || 'Tenant company'} deactivated.`);
+      setDeactivateTarget(null);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error.message || 'Unable to deactivate tenant company.');
+    } finally {
+      setIsDeactivating(false);
+    }
+  };
+
+  const handleSubmitReactivate = async (event) => {
+    event.preventDefault();
+    if (isReactivating || !reactivateTarget) return;
+
+    const openDesks = Math.max(0, Number(reactivateForm.openDesks || 0));
+    const cabinDesks = Math.max(0, Number(reactivateForm.cabinDesks || 0));
+    if (!reactivateForm.floor || (openDesks <= 0 && cabinDesks <= 0)) {
+      setReactivateError('Select a floor and at least one desk.');
+      return;
+    }
+    if ((openDesks > 0 && Number(reactivateForm.ratePerOpenDesk || 0) <= 0) || (cabinDesks > 0 && Number(reactivateForm.ratePerCabinDesk || 0) <= 0)) {
+      setReactivateError('Set a rate for every desk type being assigned.');
+      return;
+    }
+
+    setIsReactivating(true);
+    setReactivateError('');
+    try {
+      const tenantId = reactivateTarget.recordId || reactivateTarget.id;
+      const response = await reactivateTenantCompany(tenantId, {
+        buildingName: reactivateForm.buildingName,
+        floor: reactivateForm.floor,
+        wing: reactivateForm.wing,
+        openDesks,
+        cabinDesks,
+        ratePerOpenDesk: Number(reactivateForm.ratePerOpenDesk || 0),
+        ratePerCabinDesk: Number(reactivateForm.ratePerCabinDesk || 0),
+      });
+      syncTenantCollections(response?.data || {}, tenantId);
+      adjustTenantsSummaryForStatusChange(reactivateTarget.status, response?.data?.tenant?.status);
+      toast.success(response?.data?.message || `${reactivateTarget.companyName || 'Tenant company'} reactivated.`);
+      closeReactivateModal();
+    } catch (error) {
+      const message = error?.response?.data?.message || error.message || 'Unable to reactivate tenant company.';
+      toast.error(message);
+      setReactivateError(message);
+    } finally {
+      setIsReactivating(false);
+    }
   };
 
   const handleDeskFloorChange = (floor) => {
@@ -3271,12 +3435,36 @@ export default function TenantCompaniesPage() {
     try {
       const response = await updateTenantCompany(tenantId, { status: 'Inactive' });
       syncTenantCollections(response?.data || {}, tenantId);
+      adjustTenantsSummaryForStatusChange(tenant.status, response?.data?.tenant?.status);
       toast.success(`${tenant.companyName || 'Tenant company'} marked inactive.`);
     } catch (error) {
       toast.error(error?.message || 'Unable to mark tenant company inactive.');
     } finally {
       setMarkingInactiveId('');
     }
+  };
+
+  // The "Active Contracts"/"Expiring Soon"/"Expired Contracts" stat cards come
+  // from a summary computed once when the tenant list page loads (see
+  // loadTenantsPage) — a status-changing action (deactivate/reactivate/mark
+  // inactive) below doesn't re-fetch that page, so it must nudge the affected
+  // bucket counts itself or the cards go stale until the next reload.
+  const tenantsSummaryBucket = (status) => (
+    status === 'Active' ? 'activeContracts'
+      : status === 'Expiring Soon' ? 'expiringSoon'
+        : status === 'Expired' ? 'expired'
+          : null
+  );
+  const adjustTenantsSummaryForStatusChange = (oldStatus, newStatus) => {
+    const oldBucket = tenantsSummaryBucket(oldStatus);
+    const newBucket = tenantsSummaryBucket(newStatus);
+    if (oldBucket === newBucket) return;
+    setTenantsSummary((prev) => {
+      const next = { ...prev };
+      if (oldBucket) next[oldBucket] = Math.max(0, Number(next[oldBucket] || 0) - 1);
+      if (newBucket) next[newBucket] = Number(next[newBucket] || 0) + 1;
+      return next;
+    });
   };
 
   const handlePackageSelection = (pricingPackageId) => {
@@ -3864,6 +4052,42 @@ export default function TenantCompaniesPage() {
                                 <Ban size={13} />
                               </button>
                             </>
+                          ) : tenant.status === 'Inactive' ? (
+                            <>
+                              <button onClick={() => navigate(`/department-accesses/sales-department/tenant-companies/${tenant.recordId || tenant.id}`)} className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-md transition-all" title="View">
+                                <Eye size={13} />
+                              </button>
+                              <button
+                                onClick={() => openReactivateModal(tenant)}
+                                className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 rounded-md transition-all"
+                                title="Activate"
+                              >
+                                <UserCheck size={13} />
+                              </button>
+                            </>
+                          ) : (tenant.status === 'Active' || tenant.status === 'Expiring Soon') ? (
+                            <>
+                              <button onClick={() => navigate(`/department-accesses/sales-department/tenant-companies/${tenant.recordId || tenant.id}`)} className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-md transition-all" title="View">
+                                <Eye size={13} />
+                              </button>
+                              <button onClick={() => {
+                                const hydratedTenant = buildHydratedTenantSnapshot(tenant);
+                                setCompanyForm(prepareCompanyFormForTenant(hydratedTenant));
+                                setSelectedTenant(hydratedTenant); setAgreementFiles([]); setActiveModal('edit');
+                              }}
+                                className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 rounded-md transition-all" title="Edit"
+                              >
+                                <Edit size={13} />
+                              </button>
+                              <button
+                                onClick={() => tenant.lockInOver && setDeactivateTarget(tenant)}
+                                disabled={!tenant.lockInOver}
+                                className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-slate-500 disabled:hover:border-slate-200"
+                                title={tenant.lockInOver ? 'Deactivate' : `Locked in until ${tenant.lockInEndDate}`}
+                              >
+                                <Ban size={13} />
+                              </button>
+                            </>
                           ) : (
                             <>
                               <button onClick={() => navigate(`/department-accesses/sales-department/tenant-companies/${tenant.recordId || tenant.id}`)} className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-md transition-all" title="View">
@@ -4116,6 +4340,138 @@ export default function TenantCompaniesPage() {
               </div>
             </div>
           )}
+          {deactivateTarget && (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#0F172A]/40 backdrop-blur-sm">
+              <div className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden border border-white/70">
+                <div className="p-5 space-y-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="p-2 rounded-xl bg-rose-100 text-rose-600 shrink-0"><Ban size={16} /></span>
+                    <h2 className="text-base font-pmedium text-primary">Deactivate {deactivateTarget.companyName}?</h2>
+                  </div>
+                  <p className="text-[12px] font-pmedium text-slate-500 leading-relaxed">
+                    This releases every desk currently assigned to this tenant back to the vacant pool and marks the company Inactive.
+                    They can be reactivated later, but a new space will need to be assigned at that time.
+                  </p>
+                </div>
+                <div className="p-4 border-t border-slate-100 flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => setDeactivateTarget(null)}
+                    disabled={isDeactivating}
+                    className="px-4 py-2 rounded-xl text-[12px] font-pmedium text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeactivateTenant}
+                    disabled={isDeactivating}
+                    className="px-4 py-2 rounded-xl text-[12px] font-pmedium bg-rose-600 text-white hover:bg-rose-700 transition-all disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {isDeactivating && <Loader2 size={13} className="animate-spin" />} Deactivate &amp; Release Space
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeModal === 'reactivateSpace' && reactivateTarget && (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#0F172A]/40 backdrop-blur-sm">
+              <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[95vh] border border-white/70">
+                <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between shrink-0">
+                  <div>
+                    <h2 className="text-base font-pmedium text-primary flex items-center gap-2"><UserCheck size={18} /> Assign Space &amp; Activate</h2>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">Reactivating: {reactivateTarget.companyName}</p>
+                  </div>
+                  <button onClick={closeReactivateModal} className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"><X size={16} /></button>
+                </div>
+
+                <form onSubmit={handleSubmitReactivate} className="p-4 sm:p-5 overflow-y-auto flex flex-1 flex-col gap-3 bg-slate-50/30">
+                  <p className="text-[11px] font-pmedium text-slate-500 leading-relaxed">
+                    This tenant currently holds no space. Assign a floor/wing and desk counts from what's available now — rent is recalculated from this new assignment. The security deposit is unaffected; it's only settled at contract end.
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Location <span className="text-red-400">*</span></label>
+                      <select
+                        className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                        value={reactivateForm.buildingName}
+                        onChange={(e) => handleReactivateLocationChange(e.target.value)}
+                      >
+                        <option value="">Select location</option>
+                        {deskResourceLocationOptions.map((location) => <option key={location} value={location}>{location}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Floor <span className="text-red-400">*</span></label>
+                      <select
+                        className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                        value={reactivateForm.floor}
+                        onChange={(e) => handleReactivateFloorChange(e.target.value)}
+                        disabled={!reactivateForm.buildingName}
+                      >
+                        <option value="">Select floor</option>
+                        {reactivateFloorOptions.map((floor) => <option key={floor} value={floor}>{floor}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Wing (Optional)</label>
+                      <select
+                        className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-700 focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                        value={reactivateForm.wing}
+                        onChange={(e) => handleReactivateWingChange(e.target.value.toUpperCase())}
+                        disabled={!reactivateForm.floor}
+                      >
+                        <option value="">Select wing</option>
+                        {reactivateWingOptions.map((wing) => <option key={wing} value={wing}>{wing}</option>)}
+                      </select>
+                    </div>
+                    {reactivateForm.floor && (
+                      <div className="space-y-1 md:col-span-2">
+                        <p className="text-[10px] font-pmedium text-slate-500">
+                          {reactivateVacancy
+                            ? `${reactivateMaxOpenDesks} open desk${reactivateMaxOpenDesks === 1 ? '' : 's'} / ${reactivateMaxCabinDesks} cabin desk${reactivateMaxCabinDesks === 1 ? '' : 's'} available on Floor ${reactivateForm.floor}${reactivateForm.wing ? ` Wing ${reactivateForm.wing}` : ''}.`
+                            : 'Checking availability...'}
+                        </p>
+                      </div>
+                    )}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Cabin Desks</label>
+                      <input type="number" min="0" max={reactivateMaxCabinDesks ?? undefined} className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={reactivateForm.cabinDesks} onChange={(e) => handleReactivateDeskCountChange('cabinDesks', reactivateMaxCabinDesks, e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Rate Per Cabin Desk</label>
+                      <input type="number" min="0" className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={reactivateForm.ratePerCabinDesk} onChange={(e) => setReactivateForm((prev) => ({ ...prev, ratePerCabinDesk: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Open Desks</label>
+                      <input type="number" min="0" max={reactivateMaxOpenDesks ?? undefined} className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={reactivateForm.openDesks} onChange={(e) => handleReactivateDeskCountChange('openDesks', reactivateMaxOpenDesks, e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Rate Per Open Desk</label>
+                      <input type="number" min="0" className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={reactivateForm.ratePerOpenDesk} onChange={(e) => setReactivateForm((prev) => ({ ...prev, ratePerOpenDesk: e.target.value }))} />
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2.5 flex items-center justify-between">
+                    <span className="text-[11px] font-pmedium text-emerald-700 uppercase tracking-wider">New Monthly Rent</span>
+                    <span className="text-sm font-pmedium text-emerald-800">{formatCurrency(reactivateMonthlyRentPreview)}</span>
+                  </div>
+
+                  {reactivateError && <p className="text-[11px] font-pmedium text-rose-600">{reactivateError}</p>}
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button type="button" onClick={closeReactivateModal} disabled={isReactivating} className="px-4 py-2 rounded-xl text-[12px] font-pmedium text-slate-600 hover:bg-slate-100 transition-all disabled:opacity-50">
+                      Cancel
+                    </button>
+                    <button type="submit" disabled={isReactivating} className="px-4 py-2 rounded-xl text-[12px] font-pmedium bg-emerald-600 text-white hover:bg-emerald-700 transition-all disabled:opacity-50 flex items-center gap-1.5">
+                      {isReactivating && <Loader2 size={13} className="animate-spin" />} Activate Tenant
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
           {(activeModal === 'add' || activeModal === 'edit' || activeModal === 'renew') && (
             <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#0F172A]/40 backdrop-blur-sm">
               <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] border border-white/70">

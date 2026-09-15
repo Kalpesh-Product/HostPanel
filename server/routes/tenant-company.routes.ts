@@ -9,6 +9,8 @@ import {
   createTenantCompany,
   updateTenantCompany,
   renewTenantCompany,
+  deactivateTenantCompany,
+  reactivateTenantCompany,
   assignTenantCompanySpace,
   addTenantCompanyEmployee,
   sendTenantCompanyEmployeeInvite,
@@ -59,6 +61,10 @@ router.patch("/:id", updateTenantCompany);
 
 // Renew
 router.post("/:id/renew", renewTenantCompany);
+
+// Deactivate (early exit post lock-in) / Reactivate (new space assignment)
+router.post("/:id/deactivate", deactivateTenantCompany);
+router.post("/:id/reactivate", reactivateTenantCompany);
 
 // Space
 router.post("/:id/space", assignTenantCompanySpace);

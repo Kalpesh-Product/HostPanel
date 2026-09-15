@@ -137,6 +137,18 @@ export function buildMonthlyRentPeriodInfo(company: any, now: Date = new Date())
   const coversMonth = contractStart <= monthEnd && (!contractEnd || contractEnd >= monthStart);
   if (!coversMonth) return null;
 
+  // Skip any month the tenant held no assigned space (deactivated after
+  // lock-in, not yet reactivated) — whether that window is still open or
+  // already closed, so reactivating never backfills rent for the gap.
+  const inactivePeriods = Array.isArray(company?.inactivePeriods) ? company.inactivePeriods : [];
+  const inInactiveWindow = inactivePeriods.some((period: any) => {
+    const from = period?.from ? new Date(period.from) : null;
+    const to = period?.to ? new Date(period.to) : null;
+    if (!from || Number.isNaN(from.getTime())) return false;
+    return from <= monthEnd && (!to || to >= monthStart);
+  });
+  if (inInactiveWindow) return null;
+
   // "Rent Due Date" (the first due date picked in the wizard) is the anchor;
   // its day-of-month is what recurs monthly. Falls back to the raw rentDueDay
   // when only that is set (legacy rows).

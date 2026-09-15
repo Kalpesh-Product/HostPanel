@@ -283,6 +283,19 @@ const tenantSpaceSchema = new Schema(
   { _id: false },
 );
 
+// Tracks windows during which a tenant held no assigned space (deactivated
+// after lock-in, before any reactivation). `to: null` means still ongoing.
+// Rent generation (tenantRentService.buildMonthlyRentPeriodInfo) skips any
+// calendar month overlapping one of these windows, so reactivating a tenant
+// never backfills rent for the gap it wasn't holding space.
+const tenantInactivePeriodSchema = new Schema(
+  {
+    from: { type: Date, required: true },
+    to: { type: Date, default: null },
+  },
+  { _id: false },
+);
+
 const tenantCompanySchema = new Schema(
   {
     workspaceId: { type: Schema.Types.ObjectId, ref: "Workspace", required: true, index: true },
@@ -322,6 +335,7 @@ const tenantCompanySchema = new Schema(
     },
     notes: { type: String, default: "", trim: true, maxlength: 1000 },
     space: { type: tenantSpaceSchema, default: () => ({}) },
+    inactivePeriods: { type: [tenantInactivePeriodSchema], default: [] },
   },
   { timestamps: true },
 );
