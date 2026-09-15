@@ -242,6 +242,7 @@ const departmentModules: NavNode[] = [
       },
       { id: "resource-management", label: "Resource Management", icon: HandCoins, route: "/department-accesses/administration-department/resource-management", disabled: false },
       { id: "house-keeping", label: "House Keeping", icon: Sparkles, route: "/department-accesses/administration-department/house-keeping", disabled: false },
+      { id: "printout-management", label: "Printout Management", icon: Printer, route: "/department-accesses/administration-department/printouts", disabled: false },
     ],
   },
   {
@@ -1345,19 +1346,13 @@ useEffect(() => {
       const itemRoute = item?.route || ROUTE_BY_ID[itemId];
       const hasTabs = Array.isArray(item?.tabs) && item.tabs.length > 0;
 
-      // Administration Department is Custom-only now (per plan/module
-      // tracking sheet) — hide the whole group on Basic/Professional
-      // instead of just locking its tabs, since one of its tabs
-      // (Visitors Management) shares an id-linked page with Key Apps'
-      // own Visitor Management entry and would otherwise always show
-      // unlocked here regardless of plan.
-      if (
-        sectionKey === "department-accesses" &&
-        itemId === "administration-department" &&
-        planLabel !== "custom"
-      ) {
-        return null;
-      }
+      // Administration Department is now a Professional+ default (see
+      // PROFESSIONAL_DEFAULT_IDS in server/config/workspaceModuleCatalog.ts
+      // and workspacePlanAccess.ts) — it renders here the same way every
+      // other department does, gated per-tab by workspaceEnabledCanonicalIds
+      // / roleAllowedModuleIds below. Basic plan never reaches this branch:
+      // the whole "department-accesses" section is filtered out for Basic
+      // before rendering (see the planLabel !== "basic" check below).
       if (hasTabs) {
         const children = (item.tabs || [])
           .filter((tab) => {

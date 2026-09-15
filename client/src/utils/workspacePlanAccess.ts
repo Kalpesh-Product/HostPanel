@@ -46,9 +46,13 @@ const PROFESSIONAL_EXTRA_IDS = [
   "printout-management",
   "calendar",
   "workspace-settings",
-  // Administration Department (tenant-companies-admin, bookings,
-  // resource-management, house-keeping) moved to Custom-only — see the
-  // matching note in server/config/workspaceModuleCatalog.ts.
+  // Administration Department is a Professional+ default — see the matching
+  // note in server/config/workspaceModuleCatalog.ts.
+  "tenant-companies-admin",
+  "bookings",
+  "visitors-management",
+  "resource-management",
+  "house-keeping",
   "leads-management",
   "tenant-companies-sales",
   "virtual-office-sales",
@@ -124,7 +128,9 @@ export const getWorkspacePlan = (user: unknown): PlanType => {
 // Organization Management, Access Grants, Unit Management, Sales Architecture,
 // and Profile Details. Basic plan has no real departments at all — those
 // workspaces only ever have a Founder and (optionally) one Super Admin, see
-// BASIC_PLAN_PSEUDO_DEPARTMENTS below. Professional includes Sales, Technology, and workspace-created custom departments. Custom is unrestricted.
+// BASIC_PLAN_PSEUDO_DEPARTMENTS below. Professional includes Sales,
+// Administration, Technology, and workspace-created custom departments.
+// Custom is unrestricted.
 const DEFAULT_DEPARTMENT_NAMES = new Set([
   "hr",
   "administration",
@@ -135,7 +141,7 @@ const DEFAULT_DEPARTMENT_NAMES = new Set([
   "it",
 ]);
 
-const PROFESSIONAL_DEPARTMENT_NAMES = new Set(["sales", "technology"]);
+const PROFESSIONAL_DEPARTMENT_NAMES = new Set(["sales", "administration", "technology"]);
 
 export const getPlanAllowedDepartmentNames = (plan: PlanType): Set<string> | null => {
   if (plan === "basic") return new Set();

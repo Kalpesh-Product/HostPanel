@@ -50,7 +50,7 @@ export const GATED_MODULE_ROUTES: Array<{ route: string; moduleId: string }> = [
   { route: "/department-accesses/sales-department/resource-pricing", moduleId: "resource-pricing" },
   { route: "/department-accesses/sales-department/sales-architecture", moduleId: "sales-architecture" },
 
-  // Administration Department (Custom-only)
+  // Administration Department (Professional+)
   { route: "/department-accesses/administration-department/tenant-companies", moduleId: "tenant-companies-admin" },
   { route: "/department-accesses/administration-department/bookings", moduleId: "bookings" },
   { route: "/department-accesses/administration-department/resource-management", moduleId: "resource-management" },
