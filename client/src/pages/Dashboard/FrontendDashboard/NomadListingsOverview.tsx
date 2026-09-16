@@ -6,7 +6,7 @@ import PageFrame from "../../../components/Pages/PageFrame";
 import { useNavigate } from "react-router-dom";
 import useAuth from "../../../hooks/useAuth";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, Edit3, Eye, Globe, Layers, ListChecks, Loader2, Plus, RotateCcw, Search, Target, Trash2, XCircle } from "lucide-react";
+import { AlertTriangle, BadgeCheck, CheckCircle2, Edit3, Eye, Globe, Layers, ListChecks, Loader2, Plus, RotateCcw, Search, Target, Trash2, XCircle } from "lucide-react";
 import { statusPillClass } from '../../../lib/status-pill';
 import useNomadListingCapacity, {
   normalizeNomadListingType,
@@ -15,6 +15,21 @@ import useNomadListingCapacity, {
 function getInitials(value) {
   return String(value || "").trim().split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "N";
 }
+
+function formatVerificationExpiry(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+}
+
+// Nomads FRONTEND base URL — local dev points this at the local Nomads
+// frontend server via VITE_NOMADS_FRONTEND_URL (see client/.env); once
+// deployed, unset/blank that var (or set it to https://www.wono.co) so it
+// falls back to production, same convention as MASTER_PANEL_BASE_URL below.
+const NOMADS_FRONTEND_BASE_URL =
+  String(import.meta.env.VITE_NOMADS_FRONTEND_URL || "").trim() ||
+  "https://www.wono.co";
 
 export default function NomadListingsOverview() {
   const axios = useAxiosPrivate();
@@ -165,6 +180,48 @@ export default function NomadListingsOverview() {
     });
     return Array.from(seen.entries()).map(([normalized, label]) => ({ normalized, label }));
   }, [nonDeletedListings]);
+
+  // "Verify Business" requires at least one listing that's both Master
+  // Status active (staff-approved) and Host Status public (actually shown
+  // on wono.co) — a listing lapsing later doesn't retroactively block
+  // anything, this only gates *starting* a verification request.
+  const eligibleListingForVerification = nonDeletedListings.find(
+    (l) => l.isActive && l.isPublic,
+  );
+  const verifiedListing = listings.find((l) => l.isVerified);
+  const canVerifyBusiness = Boolean(
+    verifiedListing || eligibleListingForVerification,
+  );
+
+  const handleVerifyBusinessClick = () => {
+    if (verifiedListing) {
+      // Already verified (or has an in-progress request) — same self-serve
+      // page built for Nomads users handles status/renew/change-plan.
+      window.open(
+        `${NOMADS_FRONTEND_BASE_URL}/profile?tab=verification`,
+        "_blank",
+        "noopener,noreferrer",
+      );
+      return;
+    }
+    if (!eligibleListingForVerification) return;
+    const params = new URLSearchParams();
+    params.set("companyId", companyId);
+    const l = eligibleListingForVerification;
+    if (l.companyName) params.set("companyName", l.companyName);
+    if (l.country) params.set("country", l.country);
+    if (l.state) params.set("state", l.state);
+    if (l.city) params.set("city", l.city);
+    if (l.continent) params.set("continent", l.continent);
+    if (l.website) params.set("website", l.website);
+    if (l.registeredEntityName)
+      params.set("registeredEntityName", l.registeredEntityName);
+    window.open(
+      `${NOMADS_FRONTEND_BASE_URL}/verify-business?${params.toString()}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  };
 
   const toggleRequestedType = (normalized) => {
     setRequestedTypes((prev) => {
@@ -410,6 +467,26 @@ export default function NomadListingsOverview() {
                   >
                     <Plus size={13} strokeWidth={3} /> ADD LISTING
                   </button>
+                  <button
+                    type="button"
+                    onClick={handleVerifyBusinessClick}
+                    disabled={!canVerifyBusiness}
+                    title={
+                      canVerifyBusiness
+                        ? verifiedListing
+                          ? "Manage your verification badge on Nomads"
+                          : "Verify your business on Nomads"
+                        : "Activate and publish at least one listing first"
+                    }
+                    className={`px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm transition-all whitespace-nowrap border ${
+                      canVerifyBusiness
+                        ? "bg-white text-[#2563EB] border-[#2563EB]/30 hover:bg-blue-50"
+                        : "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-70"
+                    }`}
+                  >
+                    <BadgeCheck size={13} strokeWidth={3} />{" "}
+                    {verifiedListing ? "MANAGE VERIFICATION" : "VERIFY BUSINESS"}
+                  </button>
                 </div>
               </div>
 
@@ -450,7 +527,21 @@ export default function NomadListingsOverview() {
                                 {getInitials(item.companyName)}
                               </div>
                               <div>
-                                <p className="text-[12px] font-pmedium text-slate-900">{item.companyName || "—"}</p>
+                                <p className="text-[12px] font-pmedium text-slate-900 flex items-center gap-1">
+                                  {item.companyName || "—"}
+                                  {item.isVerified && (
+                                    <span
+                                      title={
+                                        item.verificationExpiresAt
+                                          ? `Verified · expires ${formatVerificationExpiry(item.verificationExpiresAt)}`
+                                          : "Verified"
+                                      }
+                                      className="inline-flex items-center"
+                                    >
+                                      <BadgeCheck size={13} className="text-sky-500" />
+                                    </span>
+                                  )}
+                                </p>
                               </div>
                             </div>
                           </td>
