@@ -292,18 +292,25 @@ export function ITDashboardWidgets() {
         </div>
       ) : null}
 
+      <div data-tour="it-overview">
       <WidgetSection layout={4} title="Overview" border normalCase>
         <StatCard icon={MonitorCog} label="Resolution Rate" value={`${resolutionRate}%`} sub={`${totalLogs} total logs`} color="#0891b2" route="/department-accesses/it-department/repair-logs" />
         <StatCard icon={AlertCircle} label="Open Logs" value={openLogs} sub={`${inProgressLogs} in progress`} color="#ef4444" route="/department-accesses/it-department/repair-logs" />
         <StatCard icon={Clock3} label="In Progress Logs" value={inProgressLogs} sub={`${resolvedLogs} resolved`} color="#f59e0b" route="/department-accesses/it-department/repair-logs" />
         <StatCard icon={FileSearch} label="Total Logs" value={totalLogs} sub={`${closedLogs} closed`} color="#7c3aed" route="/department-accesses/it-department/repair-logs" />
       </WidgetSection>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <TeamLiveStatusCard department="it" viewAllRoute="/department-accesses/it-department/repair-logs" />
+        <div data-tour="it-team-status">
+          <TeamLiveStatusCard department="it" viewAllRoute="/department-accesses/it-department/repair-logs" />
+        </div>
 
-        <DepartmentVisitorsCard department="it" title="IT Visitors" />
+        <div data-tour="it-visitors">
+          <DepartmentVisitorsCard department="it" title="IT Visitors" />
+        </div>
 
+        <div data-tour="it-recent-repair-logs">
         <SectionCard title="Recent IT Repair Logs" linkLabel="View all" linkRoute="/department-accesses/it-department/repair-logs">
           {recentRepairLogs.length > 0 ? recentRepairLogs.map((log, index) => (
             <RecentItem
@@ -318,14 +325,17 @@ export function ITDashboardWidgets() {
             <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No repair logs yet</p></div>
           )}
         </SectionCard>
+        </div>
       </div>
 
+      <div data-tour="it-quick-links">
       <WidgetSection layout={2} title="Quick Links" border normalCase>
         <QuickLink icon={FileSearch} label="IT Repair Logs" description="Log & track repairs" route="/department-accesses/it-department/repair-logs" color="#2563EB" />
         <QuickLink icon={KeyRound} label="System Access" description="Manage software access" route="/department-accesses/it-department/system-access" color="#7c3aed" />
       </WidgetSection>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div data-tour="it-resolved-logs" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <SectionCard title="Recently Resolved Logs" linkLabel="View all" linkRoute="/department-accesses/it-department/repair-logs">
           {recentlyResolvedLogs.length > 0 ? recentlyResolvedLogs.map((log, index) => (
             <RecentItem
@@ -350,6 +360,7 @@ export function ITDashboardWidgets() {
         />
       </div>
 
+      <div data-tour="it-monthly-trend">
       <BarWidget
         title="Monthly Repair Log Trend"
         chartId="it-monthly-trends"
@@ -357,6 +368,7 @@ export function ITDashboardWidgets() {
         options={monthlyBarOptions}
         height={260}
       />
+      </div>
     </div>
   );
 }

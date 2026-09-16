@@ -831,45 +831,46 @@ export default function TenantCompanyDetailPage() {
 
                 {/* Monthly Activity */}
                 <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[300px]">
-                  <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50/50">
-                    <div>
-                      <p className="text-xs font-pmedium uppercase tracking-wider text-slate-900">Monthly Credit Activity</p>
-                      <p className="text-[10px] font-pmedium text-slate-500 mt-0.5">{mStats.count} entr{mStats.count !== 1 ? 'ies' : 'y'} in {MONTHS[fm]} {fy}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="relative">
-                        <select value={fm} onChange={e => setFm(Number(e.target.value))}
-                          data-tour="tenant-detail-credits-month"
-                          className="pl-3 pr-7 py-2 bg-white border border-slate-200/60 rounded-lg text-[11px] font-pmedium text-slate-700 outline-none cursor-pointer appearance-none">
-                          {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
-                        </select>
-                        <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <div data-tour="tenant-detail-credits-month">
+                    <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50/50">
+                      <div>
+                        <p className="text-xs font-pmedium uppercase tracking-wider text-slate-900">Monthly Credit Activity</p>
+                        <p className="text-[10px] font-pmedium text-slate-500 mt-0.5">{mStats.count} entr{mStats.count !== 1 ? 'ies' : 'y'} in {MONTHS[fm]} {fy}</p>
                       </div>
-                      <div className="relative">
-                        <select value={fy} onChange={e => setFy(Number(e.target.value))}
-                          className="pl-3 pr-7 py-2 bg-white border border-slate-200/60 rounded-lg text-[11px] font-pmedium text-slate-700 outline-none cursor-pointer appearance-none">
-                          {yearOpts.map(y => <option key={y} value={y}>{y}</option>)}
-                        </select>
-                        <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      <div className="flex items-center gap-2">
+                        <div className="relative">
+                          <select value={fm} onChange={e => setFm(Number(e.target.value))}
+                            className="pl-3 pr-7 py-2 bg-white border border-slate-200/60 rounded-lg text-[11px] font-pmedium text-slate-700 outline-none cursor-pointer appearance-none">
+                            {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
+                          </select>
+                          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        </div>
+                        <div className="relative">
+                          <select value={fy} onChange={e => setFy(Number(e.target.value))}
+                            className="pl-3 pr-7 py-2 bg-white border border-slate-200/60 rounded-lg text-[11px] font-pmedium text-slate-700 outline-none cursor-pointer appearance-none">
+                            {yearOpts.map(y => <option key={y} value={y}>{y}</option>)}
+                          </select>
+                          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Summary mini-cards */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 sm:p-5 bg-slate-50/30 border-b border-slate-100/60">
-                    <div className="bg-white rounded-xl border border-slate-100 p-3 flex items-center justify-between">
-                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Used This Month</p>
-                      <p className="text-sm font-black text-red-500">{(mStats.used)}</p>
-                    </div>
-                    <div className="bg-white rounded-xl border border-slate-100 p-3 flex items-center justify-between">
-                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Refunded This Month</p>
-                      <p className="text-sm font-black text-emerald-600">{(mStats.refunded)}</p>
-                    </div>
-                    <div className="bg-white rounded-xl border border-slate-100 p-3 flex items-center justify-between">
-                      <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Net Used</p>
-                      <p className={`text-sm font-black ${mStats.net > 0 ? 'text-red-500' : mStats.net < 0 ? 'text-emerald-600' : 'text-slate-700'}`}>
-                        {mStats.net > 0 ? '-' : mStats.net < 0 ? '+' : ''}{(Math.abs(mStats.net))}
-                      </p>
+                    {/* Summary mini-cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 sm:p-5 bg-slate-50/30 border-b border-slate-100/60">
+                      <div className="bg-white rounded-xl border border-slate-100 p-3 flex items-center justify-between">
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Used This Month</p>
+                        <p className="text-sm font-black text-red-500">{(mStats.used)}</p>
+                      </div>
+                      <div className="bg-white rounded-xl border border-slate-100 p-3 flex items-center justify-between">
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Refunded This Month</p>
+                        <p className="text-sm font-black text-emerald-600">{(mStats.refunded)}</p>
+                      </div>
+                      <div className="bg-white rounded-xl border border-slate-100 p-3 flex items-center justify-between">
+                        <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Net Used</p>
+                        <p className={`text-sm font-black ${mStats.net > 0 ? 'text-red-500' : mStats.net < 0 ? 'text-emerald-600' : 'text-slate-700'}`}>
+                          {mStats.net > 0 ? '-' : mStats.net < 0 ? '+' : ''}{(Math.abs(mStats.net))}
+                        </p>
+                      </div>
                     </div>
                   </div>
 

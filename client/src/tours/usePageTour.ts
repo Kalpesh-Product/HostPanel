@@ -12,6 +12,8 @@ import type { BasicPageTourStep } from "./basicPageTours";
 import { getProfessionalPageTour } from "./professionalPageTours";
 import { getCustomPageTour } from "./customPageTours";
 import { getTenantPageTour } from "./tenantPageTours";
+import { getRoleDashboardTour } from "./roleDashboardTours";
+import { resolveSyncDashboardVariant } from "../pages/Dashboard/dashboardVariant";
 
 type TourStatus = "completed" | "skipped";
 
@@ -23,6 +25,8 @@ interface TourProgressEntry {
 
 type TourProgress = Record<string, TourProgressEntry>;
 type TourDriveStep = DriveStep;
+
+const isDashboardPath = (pathname: string) => pathname === "/dashboard" || pathname === "/dashboard/";
 
 const findVisible = (selector: string): Element | null => {
   const elements = Array.from(document.querySelectorAll(selector));
@@ -189,12 +193,34 @@ export default function usePageTour() {
       // Tenant portal users get the tenant registry — their pages are not
       // plan-gated like host workspaces.
       if (user?.tenantRole) return getTenantPageTour(location.pathname);
+
+      // /dashboard renders a different component per role/department (see
+      // DashboardIndex.tsx) even though the URL never changes, so it can't be
+      // dispatched by path like every other page — resolve the same variant
+      // DashboardIndex would render and look its tour up by that instead.
+      if (isDashboardPath(location.pathname)) {
+        const syncVariant = resolveSyncDashboardVariant(user);
+        if (syncVariant && syncVariant !== "founder") {
+          return getRoleDashboardTour(syncVariant);
+        }
+        if (!syncVariant) {
+          // Matches DashboardIndex's own gate: the admin/employee split needs
+          // the async per-member role band, so wait for it rather than guess
+          // from useDashboardAccess()'s loading-time default.
+          if (access.isLoading) return null;
+          if (access.roleBand === "employee") return getRoleDashboardTour("employee");
+          if (access.roleBand === "admin") return getRoleDashboardTour("admin");
+        }
+        // Falls through to the plan-tier tours below for owners/super_admins
+        // and managers with no matched department (CompanySettingsDashboard).
+      }
+
       if (access.plan === "basic") return getBasicPageTour(location.pathname);
       if (access.plan === "professional") return getProfessionalPageTour(location.pathname);
       if (access.plan === "custom") return getCustomPageTour(location.pathname);
       return null;
     },
-    [access.plan, location.pathname, user?.tenantRole],
+    [access.plan, access.roleBand, access.isLoading, location.pathname, user],
   );
 
   const { data: progress = {}, isLoading: isProgressLoading } = useQuery<TourProgress>({

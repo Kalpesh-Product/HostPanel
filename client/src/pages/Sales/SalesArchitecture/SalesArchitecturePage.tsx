@@ -1085,6 +1085,7 @@ export default function SalesArchitecturePage() {
   // Shared filter bar — consistent across all tabs
   const renderFilterBar = (showStatusPills = false) => (
     <div className="px-3 sm:px-4 lg:px-5 py-2 border-b border-slate-100/40 bg-white flex flex-wrap items-center gap-2">
+      <div data-tour="sa-filter-bar" className="flex flex-wrap items-center gap-2">
       <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
         <Building2 size={13} className="text-blue-600" />
         <select value={selectedBuilding} onChange={(e) => selectBuilding(e.target.value)}
@@ -1113,9 +1114,10 @@ export default function SalesArchitecturePage() {
           {availableWings.map((w) => <option key={w} value={w}>Wing {w}</option>)}
         </select>
       </div>
+      </div>
 
       {showStatusPills && (
-        <div className="flex items-center gap-1.5 ml-auto flex-wrap">
+        <div data-tour="sa-status-filters" className="flex items-center gap-1.5 ml-auto flex-wrap">
           {[
             { key: "all",         label: "All",         dot: "bg-slate-400",   active: "bg-slate-800 text-white border-slate-800",   idle: "bg-white text-slate-600 border-slate-200 hover:border-slate-400" },
             { key: "available",   label: "Available",   dot: "bg-emerald-400", active: "bg-emerald-500 text-white border-emerald-500", idle: "bg-white text-emerald-700 border-emerald-200 hover:border-emerald-400" },
@@ -1155,7 +1157,7 @@ export default function SalesArchitecturePage() {
 
       {renderFilterBar(true)}
 
-      <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-4 gap-2 mb-3 shrink-0">
+      <div data-tour="sa-arch-summary-cards" className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-4 gap-2 mb-3 shrink-0">
         {[
           { icon: Monitor, label: "Total Desks", value: topSpaceStats.totalDesks, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-slate-500', iconClass: 'bg-slate-50 text-slate-600' },
           { icon: DoorOpen, label: "Available Desks", value: topSpaceStats.availableDesks, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600' },
@@ -1179,7 +1181,7 @@ export default function SalesArchitecturePage() {
 
       <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
         <div className="p-3 sm:p-4 lg:p-1 border-b border-slate-100/60 flex flex-col gap-3 bg-slate-50/50">
-          <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden w-full">
+          <div data-tour="sa-arch-view-toggle" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden w-full">
             {[
               { key: "map", label: "Floor Map" },
               { key: "dashboard", label: "Dashboard" },
@@ -1192,19 +1194,19 @@ export default function SalesArchitecturePage() {
             ))}
           </div>
           <div className="flex items-center gap-2 w-full flex-wrap sm:flex-nowrap">
-            <div className="relative flex-1 min-w-[180px]">
+            <div data-tour="sa-arch-search" className="relative flex-1 min-w-[180px]">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
               <input type="text" placeholder="Search space, tenant..."
                 className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
                 value={query} onChange={(e) => setQuery(e.target.value)} />
             </div>
             {assignableIds.length > 0 && (
-              <button onClick={() => { setSelectedCompanyId(""); setIsAssignModalOpen(true); }}
+              <button data-tour="sa-arch-assign-btn" onClick={() => { setSelectedCompanyId(""); setIsAssignModalOpen(true); }}
                 className="px-3 py-2.5 bg-[#2563EB] text-white rounded-lg font-pmedium text-[11px] uppercase tracking-wider flex items-center gap-1.5 shadow-sm hover:bg-blue-700 transition-all whitespace-nowrap"
               ><ArrowRight size={14} /> Assign</button>
             )}
             {selectedResources.some((r) => r.assignmentLabel && !packageLockedIds.has(String(r.recordId || r.id))) && (
-              <button onClick={releaseAssignment} disabled={saving}
+              <button data-tour="sa-arch-release-btn" onClick={releaseAssignment} disabled={saving}
                 className="px-3 py-2.5 bg-rose-600 text-white rounded-lg font-pmedium text-[11px] uppercase tracking-wider flex items-center gap-1.5 shadow-sm hover:bg-rose-700 transition-all whitespace-nowrap disabled:opacity-60"
               ><RotateCcw size={14} /> Release</button>
             )}
@@ -1214,14 +1216,14 @@ export default function SalesArchitecturePage() {
         {viewMode === "map" && (
           <div className="p-3 sm:p-4 lg:p-5 space-y-3 flex-1">
             <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-4">
-              <div className="mb-3 flex items-center gap-2">
+              <div data-tour="sa-arch-map-header" className="mb-3 flex items-center gap-2">
                 <MapIcon size={18} className="text-blue-600" />
                 <h2 className="text-[15px] font-pmedium text-primary">{selectedBuilding} {selectedFloor === "All" ? "— All Floors" : `Floor ${selectedFloor}`}</h2>
                 <span className="ml-auto text-[10px] font-pmedium text-slate-500">{filtered.length} spaces</span>
               </div>
 
               {bookingOnly.length > 0 && (
-                <div className="mb-4">
+                <div data-tour="sa-arch-map-rooms" className="mb-4">
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">Meeting & Conference Rooms</p>
                   <div className="grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-3">
                     {bookingOnly.map((r) => {
@@ -1233,7 +1235,7 @@ export default function SalesArchitecturePage() {
               )}
 
               {voFiltered.length > 0 && (
-                <div className="mb-4">
+                <div data-tour="sa-arch-map-vo" className="mb-4">
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">Virtual Offices</p>
                   <div className="grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-3">
                     {voFiltered.map((r) => {
@@ -1244,7 +1246,7 @@ export default function SalesArchitecturePage() {
                 </div>
               )}
 
-              <div className="space-y-6">
+              <div data-tour="sa-arch-map-desks" className="space-y-6">
                           {Object.keys(wingGroups).filter((w) => selectedWing === "All" || selectedWing === w).map((wing) => {
                             const items = wingGroups[wing] || [];
                   return (
@@ -1276,12 +1278,12 @@ export default function SalesArchitecturePage() {
 
         {viewMode === "dashboard" && (
           <div className="p-3 sm:p-4 lg:p-5 space-y-3">
-            <div className="rounded-[2rem] border border-slate-100 bg-white p-4 shadow-sm">
+            <div data-tour="sa-arch-dashboard-header" className="rounded-[2rem] border border-slate-100 bg-white p-4 shadow-sm">
               <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Floor Dashboard</p>
               <h2 className="text-[15px] font-pmedium text-primary">{selectedBuilding} Floor {selectedFloor}</h2>
               <p className="text-[12px] font-pmedium text-slate-500 mt-1">Utilization: <span className="font-pmedium text-blue-600">{usagePct}%</span> ({floorStats.assigned}/{floorStats.total} seats assigned)</p>
             </div>
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+            <div data-tour="sa-arch-dashboard-stats" className="grid grid-cols-3 md:grid-cols-6 gap-2">
               {[
                 { icon: LayoutGrid, label: "Total Floors", value: deskOverviewStats.totalFloors, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-slate-500', iconClass: 'bg-slate-50 text-slate-600' },
                 { icon: MapIcon, label: "Total Wings", value: deskOverviewStats.totalWings, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-slate-500', iconClass: 'bg-slate-100 text-slate-600' },
@@ -1299,7 +1301,7 @@ export default function SalesArchitecturePage() {
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div data-tour="sa-arch-dashboard-floors" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {floorCards.map((f) => (
                 <button key={f.floor} type="button" onClick={() => { selectFloor(f.floor); setViewMode("map"); }}
                   className="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-left"
@@ -1322,7 +1324,7 @@ export default function SalesArchitecturePage() {
             </div>
 
             {wingSeatStats.length > 0 && (
-              <div className="rounded-[2rem] border border-slate-100 bg-white p-4 shadow-sm">
+              <div data-tour="sa-arch-dashboard-occupancy" className="rounded-[2rem] border border-slate-100 bg-white p-4 shadow-sm">
                 <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-3">Seat Occupancy by Floor & Wing</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {wingSeatStats.map((w) => {
@@ -1391,7 +1393,7 @@ export default function SalesArchitecturePage() {
       <>
         {renderFilterBar(false)}
         {/* Summary stat cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+        <div data-tour="sa-tenants-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
           {[
             { icon: Building2, label: "Total Tenants", value: tenants.length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', iconClass: 'bg-slate-50 text-slate-600' },
             { icon: CheckCircle2, label: "Active", value: tenants.filter((t) => String(t.status || "").toLowerCase() === "active").length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600' },
@@ -1411,7 +1413,7 @@ export default function SalesArchitecturePage() {
         <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
           <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
             {/* LEFT: status sub-tab pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+            <div data-tour="sa-tenants-status-filters" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
               {["All", "Active", "Expired", "Inactive"].map((status) => (
                 <button key={status} type="button" onClick={() => setTenantListFilter(status)}
                   className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
@@ -1425,19 +1427,19 @@ export default function SalesArchitecturePage() {
 
             {/* RIGHT: search + assign */}
             <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-              <div className="relative flex-1 min-w-[180px]">
+              <div data-tour="sa-tenants-search" className="relative flex-1 min-w-[180px]">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                 <input type="text" placeholder="Search by company, contact..."
                   className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
                   value={tenantListSearch} onChange={(e) => setTenantListSearch(e.target.value)} />
               </div>
-              <button onClick={() => { setSelectedCompanyId(""); clearSelection(); setIsAssignModalOpen(true); }}
+              <button data-tour="sa-tenants-assign-btn" onClick={() => { setSelectedCompanyId(""); clearSelection(); setIsAssignModalOpen(true); }}
                 className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
               ><ArrowRight size={13} strokeWidth={3} /> ASSIGN SPACE</button>
             </div>
           </div>
 
-          <div className="overflow-x-auto flex-1">
+          <div data-tour="sa-tenants-table" className="overflow-x-auto flex-1">
             <table className="w-full">
               <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                 <tr>
@@ -1687,7 +1689,7 @@ export default function SalesArchitecturePage() {
     return (
       <>
         {renderFilterBar(false)}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+        <div data-tour="sa-vo-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
           {[
             { icon: DoorOpen, label: "Total Virtual Offices", value: virtualOffices.length, cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md", iconClass: "bg-slate-50 text-slate-600" },
             { icon: CheckCircle2, label: "Active", value: virtualOffices.filter((v) => String(v.status || "").toLowerCase() === "active").length, cardClass: "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500", iconClass: "bg-emerald-50 text-emerald-600" },
@@ -1705,7 +1707,7 @@ export default function SalesArchitecturePage() {
         </div>
 
         {orphanedVOResources.length > 0 && (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 shadow-sm">
+          <div data-tour="sa-vo-orphaned-banner" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 shadow-sm">
             <div className="flex items-start gap-2.5 min-w-0">
               <AlertTriangle className="mt-0.5 shrink-0 text-amber-500" size={16} />
               <div className="min-w-0">
@@ -1728,7 +1730,7 @@ export default function SalesArchitecturePage() {
 
         <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
           <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-            <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+            <div data-tour="sa-vo-status-filters" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
               {["All", "Active", "Expiring Soon", "Expired"].map((status) => (
                 <button key={status} type="button" onClick={() => setVoListFilter(status)}
                   className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
@@ -1741,19 +1743,19 @@ export default function SalesArchitecturePage() {
             </div>
 
             <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-              <div className="relative flex-1 min-w-[180px]">
+              <div data-tour="sa-vo-search" className="relative flex-1 min-w-[180px]">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                 <input type="text" placeholder="Search by company..."
                   className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
                   value={voListSearch} onChange={(e) => setVoListSearch(e.target.value)} />
               </div>
-              <button onClick={() => { setSelectedVOCompanyId(""); clearVOSelection(); setIsVOAssignModalOpen(true); }}
+              <button data-tour="sa-vo-assign-btn" onClick={() => { setSelectedVOCompanyId(""); clearVOSelection(); setIsVOAssignModalOpen(true); }}
                 className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
               ><ArrowRight size={13} strokeWidth={3} /> ASSIGN SPACE</button>
             </div>
           </div>
 
-          <div className="overflow-x-auto flex-1">
+          <div data-tour="sa-vo-table" className="overflow-x-auto flex-1">
             <table className="w-full">
               <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                 <tr>
@@ -1936,7 +1938,7 @@ export default function SalesArchitecturePage() {
       <>
         {renderFilterBar(false)}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+        <div data-tour="sa-dept-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
           {[
             { icon: Briefcase, label: "Departments", value: availableDepartments.length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', iconClass: 'bg-slate-50 text-slate-600' },
             { icon: LayoutGrid, label: "Dept Spaces", value: new Set(deptAssignmentMap.flatMap((d) => d.resources.map((r) => String(r.recordId || r.id)))).size, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-indigo-500', iconClass: 'bg-indigo-50 text-indigo-600' },
@@ -1956,7 +1958,7 @@ export default function SalesArchitecturePage() {
         <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col mt-4 min-h-[400px]">
           <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
             {/* LEFT: sub-tab pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+            <div data-tour="sa-dept-status-filters" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
               {["All", "Assigned", "Unassigned"].map((key) => (
                 <button key={key} type="button" onClick={() => setDeptListFilter(key)}
                   className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
@@ -1970,19 +1972,19 @@ export default function SalesArchitecturePage() {
 
             {/* RIGHT: search + assign */}
             <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-              <div className="relative flex-1 min-w-[180px]">
+              <div data-tour="sa-dept-search" className="relative flex-1 min-w-[180px]">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                 <input type="text" placeholder="Search by department, manager..."
                   className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
                   value={deptListSearch} onChange={(e) => setDeptListSearch(e.target.value)} />
               </div>
-              <button onClick={() => { setDeptAssignSelectedId(""); clearSelection(); setIsDeptAssignModalOpen(true); }}
+              <button data-tour="sa-dept-assign-btn" onClick={() => { setDeptAssignSelectedId(""); clearSelection(); setIsDeptAssignModalOpen(true); }}
                 className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
               ><ArrowRight size={13} strokeWidth={3} /> ASSIGN SPACE</button>
             </div>
           </div>
 
-          <div className="overflow-x-auto flex-1">
+          <div data-tour="sa-dept-table" className="overflow-x-auto flex-1">
             <table className="w-full">
               <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                 <tr>
@@ -2182,12 +2184,12 @@ export default function SalesArchitecturePage() {
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
                {showReportExports && (
-                  <ReportExportButton onClick={() => setShowExportModal(true)} />
+                  <ReportExportButton data-tour="sa-export-btn" onClick={() => setShowExportModal(true)} />
                )}
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div data-tour="sa-tabs" data-active-tab={activeTab} className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {MAIN_TABS.map((tab) => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key)}
                 className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${activeTab === tab.key ? "bg-[#2563EB] text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"}`}

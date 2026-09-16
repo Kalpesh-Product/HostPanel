@@ -107,6 +107,19 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
   const showLeaveRequests = canUse("leave-requests");
   const showAttendance = canUse("attendance");
 
+  // Bespoke cards link into the real module routes rather than hardcoded
+  // guesses — each resolves to whichever of its module aliases the founder
+  // actually has, falling back to the other when only one is enabled.
+  const tenantsRoute = canUse("tenant-companies-sales")
+    ? DEFAULT_SECTION_ROUTES["tenant-companies-sales"]
+    : DEFAULT_SECTION_ROUTES["tenant-companies-sales"];
+  const bookingsRoute = canUse("meeting-room-system")
+    ? DEFAULT_SECTION_ROUTES["meeting-room-system"]
+    : DEFAULT_SECTION_ROUTES["bookings"];
+  const ticketsRoute = DEFAULT_SECTION_ROUTES["tickets"];
+  const reportsRoute = DEFAULT_SECTION_ROUTES["reports"];
+  const billingRoute = DEFAULT_SECTION_ROUTES["billing-payments"];
+
   // ── Data fetching (conditional, but hooks must always run) ────────────────
 
   const { data: tenantsRaw = [] } = useQuery({
@@ -315,15 +328,15 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
   // repeating them here just doubled the same numbers on one page.
   const bespokeStatCards = useMemo(() => {
     const cards: StatCardProps[] = [];
-    if (showTenants) cards.push({ icon: Building2, label: "Total Tenants", value: tenantStats.total, sub: `${tenantStats.active} active`, color: "#1E3D73", route: "/company-settings/companies" });
-    if (showBookings) cards.push({ icon: CalendarCheck, label: "Total Bookings", value: bookingStats.total, sub: `${bookingStats.todayCount} today`, color: "#2563EB", route: "/app/meeting-rooms" });
-    if (showTickets) cards.push({ icon: Ticket, label: "Support Tickets", value: ticketStats.total, sub: `${ticketStats.open} open`, color: "#ef4444", route: "/app/tickets" });
+    if (showTenants) cards.push({ icon: Building2, label: "Total Tenants", value: tenantStats.total, sub: `${tenantStats.active} active`, color: "#1E3D73", route: tenantsRoute });
+    if (showBookings) cards.push({ icon: CalendarCheck, label: "Total Bookings", value: bookingStats.total, sub: `${bookingStats.todayCount} today`, color: "#2563EB", route: bookingsRoute });
+    if (showTickets) cards.push({ icon: Ticket, label: "Support Tickets", value: ticketStats.total, sub: `${ticketStats.open} open`, color: "#ef4444", route: ticketsRoute });
     if (showVisitors) cards.push({ icon: Eye, label: "Visitors Today", value: visitorStats.todayCount, sub: `${visitorStats.checkedIn} checked in`, color: "#80bf01", route: "/visitors/visitor-management" });
     if (showSales) cards.push({ icon: FileText, label: "Website Leads", value: leadStats.total, sub: `${leadStats.newLeads} new`, color: "#059669", route: "/key-apps/website-builder/leads" });
     if (showLeaveRequests) cards.push({ icon: ICON_BY_ID["leave-requests"] || CalendarCheck, label: "Leave Requests", value: leaveStats.total, sub: `${leaveStats.pending} pending`, color: "#f59e0b", route: "/common-modules/leave-requests" });
     return cards;
   }, [showTenants, showBookings, showTickets, showVisitors, showSales, showLeaveRequests,
-    tenantStats, bookingStats, ticketStats, visitorStats, leadStats, leaveStats]);
+    tenantStats, bookingStats, ticketStats, visitorStats, leadStats, leaveStats, tenantsRoute, bookingsRoute, ticketsRoute]);
 
   // ── Quick links — built from the workspace's actual module catalog ───────
 
@@ -367,7 +380,7 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
     const links: QuickLinkItem[] = [
       ...(canUse("wono-nomad") ? [{ icon: MapIcon, label: "Wono Nomad Listings", description: "Manage nomad space listings", route: "/key-apps/nomad-listings", color: "#059669" }] : []),
       ...(canUse("organization-management") ? [{ icon: LayoutGrid, label: "Organization", description: "Departments & members", route: "/core-modules/organization-management", color: "#0891b2" }] : []),
-      ...(canUse("reports") ? [{ icon: BarChart3, label: "Reports", description: "Analytics & export", route: "/app/reports", color: "#059669" }] : []),
+      ...(canUse("reports") ? [{ icon: BarChart3, label: "Reports", description: "Analytics & export", route: reportsRoute, color: "#059669" }] : []),
       ...(showWebsite ? [{ icon: Globe, label: "Website Builder", description: "Build & manage your site", route: "/key-apps/website-builder", color: "#7c3aed" }] : []),
       ...dynamicQuickLinks,
     ];
@@ -438,13 +451,15 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
     <div className="flex flex-col gap-5">
 
       {/* Clock in / out */}
-      {showAttendance && <TodayAttendanceCard />}
+      {showAttendance && <div data-tour="custom-attendance"><TodayAttendanceCard /></div>}
 
       {/* Founder's core day-to-day numbers — tenants, bookings, tickets, visitors, leads, leave */}
       {bespokeStatCards.length > 0 && (
+        <div data-tour="custom-overview">
         <WidgetSection layout={bespokeCardCols} title="Overview" border normalCase>
           {bespokeStatCards.map((c, i) => <StatCard key={i} {...c} />)}
         </WidgetSection>
+        </div>
       )}
 
       {/* Everything else enabled (resources, housekeeping, maintenance, IT, HR,
@@ -454,24 +469,28 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
           double as this dashboard's only entry point into department pages, since
           Quick Links below deliberately excludes department-scoped modules. */}
       {longTailCards.length > 0 && (
+        <div data-tour="custom-department-modules">
         <WidgetSection layout={longTailCardCols} title="Department Modules" border normalCase>
           {longTailCards.map((c, i) => <StatCard key={i} {...c} />)}
         </WidgetSection>
+        </div>
       )}
 
       {/* Finance highlight row */}
       {showFinance && (
+        <div data-tour="custom-finance-snapshot">
         <WidgetSection layout={3} title="Financial Snapshot" border normalCase>
-          <StatCard icon={Banknote} label="Booking Revenue" value={fmtINR(bookingStats.revenue, workspacePreferences.currency)} sub="Meeting room revenue" color="#f59e0b" route="/app/department-accesses/finance-department/billing-payments" />
-          <StatCard icon={CreditCard} label="Security Deposits" value={billingStats.total} sub={`${billingStats.paid} paid · ${billingStats.pending} pending`} color="#1E3D73" route="/app/department-accesses/finance-department/billing-payments" />
-          {showHR && <StatCard icon={Users} label="Net Payable" value={fmtINR(hrStats.netPayable, workspacePreferences.currency)} sub={`${hrStats.paid}/${hrStats.totalEmployees} employees paid`} color="#7c3aed" route="/app/department-accesses/finance-department/billing-payments" />}
-          {!showHR && <StatCard icon={UserCheck} label="Confirmed Bookings" value={bookingStats.confirmed} sub={`${bookingStats.pending} pending`} color="#059669" route="/app/meeting-rooms" />}
+          <StatCard icon={Banknote} label="Booking Revenue" value={fmtINR(bookingStats.revenue, workspacePreferences.currency)} sub="Meeting room revenue" color="#f59e0b" route={billingRoute} />
+          <StatCard icon={CreditCard} label="Security Deposits" value={billingStats.total} sub={`${billingStats.paid} paid · ${billingStats.pending} pending`} color="#1E3D73" route={billingRoute} />
+          {showHR && <StatCard icon={Users} label="Net Payable" value={fmtINR(hrStats.netPayable, workspacePreferences.currency)} sub={`${hrStats.paid}/${hrStats.totalEmployees} employees paid`} color="#7c3aed" route={billingRoute} />}
+          {!showHR && <StatCard icon={UserCheck} label="Confirmed Bookings" value={bookingStats.confirmed} sub={`${bookingStats.pending} pending`} color="#059669" route={bookingsRoute} />}
         </WidgetSection>
+        </div>
       )}
 
       {/* Team live status + founder visitors */}
       {(showTeamStatus || showVisitors) && (
-        <div className={`grid grid-cols-1 gap-4 ${teamRowCount >= 3 ? "lg:grid-cols-3" : teamRowCount === 2 ? "lg:grid-cols-2" : ""}`}>
+        <div data-tour="custom-team-status" className={`grid grid-cols-1 gap-4 ${teamRowCount >= 3 ? "lg:grid-cols-3" : teamRowCount === 2 ? "lg:grid-cols-2" : ""}`}>
           {showTeamStatus && <TeamLiveStatusCard viewAllRoute="/common-modules/attendance" />}
           {showVisitors && (
             <SectionCard title="Recent Visitors" linkLabel="View all" linkRoute="/visitors/visitor-management">
@@ -496,18 +515,22 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
       )}
 
       {/* Quick links — dynamic, based on the founder's module access */}
+      <div data-tour="custom-quick-links">
       <WidgetSection layout={pickCardCols(quickLinks.length)} title="Quick Links" border normalCase>
         {quickLinks.map((ql, i) => <QuickLink key={i} {...ql} />)}
       </WidgetSection>
+      </div>
 
       {/* Profile */}
+      <div data-tour="custom-profile">
       <WidgetSection layout={3} title="Profile" border normalCase>
         {profileLinks.map((pl, i) => <QuickLink key={i} {...pl} />)}
       </WidgetSection>
+      </div>
 
       {/* Charts — status donuts */}
       {(showTenants || showBookings || showTickets) && (
-        <div className={`grid grid-cols-1 gap-4 ${[showTenants, showBookings, showTickets].filter(Boolean).length === 3 ? "lg:grid-cols-3" : [showTenants, showBookings, showTickets].filter(Boolean).length === 2 ? "lg:grid-cols-2" : ""}`}>
+        <div data-tour="custom-status-charts" className={`grid grid-cols-1 gap-4 ${[showTenants, showBookings, showTickets].filter(Boolean).length === 3 ? "lg:grid-cols-3" : [showTenants, showBookings, showTickets].filter(Boolean).length === 2 ? "lg:grid-cols-2" : ""}`}>
           {showTenants && (
             <DonutWidget title="Tenant Status" series={[tenantStats.active, tenantsRaw.filter((t: any) => /pending/i.test(t.status || "")).length, tenantStats.expiringSoon]} labels={["Active", "Pending", "Expiring"]} colors={["#1E3D73", "#80bf01", "#f59e0b"]} centerLabel="Tenants" />
           )}
@@ -522,16 +545,16 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
 
       {/* Recent activity grid — bookings / tickets */}
       {(showBookings || showTickets) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div data-tour="custom-bookings-tickets" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {showBookings && (
-            <SectionCard title="Recent Bookings" linkLabel="View all" linkRoute="/app/meeting-rooms">
+            <SectionCard title="Recent Bookings" linkLabel="View all" linkRoute={bookingsRoute}>
               {recentBookings.length > 0 ? recentBookings.map((b: any, i: number) => (
                 <RecentItem key={i} title={b.bookedByName || b.clientName || "Guest"} sub={b.roomName || b.resourceName || "Meeting Room"} badge={b.status || "Pending"} badgeColor={statusBadgeColor(b.status || "")} time={humanRelTime(b.createdAt)} />
               )) : <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No recent bookings</p></div>}
             </SectionCard>
           )}
           {showTickets && (
-            <SectionCard title="Recent Tickets" linkLabel="View all" linkRoute="/app/tickets">
+            <SectionCard title="Recent Tickets" linkLabel="View all" linkRoute={ticketsRoute}>
               {recentTickets.length > 0 ? recentTickets.map((t: any, i: number) => (
                 <RecentItem key={i} title={t.title || t.subject || `Ticket #${i + 1}`} sub={t.category || t.issueType || "Support"} badge={t.status || "Open"} badgeColor={statusBadgeColor(t.status || "")} time={humanRelTime(t.createdAt)} />
               )) : <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No recent tickets</p></div>}
@@ -540,36 +563,34 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
         </div>
       )}
 
-      {/* Recent activity grid — leads / leave requests */}
-      {((showSales || showWebsite) || showLeaveRequests) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {(showSales || showWebsite) && (
-            <>
-              <SectionCard title="Recent Leads" linkLabel="View all" linkRoute="/key-apps/website-builder/leads">
-                {recentLeads.length > 0 ? recentLeads.map((l: any, i: number) => (
-                  <RecentItem key={l._id || i} title={l.name || l.fullName || "Lead"} sub={l.email || l.phone || "—"} badge={(l.status || "Pending") === "Pending" ? "New" : l.status} badgeColor={statusBadgeColor(l.status === "Contacted" || l.status === "Closed" ? "active" : "pending")} time={humanRelTime(l.createdAt)} />
-                )) : <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No leads yet</p></div>}
-              </SectionCard>
-              <DonutWidget title="Lead Status" series={[leadStats.newLeads, leadStats.total - leadStats.newLeads]} labels={["New", "Contacted"]} colors={["#1E3D73", "#80bf01"]} centerLabel="Leads" emptyText="No leads yet" />
-            </>
-          )}
-          {showLeaveRequests && (
-            <>
-              <SectionCard title="Recent Leave Requests" linkLabel="View all" linkRoute="/common-modules/leave-requests">
-                {recentLeaveRequests.length > 0 ? recentLeaveRequests.map((l: any, i: number) => (
-                  <RecentItem key={l.recordId || l.id || i} title={l.employeeName || "Employee"} sub={`${l.leaveType || "Leave"} · ${l.days || 1}d`} badge={l.status || "Pending"} badgeColor={statusBadgeColor(l.status === "approved" ? "active" : l.status === "rejected" ? "completed" : "pending")} time={humanRelTime(l.startDate || l.createdAt)} />
-                )) : <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No leave requests yet</p></div>}
-              </SectionCard>
-              <DonutWidget title="Leave Status" series={[leaveStats.pending, leaveStats.approved, leaveStats.rejected]} labels={["Pending", "Approved", "Rejected"]} colors={["#f59e0b", "#22c55e", "#ef4444"]} centerLabel="Requests" emptyText="No leave requests yet" />
-            </>
-          )}
+      {/* Recent activity — leads / leave requests each get their own bounded
+          row (rather than one grid combining both) so their page-tour anchor
+          highlights just that row instead of the full combined block. */}
+      {(showSales || showWebsite) && (
+        <div data-tour="custom-leads" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <SectionCard title="Recent Leads" linkLabel="View all" linkRoute="/key-apps/website-builder/leads">
+            {recentLeads.length > 0 ? recentLeads.map((l: any, i: number) => (
+              <RecentItem key={l._id || i} title={l.name || l.fullName || "Lead"} sub={l.email || l.phone || "—"} badge={(l.status || "Pending") === "Pending" ? "New" : l.status} badgeColor={statusBadgeColor(l.status === "Contacted" || l.status === "Closed" ? "active" : "pending")} time={humanRelTime(l.createdAt)} />
+            )) : <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No leads yet</p></div>}
+          </SectionCard>
+          <DonutWidget title="Lead Status" series={[leadStats.newLeads, leadStats.total - leadStats.newLeads]} labels={["New", "Contacted"]} colors={["#1E3D73", "#80bf01"]} centerLabel="Leads" emptyText="No leads yet" />
+        </div>
+      )}
+      {showLeaveRequests && (
+        <div data-tour="custom-leave-requests" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <SectionCard title="Recent Leave Requests" linkLabel="View all" linkRoute="/common-modules/leave-requests">
+            {recentLeaveRequests.length > 0 ? recentLeaveRequests.map((l: any, i: number) => (
+              <RecentItem key={l.recordId || l.id || i} title={l.employeeName || "Employee"} sub={`${l.leaveType || "Leave"} · ${l.days || 1}d`} badge={l.status || "Pending"} badgeColor={statusBadgeColor(l.status === "approved" ? "active" : l.status === "rejected" ? "completed" : "pending")} time={humanRelTime(l.startDate || l.createdAt)} />
+            )) : <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No leave requests yet</p></div>}
+          </SectionCard>
+          <DonutWidget title="Leave Status" series={[leaveStats.pending, leaveStats.approved, leaveStats.rejected]} labels={["Pending", "Approved", "Rejected"]} colors={["#f59e0b", "#22c55e", "#ef4444"]} centerLabel="Requests" emptyText="No leave requests yet" />
         </div>
       )}
 
       {/* Recent tenants */}
       {showTenants && (
-        <>
-          <SectionCard title="Recent Tenants" linkLabel="View all" linkRoute="/company-settings/companies">
+        <div data-tour="custom-tenants">
+          <SectionCard title="Recent Tenants" linkLabel="View all" linkRoute={tenantsRoute}>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {recentTenants.length > 0 ? recentTenants.map((t: any, i: number) => (
                 <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-200">
@@ -586,24 +607,36 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
             </div>
           </SectionCard>
           {tenantStats.expiringSoon > 0 && (
-            <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-amber-300 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors" onClick={() => navigate("/company-settings/companies")}>
+            <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-amber-300 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors" onClick={() => navigate(tenantsRoute)}>
               <AlertCircle size={20} className="text-amber-600 flex-shrink-0" />
               <p className="text-content font-pmedium text-amber-800">{tenantStats.expiringSoon} tenant agreement{tenantStats.expiringSoon > 1 ? "s" : ""} expiring within 30 days</p>
               <ArrowRight size={14} className="ml-auto text-amber-600 flex-shrink-0" />
             </div>
           )}
-        </>
+        </div>
       )}
 
-      {/* Monthly trends */}
+      {/* Monthly trends — each chart gets its own page-tour anchor (rather
+          than one wrapper around the whole stack) so a highlight never spans
+          more than a single chart. */}
+      {(showBookings || showTickets || showTenants) && (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       {showBookings && (
-        <BarWidget title="Monthly Booking Trend (FY)" chartId="custom-monthly-bookings" series={bookingsByMonth} options={{ ...BAR_BASE_OPTIONS, colors: ["#1E3D73"] }} height={260} />
+        <div data-tour="custom-booking-trend">
+          <BarWidget title="Monthly Booking Trend (FY)" chartId="custom-monthly-bookings" series={bookingsByMonth} options={{ ...BAR_BASE_OPTIONS, colors: ["#1E3D73"] }} height={220} />
+        </div>
       )}
       {showTickets && (
-        <BarWidget title="Monthly Ticket Trend (FY)" chartId="custom-monthly-tickets" series={ticketsByMonth} options={{ ...BAR_BASE_OPTIONS, colors: ["#2563EB", "#22c55e"] }} height={260} />
+        <div data-tour="custom-ticket-trend">
+          <BarWidget title="Monthly Ticket Trend (FY)" chartId="custom-monthly-tickets" series={ticketsByMonth} options={{ ...BAR_BASE_OPTIONS, colors: ["#2563EB", "#22c55e"] }} height={220} />
+        </div>
       )}
       {showTenants && (
-        <BarWidget title="Monthly Tenant Trend (FY)" chartId="custom-monthly-tenants" series={tenantsByMonth} options={{ ...BAR_BASE_OPTIONS, colors: ["#7c3aed"] }} height={260} />
+        <div data-tour="custom-tenant-trend">
+          <BarWidget title="Monthly Tenant Trend (FY)" chartId="custom-monthly-tenants" series={tenantsByMonth} options={{ ...BAR_BASE_OPTIONS, colors: ["#7c3aed"] }} height={220} />
+        </div>
+      )}
+      </div>
       )}
 
     </div>

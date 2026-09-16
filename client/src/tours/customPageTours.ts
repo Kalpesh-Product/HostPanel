@@ -10,13 +10,6 @@ const CUSTOM_TOUR_VERSION = 1;
 const exact = (path: string) => (pathname: string) =>
   pathname === path || pathname === `${path}/`;
 
-// Routes rendered by a plan-specific component whose Professional tour
-// selectors won't resolve for Custom (e.g. /dashboard renders CustomDashboard,
-// which has no data-tour attributes yet) — excluded instead of falling back
-// to a near-empty tour. Author a dedicated entry in CUSTOM_PAGE_TOURS once
-// that page grows its own data-tour hooks.
-const PLAN_SPECIFIC_ROUTES = new Set(["/dashboard"]);
-
 // Overrides for Professional tours whose copy states a Professional-only
 // fact (a numeric limit, a restricted department set, a filter that's absent
 // on Professional but present on Custom) that a plain word swap would get
@@ -71,6 +64,34 @@ const CUSTOM_PAGE_TOURS: CustomTourRoute[] = [
     ],
     matches: exact("/common-modules/tasks"),
   },
+  {
+    id: "custom-dashboard",
+    version: CUSTOM_TOUR_VERSION,
+    title: "Custom dashboard",
+    description: "Review every module enabled for your Custom-plan workspace, its live operational numbers, direct shortcuts, and trends from one overview.",
+    steps: [
+      { selector: '[data-tour="sidebar"]', title: "Your workspace navigation", description: "Use the sidebar to move between the modules available to your Custom-plan role. Other page tours will focus only on their own functionality." },
+      { selector: '[data-tour="breadcrumb"]', title: "Your current location", description: "The breadcrumb shows the active workspace section and page." },
+      { selector: '[data-tour="workspace-switcher"]', title: "Switch workspaces", description: "If you belong to multiple workspaces, switch here. Your automatic guides are remembered across all of your units." },
+      { selector: '[data-notification-trigger]', title: "Workspace notifications", description: "Open notifications to review recent activity and updates requiring attention." },
+      { selector: '[data-tour="custom-attendance"]', title: "Clock in and out", description: "Log your attendance for the day directly from the dashboard." },
+      { selector: '[data-tour="custom-overview"]', title: "Founder overview", description: "Live, actionable numbers for the core modules your workspace uses most — tenants, bookings, tickets, visitors, leads, and leave requests. Select a card to open its complete module." },
+      { selector: '[data-tour="custom-department-modules"]', title: "Department modules", description: "Every other enabled module — resources, housekeeping, maintenance, IT, HR, recruitment, and more — surfaces here as its own overview card and doubles as your entry point into that department's page." },
+      { selector: '[data-tour="custom-finance-snapshot"]', title: "Financial snapshot", description: "Booking revenue, security deposits, and payroll or booking status in one row, linking straight into Billing & Payments." },
+      { selector: '[data-tour="custom-team-status"]', title: "Team status and visitors", description: "Team Live Status shows who is currently working, and Recent Visitors with Visitor Type summarizes today's foot traffic." },
+      { selector: '[data-tour="custom-quick-links"]', title: "Quick Links", description: "Direct shortcuts into every module enabled for your workspace, built automatically from your actual module access." },
+      { selector: '[data-tour="custom-profile"]', title: "Profile", description: "Jump to your personal profile, company profile, or password settings." },
+      { selector: '[data-tour="custom-status-charts"]', title: "Status breakdown", description: "Tenant, booking, and ticket status charts show how work is distributed across each stage." },
+      { selector: '[data-tour="custom-bookings-tickets"]', title: "Bookings and tickets activity", description: "Recent Bookings and Recent Tickets list the latest activity, and View all opens the complete module for each." },
+      { selector: '[data-tour="custom-leads"]', title: "Lead activity", description: "Recent Leads tracks the latest website enquiries and View all opens the complete Website Leads page. Lead Status summarizes new versus contacted leads." },
+      { selector: '[data-tour="custom-leave-requests"]', title: "Leave request activity", description: "Recent Leave Requests tracks pending time-off and View all opens the complete Leave Requests page. Leave Status summarizes pending, approved, and rejected requests." },
+      { selector: '[data-tour="custom-tenants"]', title: "Tenant activity", description: "Recent Tenants lists the latest companies, and an expiry alert appears here when any agreement is nearing its end so it can be reviewed and renewed in time." },
+      { selector: '[data-tour="custom-booking-trend"]', title: "Monthly booking trend", description: "Compare meeting-room booking volume across the current financial year." },
+      { selector: '[data-tour="custom-ticket-trend"]', title: "Monthly ticket trend", description: "Review how customer-support ticket volume changes month by month." },
+      { selector: '[data-tour="custom-tenant-trend"]', title: "Monthly tenant trend", description: "Track tenant-company activity across the financial year." },
+    ],
+    matches: exact("/dashboard"),
+  },
 ];
 
 const customCopy = (value: string) =>
@@ -93,8 +114,6 @@ export const getCustomPageTour = (pathname: string): BasicPageTour | null => {
     const { matches: _matches, ...tour } = customTour;
     return tour;
   }
-
-  if (PLAN_SPECIFIC_ROUTES.has(normalizedPath)) return null;
 
   const professionalTour = getProfessionalPageTour(normalizedPath);
   if (!professionalTour) return null;

@@ -1373,7 +1373,7 @@ function HousekeepingPageInner() {
           {bulkUploadMessage ? <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-pmedium text-emerald-700">{bulkUploadMessage}</div> : null}
 
           {/* ── Pill Tabs (DESIGN.md: pill-style with blue active bg) ── */}
-          <div data-tour="admin-housekeeping-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div data-tour="admin-housekeeping-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {[
               { key: 'staff', label: 'Housekeeping Staff' },
               { key: 'scheduled', label: 'Daily Scheduled Tasks' },
@@ -1424,7 +1424,7 @@ function HousekeepingPageInner() {
 
           {/* ── Sub-tabs for Housekeeping Staff: Employee List | Attendance | Leave Requests ── */}
           {activeTab === 'staff' ? (
-            <div className="mb-3 flex bg-slate-100/60 p-1 rounded-xl border border-slate-200/50">
+            <div data-tour="admin-housekeeping-staff-subtabs" className="mb-3 flex bg-slate-100/60 p-1 rounded-xl border border-slate-200/50">
               {([
                 { key: 'list', label: 'Employee List' },
                 { key: 'attendance', label: 'Attendance' },
@@ -1599,6 +1599,7 @@ function HousekeepingPageInner() {
                 {activeTab === 'staff' && staffSubTab === 'leave' ? (
                   <button
                     onClick={() => setIsApplyLeaveModalOpen(true)}
+                    data-tour="admin-housekeeping-apply-leave-btn"
                     className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-white shadow-sm transition-all hover:bg-[#2563EB]/90 active:scale-95 whitespace-nowrap"
                   >
                     <Plus size={13} strokeWidth={3} />
@@ -2237,7 +2238,7 @@ function TaskInfoRow({ label, value }: { label: string; value?: string | number 
 function TasksTable({ tasks, onView, onEdit, onCancel, onChangeStatus, emptyText }: TasksTableProps) {
   return (
     <div className="flex-1 overflow-x-auto">
-      <table data-tour="admin-housekeeping-table" className="w-full min-w-[1120px] text-left font-pmedium">
+      <table data-tour="admin-housekeeping-scheduled-table" className="w-full min-w-[1120px] text-left font-pmedium">
         <thead className="border-b border-slate-100/60 bg-slate-50/50 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
           <tr>
             <th className="px-5 py-4">Task Name & ID</th>
@@ -2318,7 +2319,7 @@ function TasksTable({ tasks, onView, onEdit, onCancel, onChangeStatus, emptyText
 
 function AutoTasks({ tasks, onAssign, onDone, onToggleRequirement }: AutoTasksProps) {
   return (
-    <div className="flex-1 bg-slate-50/30">
+    <div data-tour="admin-housekeeping-auto-tasks" className="flex-1 bg-slate-50/30">
       <div className="p-8">
         <div className="mx-auto mb-6 flex max-w-5xl items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
           <Zap className="mt-0.5 shrink-0 text-red-500" size={20} />
@@ -2392,7 +2393,7 @@ function AutoTasks({ tasks, onAssign, onDone, onToggleRequirement }: AutoTasksPr
 function HistoryTable({ tasks, month, year, onView }: HistoryTableProps) {
   return (
     <div className="flex-1 overflow-x-auto">
-      <table data-tour="admin-housekeeping-table" className="w-full min-w-[1120px] text-left font-pmedium">
+      <table data-tour="admin-housekeeping-history-table" className="w-full min-w-[1120px] text-left font-pmedium">
         <thead className="border-b border-slate-100/60 bg-slate-50/50 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
           <tr>
             <th className="px-5 py-4">Task Name & ID</th>
@@ -2453,7 +2454,7 @@ function HistoryTable({ tasks, month, year, onView }: HistoryTableProps) {
 
 function EmployeeListTab({ employees, onView, onEdit }: EmployeeListTabProps) {
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div data-tour="admin-housekeeping-staff-list" className="flex-1 overflow-y-auto">
       {/* <div className="border-b border-slate-100/60 bg-slate-50/50 px-5 py-3">
         <span className="inline-flex items-center rounded-lg bg-[#2563EB] px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-white">Employee List</span>
         <span className="ml-2 text-[10px] font-pmedium text-slate-400">Onboarded via HR &middot; Administration &middot; Housekeeping</span>
@@ -2518,7 +2519,7 @@ function EmployeeListTab({ employees, onView, onEdit }: EmployeeListTabProps) {
 
 function AttendanceTab({ employees, attendanceByEmployeeId, onCheckIn, onStartBreak, onEndBreak, onCheckOut, onView }: AttendanceTabProps) {
   return (
-    <div className="flex-1 overflow-y-auto p-6">
+    <div data-tour="admin-housekeeping-staff-attendance" className="flex-1 overflow-y-auto p-6">
       <div className="grid grid-cols-1 gap-4">
         {employees.map((employee) => {
           const attendance = attendanceByEmployeeId[employee.id || ''];
@@ -2597,7 +2598,7 @@ function LeaveRequestsTab({
   allLeaveRequests, isAllLeaveLoading, onViewLeaveRequest,
 }: LeaveRequestsTabProps) {
   return (
-    <div className="flex-1 overflow-y-auto p-6">
+    <div data-tour="admin-housekeeping-staff-leave" className="flex-1 overflow-y-auto p-6">
       <div className="flex flex-col gap-6">
         <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
           <h3 className="mb-4 text-xs font-pmedium uppercase tracking-widest text-slate-700">All Leave Requests</h3>
@@ -2959,7 +2960,7 @@ function AttendanceMonthModal({
 
 function PerformanceTab({ rows }: PerformanceTabProps) {
   return (
-    <div className="flex-1 overflow-x-auto p-2">
+    <div data-tour="admin-housekeeping-performance-table" className="flex-1 overflow-x-auto p-2">
       <table className="w-full min-w-[900px] text-left font-pmedium">
         <thead className="border-b border-slate-100/60 bg-slate-50/50 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
           <tr>

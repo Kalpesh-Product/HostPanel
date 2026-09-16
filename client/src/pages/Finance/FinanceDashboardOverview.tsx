@@ -229,6 +229,7 @@ export function FinanceDashboardWidgets() {
         </div>
       ) : null}
 
+      <div data-tour="finance-overview">
       <WidgetSection layout={3} title="Overview" border normalCase>
         <StatCard
           icon={Wallet}
@@ -255,8 +256,9 @@ export function FinanceDashboardWidgets() {
           route="/department-accesses/finance-department/billing-payments"
         />
       </WidgetSection>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div data-tour="finance-team-status" className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <TeamLiveStatusCard department="finance" viewAllRoute="/department-accesses/finance-department/billing-payments" />
 
         <DepartmentVisitorsCard department="finance" title="Finance Visitors" />
@@ -278,13 +280,15 @@ export function FinanceDashboardWidgets() {
         </SectionCard>
       </div>
 
+      <div data-tour="finance-quick-links">
       <WidgetSection layout={3} title="Quick Links" border normalCase>
         <QuickLink icon={Wallet} label="Expenses & Budget" description="Departmental budgets & spend" route="/department-accesses/finance-department/expenses-budget" color="#f59e0b" />
         <QuickLink icon={Receipt} label="Billing & Payments" description="Deposits, bookings & payroll" route="/department-accesses/finance-department/billing-payments" color="#1E3D73" />
         <QuickLink icon={Calculator} label="Accounting" description="Ledgers & reconciliation" route="/department-accesses/finance-department/accounting" color="#7c3aed" />
       </WidgetSection>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div data-tour="finance-deposits" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <SectionCard title="Security Deposits" linkLabel="View all" linkRoute="/department-accesses/finance-department/billing-payments">
           {recentBillingRecords.length > 0 ? recentBillingRecords.map((record, index) => {
             const status = /paid/i.test(record.securityDepositPaidStatus || "") ? "Paid" : "Pending";
@@ -309,7 +313,9 @@ export function FinanceDashboardWidgets() {
           colors={depositStatusDonut.colors}
           centerLabel="Deposits"
         />
+      </div>
 
+      <div data-tour="finance-payroll" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <SectionCard title="Top Payroll Earners" linkLabel="View all" linkRoute="/department-accesses/finance-department/billing-payments">
           {topPayrollEarners.length > 0 ? topPayrollEarners.map((employee, index) => {
             const status = /paid/i.test(employee.payment?.status || employee.financials?.paymentStatus || "") ? "Paid" : "Pending";
@@ -410,7 +416,9 @@ export function FinanceDashboardOverview() {
         </div>
       </PageFrame>
 
-      <DashboardAttendanceCard />
+      <div data-tour="finance-attendance">
+        <DashboardAttendanceCard />
+      </div>
 
       <FinanceDashboardWidgets />
     </div>

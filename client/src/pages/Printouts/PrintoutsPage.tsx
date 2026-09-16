@@ -280,7 +280,7 @@ export default function PrintoutsPage() {
           </div>
 
           {/* STAT CARDS */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 shrink-0">
+          <div data-tour="printouts-summary" className="grid grid-cols-2 md:grid-cols-5 gap-3 shrink-0">
             {statCards.map((card) => {
               const Icon = card.icon;
               return (
@@ -300,7 +300,7 @@ export default function PrintoutsPage() {
 
             {/* Toolbar */}
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-              <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+              <div data-tour="printouts-status-filters" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                 {['All', ...STATUS_OPTIONS].map((status) => (
                   <button
                     key={status}
@@ -316,7 +316,7 @@ export default function PrintoutsPage() {
                 ))}
               </div>
               <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-                <div className="relative flex-1 min-w-[180px]">
+                <div data-tour="printouts-search" className="relative flex-1 min-w-[180px]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                   <input
                     type="text"
@@ -327,6 +327,7 @@ export default function PrintoutsPage() {
                   />
                 </div>
                 <button
+                  data-tour="printouts-new-request"
                   onClick={() => setShowNewRequest(true)}
                   className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                 >
@@ -340,7 +341,7 @@ export default function PrintoutsPage() {
             ) : (
               <div className="overflow-x-auto flex-1 [&::-webkit-scrollbar]:hidden bg-white/20">
                 {/* DESKTOP TABLE */}
-                <table className="hidden lg:table w-full text-left">
+                <table data-tour="printouts-table" className="hidden lg:table w-full text-left">
                   <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-4 py-3">Print ID</th>
@@ -377,7 +378,7 @@ export default function PrintoutsPage() {
                 </table>
 
                 {/* MOBILE CARD VIEW */}
-                <div className="flex flex-col gap-3 lg:hidden p-3 sm:p-4 bg-slate-50/30">
+                <div data-tour="printouts-table" className="flex flex-col gap-3 lg:hidden p-3 sm:p-4 bg-slate-50/30">
                   {displayedRequests.map((request) => (
                     <div key={request._id} className="bg-white border border-slate-200/60 p-4 sm:p-5 rounded-[20px] shadow-sm flex flex-col gap-3">
                       <div className="flex justify-between items-start gap-3">

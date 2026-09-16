@@ -2,16 +2,8 @@ import type { ComponentType } from "react";
 import { useFreshCurrentUser } from "@/hooks/useFreshCurrentUser";
 import useDashboardAccess from "@/hooks/useDashboardAccess";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
-import {
-  canAccessHRDashboard,
-  canAccessAdministrationDashboard,
-  canAccessSalesDashboard,
-  canAccessFinanceDashboard,
-  canAccessMaintenanceDashboard,
-  canAccessTechDashboard,
-  canAccessITDashboard,
-} from "@/lib/auth-session";
-import { departmentSlugMatches } from "@/lib/departmentSlug";
+import { resolveSyncDashboardVariant } from "./dashboardVariant";
+import type { DeptSlug } from "@/lib/departmentSlug";
 import CompanySettingsDashboard from "./FrontendDashboard/CompanySettingsDashboard";
 import EmployeeDashboardOverview from "./EmployeeDashboardOverview";
 import AdminDashboardOverview from "./AdminDashboardOverview";
@@ -23,43 +15,15 @@ import MaintenanceDashboardOverview from "../Maintenance/MaintenanceDashboardOve
 import TechDashboardOverview from "../Tech/TechDashboardOverview";
 import ITDashboardOverview from "../IT/ITDashboardOverview";
 
-function normalizeText(value: unknown): string {
-  return String(value || "").trim().toLowerCase();
-}
-
-function toDepartmentName(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (value && typeof value === "object" && "name" in value) {
-    return String((value as { name?: unknown }).name || "");
-  }
-  return "";
-}
-
-function getRoleBand(user: unknown): string {
-  const role = String(
-    (user as { workspaceMembership?: { role?: string }; role?: string } | null)?.workspaceMembership?.role ||
-      (user as { role?: string } | null)?.role ||
-      "",
-  )
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_");
-  return role;
-}
-
-const DEPARTMENT_ROUTES: {
-  matches: (department: string) => boolean;
-  canAccess: (user: unknown) => boolean;
-  Component: ComponentType;
-}[] = [
-  { matches: (department) => departmentSlugMatches("hr", department), canAccess: canAccessHRDashboard, Component: HRDashboardOverview },
-  { matches: (department) => departmentSlugMatches("administration", department), canAccess: canAccessAdministrationDashboard, Component: AdministrationDashboardOverview },
-  { matches: (department) => departmentSlugMatches("sales", department), canAccess: canAccessSalesDashboard, Component: SalesDashboardOverview },
-  { matches: (department) => departmentSlugMatches("finance", department), canAccess: canAccessFinanceDashboard, Component: FinanceDashboardOverview },
-  { matches: (department) => departmentSlugMatches("maintenance", department), canAccess: canAccessMaintenanceDashboard, Component: MaintenanceDashboardOverview },
-  { matches: (department) => departmentSlugMatches("tech", department), canAccess: canAccessTechDashboard, Component: TechDashboardOverview },
-  { matches: (department) => departmentSlugMatches("it", department), canAccess: canAccessITDashboard, Component: ITDashboardOverview },
-];
+const DEPARTMENT_COMPONENT_BY_SLUG: Record<DeptSlug, ComponentType> = {
+  hr: HRDashboardOverview,
+  administration: AdministrationDashboardOverview,
+  sales: SalesDashboardOverview,
+  finance: FinanceDashboardOverview,
+  maintenance: MaintenanceDashboardOverview,
+  tech: TechDashboardOverview,
+  it: ITDashboardOverview,
+};
 
 /**
  * Renders the department-specific dashboard for the current user.
@@ -80,40 +44,27 @@ const DEPARTMENT_ROUTES: {
 export function DashboardIndex() {
   const currentUser = useFreshCurrentUser();
   const access = useDashboardAccess();
-  const roleBand = getRoleBand(currentUser);
-  const isOwnerOrSuperAdmin = roleBand === "owner" || roleBand === "super_admin";
 
-  const departments = [
-    currentUser?.workspaceMembership?.department,
-    ...(Array.isArray(currentUser?.workspaceMembership?.departments) ? currentUser.workspaceMembership.departments.map(toDepartmentName) : []),
-    currentUser?.department,
-    ...(Array.isArray(currentUser?.departments) ? currentUser.departments.map(toDepartmentName) : []),
-    currentUser?.workspace?.department,
-  ]
-    .map(normalizeText)
-    .filter(Boolean);
+  const syncVariant = resolveSyncDashboardVariant(currentUser);
 
-  if (!isOwnerOrSuperAdmin) {
-    const matchedRoute = DEPARTMENT_ROUTES.find(
-      (route) => route.canAccess(currentUser) || (roleBand !== "admin" && departments.some((department) => route.matches(department))),
-    );
+  if (syncVariant === "founder") {
+    return <CompanySettingsDashboard />;
+  }
+  if (syncVariant) {
+    const Component = DEPARTMENT_COMPONENT_BY_SLUG[syncVariant];
+    return <Component />;
+  }
 
-    if (matchedRoute) {
-      const { Component } = matchedRoute;
-      return <Component />;
-    }
+  if (access.isLoading) {
+    return <DashboardSkeleton />;
+  }
 
-    if (access.isLoading) {
-      return <DashboardSkeleton />;
-    }
+  if (access.roleBand === "employee") {
+    return <EmployeeDashboardOverview />;
+  }
 
-    if (access.roleBand === "employee") {
-      return <EmployeeDashboardOverview />;
-    }
-
-    if (access.roleBand === "admin") {
-      return <AdminDashboardOverview />;
-    }
+  if (access.roleBand === "admin") {
+    return <AdminDashboardOverview />;
   }
 
   return <CompanySettingsDashboard />;

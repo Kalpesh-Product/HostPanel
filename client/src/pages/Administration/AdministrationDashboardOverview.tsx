@@ -452,6 +452,7 @@ export function AdministrationDashboardWidgets() {
         </div>
       ) : null}
 
+      <div data-tour="administration-overview">
       <WidgetSection layout={5} title="Overview" border normalCase>
         <StatCard icon={Eye} label="Visitors Today" value={dailyVisitors.length} sub={`${liveVisitors.length} checked in`} color="#80bf01" route="/visitors/visitor-management" />
         <StatCard icon={Building2} label="Total Tenants" value={tenantStats.total} sub={`${tenantStats.active} active`} color="#1E3D73" route="/department-accesses/administration-department/tenant-companies" />
@@ -459,29 +460,36 @@ export function AdministrationDashboardWidgets() {
         <StatCard icon={HandCoins} label="Resources" value={resourceStats.total} sub={`${resourceStats.inUse} in use · ${resourceStats.active} active`} color="#7c3aed" route="/department-accesses/administration-department/resource-management" />
         <StatCard icon={Wrench} label="Housekeeping Tasks" value={pendingHousekeeping} sub={`${activeHousekeeping} active`} color="#f59e0b" route="/department-accesses/administration-department/house-keeping" />
       </WidgetSection>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <TeamLiveStatusCard department="administration" viewAllRoute="/department-accesses/administration-department/bookings" />
-
-        <DepartmentVisitorsCard department="administration" title="Administration Visitors" />
-
-        <SectionCard title="Housekeeping Queue" linkLabel="View all" linkRoute="/department-accesses/administration-department/house-keeping">
-          {housekeepingQueue.length > 0 ? housekeepingQueue.map((task, index) => (
-            <RecentItem
-              key={task.id || task.taskCode || index}
-              title={task.taskName || task.taskType || "Housekeeping Task"}
-              sub={task.area || task.assignedTo || "Unassigned"}
-              badge={task.status || "Pending"}
-              badgeColor={statusBadgeColor(task.status || "")}
-              time={humanRelTime(task.createdAt || "")}
-            />
-          )) : (
-            <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No pending housekeeping tasks</p></div>
-          )}
-        </SectionCard>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div data-tour="administration-team-status">
+          <TeamLiveStatusCard department="administration" viewAllRoute="/department-accesses/administration-department/bookings" />
+        </div>
+
+        <div data-tour="administration-department-visitors">
+          <DepartmentVisitorsCard department="administration" title="Administration Visitors" />
+        </div>
+
+        <div data-tour="administration-housekeeping-queue">
+          <SectionCard title="Housekeeping Queue" linkLabel="View all" linkRoute="/department-accesses/administration-department/house-keeping">
+            {housekeepingQueue.length > 0 ? housekeepingQueue.map((task, index) => (
+              <RecentItem
+                key={task.id || task.taskCode || index}
+                title={task.taskName || task.taskType || "Housekeeping Task"}
+                sub={task.area || task.assignedTo || "Unassigned"}
+                badge={task.status || "Pending"}
+                badgeColor={statusBadgeColor(task.status || "")}
+                time={humanRelTime(task.createdAt || "")}
+              />
+            )) : (
+              <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No pending housekeeping tasks</p></div>
+            )}
+          </SectionCard>
+        </div>
+      </div>
+
+      <div data-tour="administration-visitors" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <SectionCard title="Recent Visitors" linkLabel="View all" linkRoute="/visitors/visitor-management">
           {recentVisitors.length > 0 ? recentVisitors.map((v, index) => (
             <RecentItem
@@ -506,6 +514,7 @@ export function AdministrationDashboardWidgets() {
         />
       </div>
 
+      <div data-tour="administration-quick-links">
       <WidgetSection layout={5} title="Quick Links" border normalCase>
         <QuickLink icon={Building2} label="Tenant Companies" description="Manage tenants & agreements" route="/department-accesses/administration-department/tenant-companies" color="#1E3D73" />
         <QuickLink icon={CalendarCheck} label="Bookings" description="Meeting room bookings" route="/department-accesses/administration-department/bookings" color="#2563EB" />
@@ -513,8 +522,12 @@ export function AdministrationDashboardWidgets() {
         <QuickLink icon={Wrench} label="Housekeeping" description="Tasks & staff attendance" route="/department-accesses/administration-department/house-keeping" color="#f59e0b" />
         <QuickLink icon={ContactRound} label="Visitor Management" description="Check-in / check-out" route="/visitors/visitor-management" color="#80bf01" />
       </WidgetSection>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Recent tenants / resources each get their own bounded row (rather
+          than one grid combining both pairs) so their page-tour anchor
+          highlights just that row instead of both pairs at once. */}
+      <div data-tour="administration-tenants" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <SectionCard title="Recent Tenants" linkLabel="View all" linkRoute="/department-accesses/administration-department/tenant-companies">
           {tenants.length > 0 ? [...tenants]
             .sort((left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime())
@@ -540,7 +553,9 @@ export function AdministrationDashboardWidgets() {
           colors={tenantStatusDonut.colors}
           centerLabel="Tenants"
         />
+      </div>
 
+      <div data-tour="administration-resources" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <SectionCard title="Resource Directory" linkLabel="View all" linkRoute="/department-accesses/administration-department/resource-management">
           {resources.length > 0 ? [...resources]
             .sort((left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime())
@@ -568,13 +583,15 @@ export function AdministrationDashboardWidgets() {
         />
       </div>
 
-      <BarWidget
-        title="Monthly Booking Trend (FY)"
-        chartId="administration-monthly-bookings"
-        series={monthlyBarSeries}
-        options={monthlyBarOptions}
-        height={260}
-      />
+      <div data-tour="administration-booking-trend">
+        <BarWidget
+          title="Monthly Booking Trend (FY)"
+          chartId="administration-monthly-bookings"
+          series={monthlyBarSeries}
+          options={monthlyBarOptions}
+          height={260}
+        />
+      </div>
     </div>
   );
 }
@@ -650,7 +667,9 @@ export function AdministrationDashboardOverview() {
         </div>
       </PageFrame>
 
-      <DashboardAttendanceCard />
+      <div data-tour="administration-attendance">
+        <DashboardAttendanceCard />
+      </div>
 
       <AdministrationDashboardWidgets />
     </div>

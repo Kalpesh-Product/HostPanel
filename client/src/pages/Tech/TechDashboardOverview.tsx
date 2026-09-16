@@ -239,27 +239,31 @@ export function TechDashboardWidgets() {
         ) : null}
 
         {/* Overview — only the metrics that matter */}
+        <div data-tour="tech-overview">
         <WidgetSection layout={3} title="Overview" border normalCase>
           <StatCard icon={Magnet} label="Website Leads" value={leads.length} sub={`${pendingLeads.length} new/uncontacted`} color="#2563EB" route="/key-apps/website-builder/leads" />
           <StatCard icon={UserCheck} label="Contacted Leads" value={contactedLeads.length} sub={`${closedLeads.length} closed`} color="#f59e0b" route="/key-apps/website-builder/leads" />
           <StatCard icon={CheckCircle2} label="Closed Leads" value={closedLeads.length} sub={`${rejectedLeads.length} rejected`} color="#22c55e" route="/key-apps/website-builder/leads" />
         </WidgetSection>
+        </div>
 
         {/* Team status and live visitors */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div data-tour="tech-team-status" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <TeamLiveStatusCard department="tech" viewAllRoute="/key-apps/website-builder/leads" />
 
           <DepartmentVisitorsCard department="tech" title="Tech Visitors" />
         </div>
 
         {/* Quick links */}
+        <div data-tour="tech-quick-links">
         <WidgetSection layout={3} title="Quick Links" border normalCase>
           <QuickLink icon={Globe} label="Website Builder" description="Build & manage websites" route="/key-apps/website-builder" color="#2563EB" />
           <QuickLink icon={Magnet} label="Website Leads" description="Track & follow up leads" route="/key-apps/website-builder/leads" color="#f59e0b" />
           <QuickLink icon={CheckCircle2} label="Website Review" description="Visitor-submitted reviews" route="/key-apps/website-builder/dynamic/reviews" color="#22c55e" />
         </WidgetSection>
+        </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div data-tour="tech-leads" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <SectionCard title="Recent Website Leads" linkLabel="View all" linkRoute="/key-apps/website-builder/leads">
             {recentLeads.length > 0 ? recentLeads.map((lead, index) => (
               <RecentItem
@@ -284,6 +288,7 @@ export function TechDashboardWidgets() {
           />
         </div>
 
+        <div data-tour="tech-leads-trend">
         <BarWidget
           title="Monthly Website Leads Trend"
           chartId="tech-monthly-leads"
@@ -291,6 +296,7 @@ export function TechDashboardWidgets() {
           options={monthlyBarOptions}
           height={260}
         />
+        </div>
     </div>
   );
 }
@@ -366,7 +372,9 @@ export function TechDashboardOverview() {
         </div>
       </PageFrame>
 
-      <DashboardAttendanceCard />
+      <div data-tour="tech-attendance">
+        <DashboardAttendanceCard />
+      </div>
 
       <TechDashboardWidgets />
     </div>

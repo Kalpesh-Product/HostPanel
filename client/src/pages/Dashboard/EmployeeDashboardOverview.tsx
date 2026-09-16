@@ -407,6 +407,7 @@ export function EmployeeDashboardOverview() {
     <div className="p-4 flex flex-col gap-5">
 
       {/* Greeting banner */}
+      <div data-tour="employee-greeting">
       <PageFrame>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex flex-col gap-1">
@@ -419,6 +420,7 @@ export function EmployeeDashboardOverview() {
           </div>
         </div>
       </PageFrame>
+      </div>
 
       {error ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-700">
@@ -426,9 +428,10 @@ export function EmployeeDashboardOverview() {
         </div>
       ) : null}
 
-      <DashboardAttendanceCard />
+      <div data-tour="employee-attendance"><DashboardAttendanceCard /></div>
 
       {/* Overview — only the metrics that matter */}
+      <div data-tour="employee-overview">
       <WidgetSection layout={3} title="Overview" border normalCase>
         <StatCard icon={ListChecks} label="My Tasks" value={myTasks.length} sub={`${openTasksCount} open`} color="#1E3D73" route="/common-modules/tasks" />
         <StatCard icon={Ticket} label="My Tickets" value={myTickets.length} sub={`${openTicketsCount} open`} color="#ef4444" route="/common-modules/tickets" />
@@ -437,8 +440,10 @@ export function EmployeeDashboardOverview() {
         <StatCard icon={Calendar} label="Upcoming Bookings" value={upcomingBookingsCount} sub="Meeting room bookings" color="#7c3aed" route="/common-modules/meeting-room-booking" />
         <StatCard icon={CalendarDays} label="Upcoming Events" value={upcomingCalendarEventsCount} sub="On your calendar" color="#059669" route="/common-modules/calendar" />
       </WidgetSection>
+      </div>
 
       {/* Quick links */}
+      <div data-tour="employee-quick-links">
       <WidgetSection layout={pickCardCols(7)} title="Quick Links" border normalCase>
         <QuickLink icon={ListChecks} label="Tasks" description="Your assigned work" route="/common-modules/tasks" color="#1E3D73" />
         <QuickLink icon={Ticket} label="Tickets" description="Raise or track support tickets" route="/common-modules/tickets" color="#ef4444" />
@@ -448,9 +453,12 @@ export function EmployeeDashboardOverview() {
         <QuickLink icon={MessageSquareCode} label="Customer Support" description="Get help from support" route="/common-modules/customer-support" color="#7c3aed" />
         <QuickLink icon={Package} label="Assigned Assets" description="Equipment assigned to you" route="/profile/assigned-assets" color="#0891b2" />
       </WidgetSection>
+      </div>
 
-      {/* Assigned to me */}
+      {/* Assigned to me — each gets its own anchor so a highlight never spans
+          both cards at once. */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div data-tour="employee-my-tasks">
         <SectionCard title="My Tasks" linkLabel="View all" linkRoute="/common-modules/tasks">
           {myTasks.length > 0 ? myTasks.slice(0, 6).map((task, index) => (
             <RecentItem
@@ -465,7 +473,9 @@ export function EmployeeDashboardOverview() {
             <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No tasks assigned to you</p></div>
           )}
         </SectionCard>
+        </div>
 
+        <div data-tour="employee-my-tickets">
         <SectionCard title="My Tickets" linkLabel="View all" linkRoute="/common-modules/tickets">
           {myTickets.length > 0 ? myTickets.slice(0, 6).map((ticket, index) => (
             <RecentItem
@@ -480,6 +490,7 @@ export function EmployeeDashboardOverview() {
             <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No tickets assigned to you</p></div>
           )}
         </SectionCard>
+        </div>
       </div>
     </div>
   );

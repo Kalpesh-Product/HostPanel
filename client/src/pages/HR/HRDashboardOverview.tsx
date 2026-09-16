@@ -755,6 +755,7 @@ export function HRDashboardWidgets() {
         ) : null}
 
         {/* Overview — only the metrics that matter */}
+        <div data-tour="hr-overview">
         <WidgetSection layout={4} title="Overview" border normalCase>
           <StatCard icon={Users} label="Total Employees" value={totalEmployees} sub={`${presentEmployees} present today`} color="#1E3D73" route="/department-accesses/hr-department/company-management" />
           <StatCard icon={CalendarDays} label="Pending Leaves" value={pendingLeaves} sub={`${formatPercentage(attendanceRate)} attendance rate`} color="#f59e0b" route="/department-accesses/hr-department/leave-request-processing" />
@@ -765,9 +766,11 @@ export function HRDashboardWidgets() {
           <StatCard icon={UserMinus} label="Pending Resignations" value={pendingResignations} sub="Awaiting HR review" color="#ef4444" route="/department-accesses/hr-department/resignation-management" />
           <StatCard icon={LogOut} label="On Notice" value={activeNoticeCount} sub="Active notice periods" color="#f97316" route="/department-accesses/hr-department/resignation-management" />
         </WidgetSection>
+        </div>
 
-        {/* Team status, live visitors and today's correction queue */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Team status, live visitors and today's correction queue — a fixed
+            trio (always rendered together) so it shares one bounded anchor. */}
+        <div data-tour="hr-team-status" className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <TeamLiveStatusCard department="hr" viewAllRoute="/department-accesses/hr-department/attendance-review" />
 
           <DepartmentVisitorsCard department="hr" title="HR Visitors" />
@@ -807,6 +810,7 @@ export function HRDashboardWidgets() {
         </div>
 
         {/* Quick links */}
+        <div data-tour="hr-quick-links">
         <WidgetSection layout={4} title="Quick Links" border normalCase>
           <QuickLink icon={Users} label="Company Management" description="Directory & records" route="/department-accesses/hr-department/company-management" color="#2563EB" />
           <QuickLink icon={UserCheck} label="Attendance Review" description="Review team punches" route="/department-accesses/hr-department/attendance-review" color="#f59e0b" />
@@ -816,8 +820,12 @@ export function HRDashboardWidgets() {
           <QuickLink icon={FileText} label="HR Documents" description="Policies & documents" route="/department-accesses/hr-department/documents" color="#64748b" />
           <QuickLink icon={UserMinus} label="Resignation Management" description="Offboarding workflow" route="/department-accesses/hr-department/resignation-management" color="#ef4444" />
         </WidgetSection>
+        </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Recent activity — each recent-list + donut pair gets its own
+            bounded row/anchor (rather than one grid combining all three)
+            so a highlight never spans more than a single pair. */}
+        <div data-tour="hr-leave-requests" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <SectionCard title="Recent Leave Requests" linkLabel="View all" linkRoute="/department-accesses/hr-department/leave-request-processing">
             {recentLeaves.length > 0 ? recentLeaves.map((request, index) => (
               <RecentItem
@@ -840,7 +848,9 @@ export function HRDashboardWidgets() {
             colors={leaveStatusDonut.colors}
             centerLabel="Leaves"
           />
+        </div>
 
+        <div data-tour="hr-recent-attendance" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <SectionCard title="Recent Attendance" linkLabel="View all" linkRoute="/department-accesses/hr-department/attendance-review">
             {recentAttendance.length > 0 ? recentAttendance.map((row, index) => (
               <RecentItem
@@ -863,7 +873,9 @@ export function HRDashboardWidgets() {
             colors={attendanceStatusDonut.colors}
             centerLabel="Today"
           />
+        </div>
 
+        <div data-tour="hr-candidates" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <SectionCard title="Recent Candidates" linkLabel="View all" linkRoute="/department-accesses/hr-department/recruitment">
             {recentCandidates.length > 0 ? recentCandidates.map((candidate, index) => (
               <RecentItem
@@ -888,12 +900,14 @@ export function HRDashboardWidgets() {
           />
         </div>
 
-        {/* Monthly Birthdays + Recent Resignations */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Monthly Birthdays + Recent Resignations — a fixed pair (always
+            rendered together), so it shares one bounded anchor. */}
+        <div data-tour="hr-birthdays-resignations" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <DashboardBirthdaysCard employees={employees} />
           <DashboardResignationsCard requests={dashboard.resignations} />
         </div>
 
+        <div data-tour="hr-monthly-trends">
         <BarWidget
           title="Monthly HR Trends (FY)"
           chartId="hr-monthly-trends"
@@ -901,6 +915,7 @@ export function HRDashboardWidgets() {
           options={monthlyBarOptions}
           height={260}
         />
+        </div>
     </div>
   );
 }
@@ -977,6 +992,7 @@ export function HRDashboardOverview() {
 
   return (
     <div className="p-4 flex flex-col gap-5">
+      <div data-tour="hr-greeting">
       <PageFrame>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex flex-col gap-1">
@@ -993,8 +1009,9 @@ export function HRDashboardOverview() {
           </div>
         </div>
       </PageFrame>
+      </div>
 
-      <DashboardAttendanceCard />
+      <div data-tour="hr-attendance"><DashboardAttendanceCard /></div>
 
       <HRDashboardWidgets />
     </div>

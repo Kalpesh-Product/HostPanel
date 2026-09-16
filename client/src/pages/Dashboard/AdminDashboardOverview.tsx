@@ -151,6 +151,7 @@ export function AdminDashboardOverview() {
     <div className="p-4 flex flex-col gap-5">
 
       {/* Greeting banner */}
+      <div data-tour="admin-greeting">
       <PageFrame>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex flex-col gap-1">
@@ -163,11 +164,14 @@ export function AdminDashboardOverview() {
           </div>
         </div>
       </PageFrame>
+      </div>
 
-      <DashboardAttendanceCard />
+      <div data-tour="admin-attendance"><DashboardAttendanceCard /></div>
 
       {/* Real department dashboards (stat cards, donuts, trend charts) for
           each of the 7 named departments this admin is assigned to */}
+      {richDepartments.length > 0 && (
+      <div data-tour="admin-department-dashboards" className="flex flex-col gap-5">
       {richDepartments.map((dept) => {
         const Widgets = RICH_WIDGETS_BY_SLUG[dept.slug];
         return (
@@ -177,9 +181,12 @@ export function AdminDashboardOverview() {
           </div>
         );
       })}
+      </div>
+      )}
 
       {/* Granted-module-driven cards/charts/quick links for any assigned
           department that isn't one of the 7 named ones (custom departments) */}
+      <div data-tour="admin-other-modules">
       <ModuleAccessDashboard
         moduleMap={access.moduleMap}
         grantedModuleIds={access.grantedModuleIds}
@@ -187,6 +194,7 @@ export function AdminDashboardOverview() {
         departments={otherDepartments}
         showAttendanceCard={false}
       />
+      </div>
     </div>
   );
 }

@@ -386,6 +386,7 @@ export function SalesDashboardWidgets() {
       ) : null}
 
       {/* Overview — only the metrics that matter */}
+      <div data-tour="sales-overview">
       <WidgetSection layout={5} title="Overview" border normalCase>
         <StatCard icon={Magnet} label="Website Leads" value={totalLeads} sub={`${newLeadsCount} new · uncontacted`} color="#2563EB" route="/department-accesses/sales-department/leads-management" />
         <StatCard icon={Building2} label="Tenant Companies" value={totalTenants} sub={`${activeTenantsCount} active`} color="#0891b2" route="/department-accesses/sales-department/tenant-companies" />
@@ -393,9 +394,10 @@ export function SalesDashboardWidgets() {
         <StatCard icon={CheckCircle2} label="Contacted Leads" value={contactedLeadsCount} sub={`${contactedPercent}% of total leads`} color="#22c55e" route="/department-accesses/sales-department/leads-management" />
         <StatCard icon={Eye} label="Visitors Today" value={dailyVisitors.length} sub={`${liveVisitors.length} checked in`} color="#80bf01" route="/visitors/visitor-management" />
       </WidgetSection>
+      </div>
 
       {/* Team status, live visitors and recent leads */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div data-tour="sales-team-activity" className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <TeamLiveStatusCard department="sales" viewAllRoute="/department-accesses/sales-department/leads-management" />
 
         <DepartmentVisitorsCard department="sales" title="Sales Visitors" />
@@ -419,14 +421,20 @@ export function SalesDashboardWidgets() {
       </div>
 
       {/* Quick links */}
+      <div data-tour="sales-quick-links">
       <WidgetSection layout={4} title="Quick Links" border normalCase>
         <QuickLink icon={Magnet} label="Leads Management" description="Track & convert leads" route="/department-accesses/sales-department/leads-management" color="#2563EB" />
         <QuickLink icon={Building2} label="Tenant Companies" description="Manage tenant accounts" route="/department-accesses/sales-department/tenant-companies" color="#0891b2" />
         <QuickLink icon={Tag} label="Resource & Pricing" description="Packages & resource rates" route="/department-accesses/sales-department/resource-pricing" color="#7c3aed" />
         <QuickLink icon={ShoppingCart} label="Sales Architecture" description="Space & resource assignment" route="/department-accesses/sales-department/sales-architecture" color="#f59e0b" />
       </WidgetSection>
+      </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {/* Recent activity — uncontacted leads, tenants needing attention, and
+          recent visitors each get their own bounded row (rather than one grid
+          combining all three) so their page-tour anchor highlights just that
+          row instead of the full combined block. */}
+      <div data-tour="sales-uncontacted-leads" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <SectionCard title="Uncontacted Leads" linkLabel="View all" linkRoute="/department-accesses/sales-department/leads-management">
           {uncontactedLeads.length > 0 ? uncontactedLeads.map((lead, index) => (
             <RecentItem
@@ -449,7 +457,9 @@ export function SalesDashboardWidgets() {
           colors={leadStatusDonut.colors}
           centerLabel="Leads"
         />
+      </div>
 
+      <div data-tour="sales-tenant-attention" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <SectionCard title="Tenants Needing Attention" linkLabel="View all" linkRoute="/department-accesses/sales-department/tenant-companies">
           {attentionTenants.length > 0 ? attentionTenants.map((tenant, index) => (
             <RecentItem
@@ -472,7 +482,9 @@ export function SalesDashboardWidgets() {
           colors={tenantStatusDonut.colors}
           centerLabel="Tenants"
         />
+      </div>
 
+      <div data-tour="sales-visitor-activity" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <SectionCard title="Recent Visitors" linkLabel="View all" linkRoute="/visitors/visitor-management">
           {recentVisitors.length > 0 ? recentVisitors.map((v, index) => (
             <RecentItem
@@ -497,13 +509,15 @@ export function SalesDashboardWidgets() {
         />
       </div>
 
-      <BarWidget
-        title="Monthly Lead Trend (FY)"
-        chartId="sales-monthly-leads"
-        series={monthlyBarSeries}
-        options={monthlyBarOptions}
-        height={260}
-      />
+      <div data-tour="sales-lead-trend">
+        <BarWidget
+          title="Monthly Lead Trend (FY)"
+          chartId="sales-monthly-leads"
+          series={monthlyBarSeries}
+          options={monthlyBarOptions}
+          height={260}
+        />
+      </div>
     </div>
   );
 }
@@ -580,7 +594,9 @@ export function SalesDashboardOverview() {
         </div>
       </PageFrame>
 
-      <DashboardAttendanceCard />
+      <div data-tour="sales-attendance">
+        <DashboardAttendanceCard />
+      </div>
 
       <SalesDashboardWidgets />
     </div>

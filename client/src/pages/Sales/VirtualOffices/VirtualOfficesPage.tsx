@@ -217,6 +217,7 @@ export default function VirtualOfficesPage() {
             <div className="flex flex-col gap-2 sm:flex-row">
               <button
                 type="button"
+                data-tour="vo-bulk-upload"
                 onClick={() => setBulkUploadType(activeTab === "collections" ? "payments" : "companies")}
                 className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-blue-50 hover:border-blue-200 text-slate-500 transition-all active:scale-95 shadow-sm"
                 title="Bulk Upload"
@@ -227,7 +228,7 @@ export default function VirtualOfficesPage() {
             </div>
           </div>
 
-          <div className="mb-8 mt-5 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div data-tour="vo-tabs" data-active-tab={activeTab} className="mb-8 mt-5 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             <button
               type="button"
               onClick={() => setActiveTab("companies")}
@@ -244,7 +245,7 @@ export default function VirtualOfficesPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8 shrink-0">
+          <div data-tour="vo-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8 shrink-0">
             {(activeTab === "companies" ? summaryCards : collectionCards).map((card) => {
               const Icon = card.icon;
               const labelToneClass = card.cardClass.includes("border-l")
@@ -267,7 +268,7 @@ export default function VirtualOfficesPage() {
             {activeTab === "companies" && (
               <React.Fragment>
                 <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 shrink-0 bg-slate-50/50">
-                  <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                  <div data-tour="vo-status-filters" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                     {["All Status", "Active", "Onboarding", "Expiring Soon", "Expired", "Cancelled"].map((status) => (
                       <button
                         key={status}
@@ -285,7 +286,7 @@ export default function VirtualOfficesPage() {
                   </div>
 
                   <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-                    <div className="relative flex-1 min-w-[180px]">
+                    <div data-tour="vo-search" className="relative flex-1 min-w-[180px]">
                       <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                       <input
                         type="text"
@@ -296,6 +297,7 @@ export default function VirtualOfficesPage() {
                       />
                     </div>
                     <select
+                      data-tour="vo-rent-status-filter"
                       className="w-full sm:w-auto px-3 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-700 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all cursor-pointer"
                       value={rentStatusFilter}
                       onChange={(e) => setRentStatusFilter(e.target.value)}
@@ -304,6 +306,7 @@ export default function VirtualOfficesPage() {
                     </select>
                     <button
                       type="button"
+                      data-tour="vo-add-btn"
                       onClick={openCreateModal}
                       className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
                     >
@@ -313,7 +316,7 @@ export default function VirtualOfficesPage() {
                 </div>
 
                 <div className="overflow-x-auto flex-1">
-                  <table className="w-full min-w-[1000px] text-left">
+                  <table data-tour="vo-companies-table" className="w-full min-w-[1000px] text-left">
                     <thead className="bg-white text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100">
                       <tr>
                         <th className="px-3.5 py-2 min-w-[220px]">Company</th>
@@ -418,7 +421,7 @@ export default function VirtualOfficesPage() {
             {activeTab === "collections" && (
               <React.Fragment>
                 <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 shrink-0 bg-slate-50/50">
-                  <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                  <div data-tour="vo-collection-status-filters" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                     {["All Rent Status", ...RENT_STATUS_OPTIONS.map((o) => o.value)].map((status) => (
                       <button
                         key={status}
@@ -436,7 +439,7 @@ export default function VirtualOfficesPage() {
                   </div>
 
                   <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-                    <div className="relative flex-1 min-w-[180px]">
+                    <div data-tour="vo-search" className="relative flex-1 min-w-[180px]">
                       <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                       <input
                         type="text"
@@ -448,6 +451,7 @@ export default function VirtualOfficesPage() {
                     </div>
                     <button
                       type="button"
+                      data-tour="vo-record-payment-btn"
                       onClick={() => setShowPaymentPicker(true)}
                       className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
                     >
@@ -457,7 +461,7 @@ export default function VirtualOfficesPage() {
                 </div>
 
                 <div className="overflow-x-auto flex-1">
-                  <table className="w-full min-w-[820px] text-left">
+                  <table data-tour="vo-collections-table" className="w-full min-w-[820px] text-left">
                     <thead className="bg-white text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100">
                       <tr>
                         <th className="px-3.5 py-2 min-w-[220px]">Company</th>

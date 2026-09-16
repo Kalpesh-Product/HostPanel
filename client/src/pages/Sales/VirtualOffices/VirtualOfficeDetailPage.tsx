@@ -178,7 +178,7 @@ export default function VirtualOfficeDetailPage() {
                   <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-0.5">{record.recordCode} · {record.serviceName || "Virtual Office"}</p>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2 shrink-0">
+              <div data-tour="vod-header-actions" className="flex flex-wrap gap-2 shrink-0">
                 <button onClick={() => setShowEditModal(true)} type="button" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900">
                   <Pencil size={13} /> Edit
                 </button>
@@ -195,7 +195,7 @@ export default function VirtualOfficeDetailPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
+            <div data-tour="vod-stats" className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
               {statCards.map((card) => {
                 const Icon = card.icon;
                 const labelToneClass = card.cardClass.includes("border-l")
@@ -213,7 +213,7 @@ export default function VirtualOfficeDetailPage() {
               })}
             </div>
 
-            <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            <div data-tour="vod-tabs" data-active-tab={activeTab} className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
@@ -226,7 +226,7 @@ export default function VirtualOfficeDetailPage() {
             </div>
 
             {activeTab === "profile" && (
-              <div className="space-y-4">
+              <div data-tour="vod-profile-details" className="space-y-4">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
                     <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><FileText size={14} /> Company Profile</h3>
@@ -270,7 +270,7 @@ export default function VirtualOfficeDetailPage() {
 
             {activeTab === "plan" && (
               <div className="space-y-4">
-                <div className="bg-white rounded-[2rem] border border-slate-100 p-5 shadow-sm">
+                <div data-tour="vod-plan-breakdown" className="bg-white rounded-[2rem] border border-slate-100 p-5 shadow-sm">
                   <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><LayoutGrid size={14} /> Desk &amp; Rental Breakdown</h3>
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <Calc label="Open Desks" value={`${record.openDesks || 0} × ${fmt(record.openDeskMonthlyRate)}/month`} sub={`= ${fmt(record.monthlyRent)}`} />
@@ -293,7 +293,7 @@ export default function VirtualOfficeDetailPage() {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-[2rem] border border-slate-100 p-5 shadow-sm">
+                <div data-tour="vod-plan-revenue" className="bg-white rounded-[2rem] border border-slate-100 p-5 shadow-sm">
                   <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2"><TrendingUp size={14} /> Revenue &amp; Contract Value</h3>
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <Calc label="Total Contract Amount" value={fmt(record.totalContract)} icon={Landmark} />
@@ -319,7 +319,7 @@ export default function VirtualOfficeDetailPage() {
             )}
 
             {activeTab === "payments" && (
-              <div className="bg-white rounded-[2rem] border border-slate-100 p-5 shadow-sm">
+              <div data-tour="vod-payments-table" className="bg-white rounded-[2rem] border border-slate-100 p-5 shadow-sm">
                 <div className="mb-4 flex items-center justify-between">
                   <h3 className="text-xs font-pmedium uppercase tracking-wider text-slate-900 flex items-center gap-2"><Receipt size={14} /> Rent Payments</h3>
                   <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Recorded from Rent Collections &amp; Payments</p>
@@ -376,7 +376,7 @@ export default function VirtualOfficeDetailPage() {
 
             {activeTab === "space-allocation" && (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                <div data-tour="vod-space-summary" className="grid grid-cols-1 gap-3 md:grid-cols-4">
                   <div className="flex flex-col items-center justify-center bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                     <MapPin className="mb-1 text-amber-500" size={22} />
                     <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mt-1">Area</p>
@@ -399,7 +399,7 @@ export default function VirtualOfficeDetailPage() {
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
+                <div data-tour="vod-space-details" className="grid gap-4 md:grid-cols-2">
                   <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                     <div className="p-4 border-b border-slate-100/60 bg-slate-50/50">
                       <p className="text-[10px] font-pmedium uppercase tracking-wider text-slate-900">Assigned Space Breakdown</p>
@@ -450,7 +450,7 @@ export default function VirtualOfficeDetailPage() {
                 </div>
 
                 {Array.isArray(record.space?.seats) && record.space.seats.length > 0 && (
-                  <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                  <div data-tour="vod-space-seats" className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                     <div className="p-4 border-b border-slate-100/60 bg-slate-50/50">
                       <p className="text-[10px] font-pmedium uppercase tracking-wider text-slate-900">Assigned Seats by Area</p>
                     </div>

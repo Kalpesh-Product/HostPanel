@@ -301,42 +301,58 @@ export function MaintenanceDashboardWidgets() {
         ) : null}
 
         {/* Overview — only the metrics that matter */}
+        <div data-tour="maintenance-overview">
         <WidgetSection layout={4} title="Overview" border normalCase>
           <StatCard icon={Activity} label="Uptime" value={`${uptimePercentage}%`} sub={`${totalSchedules} schedules tracked`} color="#1E3D73" route="/department-accesses/maintenance-department/amc-scheduler" />
           <StatCard icon={Wrench} label="Open Repair Logs" value={openRepairLogs} sub={`${repairLogs.length} logged total`} color="#ef4444" route="/department-accesses/maintenance-department/repair-logs" />
           <StatCard icon={AlertTriangle} label="Overdue Schedules" value={overdueSchedules} sub={`${dueSoonSchedules} due soon`} color="#dc2626" route="/department-accesses/maintenance-department/amc-scheduler" />
           <StatCard icon={Clock} label="Due Soon Schedules" value={dueSoonSchedules} sub={`${healthySchedules} healthy`} color="#f59e0b" route="/department-accesses/maintenance-department/amc-scheduler" />
         </WidgetSection>
+        </div>
 
-        {/* Repair log queue, AMC schedule pipeline and recently completed service */}
+        {/* Repair log queue, AMC schedule pipeline and recently completed service —
+            three unrelated widgets sharing a row purely for layout, so each gets
+            its own bounded anchor instead of the tour highlighting the whole row. */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <TeamLiveStatusCard department="maintenance" viewAllRoute="/department-accesses/maintenance-department/amc-scheduler" />
+          <div data-tour="maintenance-team-status">
+            <TeamLiveStatusCard department="maintenance" viewAllRoute="/department-accesses/maintenance-department/amc-scheduler" />
+          </div>
 
-          <DepartmentVisitorsCard department="maintenance" title="Maintenance Visitors" />
+          <div data-tour="maintenance-department-visitors">
+            <DepartmentVisitorsCard department="maintenance" title="Maintenance Visitors" />
+          </div>
 
-          <SectionCard title="Recent Repair Logs" linkLabel="View all" linkRoute="/department-accesses/maintenance-department/repair-logs">
-            {recentRepairLogs.length > 0 ? recentRepairLogs.map((log, index) => (
-              <RecentItem
-                key={log._id || log.repairLogCode || index}
-                title={log.assetName || "Asset"}
-                sub={truncateText(log.issueDescription || log.issueType || "Issue reported", 60)}
-                badge={repairStatusLabel(log)}
-                badgeColor={statusBadgeColor(repairStatusLabel(log))}
-                time={humanRelTime(log.createdAt || "")}
-              />
-            )) : (
-              <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No repair logs yet</p></div>
-            )}
-          </SectionCard>
+          <div data-tour="maintenance-recent-repair-logs">
+            <SectionCard title="Recent Repair Logs" linkLabel="View all" linkRoute="/department-accesses/maintenance-department/repair-logs">
+              {recentRepairLogs.length > 0 ? recentRepairLogs.map((log, index) => (
+                <RecentItem
+                  key={log._id || log.repairLogCode || index}
+                  title={log.assetName || "Asset"}
+                  sub={truncateText(log.issueDescription || log.issueType || "Issue reported", 60)}
+                  badge={repairStatusLabel(log)}
+                  badgeColor={statusBadgeColor(repairStatusLabel(log))}
+                  time={humanRelTime(log.createdAt || "")}
+                />
+              )) : (
+                <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No repair logs yet</p></div>
+              )}
+            </SectionCard>
+          </div>
         </div>
 
         {/* Quick links */}
+        <div data-tour="maintenance-quick-links">
         <WidgetSection layout={2} title="Quick Links" border normalCase>
           <QuickLink icon={ScanSearch} label="Repair Logs" description="Log & track repairs" route="/department-accesses/maintenance-department/repair-logs" color="#ef4444" />
           <QuickLink icon={CalendarClock} label="AMC Scheduler" description="Preventive servicing & alerts" route="/department-accesses/maintenance-department/amc-scheduler" color="#f59e0b" />
         </WidgetSection>
+        </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Active repair logs + schedule health, and resolved/closed logs +
+            repair-log-status each get their own bounded row/anchor instead of
+            being combined into one grid, so a tour step never spans two
+            unrelated recent-activity pairs. */}
+        <div data-tour="maintenance-active-repair-logs" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <SectionCard title="Active Repair Logs" linkLabel="View all" linkRoute="/department-accesses/maintenance-department/repair-logs">
             {activeRepairLogs.length > 0 ? activeRepairLogs.map((log, index) => (
               <RecentItem
@@ -359,42 +375,44 @@ export function MaintenanceDashboardWidgets() {
             colors={["#22c55e", "#f59e0b", "#ef4444"]}
             centerLabel="Schedules"
           />
-
-          {repairLogs.length > 0 ? (
-            <>
-              <SectionCard title="Resolved & Closed Logs" linkLabel="View all" linkRoute="/department-accesses/maintenance-department/repair-logs">
-                {resolvedRepairLogs.length > 0 ? resolvedRepairLogs.map((log, index) => (
-                  <RecentItem
-                    key={log._id || log.repairLogCode || index}
-                    title={log.assetName || "Asset"}
-                    sub={truncateText(log.resolutionNote || log.issueDescription || log.issueType || "Issue reported", 60)}
-                    badge={repairStatusLabel(log)}
-                    badgeColor={statusBadgeColor(repairStatusLabel(log))}
-                    time={humanRelTime(log.updatedAt || log.createdAt || "")}
-                  />
-                )) : (
-                  <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No resolved logs yet</p></div>
-                )}
-              </SectionCard>
-
-              <DonutWidget
-                title="Repair Log Status"
-                series={repairLogStatusDonut.series}
-                labels={repairLogStatusDonut.labels}
-                colors={repairLogStatusDonut.colors}
-                centerLabel="Logs"
-              />
-            </>
-          ) : null}
         </div>
 
-        <BarWidget
-          title="Monthly Repair Log Trend"
-          chartId="maintenance-monthly-trends"
-          series={monthlyBarSeries}
-          options={monthlyBarOptions}
-          height={260}
-        />
+        {repairLogs.length > 0 ? (
+          <div data-tour="maintenance-resolved-repair-logs" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <SectionCard title="Resolved & Closed Logs" linkLabel="View all" linkRoute="/department-accesses/maintenance-department/repair-logs">
+              {resolvedRepairLogs.length > 0 ? resolvedRepairLogs.map((log, index) => (
+                <RecentItem
+                  key={log._id || log.repairLogCode || index}
+                  title={log.assetName || "Asset"}
+                  sub={truncateText(log.resolutionNote || log.issueDescription || log.issueType || "Issue reported", 60)}
+                  badge={repairStatusLabel(log)}
+                  badgeColor={statusBadgeColor(repairStatusLabel(log))}
+                  time={humanRelTime(log.updatedAt || log.createdAt || "")}
+                />
+              )) : (
+                <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No resolved logs yet</p></div>
+              )}
+            </SectionCard>
+
+            <DonutWidget
+              title="Repair Log Status"
+              series={repairLogStatusDonut.series}
+              labels={repairLogStatusDonut.labels}
+              colors={repairLogStatusDonut.colors}
+              centerLabel="Logs"
+            />
+          </div>
+        ) : null}
+
+        <div data-tour="maintenance-repair-log-trend">
+          <BarWidget
+            title="Monthly Repair Log Trend"
+            chartId="maintenance-monthly-trends"
+            series={monthlyBarSeries}
+            options={monthlyBarOptions}
+            height={260}
+          />
+        </div>
     </div>
   );
 }
@@ -470,7 +488,9 @@ export function MaintenanceDashboardOverview() {
         </div>
       </PageFrame>
 
-      <DashboardAttendanceCard />
+      <div data-tour="maintenance-attendance">
+        <DashboardAttendanceCard />
+      </div>
 
       <MaintenanceDashboardWidgets />
     </div>
