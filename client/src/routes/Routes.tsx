@@ -94,6 +94,8 @@ import CompanyLeads from "../pages/Dashboard/FrontendDashboard/CompanyLeads";
 import NomadListing from "../pages/Dashboard/FrontendDashboard/NomadListing";
 import PocDetails from "../pages/Dashboard/FrontendDashboard/PocDetails";
 import NomadListingsOverview from "../pages/Dashboard/FrontendDashboard/NomadListingsOverview";
+import VerifyBusiness from "../pages/Dashboard/FrontendDashboard/VerifyBusiness";
+import VerifyBusinessPaymentResult from "../pages/Dashboard/FrontendDashboard/VerifyBusinessPaymentResult";
 import Services from "../pages/Services";
 import EditNomadListing from "../pages/Dashboard/FrontendDashboard/EditNomadListing";
 import ForgotPassword from "../pages/LoginPage/ForgotPassword";
@@ -553,6 +555,14 @@ export const routes = createBrowserRouter([
               {
                 path: "key-apps/wono-nomad",
                 element: <WonoNomad />,
+              },
+              {
+                path: "key-apps/verify-business",
+                element: <VerifyBusiness />,
+              },
+              {
+                path: "key-apps/verify-business/payment-result",
+                element: <VerifyBusinessPaymentResult />,
               },
               {
                 path: "key-apps/all-leads",

@@ -23,14 +23,6 @@ function formatVerificationExpiry(value) {
   return date.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
 }
 
-// Nomads FRONTEND base URL — local dev points this at the local Nomads
-// frontend server via VITE_NOMADS_FRONTEND_URL (see client/.env); once
-// deployed, unset/blank that var (or set it to https://www.wono.co) so it
-// falls back to production, same convention as MASTER_PANEL_BASE_URL below.
-const NOMADS_FRONTEND_BASE_URL =
-  String(import.meta.env.VITE_NOMADS_FRONTEND_URL || "").trim() ||
-  "https://www.wono.co";
-
 export default function NomadListingsOverview() {
   const axios = useAxiosPrivate();
   const navigate = useNavigate();
@@ -181,46 +173,13 @@ export default function NomadListingsOverview() {
     return Array.from(seen.entries()).map(([normalized, label]) => ({ normalized, label }));
   }, [nonDeletedListings]);
 
-  // "Verify Business" requires at least one listing that's both Master
-  // Status active (staff-approved) and Host Status public (actually shown
-  // on wono.co) — a listing lapsing later doesn't retroactively block
-  // anything, this only gates *starting* a verification request.
-  const eligibleListingForVerification = nonDeletedListings.find(
-    (l) => l.isActive && l.isPublic,
-  );
+  // Label only — the Verify Business page itself now shows eligibility and
+  // status per listing, so this button always opens it rather than gating
+  // the click here too.
   const verifiedListing = listings.find((l) => l.isVerified);
-  const canVerifyBusiness = Boolean(
-    verifiedListing || eligibleListingForVerification,
-  );
 
   const handleVerifyBusinessClick = () => {
-    if (verifiedListing) {
-      // Already verified (or has an in-progress request) — same self-serve
-      // page built for Nomads users handles status/renew/change-plan.
-      window.open(
-        `${NOMADS_FRONTEND_BASE_URL}/profile?tab=verification`,
-        "_blank",
-        "noopener,noreferrer",
-      );
-      return;
-    }
-    if (!eligibleListingForVerification) return;
-    const params = new URLSearchParams();
-    params.set("companyId", companyId);
-    const l = eligibleListingForVerification;
-    if (l.companyName) params.set("companyName", l.companyName);
-    if (l.country) params.set("country", l.country);
-    if (l.state) params.set("state", l.state);
-    if (l.city) params.set("city", l.city);
-    if (l.continent) params.set("continent", l.continent);
-    if (l.website) params.set("website", l.website);
-    if (l.registeredEntityName)
-      params.set("registeredEntityName", l.registeredEntityName);
-    window.open(
-      `${NOMADS_FRONTEND_BASE_URL}/verify-business?${params.toString()}`,
-      "_blank",
-      "noopener,noreferrer",
-    );
+    navigate("/key-apps/verify-business");
   };
 
   const toggleRequestedType = (normalized) => {
@@ -470,19 +429,12 @@ export default function NomadListingsOverview() {
                   <button
                     type="button"
                     onClick={handleVerifyBusinessClick}
-                    disabled={!canVerifyBusiness}
                     title={
-                      canVerifyBusiness
-                        ? verifiedListing
-                          ? "Manage your verification badge on Nomads"
-                          : "Verify your business on Nomads"
-                        : "Activate and publish at least one listing first"
+                      verifiedListing
+                        ? "Manage your verification badge on Nomads"
+                        : "Verify your business on Nomads"
                     }
-                    className={`px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm transition-all whitespace-nowrap border ${
-                      canVerifyBusiness
-                        ? "bg-white text-[#2563EB] border-[#2563EB]/30 hover:bg-blue-50"
-                        : "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-70"
-                    }`}
+                    className="px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm transition-all whitespace-nowrap border bg-white text-[#2563EB] border-[#2563EB]/30 hover:bg-blue-50"
                   >
                     <BadgeCheck size={13} strokeWidth={3} />{" "}
                     {verifiedListing ? "MANAGE VERIFICATION" : "VERIFY BUSINESS"}

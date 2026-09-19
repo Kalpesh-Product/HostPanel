@@ -1,7 +1,7 @@
 import { MdOutlineTravelExplore, MdOutlineRateReview } from "react-icons/md";
 import Card from "../../../components/Card";
 import PageFrame from "../../../components/Pages/PageFrame";
-import { ContactRound } from "lucide-react";
+import { ContactRound, BadgeCheck } from "lucide-react";
 
 const WonoNomad = () => {
   return (
@@ -22,7 +22,7 @@ const WonoNomad = () => {
           </div>
 
           {/* CARDS */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div data-tour="wono-nomad-listings">
               <Card
                 icon={<MdOutlineTravelExplore />}
@@ -42,6 +42,13 @@ const WonoNomad = () => {
                 icon={<ContactRound />}
                 title="Leads"
                 route="/key-apps/nomads-leads"
+              />
+            </div>
+            <div data-tour="wono-nomad-verify-business">
+              <Card
+                icon={<BadgeCheck />}
+                title="Verify Business"
+                route="/key-apps/verify-business"
               />
             </div>
           </div>

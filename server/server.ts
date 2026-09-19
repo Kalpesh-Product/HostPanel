@@ -24,6 +24,7 @@ import serviceRoutes from "./routes/serviceRoutes.js";
 import leadsRoutes from "./routes/leadsRoutes.js";
 import { createWebsiteLead } from "./controllers/leadsControllers.js";
 import listingRoutes from "./routes/listingRoutes.js";
+import verifyBusinessRoutes from "./routes/verifyBusinessRoutes.js";
 import hostUserRoutes from "./routes/hostUserRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
 import {
@@ -158,6 +159,7 @@ app.use("/api/nomad-listing-status", verifyJwt, blockWriteIfImpersonating, nomad
 app.use("/api/services", verifyJwt, blockWriteIfImpersonating, serviceRoutes);
 app.use("/api/leads", verifyJwt, blockWriteIfImpersonating, leadsRoutes);
 app.use("/api/listings", verifyJwt, blockWriteIfImpersonating, listingRoutes);
+app.use("/api/verify-business", verifyJwt, blockWriteIfImpersonating, verifyBusinessRoutes);
 app.use("/api/profile", verifyJwt, blockWriteIfImpersonating, hostUserRoutes);
 app.use("/api/review", verifyJwt, blockWriteIfImpersonating, reviewRoutes);
 app.use("/api/workspaces", verifyJwt, blockWriteIfImpersonating, workspaceRoutes);
