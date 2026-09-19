@@ -311,20 +311,13 @@ const BASIC_DEFAULT_IDS = new Set([
   "visitors_standard_type_standard",
   "wono-nomad",
   "website-builder",
-  "tech-website-builder",
   "website-leads",
   "website-review",
   "organization-management",
   "org_tab_users",
-  "org_tab_departments",
   "org_users_invite_member",
   "org_users_change_role",
   "org_users_toggle_access",
-  "org_departments_create",
-  "org_departments_edit",
-  "org_departments_assign_manager",
-  "org_departments_assign_acting_manager",
-  "org_departments_remove_acting_manager",
   "access-grants",
   // Analytics is a read-only rollup of whatever modules the workspace already
   // has enabled, so it ships with Basic and inherits upward to every tier.
@@ -333,6 +326,16 @@ const BASIC_DEFAULT_IDS = new Set([
 
 const PROFESSIONAL_DEFAULT_IDS = new Set([
   ...Array.from(BASIC_DEFAULT_IDS),
+  // Basic has no department access — the Tech Department's Website Builder and
+  // the Organization Management Departments tab (with its actions) are
+  // Professional+.
+  "tech-website-builder",
+  "org_tab_departments",
+  "org_departments_create",
+  "org_departments_edit",
+  "org_departments_assign_manager",
+  "org_departments_assign_acting_manager",
+  "org_departments_remove_acting_manager",
   "visitors_manage_external_clients",
   // Complete Visitor Management access: the rest of the start-page tabs and
   // New Frontdesk Action modes/subtabs, on top of Basic's Standard-only set.

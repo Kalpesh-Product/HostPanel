@@ -16,20 +16,13 @@ const BASIC_IDS = [
   // in server/config/workspaceModuleCatalog.ts.
   "wono-nomad",
   "website-builder",
-  "tech-website-builder",
   "website-leads",
   "website-review",
   "organization-management",
   "org_tab_users",
-  "org_tab_departments",
   "org_users_invite_member",
   "org_users_change_role",
   "org_users_toggle_access",
-  "org_departments_create",
-  "org_departments_edit",
-  "org_departments_assign_manager",
-  "org_departments_assign_acting_manager",
-  "org_departments_remove_acting_manager",
   "access-grants",
   // Read-only rollup of enabled modules — included with Basic, inherits to
   // every tier. Keep in lockstep with BASIC_DEFAULT_IDS on the server.
@@ -37,6 +30,15 @@ const BASIC_IDS = [
 ] as const;
 
 const PROFESSIONAL_EXTRA_IDS = [
+  // Basic has no department access — Tech Department's Website Builder and the
+  // Organization Management Departments tab (+ actions) are Professional+.
+  "tech-website-builder",
+  "org_tab_departments",
+  "org_departments_create",
+  "org_departments_edit",
+  "org_departments_assign_manager",
+  "org_departments_assign_acting_manager",
+  "org_departments_remove_acting_manager",
   "tickets",
   "meeting-room-system",
   "printouts",

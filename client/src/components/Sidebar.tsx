@@ -1124,7 +1124,6 @@ useEffect(() => {
     if (hasAnyOrgChild) {
       allowed.add("organization-management");
       allowed.add("org_tab_users");
-      allowed.add("org_tab_departments");
     }
     if (planLabel === "basic") {
       allowed.delete("workspace-settings");
@@ -1203,7 +1202,7 @@ useEffect(() => {
     const enabledNormalized = new Set(enabledRaw.map((item) => normalizeModuleToken(item)));
     const hasAnyOrgChildEnabled = Array.from(ORG_CHILD_KEYS).some((key) => enabledNormalized.has(key));
     if (hasAnyOrgChildEnabled) {
-      enabledRaw.push("organization-management", "org_tab_users", "org_tab_departments");
+      enabledRaw.push("organization-management", "org_tab_users");
     }
 
     return new Set(
