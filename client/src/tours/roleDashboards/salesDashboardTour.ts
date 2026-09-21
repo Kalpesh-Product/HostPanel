@@ -9,7 +9,7 @@ export const salesDashboardTour: BasicPageTour = {
     { selector: '[data-tour="sidebar"]', title: "Your workspace navigation", description: "Use the sidebar to move between the modules available to your role. Other page tours will focus only on their own functionality." },
     { selector: '[data-tour="breadcrumb"]', title: "Your current location", description: "The breadcrumb shows the active workspace section and page." },
     { selector: '[data-tour="workspace-switcher"]', title: "Switch workspaces", description: "If you belong to multiple workspaces, switch here. Your automatic guides are remembered across all of your units." },
-    { selector: '[data-notification-trigger]', title: "Workspace notifications", description: "Open notifications to review recent activity and updates requiring attention." },
+    { selector: '[data-notification-trigger]', title: "Unit notifications", description: "Open notifications to review recent activity and updates requiring attention." },
     { selector: '[data-tour="sales-attendance"]', title: "Clock in and out", description: "Log your attendance for the day directly from the dashboard." },
     { selector: '[data-tour="sales-overview"]', title: "Sales overview", description: "Live counts for website leads, tenant companies, pricing packages, contacted leads, and today's visitors. Select a card to open its complete module." },
     { selector: '[data-tour="sales-team-activity"]', title: "Team status and new leads", description: "Team Live Status shows who on Sales is currently working, Sales Visitors summarizes today's foot traffic, and Recent Website Leads lists the newest enquiries awaiting follow-up." },

@@ -9,7 +9,7 @@ export const maintenanceDashboardTour: BasicPageTour = {
     { selector: '[data-tour="sidebar"]', title: "Your workspace navigation", description: "Use the sidebar to move between the modules available to your role. Other page tours will focus only on their own functionality." },
     { selector: '[data-tour="breadcrumb"]', title: "Your current location", description: "The breadcrumb shows the active workspace section and page." },
     { selector: '[data-tour="workspace-switcher"]', title: "Switch workspaces", description: "If you belong to multiple workspaces, switch here. Your automatic guides are remembered across all of your units." },
-    { selector: '[data-notification-trigger]', title: "Workspace notifications", description: "Open notifications to review recent activity and updates requiring attention." },
+    { selector: '[data-notification-trigger]', title: "Unit notifications", description: "Open notifications to review recent activity and updates requiring attention." },
     { selector: '[data-tour="maintenance-attendance"]', title: "Clock in and out", description: "Track your working day right from the dashboard — clock in, take breaks, and clock out without leaving this page." },
     { selector: '[data-tour="maintenance-overview"]', title: "Operational overview", description: "Asset uptime, open repair logs, overdue AMC schedules, and schedules due soon — the numbers that need your attention first. Select a card to open its module." },
     { selector: '[data-tour="maintenance-team-status"]', title: "Team live status", description: "See who on the Maintenance team is currently working, on break, or off for the day." },

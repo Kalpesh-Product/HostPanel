@@ -73,7 +73,7 @@ const CUSTOM_PAGE_TOURS: CustomTourRoute[] = [
       { selector: '[data-tour="sidebar"]', title: "Your workspace navigation", description: "Use the sidebar to move between the modules available to your Custom-plan role. Other page tours will focus only on their own functionality." },
       { selector: '[data-tour="breadcrumb"]', title: "Your current location", description: "The breadcrumb shows the active workspace section and page." },
       { selector: '[data-tour="workspace-switcher"]', title: "Switch workspaces", description: "If you belong to multiple workspaces, switch here. Your automatic guides are remembered across all of your units." },
-      { selector: '[data-notification-trigger]', title: "Workspace notifications", description: "Open notifications to review recent activity and updates requiring attention." },
+      { selector: '[data-notification-trigger]', title: "Unit notifications", description: "Open notifications to review recent activity and updates requiring attention." },
       { selector: '[data-tour="custom-attendance"]', title: "Clock in and out", description: "Log your attendance for the day directly from the dashboard." },
       { selector: '[data-tour="custom-overview"]', title: "Founder overview", description: "Live, actionable numbers for the core modules your workspace uses most — tenants, bookings, tickets, visitors, leads, and leave requests. Select a card to open its complete module." },
       { selector: '[data-tour="custom-department-modules"]', title: "Department modules", description: "Every other enabled module — resources, housekeeping, maintenance, IT, HR, recruitment, and more — surfaces here as its own overview card and doubles as your entry point into that department's page." },

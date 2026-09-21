@@ -56,7 +56,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="sidebar"]', title: "Your workspace navigation", description: "Use the sidebar to move between the modules available to your Professional-plan role. Other page tours will focus only on their own functionality." },
       { selector: '[data-tour="breadcrumb"]', title: "Your current location", description: "The breadcrumb shows the active workspace section and page." },
       { selector: '[data-tour="workspace-switcher"]', title: "Switch workspaces", description: "If you belong to multiple workspaces, switch here. Your automatic guides are remembered across all of your units." },
-      { selector: '[data-notification-trigger]', title: "Workspace notifications", description: "Open notifications to review recent activity and updates requiring attention." },
+      { selector: '[data-notification-trigger]', title: "Unit notifications", description: "Open notifications to review recent activity and updates requiring attention." },
       { selector: '[data-tour="professional-plan"]', title: "Your Professional plan", description: "This strip confirms the current plan. Selecting it opens Custom-plan options for additional modules such as Finance, HR, AI tools, Maintenance, and IT." },
       { selector: '[data-tour="professional-overview"]', title: "Operational overview", description: "One live, actionable number per domain — tenants, today's bookings, open tickets, and today's visitors. Selecting a card opens its complete module." },
       { selector: '[data-tour="professional-quick-links"]', title: "Quick Links", description: "Open Tenant Companies, Meeting Rooms, Customer Support, Visitor Management, Website Builder, Organization, or Calendar directly." },
