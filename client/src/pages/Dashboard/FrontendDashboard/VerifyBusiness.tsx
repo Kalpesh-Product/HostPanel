@@ -5,12 +5,15 @@ import PageFrame from "../../../components/Pages/PageFrame";
 import { toast } from "sonner";
 import {
   BadgeCheck,
+  Ban,
   BadgeX,
   CheckCircle2,
   Clock,
+  CreditCard,
   ExternalLink,
   FileText,
   Loader2,
+  RefreshCw,
   Target,
   XCircle,
 } from "lucide-react";
@@ -23,7 +26,7 @@ type Tab = "listings" | "status" | "history";
 const TAB_LABELS: Record<Tab, string> = {
   listings: "Listings",
   status: "Status",
-  history: "History",
+  history: "Payment History",
 };
 
 function getInitials(value: string) {
@@ -201,11 +204,14 @@ const VerifyBusiness = () => {
     });
   };
 
-  const enableLabel = (item: any) => {
-    if (item.isVerified) return "Enable";
-    if (reqStatus === "pending") return "Pending Review";
-    if (canPay) return "Pay Now";
-    return "Enable";
+  const enableTitle = (item: any) => {
+    if (item.isVerified) return "Enable - show the verified badge on this listing";
+    if (reqStatus === "pending")
+      return "Pending review - see the Status tab";
+    if (firstPaymentDue)
+      return `Pay Now - ${tierLabel(verification?.requestedTier)} plan`;
+    if (canPay) return "Approved - choose a plan and pay";
+    return "Enable - submit this business for verification";
   };
 
   return (
@@ -246,17 +252,17 @@ const VerifyBusiness = () => {
                 </div>
               </div>
 
-              {/* TABS */}
-              <div className="flex gap-1 border-b border-slate-200/70">
+              {/* TABS - same pill style as the shared TabLayout */}
+              <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
                 {(Object.keys(TAB_LABELS) as Tab[]).map((key) => (
                   <button
                     key={key}
                     type="button"
                     onClick={() => setTab(key)}
-                    className={`px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-wider border-b-2 -mb-px transition-colors ${
+                    className={`flex-1 min-w-[120px] rounded-xl px-4 py-2 text-center text-[10px] font-pmedium uppercase tracking-widest transition-all ${
                       tab === key
-                        ? "border-[#2563EB] text-[#2563EB]"
-                        : "border-transparent text-slate-500 hover:text-slate-800"
+                        ? "bg-[#2563EB] text-white shadow-sm"
+                        : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
                     }`}
                   >
                     {TAB_LABELS[key]}
@@ -364,58 +370,50 @@ const VerifyBusiness = () => {
                                 <td className="px-5 py-4 whitespace-nowrap text-center">
                                   {!eligible ? (
                                     <span
-                                      title="Activate and publish this listing first"
-                                      className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider"
+                                      title="Not eligible - activate and publish this listing first"
+                                      className="inline-flex p-1.5 text-slate-300"
                                     >
-                                      Not Eligible
+                                      <Ban size={15} strokeWidth={2.5} />
                                     </span>
                                   ) : (
-                                    <div className="inline-flex items-center gap-2">
+                                    <div className="inline-flex items-center justify-center gap-1.5">
                                       {badgeVisible ? (
                                         <button
                                           type="button"
                                           disabled={isMutatingThisRow}
                                           onClick={() => handleDisableClick(item)}
-                                          title="Hide the verified badge on this listing"
-                                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-pmedium text-[10px] uppercase tracking-wider border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 transition-all disabled:opacity-50"
+                                          title="Disable - hide the verified badge on this listing"
+                                          aria-label="Disable verified badge"
+                                          className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-all disabled:opacity-50"
                                         >
                                           {isMutatingThisRow ? (
-                                            <Loader2 size={12} className="animate-spin" />
+                                            <Loader2 size={15} className="animate-spin" />
                                           ) : (
-                                            <BadgeX size={12} />
+                                            <BadgeX size={15} strokeWidth={2.5} />
                                           )}
-                                          Disable
                                         </button>
                                       ) : (
                                         <button
                                           type="button"
                                           disabled={isMutatingThisRow}
                                           onClick={() => handleEnableClick(item)}
-                                          title={
-                                            item.isVerified
-                                              ? "Show the verified badge on this listing"
-                                              : pendingReview
-                                                ? "Your request is under review — see the Status tab"
-                                                : canPay
-                                                  ? firstPaymentDue
-                                                    ? `Pay for your ${tierLabel(verification?.requestedTier)} plan`
-                                                    : "Approved — choose a plan and pay"
-                                                  : "Submit this business for verification"
-                                          }
-                                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-pmedium text-[10px] uppercase tracking-wider border transition-all disabled:opacity-50 ${
+                                          title={enableTitle(item)}
+                                          aria-label={enableTitle(item)}
+                                          className={`p-1.5 rounded-lg transition-all disabled:opacity-50 ${
                                             pendingReview
-                                              ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                                              : "border-[#2563EB]/30 bg-white text-[#2563EB] hover:bg-blue-50"
+                                              ? "bg-amber-50 text-amber-600 hover:bg-amber-100"
+                                              : "bg-blue-50 text-[#2563EB] hover:bg-blue-100"
                                           }`}
                                         >
                                           {isMutatingThisRow ? (
-                                            <Loader2 size={12} className="animate-spin" />
+                                            <Loader2 size={15} className="animate-spin" />
                                           ) : pendingReview ? (
-                                            <Clock size={12} />
+                                            <Clock size={15} strokeWidth={2.5} />
+                                          ) : firstPaymentDue && !item.isVerified ? (
+                                            <CreditCard size={15} strokeWidth={2.5} />
                                           ) : (
-                                            <BadgeCheck size={12} />
+                                            <BadgeCheck size={15} strokeWidth={2.5} />
                                           )}
-                                          {enableLabel(item)}
                                         </button>
                                       )}
                                       {item.isVerified && (
@@ -423,10 +421,11 @@ const VerifyBusiness = () => {
                                           type="button"
                                           disabled={isMutatingThisRow}
                                           onClick={() => openPlanModal()}
-                                          title="Renew or change this business's verification plan"
-                                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-pmedium text-[10px] uppercase tracking-wider border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-50"
+                                          title="Renew / Change Plan"
+                                          aria-label="Renew or change plan"
+                                          className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all disabled:opacity-50"
                                         >
-                                          Renew / Change Plan
+                                          <RefreshCw size={15} strokeWidth={2.5} />
                                         </button>
                                       )}
                                     </div>
