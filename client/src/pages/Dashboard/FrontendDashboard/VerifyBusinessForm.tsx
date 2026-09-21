@@ -139,7 +139,11 @@ const VerifyBusinessForm = ({
       ? String(parsedMobile.nationalNumber)
       : String(source.mobile || "").replace(/\D/g, ""),
   );
-  const [tier, setTier] = useState(previous?.requestedTier || "1m");
+  const [tier, setTier] = useState(
+    TIER_OPTIONS.some((t) => t.value === previous?.requestedTier)
+      ? previous.requestedTier
+      : "1m",
+  );
   const [files, setFiles] = useState<Record<string, File | null>>({});
   const [removedExisting, setRemovedExisting] = useState<Record<string, boolean>>(
     {},
@@ -611,7 +615,7 @@ const VerifyBusinessForm = ({
             <label className={labelClass}>
               Plan — you'll pay for this plan once your request is approved
             </label>
-            <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="mt-2 grid max-w-sm grid-cols-2 gap-3">
               {TIER_OPTIONS.map((t) => (
                 <button
                   key={t.value}

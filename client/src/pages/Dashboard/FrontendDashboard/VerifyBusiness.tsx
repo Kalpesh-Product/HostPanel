@@ -169,7 +169,11 @@ const VerifyBusiness = () => {
   }
 
   const openPlanModal = (tier?: string) => {
-    setSelectedTier(tier || verification?.activeTier || verification?.requestedTier || "1m");
+    // Retired plans (3m / 6m) on older records fall back to the first plan.
+    const preferred = tier || verification?.activeTier || verification?.requestedTier;
+    setSelectedTier(
+      TIER_OPTIONS.some((t) => t.value === preferred) ? preferred : TIER_OPTIONS[0].value,
+    );
     setPlanModalOpen(true);
   };
 

@@ -165,10 +165,10 @@ export const submitVerifyBusinessRequest = async (req, res) => {
 
     const body = req.body || {};
     const { requestedTier } = body;
-    if (!["1m", "3m", "6m", "1y"].includes(requestedTier)) {
+    if (!["1m", "1y"].includes(requestedTier)) {
       return res
         .status(400)
-        .json({ message: "requestedTier must be one of 1m, 3m, 6m, 1y" });
+        .json({ message: "requestedTier must be one of 1m, 1y" });
     }
 
     const requiredText = [
@@ -289,10 +289,10 @@ export const payVerifyBusiness = async (req, res) => {
     const { effectiveNomadsCompanyId } = context;
 
     const { requestedTier } = req.body || {};
-    if (!["1m", "3m", "6m", "1y"].includes(requestedTier)) {
+    if (!["1m", "1y"].includes(requestedTier)) {
       return res
         .status(400)
-        .json({ message: "requestedTier must be one of 1m, 3m, 6m, 1y" });
+        .json({ message: "requestedTier must be one of 1m, 1y" });
     }
 
     const response = await axios.post(
