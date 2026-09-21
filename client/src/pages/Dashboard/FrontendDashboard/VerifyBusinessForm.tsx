@@ -30,7 +30,7 @@ interface VerifyBusinessFormProps {
 const ALLOWED_EXTENSIONS = ["pdf", "jpg", "jpeg", "png", "webp"];
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
-const ROLE_OPTIONS = [
+export const ROLE_OPTIONS = [
   "Owner",
   "Founder / Co-Founder",
   "CEO",

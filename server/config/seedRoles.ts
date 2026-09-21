@@ -138,7 +138,7 @@ export const migrateLegacyStringDepartments = async () => {
 
 export const seedSystemRoles = async () => {
   try {
-    await dropLegacyIndexes();
+    // await dropLegacyIndexes();
     const defaultRoles = [
       { name: "founder", isSystemRole: true, workspaceId: null, permissions: ["*"] },
       { name: "super_admin", isSystemRole: true, workspaceId: null, permissions: ["*"] },

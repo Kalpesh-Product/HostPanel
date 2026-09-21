@@ -13,6 +13,12 @@ import {
   requestNomadListingRecovery,
   setListingVisibility,
 } from "../controllers/listingControllers.js";
+import {
+  getExistingCompanyClaimStatus,
+  getExistingCompanyListings,
+  searchExistingCompanies,
+  submitExistingCompanyClaim,
+} from "../controllers/existingCompanyClaimControllers.js";
 const router = Router();
 
 router.post("/add-company-listing", upload.any(), createCompanyListing);
@@ -24,6 +30,11 @@ router.patch("/request-listing-recovery", requestNomadListingRecovery);
 router.get("/get-companies-listings", getAllCompanyListings);
 router.get("/get-company-listings", getCompanyListings);
 router.post("/request-companies-listing", requestCompaniesListing);
+
+router.get("/existing-company/search", searchExistingCompanies);
+router.get("/existing-company/status", getExistingCompanyClaimStatus);
+router.get("/existing-company/:nomadsCompanyId/listings", getExistingCompanyListings);
+router.post("/existing-company/claim", upload.any(), submitExistingCompanyClaim);
 
 export default router;
 

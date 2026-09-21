@@ -162,6 +162,32 @@ const hostCompanySchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    // Host-initiated request to be linked to an existing Companies-page
+    // company (whole-company transfer). Staff approve via the master panel's
+    // Transfer action, which flips status to "approved".
+    existingCompanyClaim: {
+      status: {
+        type: String,
+        enum: ["", "pending", "approved", "rejected"],
+        default: "",
+      },
+      nomadsCompanyId: { type: String, trim: true, default: "" },
+      nomadsCompanyName: { type: String, trim: true, default: "" },
+      listingCount: { type: Number, default: 0 },
+      fullName: { type: String, trim: true, default: "" },
+      email: { type: String, trim: true, default: "" },
+      mobile: { type: String, trim: true, default: "" },
+      role: { type: String, trim: true, default: "" },
+      registeredCompanyName: { type: String, trim: true, default: "" },
+      documents: {
+        type: [{ label: String, url: String, id: String }],
+        default: [],
+      },
+      requestedAt: { type: Date, default: null },
+      reviewedAt: { type: Date, default: null },
+      reviewedBy: { type: String, trim: true, default: "" },
+      rejectionReason: { type: String, trim: true, default: "" },
+    },
   },
   { timestamps: true, collection: "hostleadcompanies" },
 );

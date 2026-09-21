@@ -170,29 +170,57 @@ export const getLeads = async (req, res, next) => {
     }));
 
     try {
-      const leads = await axios.get(
-        nomadsApiUrl("/api/company/leads"),
-        {
-          params: {
-            companyId,
-            isEscalated: true,
-            workspaceId: targetWorkspaceId,
-          },
-          // Without a bound, a slow/unresponsive Nomads backend blocks this
-          // request indefinitely — already caught below and falls back to
-          // mappedLocal, so a short timeout just makes that fallback fast.
-          timeout: 5000,
-        },
+      // Nomads leads are company-scoped (see the note above): a listing that
+      // was Transferred from an existing company carries the linked Nomads
+      // companyId on its leads, while the escalation stamps this host's own
+      // companyId as escalatedHostCompanyId — so ask for both. Workspace is
+      // deliberately not a filter here: a host with several workspaces would
+      // otherwise miss leads escalated to a different one than is open.
+      const nomadsCompanyIds = [companyId];
+      if (isNomadsScope) {
+        const ownCompany = await Company.findOne({ companyId })
+          .select("linkedNomadsCompanyId")
+          .lean()
+          .exec();
+        const linkedId = sanitizeValue(ownCompany?.linkedNomadsCompanyId);
+        if (linkedId && linkedId !== companyId) nomadsCompanyIds.push(linkedId);
+      }
+
+      const responses = await Promise.all(
+        nomadsCompanyIds.map((id) =>
+          axios.get(nomadsApiUrl("/api/company/leads"), {
+            params: {
+              companyId: id,
+              isEscalated: true,
+              ...(isNomadsScope ? {} : { workspaceId: targetWorkspaceId }),
+            },
+            // Without a bound, a slow/unresponsive Nomads backend blocks this
+            // request indefinitely — already caught below and falls back to
+            // mappedLocal, so a short timeout just makes that fallback fast.
+            timeout: 5000,
+          }),
+        ),
       );
-      const rawRemote = Array.isArray(leads?.data)
-        ? leads.data
-        : Array.isArray(leads?.data?.leads)
-          ? leads.data.leads
-          : [];
-      const escalatedRemote = filterEscalatedLeadsForWorkspace(
-        rawRemote,
-        targetWorkspaceId,
-      );
+
+      const seen = new Set();
+      const rawRemote = responses
+        .flatMap((response) =>
+          Array.isArray(response?.data)
+            ? response.data
+            : Array.isArray(response?.data?.leads)
+              ? response.data.leads
+              : [],
+        )
+        .filter((lead) => {
+          const key = String(lead?._id || "");
+          if (!key || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+
+      const escalatedRemote = isNomadsScope
+        ? rawRemote.filter((lead) => lead?.isEscalated === true)
+        : filterEscalatedLeadsForWorkspace(rawRemote, targetWorkspaceId);
       const remote = filterLeadsByScope(escalatedRemote, leadScope).sort((a, b) => {
         const aDate = new Date(a?.recievedDate || a?.receivedDate || a?.createdAt || 0).getTime();
         const bDate = new Date(b?.recievedDate || b?.receivedDate || b?.createdAt || 0).getTime();

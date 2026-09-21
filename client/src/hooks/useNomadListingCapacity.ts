@@ -3,6 +3,15 @@ import useAxiosPrivate from "./useAxiosPrivate";
 
 export type NomadListingPlan = "basic" | "professional" | "custom";
 
+// Nomads backend the listings are read from. Falls back to the live site when
+// VITE_NOMADS_API_URL is unset; set it to the local Nomads backend (e.g.
+// http://localhost:3000) to test against a local database. A trailing slash
+// or "/api" is tolerated either way.
+export const getNomadsApiBase = () =>
+  (String(import.meta.env.VITE_NOMADS_API_URL || "").trim() || "https://wono.co")
+    .replace(/\/+$/, "")
+    .replace(/\/api$/i, "");
+
 // Basic: 2 product types, 4 listings total. Professional: 3 product types,
 // 9 listings total. Listings can be distributed across the allowed product
 // types however the host likes (e.g. 3+1, or 3+3+3) — TYPE_LIMITS only gates
@@ -38,6 +47,9 @@ const readStoredPlan = (): NomadListingPlan => {
   }
 };
 
+// Shared with the claim modal / listings page so the status is fetched once.
+export const EXISTING_COMPANY_CLAIM_QUERY_KEY = ["existing-company-claim-status"];
+
 export const normalizeNomadListingType = (value: unknown) =>
   String(value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -48,6 +60,14 @@ export const getNomadListingLimitMessage = (
   limit === null
     ? ""
     : `${plan === "professional" ? "Professional" : "Basic"} plan allows only ${limit} Nomad listings. Delete one to add another.`;
+
+export const getNomadListingEnabledLimitMessage = (
+  plan: NomadListingPlan,
+  limit: number | null,
+) =>
+  limit === null
+    ? ""
+    : `Disable an active listing to enable this one — the ${plan === "professional" ? "Professional" : "Basic"} plan allows only ${limit} enabled listings at a time.`;
 
 export const getNomadListingTypeLimitMessage = (
   plan: NomadListingPlan,
@@ -84,7 +104,7 @@ export default function useNomadListingCapacity(companyId: string) {
     queryFn: async () => {
       try {
         const response = await axios.get(
-          `https://wono.co/api/company/get-listings/${companyId}`,
+          `${getNomadsApiBase()}/api/company/get-listings/${companyId}`,
           {
             headers: {
               "Cache-Control": "no-cache, no-store, must-revalidate",
@@ -117,6 +137,13 @@ export default function useNomadListingCapacity(companyId: string) {
   const used = nonDeletedListings.length;
   const remaining = limit === null ? null : Math.max(limit - used, 0);
   const isAtLimit = limit !== null && used >= limit;
+  // The plan limit also caps how many listings can be ENABLED (visible) at
+  // once. A company that came over via Transfer can hold more listings than
+  // its plan allows — all shown, but only `limit` of them switched on.
+  const enabledCount = nonDeletedListings.filter(
+    (listing: { isPublic?: boolean }) => Boolean(listing?.isPublic),
+  ).length;
+  const isAtEnabledLimit = limit !== null && enabledCount >= limit;
   const addedTypes = new Set(
     nonDeletedListings.map((listing: { companyType?: string }) =>
       normalizeNomadListingType(listing?.companyType),
@@ -136,6 +163,8 @@ export default function useNomadListingCapacity(companyId: string) {
     used,
     remaining,
     isAtLimit,
+    enabledCount,
+    isAtEnabledLimit,
     listings,
     addedTypes,
     typeLimit,
@@ -145,6 +174,7 @@ export default function useNomadListingCapacity(companyId: string) {
     isPending: isPlanPending || isListingsPending,
     refetchListings,
     limitMessage: getNomadListingLimitMessage(plan, limit),
+    enabledLimitMessage: getNomadListingEnabledLimitMessage(plan, limit),
     typeLimitMessage: getNomadListingTypeLimitMessage(plan, typeLimit),
   };
 }

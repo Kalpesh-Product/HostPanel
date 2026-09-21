@@ -751,6 +751,28 @@ export const setListingVisibility = async (req, res) => {
       });
     }
 
+    // The plan limit governs how many listings can be enabled (visible) at
+    // once — not how many exist. A company that came over via Transfer can
+    // hold more listings than its plan allows; only `limit` of them can be on.
+    if (isPublic && !listing.isPublic) {
+      const selectedPlan = await getNomadListingPlan(String(req.user));
+      const enabledLimit =
+        selectedPlan === "custom" ? null : selectedPlan === "professional" ? 9 : 4;
+      const enabledCount = existingListings.filter(
+        (l) => !l?.isDeleted && l?.isPublic,
+      ).length;
+      if (enabledLimit !== null && enabledCount >= enabledLimit) {
+        return res.status(409).json({
+          code: "NOMAD_ENABLED_LIMIT_REACHED",
+          message:
+            "Disable an active listing to enable this one — your plan allows only " +
+            `${enabledLimit} enabled listings at a time.`,
+          limit: enabledLimit,
+          enabled: enabledCount,
+        });
+      }
+    }
+
     try {
       await axios.patch(`${NOMADS_API_BASE_URL}/set-public-status`, {
         businessId: normalizedBusinessId,

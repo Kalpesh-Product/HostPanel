@@ -13,6 +13,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import useAuth from "../../../hooks/useAuth";
 import useNomadListingCapacity, {
+  getNomadsApiBase,
   normalizeNomadListingType,
 } from "../../../hooks/useNomadListingCapacity";
 
@@ -263,7 +264,7 @@ const EditNomadListing = () => {
     enabled: !!companyId && !!businessId,
     queryFn: async () => {
       const res = await axios.get(
-        `https://wono.co/api/company/get-listings/${companyId}?companyType=${companyType}`,
+        `${getNomadsApiBase()}/api/company/get-listings/${companyId}?companyType=${companyType}`,
       );
       const all = Array.isArray(res.data) ? res.data : [];
       return all.find((x) => x.businessId === businessId) || null;

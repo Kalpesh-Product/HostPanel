@@ -1,12 +1,15 @@
 // @ts-nocheck
 import { useMemo, useState } from "react";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import ExistingCompanyClaimModal, {
+  CLAIM_STATUS_QUERY_KEY,
+} from "./ExistingCompanyClaimModal";
 import PageFrame from "../../../components/Pages/PageFrame";
 import { useNavigate } from "react-router-dom";
 import useAuth from "../../../hooks/useAuth";
 import { toast } from "sonner";
-import { AlertTriangle, BadgeCheck, CheckCircle2, Edit3, Eye, Globe, Layers, ListChecks, Loader2, Plus, RotateCcw, Search, Target, Trash2, XCircle } from "lucide-react";
+import { AlertTriangle, BadgeCheck, Building2, CheckCircle2, Edit3, ExternalLink, Eye, Globe, Layers, ListChecks, Loader2, Plus, RotateCcw, Search, Target, Trash2, XCircle } from "lucide-react";
 import { statusPillClass } from '../../../lib/status-pill';
 import useNomadListingCapacity, {
   normalizeNomadListingType,
@@ -14,6 +17,25 @@ import useNomadListingCapacity, {
 
 function getInitials(value) {
   return String(value || "").trim().split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "N";
+}
+
+// Public page for a listing on wono.co — same URL shape the Nomads site itself
+// uses as the canonical fallback (name in the path, type as a query param).
+// City/country ride along because a cold page load has no router state: the
+// Nomads header would otherwise fall back to the visitor's last remembered
+// search (e.g. "Goa Events") instead of the listing's own city.
+function getLiveListingUrl(item) {
+  const name = String(item?.companyName || "").trim();
+  if (!name) return "";
+  const params = new URLSearchParams();
+  const type = String(item?.companyType || "").trim();
+  const city = String(item?.city || "").trim();
+  const country = String(item?.country || "").trim();
+  if (type) params.set("companyType", type);
+  if (city) params.set("state", city);
+  if (country) params.set("country", country);
+  const query = params.toString();
+  return `https://wono.co/listings/${encodeURIComponent(name)}${query ? `?${query}` : ""}`;
 }
 
 function formatVerificationExpiry(value) {
@@ -46,6 +68,33 @@ export default function NomadListingsOverview() {
       ownCompanyId &&
       user.effectiveNomadsCompanyId !== ownCompanyId,
   );
+
+  const [showClaimModal, setShowClaimModal] = useState(false);
+
+  // Host-initiated claim on an existing Companies-page company — drives the
+  // "Verify Listings" button label (pending / rejected) below.
+  const { data: claimStatus } = useQuery({
+    queryKey: CLAIM_STATUS_QUERY_KEY,
+    queryFn: async () => (await axios.get("/api/listings/existing-company/status")).data,
+  });
+
+  // Once staff have created this company's Companies entry, "request to be
+  // listed" is done — don't keep offering it. Same proxy the website builder
+  // uses; a 404 just means no record yet.
+  const { data: nomadLinkMeta } = useQuery({
+    queryKey: ["nomad-listing-status", ownCompanyId],
+    enabled: Boolean(ownCompanyId) && !isLinkedToExistingCompany,
+    retry: false,
+    queryFn: async () => {
+      try {
+        return (await axios.get(`/api/nomad-listing-status/${encodeURIComponent(ownCompanyId)}`)).data;
+      } catch (error) {
+        if (error?.response?.status === 404) return null;
+        throw error;
+      }
+    },
+  });
+  const alreadyInCompanies = Boolean(nomadLinkMeta?.alreadyInCompanies);
 
   const { mutate: requestCompaniesListing, isPending: isRequesting } = useMutation({
     mutationFn: async () => {
@@ -143,6 +192,9 @@ export default function NomadListingsOverview() {
     listings,
     limit,
     used: totalListings,
+    enabledCount,
+    isAtEnabledLimit,
+    enabledLimitMessage,
     remaining,
     isAtLimit,
     isPending,
@@ -258,8 +310,39 @@ export default function NomadListingsOverview() {
             </div>
           </div>
 
+          {/* VERIFY EXISTING LISTINGS - STATUS */}
+          {claimStatus?.status === "pending" && (
+            <div className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-blue-200 bg-blue-50">
+              <div className="font-pmedium text-slate-700">
+                Verification pending — your claim on <b>{claimStatus.nomadsCompanyName || "the selected company"}</b>
+                {claimStatus.listingCount ? ` (${claimStatus.listingCount} listings)` : ""} is with our team.
+              </div>
+            </div>
+          )}
+          {claimStatus?.status === "rejected" && !claimStatus?.linked && (
+            <div className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-rose-200 bg-rose-50">
+              <div className="font-pmedium text-slate-700">
+                Verification rejected
+                {claimStatus.rejectionReason ? `: ${claimStatus.rejectionReason}` : "."} You can correct the details and submit again.
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowClaimModal(true)}
+                className="bg-[#2563EB] text-white px-4 py-2 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all whitespace-nowrap"
+              >
+                Resubmit
+              </button>
+            </div>
+          )}
+          {claimStatus?.status === "approved" && (
+            <div className="flex items-center gap-2 p-4 rounded-2xl border border-emerald-200 bg-emerald-50 font-pmedium text-slate-700">
+              <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+              Verification approved — the listings of <b>{claimStatus.nomadsCompanyName || "your company"}</b> are now part of your account.
+            </div>
+          )}
+
           {/* REQUEST BANNER */}
-          {!isLinkedToExistingCompany && !!listings.length && (
+          {!isLinkedToExistingCompany && !claimStatus?.linked && !alreadyInCompanies && !!listings.length && (
             <div data-tour="nomad-request-banner" className="flex flex-col gap-3 p-4 rounded-2xl border border-blue-200 bg-blue-50">
               <div className="flex items-center justify-between gap-4">
                 <div className="font-pmedium text-gray-700">
@@ -400,7 +483,7 @@ export default function NomadListingsOverview() {
                   <div className="text-[11px] font-pmedium text-slate-500 whitespace-nowrap">
                     {limit === null
                       ? `${totalListings} listings added · Unlimited plan`
-                      : `${totalListings}/${limit} listings · ${typeLimit === null ? usedTypes : `${usedTypes}/${typeLimit}`} product types`}
+                      : `${totalListings}/${limit} listings · ${enabledCount}/${limit} enabled · ${typeLimit === null ? usedTypes : `${usedTypes}/${typeLimit}`} product types`}
                   </div>
                   <div data-tour="nomad-search" className="relative flex-1 min-w-[180px]">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
@@ -426,6 +509,21 @@ export default function NomadListingsOverview() {
                   >
                     <Plus size={13} strokeWidth={3} /> ADD LISTING
                   </button>
+                  {!isLinkedToExistingCompany && !claimStatus?.linked && (
+                    <button
+                      type="button"
+                      onClick={() => setShowClaimModal(true)}
+                      title="Already listed on wono.co? Find your company, verify its listings and bring them into this account"
+                      className="px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm transition-all whitespace-nowrap border bg-white text-[#2563EB] border-[#2563EB]/30 hover:bg-blue-50"
+                    >
+                      <Building2 size={13} strokeWidth={3} />{" "}
+                      {claimStatus?.status === "pending"
+                        ? "VERIFICATION PENDING"
+                        : claimStatus?.status === "rejected"
+                          ? "RESUBMIT VERIFICATION"
+                          : "VERIFY EXISTING LISTINGS ON WONO.CO"}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={handleVerifyBusinessClick}
@@ -555,6 +653,17 @@ export default function NomadListingsOverview() {
                               </div>
                             ) : (
                               <div className="flex items-center justify-center gap-1.5">
+                                {item.isActive && item.isPublic && getLiveListingUrl(item) ? (
+                                  <a
+                                    href={getLiveListingUrl(item)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title="Open this listing live on wono.co"
+                                    className="p-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-all"
+                                  >
+                                    <ExternalLink size={15} strokeWidth={2.5} />
+                                  </a>
+                                ) : null}
                                 <button
                                   type="button"
                                   onClick={() => handleView(item)}
@@ -574,12 +683,18 @@ export default function NomadListingsOverview() {
                                 <button
                                   type="button"
                                   disabled={!item.isActive || isTogglingVisibility}
-                                  onClick={() =>
+                                  onClick={() => {
+                                    // Plan limit caps how many listings are enabled
+                                    // at once — the server enforces it too.
+                                    if (!item.isPublic && isAtEnabledLimit) {
+                                      toast.error(enabledLimitMessage, { position: "bottom-right" });
+                                      return;
+                                    }
                                     toggleVisibility({
                                       businessId: item.businessId,
                                       isPublic: !item.isPublic,
-                                    })
-                                  }
+                                    });
+                                  }}
                                   title={
                                     !item.isActive
                                       ? "Waiting on our team's review — you can control visibility once this listing is activated"
@@ -621,6 +736,10 @@ export default function NomadListingsOverview() {
           )}
         </div>
       </PageFrame>
+
+      {showClaimModal ? (
+        <ExistingCompanyClaimModal onClose={() => setShowClaimModal(false)} />
+      ) : null}
 
       {blockedDeleteListing ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
