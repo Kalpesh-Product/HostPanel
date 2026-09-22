@@ -9,7 +9,8 @@ import PageFrame from "../../../components/Pages/PageFrame";
 import { useNavigate } from "react-router-dom";
 import useAuth from "../../../hooks/useAuth";
 import { toast } from "sonner";
-import { AlertTriangle, BadgeCheck, Building2, CheckCircle2, Edit3, ExternalLink, Eye, Globe, Layers, ListChecks, Loader2, Plus, RotateCcw, Search, Target, Trash2, XCircle } from "lucide-react";
+import { AlertTriangle, Building2, CheckCircle2, Edit3, ExternalLink, Eye, Globe, Layers, ListChecks, Loader2, Plus, RotateCcw, Search, Target, Trash2, XCircle } from "lucide-react";
+import { MdVerified } from "react-icons/md";
 import { statusPillClass } from '../../../lib/status-pill';
 import useNomadListingCapacity, {
   normalizeNomadListingType,
@@ -534,7 +535,7 @@ export default function NomadListingsOverview() {
                     }
                     className="px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm transition-all whitespace-nowrap border bg-white text-[#2563EB] border-[#2563EB]/30 hover:bg-blue-50"
                   >
-                    <BadgeCheck size={13} strokeWidth={3} />{" "}
+                    <MdVerified size={15} />{" "}
                     {verifiedListing ? "MANAGE VERIFICATION" : "VERIFY BUSINESS"}
                   </button>
                 </div>
@@ -588,7 +589,7 @@ export default function NomadListingsOverview() {
                                       }
                                       className="inline-flex items-center"
                                     >
-                                      <BadgeCheck size={13} className="text-sky-500" />
+                                      <MdVerified size={14} className="text-[#1d9bf0]" />
                                     </span>
                                   )}
                                 </p>

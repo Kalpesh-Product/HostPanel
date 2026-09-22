@@ -6,7 +6,8 @@ import Footer from "../../components/Footer";
 import useAuth from "../../hooks/useAuth";
 import { readInviteOnboardingState } from "../../utils/inviteOnboarding";
 import { getWorkspaceCount } from "../../utils/workspacePlanAccess";
-import { PLAN_UI_DATA, type PlanType } from "./workspaceSetupPlans";
+import { type PlanType } from "./workspaceSetupPlans";
+import { usePlanUiDataWithLivePricing } from "./useProfessionalPlanPrice";
 
 const SetupModulesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ const SetupModulesPage: React.FC = () => {
   const workspaceCount = getWorkspaceCount(
     (auth.user as { workspaceCount?: number } | null)?.workspaceCount,
   );
+  const planUiData = usePlanUiDataWithLivePricing();
 
   return (
     <div className="min-h-screen bg-[#f4f4f4] text-[#0f172a] font-['Poppins'] flex flex-col">
@@ -80,7 +82,7 @@ const SetupModulesPage: React.FC = () => {
 
           <div className="max-w-[900px] mx-auto">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-4">
-            {PLAN_UI_DATA.map((plan) => {
+            {planUiData.map((plan) => {
               const isSelected = selectedPlan === plan.key;
               return (
                 <div

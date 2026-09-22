@@ -4,7 +4,8 @@ export type ProfileTabId =
   | "change-password"
   | "assigned-assets"
   | "payslips"
-  | "exit-request";
+  | "exit-request"
+  | "plan-billing";
 
 export type ProfileTabItem = {
   id: ProfileTabId;
@@ -61,6 +62,12 @@ export const PROFILE_TAB_ITEMS: ProfileTabItem[] = [
     route: "/profile/resignation-request",
     unlocked: false,
   },
+  {
+    id: "plan-billing",
+    label: "Plan & Billing",
+    route: "/profile/plan-billing",
+    unlocked: true,
+  },
 ];
 
 export const canAccessCompanyProfile = ({
@@ -86,7 +93,12 @@ export const getProfileTabItemsForPlan = (
   const normalizedPlan = String(plan || "basic").trim().toLowerCase();
 
   return PROFILE_TAB_ITEMS
-    .filter((item) => item.id !== "company-profile" || !access || canAccessCompanyProfile(access))
+    .filter(
+      (item) =>
+        (item.id !== "company-profile" && item.id !== "plan-billing") ||
+        !access ||
+        canAccessCompanyProfile(access),
+    )
     .filter((item) => normalizedPlan === "custom" || !CUSTOM_ONLY_TAB_IDS.has(item.id))
     .map((item) => ({ ...item, unlocked: true }));
 };

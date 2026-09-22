@@ -488,10 +488,11 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
   }, [auth.user, workspace?.businessName]);
 
   const handleUpgradePlanRequest = async (plan: string) => {
-    if (requestedUpgradePlan === plan) {
-      toast.info(`${plan.toUpperCase()} plan already requested.`);
-      return;
-    }
+    // Deliberately NOT returning early when requestedUpgradePlan === plan —
+    // that flag is sourced from localStorage only (never verified against
+    // the server) and can drift stale, which previously caused a genuine
+    // resend to silently never reach MasterPanel. The backend call is safe
+    // to repeat (it just restarts the review cycle for this plan).
     try {
       setIsUpgradeSubmitting(true);
       const companyId = await resolveMasterCompanyId();
@@ -756,14 +757,14 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
                   <div className="w-full">
                     <PrimaryButton
                       title={
-                        requestedUpgradePlan === plan.key
-                          ? "Requested"
-                          : isUpgradeSubmitting
+                        isUpgradeSubmitting
                           ? "Sending..."
+                          : requestedUpgradePlan === plan.key
+                          ? "Requested — Resend"
                           : `Upgrade to ${plan.title}`
                       }
                       handleSubmit={() => handleUpgradePlanRequest(plan.key)}
-                      disabled={isUpgradeSubmitting || requestedUpgradePlan === plan.key}
+                      disabled={isUpgradeSubmitting}
                       className="w-full rounded-full"
                       padding="py-2"
                     />

@@ -18,6 +18,7 @@ import useAxiosPrivate from "../hooks/useAxiosPrivate";
 import { queryClient } from "../main";
 import usePageTour from "../tours/usePageTour";
 import PageGuideButton from "../tours/PageGuideButton";
+import PlanExpiryBanner from "../components/PlanExpiryBanner";
 
 const MainLayout = () => {
   const { auth } = useAuth();
@@ -41,6 +42,16 @@ const MainLayout = () => {
   const unseenCount = notifications.filter(
     (n: any) => !n.readAt,
   ).length;
+
+  const { data: planSummary } = useQuery({
+    queryKey: ["planBillingSummary"],
+    queryFn: async () => {
+      const res = await axios.get("/api/plan-billing/summary");
+      return res?.data?.data;
+    },
+    refetchInterval: 60000,
+    enabled: !auth?.impersonation,
+  });
 
   const hasTenantRole = Boolean(auth?.user?.tenantRole);
   const isTenantRoute = location.pathname.startsWith("/dashboard/tenant") || (hasTenantRole && location.pathname.startsWith("/profile/"));
@@ -76,6 +87,12 @@ const MainLayout = () => {
         <div className="w-full bg-amber-500 text-white text-xs sm:text-sm font-semibold text-center py-1.5 px-3">
           Viewing as {auth?.user?.companyName || "this company"} — read-only staff view
         </div>
+      ) : null}
+      {planSummary?.planStatus === "expiring_soon" ? (
+        <PlanExpiryBanner
+          expiryDate={planSummary.planExpiryDate}
+          modulesAtRisk={planSummary.modulesLostOnDowngrade}
+        />
       ) : null}
       <header className="flex w-full shadow-md items-center px-4">
         {isMobile && (

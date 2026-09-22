@@ -93,10 +93,11 @@ const CreditsIndicator = ({ workspaceId, companyId }) => {
   }, [axios, subscriptionRefreshKey]);
 
   const handleUpgradePlanRequest = async (plan: string) => {
-    if (requestedUpgradePlan === plan) {
-      toast.info(`${plan.toUpperCase()} plan already requested.`);
-      return;
-    }
+    // Deliberately NOT returning early when requestedUpgradePlan === plan —
+    // that flag is sourced from localStorage only (never verified against
+    // the server) and can drift stale, which previously caused a genuine
+    // resend to silently never reach MasterPanel. The backend call is safe
+    // to repeat (it just restarts the review cycle for this plan).
     try {
       setIsUpgradeSubmitting(true);
       if (!companyId) {
@@ -364,13 +365,13 @@ const CreditsIndicator = ({ workspaceId, companyId }) => {
                     <button
                       type="button"
                       onClick={() => handleUpgradePlanRequest(plan.key)}
-                      disabled={isUpgradeSubmitting || requestedUpgradePlan === plan.key}
+                      disabled={isUpgradeSubmitting}
                       className="w-full rounded-xl bg-[#2563EB] px-8 py-2.5 text-white font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      {requestedUpgradePlan === plan.key
-                        ? "Requested"
-                        : isUpgradeSubmitting
-                          ? "Sending..."
+                      {isUpgradeSubmitting
+                        ? "Sending..."
+                        : requestedUpgradePlan === plan.key
+                          ? "Requested — Resend"
                           : `Upgrade to ${plan.title}`}
                     </button>
                   </div>

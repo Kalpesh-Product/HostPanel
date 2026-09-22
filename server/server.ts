@@ -32,6 +32,7 @@ import {
   getApprovedWebsiteReviews,
 } from "./controllers/reviewControllers.js";
 import workspaceRoutes from "./routes/workspaceRoutes.js";
+import planBillingRoutes from "./routes/planBillingRoutes.js";
 import organizationRoutes from "./routes/organizationRoutes.js";
 import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 import supportTicketRoutes from "./routes/supportTicketRoutes.js";
@@ -163,6 +164,7 @@ app.use("/api/verify-business", verifyJwt, blockWriteIfImpersonating, verifyBusi
 app.use("/api/profile", verifyJwt, blockWriteIfImpersonating, hostUserRoutes);
 app.use("/api/review", verifyJwt, blockWriteIfImpersonating, reviewRoutes);
 app.use("/api/workspaces", verifyJwt, blockWriteIfImpersonating, workspaceRoutes);
+app.use("/api/plan-billing", verifyJwt, planBillingRoutes);
 app.use("/api/organization", verifyJwt, blockWriteIfImpersonating, organizationRoutes);
 app.use("/api/subscription", verifyJwt, blockWriteIfImpersonating, subscriptionRoutes);
 app.use("/api/website-credits", verifyJwt, blockWriteIfImpersonating, websiteCreditsRoutes);

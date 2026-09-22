@@ -3,6 +3,7 @@ import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import PageFrame from "../../../components/Pages/PageFrame";
 import { toast } from "sonner";
+import { MdVerified } from "react-icons/md";
 import {
   BadgeCheck,
   Ban,
@@ -28,6 +29,22 @@ const TAB_LABELS: Record<Tab, string> = {
   status: "Status",
   history: "Payment History",
 };
+
+// Public page for a listing on wono.co — same helper/URL shape as the
+// Listings page's own "Open this listing live on wono.co" link.
+function getLiveListingUrl(item: any) {
+  const name = String(item?.companyName || "").trim();
+  if (!name) return "";
+  const params = new URLSearchParams();
+  const type = String(item?.companyType || "").trim();
+  const city = String(item?.city || "").trim();
+  const country = String(item?.country || "").trim();
+  if (type) params.set("companyType", type);
+  if (city) params.set("state", city);
+  if (country) params.set("country", country);
+  const query = params.toString();
+  return `https://wono.co/listings/${encodeURIComponent(name)}${query ? `?${query}` : ""}`;
+}
 
 function getInitials(value: string) {
   return (
@@ -254,6 +271,23 @@ const VerifyBusiness = () => {
                     {statusLabel}
                   </span>
                 </div>
+                {!verification && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!overview?.eligible) {
+                        toast.error(
+                          "Enable at least one listing to submit request for verification",
+                        );
+                        return;
+                      }
+                      setFormOpen(true);
+                    }}
+                    className="bg-[#2563EB] text-white px-5 py-2.5 rounded-2xl font-pmedium text-[11px] shadow-sm hover:bg-blue-700 transition-colors"
+                  >
+                    Verify Business
+                  </button>
+                )}
               </div>
 
               {/* TABS - same pill style as the shared TabLayout */}
@@ -339,7 +373,7 @@ const VerifyBusiness = () => {
                                             }
                                             className="inline-flex items-center"
                                           >
-                                            <BadgeCheck size={13} className="text-sky-500" />
+                                            <MdVerified size={14} className="text-[#1d9bf0]" />
                                           </span>
                                         )}
                                       </p>
@@ -372,15 +406,27 @@ const VerifyBusiness = () => {
                                   </span>
                                 </td>
                                 <td className="px-5 py-4 whitespace-nowrap text-center">
-                                  {!eligible ? (
-                                    <span
-                                      title="Not eligible - activate and publish this listing first"
-                                      className="inline-flex p-1.5 text-slate-300"
-                                    >
-                                      <Ban size={15} strokeWidth={2.5} />
-                                    </span>
-                                  ) : (
-                                    <div className="inline-flex items-center justify-center gap-1.5">
+                                  <div className="inline-flex items-center justify-center gap-1.5">
+                                    {item.isActive && item.isPublic && getLiveListingUrl(item) ? (
+                                      <a
+                                        href={getLiveListingUrl(item)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        title="Open this listing live on wono.co"
+                                        className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all"
+                                      >
+                                        <ExternalLink size={15} strokeWidth={2.5} />
+                                      </a>
+                                    ) : null}
+                                    {!eligible ? (
+                                      <span
+                                        title="Not eligible - activate and publish this listing first"
+                                        className="inline-flex p-1.5 text-slate-300"
+                                      >
+                                        <Ban size={15} strokeWidth={2.5} />
+                                      </span>
+                                    ) : (
+                                      <>
                                       {badgeVisible ? (
                                         <button
                                           type="button"
@@ -432,8 +478,9 @@ const VerifyBusiness = () => {
                                           <RefreshCw size={15} strokeWidth={2.5} />
                                         </button>
                                       )}
-                                    </div>
-                                  )}
+                                      </>
+                                    )}
+                                  </div>
                                 </td>
                               </tr>
                             );

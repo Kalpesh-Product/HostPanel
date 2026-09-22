@@ -67,6 +67,58 @@ const workspaceSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    // The plan the host is actually entitled to / paying for. selectedPlan
+    // above stays the field canPlanAccess() gates on (the EFFECTIVE plan);
+    // purchasedPlan is the plan to restore to on renewal after an
+    // auto-downgrade caused by a lapsed payment.
+    purchasedPlan: {
+      type: String,
+      enum: ["basic", "professional", "custom", null],
+      default: null,
+    },
+    planStatus: {
+      type: String,
+      enum: ["none", "active", "expiring_soon", "expired_downgraded"],
+      default: "none",
+    },
+    planStartDate: {
+      type: Date,
+      default: null,
+    },
+    // Monthly billing cycle end. Set/extended only by MasterPanel's payment
+    // webhook or renewal cron — HostPanel only reads this.
+    planExpiryDate: {
+      type: Date,
+      default: null,
+    },
+    planLastPaidAt: {
+      type: Date,
+      default: null,
+    },
+    // Idempotency guard for the "expires in 5 days" email, and the flag the
+    // HostPanel dashboard banner reads to decide whether to render — set
+    // once by the reminder cron, cleared on renewal.
+    planExpiryWarningSentAt: {
+      type: Date,
+      default: null,
+    },
+    // Snapshot of enabledModuleIds taken at auto-downgrade time, restored on
+    // the next successful renewal payment.
+    preDowngradeEnabledModuleIds: {
+      type: [String],
+      default: [],
+    },
+    // Admin-selected module set for a Custom plan workspace — source of
+    // truth for computeCustomPlanMonthlyPrice().
+    customPlanModuleIds: {
+      type: [String],
+      default: [],
+    },
+    // Computed from hostModulePriceCatalog, never staff-typed directly.
+    customPlanMonthlyPriceUsd: {
+      type: Number,
+      default: null,
+    },
     modules: {
       type: [
         {

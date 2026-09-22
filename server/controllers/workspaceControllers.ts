@@ -31,6 +31,98 @@ import {
   countActiveAccountWorkspaces,
   resolveMainWorkspaceId,
 } from "../utils/accountPlan.js";
+import HostLeadCompany from "../models/HostLeadCompany.js";
+
+// Resolves the plan-billing-cycle fields for a brand-new workspace at the
+// moment it's created. Plan is an account-level entitlement (see the
+// isAdditionalWorkspaceMode note above `completeWorkspaceSetup`), so:
+//  - Basic never has a cycle (free, no expiry).
+//  - An additional unit on an already-paying account inherits the existing
+//    cycle from another active workspace under the same owner, rather than
+//    starting a fresh one — no new payment happens for it.
+//  - The very first (primary) workspace on a paid plan reads its payment
+//    confirmation from HostLeadCompany, set by MasterPanel's plan-payment
+//    webhook before the invite was ever unlocked (see hostUserControllers.js
+//    sendInviteEmail's payment gate) — so by the time registration reaches
+//    here, a Professional/Custom plan is expected to already be paid.
+const resolvePlanLifecycleFields = async ({
+  effectivePlan,
+  companyId,
+  ownerId,
+  isAdditionalWorkspaceMode,
+}: {
+  effectivePlan: string;
+  companyId: string;
+  ownerId: any;
+  isAdditionalWorkspaceMode: boolean;
+}) => {
+  if (effectivePlan === "basic") {
+    return {
+      purchasedPlan: "basic",
+      planStatus: "none",
+      planStartDate: null,
+      planExpiryDate: null,
+      planLastPaidAt: null,
+      customPlanModuleIds: [],
+      customPlanMonthlyPriceUsd: null,
+    };
+  }
+
+  if (isAdditionalWorkspaceMode) {
+    const sibling = await Workspace.findOne({
+      owner: ownerId,
+      selectedPlan: effectivePlan,
+      planStatus: { $in: ["active", "expiring_soon"] },
+    })
+      .select(
+        "purchasedPlan planStatus planStartDate planExpiryDate planLastPaidAt customPlanModuleIds customPlanMonthlyPriceUsd",
+      )
+      .lean();
+    if (sibling) {
+      return {
+        purchasedPlan: sibling.purchasedPlan || effectivePlan,
+        planStatus: sibling.planStatus || "active",
+        planStartDate: sibling.planStartDate || new Date(),
+        planExpiryDate: sibling.planExpiryDate || null,
+        planLastPaidAt: sibling.planLastPaidAt || null,
+        customPlanModuleIds: sibling.customPlanModuleIds || [],
+        customPlanMonthlyPriceUsd: sibling.customPlanMonthlyPriceUsd ?? null,
+      };
+    }
+    // Fall through to the HostLeadCompany lookup below if no active sibling
+    // was found (shouldn't normally happen, but keeps this workspace from
+    // silently having no cycle at all).
+  }
+
+  const lead = await HostLeadCompany.findOne({ companyId }).lean();
+  if (lead?.paymentStatus) {
+    const now = lead.paymentConfirmedAt ? new Date(lead.paymentConfirmedAt) : new Date();
+    const expiry = new Date(now);
+    expiry.setMonth(expiry.getMonth() + 1);
+    return {
+      purchasedPlan: effectivePlan,
+      planStatus: "active",
+      planStartDate: now,
+      planExpiryDate: expiry,
+      planLastPaidAt: now,
+      customPlanModuleIds: lead.customPlanModuleIds || [],
+      customPlanMonthlyPriceUsd: null,
+    };
+  }
+
+  // Paid plan selected but no confirmed payment on record — shouldn't be
+  // reachable given the invite gate, but default to an unstarted cycle
+  // rather than silently granting free access.
+  return {
+    purchasedPlan: effectivePlan,
+    planStatus: "none",
+    planStartDate: null,
+    planExpiryDate: null,
+    planLastPaidAt: null,
+    customPlanModuleIds: [],
+    customPlanMonthlyPriceUsd: null,
+  };
+};
 
 const _getRoleName = (role: any) => {
   if (!role) return "";
@@ -323,6 +415,13 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       enabledModuleIds: finalEnabledModuleIds,
     });
 
+    const planLifecycleFields = await resolvePlanLifecycleFields({
+      effectivePlan,
+      companyId: user.companyId,
+      ownerId: user._id,
+      isAdditionalWorkspaceMode,
+    });
+
     const workspace = await Workspace.create({
       owner: user._id,
       company: company?._id || null,
@@ -350,6 +449,7 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       modules: finalWorkspaceModules,
       isSetupComplete: true,
       isActive: true,
+      ...planLifecycleFields,
     });
 
     let founderRole = await Role.findOne({ name: "founder" });

@@ -168,6 +168,7 @@ import ProfileLayout from "../pages/Profile/ProfileLayout";
 import UserDetails from "../pages/Profile/UserDetails";
 import CompanyProfile from "../pages/Profile/CompanyProfile";
 import CompanyProfileAccessGuard from "../pages/Profile/CompanyProfileAccessGuard";
+import PlanBillingTab from "../pages/Profile/PlanBillingTab";
 import ChangePassword from "../pages/Profile/ChangePassword";
 import { AssignedAssetsTab } from "../pages/Profile/AssignedAssetsTab";
 import { PayslipsTab } from "../pages/Profile/PayslipsTab";
@@ -879,6 +880,18 @@ export const routes = createBrowserRouter([
                   {
                     path: "company-profile",
                     element: <CompanyProfileAccessGuard><CompanyProfile /></CompanyProfileAccessGuard>,
+                  },
+                  {
+                    path: "plan-billing",
+                    element: <CompanyProfileAccessGuard><PlanBillingTab /></CompanyProfileAccessGuard>,
+                  },
+                  {
+                    // Stripe's payment-link redirect target (see
+                    // planPaymentControllers.js createAndSendPlanPaymentLink)
+                    // — webhook processing may still be in flight, so just
+                    // land the host back on the tab that reflects it.
+                    path: "plan-billing/payment-result",
+                    element: <Navigate to="/profile/plan-billing" replace />,
                   },
                   {
                     path: "change-password",

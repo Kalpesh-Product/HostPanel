@@ -19,12 +19,8 @@ import {
   readInviteOnboardingState,
 } from "../../utils/inviteOnboarding";
 import { getEnabledModuleIdsForPlan, getWorkspaceCount } from "../../utils/workspacePlanAccess";
-import {
-  getUpgradePlanOptions,
-  PLAN_UI_DATA,
-  type PlanCardData,
-  type PlanType,
-} from "./workspaceSetupPlans";
+import { type PlanCardData, type PlanType } from "./workspaceSetupPlans";
+import { usePlanUiDataWithLivePricing } from "./useProfessionalPlanPrice";
 
 type UpgradeRequestStatus = "pending" | "approved" | "rejected";
 type UpgradeRequestState = {
@@ -184,8 +180,17 @@ const FinalizeSetupPage: React.FC = () => {
     (auth.user as { workspaceCount?: number } | null)?.workspaceCount,
   );
   const enabledModuleIds = getEnabledModuleIdsForPlan(selectedPlan, workspaceCount);
-  const currentPlanCard = PLAN_UI_DATA.find((plan) => plan.key === selectedPlan) || PLAN_UI_DATA[0];
-  const upgradePlanOptions = getUpgradePlanOptions(selectedPlan);
+  const planUiData = usePlanUiDataWithLivePricing();
+  const currentPlanCard = planUiData.find((plan) => plan.key === selectedPlan) || planUiData[0];
+  // Same filter as workspaceSetupPlans.ts's getUpgradePlanOptions, applied
+  // to the live-priced array instead of the static one, so an upgrade
+  // suggestion to Professional shows the current price too.
+  const upgradePlanOptions: PlanCardData[] =
+    selectedPlan === "basic"
+      ? planUiData.filter(({ key }) => key === "professional" || key === "custom")
+      : selectedPlan === "professional"
+        ? planUiData.filter(({ key }) => key === "custom")
+        : [];
   const workspaceRows = [
     { label: "Unit Name", value: workspaceDetails.workspaceName },
     { label: "Company Name", value: workspaceDetails.businessName },

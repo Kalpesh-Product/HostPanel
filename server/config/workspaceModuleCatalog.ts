@@ -190,15 +190,22 @@ const MODULE_GROUPS = [
 // Flat id -> label lookup across every module/tab in MODULE_GROUPS, used to
 // resolve display labels for a custom department's moduleIds (which are just
 // plain string ids referencing this same catalog).
-const MODULE_LABEL_BY_ID = {};
+export const MODULE_LABEL_BY_ID = {};
+// Same walk, but the section each id's own top-level item belongs to — used
+// by the Plan & Billing tab to group the "included modules" table.
+export const MODULE_SECTION_BY_ID = {};
 for (const section of MODULE_GROUPS) {
   for (const item of section.items || []) {
     if (Array.isArray(item.tabs) && item.tabs.length) {
       for (const tab of item.tabs) {
-        if (tab?.id) MODULE_LABEL_BY_ID[tab.id] = tab.label || tab.id;
+        if (tab?.id) {
+          MODULE_LABEL_BY_ID[tab.id] = tab.label || tab.id;
+          MODULE_SECTION_BY_ID[tab.id] = item.label || section.sectionLabel;
+        }
       }
     } else if (item?.id) {
       MODULE_LABEL_BY_ID[item.id] = item.label || item.id;
+      MODULE_SECTION_BY_ID[item.id] = section.sectionLabel;
     }
   }
 }
