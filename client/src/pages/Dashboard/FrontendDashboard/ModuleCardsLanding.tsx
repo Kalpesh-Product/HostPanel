@@ -57,6 +57,7 @@ import useAuth from "../../../hooks/useAuth";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import { getProfileTabItemsForPlan } from "../../Profile/profileAccess";
 import { getUpgradePlanOptions } from "../../WorkspaceSetup/workspaceSetupPlans";
+import CustomPlanModuleSelectionModal from "../../../components/CustomPlanModuleSelectionModal";
 import { getEnabledModuleIdsForPlan, getWorkspaceCount } from "../../../utils/workspacePlanAccess";
 import { normalizeLegacyRoute } from "../../../utils/legacyRouteMap";
 import { resolveDepartmentIcon } from "../../../utils/departmentIcons";
@@ -697,7 +698,7 @@ export const UpgradePlanModal = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.user]);
 
-  const handleUpgradePlanRequest = async (plan: string) => {
+  const handleUpgradePlanRequest = async (plan: string, customModuleIds?: string[]) => {
     // Deliberately NOT returning early when requestedUpgradePlan === plan —
     // that flag is sourced from localStorage only (never verified against
     // the server) and can drift stale, which previously caused a genuine
@@ -715,6 +716,7 @@ export const UpgradePlanModal = ({
       const response = await axiosPrivate.patch(`${MASTER_PANEL_BASE_URL}/api/hosts/request-upgrade-plan`, {
         companyId,
         requestedPlan: plan,
+        ...(customModuleIds ? { customModuleIds } : {}),
       });
       localStorage.setItem(
         getUpgradeRequestStorageKey(companyId),
@@ -727,12 +729,22 @@ export const UpgradePlanModal = ({
       );
       toast.success(response?.data?.message || "Request sent. Sales team will contact you soon.");
       setRequestedUpgradePlan(plan);
+      setIsCustomModuleModalOpen(false);
       onClose();
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to send upgrade request.");
     } finally {
       setIsUpgradeSubmitting(false);
     }
+  };
+
+  const [isCustomModuleModalOpen, setIsCustomModuleModalOpen] = useState(false);
+  const handlePlanCardAction = (plan: string) => {
+    if (plan === "custom") {
+      setIsCustomModuleModalOpen(true);
+      return;
+    }
+    void handleUpgradePlanRequest(plan);
   };
 
   if (upgradePlanCards.length === 0) return null;
@@ -804,7 +816,7 @@ export const UpgradePlanModal = ({
                         : `Upgrade to ${plan.title}`
                   }
                   handleSubmit={() => {
-                    void handleUpgradePlanRequest(plan.key);
+                    handlePlanCardAction(plan.key);
                   }}
                   disabled={isUpgradeSubmitting}
                   className="w-full rounded-full"
@@ -815,6 +827,13 @@ export const UpgradePlanModal = ({
           ))}
         </div>
       </div>
+
+      <CustomPlanModuleSelectionModal
+        open={isCustomModuleModalOpen}
+        onClose={() => setIsCustomModuleModalOpen(false)}
+        onSubmit={(selectedModuleIds) => handleUpgradePlanRequest("custom", selectedModuleIds)}
+        isSubmitting={isUpgradeSubmitting}
+      />
     </div>,
     document.body,
   );

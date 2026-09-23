@@ -7,6 +7,10 @@ import useAxiosPrivate from "../hooks/useAxiosPrivate";
 import useAuth from "../hooks/useAuth";
 import { getUpgradePlanOptions } from "../pages/WorkspaceSetup/workspaceSetupPlans";
 import type { PlanType } from "../pages/WorkspaceSetup/workspaceSetupPlans";
+import CustomPlanModuleSelectionModal from "./CustomPlanModuleSelectionModal";
+
+const MASTER_PANEL_BASE_URL =
+  String(import.meta.env.VITE_MASTER_PANEL_BE_URL || "").trim() || "https://masterpanel.wono.co";
 
 const formatResetDate = (value) => {
   if (!value) return "-";
@@ -67,6 +71,7 @@ const CreditsIndicator = ({ workspaceId, companyId }) => {
   const [pendingRequestedCredits, setPendingRequestedCredits] = useState(0);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isUpgradeSubmitting, setIsUpgradeSubmitting] = useState(false);
+  const [isCustomModuleModalOpen, setIsCustomModuleModalOpen] = useState(false);
   const [requestedUpgradePlan, setRequestedUpgradePlan] = useState("");
   // localStorage.workspace_setup is only ever written once, at initial
   // workspace-setup time — it never reflects a later plan change made from
@@ -92,7 +97,7 @@ const CreditsIndicator = ({ workspaceId, companyId }) => {
     };
   }, [axios, subscriptionRefreshKey]);
 
-  const handleUpgradePlanRequest = async (plan: string) => {
+  const handleUpgradePlanRequest = async (plan: string, customModuleIds?: string[]) => {
     // Deliberately NOT returning early when requestedUpgradePlan === plan —
     // that flag is sourced from localStorage only (never verified against
     // the server) and can drift stale, which previously caused a genuine
@@ -104,18 +109,31 @@ const CreditsIndicator = ({ workspaceId, companyId }) => {
         toast.error("Company id not found. Please re-login and try again.");
         return;
       }
-      const response = await axios.patch("/api/hosts/request-upgrade-plan", {
+      // MasterPanel directly — this endpoint doesn't exist on HostPanel's
+      // own backend, calling it without the MASTER_PANEL_BASE_URL prefix
+      // (as this previously did) 404s silently every time.
+      const response = await axios.patch(`${MASTER_PANEL_BASE_URL}/api/hosts/request-upgrade-plan`, {
         companyId,
         requestedPlan: plan,
+        ...(customModuleIds ? { customModuleIds } : {}),
       });
       toast.success(response?.data?.message || "Request sent. Sales team will contact you soon.");
       setRequestedUpgradePlan(plan);
       setIsUpgradeModalOpen(false);
+      setIsCustomModuleModalOpen(false);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to send upgrade request.");
     } finally {
       setIsUpgradeSubmitting(false);
     }
+  };
+
+  const handlePlanCardAction = (plan: string) => {
+    if (plan === "custom") {
+      setIsCustomModuleModalOpen(true);
+      return;
+    }
+    void handleUpgradePlanRequest(plan);
   };
 
   useEffect(() => {
@@ -364,7 +382,7 @@ const CreditsIndicator = ({ workspaceId, companyId }) => {
                   <div className="w-full">
                     <button
                       type="button"
-                      onClick={() => handleUpgradePlanRequest(plan.key)}
+                      onClick={() => handlePlanCardAction(plan.key)}
                       disabled={isUpgradeSubmitting}
                       className="w-full rounded-xl bg-[#2563EB] px-8 py-2.5 text-white font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
@@ -381,6 +399,13 @@ const CreditsIndicator = ({ workspaceId, companyId }) => {
           </div>
         </div>
       , document.body)}
+
+      <CustomPlanModuleSelectionModal
+        open={isCustomModuleModalOpen}
+        onClose={() => setIsCustomModuleModalOpen(false)}
+        onSubmit={(selectedModuleIds) => handleUpgradePlanRequest("custom", selectedModuleIds)}
+        isSubmitting={isUpgradeSubmitting}
+      />
     </div>
   );
 };

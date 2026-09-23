@@ -88,6 +88,7 @@ import {
 } from "../utils/workspacePlanAccess";
 import { normalizeLegacyRoute } from "../utils/legacyRouteMap";
 import { resolveDepartmentIcon } from "../utils/departmentIcons";
+import CustomPlanModuleSelectionModal from "./CustomPlanModuleSelectionModal";
 
 type PlanType = "basic" | "professional" | "custom";
 
@@ -731,6 +732,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   const [moduleSearch, setModuleSearch] = useState("");
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isUpgradeSubmitting, setIsUpgradeSubmitting] = useState(false);
+  const [isCustomModuleModalOpen, setIsCustomModuleModalOpen] = useState(false);
   const [requestedUpgradePlan, setRequestedUpgradePlan] = useState("");
   const [roleAccessContext, setRoleAccessContext] = useState<RoleAccessContext>({
     role: "",
@@ -1451,7 +1453,7 @@ useEffect(() => {
     return true;
   });
 
-  const handleUpgradePlanRequest = async (plan: string) => {
+  const handleUpgradePlanRequest = async (plan: string, customModuleIds?: string[]) => {
     // Deliberately NOT returning early when requestedUpgradePlan === plan —
     // that flag is sourced from localStorage only (never verified against
     // the server) and can drift stale, which previously caused a genuine
@@ -1469,6 +1471,7 @@ useEffect(() => {
       const response = await axiosPrivate.patch(`${MASTER_PANEL_BASE_URL}/api/hosts/request-upgrade-plan`, {
         companyId,
         requestedPlan: plan,
+        ...(customModuleIds ? { customModuleIds } : {}),
       });
       localStorage.setItem(
         getUpgradeRequestStorageKey(companyId),
@@ -1482,11 +1485,20 @@ useEffect(() => {
       toast.success(response?.data?.message || "Request sent. Sales team will contact you soon.");
       setRequestedUpgradePlan(plan);
       setIsUpgradeModalOpen(false);
+      setIsCustomModuleModalOpen(false);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to send upgrade request.");
     } finally {
       setIsUpgradeSubmitting(false);
     }
+  };
+
+  const handlePlanCardAction = (plan: string) => {
+    if (plan === "custom") {
+      setIsCustomModuleModalOpen(true);
+      return;
+    }
+    void handleUpgradePlanRequest(plan);
   };
 
   const navigateFromSidebar = (route: string, sectionKey?: string, state?: Record<string, unknown>) => {
@@ -1536,12 +1548,15 @@ useEffect(() => {
               className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
             />
             <input
-              type="text"
+              type="search"
+              name="sidebar-module-search"
               value={moduleSearch}
               onChange={(event) => setModuleSearch(event.target.value)}
               placeholder="Search modules"
               aria-label="Search modules"
               autoComplete="off"
+              data-1p-ignore="true"
+              data-lpignore="true"
               className="h-9 w-full rounded-md border border-black/15 bg-white pl-9 pr-8 font-pmedium text-xs text-slate-800 outline-none transition-colors placeholder:text-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/15"
             />
             {moduleSearch ? (
@@ -1928,7 +1943,7 @@ useEffect(() => {
                             : `Upgrade to ${plan.title}`
                       }
                       handleSubmit={() => {
-                        void handleUpgradePlanRequest(plan.key);
+                        handlePlanCardAction(plan.key);
                       }}
                       disabled={isUpgradeSubmitting}
                       className="w-full rounded-full"
@@ -1941,6 +1956,13 @@ useEffect(() => {
           </div>
         </div>
       , document.body) : null}
+
+      <CustomPlanModuleSelectionModal
+        open={isCustomModuleModalOpen}
+        onClose={() => setIsCustomModuleModalOpen(false)}
+        onSubmit={(selectedModuleIds) => handleUpgradePlanRequest("custom", selectedModuleIds)}
+        isSubmitting={isUpgradeSubmitting}
+      />
     </div>
   );
 }

@@ -183,6 +183,16 @@ const ChangePassword = ({ pageTitle }: { pageTitle?: string }) => {
       </div>
 
       <section className="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_18px_55px_rgba(15,23,42,0.08)] backdrop-blur sm:p-6" data-tour="change-password-panel">
+        <input
+          type="email"
+          name="username"
+          value={auth?.user?.email || ""}
+          readOnly
+          autoComplete="username"
+          tabIndex={-1}
+          aria-hidden="true"
+          className="pointer-events-none absolute h-px w-px opacity-0"
+        />
         <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-5">
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
             <KeyRound size={20} />
@@ -199,6 +209,8 @@ const ChangePassword = ({ pageTitle }: { pageTitle?: string }) => {
             size="small"
             label="Current Password"
             type={visiblePasswords.currentPassword ? "text" : "password"}
+            name="currentPassword"
+            autoComplete="current-password"
             disabled={passwordVerified}
             sx={{
               width: {
@@ -244,6 +256,8 @@ const ChangePassword = ({ pageTitle }: { pageTitle?: string }) => {
             size="small"
             label="New Password"
             type={visiblePasswords.newPassword ? "text" : "password"}
+            name="newPassword"
+            autoComplete="new-password"
             disabled={!passwordVerified}
             value={formData.newPassword}
             onChange={(e) => handleChange("newPassword", e.target.value)}
@@ -264,6 +278,8 @@ const ChangePassword = ({ pageTitle }: { pageTitle?: string }) => {
             size="small"
             label="Confirm Password"
             type={visiblePasswords.confirmPassword ? "text" : "password"}
+            name="confirmPassword"
+            autoComplete="new-password"
             disabled={!passwordVerified}
             value={formData.confirmPassword}
             onChange={(e) => handleChange("confirmPassword", e.target.value)}

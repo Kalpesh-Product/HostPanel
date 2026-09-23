@@ -17,6 +17,7 @@ import LogoAdjustModal from "../../components/LogoAdjustModal";
 import { SectionShell, DetailCard } from "../../components/Pages/ProfileSection";
 import { PLAN_UI_DATA } from "../WorkspaceSetup/workspaceSetupPlans";
 import AccountDeletionDangerZone from "./AccountDeletionDangerZone";
+import CustomPlanModuleSelectionModal from "../../components/CustomPlanModuleSelectionModal";
 
 const MASTER_PANEL_BASE_URL = String(import.meta.env.VITE_MASTER_PANEL_BE_URL || "").trim() || "https://masterpanel.wono.co";
 const MAX_LOGO_SIZE_MB = 1;
@@ -35,6 +36,7 @@ const CompanyProfile = () => {
   const [uploading, setUploading] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isUpgradeSubmitting, setIsUpgradeSubmitting] = useState(false);
+  const [isCustomModuleModalOpen, setIsCustomModuleModalOpen] = useState(false);
   const [requestedUpgradePlan, setRequestedUpgradePlan] = useState("");
   const [isLogoPreviewOpen, setIsLogoPreviewOpen] = useState(false);
   const [cropSourceUrl, setCropSourceUrl] = useState<string | null>(null);
@@ -487,7 +489,7 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
     };
   }, [auth.user, workspace?.businessName]);
 
-  const handleUpgradePlanRequest = async (plan: string) => {
+  const handleUpgradePlanRequest = async (plan: string, customModuleIds?: string[]) => {
     // Deliberately NOT returning early when requestedUpgradePlan === plan —
     // that flag is sourced from localStorage only (never verified against
     // the server) and can drift stale, which previously caused a genuine
@@ -504,6 +506,7 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
       const response = await axios.patch(`${MASTER_PANEL_BASE_URL}/api/hosts/request-upgrade-plan`, {
         companyId,
         requestedPlan: plan,
+        ...(customModuleIds ? { customModuleIds } : {}),
       });
       localStorage.setItem(
         getUpgradeRequestStorageKey(companyId),
@@ -517,11 +520,20 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
       toast.success(response?.data?.message || "Request sent. Sales team will contact you soon.");
       setRequestedUpgradePlan(plan);
       setIsUpgradeModalOpen(false);
+      setIsCustomModuleModalOpen(false);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to send upgrade request.");
     } finally {
       setIsUpgradeSubmitting(false);
     }
+  };
+
+  const handlePlanCardAction = (plan: string) => {
+    if (plan === "custom") {
+      setIsCustomModuleModalOpen(true);
+      return;
+    }
+    void handleUpgradePlanRequest(plan);
   };
 
   useEffect(() => {
@@ -763,7 +775,7 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
                           ? "Requested — Resend"
                           : `Upgrade to ${plan.title}`
                       }
-                      handleSubmit={() => handleUpgradePlanRequest(plan.key)}
+                      handleSubmit={() => handlePlanCardAction(plan.key)}
                       disabled={isUpgradeSubmitting}
                       className="w-full rounded-full"
                       padding="py-2"
@@ -925,6 +937,13 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
           </div>
         </div>
       </MuiModal>
+
+      <CustomPlanModuleSelectionModal
+        open={isCustomModuleModalOpen}
+        onClose={() => setIsCustomModuleModalOpen(false)}
+        onSubmit={(selectedModuleIds) => handleUpgradePlanRequest("custom", selectedModuleIds)}
+        isSubmitting={isUpgradeSubmitting}
+      />
     </div>
   </div>
   );

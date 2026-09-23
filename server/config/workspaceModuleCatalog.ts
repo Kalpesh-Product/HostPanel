@@ -199,13 +199,23 @@ for (const section of MODULE_GROUPS) {
     if (Array.isArray(item.tabs) && item.tabs.length) {
       for (const tab of item.tabs) {
         if (tab?.id) {
-          MODULE_LABEL_BY_ID[tab.id] = tab.label || tab.id;
-          MODULE_SECTION_BY_ID[tab.id] = item.label || section.sectionLabel;
+          const shouldKeepExisting =
+            (section.sectionId === "add-ons" && MODULE_SECTION_BY_ID[tab.id]) ||
+            MODULE_SECTION_BY_ID[tab.id] === "Key Apps";
+          if (!shouldKeepExisting) {
+            MODULE_LABEL_BY_ID[tab.id] = tab.label || tab.id;
+            MODULE_SECTION_BY_ID[tab.id] = item.label || section.sectionLabel;
+          }
         }
       }
     } else if (item?.id) {
-      MODULE_LABEL_BY_ID[item.id] = item.label || item.id;
-      MODULE_SECTION_BY_ID[item.id] = section.sectionLabel;
+      const shouldKeepExisting =
+        (section.sectionId === "add-ons" && MODULE_SECTION_BY_ID[item.id]) ||
+        MODULE_SECTION_BY_ID[item.id] === "Key Apps";
+      if (!shouldKeepExisting) {
+        MODULE_LABEL_BY_ID[item.id] = item.label || item.id;
+        MODULE_SECTION_BY_ID[item.id] = section.sectionLabel;
+      }
     }
   }
 }

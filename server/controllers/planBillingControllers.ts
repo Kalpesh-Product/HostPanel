@@ -65,17 +65,21 @@ export const getPlanBillingSummary = async (req, res, next) => {
       modulesLostOnDowngrade.push(MODULE_LABEL_BY_ID[id] || id);
     }
 
-    // Everything this workspace currently has access to: the plan's default
-    // set plus any custom add-on ids granted on top (enabledModuleIds already
-    // includes both once a Custom purchase/renewal has run —
-    // planPaymentControllers.js's applyPaidPlanToWorkspace sets it that way).
-    const effectiveIds = new Set([...planIds, ...(workspace.enabledModuleIds || [])]);
+    // Paid add-ons belong only to Custom plans. enabledModuleIds can contain
+    // operational grants for every tier, so it must not drive billing labels.
+    const isCustomPlan = String(workspace.selectedPlan || "").trim().toLowerCase() === "custom";
+    const customAddonIds = new Set(
+      isCustomPlan && Array.isArray(workspace.customPlanModuleIds)
+        ? workspace.customPlanModuleIds.map((id) => String(id || "").trim()).filter(Boolean)
+        : [],
+    );
+    const effectiveIds = new Set([...planIds, ...customAddonIds]);
     const includedModules = Array.from(effectiveIds)
       .map((id) => ({
         id,
         label: MODULE_LABEL_BY_ID[id] || id,
         section: MODULE_SECTION_BY_ID[id] || "Other",
-        source: planIds.has(id) ? "plan" : "addon",
+        source: customAddonIds.has(id) && !planIds.has(id) ? "addon" : "plan",
       }))
       .sort((a, b) => a.section.localeCompare(b.section) || a.label.localeCompare(b.label));
 
