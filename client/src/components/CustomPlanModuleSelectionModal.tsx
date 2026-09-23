@@ -79,8 +79,8 @@ const CustomPlanModuleSelectionModal: React.FC<Props> = ({
             <ArrowLeft size={17} />
           </button>
           <div className="min-w-0">
-            <h1 className="text-lg font-bold text-[#0f1b35]">Choose Your Custom Plan Modules</h1>
-            <p className="text-[12px] font-medium text-[#667791] mt-0.5">
+            <h1 className="text-base font-pbold text-[#0f1b35]">Choose Your Custom Plan Modules</h1>
+            <p className="text-[12px] font-pmedium text-[#667791] mt-0.5">
               Select the extra modules or departments you want on top of
               everything in Professional. Your request goes to our team for
               review before you're asked to pay.
@@ -93,7 +93,7 @@ const CustomPlanModuleSelectionModal: React.FC<Props> = ({
           {isLoading ? (
             <p className="text-[13px] text-slate-400">Loading modules…</p>
           ) : rows.length ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="font-pmedium grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {rows.map((row) => {
                 const isSelected = selectedModuleIds.includes(row.itemId);
                 return (

@@ -7,6 +7,7 @@ import WorkspaceMember from "../../models/WorkspaceMember.js";
 import Department from "../../models/Department.js";
 import EmployeeProfile from "../../models/EmployeeProfile.js";
 import { findAttendanceShift, getConfiguredAttendanceShifts } from "../../utils/attendanceShifts.js";
+import { resolveFrontendBaseUrl } from "../../utils/frontendUrl.js";
 import TenantEmployee from "../../models/TenantEmployee.js";
 import { Role } from "../../models/Role.js";
 import { formatEmployeeId, formatHousekeepingCode, isFormattedHousekeepingCode } from "../../utils/employee-id.js";
@@ -505,10 +506,7 @@ const maybeSendEmployeeInviteEmail = async ({
     process.env.HOST_INVITE_TOKEN_SECRET ||
     process.env.REGISTER_INVITE_SECRET ||
     process.env.ACCESS_TOKEN_SECRET;
-  const frontendBase =
-    String(process.env.FRONTEND_PROD_LINK || process.env.FRONTEND_DEV_LINK || "http://localhost:5173")
-      .trim()
-      .replace(/\/$/, "");
+  const frontendBase = resolveFrontendBaseUrl();
 
   if (!inviteSecret || !frontendBase) return;
 

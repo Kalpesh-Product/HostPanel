@@ -12,6 +12,7 @@ import jwt from "jsonwebtoken";
 import { sendMail } from "../config/mailer.js";
 import { renderNotificationEmail } from "../utils/emailTemplates.js";
 import { createNotification } from "../utils/notify.js";
+import { resolveFrontendBaseUrl } from "../utils/frontendUrl.js";
 import { findAttendanceShift, getConfiguredAttendanceShifts } from "../utils/attendanceShifts.js";
 import {
   buildWorkspaceModuleCatalog,
@@ -143,11 +144,7 @@ const notifyMemberAboutUnitChange = async ({
   });
 
   if (!memberUser.email) return;
-  const frontendBase = String(
-    process.env.FRONTEND_PROD_LINK || process.env.FRONTEND_DEV_LINK || "http://localhost:5173",
-  )
-    .trim()
-    .replace(/\/$/, "");
+  const frontendBase = resolveFrontendBaseUrl();
 
   try {
     await sendMail({
@@ -223,11 +220,7 @@ const notifyMemberAboutUnitRemoval = async ({
   });
 
   if (!memberUser.email) return;
-  const frontendBase = String(
-    process.env.FRONTEND_PROD_LINK || process.env.FRONTEND_DEV_LINK || "http://localhost:5173",
-  )
-    .trim()
-    .replace(/\/$/, "");
+  const frontendBase = resolveFrontendBaseUrl();
 
   try {
     await sendMail({
@@ -268,11 +261,7 @@ const notifyOwnershipTransfer = async ({
     .map((item: any) => String(item?.workspaceName || item?.businessName || "Workspace").trim())
     .filter(Boolean);
   const unitList = workspaceNames.join(", ") || "the selected unit";
-  const frontendBase = String(
-    process.env.FRONTEND_PROD_LINK || process.env.FRONTEND_DEV_LINK || "http://localhost:5173",
-  )
-    .trim()
-    .replace(/\/$/, "");
+  const frontendBase = resolveFrontendBaseUrl();
 
   await Promise.all([
     createNotification({
@@ -2217,10 +2206,7 @@ export const inviteOrganizationMember = async (req, res, next) => {
       process.env.HOST_INVITE_TOKEN_SECRET ||
       process.env.REGISTER_INVITE_SECRET ||
       process.env.ACCESS_TOKEN_SECRET;
-    const frontendBase =
-      String(process.env.FRONTEND_PROD_LINK || process.env.FRONTEND_DEV_LINK || "http://localhost:5173")
-        .trim()
-        .replace(/\/$/, "");
+    const frontendBase = resolveFrontendBaseUrl();
 
     let inviteLink = "";
     if (inviteSecret && targetUser && (!targetUser.password || isFreshInviteAccount)) {

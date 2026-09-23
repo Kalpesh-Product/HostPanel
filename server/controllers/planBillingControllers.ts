@@ -3,6 +3,7 @@ import axios from "axios";
 import Workspace from "../models/Workspace.js";
 import HostUser from "../models/HostUser.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
+import HostLeadCompany from "../models/HostLeadCompany.js";
 import {
   getDefaultEnabledModuleIdsForPlan,
   MODULE_LABEL_BY_ID,
@@ -83,6 +84,12 @@ export const getPlanBillingSummary = async (req, res, next) => {
       }))
       .sort((a, b) => a.section.localeCompare(b.section) || a.label.localeCompare(b.label));
 
+    // hasUsedTrial/isTrialing drive the Add Modules upgrade modal's "Start
+    // Free Trial" CTA (hide it once used, or once this workspace is already
+    // trialing) — read from the shared hostleadcompanies collection
+    // MasterPanel's start-trial endpoint writes to.
+    const leadCompany = await HostLeadCompany.findOne({ companyId: workspace.companyId }).lean();
+
     return res.status(200).json({
       data: {
         selectedPlan: workspace.selectedPlan,
@@ -96,6 +103,9 @@ export const getPlanBillingSummary = async (req, res, next) => {
         companyId: workspace.companyId,
         modulesLostOnDowngrade,
         includedModules,
+        isTrialing: Boolean(workspace.isTrialing),
+        hasUsedTrial: Boolean(leadCompany?.hasUsedTrial),
+        trialEndAt: leadCompany?.trialEndAt || null,
       },
     });
   } catch (error) {
@@ -120,12 +130,42 @@ export const getProfessionalPlanPrice = async (req, res, next) => {
     return res.status(200).json({
       professionalPlanPriceUsd: data?.professionalPlanPriceUsd ?? null,
       professionalAnnualPlanPriceUsd: data?.professionalAnnualPlanPriceUsd ?? null,
+      freeTrialEnabled: Boolean(data?.freeTrialEnabled),
+      freeTrialDurationDays: data?.freeTrialDurationDays ?? null,
     });
   } catch (error) {
     return res.status(200).json({
       professionalPlanPriceUsd: null,
       professionalAnnualPlanPriceUsd: null,
+      freeTrialEnabled: false,
+      freeTrialDurationDays: null,
     });
+  }
+};
+
+// POST /api/plan-billing/start-trial — self-serve, no staff review (there's
+// no payment involved). Resolves the caller's own workspace/companyId the
+// same way getPlanBillingInvoices does, then proxies to MasterPanel's
+// start-trial endpoint, which is the source of truth for eligibility
+// (freeTrialEnabled + hasUsedTrial) and for actually applying the trial to
+// every workspace under the company.
+export const startTrial = async (req, res, next) => {
+  try {
+    const workspace = await resolveCurrentWorkspace(req);
+    if (!workspace) {
+      return res.status(404).json({ message: "Workspace not found for this user." });
+    }
+    const { data } = await axios.patch(
+      `${MASTER_PANEL_BASE_URL}/api/hosts/start-trial`,
+      { companyId: workspace.companyId, companyName: workspace.businessName },
+      { headers: masterPanelHeaders() },
+    );
+    return res.status(200).json(data);
+  } catch (error) {
+    if (error?.response) {
+      return res.status(error.response.status || 502).json(error.response.data);
+    }
+    next(error);
   }
 };
 

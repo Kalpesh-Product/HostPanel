@@ -41,6 +41,7 @@ export default function RegisterOtpVerification() {
         .map((item: unknown) => String(item || "").trim())
         .filter(Boolean)
     : [];
+  const billingCycle = location.state?.billingCycle === "annual" ? "annual" : "monthly";
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -108,6 +109,7 @@ export default function RegisterOtpVerification() {
           state,
           city,
           businessTypes,
+          billingCycle,
         });
       }
       const successMessage =

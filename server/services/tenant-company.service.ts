@@ -7,6 +7,7 @@ import HostUser from "../models/HostUser.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Workspace from "../models/Workspace.js";
 import { uploadFileToS3 } from "../config/s3config.js";
+import { resolveFrontendBaseUrl } from "../utils/frontendUrl.js";
 import Department from "../models/Department.js";
 import TenantEmployee from "../models/TenantEmployee.js";
 import TenantCreditRequest from "../models/TenantCreditRequest.js";
@@ -1740,9 +1741,7 @@ export async function sendTenantCompanyEmployeeInviteForCurrentUser(userId, tena
 
   const rawToken = crypto.randomBytes(32).toString("hex");
   const now = new Date();
-  const frontendBase = String(process.env.FRONTEND_PROD_LINK || process.env.CLIENT_URL || "http://localhost:3006")
-    .trim()
-    .replace(/\/$/, "");
+  const frontendBase = resolveFrontendBaseUrl("http://localhost:3006");
   const inviteUrl = `${frontendBase}/register?inviteToken=${rawToken}&email=${encodeURIComponent(email)}&fullName=${encodeURIComponent(employee.name)}`;
 
   await sendEmployeeInviteEmail(email, employee.name, access.user?.name || "Administration", employee.role, company.companyName, inviteUrl);

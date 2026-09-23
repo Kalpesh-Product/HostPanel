@@ -111,6 +111,14 @@ const workspaceSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // True while this workspace's current Professional plan is an active
+    // free trial rather than a paid subscription. Set by MasterPanel's
+    // start-trial endpoint, cleared by its expiry-downgrade cron job — same
+    // ownership split as the rest of the plan-lifecycle fields above.
+    isTrialing: {
+      type: Boolean,
+      default: false,
+    },
     // Snapshot of enabledModuleIds taken at auto-downgrade time, restored on
     // the next successful renewal payment.
     preDowngradeEnabledModuleIds: {

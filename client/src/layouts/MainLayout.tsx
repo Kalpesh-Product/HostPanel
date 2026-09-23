@@ -88,7 +88,7 @@ const MainLayout = () => {
           Viewing as {auth?.user?.companyName || "this company"} — read-only staff view
         </div>
       ) : null}
-      {planSummary?.planStatus === "expiring_soon" ? (
+      {!planSummary?.isTrialing && planSummary?.planStatus === "expiring_soon" ? (
         <PlanExpiryBanner
           expiryDate={planSummary.planExpiryDate}
           modulesAtRisk={planSummary.modulesLostOnDowngrade}

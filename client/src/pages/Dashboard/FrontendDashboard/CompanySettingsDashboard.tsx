@@ -4,8 +4,10 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import PageFrame from "../../../components/Pages/PageFrame";
 import useAuth from "../../../hooks/useAuth";
+import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import useDashboardAccess from "../../../hooks/useDashboardAccess";
 import useWorkspacePreferences from "../../../hooks/useWorkspacePreferences";
 import { PlanBadge } from "./dashboard/DashboardShared";
@@ -74,8 +76,25 @@ const CompanySettingsDashboard = () => {
   const location = useLocation();
   const access = useDashboardAccess();
   const workspacePreferences = useWorkspacePreferences();
+  const axiosPrivate = useAxiosPrivate();
   const [now, setNow] = useState(new Date());
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  // Drives the free-trial day-count callout below the greeting banner's plan
+  // badge — this dashboard is where founders actually land, so the trial
+  // status belongs here rather than tucked away in Company Profile.
+  const { data: planSummary } = useQuery({
+    queryKey: ["planBillingSummary"],
+    queryFn: async () => {
+      const res = await axiosPrivate.get("/api/plan-billing/summary");
+      return res?.data?.data;
+    },
+  });
+  const trialDaysLeft = (() => {
+    if (!planSummary?.isTrialing || !planSummary?.trialEndAt) return null;
+    const diffMs = new Date(planSummary.trialEndAt).getTime() - Date.now();
+    return Math.max(0, Math.ceil(diffMs / (24 * 60 * 60 * 1000)));
+  })();
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60_000);
@@ -204,6 +223,8 @@ const CompanySettingsDashboard = () => {
               onUpgradeClick={() => setShowUpgradeModal(true)}
               enabledModuleIds={access.enabledModuleIds}
               grantedModuleIds={access.grantedModuleIds}
+              trialDaysLeft={trialDaysLeft}
+              isTrialExpiringSoon={planSummary?.planStatus === "expiring_soon"}
             />
           )}
           {access.plan === "custom" && <CustomDashboard access={access} />}

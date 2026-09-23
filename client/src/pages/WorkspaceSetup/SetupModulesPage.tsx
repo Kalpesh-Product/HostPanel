@@ -20,10 +20,14 @@ const SetupModulesPage: React.FC = () => {
     inviteOnboarding?.selectedPlan ||
     "basic"
   ) as PlanType;
+  const billingCycle: "monthly" | "annual" =
+    (location.state?.billingCycle || inviteOnboarding?.billingCycle) === "annual"
+      ? "annual"
+      : "monthly";
   const workspaceCount = getWorkspaceCount(
     (auth.user as { workspaceCount?: number } | null)?.workspaceCount,
   );
-  const planUiData = usePlanUiDataWithLivePricing();
+  const planUiData = usePlanUiDataWithLivePricing(billingCycle);
 
   return (
     <div className="min-h-screen bg-[#f4f4f4] text-[#0f172a] font-['Poppins'] flex flex-col">
@@ -165,7 +169,7 @@ const SetupModulesPage: React.FC = () => {
               type="button"
               onClick={() =>
                 navigate("/create-workspace", {
-                  state: { workspaceDetails, selectedPlan },
+                  state: { workspaceDetails, selectedPlan, billingCycle },
                 })
               }
               className="h-10 w-full sm:w-auto px-5 rounded-xl border border-[#d0d8e5] text-[#5b6b83] text-[14px] font-medium bg-transparent"
@@ -179,6 +183,7 @@ const SetupModulesPage: React.FC = () => {
                   state: {
                     workspaceDetails,
                     selectedPlan,
+                    billingCycle,
                     workspaceCount,
                   },
                 })

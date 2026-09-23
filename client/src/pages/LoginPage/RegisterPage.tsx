@@ -29,6 +29,7 @@ interface PrefillState {
   state: string;
   city: string;
   businessTypes: string[];
+  billingCycle: "monthly" | "annual";
 }
 
 interface TenantPrefillState {
@@ -78,6 +79,7 @@ export default function RegisterPage() {
     state: "",
     city: "",
     businessTypes: [],
+    billingCycle: "monthly",
   });
   const [tenantPrefill, setTenantPrefill] = useState<TenantPrefillState | null>(null);
   const [password, setPassword] = useState("");
@@ -160,6 +162,7 @@ export default function RegisterPage() {
           state: response.data.state || "",
           city: response.data.city || "",
           businessTypes: parseBusinessTypes(response.data as Record<string, unknown>),
+          billingCycle: response.data.billingCycle === "annual" ? "annual" : "monthly",
         });
       }
     } catch (error) {
@@ -219,6 +222,7 @@ export default function RegisterPage() {
             state: prefill.state,
             city: prefill.city,
             businessTypes: prefill.businessTypes,
+            billingCycle: prefill.billingCycle,
           },
         });
       }

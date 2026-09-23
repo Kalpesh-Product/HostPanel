@@ -706,7 +706,6 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
         ) : null}
       </SectionShell>
 
-
       <AccountDeletionDangerZone />
 
       {isUpgradeModalOpen ? createPortal(

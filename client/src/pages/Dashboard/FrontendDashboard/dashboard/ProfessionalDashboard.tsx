@@ -18,7 +18,7 @@ import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import {
   Building2, CalendarCheck, Ticket, Eye, UserPlus,
   Globe,
-  LayoutGrid, Calendar, AlertCircle, ArrowRight, Zap,
+  LayoutGrid, Calendar, AlertCircle, ArrowRight, Zap, Clock,
 } from "lucide-react";
 import {
   StatCard, QuickLink, SectionCard, RecentItem, DonutWidget, BarWidget,
@@ -38,6 +38,9 @@ interface ProfessionalDashboardProps {
   enabledModuleIds: Set<string>;
   /** Per-member module grants — a denied module's card is never rendered. */
   grantedModuleIds: Set<string>;
+  /** Set only while this Professional plan is an active free trial. */
+  trialDaysLeft?: number | null;
+  isTrialExpiringSoon?: boolean;
 }
 
 // Shown instead of the four activity rows until the workspace has real data
@@ -80,7 +83,13 @@ const GettingStartedCard = () => {
   );
 };
 
-const ProfessionalDashboard = ({ onUpgradeClick, enabledModuleIds, grantedModuleIds }: ProfessionalDashboardProps) => {
+const ProfessionalDashboard = ({
+  onUpgradeClick,
+  enabledModuleIds,
+  grantedModuleIds,
+  trialDaysLeft,
+  isTrialExpiringSoon,
+}: ProfessionalDashboardProps) => {
   const axiosPrivate = useAxiosPrivate();
   const navigate = useNavigate();
 
@@ -374,6 +383,32 @@ const ProfessionalDashboard = ({ onUpgradeClick, enabledModuleIds, grantedModule
         </span>
         <ArrowRight size={14} className="text-accent flex-shrink-0" />
       </div>
+
+      {trialDaysLeft != null && (
+        <a
+          href="/profile/plan-billing"
+          data-tour="professional-trial"
+          className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-colors ${
+            isTrialExpiringSoon
+              ? "border-amber-400/40 bg-amber-50 hover:bg-amber-100"
+              : "border-accent/30 bg-blue-50 hover:bg-blue-100"
+          }`}
+        >
+          <Clock size={18} className={isTrialExpiringSoon ? "text-amber-600 flex-shrink-0" : "text-accent flex-shrink-0"} />
+          <p className={`text-content font-pmedium min-w-0 truncate ${isTrialExpiringSoon ? "text-amber-800" : "text-blue-800"}`}>
+            {trialDaysLeft} day{trialDaysLeft === 1 ? "" : "s"} left in your free trial — renew to keep the{" "}
+            <strong>Professional Plan</strong>.
+          </p>
+          <span
+            className={`ml-auto flex-shrink-0 px-3 py-1 rounded-full text-[10px] font-pmedium uppercase tracking-widest border whitespace-nowrap ${
+              isTrialExpiringSoon ? "bg-amber-500 text-white border-amber-500" : "bg-accent text-white border-accent"
+            }`}
+          >
+            Renew Now
+          </span>
+          <ArrowRight size={14} className={isTrialExpiringSoon ? "text-amber-600 flex-shrink-0" : "text-accent flex-shrink-0"} />
+        </a>
+      )}
 
       {overviewCardCount > 0 && (
       <div data-tour="professional-overview">

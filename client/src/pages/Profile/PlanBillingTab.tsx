@@ -1,16 +1,22 @@
 import React, { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import {
+  ArrowRight,
   CalendarClock,
   Eye,
   FileText,
   Layers,
   Receipt,
+  RefreshCw,
   Search,
   ShieldCheck,
   X,
 } from "lucide-react";
+
+const MASTER_PANEL_BASE_URL =
+  String(import.meta.env.VITE_MASTER_PANEL_BE_URL || "").trim() || "https://masterpanel.wono.co";
 
 const PLAN_LABELS: Record<string, string> = {
   basic: "Basic Plan",
@@ -88,6 +94,9 @@ const PlanBillingTab = () => {
   const [moduleFilter, setModuleFilter] = useState("All");
   const [paymentFilter, setPaymentFilter] = useState("All");
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
+  const [renewBillingCycle, setRenewBillingCycle] = useState<"monthly" | "annual">("monthly");
+  const [isRenewSubmitting, setIsRenewSubmitting] = useState(false);
 
   const { data: summary, isLoading } = useQuery({
     queryKey: ["planBillingSummary"],
@@ -95,6 +104,17 @@ const PlanBillingTab = () => {
       const res = await axios.get("/api/plan-billing/summary");
       return res?.data?.data;
     },
+  });
+
+  // Live Professional pricing for the renew modal — same source the
+  // upgrade-plan modals and workspace-setup pricing cards read from.
+  const { data: pricing } = useQuery({
+    queryKey: ["professionalPlanPrice"],
+    queryFn: async () => {
+      const res = await axios.get("/api/plan-billing/professional-price");
+      return res?.data;
+    },
+    enabled: isRenewModalOpen,
   });
 
   const { data: invoicesData, isLoading: invoicesLoading } = useQuery({
@@ -109,6 +129,51 @@ const PlanBillingTab = () => {
   const planId = summary?.selectedPlan || "basic";
   const planLabel = PLAN_LABELS[planId] || planId;
   const planStatus = summary?.planStatus || "none";
+  const isTrialing = Boolean(summary?.isTrialing);
+
+  // Preview of the cycle a renewal would actually start/end on — same rule
+  // MasterPanel's computeProjectedPeriod already uses when previewing a
+  // payment-link email: extend from the current expiry if it's still in the
+  // future (no paid time lost), otherwise start today.
+  const renewPeriod = useMemo(() => {
+    const currentExpiry = summary?.planExpiryDate ? new Date(summary.planExpiryDate) : null;
+    const start = currentExpiry && currentExpiry.getTime() > Date.now() ? currentExpiry : new Date();
+    const end = new Date(start);
+    if (renewBillingCycle === "annual") {
+      end.setFullYear(end.getFullYear() + 1);
+    } else {
+      end.setMonth(end.getMonth() + 1);
+    }
+    return { start, end };
+  }, [summary?.planExpiryDate, renewBillingCycle]);
+
+  // Self-serve, same as the Verify Business "pay" flow: MasterPanel mints a
+  // real Stripe Payment Link on the spot and hands the URL straight back —
+  // no staff review, no "sales team will contact you" — so the host lands
+  // on the actual payment page immediately, same as clicking pay for a
+  // verification badge does.
+  const handleRenewSubmit = async () => {
+    if (!summary?.companyId) {
+      toast.error("Company id not found. Please refresh and try again.");
+      return;
+    }
+    try {
+      setIsRenewSubmitting(true);
+      const response = await axios.post(
+        `${MASTER_PANEL_BASE_URL}/api/hosts/plan-payments/send`,
+        { companyId: summary.companyId, plan: planId, billingCycle: renewBillingCycle },
+      );
+      if (response?.data?.paymentLinkUrl) {
+        window.location.href = response.data.paymentLinkUrl;
+      } else {
+        toast.error("Payment link wasn't returned — please try again.");
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to start the payment.");
+    } finally {
+      setIsRenewSubmitting(false);
+    }
+  };
   const includedModules = useMemo<IncludedModule[]>(() => summary?.includedModules || [], [summary]);
   const invoices = useMemo(() => invoicesData || [], [invoicesData]);
 
@@ -176,11 +241,26 @@ const PlanBillingTab = () => {
 
   return (
     <div className="border-default border-borderGray rounded-xl bg-white p-4 flex flex-col gap-4 font-pmedium">
-      <div className="mb-1">
-        <h2 className="text-title font-pmedium text-primary uppercase">Plan &amp; Billing</h2>
-        <p className="text-xs font-pmedium text-slate-500 mt-1">
-          Your current plan, included modules, and payment history.
-        </p>
+      <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-title font-pmedium text-primary uppercase">Plan &amp; Billing</h2>
+          <p className="text-xs font-pmedium text-slate-500 mt-1">
+            Your current plan, included modules, and payment history.
+          </p>
+        </div>
+        {planId !== "basic" ? (
+          <button
+            type="button"
+            onClick={() => {
+              setRenewBillingCycle("monthly");
+              setIsRenewModalOpen(true);
+            }}
+            className="inline-flex items-center gap-2 rounded-full bg-[#2563EB] px-4 py-2 text-[11px] font-pmedium text-white transition hover:bg-blue-700"
+          >
+            <RefreshCw size={13} />
+            Renew Now
+          </button>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-1 shrink-0">
@@ -241,9 +321,25 @@ const PlanBillingTab = () => {
 
       {planStatus === "expiring_soon" && (
         <div className="rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 text-[12px] text-amber-800">
-          Your plan expires on <b>{formatDate(summary?.planExpiryDate)}</b>. If it is not renewed,
-          you will be downgraded to Basic and lose access to:{" "}
-          {(summary?.modulesLostOnDowngrade || []).join(", ") || "the modules included in this plan"}.
+          {isTrialing ? (
+            <>
+              Your free trial ends on <b>{formatDate(summary?.planExpiryDate)}</b>. Renew now to keep it,
+              or you'll be downgraded to Basic and lose access to:{" "}
+              {(summary?.modulesLostOnDowngrade || []).join(", ") || "the modules included in this plan"}.
+            </>
+          ) : (
+            <>
+              Your plan expires on <b>{formatDate(summary?.planExpiryDate)}</b>. If it is not renewed,
+              you will be downgraded to Basic and lose access to:{" "}
+              {(summary?.modulesLostOnDowngrade || []).join(", ") || "the modules included in this plan"}.
+            </>
+          )}
+        </div>
+      )}
+      {isTrialing && planStatus !== "expiring_soon" && (
+        <div className="rounded-2xl bg-blue-50 border border-blue-200 px-4 py-3 text-[12px] text-blue-800">
+          You're on a free trial of the {planLabel}, active until <b>{formatDate(summary?.planExpiryDate)}</b>.
+          Renew now to continue on this plan after the trial ends.
         </div>
       )}
       {planStatus === "expired_downgraded" && (
@@ -433,6 +529,94 @@ const PlanBillingTab = () => {
           </div>
         )}
       </div>
+
+      {isRenewModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+              <div>
+                <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600">Renew Plan</p>
+                <h3 className="mt-1 text-sm font-pmedium text-slate-900">Renew {planLabel}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsRenewModalOpen(false)}
+                title="Close"
+                aria-label="Close renew plan"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-800"
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <div className="p-5 space-y-3">
+              <p className="text-[12px] text-slate-500">Choose a billing cycle to continue on this plan.</p>
+              <div className="grid grid-cols-2 gap-3">
+                {(["monthly", "annual"] as const).map((cycle) => {
+                  const isSelected = renewBillingCycle === cycle;
+                  const rate =
+                    cycle === "annual"
+                      ? pricing?.professionalAnnualPlanPriceUsd
+                      : pricing?.professionalPlanPriceUsd;
+                  const priceLabel =
+                    rate != null
+                      ? cycle === "annual"
+                        ? `$${Number(rate).toLocaleString("en-US")} /year`
+                        : `$${rate} /month`
+                      : "";
+                  return (
+                    <button
+                      key={cycle}
+                      type="button"
+                      onClick={() => setRenewBillingCycle(cycle)}
+                      className={`rounded-xl border px-4 py-3 text-left transition ${
+                        isSelected
+                          ? "border-[#2563EB] bg-blue-50"
+                          : "border-slate-200 bg-white hover:border-slate-300"
+                      }`}
+                    >
+                      <p className="text-[12px] font-pmedium text-slate-900 capitalize">{cycle}</p>
+                      {priceLabel ? (
+                        <p className="text-[11px] text-slate-500 mt-0.5">{priceLabel}</p>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 flex items-center justify-between gap-3 text-[12px]">
+                <div>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Starts</p>
+                  <p className="font-pmedium text-slate-800 mt-0.5">{formatDate(renewPeriod.start.toISOString())}</p>
+                </div>
+                <ArrowRight size={14} className="text-slate-300 shrink-0" />
+                <div className="text-right">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Ends</p>
+                  <p className="font-pmedium text-slate-800 mt-0.5">{formatDate(renewPeriod.end.toISOString())}</p>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                You'll be taken to a secure Stripe payment page to complete this renewal.
+              </p>
+            </div>
+            <div className="border-t border-slate-100 px-5 py-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsRenewModalOpen(false)}
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-[11px] font-pmedium text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleRenewSubmit}
+                disabled={isRenewSubmitting}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[11px] font-pmedium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+              >
+                {isRenewSubmitting ? "Redirecting..." : "Continue to Payment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedInvoice && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">

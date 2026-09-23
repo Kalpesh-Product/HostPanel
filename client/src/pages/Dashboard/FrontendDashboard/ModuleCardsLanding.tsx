@@ -611,8 +611,60 @@ export const UpgradePlanModal = ({
   const axiosPrivate = useAxiosPrivate();
   const [isUpgradeSubmitting, setIsUpgradeSubmitting] = useState(false);
   const [requestedUpgradePlan, setRequestedUpgradePlan] = useState("");
+  const [trialOffer, setTrialOffer] = useState({
+    freeTrialEnabled: false,
+    hasUsedTrial: false,
+    isTrialing: false,
+    freeTrialDurationDays: null as number | null,
+  });
+  const [isStartingTrial, setIsStartingTrial] = useState(false);
 
   const upgradePlanCards = getUpgradePlanOptions(currentPlan);
+
+  // Same trial-eligibility read AddModulesPage.tsx uses — both hit
+  // HostPanel's own backend, which reads the master toggle (Master Panel >
+  // Plan Pricing) and this company's one-time-claim state.
+  useEffect(() => {
+    let active = true;
+    const loadTrialOffer = async () => {
+      try {
+        const [priceResult, summaryResult] = await Promise.allSettled([
+          axiosPrivate.get("/api/plan-billing/professional-price"),
+          axiosPrivate.get("/api/plan-billing/summary"),
+        ]);
+        if (!active) return;
+        const priceData = priceResult.status === "fulfilled" ? priceResult.value?.data : null;
+        const summaryData =
+          summaryResult.status === "fulfilled" ? summaryResult.value?.data?.data : null;
+        setTrialOffer({
+          freeTrialEnabled: Boolean(priceData?.freeTrialEnabled),
+          hasUsedTrial: Boolean(summaryData?.hasUsedTrial),
+          isTrialing: Boolean(summaryData?.isTrialing),
+          freeTrialDurationDays:
+            priceData?.freeTrialDurationDays != null ? Number(priceData.freeTrialDurationDays) : null,
+        });
+      } catch {
+        if (!active) return;
+      }
+    };
+    void loadTrialOffer();
+    return () => {
+      active = false;
+    };
+  }, [axiosPrivate]);
+
+  const handleStartTrial = async () => {
+    try {
+      setIsStartingTrial(true);
+      await axiosPrivate.post("/api/plan-billing/start-trial");
+      toast.success("Your free trial has started!");
+      window.location.reload();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to start free trial.");
+    } finally {
+      setIsStartingTrial(false);
+    }
+  };
 
   const resolveMasterCompanyId = async () => {
     const authUser = auth.user as
@@ -806,7 +858,25 @@ export const UpgradePlanModal = ({
               <div className="h-px bg-[#d8e0ea] mt-3 mb-2" />
               <p className="text-[11px] text-[#9aa8bc] text-center mb-2">{plan.note}</p>
 
-              <div className="w-full">
+              <div className="w-full space-y-2">
+                {plan.key === "professional" &&
+                trialOffer.freeTrialEnabled &&
+                !trialOffer.hasUsedTrial &&
+                !trialOffer.isTrialing ? (
+                  <PrimaryButton
+                    title={
+                      isStartingTrial
+                        ? "Starting..."
+                        : trialOffer.freeTrialDurationDays
+                          ? `Start ${trialOffer.freeTrialDurationDays}-Day Free Trial`
+                          : "Start Free Trial"
+                    }
+                    handleSubmit={handleStartTrial}
+                    disabled={isStartingTrial || isUpgradeSubmitting}
+                    className="w-full rounded-full"
+                    padding="py-2"
+                  />
+                ) : null}
                 <PrimaryButton
                   title={
                     isUpgradeSubmitting
@@ -818,8 +888,15 @@ export const UpgradePlanModal = ({
                   handleSubmit={() => {
                     handlePlanCardAction(plan.key);
                   }}
-                  disabled={isUpgradeSubmitting}
-                  className="w-full rounded-full"
+                  disabled={isUpgradeSubmitting || isStartingTrial}
+                  className={`w-full rounded-full${
+                    plan.key === "professional" &&
+                    trialOffer.freeTrialEnabled &&
+                    !trialOffer.hasUsedTrial &&
+                    !trialOffer.isTrialing
+                      ? " !bg-transparent !text-[#2563eb] !border !border-[#2563eb]"
+                      : ""
+                  }`}
                   padding="py-2"
                 />
               </div>

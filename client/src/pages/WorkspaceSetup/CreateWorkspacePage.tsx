@@ -202,6 +202,8 @@ const CreateWorkspacePage: React.FC = () => {
   const [workspaceNameMessage, setWorkspaceNameMessage] = useState("");
   const selectedPlanFromInviteOrState =
     location.state?.selectedPlan || activeInviteOnboarding?.selectedPlan || "basic";
+  const billingCycleFromInviteOrState =
+    location.state?.billingCycle || activeInviteOnboarding?.billingCycle || "monthly";
   const isAdditionalWorkspaceMode = Boolean(location.state?.additionalWorkspaceMode);
   const selectedCountryOption =
     countries.find((item) => item.name === country) || null;
@@ -576,6 +578,7 @@ const CreateWorkspacePage: React.FC = () => {
                     businessTypes,
                   },
                   selectedPlan: selectedPlanFromInviteOrState,
+                  billingCycle: billingCycleFromInviteOrState,
                   additionalWorkspaceMode: isAdditionalWorkspaceMode,
                 },
               });

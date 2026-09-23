@@ -16,6 +16,7 @@ import {
   resolveActiveWorkspaceMembership,
 } from "../utils/resolveMembership.js";
 import { syncAccountWorkspacePlans } from "../utils/accountPlan.js";
+import { resolveFrontendBaseUrl } from "../utils/frontendUrl.js";
 import { ensureEmployeeProfileForMember } from "../services/core/hr.service.js";
 import logAuthEvent from "../utils/authActivityLog.js";
 import { renderNotificationEmail } from "../utils/emailTemplates.js";
@@ -147,6 +148,12 @@ const extractInviteIdentity = (decoded: any) => {
     decoded?.userInfo?.businessName ||
     decoded?.userInfo?.companyName ||
     "";
+  const billingCycle =
+    String(
+      decoded?.billingCycle || decoded?.userInfo?.billingCycle || "monthly",
+    ).trim().toLowerCase() === "annual"
+      ? "annual"
+      : "monthly";
   const inviteType =
     decoded?.inviteType ||
     decoded?.userInfo?.inviteType ||
@@ -213,6 +220,7 @@ const extractInviteIdentity = (decoded: any) => {
     state,
     city,
     businessTypes,
+    billingCycle,
   };
 };
 
@@ -709,7 +717,7 @@ export const forgotPassword = async (req, res, next) => {
     await user.save({ validateBeforeSave: false });
 
     //Send email with reset link
-    const resetUrl = `${process.env.FRONTEND_PROD_LINK}reset-password/${resetToken}`;
+    const resetUrl = `${resolveFrontendBaseUrl("http://localhost:3006")}/reset-password/${resetToken}`;
 
     const message = `
       <p>Hi ${user.name || ""},</p> 
@@ -929,7 +937,7 @@ export const resetPassword = async (req, res, next) => {
     const successMessage = `
       <p>Hi ${user.firstName || user.name || ""},</p>
       <p>Your password has been successfully reset.</p>
-      <p>You can now <a href="${process.env.FRONTEND_PROD_LINK
+      <p>You can now <a href="${resolveFrontendBaseUrl("http://localhost:3006")
       }" target="_blank">log in</a> with your new password.</p>
       <p>If you did not perform this action, please contact us immediately.</p>
       <br/>
@@ -976,6 +984,7 @@ export const getRegisterPrefill = async (req, res, next) => {
       state,
       city,
       businessTypes,
+      billingCycle,
     } =
       extractInviteIdentity(decoded);
 
@@ -1009,6 +1018,7 @@ export const getRegisterPrefill = async (req, res, next) => {
       state: enriched.state,
       city: enriched.city,
       businessTypes: enriched.businessTypes,
+      billingCycle,
     });
   } catch (error) {
     if (error?.message === "INVITE_COMPANY_NOT_FOUND") {
@@ -1215,14 +1225,7 @@ const buildSetupJourneyStep = ({ state, number, label }) => {
 const buildSetupJourneyArrow = () =>
   `<tr><td style="text-align:center;color:#8a93a3;font-size:14px;padding:0 0 2px;">&#8595;</td></tr>`;
 
-const resolveHostPanelFrontendUrl = () =>
-  String(
-    process.env.FRONTEND_PROD_LINK ||
-      process.env.CLIENT_URL ||
-      "http://localhost:3006",
-  )
-    .trim()
-    .replace(/\/+$/, "");
+const resolveHostPanelFrontendUrl = () => resolveFrontendBaseUrl("http://localhost:3006");
 
 const buildAccountReadyEmailBody = ({ email, loginUrl }) => `
   <tr>

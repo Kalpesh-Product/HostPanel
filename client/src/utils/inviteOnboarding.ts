@@ -12,6 +12,7 @@ export interface InviteOnboardingState {
   state: string;
   city: string;
   businessTypes: string[];
+  billingCycle: "monthly" | "annual";
 }
 
 const INVITE_ONBOARDING_KEY = "invite_onboarding";
@@ -46,6 +47,12 @@ export const readInviteOnboardingState = (): InviteOnboardingState | null => {
     };
 
     const normalizedPlan = normalizePlan(parsed.selectedPlan);
+    // Backward-compatible default — an onboarding state written before this
+    // field existed simply won't have it, and "monthly" was the only rate
+    // ever shown before, so it's the correct fallback rather than a strict
+    // validation failure.
+    const normalizedBillingCycle: "monthly" | "annual" =
+      String(parsed.billingCycle || "").trim().toLowerCase() === "annual" ? "annual" : "monthly";
 
     return {
       source: "invite",
@@ -60,6 +67,7 @@ export const readInviteOnboardingState = (): InviteOnboardingState | null => {
       businessTypes: parsed.businessTypes
         .map((item) => String(item || "").trim())
         .filter(Boolean),
+      billingCycle: normalizedBillingCycle,
     };
   } catch {
     return null;

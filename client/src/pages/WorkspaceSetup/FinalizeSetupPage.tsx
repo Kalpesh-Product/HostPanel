@@ -161,6 +161,10 @@ const FinalizeSetupPage: React.FC = () => {
   const isAdditionalWorkspaceMode = Boolean(location.state?.additionalWorkspaceMode);
   const inviteOnboarding = readInviteOnboardingState();
   const initialSelectedPlan = (location.state?.selectedPlan || "basic") as PlanType;
+  const billingCycle: "monthly" | "annual" =
+    (location.state?.billingCycle || inviteOnboarding?.billingCycle) === "annual"
+      ? "annual"
+      : "monthly";
   const hostLeadCompanyIdOverride =
     String(
       location.state?.hostLeadCompanyId ||
@@ -180,7 +184,7 @@ const FinalizeSetupPage: React.FC = () => {
     (auth.user as { workspaceCount?: number } | null)?.workspaceCount,
   );
   const enabledModuleIds = getEnabledModuleIdsForPlan(selectedPlan, workspaceCount);
-  const planUiData = usePlanUiDataWithLivePricing();
+  const planUiData = usePlanUiDataWithLivePricing(billingCycle);
   const currentPlanCard = planUiData.find((plan) => plan.key === selectedPlan) || planUiData[0];
   // Same filter as workspaceSetupPlans.ts's getUpgradePlanOptions, applied
   // to the live-priced array instead of the static one, so an upgrade
@@ -648,6 +652,7 @@ const FinalizeSetupPage: React.FC = () => {
               </p>
               <p className="text-[11px] font-pmedium text-[#233552] mb-3 text-center">
                 Plan Selected : {selectedPlan.toUpperCase()}
+                {selectedPlan !== "basic" ? ` (${billingCycle === "annual" ? "Annual" : "Monthly"})` : ""}
               </p>
               <div className="grid grid-cols-1 font-pmedium auto-rows-auto gap-y-2 flex-1 content-between">
                 {workspaceRows.length ? (

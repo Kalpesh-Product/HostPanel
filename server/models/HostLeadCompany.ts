@@ -16,6 +16,10 @@ const hostLeadCompanySchema = new mongoose.Schema(
     paymentStatus: { type: Boolean, default: false },
     paymentConfirmedAt: { type: Date, default: null },
     customPlanModuleIds: { type: [String], default: [] },
+    trialStartAt: { type: Date, default: null },
+    trialEndAt: { type: Date, default: null },
+    isTrialActive: { type: Boolean, default: false },
+    hasUsedTrial: { type: Boolean, default: false },
   },
   { timestamps: true, strict: false },
 );
