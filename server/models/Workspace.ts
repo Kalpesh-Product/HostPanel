@@ -95,6 +95,15 @@ const workspaceSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Billing cycle this plan renews on: monthly (rate once per calendar
+    // month) or annual (discounted per-month-equivalent rate × 12 charged
+    // upfront for a 12-month cycle). Set/extended only by MasterPanel's
+    // payment webhook or setup — HostPanel reads it for renewal/upgrade math.
+    billingCycle: {
+      type: String,
+      enum: ["monthly", "annual"],
+      default: "monthly",
+    },
     // Idempotency guard for the "expires in 5 days" email, and the flag the
     // HostPanel dashboard banner reads to decide whether to render — set
     // once by the reminder cron, cleared on renewal.

@@ -108,16 +108,24 @@ export const getPlanBillingSummary = async (req, res, next) => {
 // that side too) so the workspace-setup pricing cards
 // (WorkspaceSetup/workspaceSetupPlans.ts) show the live Professional price
 // set on MasterPanel's Plan Pricing settings page, same as Nomads'
-// AiHostPricing card. Falls back to null on failure — the client keeps its
-// static "$199 /month" copy in that case rather than showing an error.
+// AiHostPricing card. Serves both cycles: professionalAnnualPlanPriceUsd is
+// the discounted per-month-equivalent rate charged × 12 upfront for yearly
+// billing. Falls back to null on failure — the client keeps its static
+// "$199 /month" copy in that case rather than showing an error.
 export const getProfessionalPlanPrice = async (req, res, next) => {
   try {
     const { data } = await axios.get(`${MASTER_PANEL_BASE_URL}/api/public/plan-pricing`, {
       timeout: 5000,
     });
-    return res.status(200).json({ professionalPlanPriceUsd: data?.professionalPlanPriceUsd ?? null });
+    return res.status(200).json({
+      professionalPlanPriceUsd: data?.professionalPlanPriceUsd ?? null,
+      professionalAnnualPlanPriceUsd: data?.professionalAnnualPlanPriceUsd ?? null,
+    });
   } catch (error) {
-    return res.status(200).json({ professionalPlanPriceUsd: null });
+    return res.status(200).json({
+      professionalPlanPriceUsd: null,
+      professionalAnnualPlanPriceUsd: null,
+    });
   }
 };
 

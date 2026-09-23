@@ -12,6 +12,7 @@ const hostLeadCompanySchema = new mongoose.Schema(
   {
     companyId: { type: String, trim: true },
     plan: { type: String, trim: true },
+    billingCycle: { type: String, enum: ["monthly", "annual"], default: "monthly" },
     paymentStatus: { type: Boolean, default: false },
     paymentConfirmedAt: { type: Date, default: null },
     customPlanModuleIds: { type: [String], default: [] },

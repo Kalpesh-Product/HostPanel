@@ -63,6 +63,7 @@ const resolvePlanLifecycleFields = async ({
       planStartDate: null,
       planExpiryDate: null,
       planLastPaidAt: null,
+      billingCycle: "monthly",
       customPlanModuleIds: [],
       customPlanMonthlyPriceUsd: null,
     };
@@ -75,7 +76,7 @@ const resolvePlanLifecycleFields = async ({
       planStatus: { $in: ["active", "expiring_soon"] },
     })
       .select(
-        "purchasedPlan planStatus planStartDate planExpiryDate planLastPaidAt customPlanModuleIds customPlanMonthlyPriceUsd",
+        "purchasedPlan planStatus planStartDate planExpiryDate planLastPaidAt billingCycle customPlanModuleIds customPlanMonthlyPriceUsd",
       )
       .lean();
     if (sibling) {
@@ -85,6 +86,7 @@ const resolvePlanLifecycleFields = async ({
         planStartDate: sibling.planStartDate || new Date(),
         planExpiryDate: sibling.planExpiryDate || null,
         planLastPaidAt: sibling.planLastPaidAt || null,
+        billingCycle: sibling.billingCycle || "monthly",
         customPlanModuleIds: sibling.customPlanModuleIds || [],
         customPlanMonthlyPriceUsd: sibling.customPlanMonthlyPriceUsd ?? null,
       };
@@ -98,13 +100,19 @@ const resolvePlanLifecycleFields = async ({
   if (lead?.paymentStatus) {
     const now = lead.paymentConfirmedAt ? new Date(lead.paymentConfirmedAt) : new Date();
     const expiry = new Date(now);
-    expiry.setMonth(expiry.getMonth() + 1);
+    const isAnnual = String(lead?.billingCycle || "").toLowerCase() === "annual";
+    if (isAnnual) {
+      expiry.setFullYear(expiry.getFullYear() + 1);
+    } else {
+      expiry.setMonth(expiry.getMonth() + 1);
+    }
     return {
       purchasedPlan: effectivePlan,
       planStatus: "active",
       planStartDate: now,
       planExpiryDate: expiry,
       planLastPaidAt: now,
+      billingCycle: isAnnual ? "annual" : "monthly",
       customPlanModuleIds: lead.customPlanModuleIds || [],
       customPlanMonthlyPriceUsd: null,
     };
@@ -119,6 +127,7 @@ const resolvePlanLifecycleFields = async ({
     planStartDate: null,
     planExpiryDate: null,
     planLastPaidAt: null,
+    billingCycle: "monthly",
     customPlanModuleIds: [],
     customPlanMonthlyPriceUsd: null,
   };
