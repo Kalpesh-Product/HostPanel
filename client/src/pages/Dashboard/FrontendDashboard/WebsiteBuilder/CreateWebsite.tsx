@@ -1842,9 +1842,14 @@ const CreateWebsite = () => {
                   : Array.isArray(draftData?.rooms)
                     ? draftData.rooms
                     : [],
-            coLivingRooms: Array.isArray(draftData?.coLivingRooms)
-              ? draftData.coLivingRooms
-              : [],
+            // Same precedence as rooms/packages/dorms: the saved template copy
+            // carries the uploaded images; the draft copy is text-only, so
+            // loading it alone dropped every co-living image on reload.
+            coLivingRooms: Array.isArray(found?.coLivingRooms)
+              ? found.coLivingRooms
+              : Array.isArray(draftData?.coLivingRooms)
+                ? draftData.coLivingRooms
+                : [],
             packages: Array.isArray(found?.packages)
               ? found.packages
               : Array.isArray(draftData?.packages)
