@@ -4,6 +4,7 @@ import TemplateServicesDropdown from "./TemplateServicesDropdown";
 import { isProductsNavItem } from "./templateNavigation";
 import { getInclusionMeta } from "./inclusionIcons";
 import professionalTeamFallback from "../../../../../assets/WONO_images/img/website-builder/emerald-studio-professional-team.png";
+import { SOCIAL_ICON } from "./socialIcons";
 import exploreArrow from "../../../../../assets/WONO_images/img/website-builder/emerald-studio-arrow.svg";
 
 const FONT_IMPORT =
@@ -2287,18 +2288,25 @@ const EmeraldStudioTemplate: React.FC = () => {
               </p>
             ) : null}
             {t.footerSocialLinks.length ? (
-              <div className="flex gap-4 mt-4 md:justify-start justify-center">
-                {t.footerSocialLinks.map((social: any) => (
-                  <a
-                    key={social.key}
-                    href={social.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-stone-600 text-xs hover:text-amber-400 transition-colors"
-                  >
-                    {SOCIAL_LABEL[social.key] || social.key}
-                  </a>
-                ))}
+              <div className="flex items-center gap-3 mt-4 md:justify-start justify-center">
+                {t.footerSocialLinks.map((social: any) => {
+                  const Tag: any = social.href ? "a" : "span";
+                  const linkProps = social.href
+                    ? { href: social.href, target: "_blank", rel: "noreferrer" }
+                    : { role: "img" };
+                  return (
+                    <Tag
+                      key={social.key}
+                      {...linkProps}
+                      aria-label={SOCIAL_LABEL[social.key] || social.key}
+                      className={`inline-flex h-9 w-9 items-center justify-center rounded-full border border-amber-400/50 text-amber-400 transition-colors ${
+                        social.href ? "hover:bg-amber-400 hover:text-emerald-950" : "cursor-default"
+                      }`}
+                    >
+                      {SOCIAL_ICON[social.key]}
+                    </Tag>
+                  );
+                })}
               </div>
             ) : null}
           </div>

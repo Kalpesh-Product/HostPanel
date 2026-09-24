@@ -61,7 +61,7 @@ const PackagesSection = ({ control, register }) => {
                     {...field}
                     label="Package Images"
                     maxFiles={10}
-                    allowedExtensions={["jpg", "jpeg", "png", "webp", "pdf"]}
+                    allowedExtensions={["jpg", "jpeg", "png", "webp"]}
                     id={`packages.${index}.images`}
                   />
                 )}

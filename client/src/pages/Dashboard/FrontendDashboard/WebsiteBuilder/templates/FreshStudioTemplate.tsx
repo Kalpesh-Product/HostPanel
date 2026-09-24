@@ -2506,23 +2506,29 @@ const FreshStudioTemplate: React.FC = () => {
             ) : null}
             {t.footerSocialLinks.length ? (
               <div className="mt-4 flex items-center justify-center gap-3 md:justify-start">
-                {t.footerSocialLinks.map((social: any) => (
-                  <a
-                    key={social.key}
-                    href={social.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={SOCIAL_LABEL[social.key] || social.key}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border transition hover:bg-white hover:text-[#0A0A12] focus-visible:outline focus-visible:outline-2"
-                    style={{
-                      borderColor: "rgba(255,255,255,0.18)",
-                      color: WHITE,
-                      ...focusStyle,
-                    }}
-                  >
-                    {SOCIAL_ICON[social.key]}
-                  </a>
-                ))}
+                {t.footerSocialLinks.map((social: any) => {
+                  const Tag: any = social.href ? "a" : "span";
+                  const linkProps = social.href
+                    ? { href: social.href, target: "_blank", rel: "noreferrer" }
+                    : { role: "img" };
+                  return (
+                    <Tag
+                      key={social.key}
+                      {...linkProps}
+                      aria-label={SOCIAL_LABEL[social.key] || social.key}
+                      className={`inline-flex h-9 w-9 items-center justify-center rounded-full border transition focus-visible:outline focus-visible:outline-2 ${
+                        social.href ? "hover:bg-white hover:text-[#0A0A12]" : "cursor-default"
+                      }`}
+                      style={{
+                        borderColor: "rgba(255,255,255,0.18)",
+                        color: WHITE,
+                        ...focusStyle,
+                      }}
+                    >
+                      {SOCIAL_ICON[social.key]}
+                    </Tag>
+                  );
+                })}
               </div>
             ) : null}
           </div>

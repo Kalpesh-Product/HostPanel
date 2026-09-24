@@ -64,7 +64,7 @@ const RoomsSection = ({
                     {...field}
                     label={imageLabel}
                     maxFiles={10}
-                    allowedExtensions={["jpg", "jpeg", "png", "webp", "pdf"]}
+                    allowedExtensions={["jpg", "jpeg", "png", "webp"]}
                     id={`${fieldName}.${index}.images`}
                   />
                 )}

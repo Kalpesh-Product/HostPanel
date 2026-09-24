@@ -2965,6 +2965,49 @@ const CreateWebsite = () => {
       savedTemplate.aboutPageImages,
       pendingFieldFiles.aboutPageImages,
     );
+    // Rooms / co-living spaces / packages / dorms / meeting rooms: swap the
+    // Files this request uploaded for their saved refs, per item. Without
+    // this the form keeps raw Files, and Submit then serialises them as
+    // empty `{}` objects that wipe the images just saved.
+    const itemImageLists: Array<[string, string]> = [
+      ["rooms", "draftRoomImages_"],
+      ["meetingRooms", "draftMeetingRoomImages_"],
+      ["coLivingRooms", "draftCoLivingRoomImages_"],
+      ["packages", "draftPackageImages_"],
+      ["dorms", "draftDormImages_"],
+    ];
+    itemImageLists.forEach(([listName, fieldPrefix]) => {
+      const savedList = (savedTemplate as any)[listName];
+      if (!Array.isArray(savedList)) return;
+      const currentList = getValues(listName as any);
+      if (!Array.isArray(currentList)) return;
+      let changed = false;
+      const nextList = currentList.map((item: any, itemIdx: number) => {
+        // This request's Files for this item, in the order they were sent.
+        const submitted: File[] = [];
+        Object.keys(pendingFieldFiles)
+          .filter((key) => new RegExp(`^${fieldPrefix}${itemIdx}_\\d+$`).test(key))
+          .sort(
+            (a, b) =>
+              Number(a.split("_").pop()) - Number(b.split("_").pop()),
+          )
+          .forEach((key) => submitted.push(...pendingFieldFiles[key]));
+        const savedImages = savedList[itemIdx]?.images;
+        if (!submitted.length || !Array.isArray(savedImages)) return item;
+        const newlyUploaded = savedImages.slice(-submitted.length);
+        if (newlyUploaded.length !== submitted.length) return item;
+        const fileToSaved = new Map<File, any>();
+        submitted.forEach((file, idx) => fileToSaved.set(file, newlyUploaded[idx]));
+        changed = true;
+        return {
+          ...item,
+          images: (item?.images || []).map((img: any) =>
+            img instanceof File && fileToSaved.has(img) ? fileToSaved.get(img) : img,
+          ),
+        };
+      });
+      if (changed) setValue(listName as any, nextList, { shouldDirty: false });
+    });
     // Founder images
     if (Array.isArray(savedTemplate.founders) && savedTemplate.founders.length) {
       const currentFounders = getValues("founders") || [];
@@ -3109,7 +3152,10 @@ const CreateWebsite = () => {
       // the next autosave request.
       let requestFileBytes = 0;
       const appendDraftFileOnce = (fieldName: string, file?: File | null) => {
-        if (!file) return;
+        // Item image lists mix saved {id,url} refs with fresh Files; only Files
+        // are uploaded (a saved ref would be sent as "[object Object]" and
+        // corrupt the request size count).
+        if (!(file instanceof File)) return;
         const key = `${fieldName}::${getFileKey(file)}`;
         if (uploadedDraftFileKeysRef.current.has(key)) return;
         if (pendingFileKeys.length > 0 && requestFileBytes + file.size > draftFileByteBudgetRef.current) {

@@ -146,6 +146,17 @@ const getSocialHref = (key: string, link: unknown) => {
   return /^https?:\/\//i.test(value) ? value : `https://${value}`;
 };
 
+const isUsableSocialHref = (key: string, href: string) => {
+  if (!href) return false;
+  if (key === "whatsapp") return /^https:\/\/wa\.me\/\d{7,}$/.test(href);
+  try {
+    const url = new URL(href);
+    return /^https?:$/.test(url.protocol) && /\.[a-z]{2,}$/i.test(url.hostname);
+  } catch {
+    return false;
+  }
+};
+
 export const getCareersJobTitle = (job: any) =>
   String(job?.title || job?.designation || job?.name || "Untitled Role").trim();
 
@@ -736,12 +747,14 @@ export const useWebsiteTemplateData = () => {
   const footerCompanyName = String(draft?.registeredCompanyName || draft?.companyName || "").trim();
   const footerCopyrightText = String(draft?.copyrightText || "").trim();
   const footerAddress = String(draft?.address || "").trim();
+  // Enabled platforms always show their icon; `href` is only set when the
+  // link is a usable URL, so an empty/invalid link renders as a plain icon
+  // instead of a broken redirect.
   const footerSocialLinks = FOOTER_SOCIAL_KEYS.map((key) => {
     const entry = draft?.socials?.[key];
     if (entry?.enabled !== true) return null;
     const href = getSocialHref(key, entry?.link);
-    if (!href) return null;
-    return { key, href };
+    return { key, href: isUsableSocialHref(key, href) ? href : "" };
   }).filter(Boolean) as Array<{ key: string; href: string }>;
 
   const resolvedHomeHeroImage = heroImage || galleryItems[0] || "";

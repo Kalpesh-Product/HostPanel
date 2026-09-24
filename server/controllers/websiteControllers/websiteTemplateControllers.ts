@@ -2896,6 +2896,54 @@ export const editTemplate = async (req, res, next) => {
     const filesByField = {};
     for (const f of req.files || []) (filesByField[f.fieldname] ||= []).push(f);
 
+    // Rooms / co-living spaces / packages / dorms arrive as JSON where each
+    // item's `images` is the client's form state: saved {id,url} refs, plus
+    // File objects that JSON.stringify turns into empty `{}` placeholders.
+    // Taking that array as-is (the old behaviour) wiped every image the
+    // client still held as a File, and any files sent alongside were never
+    // uploaded by this handler at all. Rebuild each item's images from: the
+    // saved refs the client still has, images the draft autosave already
+    // uploaded for that slot, and files that arrived with this request.
+    const mergeItemImages = async (bodyItems, existingItems, filePrefix, folder) => {
+      if (!Array.isArray(bodyItems)) return existingItems;
+      const merged = [];
+      for (let i = 0; i < bodyItems.length; i++) {
+        const item = bodyItems[i] || {};
+        const existingImages = Array.isArray(existingItems?.[i]?.images)
+          ? existingItems[i].images
+          : [];
+        const bodyImages = Array.isArray(item.images) ? item.images : [];
+        const refs = bodyImages.filter(
+          (img) => img && typeof img === "object" && img.url,
+        );
+        const refIds = new Set(refs.map((img) => String(img.id || img.url)));
+        const newFiles = filesByField[`${filePrefix}_${i}`] || [];
+        const placeholderCount = bodyImages.length - refs.length;
+        const uploadedEarlier = existingImages
+          .filter((img) => img?.url && !refIds.has(String(img.id || img.url)))
+          .slice(0, Math.max(0, placeholderCount - newFiles.length));
+        const uploadedNow = newFiles.length
+          ? await uploadImages(newFiles.slice(0, 10), `${folder}/${i}`, 10)
+          : [];
+        merged.push({
+          ...item,
+          images: [...refs, ...uploadedEarlier, ...uploadedNow].slice(0, 10),
+        });
+      }
+      return merged;
+    };
+    const baseFolderForItems = `hosts/template/${template.searchKey}`;
+    const mergedRooms = await mergeItemImages(rooms, template.rooms, "roomImages", `${baseFolderForItems}/rooms`);
+    const mergedMeetingRooms = await mergeItemImages(
+      Array.isArray(meetingRooms) ? meetingRooms : rooms,
+      template.meetingRooms,
+      "meetingRoomImages",
+      `${baseFolderForItems}/meetingRooms`,
+    );
+    const mergedCoLivingRooms = await mergeItemImages(coLivingRooms, template.coLivingRooms, "coLivingRoomImages", `${baseFolderForItems}/coLivingRooms`);
+    const mergedPackages = await mergeItemImages(packages, template.packages, "packageImages", `${baseFolderForItems}/packages`);
+    const mergedDorms = await mergeItemImages(dorms, template.dorms, "dormImages", `${baseFolderForItems}/dorms`);
+
     Object.assign(template, {
       workspaceId: req.body?.workspaceId ?? template.workspaceId ?? null,
       companyName:
@@ -3117,17 +3165,15 @@ export const editTemplate = async (req, res, next) => {
           : Array.isArray(menuItems)
             ? menuItems
             : template.menuItems,
-      rooms: Array.isArray(rooms) ? rooms : template.rooms,
-      meetingRooms: Array.isArray(meetingRooms)
-        ? meetingRooms
-        : Array.isArray(rooms)
-          ? rooms
-          : template.meetingRooms,
+      rooms: Array.isArray(rooms) ? mergedRooms : template.rooms,
+      meetingRooms: Array.isArray(meetingRooms) || Array.isArray(rooms)
+        ? mergedMeetingRooms
+        : template.meetingRooms,
       coLivingRooms: Array.isArray(coLivingRooms)
-        ? coLivingRooms
+        ? mergedCoLivingRooms
         : template.coLivingRooms,
-      packages: Array.isArray(packages) ? packages : template.packages,
-      dorms: Array.isArray(dorms) ? dorms : template.dorms,
+      packages: Array.isArray(packages) ? mergedPackages : template.packages,
+      dorms: Array.isArray(dorms) ? mergedDorms : template.dorms,
     });
     template.isDraft = false;
     template.draftData = null;

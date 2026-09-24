@@ -2283,19 +2283,25 @@ const WarmOrganicTemplate: React.FC = () => {
             ) : null}
             {t.footerSocialLinks.length ? (
               <div className="mt-4 flex items-center justify-center gap-3 md:justify-start">
-                {t.footerSocialLinks.map((social: any) => (
-                  <a
-                    key={social.key}
-                    href={social.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={SOCIAL_LABEL[social.key] || social.key}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full transition hover:opacity-75"
-                    style={{ backgroundColor: `${RUST}15`, color: RUST }}
-                  >
-                    {SOCIAL_ICON[social.key]}
-                  </a>
-                ))}
+                {t.footerSocialLinks.map((social: any) => {
+                  const Tag: any = social.href ? "a" : "span";
+                  const linkProps = social.href
+                    ? { href: social.href, target: "_blank", rel: "noreferrer" }
+                    : { role: "img" };
+                  return (
+                    <Tag
+                      key={social.key}
+                      {...linkProps}
+                      aria-label={SOCIAL_LABEL[social.key] || social.key}
+                      className={`inline-flex h-9 w-9 items-center justify-center rounded-full transition ${
+                        social.href ? "hover:opacity-75" : "cursor-default"
+                      }`}
+                      style={{ backgroundColor: `${RUST}15`, color: RUST }}
+                    >
+                      {SOCIAL_ICON[social.key]}
+                    </Tag>
+                  );
+                })}
               </div>
             ) : null}
           </div>
