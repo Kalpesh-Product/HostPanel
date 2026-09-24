@@ -413,10 +413,14 @@ export const useWebsiteTemplateData = () => {
       .filter((item: any) => item?.enabled !== false)
       .map((item: any) => {
         const slug = normalizeSlug(item?.slug || item?.name || "page");
-        // Older saved drafts may still literally have name: "Products" —
-        // always render the current label for this section regardless of
-        // what was persisted.
-        return { name: slug === "products" ? "Services" : item?.name || "Page", slug };
+        // Older saved drafts literally have name: "Products" (the pre-rename
+        // default) — show "Services" for that, but honour any custom name.
+        const rawName = String(item?.name || "").trim();
+        const name =
+          slug === "products" && (!rawName || rawName.toLowerCase() === "products")
+            ? "Services"
+            : rawName || "Page";
+        return { name, slug };
       });
     return fromDraft.length ? fromDraft : FALLBACK_NAV;
   }, [sourceNavItems]);
@@ -456,6 +460,8 @@ export const useWebsiteTemplateData = () => {
     const resolveCardImage = (item: any, index: number) =>
       getMediaSrc(item?.cardImage) ||
       getMediaSrc(item?.homeCardImage) ||
+      getMediaSrc((Array.isArray(item?.heroImages) ? item.heroImages : [])[0]) ||
+      getMediaSrc(item?.heroImage) ||
       getMediaSrc(
         (Array.isArray(item?.subProducts) ? item.subProducts : []).find(
           (sp: any) => sp?.enabled !== false && getMediaSrc(sp?.images?.[0]),
@@ -651,7 +657,9 @@ export const useWebsiteTemplateData = () => {
   // current carousel image so those templates still show something before a
   // dedicated main image is ever set.
   const mainHeroImage = getMediaSrc(draft?.mainHeroImage) || heroImage || "";
-  const galleryItems = Array.isArray(draft?.gallery) ? draft.gallery.map((item: any) => getMediaSrc(item)).filter(Boolean) : [];
+  const galleryItems = Array.isArray(draft?.gallery)
+    ? draft.gallery.filter((item: any) => item?.enabled !== false).map((item: any) => getMediaSrc(item)).filter(Boolean)
+    : [];
   const homeGalleryItems = galleryItems.slice(0, 6);
   const draftTestimonials = (Array.isArray(draft?.testimonials) ? draft.testimonials : [])
     .map((item: any, index: number) => ({

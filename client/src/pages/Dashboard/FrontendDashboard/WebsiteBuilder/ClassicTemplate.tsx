@@ -1869,6 +1869,10 @@ const ClassicTemplate = () => {
     const resolveCardImage = (item: any, index: number) =>
       getMediaSrc(item?.cardImage) ||
       getMediaSrc(item?.homeCardImage) ||
+      // Fall back to this same page's own Service Page Hero image/carousel
+      // before reaching into the old shared/global products list below.
+      getMediaSrc((Array.isArray(item?.heroImages) ? item.heroImages : [])[0]) ||
+      getMediaSrc(item?.heroImage) ||
       // This page's own products (the ones actually shown on the page
       // itself) are a more relevant fallback than a same-named-but-
       // unrelated entry in the old shared/global products list below.
@@ -2309,7 +2313,10 @@ const ClassicTemplate = () => {
 
   const heroImage = heroImages[heroIndex] || heroImages[0] || "";
   const galleryItems = Array.isArray(draft?.gallery)
-    ? draft.gallery.map((item: any) => getMediaSrc(item)).filter(Boolean)
+    ? draft.gallery
+        .filter((item: any) => item?.enabled !== false)
+        .map((item: any) => getMediaSrc(item))
+        .filter(Boolean)
     : [];
   const homeGalleryItems = galleryItems.slice(0, 6);
   const draftTestimonials = (

@@ -178,7 +178,7 @@ const ProductGrid = ({
           </div>
           <div className="flex flex-1 flex-col items-center gap-3 px-5 py-5 text-center">
             <h3 className={`text-[16px] font-normal ${SERIF}`}>
-              {product?.name || product?.heading || "Service"}
+              {product?.homeCardHeading || product?.heading || product?.name || "Service"}
             </h3>
             {description ? (
               <p
@@ -1417,7 +1417,7 @@ const WarmOrganicTemplate: React.FC = () => {
                         (t.selectedProductPage as any)?.name}
                     </h1>
                     {(t.selectedProductPage as any)?.heroSubHeading ? (
-                      <p className="mx-auto mt-1 max-w-xl text-[14.5px]" style={{ color: MUTED }}>
+                      <p className="mx-auto mt-1 max-w-xl text-[14.5px]" style={{ color: "white" }}>
                         {(t.selectedProductPage as any).heroSubHeading}
                       </p>
                     ) : null}
@@ -1488,6 +1488,14 @@ const WarmOrganicTemplate: React.FC = () => {
                               </span>
                             ) : null}
                           </div>
+                          {item?.description ? (
+                            <p
+                              className="mt-2 text-[13px] leading-relaxed"
+                              style={{ color: MUTED }}
+                            >
+                              {item.description}
+                            </p>
+                          ) : null}
                         </div>
                       ))}
                     </div>
@@ -1557,7 +1565,7 @@ const WarmOrganicTemplate: React.FC = () => {
                         </div>
                         <div className="flex flex-1 flex-col items-center gap-3 px-5 py-5 text-center">
                           <h3 className={`text-[16px] font-normal ${SERIF}`}>
-                            {product?.name || product?.heading || "Service"}
+                            {product?.homeCardHeading || product?.heading || product?.name || "Service"}
                           </h3>
                           {description ? (
                             <p

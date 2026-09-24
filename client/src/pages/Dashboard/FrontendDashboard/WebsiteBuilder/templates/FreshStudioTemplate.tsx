@@ -232,7 +232,7 @@ const ProductGrid = ({
               className="text-[15px] font-semibold"
               style={{ color: HEADING }}
             >
-              {product?.name || product?.heading || "Service"}
+              {product?.homeCardHeading || product?.heading || product?.name || "Service"}
             </span>
             {description ? (
               <span
@@ -1027,7 +1027,10 @@ const FreshStudioTemplate: React.FC = () => {
           t.isSectionEnabled("home_about") &&
           t.aboutIntroBlocks.length ? (
             <section className={PAGE_WRAP}>
-              <LinedHeading title="About" style={{ color: ACCENT }} />
+              <LinedHeading
+                title={String(draft?.aboutTitle || "").trim() || "About"}
+                style={{ color: ACCENT }}
+              />
               <div className="mx-auto mt-6 flex max-w-2xl flex-col items-center gap-4 text-center">
                 {t.aboutIntroBlocks.map((text: string, idx: number) => (
                   <p key={idx} className="text-[15px] leading-relaxed">
@@ -1042,7 +1045,10 @@ const FreshStudioTemplate: React.FC = () => {
           t.isSectionEnabled("home_products") &&
           productPages.length ? (
             <section className={PAGE_WRAP}>
-              <LinedHeading title="What we offer" style={{ color: ACCENT }} />
+              <LinedHeading
+                title={String(draft?.productTitle || "").trim() || "What we offer"}
+                style={{ color: ACCENT }}
+              />
               <div className="mt-6">
                 <ProductGrid
                   products={productPages}
@@ -1057,9 +1063,14 @@ const FreshStudioTemplate: React.FC = () => {
           t.isSectionEnabled("home_inclusions") ? (
             <Inclusions inclusions={draft.inclusions} title="Inclusions" />
           ) : null}
-          {t.galleryPageEnabled && t.isSectionEnabled("home_gallery") ? (
+          {t.galleryPageEnabled &&
+          t.isSectionEnabled("home_gallery") &&
+          t.galleryItems.length > 0 ? (
             <section className={PAGE_WRAP}>
-              <LinedHeading title="Gallery" style={{ color: ACCENT }} />
+              <LinedHeading
+                title={String(draft?.galleryTitle || "").trim() || "Gallery"}
+                style={{ color: ACCENT }}
+              />
               <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3">
                 {t.homeGalleryItems.map((src: string, idx: number) => (
                   <button
@@ -1098,7 +1109,10 @@ const FreshStudioTemplate: React.FC = () => {
 
           {t.isSectionEnabled("home_testimonials") && t.testimonials.length ? (
             <section className={PAGE_WRAP}>
-              <LinedHeading title="What people say" style={{ color: ACCENT }} />
+              <LinedHeading
+                title={String(draft?.testimonialTitle || "").trim() || "What people say"}
+                style={{ color: ACCENT }}
+              />
               <div className="mt-7">
                 <TestimonialsCarousel testimonials={t.testimonials} />
               </div>
@@ -1140,9 +1154,10 @@ const FreshStudioTemplate: React.FC = () => {
                     className={`text-[26px] font-extrabold md:text-[32px] ${HEADING_FONT}`}
                     style={{ color: WHITE }}
                   >
-                    {draft?.companyName
-                      ? `Let's talk, ${draft.companyName}`
-                      : "Get in touch"}
+                    {String(draft?.contactTitle || "").trim() ||
+                      (draft?.companyName
+                        ? `Let's talk, ${draft.companyName}`
+                        : "Get in touch")}
                   </h2>
                 </div>
                 <div
@@ -1709,7 +1724,10 @@ const FreshStudioTemplate: React.FC = () => {
       {section === "gallery" && t.galleryPageEnabled ? (
         <section className={PAGE_WRAP}>
           <LinedHeading
-            title="Gallery"
+            title={
+              String(draft?.galleryPageHeading || draft?.galleryTitle || "").trim() ||
+              "Gallery"
+            }
             style={{ color: ACCENT }}
           />
           <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3">
@@ -1737,7 +1755,7 @@ const FreshStudioTemplate: React.FC = () => {
         <section className={PAGE_WRAP}>
           <div className="flex flex-col items-center gap-4 text-center">
             <LinedHeading
-              title="Testimonials"
+              title={String(draft?.testimonialsPageHeading || "").trim() || "Testimonials"}
               style={{ color: ACCENT }}
             />
             {t.showWriteReview ? (
@@ -2537,7 +2555,7 @@ const FreshStudioTemplate: React.FC = () => {
                 className="text-[12px] font-semibold uppercase tracking-[0.08em]"
                 style={{ color: HEADING }}
               >
-                Services
+                {navLabelForSection("products", "Services")}
               </h3>
               <div
                 className="mt-3 flex flex-col gap-2 text-[13.5px] items-start"

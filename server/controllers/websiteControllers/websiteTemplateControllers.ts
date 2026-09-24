@@ -435,10 +435,24 @@ const parseIdList = (value) => {
   }
 };
 
-const deleteImagesFromS3 = async (images = []) => {
+// URLs the live site (publishedData snapshot) still points at. Draft edits
+// must not purge these from S3, or the hosted website shows broken images
+// until the next submit.
+const collectMediaUrls = (value, out = new Set()) => {
+  if (!value || typeof value !== "object") return out;
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectMediaUrls(item, out));
+    return out;
+  }
+  if (typeof value.url === "string" && value.url) out.add(value.url);
+  Object.values(value).forEach((item) => collectMediaUrls(item, out));
+  return out;
+};
+
+const deleteImagesFromS3 = async (images = [], protectedUrls = new Set()) => {
   await Promise.all(
     (Array.isArray(images) ? images : []).map(async (img) => {
-      if (img?.url) {
+      if (img?.url && !protectedUrls.has(img.url)) {
         try {
           await deleteFileFromS3ByUrl(img.url);
         } catch (err) {
@@ -454,12 +468,16 @@ const deleteImagesFromS3 = async (images = []) => {
 // didn't send an id list for this field at all (older client, field not in play)
 // — in that case the array is left untouched rather than being wiped, since an
 // absent list is not the same as an explicit empty list.
-const reconcileImageArrayByKeepIds = async (existingArr, keepIdsField) => {
+const reconcileImageArrayByKeepIds = async (
+  existingArr,
+  keepIdsField,
+  protectedUrls = new Set(),
+) => {
   const arr = Array.isArray(existingArr) ? existingArr : [];
   if (keepIdsField === undefined) return arr;
   const keepIds = new Set(parseIdList(keepIdsField));
   const toDelete = arr.filter((img) => !keepIds.has(String(img?.id || "")));
-  if (toDelete.length) await deleteImagesFromS3(toDelete);
+  if (toDelete.length) await deleteImagesFromS3(toDelete, protectedUrls);
   return arr.filter((img) => keepIds.has(String(img?.id || "")));
 };
 
@@ -1058,9 +1076,11 @@ export const saveTemplateDraft = async (req, res) => {
     // getting handed back on the next load. The client sends the id list of images
     // it still wants kept (req.body.*ImageIds); anything persisted but missing from
     // that list gets removed here and purged from S3.
+    const publishedMediaUrls = collectMediaUrls(template.publishedData);
     template.heroImages = await reconcileImageArrayByKeepIds(
       template.heroImages,
       req.body.heroImageIds,
+      publishedMediaUrls,
     );
     if (filesByField.heroImages?.length) {
       const uploaded = await uploadImagesForDraft(
@@ -1074,6 +1094,7 @@ export const saveTemplateDraft = async (req, res) => {
     template.gallery = await reconcileImageArrayByKeepIds(
       template.gallery,
       req.body.galleryImageIds,
+      publishedMediaUrls,
     );
     if (filesByField.gallery?.length) {
       const uploaded = await uploadImagesForDraft(
@@ -1088,6 +1109,7 @@ export const saveTemplateDraft = async (req, res) => {
     template.logoCarousel.logos = await reconcileImageArrayByKeepIds(
       template.logoCarousel.logos,
       req.body.logoCarouselImageIds,
+      publishedMediaUrls,
     );
     if (filesByField.logoCarouselLogos?.length) {
       // Cumulative cap (existing + new), not just this batch — autosave can
@@ -1110,6 +1132,7 @@ export const saveTemplateDraft = async (req, res) => {
     template.aboutPageImages = await reconcileImageArrayByKeepIds(
       template.aboutPageImages,
       req.body.aboutPageImageIds,
+      publishedMediaUrls,
     );
     if (filesByField.aboutPageImages?.length) {
       const uploaded = await uploadImagesForDraft(
@@ -2855,10 +2878,11 @@ export const editTemplate = async (req, res, next) => {
       return arr;
     };
 
+    const publishedMediaUrls = collectMediaUrls(template.publishedData);
     const deleteImagesFromS3 = async (images = []) => {
       await Promise.all(
         images.map(async (img) => {
-          if (img?.url) {
+          if (img?.url && !publishedMediaUrls.has(img.url)) {
             try {
               await deleteFileFromS3ByUrl(img.url);
             } catch (err) {

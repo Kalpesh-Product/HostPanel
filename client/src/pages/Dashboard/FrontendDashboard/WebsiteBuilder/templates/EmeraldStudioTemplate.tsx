@@ -236,7 +236,7 @@ const FigmaProductGrid = ({
           <h3
             className={`mb-2 text-lg font-semibold text-stone-100 ${HEADING_FONT}`}
           >
-            {product?.name || product?.title || product?.heading || "Service"}
+            {product?.homeCardHeading || product?.heading || product?.name || product?.title || "Service"}
           </h3>
           {description ? (
             <p className="line-clamp-2 text-sm leading-relaxed text-stone-400">
@@ -1189,9 +1189,16 @@ const EmeraldStudioTemplate: React.FC = () => {
             <div className="max-w-7xl mx-auto text-center">
               <LinedHeading title={String(draft?.aboutTitle || "").trim() || "About Our Vision"} className="justify-center" />
               {t.aboutIntroBlocks.length > 0 ? (
-                <p className="text-stone-400 text-lg max-w-2xl mx-auto leading-relaxed">
-                  {t.aboutIntroBlocks[0]}
-                </p>
+                <div className="max-w-2xl mx-auto space-y-4">
+                  {t.aboutIntroBlocks.map((paragraph: string, idx: number) => (
+                    <p
+                      key={idx}
+                      className="text-stone-400 text-lg leading-relaxed"
+                    >
+                      {paragraph}
+                    </p>
+                  ))}
+                </div>
               ) : null}
             </div>
             {t.aboutNarrativeBlocks.length ? (

@@ -709,6 +709,8 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
         subText: String(item?.homeCardSubText || "").trim(),
         cardImage:
           getMediaUrlForPreview(item?.homeCardImage) ||
+          getMediaUrlForPreview(item?.heroImage) ||
+          getMediaUrlForPreview((item?.heroImages || [])[0]) ||
           getMediaUrlForPreview(formValues?.products?.[index]?.files?.[0]),
         heroHeading: String(item?.heroHeading || "").trim(),
         heroSubHeading: String(item?.heroSubHeading || "").trim(),
@@ -1209,6 +1211,12 @@ const CreateWebsite = () => {
   // just before the click can still fire afterward with pre-edit data (e.g.
   // pre-deletion), overwriting what the explicit save just persisted.
   const draftAutosaveTimeoutRef = useRef<number | null>(null);
+  // True while a draft-save request is on the wire. Uploading several images
+  // in one request takes longer than the 1.2s autosave debounce, so without
+  // this a second autosave fires with the same (not yet marked-uploaded)
+  // files while the first is still running; the two saves then race on the
+  // same document and one fails as "Draft save failed".
+  const draftSaveInFlightRef = useRef(false);
   // Synchronous double-submit guard for the main Save/Publish action. The
   // button's `disabled` state only takes effect on the next render, which is
   // late enough for a fast double-click (or double form-submit event) to
@@ -2725,6 +2733,8 @@ const CreateWebsite = () => {
         subText: String(item?.homeCardSubText || "").trim(),
         cardImage:
           getMediaUrlForPreview(item?.homeCardImage) ||
+          getMediaUrlForPreview(item?.heroImage) ||
+          getMediaUrlForPreview((item?.heroImages || [])[0]) ||
           getMediaUrlForPreview(formValues?.products?.[index]?.files?.[0]),
         heroHeading: String(item?.heroHeading || "").trim(),
         heroSubHeading: String(item?.heroSubHeading || "").trim(),
@@ -2765,6 +2775,8 @@ const CreateWebsite = () => {
         homeCardSubText: String(item?.homeCardSubText || "").trim(),
         cardImage:
           getMediaUrlForPreview(item?.homeCardImage) ||
+          getMediaUrlForPreview(item?.heroImage) ||
+          getMediaUrlForPreview((item?.heroImages || [])[0]) ||
           getMediaUrlForPreview(formValues?.products?.[index]?.files?.[0]),
         homeCardImage: getMediaUrlForPreview(item?.homeCardImage),
         heroImage: getMediaUrlForPreview(item?.heroImage),
@@ -3029,6 +3041,9 @@ const CreateWebsite = () => {
       pendingDraftFileKeysRef.current = [];
       setDraftStatus("error");
     },
+    onSettled: () => {
+      draftSaveInFlightRef.current = false;
+    },
   });
 
   useEffect(() => {
@@ -3048,6 +3063,10 @@ const CreateWebsite = () => {
     if (snapshot === lastDraftSnapshotRef.current) return;
 
     const timeoutId = window.setTimeout(() => {
+      // A save is still running: skip. When it settles, the status change
+      // re-renders and this effect schedules a follow-up for anything that
+      // changed in the meantime.
+      if (draftSaveInFlightRef.current) return;
       setDraftStatus("saving");
       pendingDraftSnapshotRef.current = snapshot;
       const fd = new FormData();
@@ -3172,6 +3191,7 @@ const CreateWebsite = () => {
       });
 
       pendingDraftFileKeysRef.current = pendingFileKeys;
+      draftSaveInFlightRef.current = true;
       saveWebsiteDraft({ fd, pendingFieldFiles });
     }, 1200);
     draftAutosaveTimeoutRef.current = timeoutId;
@@ -4525,7 +4545,7 @@ const CreateWebsite = () => {
                             name="gallery"
                             label="Gallery Images"
                             maxFiles={40}
-                            allowedExtensions={["jpg", "jpeg", "png", "pdf", "webp"]}
+                            allowedExtensions={["jpg", "jpeg", "png", "webp"]}
                             id="gallery-page-synced"
                             enabledToggle
                           />
@@ -4937,7 +4957,7 @@ const CreateWebsite = () => {
                       name="heroImages" // important so FormData picks the files
                       label="Carousel Images"
                       maxFiles={5}
-                      allowedExtensions={["jpg", "jpeg", "png", "pdf", "webp"]}
+                      allowedExtensions={["jpg", "jpeg", "png", "webp"]}
                       id="heroImages"
                     />
                   )}
@@ -5478,7 +5498,6 @@ const CreateWebsite = () => {
                               "jpeg",
                               "png",
                               "webp",
-                              "pdf",
                             ]}
                             id={`products.${index}.files`}
                           />
@@ -5562,7 +5581,7 @@ const CreateWebsite = () => {
                       name="gallery"
                       label="Gallery Images"
                       maxFiles={40}
-                      allowedExtensions={["jpg", "jpeg", "png", "pdf", "webp"]}
+                      allowedExtensions={["jpg", "jpeg", "png", "webp"]}
                       id="gallery"
                       enabledToggle
                     />
@@ -5735,7 +5754,7 @@ const CreateWebsite = () => {
                         {...field}
                         label="Logo Images"
                         maxFiles={12}
-                        allowedExtensions={["jpg", "jpeg", "png", "webp", "svg"]}
+                        allowedExtensions={["jpg", "jpeg", "png", "webp"]}
                         id="logo-carousel-logos-persistent"
                       />
                     )}
