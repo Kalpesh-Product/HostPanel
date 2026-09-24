@@ -78,12 +78,12 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
     id: "emerald-studio",
     name: "Emerald Studio",
     description:
-      "Dark emerald canvas, amber gold accents, Fraunces serif headings — elegant and bold.",
+      "Light steel-blue canvas, frosted panels, white accents and Fraunces serif headings — calm, clean and modern.",
     component: EmeraldStudioTemplate,
     swatch: {
-      bg: "#052e21",
-      fg: "#e7e5e4",
-      accent: "#d4a843",
+      bg: "#4a6b96",
+      fg: "#ffffff",
+      accent: "#dbeafe",
       font: "'Fraunces', Georgia, serif",
     },
   },
@@ -92,12 +92,12 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
     id: "figma-make",
     name: "Emerald Studio",
     description:
-      "Dark emerald canvas, amber gold accents, Fraunces serif headings — elegant and bold.",
+      "Light steel-blue canvas, frosted panels, white accents and Fraunces serif headings — calm, clean and modern.",
     component: EmeraldStudioTemplate,
     swatch: {
-      bg: "#052e21",
-      fg: "#e7e5e4",
-      accent: "#d4a843",
+      bg: "#4a6b96",
+      fg: "#ffffff",
+      accent: "#dbeafe",
       font: "'Fraunces', Georgia, serif",
     },
     hidden: true,

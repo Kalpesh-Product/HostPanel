@@ -3,6 +3,7 @@ import { useWebsiteTemplateData, resolveSectionFromSlug } from "./useWebsiteTemp
 import TemplateServicesDropdown from "./TemplateServicesDropdown";
 import { isProductsNavItem } from "./templateNavigation";
 import { getInclusionMeta } from "./inclusionIcons";
+import { buildThemeVars } from "./templateTheme";
 
 // "Warm Organic" — serif headings, blob-cropped hero imagery, rust/forest/
 // sand palette, soft rounded cards, tilted "postcard" testimonials.
@@ -15,20 +16,23 @@ import { getInclusionMeta } from "./inclusionIcons";
 // (Manrope/Work Sans).
 const FONT_IMPORT =
   "@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Karla:wght@400;500;600&display=swap');";
-const SAND = "#F1E6D3";
-const RUST = "#B85C38";
-const FOREST = "#3E5641";
-const CREAM = "#FBF3E7";
-const BROWN = "#2B211A";
-const MUTED = "#5A4A3C";
+const SAND = "var(--t-bg, #F1E6D3)";
+const RUST = "var(--t-accent, #B85C38)";
+const ON_ACCENT = "var(--t-accent-text, #ffffff)";
+const ON_SECONDARY = "var(--t-secondary-text, #FBF3E7)";
+const FOREST_FG = "var(--t-secondary-fg, #3E5641)";
+const FOREST = "var(--t-secondary, #3E5641)";
+const CREAM = "var(--t-surface, #FBF3E7)";
+const BROWN = "var(--t-text, #2B211A)";
+const MUTED = "var(--t-muted, #5A4A3C)";
 const SERIF = "font-['Fraunces',ui-serif,Georgia,serif]";
 const SANS = "font-['Karla',ui-sans-serif,system-ui,sans-serif]";
 
 const WRAP = "mx-auto w-full max-w-7xl";
 const EYEBROW = `text-[13.5px] font-semibold uppercase tracking-[0.12em] ${SANS}`;
 const PAGE_WRAP = `${WRAP} px-6 py-12 md:px-11 md:py-16`;
-const INPUT = "w-full rounded-xl px-4 py-2.5 text-[14px] outline-none bg-white";
-const inputStyle = { border: `1px solid ${BROWN}33` };
+const INPUT = "w-full rounded-xl px-4 py-2.5 text-[14px] outline-none bg-[var(--t-raised,#ffffff)]";
+const inputStyle = { border: `1px solid color-mix(in srgb, var(--t-text, #2B211A) 20%, transparent)` };
 
 function LinedHeading({ title, className = "" }: { title: string; className?: string }) {
   return (
@@ -157,10 +161,10 @@ const ProductGrid = ({
           className="flex flex-col overflow-hidden rounded-2xl transition hover:-translate-y-0.5"
           style={{
             backgroundColor: CREAM,
-            boxShadow: "0 14px 28px -18px rgba(43,33,26,0.35)",
+            boxShadow: "0 14px 28px -18px color-mix(in srgb, var(--t-text, #2B211A) 35%, transparent)",
           }}
         >
-          <div className="w-full overflow-hidden rounded-t-2xl" style={{ backgroundColor: `${BROWN}0D` }}>
+          <div className="w-full overflow-hidden rounded-t-2xl" style={{ backgroundColor: `color-mix(in srgb, var(--t-text, #2B211A) 5%, transparent)` }}>
             {product?.cardImage ? (
               <img
                 src={product.cardImage}
@@ -319,7 +323,7 @@ const FaqList = ({
               >
                 <span className="flex min-w-0 items-center gap-3">
                   <span
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-[color:var(--t-accent-text,#ffffff)]"
                     style={{ backgroundColor: RUST }}
                   >
                     {idx + 1}
@@ -374,7 +378,7 @@ const FaqList = ({
 };
 
 const StarIcon = ({ filled, size = 14 }: { filled: boolean; size?: number }) => (
-  <svg viewBox="0 0 20 20" className={`inline-block`} style={{ width: size, height: size, color: filled ? "#B85C38" : "#D4C5B0", fill: "currentColor" }}>
+  <svg viewBox="0 0 20 20" className={`inline-block`} style={{ width: size, height: size, color: filled ? "var(--t-accent, #B85C38)" : "var(--t-line, #D4C5B0)", fill: "currentColor" }}>
     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.37 2.448a1 1 0 00-.364 1.118l1.287 3.957c.3.921-.755 1.688-1.538 1.118l-3.37-2.448a1 1 0 00-1.175 0l-3.37 2.448c-.783.57-1.838-.197-1.538-1.118l1.287-3.957a1 1 0 00-.364-1.118L3.063 9.39c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.286-3.957z" />
   </svg>
 );
@@ -415,7 +419,7 @@ const WarmTestimonialCard = ({ item, idx }: { item: any; idx: number }) => {
       className="h-full rounded-sm p-6"
       style={{
         backgroundColor: CREAM,
-        boxShadow: "0 16px 30px -20px rgba(43,33,26,0.4)",
+        boxShadow: "0 16px 30px -20px color-mix(in srgb, var(--t-text, #2B211A) 40%, transparent)",
         transform: `rotate(${idx % 2 === 0 ? -1.5 : 1}deg)`,
       }}
     >
@@ -531,7 +535,7 @@ const TestimonialsCarousel = ({
               type="button"
               onClick={onOpenReview}
               className="rounded-full px-6 py-2 text-[12px] font-semibold uppercase tracking-wider transition hover:opacity-80"
-              style={{ border: `1px solid ${FOREST}`, color: FOREST }}
+              style={{ border: `1px solid ${FOREST_FG}`, color: FOREST_FG }}
             >
               Write a review
             </button>
@@ -579,7 +583,7 @@ const TestimonialsCarousel = ({
             className="h-2 w-2 rounded-full transition-all"
             style={{
               width: i === dotIndex ? 20 : 8,
-              backgroundColor: i === dotIndex ? RUST : `${BROWN}33`,
+              backgroundColor: i === dotIndex ? RUST : `color-mix(in srgb, var(--t-text, #2B211A) 20%, transparent)`,
             }}
           />
         ))}
@@ -590,7 +594,7 @@ const TestimonialsCarousel = ({
             type="button"
             onClick={onOpenReview}
             className="rounded-full px-6 py-2 text-[12px] font-semibold uppercase tracking-wider transition hover:opacity-80"
-            style={{ border: `1px solid ${FOREST}`, color: FOREST }}
+            style={{ border: `1px solid ${FOREST_FG}`, color: FOREST_FG }}
           >
             Write a review
           </button>
@@ -637,6 +641,7 @@ const Inclusions = ({
 const WarmOrganicTemplate: React.FC = () => {
   const t = useWebsiteTemplateData();
   const { draft } = t;
+  const themeVars = buildThemeVars("warm-organic", (draft as any)?.styleConfig) as React.CSSProperties | undefined;
 
   if (!draft) {
     return (
@@ -654,7 +659,7 @@ const WarmOrganicTemplate: React.FC = () => {
   const section = t.currentSection;
   const isHome = section === "home";
   const productPages: any[] = t.productPages || [];
-  const cardTints = [FOREST, RUST, "#8C6A46"];
+  const cardTints = [FOREST, RUST, "var(--t-tint3, #8C6A46)"];
   const leadFormFields = t.selectedLeadProduct
     ? t.getLeadFieldsForProduct(
         t.selectedLeadProduct?.slug || t.selectedLeadProduct?.name || "",
@@ -725,7 +730,7 @@ const WarmOrganicTemplate: React.FC = () => {
   return (
     <div
       className={`wo-template min-h-screen ${SANS}`}
-      style={{ backgroundColor: SAND, color: BROWN }}
+      style={{ ...themeVars, backgroundColor: SAND, color: BROWN }}
     >
       <style>{`
         ${FONT_IMPORT}
@@ -741,7 +746,7 @@ const WarmOrganicTemplate: React.FC = () => {
       {/* Header */}
       <header
         ref={t.headerRef}
-        className="sticky top-0 z-30 bg-white border-b border-black/5"
+        className="sticky top-0 z-30 bg-[var(--t-raised,#ffffff)] border-b border-black/5"
         style={{ backdropFilter: "blur(4px)" }}
       >
         <div
@@ -767,7 +772,7 @@ const WarmOrganicTemplate: React.FC = () => {
             type="button"
             onClick={() => t.setMobileMenuOpen((p: boolean) => !p)}
             className="inline-flex h-9 w-9 items-center justify-center rounded-full md:hidden"
-            style={{ border: `1px solid ${BROWN}33` }}
+            style={{ border: `1px solid color-mix(in srgb, var(--t-text, #2B211A) 20%, transparent)` }}
             aria-label="Toggle navigation"
           >
             <span className="flex flex-col gap-1">
@@ -830,7 +835,7 @@ const WarmOrganicTemplate: React.FC = () => {
         {t.mobileMenuOpen ? (
           <div
             className="px-6 py-3 md:hidden"
-            style={{ borderTop: `1px solid ${BROWN}22` }}
+            style={{ borderTop: `1px solid color-mix(in srgb, var(--t-text, #2B211A) 13%, transparent)` }}
           >
             <div className="flex flex-col">
               {t.navItems.map((item: any) =>
@@ -852,7 +857,7 @@ const WarmOrganicTemplate: React.FC = () => {
                     type="button"
                     onClick={() => t.goToSection(item.slug)}
                     className="py-3 text-left text-[14px]"
-                    style={{ borderBottom: `1px solid ${BROWN}15` }}
+                    style={{ borderBottom: `1px solid color-mix(in srgb, var(--t-text, #2B211A) 8%, transparent)` }}
                   >
                     {item.name}
                   </button>
@@ -862,7 +867,7 @@ const WarmOrganicTemplate: React.FC = () => {
                 type="button"
                 onClick={() => window.location.assign("/")}
                 className="py-3 text-left text-[14px] font-semibold"
-                style={{ borderBottom: `1px solid ${BROWN}15`, color: RUST }}
+                style={{ borderBottom: `1px solid color-mix(in srgb, var(--t-text, #2B211A) 8%, transparent)`, color: RUST }}
               >
                 Login
               </button>
@@ -879,14 +884,14 @@ const WarmOrganicTemplate: React.FC = () => {
               return (
                 <div key={`${item.label}-${index}`} className="flex items-center gap-3">
                   {index > 0 ? (
-                    <span aria-hidden="true" style={{ color: `${BROWN}40` }}>&rsaquo;</span>
+                    <span aria-hidden="true" style={{ color: `color-mix(in srgb, var(--t-text, #2B211A) 25%, transparent)` }}>&rsaquo;</span>
                   ) : null}
                   {item.onClick && !isCurrent ? (
                     <button
                       type="button"
                       onClick={item.onClick}
-                      className="transition hover:text-[#B85C38]"
-                      style={{ color: `${BROWN}88` }}
+                      className="transition hover:text-[color:var(--t-accent,#B85C38)]"
+                      style={{ color: `color-mix(in srgb, var(--t-text, #2B211A) 53%, transparent)` }}
                     >
                       {item.label}
                     </button>
@@ -916,7 +921,7 @@ const WarmOrganicTemplate: React.FC = () => {
                   className="pointer-events-none absolute inset-0"
                   style={{
                     background:
-                      "radial-gradient(ellipse 60% 50% at 15% 15%, rgba(184,92,56,0.14), transparent 60%), radial-gradient(ellipse 50% 45% at 90% 85%, rgba(62,86,65,0.10), transparent 55%)",
+                      "radial-gradient(ellipse 60% 50% at 15% 15%, color-mix(in srgb, var(--t-accent, #B85C38) 14%, transparent), transparent 60%), radial-gradient(ellipse 50% 45% at 90% 85%, color-mix(in srgb, var(--t-secondary, #3E5641) 10%, transparent), transparent 55%)",
                   }}
                 />
                 <div
@@ -942,7 +947,7 @@ const WarmOrganicTemplate: React.FC = () => {
                     <button
                       type="button"
                       className="self-start rounded-full px-7 py-3 text-[13px] font-semibold transition duration-200 hover:opacity-90"
-                      style={{ backgroundColor: FOREST, color: CREAM }}
+                      style={{ backgroundColor: FOREST, color: ON_SECONDARY }}
                     >
                       {draft?.ctaText || "Book a Tour"}
                     </button>
@@ -950,7 +955,7 @@ const WarmOrganicTemplate: React.FC = () => {
                   <div
                     className="relative flex aspect-square items-end justify-center overflow-hidden"
                     style={{
-                      background: `linear-gradient(150deg, #C9764E 0%, ${RUST} 55%, #8C4A2E 100%)`,
+                      background: `linear-gradient(150deg, var(--t-accent-light, #C9764E) 0%, ${RUST} 55%, var(--t-accent-dark, #8C4A2E) 100%)`,
                       borderRadius: "46% 54% 61% 39% / 45% 41% 59% 55%",
                     }}
                   >
@@ -993,7 +998,7 @@ const WarmOrganicTemplate: React.FC = () => {
 
               <div
                 className="mx-6 md:mx-11"
-                style={{ height: 1, backgroundColor: `${BROWN}26` }}
+                style={{ height: 1, backgroundColor: `color-mix(in srgb, var(--t-text, #2B211A) 15%, transparent)` }}
               />
             </>
           ) : null}
@@ -1047,7 +1052,7 @@ const WarmOrganicTemplate: React.FC = () => {
                     type="button"
                     onClick={() => t.openGalleryViewer(idx)}
                     className="aspect-square overflow-hidden rounded-2xl"
-                    style={{ backgroundColor: `${BROWN}0D` }}
+                    style={{ backgroundColor: `color-mix(in srgb, var(--t-text, #2B211A) 5%, transparent)` }}
                   >
                     <img
                       src={src}
@@ -1063,7 +1068,7 @@ const WarmOrganicTemplate: React.FC = () => {
                     type="button"
                     onClick={() => t.goToSection("gallery")}
                     className="rounded-full px-6 py-2.5 text-[13px] font-semibold"
-                    style={{ border: `1px solid ${BROWN}33`, color: BROWN }}
+                    style={{ border: `1px solid color-mix(in srgb, var(--t-text, #2B211A) 20%, transparent)`, color: BROWN }}
                   >
                     Show more →
                   </button>
@@ -1099,7 +1104,7 @@ const WarmOrganicTemplate: React.FC = () => {
                 ) : (
                   <div
                     className="h-[320px] w-full rounded-3xl md:h-[420px]"
-                    style={{ backgroundColor: `${BROWN}0D` }}
+                    style={{ backgroundColor: `color-mix(in srgb, var(--t-text, #2B211A) 5%, transparent)` }}
                   />
                 )}
                 <div
@@ -1228,7 +1233,7 @@ const WarmOrganicTemplate: React.FC = () => {
                   ) : (
                     <div
                       className="aspect-square w-full rounded-3xl"
-                      style={{ backgroundColor: `${BROWN}0D` }}
+                      style={{ backgroundColor: `color-mix(in srgb, var(--t-text, #2B211A) 5%, transparent)` }}
                     />
                   )}
                   <div>
@@ -1282,12 +1287,12 @@ const WarmOrganicTemplate: React.FC = () => {
                           src={typeof image === "string" ? image : image?.url}
                           alt={title}
                           className="h-[300px] w-full rounded-3xl object-cover md:h-[480px]"
-                          style={{ backgroundColor: `${BROWN}0D` }}
+                          style={{ backgroundColor: `color-mix(in srgb, var(--t-text, #2B211A) 5%, transparent)` }}
                         />
                       ) : (
                         <div
                           className="h-[300px] w-full rounded-3xl md:h-[480px]"
-                          style={{ backgroundColor: `${BROWN}0D` }}
+                          style={{ backgroundColor: `color-mix(in srgb, var(--t-text, #2B211A) 5%, transparent)` }}
                         />
                       )}
                     </div>
@@ -1364,7 +1369,7 @@ const WarmOrganicTemplate: React.FC = () => {
                               type="submit"
                               disabled={t.leadSubmitPending}
                               className="rounded-full py-3 text-[13px] font-semibold disabled:opacity-50"
-                              style={{ backgroundColor: FOREST, color: CREAM }}
+                              style={{ backgroundColor: FOREST, color: ON_SECONDARY }}
                             >
                               {t.leadSubmitPending ? "Submitting…" : "Submit enquiry"}
                             </button>
@@ -1393,7 +1398,7 @@ const WarmOrganicTemplate: React.FC = () => {
               {(t.selectedProductPage as any)?.heroEnabled !== false ? (
                 <section
                   className="relative h-[50svh] min-h-[320px] overflow-hidden md:h-[85vh] md:min-h-[400px]"
-                  style={{ backgroundColor: `${BROWN}0D` }}
+                  style={{ backgroundColor: `color-mix(in srgb, var(--t-text, #2B211A) 5%, transparent)` }}
                 >
                   {t.selectedProductHeroImage ? (
                     <img
@@ -1405,7 +1410,7 @@ const WarmOrganicTemplate: React.FC = () => {
                   <div
                     className="absolute inset-0"
                     // style={{
-                    //   background: `linear-gradient(180deg, ${SAND}A0 0%, ${SAND} 90%)`,
+                    //   background: `linear-gradient(180deg, color-mix(in srgb, var(--t-bg, #F1E6D3) 63%, transparent) 0%, ${SAND} 90%)`,
                     // }}
                   />
                   <div className="absolute inset-0 flex flex-col items-center justify-end gap-2 px-6 pb-10 text-center md:pb-14">
@@ -1425,7 +1430,7 @@ const WarmOrganicTemplate: React.FC = () => {
                       <button
                         type="button"
                         className="mt-2 self-center rounded-full px-7 py-3 text-[13px] font-semibold transition duration-200 hover:opacity-90"
-                        style={{ backgroundColor: FOREST, color: CREAM }}
+                        style={{ backgroundColor: FOREST, color: ON_SECONDARY }}
                       >
                         {(t.selectedProductPage as any).heroButtonText}
                       </button>
@@ -1544,10 +1549,10 @@ const WarmOrganicTemplate: React.FC = () => {
                         className="flex flex-col overflow-hidden rounded-2xl transition hover:-translate-y-0.5"
                         style={{
                           backgroundColor: CREAM,
-                          boxShadow: "0 14px 28px -18px rgba(43,33,26,0.35)",
+                          boxShadow: "0 14px 28px -18px color-mix(in srgb, var(--t-text, #2B211A) 35%, transparent)",
                         }}
                       >
-                        <div className="w-full overflow-hidden rounded-t-2xl" style={{ backgroundColor: `${BROWN}0D` }}>
+                        <div className="w-full overflow-hidden rounded-t-2xl" style={{ backgroundColor: `color-mix(in srgb, var(--t-text, #2B211A) 5%, transparent)` }}>
                           {product?.cardImage ? (
                             <img
                               src={product.cardImage}
@@ -1607,7 +1612,7 @@ const WarmOrganicTemplate: React.FC = () => {
                 type="button"
                 onClick={() => t.openGalleryViewer(idx)}
                 className="aspect-square overflow-hidden rounded-2xl"
-                style={{ backgroundColor: `${BROWN}0D` }}
+                style={{ backgroundColor: `color-mix(in srgb, var(--t-text, #2B211A) 5%, transparent)` }}
               >
                 <img
                   src={src}
@@ -1720,7 +1725,7 @@ const WarmOrganicTemplate: React.FC = () => {
                   type="button"
                   disabled={t.partnerSubmitPending}
                   className="rounded-full py-3 text-[13px] font-semibold disabled:opacity-50"
-                  style={{ backgroundColor: FOREST, color: CREAM }}
+                  style={{ backgroundColor: FOREST, color: ON_SECONDARY }}
                 >
                   {t.partnerSubmitPending ? "Submitting…" : "Connect"}
                 </button>
@@ -1790,7 +1795,7 @@ const WarmOrganicTemplate: React.FC = () => {
                                 key={idx}
                                 type="button"
                                 onClick={() => t.openCareersJob(job)}
-                                className="flex items-center justify-between rounded-xl bg-white px-4 py-3 text-left"
+                                className="flex items-center justify-between rounded-xl bg-[var(--t-raised,#ffffff)] px-4 py-3 text-left"
                               >
                                 <p className="text-[13px] font-medium">
                                   {job?.title || job?.designation || job?.name}
@@ -1812,7 +1817,7 @@ const WarmOrganicTemplate: React.FC = () => {
                     type="button"
                     onClick={t.openCareersGeneralApply}
                     className="mt-4 self-start rounded-full px-6 py-3 text-[13px] font-semibold"
-                    style={{ backgroundColor: FOREST, color: CREAM }}
+                    style={{ backgroundColor: FOREST, color: ON_SECONDARY }}
                   >
                     {draft?.careersApplyButtonText || "General application"}
                   </button>
@@ -1839,7 +1844,7 @@ const WarmOrganicTemplate: React.FC = () => {
                 type="button"
                 onClick={t.closeCareersJob}
                 className="text-[12.5px] font-semibold underline underline-offset-4"
-                style={{ color: FOREST }}
+                style={{ color: FOREST_FG }}
               >
                 ← Back
               </button>
@@ -1853,7 +1858,7 @@ const WarmOrganicTemplate: React.FC = () => {
               {!t.careersDirectApply ? (
                 <div
                   className="mt-6 flex justify-center gap-6"
-                  style={{ borderBottom: `1px solid ${BROWN}22` }}
+                  style={{ borderBottom: `1px solid color-mix(in srgb, var(--t-text, #2B211A) 13%, transparent)` }}
                 >
                   <button
                     type="button"
@@ -2044,13 +2049,13 @@ const WarmOrganicTemplate: React.FC = () => {
                         ))}
                       </select>
                       <div
-                        className="flex items-stretch rounded-xl bg-white"
+                        className="flex items-stretch rounded-xl bg-[var(--t-raised,#ffffff)]"
                         style={inputStyle}
                       >
                         <span
                           className="flex shrink-0 items-center rounded-l-xl px-3 text-[13px]"
                           style={{
-                            borderRight: `1px solid ${BROWN}33`,
+                            borderRight: `1px solid color-mix(in srgb, var(--t-text, #2B211A) 20%, transparent)`,
                             color: MUTED,
                           }}
                         >
@@ -2071,8 +2076,8 @@ const WarmOrganicTemplate: React.FC = () => {
                         />
                       </div>
                       <label
-                        className="flex cursor-pointer items-center justify-between rounded-xl bg-white px-3 py-2.5 text-[13px]"
-                        style={{ border: `1px solid ${BROWN}44` }}
+                        className="flex cursor-pointer items-center justify-between rounded-xl bg-[var(--t-raised,#ffffff)] px-3 py-2.5 text-[13px]"
+                        style={{ border: `1px solid color-mix(in srgb, var(--t-text, #2B211A) 27%, transparent)` }}
                       >
                         <span>
                           {t.careersResumeFile
@@ -2081,7 +2086,7 @@ const WarmOrganicTemplate: React.FC = () => {
                         </span>
                         <span
                           className="rounded-lg px-2 py-1 text-[10px] uppercase tracking-wider"
-                          style={{ border: `1px solid ${BROWN}33` }}
+                          style={{ border: `1px solid color-mix(in srgb, var(--t-text, #2B211A) 20%, transparent)` }}
                         >
                           Choose file
                         </span>
@@ -2141,7 +2146,7 @@ const WarmOrganicTemplate: React.FC = () => {
                         type="submit"
                         disabled={t.careersApplySubmitting}
                         className="md:col-span-2 rounded-full py-3 text-[13px] mt-5 font-semibold disabled:opacity-50"
-                        style={{ backgroundColor: FOREST, color: CREAM }}
+                        style={{ backgroundColor: FOREST, color: ON_SECONDARY }}
                       >
                         {t.careersApplySubmitting
                           ? "Submitting…"
@@ -2171,7 +2176,7 @@ const WarmOrganicTemplate: React.FC = () => {
             ) : (
               <div
                 className="h-[300px] w-full rounded-3xl md:h-[420px]"
-                style={{ backgroundColor: `${BROWN}0D` }}
+                style={{ backgroundColor: `color-mix(in srgb, var(--t-text, #2B211A) 5%, transparent)` }}
               />
             )}
             <div
@@ -2263,7 +2268,7 @@ const WarmOrganicTemplate: React.FC = () => {
       ) : null}
 
       {/* Footer */}
-      <footer className="bg-white border-t border-black/5" style={{ color: BROWN }}>
+      <footer className="bg-[var(--t-raised,#ffffff)] border-t border-black/5" style={{ color: BROWN }}>
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-6 py-14 text-center md:grid-cols-[1.35fr_1fr_1fr_1fr] md:text-left">
           <div className="flex flex-col items-center md:items-start">
             {draft?.companyLogo ? (
@@ -2296,7 +2301,7 @@ const WarmOrganicTemplate: React.FC = () => {
                       className={`inline-flex h-9 w-9 items-center justify-center rounded-full transition ${
                         social.href ? "hover:opacity-75" : "cursor-default"
                       }`}
-                      style={{ backgroundColor: `${RUST}15`, color: RUST }}
+                      style={{ backgroundColor: `color-mix(in srgb, var(--t-accent, #B85C38) 8%, transparent)`, color: RUST }}
                     >
                       {SOCIAL_ICON[social.key]}
                     </Tag>
@@ -2359,7 +2364,7 @@ const WarmOrganicTemplate: React.FC = () => {
         </div>
         <div
           className="px-6 py-4 text-center text-[11.5px] opacity-60"
-          style={{ borderTop: `1px solid ${BROWN}15` }}
+          style={{ borderTop: `1px solid color-mix(in srgb, var(--t-text, #2B211A) 8%, transparent)` }}
         >
           {t.footerCopyrightText}
         </div>
@@ -2426,7 +2431,7 @@ const WarmOrganicTemplate: React.FC = () => {
                   type="submit"
                   disabled={t.leadSubmitPending}
                   className="mt-2 rounded-full py-3 text-[13px] font-semibold disabled:opacity-50"
-                  style={{ backgroundColor: FOREST, color: CREAM }}
+                  style={{ backgroundColor: FOREST, color: ON_SECONDARY }}
                 >
                   {t.leadSubmitPending ? "Submitting…" : "Submit"}
                 </button>
@@ -2494,7 +2499,7 @@ const WarmOrganicTemplate: React.FC = () => {
                         viewBox="0 0 20 20"
                         className="h-5 w-5"
                         style={{
-                          color: star <= Number(t.reviewForm.rating || 5) ? "#B85C38" : "#D4C5B0",
+                          color: star <= Number(t.reviewForm.rating || 5) ? "var(--t-accent, #B85C38)" : "var(--t-line, #D4C5B0)",
                           fill: "currentColor",
                         }}
                       >
@@ -2526,7 +2531,7 @@ const WarmOrganicTemplate: React.FC = () => {
                 type="submit"
                 disabled={t.reviewSubmitPending}
                 className="mt-2 rounded-full py-3 text-[13px] font-semibold disabled:opacity-50"
-                style={{ backgroundColor: FOREST, color: CREAM }}
+                style={{ backgroundColor: FOREST, color: ON_SECONDARY }}
               >
                 {t.reviewSubmitPending ? "Submitting…" : "Submit review"}
               </button>
@@ -2538,7 +2543,7 @@ const WarmOrganicTemplate: React.FC = () => {
       {t.successPopup.open ? (
         <div
           className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full px-5 py-3 text-[13px] shadow-lg"
-          style={{ backgroundColor: FOREST, color: CREAM }}
+          style={{ backgroundColor: FOREST, color: ON_SECONDARY }}
         >
           {t.successPopup.message}
         </div>
