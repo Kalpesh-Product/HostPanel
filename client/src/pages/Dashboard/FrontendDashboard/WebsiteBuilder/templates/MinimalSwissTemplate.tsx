@@ -961,7 +961,7 @@ const MinimalSwissTemplate: React.FC = () => {
                     (t.selectedProductPage as any)?.name}
                 </h1>
                 {(t.selectedProductPage as any)?.heroSubHeading ? (
-                  <p className="mx-auto mt-3 max-w-xl text-center text-[14.5px] text-[#b9b8ff]/60">
+                  <p className="mx-auto mt-3 max-w-xl text-center text-[14.5px] text-white">
                     {(t.selectedProductPage as any).heroSubHeading}
                   </p>
                 ) : null}

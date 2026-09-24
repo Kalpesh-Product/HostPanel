@@ -1485,7 +1485,7 @@ const EmeraldStudioTemplate: React.FC = () => {
                         (t.selectedProductPage as any)?.name}
                     </h1>
                     {(t.selectedProductPage as any)?.heroSubHeading ? (
-                      <p className="mx-auto mt-1 max-w-xl text-stone-400 text-base">
+                      <p className="mx-auto mt-1 max-w-xl text-white text-base">
                         {(t.selectedProductPage as any).heroSubHeading}
                       </p>
                     ) : null}

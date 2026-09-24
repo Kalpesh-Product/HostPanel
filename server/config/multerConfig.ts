@@ -29,7 +29,10 @@ const upload = multer({
 //Multer config for website file uploads
 const uploadImages = multer({
   storage,
-  limits: { fileSize: 30 * 1024 * 1024 }, // 30 MB
+  limits: {
+    fileSize: 1 * 1024 * 1024, // 1 MB per image, same cap the builder enforces
+    fieldSize: 10 * 1024 * 1024, // draftData JSON can exceed multer's 1MB default
+  },
   fileFilter: (req, file, cb) => {
     if (
       file.mimetype === "image/jpeg" ||

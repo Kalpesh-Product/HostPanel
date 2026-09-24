@@ -1217,6 +1217,14 @@ const CreateWebsite = () => {
   // files while the first is still running; the two saves then race on the
   // same document and one fails as "Draft save failed".
   const draftSaveInFlightRef = useRef(false);
+  // Set when a draft request left some images out to stay under the request
+  // size budget, so the next autosave must still run even if nothing else
+  // changed.
+  const draftHasDeferredFilesRef = useRef(false);
+  // Each image is capped at 1MB, so 6MB carries up to 6 per request. If a
+  // proxy in front of the API rejects that (413), fall back to ~700KB
+  // requests (one image each) for the rest of the session.
+  const draftFileByteBudgetRef = useRef(6 * 1024 * 1024);
   // Synchronous double-submit guard for the main Save/Publish action. The
   // button's `disabled` state only takes effect on the next render, which is
   // late enough for a fast double-click (or double form-submit event) to
@@ -3018,7 +3026,10 @@ const CreateWebsite = () => {
       return res.data;
     },
     onSuccess: (data, variables) => {
-      lastDraftSnapshotRef.current = pendingDraftSnapshotRef.current;
+      lastDraftSnapshotRef.current = draftHasDeferredFilesRef.current
+        ? ""
+        : pendingDraftSnapshotRef.current;
+      draftHasDeferredFilesRef.current = false;
       pendingDraftSnapshotRef.current = "";
       pendingDraftFileKeysRef.current.forEach((key) =>
         uploadedDraftFileKeysRef.current.add(key),
@@ -3036,9 +3047,13 @@ const CreateWebsite = () => {
       // autosave request's response lands first.
       syncSavedMediaIntoForm(data?.template, variables?.pendingFieldFiles);
     },
-    onError: () => {
+    onError: (error: any) => {
+      if (error?.response?.status === 413) {
+        draftFileByteBudgetRef.current = 700 * 1024;
+      }
       pendingDraftSnapshotRef.current = "";
       pendingDraftFileKeysRef.current = [];
+      draftHasDeferredFilesRef.current = false;
       setDraftStatus("error");
     },
     onSettled: () => {
@@ -3088,10 +3103,20 @@ const CreateWebsite = () => {
       const pendingFieldFiles: Record<string, File[]> = {};
       const getFileKey = (file: File) =>
         `${file.name}__${file.size}__${file.lastModified}`;
+      // Production sits behind a proxy that rejects request bodies over ~1MB
+      // (413), so a multi-select of several ~1MB images can't go in one
+      // request. Send only what fits; the rest stays un-marked and follows in
+      // the next autosave request.
+      let requestFileBytes = 0;
       const appendDraftFileOnce = (fieldName: string, file?: File | null) => {
         if (!file) return;
         const key = `${fieldName}::${getFileKey(file)}`;
         if (uploadedDraftFileKeysRef.current.has(key)) return;
+        if (pendingFileKeys.length > 0 && requestFileBytes + file.size > draftFileByteBudgetRef.current) {
+          draftHasDeferredFilesRef.current = true;
+          return;
+        }
+        requestFileBytes += file.size;
         fd.append(fieldName, file);
         pendingFileKeys.push(key);
         (pendingFieldFiles[fieldName] ||= []).push(file);
