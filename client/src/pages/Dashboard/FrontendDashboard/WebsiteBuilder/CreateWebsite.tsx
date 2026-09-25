@@ -35,6 +35,18 @@ import { supportsThemeColors } from "./templates/templateTheme";
 import PackagesSection from "./PackagesSection";
 import DormsSection from "./DormsSection";
 import MenuSection from "./MenuSection";
+import ItemExtraFields from "./ItemExtraFields";
+import { clearSelectedServices, readSelectedServices } from "./templates/serviceChoices";
+import ServiceSettingsPanel from "./ServiceSettingsPanel";
+import {
+  defaultReservation,
+  defaultStayPolicy,
+  normalizeOpeningHours,
+  normalizeReservation,
+  normalizeStayPolicy,
+  normalizeTourBooking,
+  pickItemExtras,
+} from "./templates/offeringFields";
 import Skeleton from "../../../../components/ui/Skeleton";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import TemplateChangeRequestControl from "./TemplateChangeRequestControl";
@@ -592,6 +604,8 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
         name: String(item?.name || "").trim(),
         price: String(item?.price || "").trim(),
         description: String(item?.description || "").trim(),
+        enabled: item?.enabled !== false,
+        ...pickItemExtras("menu", item),
       }))
     : [],
   meetingRooms: Array.isArray(formValues?.meetingRooms)
@@ -599,12 +613,16 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
         title: String(item?.title || "").trim(),
         description: String(item?.description || "").trim(),
         price: String(item?.price || "").trim(),
+        enabled: item?.enabled !== false,
+        ...pickItemExtras("meeting", item),
       }))
     : Array.isArray(formValues?.rooms)
       ? formValues.rooms.map((item: any) => ({
           title: String(item?.title || "").trim(),
           description: String(item?.description || "").trim(),
           price: String(item?.price || "").trim(),
+          enabled: item?.enabled !== false,
+          ...pickItemExtras("meeting", item),
         }))
       : [],
   rooms: Array.isArray(formValues?.rooms)
@@ -612,6 +630,8 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
         title: String(item?.title || "").trim(),
         description: String(item?.description || "").trim(),
         price: String(item?.price || "").trim(),
+        enabled: item?.enabled !== false,
+        ...pickItemExtras("room", item),
       }))
     : [],
   coLivingRooms: Array.isArray(formValues?.coLivingRooms)
@@ -619,6 +639,8 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
         title: String(item?.title || "").trim(),
         description: String(item?.description || "").trim(),
         price: String(item?.price || "").trim(),
+        enabled: item?.enabled !== false,
+        ...pickItemExtras("coLiving", item),
       }))
     : [],
   packages: Array.isArray(formValues?.packages)
@@ -627,6 +649,8 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
         description: String(item?.description || "").trim(),
         price: String(item?.price || "").trim(),
         duration: String(item?.duration || "").trim(),
+        enabled: item?.enabled !== false,
+        ...pickItemExtras("package", item),
       }))
     : [],
   dorms: Array.isArray(formValues?.dorms)
@@ -635,8 +659,14 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
         description: String(item?.description || "").trim(),
         price: String(item?.price || "").trim(),
         capacity: item?.capacity ?? "",
+        enabled: item?.enabled !== false,
+        ...pickItemExtras("dorm", item),
       }))
     : [],
+  openingHours: normalizeOpeningHours(formValues?.openingHours),
+  reservation: normalizeReservation(formValues?.reservation),
+  stayPolicy: normalizeStayPolicy(formValues?.stayPolicy),
+  tourBooking: normalizeTourBooking(formValues?.tourBooking),
   galleryTitle: String(formValues?.galleryTitle || "").trim(),
   testimonialTitle: String(formValues?.testimonialTitle || "").trim(),
   testimonials: Array.isArray(formValues?.testimonials)
@@ -698,6 +728,7 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
               description: String(sp?.description || "").trim(),
               cost: String(sp?.cost || "").trim(),
               enabled: sp?.enabled !== false,
+              ...pickItemExtras("subProduct", sp),
               images: Array.isArray(sp?.images) ? sp.images : [],
             }))
           : [],
@@ -732,6 +763,7 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
               description: String(sp?.description || "").trim(),
               cost: String(sp?.cost || "").trim(),
               enabled: sp?.enabled !== false,
+              ...pickItemExtras("subProduct", sp),
               images: (sp?.images || [])
                 .map((img: unknown) => getMediaUrlForPreview(img))
                 .filter(Boolean),
@@ -1113,6 +1145,12 @@ const ProductPageSubProducts = ({
               )}
             />
           </div>
+          <ItemExtraFields
+            control={control}
+            register={control.register}
+            name={`productDropdownPages.${pageIndex}.subProducts.${index}`}
+            kind="subProduct"
+          />
         </div>
       ))}
       <button
@@ -1337,6 +1375,10 @@ const CreateWebsite = () => {
       contactInquirySuccessMessage:
         "Thank you. Your inquiry has been submitted successfully.",
       contactBusinessHours: "",
+      openingHours: [],
+      reservation: defaultReservation(),
+      stayPolicy: defaultStayPolicy(),
+      tourBooking: { enabled: true },
       contactPersonName: "",
       contactPersonRole: "",
       contactPersonEmail: "",
@@ -1721,6 +1763,7 @@ const CreateWebsite = () => {
           } catch {
             // ignore
           }
+          clearSelectedServices();
           // An unpublished autosave draft record existing is NOT the same as
           // the site having actually been published before — hasExistingWebsite
           // drives whether Publish goes through create-website (free) or
@@ -2086,6 +2129,12 @@ const CreateWebsite = () => {
             contactBusinessHours: String(
               draftData?.contactBusinessHours || found?.contactBusinessHours || "",
             ).trim(),
+            openingHours: normalizeOpeningHours(
+              Array.isArray(draftData?.openingHours) ? draftData.openingHours : found?.openingHours,
+            ),
+            reservation: normalizeReservation(draftData?.reservation ?? found?.reservation),
+            stayPolicy: normalizeStayPolicy(draftData?.stayPolicy ?? found?.stayPolicy),
+            tourBooking: normalizeTourBooking(draftData?.tourBooking ?? found?.tourBooking),
             contactPersonName: String(
               draftData?.contactPersonName || found?.contactPersonName || "",
             ).trim(),
@@ -2540,6 +2589,10 @@ const CreateWebsite = () => {
         "Thank you. Your inquiry has been submitted successfully.",
     );
     fd.set("contactBusinessHours", values.contactBusinessHours || "");
+    fd.set("openingHours", JSON.stringify(normalizeOpeningHours(values.openingHours)));
+    fd.set("reservation", JSON.stringify(normalizeReservation(values.reservation)));
+    fd.set("stayPolicy", JSON.stringify(normalizeStayPolicy(values.stayPolicy)));
+    fd.set("tourBooking", JSON.stringify(normalizeTourBooking(values.tourBooking)));
     fd.set("contactPersonName", values.contactPersonName || "");
     fd.set("contactPersonRole", values.contactPersonRole || "");
     fd.set("contactPersonEmail", values.contactPersonEmail || "");
@@ -2693,6 +2746,7 @@ const CreateWebsite = () => {
           .filter(Boolean),
       })),
       meetingRooms: (formValues?.meetingRooms || formValues?.rooms || []).map((item: any) => ({
+        ...pickItemExtras("meeting", item),
         title: String(item?.title || "").trim(),
         price: String(item?.price || "").trim(),
         description: String(item?.description || "").trim(),
@@ -2702,6 +2756,7 @@ const CreateWebsite = () => {
           .filter(Boolean),
       })),
       rooms: (formValues?.rooms || []).map((item: any) => ({
+        ...pickItemExtras("room", item),
         title: String(item?.title || "").trim(),
         price: String(item?.price || "").trim(),
         description: String(item?.description || "").trim(),
@@ -2711,6 +2766,7 @@ const CreateWebsite = () => {
           .filter(Boolean),
       })),
       coLivingRooms: (formValues?.coLivingRooms || []).map((item: any) => ({
+        ...pickItemExtras("coLiving", item),
         title: String(item?.title || "").trim(),
         price: String(item?.price || "").trim(),
         description: String(item?.description || "").trim(),
@@ -2720,6 +2776,7 @@ const CreateWebsite = () => {
           .filter(Boolean),
       })),
       packages: (formValues?.packages || []).map((item: any) => ({
+        ...pickItemExtras("package", item),
         title: String(item?.title || "").trim(),
         price: String(item?.price || "").trim(),
         duration: String(item?.duration || "").trim(),
@@ -2730,6 +2787,7 @@ const CreateWebsite = () => {
           .filter(Boolean),
       })),
       dorms: (formValues?.dorms || []).map((item: any) => ({
+        ...pickItemExtras("dorm", item),
         title: String(item?.title || "").trim(),
         capacity: item?.capacity,
         price: String(item?.price || "").trim(),
@@ -2771,6 +2829,7 @@ const CreateWebsite = () => {
               description: String(sp?.description || "").trim(),
               cost: String(sp?.cost || "").trim(),
               enabled: sp?.enabled !== false,
+              ...pickItemExtras("subProduct", sp),
               images: (sp?.images || [])
                 .map((img: unknown) => getMediaUrlForPreview(img))
                 .filter(Boolean),
@@ -2810,6 +2869,7 @@ const CreateWebsite = () => {
               description: String(sp?.description || "").trim(),
               cost: String(sp?.cost || "").trim(),
               enabled: sp?.enabled !== false,
+              ...pickItemExtras("subProduct", sp),
               images: (sp?.images || [])
                 .map((img: unknown) => getMediaUrlForPreview(img))
                 .filter(Boolean),
@@ -2817,6 +2877,7 @@ const CreateWebsite = () => {
           : [],
       })),
       menuItems: (formValues?.menuItems || []).map((item: any) => ({
+        ...pickItemExtras("menu", item),
         category: String(item?.category || "").trim(),
         name: String(item?.name || "").trim(),
         price: String(item?.price || "").trim(),
@@ -2824,6 +2885,10 @@ const CreateWebsite = () => {
         enabled: item?.enabled !== false,
         image: getMediaUrlForPreview(item?.image),
       })),
+      openingHours: normalizeOpeningHours(formValues?.openingHours),
+      reservation: normalizeReservation(formValues?.reservation),
+      stayPolicy: normalizeStayPolicy(formValues?.stayPolicy),
+      tourBooking: normalizeTourBooking(formValues?.tourBooking),
       galleryTitle: String(formValues?.galleryTitle || "Gallery").trim(),
       inclusions: Array.isArray(formValues?.inclusions) ? formValues.inclusions : [],
       faqs: Array.isArray(formValues?.faqs) ? formValues.faqs.map((faq: any) => ({ question: String(faq?.question || "").trim(), answer: String(faq?.answer || "").trim(), enabled: faq?.enabled !== false })).filter((faq: any) => faq.question) : [],
@@ -3595,10 +3660,13 @@ const CreateWebsite = () => {
       homeCardHeading: trimmed,
       homeCardSubText: "",
       homeCardImage: null,
-      leadEnabled: !isMenuPageSlug(slug),
-      leadFormLabel: isMenuPageSlug(slug)
-        ? "Menu Inquiry Disabled"
-        : "View More / Get Details",
+      leadEnabled:
+        !isMenuPageSlug(slug) ||
+        Boolean(TEMPLATE_REGISTRY[String(values?.themeVariant || "")]?.supportsBooking),
+      leadFormLabel:
+        isMenuPageSlug(slug) && !TEMPLATE_REGISTRY[String(values?.themeVariant || "")]?.supportsBooking
+          ? "Menu Inquiry Disabled"
+          : "View More / Get Details",
       faqs: [],
       inclusions: DEFAULT_PRODUCT_PAGE_INCLUSION_KEYS.map((k) => ({ key: k, enabled: false })),
     });
@@ -3642,7 +3710,25 @@ const CreateWebsite = () => {
       return;
     }
     if (hasSeededDefaultServicesPageRef.current) return;
-    setValue("productDropdownPages", [buildDefaultProductPage()], { shouldDirty: false });
+    // Services the business ticked in the template picker become the starting pages.
+    // Cafe pages keep lead capture on only when the chosen template can take
+    // reservations; older templates have no reservation form.
+    const chosen = isEditMode ? [] : readSelectedServices();
+    const supportsBooking = Boolean(TEMPLATE_REGISTRY[String(getValues("themeVariant") || "")]?.supportsBooking);
+    const seededPages = chosen.length
+      ? chosen.map((name) => {
+          const page = buildDefaultProductPage(name);
+          const menu = isMenuPageSlug(page.slug);
+          const ownItems = /workation|hostel|co-living|coliving|meeting|cafe|menu/.test(page.slug);
+          return {
+            ...page,
+            leadEnabled: !menu || supportsBooking,
+            leadFormLabel: menu && !supportsBooking ? "Menu Inquiry Disabled" : page.leadFormLabel,
+            subProducts: ownItems ? [] : page.subProducts,
+          };
+        })
+      : [buildDefaultProductPage()];
+    setValue("productDropdownPages", seededPages, { shouldDirty: false });
     setActiveProductPageTab(0);
     hasSeededDefaultServicesPageRef.current = true;
   }, [getValues, setValue, setActiveProductPageTab]);
@@ -4125,7 +4211,12 @@ const CreateWebsite = () => {
                               currentProductPageSlug.includes("hostel");
 
                             if (isCafePage) {
-                              return <MenuSection control={control} register={register} />;
+                              return (
+                                <>
+                                  <MenuSection control={control} register={register} />
+                                  <ServiceSettingsPanel control={control} kind="cafe" />
+                                </>
+                              );
                             }
                             if (isMeetingRoomsPage) {
                               return (
@@ -4142,15 +4233,18 @@ const CreateWebsite = () => {
                             }
                             if (isCoLivingPage) {
                               return (
-                                <RoomsSection
-                                  control={control}
-                                  register={register}
-                                  fieldName="coLivingRooms"
-                                  sectionTitle="Co-Living Spaces"
-                                  itemLabel="Space"
-                                  imageLabel="Space Images"
-                                  priceLabel="Price per night"
-                                />
+                                <>
+                                  <RoomsSection
+                                    control={control}
+                                    register={register}
+                                    fieldName="coLivingRooms"
+                                    sectionTitle="Co-Living Spaces"
+                                    itemLabel="Space"
+                                    imageLabel="Space Images"
+                                    priceLabel="Price per night"
+                                  />
+                                  <ServiceSettingsPanel control={control} kind="coLiving" />
+                                </>
                               );
                             }
                             if (isWorkationPage) {
@@ -4159,10 +4253,19 @@ const CreateWebsite = () => {
                               );
                             }
                             if (isHostelPage) {
-                              return <DormsSection control={control} register={register} />;
+                              return (
+                                <>
+                                  <DormsSection control={control} register={register} />
+                                  <ServiceSettingsPanel control={control} kind="hostel" />
+                                </>
+                              );
                             }
 
-                            return (
+                            const isCoWorkingPage =
+                              currentProductPageSlug.includes("co-working") ||
+                              currentProductPageSlug.includes("coworking");
+
+                            const subProductsEditor = (
                               <ProductPageSubProducts
                                 // Deliberately just the tab index, not
                                 // productPageFields[...].id — that RHF-owned
@@ -4178,6 +4281,14 @@ const CreateWebsite = () => {
                                 pageIndex={activeProductPageTab}
                                 pageName={watch(`productDropdownPages.${activeProductPageTab}.name`)}
                               />
+                            );
+                            return isCoWorkingPage ? (
+                              <>
+                                {subProductsEditor}
+                                <ServiceSettingsPanel control={control} kind="coWorking" />
+                              </>
+                            ) : (
+                              subProductsEditor
                             );
                           })()}
                         </div>
@@ -5613,7 +5724,10 @@ const CreateWebsite = () => {
               <PackagesSection control={control} register={register} />
             )}
             {selectedVertical === "hostel" && (
-              <DormsSection control={control} register={register} />
+              <>
+                <DormsSection control={control} register={register} />
+                <ServiceSettingsPanel control={control} kind="hostel" />
+              </>
             )}
             {selectedVertical === "meeting-rooms" && (
               <RoomsSection
@@ -5627,7 +5741,10 @@ const CreateWebsite = () => {
               />
             )}
             {selectedVertical === "cafe" && (
-              <MenuSection control={control} register={register} />
+              <>
+                <MenuSection control={control} register={register} />
+                <ServiceSettingsPanel control={control} kind="cafe" />
+              </>
             )}
 
             {/* GALLERY */}

@@ -3,6 +3,9 @@ import { Controller, useFieldArray } from "react-hook-form";
 import UploadMultipleFilesInput from "../../../../components/UploadMultipleFilesInput";
 import EnabledSwitch from "../../../../components/ui/EnabledSwitch";
 import WebsiteFormField from "../../../../components/WebsiteFormField";
+import ItemExtraFields, { OfferingDescription } from "./ItemExtraFields";
+
+const KIND_BY_FIELD = { meetingRooms: "meeting", coLivingRooms: "coLiving" };
 
 const RoomsSection = ({
   control,
@@ -48,12 +51,7 @@ const RoomsSection = ({
                 label={priceLabel}
                 registration={register(`${fieldName}.${index}.price`)}
               />
-              <WebsiteFormField
-                label="Description"
-                multiline
-                minRows={3}
-                registration={register(`${fieldName}.${index}.description`)}
-              />
+              <OfferingDescription control={control} register={register} name={`${fieldName}.${index}.description`} kind="offering" />
             </div>
             <div className="pt-4">
               <Controller
@@ -70,6 +68,12 @@ const RoomsSection = ({
                 )}
               />
             </div>
+            <ItemExtraFields
+              control={control}
+              register={register}
+              name={`${fieldName}.${index}`}
+              kind={KIND_BY_FIELD[fieldName] || "room"}
+            />
           </div>
         ))}
         <button

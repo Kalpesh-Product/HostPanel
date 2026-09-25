@@ -18,6 +18,14 @@ import WorkspaceSubscription from "../../models/WorkspaceSubscription.js";
 import recordWebsiteCreditEvent from "../../utils/websiteCreditLedger.js";
 import { findWorkspaceSubscription } from "../subscriptionHelpers.js";
 import { assertWebsiteEditLock } from "./websiteEditLockControllers.js";
+import {
+  parseJsonField,
+  sanitizeItemExtras,
+  sanitizeOpeningHours,
+  sanitizeReservation,
+  sanitizeStayPolicy,
+  sanitizeTourBooking,
+} from "../../utils/websiteOfferingFields.js";
 
 const VALID_VERTICALS = new Set([
   "co-working",
@@ -181,6 +189,7 @@ const normalizeProductDropdownPages = (items = []) =>
             description: String(sp?.description || "").trim(),
             cost: String(sp?.cost || "").trim(),
             enabled: toBool(sp?.enabled, true),
+            ...sanitizeItemExtras("subProduct", sp),
             images: Array.isArray(sp?.images)
               ? sp.images
                   .map((img) => ({
@@ -839,6 +848,18 @@ export const saveTemplateDraft = async (req, res) => {
       draftData?.contactInquirySuccessMessage !== undefined
         ? String(draftData.contactInquirySuccessMessage || "").trim()
         : template.contactInquirySuccessMessage;
+    if (draftData?.openingHours !== undefined) {
+      template.openingHours = sanitizeOpeningHours(draftData.openingHours);
+    }
+    if (draftData?.reservation !== undefined) {
+      template.reservation = sanitizeReservation(draftData.reservation);
+    }
+    if (draftData?.stayPolicy !== undefined) {
+      template.stayPolicy = sanitizeStayPolicy(draftData.stayPolicy);
+    }
+    if (draftData?.tourBooking !== undefined) {
+      template.tourBooking = sanitizeTourBooking(draftData.tourBooking);
+    }
     template.products = Array.isArray(draftData?.products)
       ? draftData.products.map((item, index) => {
           const existing = template.products?.[index];
@@ -860,6 +881,7 @@ export const saveTemplateDraft = async (req, res) => {
             description: String(item?.description || "").trim(),
             price: String(item?.price || "").trim(),
             enabled: item?.enabled !== false,
+            ...sanitizeItemExtras("menu", item),
           };
           if (existing?.image) nextItem.image = existing.image;
           return nextItem;
@@ -869,6 +891,7 @@ export const saveTemplateDraft = async (req, res) => {
       ? draftData.rooms.map((item, index) => {
           const existing = template.rooms?.[index];
           return {
+          ...sanitizeItemExtras("room", item),
           title: String(item?.title || "").trim(),
           description: String(item?.description || "").trim(),
           price: String(item?.price || "").trim(),
@@ -881,6 +904,7 @@ export const saveTemplateDraft = async (req, res) => {
       ? draftData.meetingRooms.map((item, index) => {
           const existing = template.meetingRooms?.[index];
           return {
+          ...sanitizeItemExtras("meeting", item),
           title: String(item?.title || "").trim(),
           description: String(item?.description || "").trim(),
           price: String(item?.price || "").trim(),
@@ -892,6 +916,7 @@ export const saveTemplateDraft = async (req, res) => {
         ? draftData.rooms.map((item, index) => {
             const existing = template.meetingRooms?.[index];
             return {
+            ...sanitizeItemExtras("meeting", item),
             title: String(item?.title || "").trim(),
             description: String(item?.description || "").trim(),
             price: String(item?.price || "").trim(),
@@ -904,6 +929,7 @@ export const saveTemplateDraft = async (req, res) => {
       ? draftData.coLivingRooms.map((item, index) => {
           const existing = template.coLivingRooms?.[index];
           return {
+          ...sanitizeItemExtras("coLiving", item),
           title: String(item?.title || "").trim(),
           description: String(item?.description || "").trim(),
           price: String(item?.price || "").trim(),
@@ -916,6 +942,7 @@ export const saveTemplateDraft = async (req, res) => {
       ? draftData.packages.map((item, index) => {
           const existing = template.packages?.[index];
           return {
+          ...sanitizeItemExtras("package", item),
           title: String(item?.title || "").trim(),
           description: String(item?.description || "").trim(),
           price: String(item?.price || "").trim(),
@@ -929,6 +956,7 @@ export const saveTemplateDraft = async (req, res) => {
       ? draftData.dorms.map((item, index) => {
           const existing = template.dorms?.[index];
           return {
+          ...sanitizeItemExtras("dorm", item),
           title: String(item?.title || "").trim(),
           description: String(item?.description || "").trim(),
           price: String(item?.price || "").trim(),
@@ -1734,6 +1762,10 @@ export const createTemplate = async (req, res, next) => {
         contactEnableInquiryForm: toBool(req.body?.contactEnableInquiryForm, true),
         contactInquirySuccessMessage: String(req.body?.contactInquirySuccessMessage || "").trim(),
         contactBusinessHours: String(req.body?.contactBusinessHours || "").trim(),
+        openingHours: sanitizeOpeningHours(parseJsonField(req.body?.openingHours, [])),
+        reservation: sanitizeReservation(parseJsonField(req.body?.reservation, {})),
+        stayPolicy: sanitizeStayPolicy(parseJsonField(req.body?.stayPolicy, {})),
+        tourBooking: sanitizeTourBooking(parseJsonField(req.body?.tourBooking, {})),
         contactPersonName: String(req.body?.contactPersonName || "").trim(),
         contactPersonRole: String(req.body?.contactPersonRole || "").trim(),
         contactPersonEmail: String(req.body?.contactPersonEmail || "").trim(),
@@ -1825,6 +1857,10 @@ export const createTemplate = async (req, res, next) => {
         contactEnableInquiryForm: toBool(req.body?.contactEnableInquiryForm, true),
         contactInquirySuccessMessage: String(req.body?.contactInquirySuccessMessage || "").trim(),
         contactBusinessHours: String(req.body?.contactBusinessHours || "").trim(),
+        openingHours: sanitizeOpeningHours(parseJsonField(req.body?.openingHours, [])),
+        reservation: sanitizeReservation(parseJsonField(req.body?.reservation, {})),
+        stayPolicy: sanitizeStayPolicy(parseJsonField(req.body?.stayPolicy, {})),
+        tourBooking: sanitizeTourBooking(parseJsonField(req.body?.tourBooking, {})),
         contactPersonName: String(req.body?.contactPersonName || "").trim(),
         contactPersonRole: String(req.body?.contactPersonRole || "").trim(),
         contactPersonEmail: String(req.body?.contactPersonEmail || "").trim(),
@@ -2230,6 +2266,7 @@ export const createTemplate = async (req, res, next) => {
           name: item.name || "",
           description: item.description || "",
           price: item.price || "",
+          ...sanitizeItemExtras("menu", item),
         };
         if (uploadedImage) menuItemRecord.image = uploadedImage;
         template.menuItems.push(menuItemRecord);
@@ -2247,6 +2284,7 @@ export const createTemplate = async (req, res, next) => {
           title: item.title || "",
           description: item.description || "",
           price: item.price || "",
+          ...sanitizeItemExtras("room", item),
           images: uploaded,
         });
       }
@@ -2263,6 +2301,7 @@ export const createTemplate = async (req, res, next) => {
           title: item.title || "",
           description: item.description || "",
           price: item.price || "",
+          ...sanitizeItemExtras("meeting", item),
           images: uploaded,
         });
       }
@@ -2279,6 +2318,7 @@ export const createTemplate = async (req, res, next) => {
           title: item.title || "",
           description: item.description || "",
           price: item.price || "",
+          ...sanitizeItemExtras("coLiving", item),
           images: uploaded,
         });
       }
@@ -2296,6 +2336,7 @@ export const createTemplate = async (req, res, next) => {
           description: item.description || "",
           price: item.price || "",
           duration: item.duration || "",
+          ...sanitizeItemExtras("package", item),
           images: uploaded,
         });
       }
@@ -2313,6 +2354,7 @@ export const createTemplate = async (req, res, next) => {
           description: item.description || "",
           capacity: Number(item.capacity) || 0,
           price: item.price || "",
+          ...sanitizeItemExtras("dorm", item),
           images: uploaded,
         });
       }
@@ -3084,6 +3126,22 @@ export const editTemplate = async (req, res, next) => {
         req.body?.contactBusinessHours !== undefined
           ? String(req.body.contactBusinessHours || "").trim()
           : template.contactBusinessHours,
+      openingHours:
+        req.body?.openingHours !== undefined
+          ? sanitizeOpeningHours(parseJsonField(req.body.openingHours, []))
+          : template.openingHours,
+      reservation:
+        req.body?.reservation !== undefined
+          ? sanitizeReservation(parseJsonField(req.body.reservation, {}))
+          : template.reservation,
+      stayPolicy:
+        req.body?.stayPolicy !== undefined
+          ? sanitizeStayPolicy(parseJsonField(req.body.stayPolicy, {}))
+          : template.stayPolicy,
+      tourBooking:
+        req.body?.tourBooking !== undefined
+          ? sanitizeTourBooking(parseJsonField(req.body.tourBooking, {}))
+          : template.tourBooking,
       contactPersonName:
         req.body?.contactPersonName !== undefined
           ? String(req.body.contactPersonName || "").trim()

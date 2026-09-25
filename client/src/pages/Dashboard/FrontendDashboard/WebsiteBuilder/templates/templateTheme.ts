@@ -31,6 +31,12 @@ export const THEME_DEFAULTS: Record<string, ThemeDefaults> = {
   "fresh-studio": { bg: "#0a0a12", text: "#ffffff", accent: "#d94b4b" },
   default: { bg: "#efefef", text: "#1f1f1f", accent: "#3b82f6" },
   "warm-organic": { bg: "#f1e6d3", text: "#2b211a", accent: "#b85c38", surfaceUp: true },
+  // The three vertical-led templates start from the palette of the service the
+  // business sells (see verticalProfiles.ts); these are the picker placeholders.
+  savor: { bg: "#fff7ed", text: "#2a1a12", accent: "#e4572e", surfaceUp: true },
+  wayfarer: { bg: "#f3fbfa", text: "#0c2a2e", accent: "#f26b3a", surfaceUp: true },
+  haven: { bg: "#f4f1ea", text: "#26312b", accent: "#5b7f6a", surfaceUp: true },
+  commons: { bg: "#f6f7f9", text: "#0b1f3a", accent: "#ffc21a", surfaceUp: true },
 };
 
 export const supportsThemeColors = (templateId?: string | null) =>

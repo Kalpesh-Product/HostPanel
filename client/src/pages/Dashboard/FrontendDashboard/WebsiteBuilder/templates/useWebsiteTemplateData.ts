@@ -110,7 +110,7 @@ export const isMenuProductSlug = (slug: string) => {
   return normalized.includes("cafe") || normalized.includes("menu");
 };
 
-const getMediaSrc = (value: any): string => {
+export const getMediaSrc = (value: any): string => {
   if (!value) return "";
   if (typeof value === "string") return value;
   if (Array.isArray(value) && value.length > 0) return getMediaSrc(value[0]);
@@ -242,7 +242,7 @@ const getLeadFieldsForProduct = (slug: string) => {
   ];
 };
 
-const getProductContentItems = (draft: any, slug: string, page?: any) => {
+export const getProductContentItems = (draft: any, slug: string, page?: any) => {
   const normalized = normalizeSlug(slug);
   if (normalized.includes("meeting")) {
     return Array.isArray(draft?.meetingRooms) ? draft.meetingRooms : Array.isArray(draft?.rooms) ? draft.rooms : [];
@@ -289,6 +289,9 @@ export const useWebsiteTemplateData = () => {
   const [leadSubmitted, setLeadSubmitted] = useState(false);
   const [leadSubmitPending, setLeadSubmitPending] = useState(false);
   const [leadSubmitError, setLeadSubmitError] = useState("");
+  // Extra lead answers the new templates collect (time slot, seating, notes, an
+  // explicit inquiryType...). Empty for the older templates, so their payload is unchanged.
+  const [leadExtras, setLeadExtras] = useState<Record<string, string>>({});
   const [leadForm, setLeadForm] = useState({
     fullName: "",
     people: "",
@@ -536,7 +539,15 @@ export const useWebsiteTemplateData = () => {
     if (!currentItemSlug || !selectedProductPage) return null;
     const contentItems = getProductContentItems(draft, (selectedProductPage as any)?.slug || (selectedProductPage as any)?.name || "", selectedProductPage);
     const pool = contentItems.length ? contentItems : [selectedProductPage];
-    return pool.find((item: any) => normalizeSlug(item?.title || item?.name || item?.heading || "") === currentItemSlug) || null;
+    const found = pool.find((item: any) => normalizeSlug(item?.title || item?.name || item?.heading || "") === currentItemSlug);
+    if (found) return found;
+    // Menu items live in `draft.menuItems` (not in the page's own items), so a dish
+    // detail route resolves against them.
+    if (isMenuProductSlug((selectedProductPage as any)?.slug || (selectedProductPage as any)?.name || "")) {
+      const dishes = Array.isArray(draft?.menuItems) ? draft.menuItems : [];
+      return dishes.find((item: any) => item?.enabled !== false && normalizeSlug(item?.name || item?.title || "") === currentItemSlug) || null;
+    }
+    return null;
   }, [currentItemSlug, selectedProductPage, draft]);
 
   const selectedProductContentItems = selectedProductPage
@@ -576,6 +587,7 @@ export const useWebsiteTemplateData = () => {
         setLeadSubmitted(false);
         setLeadSubmitError("");
         setLeadForm({ fullName: "", people: "", mobile: "", email: "", startDate: "", endDate: "" });
+        setLeadExtras({});
       }
     } else if (!selectedDetailItem) {
       prevDetailItemSlugRef.current = "";
@@ -814,11 +826,15 @@ export const useWebsiteTemplateData = () => {
     setGalleryViewerIndex(((index % galleryItems.length) + galleryItems.length) % galleryItems.length);
   };
 
-  const openLeadModal = (product: any) => {
+  const openLeadModal = (
+    product: any,
+    prefill?: { form?: Partial<typeof leadForm>; extras?: Record<string, string> },
+  ) => {
     setSelectedLeadProduct(product);
     setLeadSubmitted(false);
     setLeadSubmitError("");
-    setLeadForm({ fullName: "", people: "", mobile: "", email: "", startDate: "", endDate: "" });
+    setLeadForm({ fullName: "", people: "", mobile: "", email: "", startDate: "", endDate: "", ...(prefill?.form || {}) });
+    setLeadExtras({ ...(prefill?.extras || {}) });
   };
   const closeLeadModal = () => setSelectedLeadProduct(null);
 
@@ -829,8 +845,11 @@ export const useWebsiteTemplateData = () => {
     }, 2200);
   };
 
-  const submitLeadForm = async (event: FormEvent) => {
+  // `overrides` lets the new templates pass answers that are derived at submit time
+  // (e.g. the inquiryType for the form variant currently shown).
+  const submitLeadForm = async (event: FormEvent, overrides?: Record<string, string>) => {
     event.preventDefault();
+    const extras = { ...leadExtras, ...(overrides || {}) };
     setLeadSubmitPending(true);
     setLeadSubmitError("");
     try {
@@ -857,8 +876,11 @@ export const useWebsiteTemplateData = () => {
         stayDuration: leadForm.endDate ? `${leadForm.startDate || ""} to ${leadForm.endDate}` : "",
         startDate: leadForm.startDate,
         endDate: leadForm.endDate,
-        timeSlot: "",
-        inquiryType: slug.includes("cafe") ? "Cafe" : "",
+        ...extras,
+        // Surface free-text notes as the lead's message so they show in the leads list.
+        ...(extras.notes ? { message: extras.notes } : {}),
+        timeSlot: extras.time || "",
+        inquiryType: extras.inquiryType || (slug.includes("cafe") ? "Cafe" : ""),
         websiteUrl: window.location.href,
       });
       setLeadSubmitted(true);
@@ -1042,6 +1064,8 @@ export const useWebsiteTemplateData = () => {
     selectedLeadProduct,
     leadForm,
     setLeadForm,
+    leadExtras,
+    setLeadExtras,
     leadSubmitted,
     setLeadSubmitted,
     leadSubmitPending,

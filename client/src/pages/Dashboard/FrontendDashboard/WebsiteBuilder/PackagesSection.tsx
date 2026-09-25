@@ -3,6 +3,7 @@ import { Controller, useFieldArray } from "react-hook-form";
 import UploadMultipleFilesInput from "../../../../components/UploadMultipleFilesInput";
 import EnabledSwitch from "../../../../components/ui/EnabledSwitch";
 import WebsiteFormField from "../../../../components/WebsiteFormField";
+import ItemExtraFields, { OfferingDescription } from "./ItemExtraFields";
 
 const PackagesSection = ({ control, register }) => {
   const { fields, append, remove } = useFieldArray({
@@ -45,12 +46,7 @@ const PackagesSection = ({ control, register }) => {
                 placeholder="e.g., 2 days / 1 week / 14 nights"
                 registration={register(`packages.${index}.duration`)}
               />
-              <WebsiteFormField
-                label="Description"
-                multiline
-                minRows={3}
-                registration={register(`packages.${index}.description`)}
-              />
+              <OfferingDescription control={control} register={register} name={`packages.${index}.description`} kind="offering" />
             </div>
             <div className="pt-4">
               <Controller
@@ -67,6 +63,12 @@ const PackagesSection = ({ control, register }) => {
                 )}
               />
             </div>
+            <ItemExtraFields
+              control={control}
+              register={register}
+              name={`packages.${index}`}
+              kind="package"
+            />
           </div>
         ))}
         <button
