@@ -2482,6 +2482,11 @@ const createTemplateHandler = async (req, res, next) => {
         const ref = asRef((promotedDraft.founders || [])[i]?.image);
         if (ref) founder.image = ref;
       });
+      (template.aboutPageImageCards || []).forEach((card, i) => {
+        if (card?.image?.url) return;
+        const ref = asRef((promotedDraft.aboutPageImageCards || [])[i]?.image);
+        if (ref) card.image = ref;
+      });
       if (template.logoCarousel) {
         const keepIds = new Set((safeParse(req.body.logoCarouselImageIds, []) || []).map(String));
         const draftLogos = ((promotedDraft.logoCarousel || {}).logos || [])
