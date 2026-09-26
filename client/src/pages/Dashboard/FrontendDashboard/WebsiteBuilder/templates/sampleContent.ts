@@ -21,7 +21,7 @@ const FETCH_TIMEOUT_MS = 15000;
 const PARALLEL_FETCHES = 6;
 
 // Photo counts are trimmed so the first autosave stays light; the user can add more.
-const LIMITS = { hero: 3, gallery: 12, about: 3, itemImages: 3, pageHero: 1 };
+const LIMITS = { hero: 3, gallery: 12, about: 3, itemImages: 5, pageHero: 1 };
 
 const urlOf = (value: any): string =>
   typeof value === "string" ? value : typeof value?.url === "string" ? value.url : "";
@@ -45,8 +45,7 @@ const createImageLoader = () => {
     waiting.shift()?.();
   };
 
-  const fetchBlob = async (url: string): Promise<Blob | null> => {
-    await slot();
+  const fetchOnce = async (url: string): Promise<Blob | null> => {
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     try {
@@ -59,6 +58,16 @@ const createImageLoader = () => {
       return null;
     } finally {
       window.clearTimeout(timer);
+    }
+  };
+
+  const fetchBlob = async (url: string): Promise<Blob | null> => {
+    await slot();
+    try {
+      // A slow or busy image host can fail once and work a moment later; a photo that silently
+      // drops out leaves a room or team member without one.
+      return (await fetchOnce(url)) || (await fetchOnce(url));
+    } finally {
       release();
     }
   };

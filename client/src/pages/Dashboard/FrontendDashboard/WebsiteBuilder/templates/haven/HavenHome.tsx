@@ -350,7 +350,7 @@ const VisitBand: React.FC = () => {
                 {t.contactEmail ? row(Icon.mail(17), <span className="break-all">{t.contactEmail}</span>) : null}
                 {hours[0] ? row(Icon.clock(17), `${hours[0].days}: ${hours[0].hours}`) : draft?.contactBusinessHours ? row(Icon.clock(17), draft.contactBusinessHours) : null}
               </div>
-              {draft?.mapUrl ? <iframe title="Map" src={draft.mapUrl} loading="lazy" className="mt-2 h-[190px] w-full border-0" style={{ borderRadius: 24 }} /> : null}
+              {draft?.mapUrl ? <iframe title="Map" src={draft.mapUrl} loading="lazy" className="mt-2 min-h-[260px] w-full flex-1 border-0" style={{ borderRadius: 24 }} /> : null}
               {!form ? <div><button type="button" className="tp-btn tp-btn-light" onClick={() => t.goToSection("contact")}>{c("home.contact.button", "Contact us")}</button></div> : null}
             </div>
             {form ? (

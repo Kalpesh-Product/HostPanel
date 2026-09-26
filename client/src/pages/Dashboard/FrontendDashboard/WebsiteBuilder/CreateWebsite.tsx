@@ -1286,6 +1286,8 @@ const CreateWebsite = () => {
   // resolve after the first run and re-trigger the effect. Once we've loaded the DB data and
   // called reset(), we do NOT want to do it again.
   const hasHydratedFromDbRef = useRef(false);
+  // Set once this session's autosave has sent a draft (see the guard in the existing-website lookup).
+  const sessionDraftStartedRef = useRef(false);
   // Tracks whether a checkExistingWebsite call is already in-flight so concurrent
   // async runs (triggered by rapid dep changes) don't race each other.
   const isCheckingWebsiteInFlightRef = useRef(false);
@@ -1767,6 +1769,14 @@ const CreateWebsite = () => {
           null;
 
         if (found) {
+          // This session's own autosave has already created the draft record, and this lookup only
+          // re-ran because something else resolved late (business name, company identity...). The form
+          // holds everything the person and the sample content put in, including photos that have not
+          // uploaded yet, so loading the server copy over it would wipe those. Keep the form as it is.
+          if (!isEditModeRef.current && sessionDraftStartedRef.current && found?.isPublished !== true) {
+            hasHydratedFromDbRef.current = true;
+            return;
+          }
           // A DB record now exists, so its own themeVariant (set below) always
           // wins from here on — the localStorage hint has served its purpose.
           try {
@@ -3373,6 +3383,7 @@ const CreateWebsite = () => {
 
       pendingDraftFileKeysRef.current = pendingFileKeys;
       draftSaveInFlightRef.current = true;
+      sessionDraftStartedRef.current = true;
       saveWebsiteDraft({ fd, pendingFieldFiles });
     }, 1200);
     draftAutosaveTimeoutRef.current = timeoutId;

@@ -1713,6 +1713,9 @@ const createTemplateHandler = async (req, res, next) => {
 
     const canPromoteExistingDraft =
       Boolean(template) && template.isDraft === true && template.isPublished !== true;
+    // What the draft holds before publishing resets it (see restoring further down).
+    let promotedDraft = null;
+    const asRef = (img) => (img && img.url ? { id: String(img.id || ""), url: String(img.url) } : null);
 
     if (template && !canPromoteExistingDraft) {
       return res
@@ -1825,6 +1828,7 @@ const createTemplateHandler = async (req, res, next) => {
         testimonials: [],
       });
     } else {
+      promotedDraft = template.toObject();
       Object.assign(template, {
         companyId: req.body?.companyId,
         workspaceId: req.body?.workspaceId || null,
@@ -2213,6 +2217,13 @@ const createTemplateHandler = async (req, res, next) => {
 
     const normalizedProductPages = normalizeProductDropdownPages(productDropdownPages);
     for (let i = 0; i < normalizedProductPages.length; i++) {
+      // A draft that is being published already has the photos its autosave uploaded. The form swapped
+      // those Files for saved refs (or, if that hasn't happened yet, sends an empty placeholder for each),
+      // so they must be kept here rather than replaced by only what this request uploads.
+      const draftPage = promotedDraft?.productDropdownPages?.[i] || null;
+      const rawPage = (Array.isArray(productDropdownPages) ? productDropdownPages : [])[i] || {};
+      const isPlaceholder = (value) => Boolean(value) && typeof value === "object" && !value.url;
+
       const singleHeroFile = (filesByField[`productPageHeroImage_${i}`] || [])[0];
       if (singleHeroFile) {
         const uploaded = await uploadImages(
@@ -2220,16 +2231,22 @@ const createTemplateHandler = async (req, res, next) => {
           `${baseFolder}/productPageHeroImage/${i}`,
         );
         normalizedProductPages[i].heroImage = uploaded[0] || undefined;
+      } else if (!normalizedProductPages[i].heroImage?.url) {
+        normalizedProductPages[i].heroImage = isPlaceholder(rawPage.heroImage) ? asRef(draftPage?.heroImage) || undefined : undefined;
       }
+
       const heroCarouselFiles = filesByField[`productPageHeroImages_${i}`] || [];
-      if (heroCarouselFiles.length) {
-        normalizedProductPages[i].heroImages = await uploadImages(
-          heroCarouselFiles.slice(0, 5),
-          `${baseFolder}/productPageHeroImages/${i}`,
-        );
-      } else {
-        normalizedProductPages[i].heroImages = [];
-      }
+      const keptHero = normalizedProductPages[i].heroImages || [];
+      const keptHeroUrls = new Set(keptHero.map((img) => img.url));
+      const heroPlaceholders = (Array.isArray(rawPage.heroImages) ? rawPage.heroImages.length : 0) - keptHero.length;
+      const heroUploadedNow = heroCarouselFiles.length
+        ? await uploadImages(heroCarouselFiles.slice(0, 5), `${baseFolder}/productPageHeroImages/${i}`)
+        : [];
+      const heroEarlier = ((draftPage?.heroImages || []).map(asRef).filter(Boolean))
+        .filter((img) => !keptHeroUrls.has(img.url))
+        .slice(0, Math.max(0, heroPlaceholders - heroUploadedNow.length));
+      normalizedProductPages[i].heroImages = [...keptHero, ...heroEarlier, ...heroUploadedNow].slice(0, 5);
+
       const homeCardFile = (filesByField[`productPageHomeCardImage_${i}`] || [])[0];
       if (homeCardFile) {
         const uploaded = await uploadImages(
@@ -2237,17 +2254,24 @@ const createTemplateHandler = async (req, res, next) => {
           `${baseFolder}/productPageHomeCardImage/${i}`,
         );
         normalizedProductPages[i].homeCardImage = uploaded[0] || undefined;
+      } else if (!normalizedProductPages[i].homeCardImage?.url) {
+        normalizedProductPages[i].homeCardImage = isPlaceholder(rawPage.homeCardImage) ? asRef(draftPage?.homeCardImage) || undefined : undefined;
       }
 
       const pageSubProducts = normalizedProductPages[i].subProducts || [];
       for (let j = 0; j < pageSubProducts.length; j++) {
         const subFiles = filesByField[`subProductImages_${i}_${j}`] || [];
-        if (subFiles.length) {
-          pageSubProducts[j].images = await uploadImages(
-            subFiles,
-            `${baseFolder}/subProducts/${i}_${j}`,
-          );
-        }
+        const keptSub = pageSubProducts[j].images || [];
+        const keptSubUrls = new Set(keptSub.map((img) => img.url));
+        const rawSubImages = rawPage.subProducts?.[j]?.images;
+        const subPlaceholders = (Array.isArray(rawSubImages) ? rawSubImages.length : 0) - keptSub.length;
+        const subUploadedNow = subFiles.length
+          ? await uploadImages(subFiles, `${baseFolder}/subProducts/${i}_${j}`)
+          : [];
+        const subEarlier = ((draftPage?.subProducts?.[j]?.images || []).map(asRef).filter(Boolean))
+          .filter((img) => !keptSubUrls.has(img.url))
+          .slice(0, Math.max(0, subPlaceholders - subUploadedNow.length));
+        pageSubProducts[j].images = [...keptSub, ...subEarlier, ...subUploadedNow].slice(0, 5);
       }
       normalizedProductPages[i].subProducts = pageSubProducts;
     }
@@ -2427,6 +2451,45 @@ const createTemplateHandler = async (req, res, next) => {
       testimony: t.testimony,
       rating: t.rating,
     }));
+
+    // A draft that is being published was reset above, but its autosave had already uploaded photos, and
+    // the form (which swapped those Files for saved refs) does not send them again. Bring them back by slot.
+    if (promotedDraft) {
+      const listBodies = { rooms, meetingRooms, coLivingRooms, packages, dorms };
+      for (const key of Object.keys(listBodies)) {
+        const bodyItems = Array.isArray(listBodies[key]) ? listBodies[key] : [];
+        (template[key] || []).forEach((item, i) => {
+          const bodyImages = Array.isArray(bodyItems[i]?.images) ? bodyItems[i].images : [];
+          const refs = bodyImages.map(asRef).filter(Boolean);
+          const refUrls = new Set(refs.map((img) => img.url));
+          const uploadedNow = (Array.isArray(item.images) ? item.images : []).map(asRef).filter(Boolean);
+          const earlier = ((promotedDraft[key] || [])[i]?.images || [])
+            .map(asRef)
+            .filter((img) => img && !refUrls.has(img.url))
+            .slice(0, Math.max(0, bodyImages.length - refs.length - uploadedNow.length));
+          item.images = [...refs, ...earlier, ...uploadedNow].slice(0, 10);
+        });
+      }
+      const bodyMenu = Array.isArray(menuItems) ? menuItems : [];
+      (template.menuItems || []).forEach((item, i) => {
+        if (item?.image?.url) return;
+        const raw = bodyMenu[i]?.image;
+        const ref = asRef(raw) || (raw && typeof raw === "object" ? asRef((promotedDraft.menuItems || [])[i]?.image) : null);
+        if (ref) item.image = ref;
+      });
+      (template.founders || []).forEach((founder, i) => {
+        if (founder?.image?.url) return;
+        const ref = asRef((promotedDraft.founders || [])[i]?.image);
+        if (ref) founder.image = ref;
+      });
+      if (template.logoCarousel) {
+        const keepIds = new Set((safeParse(req.body.logoCarouselImageIds, []) || []).map(String));
+        const draftLogos = ((promotedDraft.logoCarousel || {}).logos || [])
+          .map(asRef)
+          .filter((img) => img && keepIds.has(img.id));
+        if (draftLogos.length) template.logoCarousel.logos = [...draftLogos, ...(template.logoCarousel.logos || [])].slice(0, 12);
+      }
+    }
 
     const templateSnapshot = template.toObject({
       depopulate: true,
