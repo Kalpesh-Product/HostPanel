@@ -5,6 +5,7 @@ import { normalizeSlug, resolveSectionFromSlug, useWebsiteTemplateData } from ".
 import { buildServices, type Service, type ServiceItem } from "../serviceAdapter";
 import { averageRating, buildTemplateVars, openStatus, resolvePrimaryKind, resolvePrimaryService } from "../templateKit";
 import { getServiceProfile } from "../verticalProfiles";
+import { contentCopy, contentImage } from "../templateContent";
 import { TplProvider, type TplCtx } from "../shared/TplContext";
 import { LeadModal } from "../shared/TplLead";
 import { ReviewModal } from "../shared/TplForms";
@@ -82,6 +83,8 @@ const CommonsTemplate: React.FC = () => {
       const match = (t.navItems || []).find((item: any) => resolveSectionFromSlug(item.slug) === section);
       return String(match?.name || "").trim() || fallback;
     },
+    c: (key, fallback) => contentCopy(draft, key, fallback),
+    photo: (key, fallback) => contentImage(draft, key, fallback),
   };
 
   const renderProducts = () => {

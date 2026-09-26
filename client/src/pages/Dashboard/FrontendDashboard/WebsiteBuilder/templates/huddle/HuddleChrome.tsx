@@ -7,8 +7,8 @@ import { groupOpeningHours } from "../templateKit";
 import { Icon } from "../shared/TplUI";
 import { useTpl } from "../shared/TplContext";
 
-/** A sticky white header. */
-export const CommonsHeader: React.FC = () => {
+/** A sticky header with the logo on the left, the menu in a pill on the right and a Book button. */
+export const HuddleHeader: React.FC = () => {
   const { t, draft, services, primary, profile, openLead } = useTpl();
   const [servicesOpen, setServicesOpen] = useState(false);
   const hasLead = Boolean(primary?.leadEnabled);
@@ -22,30 +22,33 @@ export const CommonsHeader: React.FC = () => {
 
   return (
     <>
-      <header className="cw-header sticky top-0 z-50">
+      <header className="hd-header sticky top-0 z-50">
         <div className="tp-wrap flex h-[68px] items-center justify-between gap-6">
           <button type="button" onClick={() => t.goToSection("home")} aria-label="Go to home" className="flex min-w-0 items-center text-left">
             {draft?.companyLogo ? (
               <img src={draft.companyLogo} alt={draft.companyName || "Logo"} className="h-9 w-auto max-w-[160px] object-contain" />
             ) : (
-              <span className="tp-display truncate text-[22px]">{draft?.companyName || "Home"}<span style={{ color: "var(--t-accent)" }}>.</span></span>
+              <span className="flex items-center gap-2.5">
+                <span aria-hidden="true" className="flex h-8 w-8 items-center justify-center rounded-[9px] text-[15px] font-bold" style={{ background: "var(--t-accent)", color: "var(--t-accent-text, #fff)", fontFamily: "Sora, sans-serif" }}>{String(draft?.companyName || "H").trim().charAt(0).toUpperCase()}</span>
+                <span className="tp-display truncate text-[19px]">{draft?.companyName || "Home"}</span>
+              </span>
             )}
           </button>
 
-          <nav className="hidden items-center gap-1 lg:flex" aria-label="Main">
+          <nav className="hd-nav hidden lg:inline-flex" aria-label="Main">
             {t.navItems.map((item: any) => {
               if (isProductsNavItem(item) && t.productsPageEnabled && services.length > 1) {
                 return (
                   <div key={item.slug} className="relative" onMouseEnter={() => setServicesOpen(true)} onMouseLeave={() => setServicesOpen(false)}>
-                    <button type="button" className="cw-navlink inline-flex items-center gap-1" aria-expanded={servicesOpen} aria-current={t.currentSection === "products" ? "page" : undefined} onClick={() => t.goToSection(item.slug)}>
+                    <button type="button" className="hd-navlink inline-flex items-center gap-1" aria-expanded={servicesOpen} aria-current={t.currentSection === "products" ? "page" : undefined} onClick={() => t.goToSection(item.slug)}>
                       {item.name} {Icon.chevron(12)}
                     </button>
                     <AnimatePresence>
                       {servicesOpen ? (
-                        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.15 }} className="absolute left-0 top-full w-60 pt-2">
+                        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.15 }} className="absolute left-0 top-full w-60 pt-3">
                           <div className="tp-card p-1.5" style={{ borderRadius: 12 }}>
                             {services.map((service) => (
-                              <button key={service.key} type="button" className="block w-full rounded-lg px-3.5 py-2.5 text-left text-[14.5px] font-semibold transition hover:bg-[color-mix(in_srgb,var(--t-accent)_25%,transparent)]" onClick={() => { setServicesOpen(false); t.goToProductPage(service.slug); }}>
+                              <button key={service.key} type="button" className="block w-full rounded-lg px-3.5 py-2.5 text-left text-[14.5px] font-semibold transition hover:bg-[color-mix(in_srgb,var(--t-accent)_14%,transparent)]" onClick={() => { setServicesOpen(false); t.goToProductPage(service.slug); }}>
                                 {service.name}
                               </button>
                             ))}
@@ -57,7 +60,7 @@ export const CommonsHeader: React.FC = () => {
                 );
               }
               return (
-                <button key={item.slug} type="button" className="cw-navlink" aria-current={isActive(item) ? "page" : undefined} onClick={() => t.goToSection(item.slug)}>
+                <button key={item.slug} type="button" className="hd-navlink" aria-current={isActive(item) ? "page" : undefined} onClick={() => t.goToSection(item.slug)}>
                   {item.name}
                 </button>
               );
@@ -66,7 +69,7 @@ export const CommonsHeader: React.FC = () => {
 
           <div className="flex items-center gap-3">
             <button type="button" className="tp-btn tp-btn-primary hidden !py-2.5 sm:inline-flex" onClick={cta}>{hasLead ? profile.labels.cta : "Contact us"}</button>
-            <button type="button" className="flex h-11 w-11 items-center justify-center rounded-[10px] border-2 lg:hidden" style={{ borderColor: "var(--t-text)" }} aria-label={t.mobileMenuOpen ? "Close menu" : "Open menu"} aria-expanded={t.mobileMenuOpen} onClick={() => t.setMobileMenuOpen((open: boolean) => !open)}>
+            <button type="button" className="flex h-11 w-11 items-center justify-center rounded-[10px] border lg:hidden" style={{ borderColor: "var(--t-line)" }} aria-label={t.mobileMenuOpen ? "Close menu" : "Open menu"} aria-expanded={t.mobileMenuOpen} onClick={() => t.setMobileMenuOpen((open: boolean) => !open)}>
               {t.mobileMenuOpen ? Icon.close(20) : Icon.menu()}
             </button>
           </div>
@@ -76,7 +79,7 @@ export const CommonsHeader: React.FC = () => {
           {t.mobileMenuOpen ? (
             <motion.div
               className="absolute inset-x-0 top-full max-h-[calc(100vh-110px)] overflow-y-auto lg:hidden"
-              style={{ background: "var(--t-bg)", borderBottom: "1px solid var(--t-line)", boxShadow: "0 30px 40px -30px rgba(0,0,0,.4)" }}
+              style={{ background: "var(--t-raised)", borderBottom: "1px solid var(--t-line)", boxShadow: "0 30px 40px -30px rgba(0,0,0,.4)" }}
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
@@ -86,7 +89,7 @@ export const CommonsHeader: React.FC = () => {
               <nav className="tp-wrap flex flex-col py-2">
                 {t.navItems.map((item: any) => (
                   <div key={item.slug} className="border-b" style={{ borderColor: "var(--t-line)" }}>
-                    <button type="button" className="tp-display flex w-full items-center justify-between py-4 text-left text-[20px]" style={{ background: isActive(item) ? "linear-gradient(transparent 62%, color-mix(in srgb, var(--t-accent) 70%, transparent) 62%)" : undefined, width: "fit-content" }} onClick={() => t.goToSection(item.slug)}>{item.name}</button>
+                    <button type="button" className="tp-display flex w-full items-center justify-between py-4 text-left text-[19px]" style={{ color: isActive(item) ? "var(--t-accent-fg, var(--t-accent))" : undefined }} onClick={() => t.goToSection(item.slug)}>{item.name}</button>
                     {isProductsNavItem(item) && t.productsPageEnabled && services.length > 1 ? (
                       <ul className="mb-3 space-y-0.5 pl-3">
                         {services.map((service) => (
@@ -105,32 +108,30 @@ export const CommonsHeader: React.FC = () => {
   );
 };
 
-/** On phones a full-width button stays at the bottom, so a visit is always one tap away. */
-export const CommonsStickyBar: React.FC = () => {
+/** On phones a full-width button stays at the bottom, so booking is always one tap away. */
+export const HuddleStickyBar: React.FC = () => {
   const { t, primary, profile, openLead } = useTpl();
   if (!primary?.leadEnabled || t.currentSection === "contact" || t.mobileMenuOpen) return null;
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t-2 p-3 lg:hidden" style={{ background: "var(--t-raised)", borderColor: "var(--t-text)" }}>
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t p-3 lg:hidden" style={{ background: "var(--t-raised)", borderColor: "var(--t-line)" }}>
       <button type="button" className="tp-btn tp-btn-primary w-full" onClick={() => openLead(primary)}>{profile.labels.cta} {Icon.arrow(16)}</button>
     </div>
   );
 };
 
-export const CommonsFooter: React.FC = () => {
+export const HuddleFooter: React.FC = () => {
   const { t, draft, services, primary, profile, openLead, c } = useTpl();
   const hours = groupOpeningHours(draft?.openingHours);
   const name = t.footerCompanyName || draft?.companyName || "";
-  // Several services get their own column (so the footer stays short); "Services" itself then
-  // leaves the Explore list and becomes that column's heading.
   const showServices = services.length > 1 && t.productsPageEnabled;
   const links = (t.navItems || []).filter((item: any) => (isProductsNavItem(item) ? t.productsPageEnabled && !showServices : true));
-  const heading = "mb-5 text-[12px] font-bold uppercase tracking-[0.14em] opacity-60";
+  const heading = "mb-5 text-[12px] font-semibold uppercase tracking-[0.14em] opacity-60";
 
   return (
     <footer className="mt-10 pb-20 lg:pb-0" style={{ background: "var(--t-ink)", color: "var(--t-on-ink)" }}>
       <div className="tp-wrap">
-        <div className="flex flex-wrap items-center justify-between gap-6 border-b py-12 md:py-16" style={{ borderColor: "color-mix(in srgb, var(--t-on-ink) 16%, transparent)" }}>
-          <h2 className="tp-display max-w-2xl text-[clamp(28px,4vw,50px)]">{c("footer.cta", "Ready to work from somewhere better?")}</h2>
+        <div className="flex flex-wrap items-center justify-between gap-6 border-b py-12 md:py-14" style={{ borderColor: "color-mix(in srgb, var(--t-on-ink) 16%, transparent)" }}>
+          <h2 className="tp-display max-w-2xl text-[clamp(26px,3.6vw,44px)]">{c("footer.cta", "Your next meeting starts here.")}</h2>
           {primary?.leadEnabled ? (
             <button type="button" className="tp-btn tp-btn-primary" onClick={() => openLead(primary)}>{profile.labels.cta} {Icon.arrow(16)}</button>
           ) : (
@@ -143,7 +144,7 @@ export const CommonsFooter: React.FC = () => {
             {draft?.companyLogo ? (
               <img src={draft.companyLogo} alt={name || "Logo"} className="h-9 w-auto object-contain" style={{ filter: "brightness(0) invert(1)" }} />
             ) : (
-              <p className="tp-display text-[26px]">{name}<span style={{ color: "var(--t-accent)" }}>.</span></p>
+              <p className="tp-display text-[24px]">{name}</p>
             )}
             {draft?.subTitle ? <p className="mt-4 max-w-xs text-[14.5px] leading-relaxed opacity-70">{draft.subTitle}</p> : null}
             {t.footerSocialLinks.length ? (
@@ -177,7 +178,7 @@ export const CommonsFooter: React.FC = () => {
           ) : null}
 
           <div>
-            <p className={heading}>Visit us</p>
+            <p className={heading}>Find us</p>
             <div className="space-y-3 text-[15px] opacity-90">
               {t.footerAddress ? <p className="flex items-start gap-3"><span className="mt-1 shrink-0">{Icon.pin(15)}</span>{t.footerAddress}</p> : null}
               {t.contactPhone ? <p className="flex items-center gap-3">{Icon.phone(15)} {t.contactPhone}</p> : null}

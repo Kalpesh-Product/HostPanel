@@ -30,6 +30,13 @@ const IMG = {
     team: ["photo-1522071820081-009f0129c71c", "photo-1519389950473-47ba0277781c", "photo-1572021335469-31706a17aaef", "photo-1522071901873-411886a10004"],
     focus: ["photo-1765894359240-49b82f93b91a", "photo-1771627278482-dec14f5eda58"],
     reception: ["photo-1758448093806-88b2089068ab"],
+    more: [
+      "photo-1715593949273-09009558300a", "photo-1706074797611-a02f9ed06439", "photo-1705909770198-7e83c24e1616", "photo-1576085898323-218337e3e43c",
+      "photo-1591115765373-5207764f72e7", "photo-1631350397737-945eb08c78d9", "photo-1568359415705-47e98104af04", "photo-1516062423079-7ca13cdc7f5a",
+      "photo-1631248899260-2ebc8466befe", "photo-1779905705972-357048611e57", "photo-1783780933216-25d67de68bcc", "photo-1497215728101-856f4ea42174",
+      "photo-1511362328651-90cc517fbe31", "photo-1572025442646-866d16c84a54", "photo-1556559322-b5071efadc88", "photo-1781895277529-fcea0571752f",
+      "photo-1499750310107-5fef28a66643", "photo-1497032628192-86f99bcd76bc",
+    ],
   },
   meeting: {
     hero: ["photo-1745920770891-b46fc1799646", "photo-1431540015161-0bf868a2d407", "photo-1628062699790-7c45262b82b4"],
@@ -38,6 +45,11 @@ const IMG = {
     board: ["photo-1431540015161-0bf868a2d407", "photo-1517502884422-41eaead166d4", "photo-1573167507387-6b4b98cb7c13"],
     training: ["photo-1762176264161-09219da49794", "photo-1697059361461-b81d0e98c3af", "photo-1762176263996-a0713a49ee4d"],
     extra: ["photo-1694253988732-816ab6e60caa", "photo-1764810815228-b7f9432eec5c"],
+    more: [
+      "photo-1606836591695-4d58a73eba1e", "photo-1638786246810-39870f0e77d9", "photo-1717414477663-a5f5384499b0", "photo-1677078610588-aed2834ad968",
+      "photo-1758691736545-5c33b6255dca", "photo-1758691736483-5f600b509962", "photo-1677506048892-edde55cf3277", "photo-1735639013995-086e648eaa38",
+      "photo-1758691736836-0413b066787a", "photo-1778877036599-9a7aa57a160b", "photo-1679205691826-9157415559c2", "photo-1707518576238-bc314be71371",
+    ],
   },
   hostel: {
     hero: ["photo-1709805619372-40de3f158e83", "photo-1752491027824-e9006cd14046", "photo-1785486250446-b048054c8484"],
@@ -48,6 +60,12 @@ const IMG = {
     roof: ["photo-1774280898104-d329acaae7b7", "photo-1777950797674-8d73d0352d13", "photo-1785486249823-02fbb298c918"],
     building: ["photo-1575393382552-1b59de5f4f3a", "photo-1782479590739-cbb9147c20a3"],
     travel: ["photo-1521335751419-603f61523713", "photo-1464198016405-33fd4527b89d", "photo-1539635278303-d4002c07eae3"],
+    more: [
+      "photo-1676152466751-054c5cb0af27", "photo-1722248214881-9bc53768965b", "photo-1721824295828-39e669aabb18", "photo-1721824292510-05cb3f8b545a",
+      "photo-1665799325767-dba4ce5231d4", "photo-1650408417545-46e720319368", "photo-1718711621245-9c18514277cc", "photo-1569937745011-2d2aeb42da12",
+      "photo-1663841366392-1517cc0bf9e1", "photo-1748551204312-094d90222b28", "photo-1667831083048-4ddd6a8cd4db", "photo-1768314697126-54e596ca4335",
+      "photo-1744943776871-bd93da143305", "photo-1754479137297-a323dacddce7", "photo-1523772038444-79e3aa8e82e3", "photo-1683624328172-88fb24625ec1",
+    ],
   },
   coliving: {
     hero: ["photo-1774186184495-dc059ef40c75", "photo-1743867840110-ee532b7c6fb9", "photo-1657040899606-b22f17a6afd5"],
@@ -58,6 +76,11 @@ const IMG = {
     living: ["photo-1651407825801-eec2dcbd86bd", "photo-1615876234886-fd9a39fda97f"],
     kitchen: ["photo-1721614664523-5e0d3fc786d0", "photo-1758523417133-41f21fb9f058"],
     community: ["photo-1772724317486-6e664a4e8bbb", "photo-1772724317667-afe2d40f6158", "photo-1661006117166-6227bfc9c8b0", "photo-1772724317595-eab4ab9ff42e"],
+    more: [
+      "photo-1776348065117-02285a905b0b", "photo-1776348065025-acc32a51f53c", "photo-1773098587088-f0a3aaab48a8", "photo-1772208392422-bb2f2609097a",
+      "photo-1774685110793-e427dfa87467", "photo-1754399005619-fc8e19e32443", "photo-1633944095397-878622ebc01c", "photo-1631048501786-4e97f20eac71",
+      "photo-1634207521799-5616b235ac74", "photo-1683553613848-7bf405f7082e", "photo-1668911094844-527491335108", "photo-1784878654582-a5836f1ff110",
+    ],
   },
   cafe: {
     hero: ["photo-1555396273-367ea4eb4db5", "photo-1760175445000-0e01e193d1cd", "photo-1555507036-ab1f4038808a"],
@@ -66,12 +89,22 @@ const IMG = {
     bakery: ["photo-1568254183919-78a4f43a2877", "photo-1483695028939-5bb13f8648b0", "photo-1643944471768-2d2eac3afb6d"],
     brunch: ["photo-1753351055855-b898a3aadb45", "photo-1764174861943-a7914825311f", "photo-1753351057311-8fd3c46bc4e2"],
     work: ["photo-1704770064557-416292d1f4bd", "photo-1534432295314-d934309ea09d", "photo-1649060718881-236572de3c7f"],
+    more: [
+      "photo-1790156591511-c15ce9fe9ebc", "photo-1790156591751-5c3c96e0140f", "photo-1782146524089-7fb5a3b52914", "photo-1782201205125-20e8bb74c8db",
+      "photo-1759050475187-674550fa911e", "photo-1689075326462-581d7705c0ef", "photo-1623334044303-241021148842", "photo-1763207291707-e2cf471ed72b",
+      "photo-1788923388310-4d904c56cffb", "photo-1789776377594-7f26d834f203", "photo-1510083300914-5ffac797d9d2", "photo-1500338900354-9860a96df6ab",
+      "photo-1515041761709-f9fc96e04cd3", "photo-1459755486867-b55449bb39ff",
+    ],
   },
   workation: {
     hero: ["photo-1727964600806-b3a2bb8048e6", "photo-1654355229863-95a8a7a779dd", "photo-1649269752878-d563bcfd94ef"],
     desk: ["photo-1678690832871-8b9993c76aa8", "photo-1653567461945-162426401322", "photo-1658747006893-469fa6fbea2a"],
     stay: ["photo-1773423391716-04e278b07b1b", "photo-1721989517058-ea332276a832"],
     beach: ["photo-1654355252504-42c1c9dd1fe0", "photo-1715210471871-590883e6a720"],
+    more: [
+      "photo-1785088476988-f0b40ffc6cd7", "photo-1685753381751-465b6739d7a3", "photo-1645623981264-f58aa0c68ac0", "photo-1779773804985-e77d952fbe9c",
+      "photo-1760564019141-abe33455ce02", "photo-1780051234199-c3d491fdbd08", "photo-1779870458288-95fd59cd2c5b", "photo-1575623811814-dfbb2c13e4ad",
+    ],
   },
 };
 
@@ -159,7 +192,7 @@ const workspace: DemoBusiness = {
   subTitle: "Flexible desks, private cabins and a community of makers, in the middle of the city.",
   cta: "Book a visit",
   heroImages: IMG.cowork.hero.map((id) => U(id, 1600)),
-  gallery: [...IMG.cowork.hero, ...IMG.cowork.lounge, ...IMG.cowork.openPlan.slice(0, 2), ...IMG.cowork.team.slice(0, 2), ...IMG.cowork.booth.slice(0, 1)].map((id) => U(id, 1000)),
+  gallery: [...IMG.cowork.hero, ...IMG.cowork.lounge, ...IMG.cowork.openPlan.slice(0, 2), ...IMG.cowork.team.slice(0, 2), ...IMG.cowork.booth.slice(0, 1), ...IMG.cowork.more.slice(0, 9)].map((id) => U(id, 1000)),
   about: [
     "Nimbus Coworks began in 2019 with one floor, twenty desks and a simple idea: a workspace should make the day easier, not harder.",
     "Today more than ninety freelancers, startups and remote teams work across three floors, with quiet zones, phone booths, a sunlit lounge and a kitchen that never runs out of coffee.",
@@ -216,11 +249,11 @@ const workspace: DemoBusiness = {
   },
   extra: {},
   pageItems: on([
-    { name: "Hot desk", description: "Pick any open seat in the shared hall, plug in and get going. Ideal for freelancers and anyone who likes a change of scene. Includes fast Wi-Fi, unlimited coffee and lounge access.", cost: "", seats: 40, accessHours: "Mon–Sat, 8 AM–9 PM", features: ["Fast Wi-Fi", "Unlimited coffee", "Lounge access", "Printing"], badge: "Most popular", featured: true, images: IMG.cowork.openPlan.map((id) => ph(id)) },
-    { name: "Dedicated desk", description: "Your own desk, your own storage and your things left just as you like them, every day.", cost: "₹9,000", priceUnit: "per month", seats: 25, accessHours: "24×7", features: ["Locker", "24×7 access", "Meeting-room credits"], images: IMG.cowork.desks.map((id) => ph(id)) },
-    { name: "Private cabin", description: "A lockable cabin for two to six people, with the whole community just outside the door. Bring your own branding and pin your own whiteboard.", seats: 6, accessHours: "24×7", features: ["Lockable", "Air conditioning", "Whiteboard wall"], badge: "Teams", images: IMG.cowork.cabin.map((id) => ph(id)) },
-    { name: "Team suite", description: "A full floor section for growing teams of ten to twenty, branded to you and fitted out your way, with its own meeting room and phone booth.", seats: 20, accessHours: "24×7", features: ["Branded entrance", "Own meeting room", "Dedicated phone booth"], images: IMG.cowork.suite.map((id) => ph(id)) },
-    { name: "Day pass", description: "Try the space for a day, no commitment. Book a visit and we'll set you up with a desk, Wi-Fi and a coffee.", cost: "₹600", priceUnit: "per day", seats: 10, accessHours: "Mon–Sat, 9 AM–7 PM", features: ["Fast Wi-Fi", "Coffee and tea"], images: IMG.cowork.day.map((id) => ph(id)) },
+    { name: "Hot desk", description: "Pick any open seat in the shared hall, plug in and get going. Ideal for freelancers and anyone who likes a change of scene. Includes fast Wi-Fi, unlimited coffee and lounge access.", cost: "", seats: 40, accessHours: "Mon–Sat, 8 AM–9 PM", features: ["Fast Wi-Fi", "Unlimited coffee", "Lounge access", "Printing"], badge: "Most popular", featured: true, images: [...IMG.cowork.openPlan.map((id) => ph(id)), ...[IMG.cowork.more[11], IMG.cowork.more[12]].map((id) => ph(id))] },
+    { name: "Dedicated desk", description: "Your own desk, your own storage and your things left just as you like them, every day.", cost: "₹9,000", priceUnit: "per month", seats: 25, accessHours: "24×7", features: ["Locker", "24×7 access", "Meeting-room credits"], images: [...IMG.cowork.desks.map((id) => ph(id)), ...[IMG.cowork.more[13], IMG.cowork.more[14]].map((id) => ph(id))] },
+    { name: "Private cabin", description: "A lockable cabin for two to six people, with the whole community just outside the door. Bring your own branding and pin your own whiteboard.", seats: 6, accessHours: "24×7", features: ["Lockable", "Air conditioning", "Whiteboard wall"], badge: "Teams", images: [...IMG.cowork.cabin.map((id) => ph(id)), ...[IMG.cowork.more[0], IMG.cowork.more[1]].map((id) => ph(id))] },
+    { name: "Team suite", description: "A full floor section for growing teams of ten to twenty, branded to you and fitted out your way, with its own meeting room and phone booth.", seats: 20, accessHours: "24×7", features: ["Branded entrance", "Own meeting room", "Dedicated phone booth"], images: [...IMG.cowork.suite.map((id) => ph(id)), ...[IMG.cowork.more[15], IMG.cowork.more[2]].map((id) => ph(id))] },
+    { name: "Day pass", description: "Try the space for a day, no commitment. Book a visit and we'll set you up with a desk, Wi-Fi and a coffee.", cost: "₹600", priceUnit: "per day", seats: 10, accessHours: "Mon–Sat, 9 AM–7 PM", features: ["Fast Wi-Fi", "Coffee and tea"], images: [...IMG.cowork.day.map((id) => ph(id)), ...[IMG.cowork.more[16], IMG.cowork.more[17]].map((id) => ph(id))] },
   ]),
   settings: {
     logoCarousel: { enabled: true, title: "Trusted by teams at", logos: ["Northwind", "Lumen", "Brightside", "Kestrel", "Oakleaf", "Fathom"].map((name) => ({ url: wordmark(name) })) },
@@ -255,7 +288,7 @@ const cafe: DemoBusiness = {
   subTitle: "A neighbourhood café for slow mornings, long lunches and everything in between.",
   cta: "Reserve a table",
   heroImages: IMG.cafe.hero.map((id) => U(id, 1600)),
-  gallery: [...IMG.cafe.hero, ...IMG.cafe.interior, ...IMG.cafe.bakery.slice(0, 2), ...IMG.cafe.brunch.slice(0, 2), ...IMG.cafe.coffee.slice(0, 1)].map((id) => U(id, 1000)),
+  gallery: [...IMG.cafe.hero, ...IMG.cafe.interior, ...IMG.cafe.bakery.slice(0, 2), ...IMG.cafe.brunch.slice(0, 2), ...IMG.cafe.coffee.slice(0, 1), ...IMG.cafe.more.slice(0, 8)].map((id) => U(id, 1000)),
   about: [
     "We started as a tiny counter with one espresso machine and a big idea: make the neighbourhood's favourite corner.",
     "Today we run everything in-house, using ingredients from farms within a couple of hours of here, and we still bake before the sun comes up.",
@@ -322,7 +355,7 @@ const hostel: DemoBusiness = {
   subTitle: "Clean beds, big common rooms and a rooftop that never quite closes.",
   cta: "Book your stay",
   heroImages: IMG.hostel.hero.map((id) => U(id, 1600)),
-  gallery: [...IMG.hostel.hero, ...IMG.hostel.dorm.slice(0, 2), ...IMG.hostel.common.slice(0, 2), ...IMG.hostel.roof.slice(0, 2), ...IMG.hostel.building.slice(0, 1)].map((id) => U(id, 1000)),
+  gallery: [...IMG.hostel.hero, ...IMG.hostel.dorm.slice(0, 2), ...IMG.hostel.common.slice(0, 2), ...IMG.hostel.roof.slice(0, 2), ...IMG.hostel.building.slice(0, 1), ...IMG.hostel.more.slice(5, 15)].map((id) => U(id, 1000)),
   about: [
     "Wanderer's Nest is a hostel built by travellers who got tired of hostels that felt like waiting rooms.",
     "We keep the beds comfortable, the common room loud in the right way and the rooftop open late, so you meet people without trying.",
@@ -378,10 +411,10 @@ const hostel: DemoBusiness = {
   },
   extra: {
     dorms: on([
-      { title: "6-bed mixed dorm", price: "₹599", capacity: 6, description: "Bunk beds with privacy curtains, reading lights, power sockets and a large locker for every guest.", images: IMG.hostel.dorm.map((id) => ph(id)), roomKind: "dorm", bedType: "bunk", genderPolicy: "mixed", bathroom: "shared", badge: "Best value", priceUnit: "per night", features: ["Locker", "Reading light", "AC", "Power socket"] },
-      { title: "4-bed female dorm", price: "₹699", capacity: 4, description: "A calm, women-only space with ensuite bathroom, extra-wide bunks and a lockable vanity shelf.", images: [ph(IMG.hostel.dorm[1]), ph(IMG.hostel.dorm[2])], roomKind: "dorm", bedType: "bunk", genderPolicy: "female", bathroom: "ensuite", priceUnit: "per night", features: ["Ensuite", "Female only", "AC"] },
-      { title: "Private double", price: "₹1,899", capacity: 2, description: "A double bed, a desk and a small balcony, with breakfast included. Perfect for couples and anyone who wants some quiet.", images: IMG.hostel.private.map((id) => ph(id)), roomKind: "private", bedType: "single", genderPolicy: "mixed", bathroom: "ensuite", badge: "Popular", priceUnit: "per night", features: ["Balcony", "Desk", "Breakfast included"] },
-      { title: "Private twin", price: "₹1,699", capacity: 2, description: "Two single beds for friends travelling together, with a shared desk and a view of the rooftop.", images: IMG.hostel.twin.map((id) => ph(id)), roomKind: "private", bedType: "single", genderPolicy: "mixed", bathroom: "ensuite", priceUnit: "per night", features: ["Ensuite", "Desk", "AC"] },
+      { title: "6-bed mixed dorm", price: "₹599", capacity: 6, description: "Bunk beds with privacy curtains, reading lights, power sockets and a large locker for every guest.", images: [...IMG.hostel.dorm.map((id) => ph(id)), ...[IMG.hostel.more[0], IMG.hostel.more[1]].map((id) => ph(id))], roomKind: "dorm", bedType: "bunk", genderPolicy: "mixed", bathroom: "shared", badge: "Best value", priceUnit: "per night", features: ["Locker", "Reading light", "AC", "Power socket"] },
+      { title: "4-bed female dorm", price: "₹699", capacity: 4, description: "A calm, women-only space with ensuite bathroom, extra-wide bunks and a lockable vanity shelf.", images: [ph(IMG.hostel.dorm[1]), ph(IMG.hostel.dorm[2]), ...[IMG.hostel.more[2], IMG.hostel.more[3]].map((id) => ph(id))], roomKind: "dorm", bedType: "bunk", genderPolicy: "female", bathroom: "ensuite", priceUnit: "per night", features: ["Ensuite", "Female only", "AC"] },
+      { title: "Private double", price: "₹1,899", capacity: 2, description: "A double bed, a desk and a small balcony, with breakfast included. Perfect for couples and anyone who wants some quiet.", images: [...IMG.hostel.private.map((id) => ph(id)), ...[IMG.hostel.more[4]].map((id) => ph(id))], roomKind: "private", bedType: "single", genderPolicy: "mixed", bathroom: "ensuite", badge: "Popular", priceUnit: "per night", features: ["Balcony", "Desk", "Breakfast included"] },
+      { title: "Private twin", price: "₹1,699", capacity: 2, description: "Two single beds for friends travelling together, with a shared desk and a view of the rooftop.", images: [...IMG.hostel.twin.map((id) => ph(id)), ...[IMG.hostel.more[3], IMG.hostel.more[14]].map((id) => ph(id))], roomKind: "private", bedType: "single", genderPolicy: "mixed", bathroom: "ensuite", priceUnit: "per night", features: ["Ensuite", "Desk", "AC"] },
     ]),
   },
   settings: {
@@ -398,7 +431,7 @@ const coLiving: DemoBusiness = {
   subTitle: "Furnished rooms, a real community and everything included, in the heart of the city.",
   cta: "Schedule a visit",
   heroImages: IMG.coliving.hero.map((id) => U(id, 1600)),
-  gallery: [...IMG.coliving.hero, ...IMG.coliving.single.slice(0, 2), ...IMG.coliving.living, ...IMG.coliving.kitchen, ...IMG.coliving.community.slice(0, 2)].map((id) => U(id, 1000)),
+  gallery: [...IMG.coliving.hero, ...IMG.coliving.single.slice(0, 2), ...IMG.coliving.living, ...IMG.coliving.kitchen, ...IMG.coliving.community.slice(0, 2), ...IMG.coliving.more.slice(2, 7), ...IMG.coliving.more.slice(9, 12)].map((id) => U(id, 1000)),
   about: [
     "Common Ground is a co-living home for people who want more than a room: a place to cook together, work quietly and end the day with good company.",
     "Every room is fully furnished, every bill is included and there is always someone to talk to in the kitchen.",
@@ -453,10 +486,10 @@ const coLiving: DemoBusiness = {
   },
   extra: {
     coLivingRooms: on([
-      { title: "Sunny single", price: "₹18,000", priceUnit: "per month", description: "Your own room with an attached bath, a proper desk and a window that catches the morning sun. Best for people who like their own space and a lively common area to come back to.", images: IMG.coliving.single.map((id) => ph(id)), occupancy: "single", bathroom: "ensuite", ac: true, furnished: true, minStayMonths: 3, deposit: "1 month", availableFrom: "2026-11-01", badge: "Available soon", features: ["Wi-Fi", "Housekeeping", "Study desk", "Wardrobe"], featured: true },
-      { title: "Twin sharing", price: "₹11,000", priceUnit: "per month", description: "Two beds, two desks and one great view. Share with a friend or get matched with a housemate.", images: IMG.coliving.twin.map((id) => ph(id)), occupancy: "double", bathroom: "shared", ac: true, furnished: true, minStayMonths: 1, availableFrom: "2026-10-15", features: ["Wi-Fi", "Laundry", "Power backup"], popular: true },
-      { title: "Triple sharing", price: "₹8,500", priceUnit: "per month", description: "The most affordable way to live here, with three beds and lots of shared laughs.", images: IMG.coliving.triple.map((id) => ph(id)), occupancy: "triple", bathroom: "shared", ac: false, furnished: true, minStayMonths: 1, features: ["Wi-Fi", "Laundry"] },
-      { title: "Garden studio", price: "₹24,000", priceUnit: "per month", description: "A private studio opening onto the garden, with its own kitchenette and enough room to work from home.", images: IMG.coliving.studio.map((id) => ph(id)), occupancy: "single", bathroom: "ensuite", ac: true, furnished: true, minStayMonths: 6, deposit: "2 months", availableFrom: "2026-12-01", features: ["Kitchenette", "Garden access", "Wi-Fi"] },
+      { title: "Sunny single", price: "₹18,000", priceUnit: "per month", description: "Your own room with an attached bath, a proper desk and a window that catches the morning sun. Best for people who like their own space and a lively common area to come back to.", images: [...IMG.coliving.single.map((id) => ph(id)), ...[IMG.coliving.more[0], IMG.coliving.more[1]].map((id) => ph(id))], occupancy: "single", bathroom: "ensuite", ac: true, furnished: true, minStayMonths: 3, deposit: "1 month", availableFrom: "2026-11-01", badge: "Available soon", features: ["Wi-Fi", "Housekeeping", "Study desk", "Wardrobe"], featured: true },
+      { title: "Twin sharing", price: "₹11,000", priceUnit: "per month", description: "Two beds, two desks and one great view. Share with a friend or get matched with a housemate.", images: [...IMG.coliving.twin.map((id) => ph(id)), ...[IMG.coliving.more[6], IMG.coliving.more[7]].map((id) => ph(id))], occupancy: "double", bathroom: "shared", ac: true, furnished: true, minStayMonths: 1, availableFrom: "2026-10-15", features: ["Wi-Fi", "Laundry", "Power backup"], popular: true },
+      { title: "Triple sharing", price: "₹8,500", priceUnit: "per month", description: "The most affordable way to live here, with three beds and lots of shared laughs.", images: [...IMG.coliving.triple.map((id) => ph(id)), ...[IMG.coliving.more[8], IMG.coliving.more[10]].map((id) => ph(id))], occupancy: "triple", bathroom: "shared", ac: false, furnished: true, minStayMonths: 1, features: ["Wi-Fi", "Laundry"] },
+      { title: "Garden studio", price: "₹24,000", priceUnit: "per month", description: "A private studio opening onto the garden, with its own kitchenette and enough room to work from home.", images: [...IMG.coliving.studio.map((id) => ph(id)), ...[IMG.coliving.more[4], IMG.coliving.more[5]].map((id) => ph(id))], occupancy: "single", bathroom: "ensuite", ac: true, furnished: true, minStayMonths: 6, deposit: "2 months", availableFrom: "2026-12-01", features: ["Kitchenette", "Garden access", "Wi-Fi"] },
     ]),
   },
   settings: {
@@ -474,7 +507,7 @@ const workation: DemoBusiness = {
   subTitle: "Stay, work and unwind by the sea, with everything sorted.",
   cta: "Plan your workation",
   heroImages: IMG.workation.hero.map((id) => U(id, 1600)),
-  gallery: [...IMG.workation.hero, ...IMG.workation.desk, ...IMG.workation.stay, ...IMG.workation.beach].map((id) => U(id, 1000)),
+  gallery: [...IMG.workation.hero, ...IMG.workation.desk, ...IMG.workation.stay, ...IMG.workation.beach, ...IMG.workation.more].map((id) => U(id, 1000)),
   about: [
     "Coastline Workations is a small seaside retreat for people who can work from anywhere and would rather do it by the water.",
     "You get a private room, a proper desk, fast internet and the kind of evenings that make Mondays easier.",
@@ -523,9 +556,9 @@ const workation: DemoBusiness = {
   },
   extra: {
     packages: on([
-      { title: "One-week reset", price: "₹24,000", duration: "7 nights", description: "A private room, a proper desk and daily breakfast. Ideal for a focused week away from the usual.", images: IMG.workation.stay.map((id) => ph(id)), perPerson: true, inclusions: ["Breakfast", "Wi-Fi", "Airport pickup"], badge: "Popular", features: ["Sea view", "Desk"] },
-      { title: "Month by the sea", price: "₹78,000", duration: "30 nights", description: "Everything you need to settle in for a month, with laundry, breakfast and a weekly excursion.", images: IMG.workation.desk.map((id) => ph(id)), perPerson: true, inclusions: ["Breakfast", "Laundry", "Weekly excursion"], features: ["Long-stay rate"] },
-      { title: "Team week", price: "₹1,10,000", duration: "7 nights, up to 6", description: "A private work room, rooms for six and a chef for dinners. Built for team offsites.", images: [ph(IMG.workation.hero[2]), ph(IMG.workation.beach[1])], perPerson: false, inclusions: ["Breakfast", "Work room", "Dinners"], features: ["Team rate"] },
+      { title: "One-week reset", price: "₹24,000", duration: "7 nights", description: "A private room, a proper desk and daily breakfast. Ideal for a focused week away from the usual.", images: [...IMG.workation.stay.map((id) => ph(id)), ...[IMG.workation.more[6], IMG.workation.more[0]].map((id) => ph(id))], perPerson: true, inclusions: ["Breakfast", "Wi-Fi", "Airport pickup"], badge: "Popular", features: ["Sea view", "Desk"] },
+      { title: "Month by the sea", price: "₹78,000", duration: "30 nights", description: "Everything you need to settle in for a month, with laundry, breakfast and a weekly excursion.", images: [...IMG.workation.desk.map((id) => ph(id)), ...[IMG.workation.more[3], IMG.workation.more[4]].map((id) => ph(id))], perPerson: true, inclusions: ["Breakfast", "Laundry", "Weekly excursion"], features: ["Long-stay rate"] },
+      { title: "Team week", price: "₹1,10,000", duration: "7 nights, up to 6", description: "A private work room, rooms for six and a chef for dinners. Built for team offsites.", images: [ph(IMG.workation.hero[2]), ph(IMG.workation.beach[1]), ...[IMG.workation.more[1], IMG.workation.more[5]].map((id) => ph(id))], perPerson: false, inclusions: ["Breakfast", "Work room", "Dinners"], features: ["Team rate"] },
     ]),
   },
   settings: {},
@@ -540,7 +573,7 @@ const meeting: DemoBusiness = {
   subTitle: "Book a room by the hour, with everything already set up.",
   cta: "Book a room",
   heroImages: IMG.meeting.hero.map((id) => U(id, 1600)),
-  gallery: [...IMG.meeting.hero, ...IMG.meeting.huddle.slice(0, 2), ...IMG.meeting.workshop.slice(0, 2), ...IMG.meeting.training.slice(0, 2), ...IMG.meeting.extra].map((id) => U(id, 1000)),
+  gallery: [...IMG.meeting.hero, ...IMG.meeting.huddle.slice(0, 2), ...IMG.meeting.workshop.slice(0, 2), ...IMG.meeting.training.slice(0, 2), ...IMG.meeting.extra, ...IMG.meeting.more.slice(0, 8)].map((id) => U(id, 1000)),
   about: [
     "Boardroom & Co rents meeting rooms by the hour to teams who don't have, or don't want, their own.",
     "Every room comes with a screen, a whiteboard, fast Wi-Fi and a team member on call, so the meeting starts on time.",
@@ -557,7 +590,7 @@ const meeting: DemoBusiness = {
     { title: "Kiran", description: "Hospitality", image: person("m", 1) },
     { title: "Sonal", description: "Front desk", image: person("w", 1) },
   ],
-  founders: [{ name: "Vijay Shetty", role: "Founder", bio: "Vijay ran a consulting firm for years and spent far too long hunting for a decent room. He built the room he wanted to book.", highlights: "8 rooms, 2 floors", image: person("m", 3) }],
+  founders: [{ name: "Vijay Shetty", role: "Founder", bio: "Vijay ran a consulting firm for years and spent far too long hunting for a decent room. He built the room he wanted to book.", highlights: "12 years in consulting\nBuilt Boardroom & Co in 2019", image: person("m", 3) }],
   testimonials: testimonials([
     { name: "Farah Khan", jobPosition: "Operations lead", testimony: "We hold every client workshop here. The room is ready when we arrive and the screen just works.", rating: 5, gender: "w" },
     { name: "George Mathew", jobPosition: "Partner, law firm", testimony: "Professional, quiet and well located. Catering was on time and the staff were excellent.", rating: 5, gender: "m" },
@@ -590,10 +623,10 @@ const meeting: DemoBusiness = {
   },
   extra: {
     meetingRooms: on([
-      { title: "Huddle room", price: "₹600", capacity: 4, description: "A compact room with a screen, whiteboard and fast Wi-Fi. Ideal for quick syncs and interviews.", images: IMG.meeting.huddle.map((id) => ph(id)), priceUnit: "per hour", features: ["Screen", "Whiteboard", "Wi-Fi"] },
-      { title: "Workshop room", price: "₹1,100", capacity: 8, description: "A flexible room with movable tables and a wall of whiteboards for workshops and design sprints.", images: IMG.meeting.workshop.map((id) => ph(id)), priceUnit: "per hour", features: ["Whiteboard wall", "Flexible seating"] },
-      { title: "Boardroom", price: "₹1,800", capacity: 12, description: "A formal room with video conferencing and catering on request. Made for client meetings and board updates.", images: IMG.meeting.board.map((id) => ph(id)), priceUnit: "per hour", badge: "Popular", features: ["Video conferencing", "Catering on request"] },
-      { title: "Training hall", price: "₹3,200", capacity: 30, description: "A large hall with classroom seating, a projector and a sound system.", images: IMG.meeting.training.map((id) => ph(id)), priceUnit: "per hour", features: ["Projector", "Sound system"] },
+      { title: "Huddle room", price: "₹600", capacity: 4, description: "A compact room with a screen, whiteboard and fast Wi-Fi. Ideal for quick syncs and interviews.", images: [...IMG.meeting.huddle.map((id) => ph(id)), ...[IMG.meeting.more[0], IMG.meeting.more[1]].map((id) => ph(id))], priceUnit: "per hour", features: ["Screen", "Whiteboard", "Wi-Fi"] },
+      { title: "Workshop room", price: "₹1,100", capacity: 8, description: "A flexible room with movable tables and a wall of whiteboards for workshops and design sprints.", images: [...IMG.meeting.workshop.map((id) => ph(id)), ...[IMG.meeting.more[6], IMG.meeting.more[7]].map((id) => ph(id))], priceUnit: "per hour", features: ["Whiteboard wall", "Flexible seating"] },
+      { title: "Boardroom", price: "₹1,800", capacity: 12, description: "A formal room with video conferencing and catering on request. Made for client meetings and board updates.", images: [...IMG.meeting.board.map((id) => ph(id)), ...[IMG.meeting.more[2], IMG.meeting.more[4]].map((id) => ph(id))], priceUnit: "per hour", badge: "Popular", features: ["Video conferencing", "Catering on request"] },
+      { title: "Training hall", price: "₹3,200", capacity: 30, description: "A large hall with classroom seating, a projector and a sound system.", images: [...IMG.meeting.training.map((id) => ph(id)), ...[IMG.meeting.more[9], IMG.meeting.more[10]].map((id) => ph(id))], priceUnit: "per hour", features: ["Projector", "Sound system"] },
     ]),
   },
   settings: {},

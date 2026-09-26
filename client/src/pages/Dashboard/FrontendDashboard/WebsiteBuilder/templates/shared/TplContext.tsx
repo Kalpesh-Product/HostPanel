@@ -23,6 +23,10 @@ export interface TplCtx {
   goToItem: (service: Service, item: ServiceItem) => void;
   /** The label the business gave a nav page, else `fallback`. */
   navLabel: (section: string, fallback: string) => string;
+  /** The owner's wording for a slot (see templateContent.ts), else the template's own `fallback`. */
+  c: (key: string, fallback: string) => string;
+  /** The photo the owner picked for a slot, else `fallback`. */
+  photo: (key: string, fallback: string) => string;
 }
 
 const Ctx = createContext<TplCtx | null>(null);

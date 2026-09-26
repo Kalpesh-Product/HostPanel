@@ -118,6 +118,33 @@ export const sanitizeTourBooking = (value) => ({
 });
 
 // Accepts either an already-parsed value or the JSON string sent in multipart forms.
+// Editable template wording. Keys look like "home.spaces.title"; values are short plain text.
+const CONTENT_KEY = /^[a-z0-9_.-]{1,64}$/i;
+const cleanContentMap = (map, maxLength) => {
+  const out = {};
+  Object.entries(map && typeof map === "object" && !Array.isArray(map) ? map : {})
+    .slice(0, 150)
+    .forEach(([key, value]) => {
+      if (!CONTENT_KEY.test(key)) return;
+      const text = str(value).slice(0, maxLength);
+      if (text) out[key] = text;
+    });
+  return out;
+};
+
+export const sanitizeTemplateContent = (value) => {
+  const raw = value && typeof value === "object" ? value : {};
+  const steps = (Array.isArray(raw.steps) ? raw.steps : [])
+    .slice(0, 8)
+    .map((step) => ({
+      title: str(step?.title).slice(0, 80),
+      body: str(step?.body).slice(0, 300),
+      image: str(step?.image).slice(0, 600),
+    }))
+    .filter((step) => step.title || step.body);
+  return { copy: cleanContentMap(raw.copy, 300), images: cleanContentMap(raw.images, 600), steps };
+};
+
 export const parseJsonField = (value, fallback) => {
   if (value === undefined || value === null || value === "") return fallback;
   if (typeof value !== "string") return value;

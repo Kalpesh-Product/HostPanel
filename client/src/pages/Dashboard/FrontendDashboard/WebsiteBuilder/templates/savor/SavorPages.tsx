@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { AnimatePresence, Reveal, Stagger, motion } from "../motion";
-import { groupOpeningHours, postWebsiteLead } from "../templateKit";
+import { groupOpeningHours, postWebsiteLead, highlightLines } from "../templateKit";
 import { LeadFormPanel } from "./SavorLead";
 import { ReviewCard } from "./SavorHome";
 import { Icon, Placeholder, SectionHead, StarRow } from "./SavorUI";
@@ -35,7 +35,7 @@ export const PageBanner: React.FC<{ eyebrow?: string; title: string; sub?: strin
 /* ───────────────────────── about ───────────────────────── */
 
 export const SavorAbout: React.FC = () => {
-  const { t, draft, navLabel } = useSavor();
+  const { t, draft, navLabel, c } = useSavor();
   const intro: string[] = t.aboutIntroBlocks;
   const narrative: { title: string; body: string }[] = t.aboutNarrativeBlocks;
   const teamCards: any[] = t.aboutPageImageCards;
@@ -47,7 +47,7 @@ export const SavorAbout: React.FC = () => {
 
   return (
     <>
-      <PageBanner eyebrow="Our story" title={navLabel("about", draft?.aboutTitle || "About us")} sub={intro[0]} />
+      <PageBanner eyebrow={c("about.eyebrow", "Our story")} title={navLabel("about", draft?.aboutTitle || "About us")} sub={intro[0]} />
 
       {images.length ? (
         <section className="tp-wrap pt-10">
@@ -92,7 +92,7 @@ export const SavorAbout: React.FC = () => {
       {showFounders ? (
         <section className="tp-section" style={{ paddingTop: 24 }}>
           <div className="tp-wrap">
-            <SectionHead eyebrow="The people" title="Meet the founders" />
+            <SectionHead eyebrow={c("about.founders.eyebrow", "The people")} title={c("about.founders.title", "Meet the founders")} />
             <Stagger className="grid gap-6 md:grid-cols-2">
               {founders.map((founder, index) => (
                 <div key={index} className="tp-card flex flex-col gap-5 p-6 sm:flex-row" style={{ borderRadius: 32 }}>
@@ -103,7 +103,7 @@ export const SavorAbout: React.FC = () => {
                     <h3 className="text-[24px]">{founder.name}</h3>
                     {founder.role ? <p className="mt-1 text-[13px] font-bold uppercase tracking-wider" style={{ color: "var(--t-accent-fg, var(--t-accent))" }}>{founder.role}</p> : null}
                     {founder.bio ? <p className="tp-muted mt-3 text-[15px] leading-relaxed">{founder.bio}</p> : null}
-                    {founder.highlights ? <p className="mt-3 text-[13px] font-semibold">{founder.highlights}</p> : null}
+                    {highlightLines(founder.highlights).length ? <p className="mt-3 text-[13px] font-semibold">{highlightLines(founder.highlights).map((line) => <span key={line} className="block">{line}</span>)}</p> : null}
                   </div>
                 </div>
               ))}
@@ -115,7 +115,7 @@ export const SavorAbout: React.FC = () => {
       {showTeam ? (
         <section className="tp-section" style={{ paddingTop: 24 }}>
           <div className="tp-wrap">
-            <SectionHead eyebrow="The crew" title={draft?.aboutPageTeamHeading || "Meet the team"} />
+            <SectionHead eyebrow={c("about.team.eyebrow", "The crew")} title={draft?.aboutPageTeamHeading || "Meet the team"} />
             <Stagger className="grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4">
               {teamCards.map((card, index) => (
                 <div key={index} className="text-left">
@@ -138,11 +138,11 @@ export const SavorAbout: React.FC = () => {
 /* ───────────────────────── gallery ───────────────────────── */
 
 export const SavorGallery: React.FC = () => {
-  const { t, draft, navLabel } = useSavor();
+  const { t, draft, navLabel, c } = useSavor();
   const items: string[] = t.galleryItems;
   return (
     <>
-      <PageBanner eyebrow="Gallery" title={draft?.galleryPageHeading || navLabel("gallery", "Gallery")} sub={items.length ? `${items.length} moments` : undefined} />
+      <PageBanner eyebrow={c("gallery.eyebrow", "Gallery")} title={draft?.galleryPageHeading || navLabel("gallery", "Gallery")} sub={items.length ? `${items.length} moments` : undefined} />
       <section className="tp-wrap pt-10 pb-16">
         {!items.length ? (
           <p className="tp-muted py-16 text-center text-[16px]">Photos are on their way.</p>
@@ -166,13 +166,13 @@ export const SavorGallery: React.FC = () => {
 /* ───────────────────────── testimonials ───────────────────────── */
 
 export const SavorTestimonials: React.FC = () => {
-  const { t, draft, rating, navLabel } = useSavor();
+  const { t, draft, rating, navLabel, c } = useSavor();
   const list: any[] = t.testimonials;
   const counts = [5, 4, 3, 2, 1].map((star) => ({ star, count: list.filter((item) => Math.round(item.rating) === star).length }));
   return (
     <>
-      <PageBanner eyebrow="Reviews" title={draft?.testimonialsPageHeading || navLabel("testimonials", "What people say")} sub={draft?.testimonialsPageIntro || undefined}>
-        {t.showWriteReview ? <button type="button" className="tp-btn tp-btn-primary" onClick={t.openReviewModal}>Write a review {Icon.arrow()}</button> : null}
+      <PageBanner eyebrow={c("reviews.eyebrow", "Reviews")} title={draft?.testimonialsPageHeading || navLabel("testimonials", "What people say")} sub={draft?.testimonialsPageIntro || undefined}>
+        {t.showWriteReview ? <button type="button" className="tp-btn tp-btn-primary" onClick={t.openReviewModal}>{c("reviews.write", "Write a review")} {Icon.arrow()}</button> : null}
       </PageBanner>
       <section className="tp-wrap pt-10 pb-16">
         {!list.length ? (
@@ -212,11 +212,11 @@ export const SavorTestimonials: React.FC = () => {
 /* ───────────────────────── partner ───────────────────────── */
 
 export const SavorPartner: React.FC = () => {
-  const { t, draft } = useSavor();
+  const { t, draft, c } = useSavor();
   const paragraphs = String(t.partnerPageContent || "").split("\n").filter((line: string) => line.trim());
   return (
     <>
-      <PageBanner eyebrow="Partnerships" title={t.partnerPageHeading || `Partner with ${draft?.companyName || "us"}`} />
+      <PageBanner eyebrow={c("partner.eyebrow", "Partnerships")} title={t.partnerPageHeading || `Partner with ${draft?.companyName || "us"}`} />
       <section className="tp-wrap grid gap-10 pt-12 pb-16 md:grid-cols-[1.1fr_0.9fr] md:gap-16">
         <Reveal>
           {paragraphs.length ? (
@@ -226,7 +226,7 @@ export const SavorPartner: React.FC = () => {
               ))}
             </div>
           ) : (
-            <p className="tp-lead">We love working with people who share our passion. Tell us a little about yourself and how we could work together.</p>
+            <p className="tp-lead">{c("partner.intro", "We love working with people who share our passion. Tell us a little about yourself and how we could work together.")}</p>
           )}
         </Reveal>
         <Reveal delay={0.1}>
@@ -243,7 +243,7 @@ export const SavorPartner: React.FC = () => {
 /* ───────────────────────── contact ───────────────────────── */
 
 export const SavorContact: React.FC = () => {
-  const { t, draft, primary, navLabel } = useSavor();
+  const { t, draft, primary, navLabel, c } = useSavor();
   const hours = groupOpeningHours(draft?.openingHours);
   const showForm = draft?.contactEnableInquiryForm !== false;
   const usePrimaryForm = Boolean(primary?.leadEnabled);
@@ -261,7 +261,7 @@ export const SavorContact: React.FC = () => {
 
   return (
     <>
-      <PageBanner eyebrow="Get in touch" title={draft?.contactPageHeading || navLabel("contact", "Contact")} sub={draft?.contactPageIntro || undefined} />
+      <PageBanner eyebrow={c("contact.eyebrow", "Get in touch")} title={draft?.contactPageHeading || navLabel("contact", "Contact")} sub={draft?.contactPageIntro || undefined} />
       <section className="tp-wrap grid gap-8 pt-10 lg:grid-cols-[1.15fr_0.85fr] lg:gap-12">
         {showForm ? (
           <Reveal>

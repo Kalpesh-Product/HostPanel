@@ -471,7 +471,7 @@ const FrontendDashboard = () => {
 
   const formatCompanyName = (name) => {
     if (!name) return "";
-    return name.toLowerCase().split("-")[0].replace(/\s+/g, "");
+    return name.toLowerCase().split("-")[0].replace(/[^a-z0-9_]/g, "");
   };
 
   const searchKey =

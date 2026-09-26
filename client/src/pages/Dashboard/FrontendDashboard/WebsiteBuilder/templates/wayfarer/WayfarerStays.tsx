@@ -241,12 +241,12 @@ const Inclusions: React.FC<{ inclusions?: any[] }> = ({ inclusions }) => {
 
 /** Links to the business's other services, so a guest on the hostel page can still find the café. */
 const OtherServices: React.FC<{ current: Service }> = ({ current }) => {
-  const { services } = useTpl();
+  const { services, c } = useTpl();
   const others = services.filter((s) => s.key !== current.key);
   if (!others.length) return null;
   return (
     <section className="tp-wrap pb-10 pt-6">
-      <SectionHead eyebrow="Also from us" title="More to explore" />
+      <SectionHead eyebrow={c("services.other.eyebrow", "Also from us")} title={c("services.other.title", "More to explore")} />
       <ServiceCards services={others} />
     </section>
   );
@@ -255,7 +255,7 @@ const OtherServices: React.FC<{ current: Service }> = ({ current }) => {
 /* ───────────────────────── service page ───────────────────────── */
 
 export const ServicePage: React.FC<{ service: Service }> = ({ service }) => {
-  const { t, openLead } = useTpl();
+  const { t, openLead, c } = useTpl();
   const { search } = useLocation();
   const fromUrl = useStayParams();
   const stay = isStayKind(service);
@@ -343,8 +343,8 @@ export const ServicePage: React.FC<{ service: Service }> = ({ service }) => {
         {service.leadEnabled ? (
           <div className="tp-accent-panel flex flex-wrap items-center justify-between gap-4 p-6 md:p-8">
             <div>
-              <h2 className="tp-h3" style={{ color: "inherit" }}>Can't find the right fit?</h2>
-              <p className="mt-1 text-[15px] opacity-90">Tell us what you need and we'll help.</p>
+              <h2 className="tp-h3" style={{ color: "inherit" }}>{c("services.cta.title", "Can't find the right fit?")}</h2>
+              <p className="mt-1 text-[15px] opacity-90">{c("services.cta.sub", "Tell us what you need and we'll help.")}</p>
             </div>
             <button type="button" className="tp-btn tp-btn-light" onClick={() => openLead(service)}>{service.profile.labels.cta}</button>
           </div>
@@ -380,7 +380,7 @@ const Prose: React.FC<{ text: string }> = ({ text }) => {
 /* ───────────────────────── item detail ───────────────────────── */
 
 export const ItemDetail: React.FC<{ service: Service; item: ServiceItem }> = ({ service, item }) => {
-  const { t, goToService, goToItem } = useTpl();
+  const { t, goToService, goToItem, c } = useTpl();
   const params = useStayParams();
   const [viewer, setViewer] = useState<number | null>(null);
   const stay = isStayKind(service);
@@ -490,7 +490,7 @@ export const ItemDetail: React.FC<{ service: Service; item: ServiceItem }> = ({ 
 
         {related.length ? (
           <div className="mt-16">
-            <SectionHead title={service.kind === "menu" ? "You might also like" : `More ${service.profile.labels.items}`} />
+            <SectionHead title={c("services.related.title", service.kind === "menu" ? "You might also like" : `More ${service.profile.labels.items}`)} />
             <div className="flex flex-col gap-4">
               {related.map((other, index) => <StayCard key={other.key} item={other} service={service} index={index} />)}
             </div>
@@ -507,7 +507,7 @@ export const ItemDetail: React.FC<{ service: Service; item: ServiceItem }> = ({ 
 /* ───────────────────────── services index ───────────────────────── */
 
 export const ServicesIndex: React.FC = () => {
-  const { services, draft, t, goToService } = useTpl();
+  const { services, draft, t, goToService, c } = useTpl();
   if (!services.length) {
     return (
       <>
@@ -519,7 +519,7 @@ export const ServicesIndex: React.FC = () => {
   if (services.length === 1) return <ServicePage service={services[0]} />;
   return (
     <>
-      <WfBanner eyebrow="What we offer" title={draft?.productTitle || "Our services"} sub="Pick where you'd like to start." crumbs={[{ label: "Home", onClick: () => t.goToSection("home") }, { label: "Services" }]} />
+      <WfBanner eyebrow={c("services.index.eyebrow", "What we offer")} title={draft?.productTitle || "Our services"} sub={c("services.index.sub", "Pick where you'd like to start.")} crumbs={[{ label: "Home", onClick: () => t.goToSection("home") }, { label: "Services" }]} />
       <section className="tp-wrap flex flex-col gap-4 py-10">
         {services.map((service, index) => (
           <Reveal key={service.key} delay={index * 0.06}>

@@ -10,18 +10,19 @@ import { TplProvider, type TplCtx } from "../shared/TplContext";
 import { LeadModal } from "../shared/TplLead";
 import { ReviewModal } from "../shared/TplForms";
 import { Lightbox, Toast } from "../shared/TplParts";
-import { HAVEN_CSS } from "./havenTheme";
-import { HavenFooter, HavenHeader, HavenStickyBar } from "./HavenChrome";
-import { HavenHome } from "./HavenHome";
-import { ItemDetail, ServicePage, ServicesIndex } from "./HavenRooms";
-import { HavenAbout, HavenCareers, HavenContact, HavenGallery, HavenPartner, HavenTestimonials } from "./HavenPages";
+import { HUDDLE_CSS } from "./huddleTheme";
+import { HuddleFooter, HuddleHeader, HuddleStickyBar } from "./HuddleChrome";
+import { HuddleHome } from "./HuddleHome";
+import { ItemDetail, ServicePage, ServicesIndex } from "./HuddleRooms";
+import { HuddleAbout, HuddleCareers, HuddleContact, HuddleGallery, HuddlePartner, HuddleTestimonials } from "./HuddlePages";
 
 /**
- * Haven — the residence template. A split hero with an arch-shaped photo, room cards with a
- * side-by-side compare view, a "how it works" path and a visit form built into the home page.
- * Recommended for co-living and workation stays; every service type renders in it.
+ * Huddle — the meeting-room template. Booking-led: the home page opens with a date / time /
+ * duration / people panel that filters the rooms, rooms are rows with a rate and a Book button,
+ * and there is an hourly rate table and a three-step "how it works". Recommended for meeting
+ * rooms; every service type renders in it.
  */
-const HavenTemplate: React.FC = () => {
+const HuddleTemplate: React.FC = () => {
   const t = useWebsiteTemplateData();
   const { draft } = t;
   const location = useLocation();
@@ -34,12 +35,12 @@ const HavenTemplate: React.FC = () => {
   const profile = getServiceProfile(kind);
   const rating = useMemo(() => averageRating(t.testimonials), [t.testimonials]);
   const status = useMemo(() => openStatus(draft?.openingHours), [draft?.openingHours]);
-  const themeVars = useMemo(() => buildTemplateVars("haven", draft, profile), [draft, profile]);
+  const themeVars = useMemo(() => buildTemplateVars("huddle", draft, profile), [draft, profile]);
 
   if (!draft) {
     return (
-      <div className="hv" style={themeVars}>
-        <style>{HAVEN_CSS}</style>
+      <div className="hd" style={themeVars}>
+        <style>{HUDDLE_CSS}</style>
         <div className="tp-wrap py-24">
           <h1 className="tp-h3">Preview</h1>
           <p className="tp-muted mt-2">No preview data found. Go back to Create Website and click Preview.</p>
@@ -96,34 +97,34 @@ const HavenTemplate: React.FC = () => {
   const renderPage = () => {
     switch (t.currentSection) {
       case "about":
-        return t.aboutPageEnabled ? <HavenAbout /> : <HavenHome />;
+        return t.aboutPageEnabled ? <HuddleAbout /> : <HuddleHome />;
       case "products":
-        return t.productsPageEnabled ? renderProducts() : <HavenHome />;
+        return t.productsPageEnabled ? renderProducts() : <HuddleHome />;
       case "gallery":
-        return t.galleryPageEnabled ? <HavenGallery /> : <HavenHome />;
+        return t.galleryPageEnabled ? <HuddleGallery /> : <HuddleHome />;
       case "testimonials":
-        return <HavenTestimonials />;
+        return <HuddleTestimonials />;
       case "partner":
-        return t.partnerPageEnabled ? <HavenPartner /> : <HavenHome />;
+        return t.partnerPageEnabled ? <HuddlePartner /> : <HuddleHome />;
       case "careers":
-        return t.careersPageEnabled ? <HavenCareers /> : <HavenHome />;
+        return t.careersPageEnabled ? <HuddleCareers /> : <HuddleHome />;
       case "contact":
-        return t.contactPageEnabled ? <HavenContact /> : <HavenHome />;
+        return t.contactPageEnabled ? <HuddleContact /> : <HuddleHome />;
       default:
-        return <HavenHome />;
+        return <HuddleHome />;
     }
   };
 
   return (
     <TplProvider value={ctx}>
-      <div className="hv" style={themeVars}>
-        <style>{HAVEN_CSS}</style>
-        <HavenHeader />
+      <div className="hd" style={themeVars}>
+        <style>{HUDDLE_CSS}</style>
+        <HuddleHeader />
         <motion.main key={location.pathname} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}>
           {renderPage()}
         </motion.main>
-        <HavenFooter />
-        <HavenStickyBar />
+        <HuddleFooter />
+        <HuddleStickyBar />
         <LeadModal open={Boolean(leadTarget)} onClose={closeLead} service={leadTarget?.service || null} item={leadTarget?.item || null} />
         <ReviewModal />
         <Lightbox />
@@ -133,4 +134,4 @@ const HavenTemplate: React.FC = () => {
   );
 };
 
-export default HavenTemplate;
+export default HuddleTemplate;

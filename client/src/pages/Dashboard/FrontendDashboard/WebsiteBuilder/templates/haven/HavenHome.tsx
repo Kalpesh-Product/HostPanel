@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { AnimatePresence, CountUp, Reveal, Stagger, motion, useReducedMotion } from "../motion";
 import { formatTime12h } from "../leadForms";
+import { contentSteps } from "../templateContent";
 import type { Service } from "../serviceAdapter";
 import { groupOpeningHours } from "../templateKit";
 import { getInclusionMeta } from "../inclusionIcons";
@@ -18,7 +19,7 @@ const formatDate = (iso: string) => {
 /* ───────────────────────── hero ───────────────────────── */
 
 const Hero: React.FC = () => {
-  const { t, draft, primary, profile, rating, status, openLead, goToService } = useTpl();
+  const { t, draft, primary, profile, rating, status, openLead, goToService, c } = useTpl();
   const reduce = useReducedMotion();
   const images: string[] = t.heroImages?.length ? t.heroImages : t.resolvedHomeHeroImage ? [t.resolvedHomeHeroImage] : [];
   const main = images.length ? images[t.heroIndex % images.length] : "";
@@ -41,7 +42,7 @@ const Hero: React.FC = () => {
           {draft?.subTitle ? <Reveal delay={0.12}><p className="tp-lead mt-6 max-w-xl">{draft.subTitle}</p></Reveal> : null}
           <Reveal delay={0.18} className="mt-9 flex flex-wrap gap-3">
             {primary?.leadEnabled ? <button type="button" className="tp-btn tp-btn-primary" onClick={() => openLead(primary)}>{draft?.CTAButtonText || profile.labels.cta} {Icon.arrow()}</button> : null}
-            {primary ? <button type="button" className="tp-btn tp-btn-ghost" onClick={() => goToService(primary)}>Explore {profile.labels.listing.toLowerCase()}</button> : null}
+            {primary ? <button type="button" className="tp-btn tp-btn-ghost" onClick={() => goToService(primary)}>{c("home.hero.secondaryCta", `Explore ${profile.labels.listing.toLowerCase()}`)}</button> : null}
           </Reveal>
         </div>
 
@@ -126,7 +127,7 @@ const HEADINGS: Record<string, string> = {
 };
 
 const Rooms: React.FC<{ service: Service }> = ({ service }) => {
-  const { goToService } = useTpl();
+  const { goToService, c } = useTpl();
   const featured = service.items.filter((i) => i.featured || i.popular || i.badge);
   const list = [...featured, ...service.items.filter((i) => !featured.includes(i))].slice(0, 3);
   if (!list.length) return null;
@@ -134,9 +135,9 @@ const Rooms: React.FC<{ service: Service }> = ({ service }) => {
     <section className="tp-section" style={{ paddingBottom: 24 }}>
       <div className="tp-wrap">
         <SectionHead
-          eyebrow={service.profile.labels.listing}
-          title={HEADINGS[service.kind] || service.profile.labels.listing}
-          sub={service.subText || undefined}
+          eyebrow={c("home.rooms.eyebrow", service.profile.labels.listing)}
+          title={c("home.rooms.title", HEADINGS[service.kind] || service.profile.labels.listing)}
+          sub={c("home.rooms.sub", service.subText) || undefined}
           action={<button type="button" className="tp-link" onClick={() => goToService(service)}>See all {service.items.length} <span className="tp-arrow">{Icon.arrow()}</span></button>}
         />
         <CardRow>
@@ -152,9 +153,9 @@ const Rooms: React.FC<{ service: Service }> = ({ service }) => {
 /* ───────────────────────── community, amenities, steps, gallery ───────────────────────── */
 
 const Community: React.FC = () => {
-  const { t, draft, primary } = useTpl();
+  const { t, draft, primary, photo, c } = useTpl();
   const blocks: string[] = t.aboutBlocks.map((b: any) => String(typeof b === "string" ? b : b?.text || "").trim()).filter(Boolean);
-  const images: string[] = t.homeGalleryItems;
+  const images: string[] = [0, 1].map((i) => photo(`home.community.image${i + 1}`, t.homeGalleryItems[i] || ""));
   if (!blocks.length) return null;
   const living = primary?.kind === "coLiving";
   return (
@@ -176,7 +177,7 @@ const Community: React.FC = () => {
           <Stagger className="mt-6 space-y-4">
             {blocks.slice(0, 2).map((text, index) => <p key={index} className={index === 0 ? "tp-lead" : "tp-muted text-[16px] leading-relaxed"}>{text}</p>)}
           </Stagger>
-          <Reveal delay={0.15}><button type="button" className="tp-link mt-8" onClick={() => t.goToSection("about")}>Read our story <span className="tp-arrow">{Icon.arrow()}</span></button></Reveal>
+          <Reveal delay={0.15}><button type="button" className="tp-link mt-8" onClick={() => t.goToSection("about")}>{c("home.about.link", "Read our story")} <span className="tp-arrow">{Icon.arrow()}</span></button></Reveal>
         </div>
       </div>
     </section>
@@ -184,7 +185,7 @@ const Community: React.FC = () => {
 };
 
 const Amenities: React.FC = () => {
-  const { draft, primary } = useTpl();
+  const { draft, primary, c } = useTpl();
   const enabled = ((draft?.inclusions as any[]) || []).filter((item) => item?.enabled !== false);
   if (!enabled.length) return null;
   const living = primary?.kind === "coLiving";
@@ -194,8 +195,8 @@ const Amenities: React.FC = () => {
         <div className="tp-soft grid gap-10 p-7 md:grid-cols-[0.8fr_1.2fr] md:gap-16 md:p-14" style={{ borderRadius: 40 }}>
           <Reveal>
             <p className="tp-eyebrow mb-4">{living ? "Life here" : "Amenities"}</p>
-            <h2 className="tp-h2">Everything you need, already here</h2>
-            <p className="tp-lead mt-5">The small things that make everyday life easy, included from day one.</p>
+            <h2 className="tp-h2">{c("home.amenities.title", "Everything you need, already here")}</h2>
+            <p className="tp-lead mt-5">{c("home.amenities.sub", "The small things that make everyday life easy, included from day one.")}</p>
           </Reveal>
           <Stagger className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-3">
             {enabled.map((item, index) => {
@@ -215,14 +216,14 @@ const Amenities: React.FC = () => {
 };
 
 const HowItWorks: React.FC = () => {
-  const { draft, primary } = useTpl();
-  const steps = stepsFor(primary, draft?.tourBooking?.enabled !== false);
+  const { draft, primary, c } = useTpl();
+  const steps = contentSteps(draft, stepsFor(primary, draft?.tourBooking?.enabled !== false));
   if (!primary?.leadEnabled || !steps.length) return null;
   const titles: Record<string, string> = { coLiving: "From hello to home", workation: "Your workation, step by step", hostel: "Booking made simple" };
   return (
     <section className="tp-section">
       <div className="tp-wrap">
-        <SectionHead eyebrow="How it works" title={titles[primary.kind] || "How it works"} />
+        <SectionHead eyebrow={c("home.steps.eyebrow", "How it works")} title={c("home.steps.title", titles[primary.kind] || "How it works")} />
         <Steps steps={steps} />
       </div>
     </section>
@@ -230,13 +231,13 @@ const HowItWorks: React.FC = () => {
 };
 
 const GalleryStrip: React.FC = () => {
-  const { t } = useTpl();
+  const { t, c } = useTpl();
   const items: string[] = t.galleryItems;
   if (items.length < 2) return null;
   return (
     <section className="tp-section" style={{ paddingTop: 24 }}>
       <div className="tp-wrap">
-        <SectionHead eyebrow="Gallery" title="A look around" action={<button type="button" className="tp-link" onClick={() => t.goToSection("gallery")}>All photos <span className="tp-arrow">{Icon.arrow()}</span></button>} />
+        <SectionHead eyebrow={c("home.gallery.eyebrow", "Gallery")} title={c("home.gallery.title", "A look around")} action={<button type="button" className="tp-link" onClick={() => t.goToSection("gallery")}>{c("home.gallery.link", "All photos")} <span className="tp-arrow">{Icon.arrow()}</span></button>} />
       </div>
       <Reveal>
         <div className="hv-snap hv-bleed pb-2">
@@ -254,7 +255,7 @@ const GalleryStrip: React.FC = () => {
 /* ───────────────────────── reviews ───────────────────────── */
 
 const Reviews: React.FC = () => {
-  const { t, rating } = useTpl();
+  const { t, rating, c } = useTpl();
   const reduce = useReducedMotion();
   const list: any[] = t.testimonials.slice(0, 8);
   const [index, setIndex] = useState(0);
@@ -302,8 +303,8 @@ const Reviews: React.FC = () => {
               ) : null}
             </div>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <button type="button" className="tp-btn tp-btn-ghost tp-btn-sm" onClick={() => t.goToSection("testimonials")}>Read all reviews</button>
-              {t.showWriteReview ? <button type="button" className="tp-btn tp-btn-primary tp-btn-sm" onClick={t.openReviewModal}>Write a review</button> : null}
+              <button type="button" className="tp-btn tp-btn-ghost tp-btn-sm" onClick={() => t.goToSection("testimonials")}>{c("home.reviews.link", "Read all reviews")}</button>
+              {t.showWriteReview ? <button type="button" className="tp-btn tp-btn-primary tp-btn-sm" onClick={t.openReviewModal}>{c("home.reviews.write", "Write a review")}</button> : null}
             </div>
           </div>
         </Reveal>
@@ -315,11 +316,12 @@ const Reviews: React.FC = () => {
 /* ───────────────────────── other services, visit band ───────────────────────── */
 
 const MoreServices: React.FC<{ services: Service[] }> = ({ services }) => {
+  const { c } = useTpl();
   if (!services.length) return null;
   return (
     <section className="tp-section" style={{ paddingTop: 24 }}>
       <div className="tp-wrap">
-        <SectionHead eyebrow="Also from us" title="More under one roof" />
+        <SectionHead eyebrow={c("home.services.eyebrow", "Also from us")} title={c("home.services.title", "More under one roof")} />
         <ServiceCards services={services} />
       </div>
     </section>
@@ -327,7 +329,7 @@ const MoreServices: React.FC<{ services: Service[] }> = ({ services }) => {
 };
 
 const VisitBand: React.FC = () => {
-  const { t, draft, primary, profile } = useTpl();
+  const { t, draft, primary, profile, c } = useTpl();
   if (!t.isSectionEnabled("home_contact")) return null;
   const form = primary?.leadEnabled ? primary : null;
   const tours = form?.kind === "coLiving" && draft?.tourBooking?.enabled !== false;
@@ -341,7 +343,7 @@ const VisitBand: React.FC = () => {
           <div className="tp-dark-panel grid gap-10 p-7 md:p-14 lg:grid-cols-2 lg:gap-16" style={{ borderRadius: 40 }}>
             <div className="flex flex-col gap-5">
               <p className="tp-eyebrow" style={{ color: "var(--t-accent-light, var(--t-accent))" }}>{tours ? "Book a visit" : form ? "Get in touch" : "Find us"}</p>
-              <h2 className="tp-h2">{tours ? "Come and see it for yourself" : form ? profile.labels.leadTitle : draft?.contactTitle || "Come say hello"}</h2>
+              <h2 className="tp-h2">{c("home.visit.title", tours ? "Come and see it for yourself" : form ? profile.labels.leadTitle : draft?.contactTitle || "Come say hello")}</h2>
               <div className="space-y-3 opacity-90">
                 {t.contactAddress ? row(Icon.pin(17), t.contactAddress) : null}
                 {t.contactPhone ? row(Icon.phone(17), t.contactPhone) : null}
@@ -349,12 +351,12 @@ const VisitBand: React.FC = () => {
                 {hours[0] ? row(Icon.clock(17), `${hours[0].days}: ${hours[0].hours}`) : draft?.contactBusinessHours ? row(Icon.clock(17), draft.contactBusinessHours) : null}
               </div>
               {draft?.mapUrl ? <iframe title="Map" src={draft.mapUrl} loading="lazy" className="mt-2 h-[190px] w-full border-0" style={{ borderRadius: 24 }} /> : null}
-              {!form ? <div><button type="button" className="tp-btn tp-btn-light" onClick={() => t.goToSection("contact")}>Contact us</button></div> : null}
+              {!form ? <div><button type="button" className="tp-btn tp-btn-light" onClick={() => t.goToSection("contact")}>{c("home.contact.button", "Contact us")}</button></div> : null}
             </div>
             {form ? (
               <div className="tp-card p-6 md:p-8" style={{ color: "var(--t-text)" }}>
-                <h3 className="tp-h3 mb-1">{tours ? "Schedule a visit" : profile.labels.leadTitle}</h3>
-                <p className="tp-muted mb-6 text-[14.5px]">{tours ? "Pick a day and we'll show you around." : "Share a few details and we'll get back to you."}</p>
+                <h3 className="tp-h3 mb-1">{c("home.visit.formTitle", tours ? "Schedule a visit" : profile.labels.leadTitle)}</h3>
+                <p className="tp-muted mb-6 text-[14.5px]">{c("home.visit.formSub", tours ? "Pick a day and we'll show you around." : "Share a few details and we'll get back to you.")}</p>
                 <LeadFormPanel service={form} defaultMode="visit" />
               </div>
             ) : null}
@@ -373,14 +375,14 @@ export const HavenHome: React.FC = () => {
   return (
     <>
       {t.isSectionEnabled("home_hero") ? <Hero /> : <div className="pt-[96px]" />}
-      <Facts />
+      {t.isSectionEnabled("home_facts") ? <Facts /> : null}
       {t.isSectionEnabled("home_products") && primary ? <Rooms service={primary} /> : null}
       {t.isSectionEnabled("home_about") ? <Community /> : null}
       {t.isSectionEnabled("home_inclusions") ? <Amenities /> : null}
-      {t.isSectionEnabled("home_products") ? <HowItWorks /> : null}
+      {t.isSectionEnabled("home_products") && t.isSectionEnabled("home_steps") ? <HowItWorks /> : null}
       {t.isSectionEnabled("home_gallery") ? <GalleryStrip /> : null}
       {t.isSectionEnabled("home_testimonials") ? <Reviews /> : null}
-      {others.length && t.isSectionEnabled("home_products") ? <MoreServices services={others} /> : null}
+      {others.length && t.isSectionEnabled("home_products") && t.isSectionEnabled("home_services") ? <MoreServices services={others} /> : null}
       <FaqSection faqs={draft?.faqs} />
       <VisitBand />
     </>

@@ -8,6 +8,7 @@ import SavorTemplate from "./savor/SavorTemplate";
 import WayfarerTemplate from "./wayfarer/WayfarerTemplate";
 import HavenTemplate from "./haven/HavenTemplate";
 import CommonsTemplate from "./commons/CommonsTemplate";
+import HuddleTemplate from "./huddle/HuddleTemplate";
 import type { ServiceKind } from "./verticalProfiles";
 
 export interface TemplateDefinition {
@@ -48,7 +49,6 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       accent: "#3b82f6",
       font: "'Poppins', sans-serif",
     },
-    recommendedFor: ["meeting"],
   },
   "minimal-swiss": {
     id: "minimal-swiss",
@@ -135,6 +135,21 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       font: "'Plus Jakarta Sans', sans-serif",
     },
     recommendedFor: ["workspace"],
+    supportsBooking: true,
+  },
+  huddle: {
+    id: "huddle",
+    name: "Huddle",
+    description:
+      "Booking-led — a date, time and duration panel on the home page that filters the rooms, room rows with hourly rates and a rate table. Made for meeting rooms, works for any service.",
+    component: HuddleTemplate,
+    swatch: {
+      bg: "#f5f6f8",
+      fg: "#14161a",
+      accent: "#3b6cf0",
+      font: "'Sora', sans-serif",
+    },
+    recommendedFor: ["meeting"],
     supportsBooking: true,
   },
   "warm-organic": {

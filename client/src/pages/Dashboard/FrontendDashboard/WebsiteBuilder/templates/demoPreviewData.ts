@@ -16,6 +16,7 @@ const TEMPLATE_KIND: Record<string, ServiceKind> = {
   wayfarer: "hostel",
   haven: "coLiving",
   commons: "workspace",
+  huddle: "meeting",
 };
 
 /** The kind of business a template is previewed with when no services are chosen. */

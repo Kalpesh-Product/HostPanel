@@ -37,6 +37,7 @@ export const THEME_DEFAULTS: Record<string, ThemeDefaults> = {
   wayfarer: { bg: "#f3fbfa", text: "#0c2a2e", accent: "#f26b3a", surfaceUp: true },
   haven: { bg: "#f4f1ea", text: "#26312b", accent: "#5b7f6a", surfaceUp: true },
   commons: { bg: "#f6f7f9", text: "#0b1f3a", accent: "#ffc21a", surfaceUp: true },
+  huddle: { bg: "#f5f6f8", text: "#14161a", accent: "#3b6cf0", surfaceUp: true },
 };
 
 export const supportsThemeColors = (templateId?: string | null) =>

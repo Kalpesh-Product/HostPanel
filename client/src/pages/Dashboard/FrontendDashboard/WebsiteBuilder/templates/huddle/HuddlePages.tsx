@@ -8,14 +8,14 @@ import { ApplyForm, MessageForm, RoleSection } from "../shared/TplForms";
 import { FaqSection } from "../shared/TplParts";
 import { useTpl } from "../shared/TplContext";
 import { Icon, Placeholder, StarRow } from "../shared/TplUI";
-import { CardRow, CwHead, PageHeader } from "./CommonsUI";
-import { CwReview } from "./CommonsHome";
+import { CardRow, HdHead, PageHeader } from "./HuddleUI";
+import { HdReview } from "./HuddleHome";
 
 const img = (value: any): string => (typeof value === "string" ? value : value?.url || "");
 
 /* ───────────────────────── about ───────────────────────── */
 
-export const CommonsAbout: React.FC = () => {
+export const HuddleAbout: React.FC = () => {
   const { t, draft, navLabel, c } = useTpl();
   const intro: string[] = t.aboutIntroBlocks;
   const narrative: { title: string; body: string }[] = t.aboutNarrativeBlocks;
@@ -37,9 +37,9 @@ export const CommonsAbout: React.FC = () => {
           </div>
           {collage.length ? (
             <Reveal className="grid grid-cols-2 gap-3 md:gap-4">
-              <div className="cw-tile row-span-2 aspect-[3/4]" style={{ background: "var(--t-surface)" }}><img src={collage[0]} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" /></div>
-              {collage[1] ? <div className="cw-tile aspect-[4/3]"><img src={collage[1]} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" /></div> : null}
-              {collage[2] ? <div className="cw-tile aspect-[4/3]"><img src={collage[2]} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" /></div> : null}
+              <div className="hd-tile row-span-2 aspect-[3/4]" style={{ background: "var(--t-surface)" }}><img src={collage[0]} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" /></div>
+              {collage[1] ? <div className="hd-tile aspect-[4/3]"><img src={collage[1]} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" /></div> : null}
+              {collage[2] ? <div className="hd-tile aspect-[4/3]"><img src={collage[2]} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" /></div> : null}
             </Reveal>
           ) : null}
         </section>
@@ -47,12 +47,12 @@ export const CommonsAbout: React.FC = () => {
 
       {narrative.length ? (
         <section className="tp-wrap pb-14 md:pb-20">
-          <CwHead title={c("about.values.title", "How we do things")} />
+          <HdHead title={c("about.values.title", "How we do things")} />
           <CardRow cols={3}>
             {narrative.map((block, index) => (
               <Reveal key={block.title} delay={index * 0.08} className="h-full">
-                <div className="tp-card h-full p-8 text-center">
-                  <span className="tp-display mx-auto flex h-12 w-12 items-center justify-center rounded-[12px] text-[20px]" style={{ background: "var(--t-accent)", color: "var(--t-accent-text, #111)" }}>{index + 1}</span>
+                <div className="tp-card h-full p-7">
+                  <span className="tp-display flex h-12 w-12 items-center justify-center rounded-[12px] text-[20px]" style={{ background: "var(--t-accent)", color: "var(--t-accent-text, #fff)" }}>{index + 1}</span>
                   <h3 className="tp-h3 mb-3 mt-5">{block.title}</h3>
                   <p className="tp-muted whitespace-pre-line text-[15.5px] leading-relaxed">{block.body}</p>
                 </div>
@@ -64,7 +64,7 @@ export const CommonsAbout: React.FC = () => {
 
       {showFounders ? (
         <section className="tp-wrap pb-14 md:pb-20">
-          <CwHead title={c("about.founders.title", founders.length > 1 ? "Meet the founders" : "Meet the founder")} />
+          <HdHead title={c("about.founders.title", founders.length > 1 ? "Meet the founders" : "Meet the founder")} />
           <CardRow cols={founders.length > 1 ? 2 : 1} gap={24}>
             {founders.map((founder, index) => (
               <Reveal key={index} delay={index * 0.08} className="h-full">
@@ -74,7 +74,7 @@ export const CommonsAbout: React.FC = () => {
                     <h3 className="tp-h2" style={{ fontSize: "clamp(26px, 2.8vw, 38px)" }}>{founder.name}</h3>
                     {founder.role ? <p className="mt-2 text-[13px] font-bold uppercase tracking-wider" style={{ color: "var(--t-muted)" }}>{founder.role}</p> : null}
                     {founder.bio ? <p className="tp-muted mt-5 text-[16px] leading-relaxed">{founder.bio}</p> : null}
-                    {highlightLines(founder.highlights).length ? <p className="mt-4 inline-flex flex-col self-start rounded-[8px] px-3 py-1.5 text-[13.5px] font-semibold" style={{ background: "var(--t-accent)", color: "var(--t-accent-text, #111)" }}>{highlightLines(founder.highlights).map((line) => <span key={line} className="block">{line}</span>)}</p> : null}
+                    {highlightLines(founder.highlights).length ? <p className="mt-4 inline-flex flex-col self-start rounded-[8px] px-3 py-1.5 text-[13.5px] font-semibold" style={{ background: "var(--t-accent)", color: "var(--t-accent-text, #fff)" }}>{highlightLines(founder.highlights).map((line) => <span key={line} className="block">{line}</span>)}</p> : null}
                   </div>
                 </div>
               </Reveal>
@@ -85,7 +85,7 @@ export const CommonsAbout: React.FC = () => {
 
       {showTeam ? (
         <section className="tp-wrap pb-14 md:pb-20">
-          <CwHead title={draft?.aboutPageTeamHeading || "The people who keep it running"} />
+          <HdHead title={draft?.aboutPageTeamHeading || "The team on call"} />
           <CardRow cols={5} gap={24}>
             {team.map((card, index) => (
               <Reveal key={index} delay={Math.min(index * 0.06, 0.3)}>
@@ -119,7 +119,7 @@ export const CommonsAbout: React.FC = () => {
 
 /* ───────────────────────── gallery ───────────────────────── */
 
-export const CommonsGallery: React.FC = () => {
+export const HuddleGallery: React.FC = () => {
   const { t, draft, navLabel } = useTpl();
   const items: string[] = t.galleryItems;
   return (
@@ -132,7 +132,7 @@ export const CommonsGallery: React.FC = () => {
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
             {items.map((src, index) => (
               <Reveal key={`${src}-${index}`} delay={Math.min((index % 6) * 0.04, 0.2)} className={index % 5 === 0 ? "md:col-span-2" : ""}>
-                <button type="button" onClick={() => t.openGalleryViewer(index)} aria-label={`Open photo ${index + 1}`} className={`cw-tile group block w-full ${index % 5 === 0 ? "aspect-[2/1]" : "aspect-[4/3]"}`} style={{ background: "var(--t-surface)" }}>
+                <button type="button" onClick={() => t.openGalleryViewer(index)} aria-label={`Open photo ${index + 1}`} className={`hd-tile group block w-full ${index % 5 === 0 ? "aspect-[2/1]" : "aspect-[4/3]"}`} style={{ background: "var(--t-surface)" }}>
                   <img src={src} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
                   <span className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: "color-mix(in srgb, var(--t-ink) 45%, transparent)", color: "#fff" }}>{Icon.plus(28)}</span>
                 </button>
@@ -147,13 +147,13 @@ export const CommonsGallery: React.FC = () => {
 
 /* ───────────────────────── reviews ───────────────────────── */
 
-export const CommonsTestimonials: React.FC = () => {
+export const HuddleTestimonials: React.FC = () => {
   const { t, draft, rating, navLabel, c } = useTpl();
   const list: any[] = t.testimonials;
   const counts = [5, 4, 3, 2, 1].map((star) => ({ star, count: list.filter((item) => Math.round(item.rating) === star).length }));
   return (
     <>
-      <PageHeader title={draft?.testimonialsPageHeading || navLabel("testimonials", "What members say")} sub={draft?.testimonialsPageIntro || undefined} crumbs={[{ label: "Home", onClick: () => t.goToSection("home") }, { label: "Reviews" }]}>
+      <PageHeader title={draft?.testimonialsPageHeading || navLabel("testimonials", "What teams say")} sub={draft?.testimonialsPageIntro || undefined} crumbs={[{ label: "Home", onClick: () => t.goToSection("home") }, { label: "Reviews" }]}>
         {t.showWriteReview ? <button type="button" className="tp-btn tp-btn-primary" onClick={t.openReviewModal}>{c("reviews.write", "Write a review")}</button> : null}
       </PageHeader>
       <section className="tp-wrap py-10 md:py-14">
@@ -182,7 +182,7 @@ export const CommonsTestimonials: React.FC = () => {
               </Reveal>
             ) : <div />}
             <div className="grid gap-4 md:grid-cols-2">
-              {list.map((item, index) => <Reveal key={item.key || index} delay={Math.min(index * 0.04, 0.2)} className="h-full"><CwReview item={item} /></Reveal>)}
+              {list.map((item, index) => <Reveal key={item.key || index} delay={Math.min(index * 0.04, 0.2)} className="h-full"><HdReview item={item} /></Reveal>)}
             </div>
           </div>
         )}
@@ -193,7 +193,7 @@ export const CommonsTestimonials: React.FC = () => {
 
 /* ───────────────────────── partner ───────────────────────── */
 
-export const CommonsPartner: React.FC = () => {
+export const HuddlePartner: React.FC = () => {
   const { t, draft, c } = useTpl();
   const paragraphs = String(t.partnerPageContent || "").split("\n").filter((line: string) => line.trim());
   return (
@@ -218,7 +218,7 @@ export const CommonsPartner: React.FC = () => {
 
 /* ───────────────────────── contact ───────────────────────── */
 
-export const CommonsContact: React.FC = () => {
+export const HuddleContact: React.FC = () => {
   const { t, draft, primary, navLabel, c } = useTpl();
   const hours = groupOpeningHours(draft?.openingHours);
   const policy = draft?.stayPolicy || {};
@@ -228,7 +228,7 @@ export const CommonsContact: React.FC = () => {
 
   const row = (icon: React.ReactNode, label: string, value: React.ReactNode) => (
     <div className="flex items-start gap-4">
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px]" style={{ background: "var(--t-accent)", color: "var(--t-accent-text, #111)" }}>{icon}</span>
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px]" style={{ background: "var(--t-accent)", color: "var(--t-accent-text, #fff)" }}>{icon}</span>
       <div className="min-w-0"><p className="tp-muted text-[12px] font-bold uppercase tracking-wider">{label}</p><div className="mt-0.5 break-words text-[15.5px] font-semibold">{value}</div></div>
     </div>
   );
@@ -272,7 +272,7 @@ export const CommonsContact: React.FC = () => {
 
 /* ───────────────────────── careers ───────────────────────── */
 
-export const CommonsCareers: React.FC = () => {
+export const HuddleCareers: React.FC = () => {
   const { t, draft } = useTpl();
   const job = t.careersApplyJob;
 
@@ -327,7 +327,7 @@ export const CommonsCareers: React.FC = () => {
                       <li key={index} className="border-b" style={{ borderColor: "var(--t-line)" }}>
                         <button type="button" className="group flex w-full items-center justify-between gap-4 py-5 text-left" onClick={() => t.openCareersJob(item)}>
                           <span><span className="tp-display block text-[20px]">{getCareersJobTitle(item)}</span><span className="tp-muted mt-1 block text-[13.5px]">{getCareersJobMeta(item)}</span></span>
-                          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] transition group-hover:translate-x-1" style={{ background: "var(--t-accent)", color: "var(--t-accent-text, #111)" }}>{Icon.arrow(18)}</span>
+                          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] transition group-hover:translate-x-1" style={{ background: "var(--t-accent)", color: "var(--t-accent-text, #fff)" }}>{Icon.arrow(18)}</span>
                         </button>
                       </li>
                     ))}

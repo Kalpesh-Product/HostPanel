@@ -880,6 +880,16 @@ export const useWebsiteTemplateData = () => {
         // Surface free-text notes as the lead's message so they show in the leads list.
         ...(extras.notes ? { message: extras.notes } : {}),
         timeSlot: extras.time || "",
+        // How long a meeting-room booking is, worked out from its start and end time.
+        duration: (() => {
+          const [sh, sm] = String(extras.time || "").split(":").map(Number);
+          const [eh, em] = String(extras.endTime || "").split(":").map(Number);
+          const mins = eh * 60 + em - (sh * 60 + sm);
+          if (!(mins > 0)) return "";
+          const h = Math.floor(mins / 60);
+          const m = mins % 60;
+          return [h ? `${h} hr${h > 1 ? "s" : ""}` : "", m ? `${m} min` : ""].filter(Boolean).join(" ");
+        })(),
         inquiryType: extras.inquiryType || (slug.includes("cafe") ? "Cafe" : ""),
         websiteUrl: window.location.href,
       });

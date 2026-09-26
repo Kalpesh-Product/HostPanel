@@ -9,7 +9,7 @@ import { useSavor } from "./SavorContext";
 /* ───────────────────────── hero ───────────────────────── */
 
 const Hero: React.FC = () => {
-  const { t, draft, primary, profile, rating, status, openLead, goToService } = useSavor();
+  const { t, draft, primary, profile, rating, status, openLead, goToService, c } = useSavor();
   const images: string[] = t.heroImages?.length ? t.heroImages : t.resolvedHomeHeroImage ? [t.resolvedHomeHeroImage] : [];
   const image = images.length ? images[t.heroIndex % images.length] : "";
   const hasLead = Boolean(primary?.leadEnabled);
@@ -50,7 +50,7 @@ const Hero: React.FC = () => {
             )}
             {primary ? (
               <button type="button" className="tp-btn tp-btn-ghost" onClick={() => goToService(primary)}>
-                {primary.kind === "menu" ? "See the menu" : `Explore ${profile.labels.listing.toLowerCase()}`}
+                {c("home.hero.secondaryCta", primary.kind === "menu" ? "See the menu" : `Explore ${profile.labels.listing.toLowerCase()}`)}
               </button>
             ) : null}
           </Reveal>
@@ -118,13 +118,13 @@ const Hero: React.FC = () => {
 /* ───────────────────────── service showcase ───────────────────────── */
 
 const CategoryTiles: React.FC<{ service: Service }> = ({ service }) => {
-  const { goToService } = useSavor();
+  const { goToService, c } = useSavor();
   const groups = groupByCategory(service.items).filter((g) => g.category);
   if (groups.length < 2) return null;
   return (
     <section className="tp-section" style={{ paddingTop: 24 }}>
       <div className="tp-wrap">
-        <SectionHead eyebrow="Browse" title="Pick your craving" />
+        <SectionHead eyebrow={c("home.browse.eyebrow", "Browse")} title={c("home.browse.title", "Pick your craving")} />
         <Stagger className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
           {groups.slice(0, 8).map((group) => {
             const cover = group.items.find((i) => i.image)?.image;
@@ -154,7 +154,7 @@ const CategoryTiles: React.FC<{ service: Service }> = ({ service }) => {
 };
 
 const Showcase: React.FC<{ service: Service }> = ({ service }) => {
-  const { goToService } = useSavor();
+  const { goToService, c } = useSavor();
   const featured = service.items.filter((i) => i.popular || i.featured || i.badge);
   const rest = service.items.filter((i) => !featured.includes(i));
   // Favourites first, topped up so the grid always ends on a full row.
@@ -165,12 +165,12 @@ const Showcase: React.FC<{ service: Service }> = ({ service }) => {
     <section className="tp-section" style={{ paddingTop: 24 }}>
       <div className="tp-wrap">
         <SectionHead
-          eyebrow={isMenu ? "From our kitchen" : service.profile.labels.listing}
+          eyebrow={c("home.menu.eyebrow", isMenu ? "From our kitchen" : service.profile.labels.listing)}
           title={isMenu ? "Favourites people keep coming back for" : service.heading}
           sub={isMenu ? undefined : service.subText}
           action={
             <button type="button" className="tp-link" onClick={() => goToService(service)}>
-              {isMenu ? "View the full menu" : "See everything"} <span className="tp-arrow">{Icon.arrow()}</span>
+              {c("home.menu.link", isMenu ? "View the full menu" : "See everything")} <span className="tp-arrow">{Icon.arrow()}</span>
             </button>
           }
         />
@@ -187,7 +187,7 @@ const Showcase: React.FC<{ service: Service }> = ({ service }) => {
 /* ───────────────────────── story ───────────────────────── */
 
 const Story: React.FC = () => {
-  const { t, draft } = useSavor();
+  const { t, draft, c } = useSavor();
   const blocks: string[] = t.aboutBlocks
     .map((block: any) => (typeof block === "string" ? block : block?.text))
     .map((text: string) => String(text || "").trim())
@@ -203,7 +203,7 @@ const Story: React.FC = () => {
           </div>
         </Reveal>
         <div>
-          <Reveal><p className="tp-eyebrow mb-3">Our story</p></Reveal>
+          <Reveal><p className="tp-eyebrow mb-3">{c("home.about.eyebrow", "Our story")}</p></Reveal>
           <Reveal delay={0.06}><h2 className="tp-h2">{draft?.aboutTitle || `About ${draft?.companyName || "us"}`}</h2></Reveal>
           <Stagger className="mt-6 space-y-4">
             {blocks.slice(0, 3).map((text, index) => (
@@ -224,7 +224,7 @@ const Story: React.FC = () => {
 /* ───────────────────────── hours + reserve ───────────────────────── */
 
 const HoursReserve: React.FC = () => {
-  const { t, draft, primary, profile, openLead, status } = useSavor();
+  const { t, draft, primary, profile, openLead, status, c } = useSavor();
   const hours = groupOpeningHours(draft?.openingHours);
   const hasLead = Boolean(primary?.leadEnabled);
   if (!hours.length && !hasLead && !draft?.contactBusinessHours) return null;
@@ -238,12 +238,12 @@ const HoursReserve: React.FC = () => {
               <div>
                 <p className="text-[12px] font-bold uppercase tracking-[0.16em] opacity-80">{status?.text || "Come by"}</p>
                 <h2 className="tp-h2 mt-3" style={{ color: "inherit" }}>
-                  {hasLead ? profile.labels.cta : "Visit us"}
+                  {c("home.reserve.title", hasLead ? profile.labels.cta : "Visit us")}
                 </h2>
                 <p className="mt-4 max-w-md text-[16px] leading-relaxed opacity-90">
-                  {primary?.kind === "menu"
+                  {c("home.reserve.sub", primary?.kind === "menu"
                     ? "Pick a date and time and we'll keep a table ready for you."
-                    : "Tell us what you need and we'll get back to you shortly."}
+                    : "Tell us what you need and we'll get back to you shortly.")}
                 </p>
                 <div className="mt-7 flex flex-wrap gap-3">
                   {hasLead && primary ? (
@@ -257,7 +257,7 @@ const HoursReserve: React.FC = () => {
                 </div>
               </div>
               <div className="rounded-[26px] p-6" style={{ background: "rgba(255,255,255,.14)", backdropFilter: "blur(6px)" }}>
-                <p className="mb-4 inline-flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.16em] opacity-85">{Icon.clock()} Opening hours</p>
+                <p className="mb-4 inline-flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.16em] opacity-85">{Icon.clock()} {c("home.reserve.hoursLabel", "Opening hours")}</p>
                 {hours.length ? (
                   <ul className="space-y-3 text-[15px]">
                     {hours.map((row) => (
@@ -309,15 +309,15 @@ export const ReviewCard: React.FC<{ item: any; index?: number }> = ({ item, inde
 };
 
 const Reviews: React.FC = () => {
-  const { t, rating } = useSavor();
+  const { t, rating, c } = useSavor();
   const list: any[] = t.testimonials.slice(0, Math.max(3, Number(t.draft?.testimonialsHomePreviewCount) || 3));
   if (!list.length) return null;
   return (
     <section className="tp-section" style={{ paddingTop: 24 }}>
       <div className="tp-wrap">
         <SectionHead
-          eyebrow="Kind words"
-          title={rating.count ? `Rated ${rating.avg.toFixed(1)} by people like you` : "What people say"}
+          eyebrow={c("home.reviews.eyebrow", "Kind words")}
+          title={c("home.reviews.title", rating.count ? `Rated ${rating.avg.toFixed(1)} by people like you` : "What people say")}
           action={
             <button type="button" className="tp-link" onClick={() => t.goToSection("testimonials")}>
               All reviews <span className="tp-arrow">{Icon.arrow()}</span>
@@ -329,7 +329,7 @@ const Reviews: React.FC = () => {
         </div>
         {t.showWriteReview ? (
           <div className="mt-10 flex justify-center">
-            <button type="button" className="tp-btn tp-btn-primary" onClick={t.openReviewModal}>Write a review {Icon.arrow()}</button>
+            <button type="button" className="tp-btn tp-btn-primary" onClick={t.openReviewModal}>{c("home.reviews.write", "Write a review")} {Icon.arrow()}</button>
           </div>
         ) : null}
       </div>
@@ -340,16 +340,16 @@ const Reviews: React.FC = () => {
 /* ───────────────────────── gallery, inclusions, other services ───────────────────────── */
 
 const GalleryStrip: React.FC = () => {
-  const { t } = useSavor();
+  const { t, c } = useSavor();
   const items: string[] = t.homeGalleryItems;
   if (!items.length) return null;
   return (
     <section className="tp-section" style={{ paddingTop: 24 }}>
       <div className="tp-wrap">
         <SectionHead
-          eyebrow="Gallery"
-          title="A peek inside"
-          action={<button type="button" className="tp-link" onClick={() => t.goToSection("gallery")}>See all photos <span className="tp-arrow">{Icon.arrow()}</span></button>}
+          eyebrow={c("home.gallery.eyebrow", "Gallery")}
+          title={c("home.gallery.title", "A peek inside")}
+          action={<button type="button" className="tp-link" onClick={() => t.goToSection("gallery")}>{c("home.gallery.link", "See all photos")} <span className="tp-arrow">{Icon.arrow()}</span></button>}
         />
       </div>
       <div className="tp-scroll-x px-5 md:px-8" style={{ scrollPaddingLeft: 20 }}>
@@ -394,11 +394,12 @@ export const InclusionsStrip: React.FC<{ inclusions?: any[]; title?: string }> =
 };
 
 const MoreServices: React.FC<{ services: Service[] }> = ({ services }) => {
+  const { c } = useSavor();
   if (!services.length) return null;
   return (
     <section className="tp-section" style={{ paddingTop: 24 }}>
       <div className="tp-wrap">
-        <SectionHead eyebrow="More from us" title="Everything under one roof" />
+        <SectionHead eyebrow={c("home.services.eyebrow", "More from us")} title={c("home.services.title", "Everything under one roof")} />
         <TileGrid services={services} cols={3} />
       </div>
     </section>
@@ -408,7 +409,7 @@ const MoreServices: React.FC<{ services: Service[] }> = ({ services }) => {
 /* ───────────────────────── closing CTA ───────────────────────── */
 
 const ClosingCta: React.FC = () => {
-  const { t, draft, primary, profile, openLead } = useSavor();
+  const { t, draft, primary, profile, openLead, c } = useSavor();
   if (!t.isSectionEnabled("home_contact")) return null;
   const hasLead = Boolean(primary?.leadEnabled);
   return (
@@ -427,7 +428,7 @@ const ClosingCta: React.FC = () => {
                 <button type="button" className="tp-btn tp-btn-primary" onClick={() => openLead(primary)}>{profile.labels.cta}</button>
               ) : null}
               <button type="button" className="tp-btn" style={{ border: "1.5px solid rgba(255,255,255,.4)", color: "inherit" }} onClick={() => t.goToSection("contact")}>
-                Contact us
+                {c("home.contact.button", "Contact us")}
               </button>
             </div>
           </div>
@@ -441,8 +442,8 @@ const ClosingCta: React.FC = () => {
 
 export const SavorHome: React.FC = () => {
   const { t, draft, primary, services } = useSavor();
-  const others = services.filter((service) => service.key !== primary?.key);
   const categories = primary ? uniqueCategories(primary.items) : [];
+  const others = services.filter((service) => service.key !== primary?.key);
 
   return (
     <>
@@ -470,7 +471,7 @@ export const SavorHome: React.FC = () => {
       {t.isSectionEnabled("home_inclusions") ? <InclusionsStrip inclusions={draft?.inclusions} /> : null}
       {t.isSectionEnabled("home_about") ? <Story /> : null}
       <HoursReserve />
-      {others.length && t.isSectionEnabled("home_products") ? <MoreServices services={others} /> : null}
+      {others.length && t.isSectionEnabled("home_products") && t.isSectionEnabled("home_services") ? <MoreServices services={others} /> : null}
       {t.isSectionEnabled("home_testimonials") ? <Reviews /> : null}
       {t.isSectionEnabled("home_gallery") ? <GalleryStrip /> : null}
       <ClosingCta />

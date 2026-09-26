@@ -1,7 +1,7 @@
 import React from "react";
 import { Reveal, Stagger, motion } from "../motion";
 import { formatTime12h } from "../leadForms";
-import { groupOpeningHours } from "../templateKit";
+import { groupOpeningHours, highlightLines } from "../templateKit";
 import { getCareersJobMeta, getCareersJobTitle } from "../useWebsiteTemplateData";
 import { LeadFormPanel } from "../shared/TplLead";
 import { ApplyForm, MessageForm, RoleSection } from "../shared/TplForms";
@@ -15,7 +15,7 @@ const img = (value: any): string => (typeof value === "string" ? value : value?.
 /* ───────────────────────── about ───────────────────────── */
 
 export const HavenAbout: React.FC = () => {
-  const { t, draft, navLabel } = useTpl();
+  const { t, draft, navLabel, c } = useTpl();
   const intro: string[] = t.aboutIntroBlocks;
   const narrative: { title: string; body: string }[] = t.aboutNarrativeBlocks;
   const team: any[] = t.aboutPageImageCards;
@@ -27,7 +27,7 @@ export const HavenAbout: React.FC = () => {
 
   return (
     <>
-      <PageHeader eyebrow="Our story" title={navLabel("about", draft?.aboutTitle || "About us")} sub={intro[0]} image={collage[0]} crumbs={[{ label: "Home", onClick: () => t.goToSection("home") }, { label: "About" }]} />
+      <PageHeader eyebrow={c("about.eyebrow", "Our story")} title={navLabel("about", draft?.aboutTitle || "About us")} sub={intro[0]} image={collage[0]} crumbs={[{ label: "Home", onClick: () => t.goToSection("home") }, { label: "About" }]} />
 
       {intro.length > 1 || collage.length > 1 ? (
         <section className="tp-wrap grid items-center gap-12 py-14 md:grid-cols-2 md:gap-20 md:py-20">
@@ -45,7 +45,7 @@ export const HavenAbout: React.FC = () => {
 
       {narrative.length ? (
         <section className="tp-wrap pb-14 md:pb-20">
-          <SectionHead eyebrow="What we stand for" title="The way we do things" />
+          <SectionHead eyebrow={c("about.values.eyebrow", "What we stand for")} title={c("about.values.title", "The way we do things")} />
           <div>
             {narrative.map((block, index) => (
               <Reveal key={block.title}>
@@ -62,7 +62,7 @@ export const HavenAbout: React.FC = () => {
 
       {showFounders ? (
         <section className="tp-wrap pb-14 md:pb-20">
-          <SectionHead eyebrow="Your hosts" title="Meet the founders" />
+          <SectionHead eyebrow={c("about.founders.eyebrow", "Your hosts")} title={c("about.founders.title", "Meet the founders")} />
           <Stagger className="grid gap-8 md:grid-cols-2">
             {founders.map((founder, index) => (
               <div key={index} className="flex items-start gap-6">
@@ -71,7 +71,7 @@ export const HavenAbout: React.FC = () => {
                   <h3 className="tp-h3">{founder.name}</h3>
                   {founder.role ? <p className="mt-1 text-[13px] font-semibold" style={{ color: "var(--hv-ink-accent)" }}>{founder.role}</p> : null}
                   {founder.bio ? <p className="tp-muted mt-3 text-[15px] leading-relaxed">{founder.bio}</p> : null}
-                  {founder.highlights ? <p className="mt-2 text-[14px] font-semibold">{founder.highlights}</p> : null}
+                  {highlightLines(founder.highlights).length ? <p className="mt-2 text-[14px] font-semibold">{highlightLines(founder.highlights).map((line) => <span key={line} className="block">{line}</span>)}</p> : null}
                 </div>
               </div>
             ))}
@@ -81,7 +81,7 @@ export const HavenAbout: React.FC = () => {
 
       {showTeam ? (
         <section className="tp-wrap pb-14 md:pb-20">
-          <SectionHead eyebrow="The team" title={draft?.aboutPageTeamHeading || "The people who make it feel like home"} />
+          <SectionHead eyebrow={c("about.team.eyebrow", "The team")} title={draft?.aboutPageTeamHeading || "The people who make it feel like home"} />
           <Stagger className="grid grid-cols-2 gap-8 md:grid-cols-4">
             {team.map((card, index) => (
               <div key={index} className="text-center">
@@ -116,11 +116,11 @@ export const HavenAbout: React.FC = () => {
 const SHAPES = ["aspect-[3/4]", "aspect-square", "aspect-[4/3]", "aspect-[4/5]", "aspect-[5/4]"];
 
 export const HavenGallery: React.FC = () => {
-  const { t, draft, navLabel } = useTpl();
+  const { t, draft, navLabel, c } = useTpl();
   const items: string[] = t.galleryItems;
   return (
     <>
-      <PageHeader eyebrow="Gallery" title={draft?.galleryPageHeading || navLabel("gallery", "Gallery")} sub={items.length ? `${items.length} photo${items.length > 1 ? "s" : ""}` : undefined} crumbs={[{ label: "Home", onClick: () => t.goToSection("home") }, { label: "Gallery" }]} />
+      <PageHeader eyebrow={c("gallery.eyebrow", "Gallery")} title={draft?.galleryPageHeading || navLabel("gallery", "Gallery")} sub={items.length ? `${items.length} photo${items.length > 1 ? "s" : ""}` : undefined} crumbs={[{ label: "Home", onClick: () => t.goToSection("home") }, { label: "Gallery" }]} />
       <section className="tp-wrap py-10 md:py-14">
         {!items.length ? (
           <p className="tp-muted py-16 text-center text-[16px]">Photos are on their way.</p>
@@ -157,13 +157,13 @@ const ReviewCard: React.FC<{ item: any }> = ({ item }) => (
 );
 
 export const HavenTestimonials: React.FC = () => {
-  const { t, draft, rating, navLabel } = useTpl();
+  const { t, draft, rating, navLabel, c } = useTpl();
   const list: any[] = t.testimonials;
   const counts = [5, 4, 3, 2, 1].map((star) => ({ star, count: list.filter((item) => Math.round(item.rating) === star).length }));
   return (
     <>
-      <PageHeader eyebrow="Reviews" title={draft?.testimonialsPageHeading || navLabel("testimonials", "What residents say")} sub={draft?.testimonialsPageIntro || undefined} crumbs={[{ label: "Home", onClick: () => t.goToSection("home") }, { label: "Reviews" }]}>
-        {t.showWriteReview ? <button type="button" className="tp-btn tp-btn-primary" onClick={t.openReviewModal}>Write a review</button> : null}
+      <PageHeader eyebrow={c("reviews.eyebrow", "Reviews")} title={draft?.testimonialsPageHeading || navLabel("testimonials", "What residents say")} sub={draft?.testimonialsPageIntro || undefined} crumbs={[{ label: "Home", onClick: () => t.goToSection("home") }, { label: "Reviews" }]}>
+        {t.showWriteReview ? <button type="button" className="tp-btn tp-btn-primary" onClick={t.openReviewModal}>{c("reviews.write", "Write a review")}</button> : null}
       </PageHeader>
       <section className="tp-wrap py-10 md:py-14">
         {!list.length ? (
@@ -205,15 +205,15 @@ export const HavenTestimonials: React.FC = () => {
 /* ───────────────────────── partner ───────────────────────── */
 
 export const HavenPartner: React.FC = () => {
-  const { t, draft } = useTpl();
+  const { t, draft, c } = useTpl();
   const paragraphs = String(t.partnerPageContent || "").split("\n").filter((line: string) => line.trim());
   return (
     <>
-      <PageHeader eyebrow="Partnerships" title={t.partnerPageHeading || `Partner with ${draft?.companyName || "us"}`} crumbs={[{ label: "Home", onClick: () => t.goToSection("home") }, { label: "Partner" }]} />
+      <PageHeader eyebrow={c("partner.eyebrow", "Partnerships")} title={t.partnerPageHeading || `Partner with ${draft?.companyName || "us"}`} crumbs={[{ label: "Home", onClick: () => t.goToSection("home") }, { label: "Partner" }]} />
       <section className="tp-wrap grid gap-12 py-12 md:grid-cols-[1.1fr_0.9fr] md:gap-16 md:py-16">
         <Reveal>
           <div className="space-y-5">
-            {paragraphs.length ? paragraphs.map((line: string, index: number) => <p key={index} className={index === 0 ? "tp-lead" : "tp-muted text-[16.5px] leading-relaxed"}>{line}</p>) : <p className="tp-lead">Businesses, communities and local partners — tell us how we could work together.</p>}
+            {paragraphs.length ? paragraphs.map((line: string, index: number) => <p key={index} className={index === 0 ? "tp-lead" : "tp-muted text-[16.5px] leading-relaxed"}>{line}</p>) : <p className="tp-lead">{c("partner.intro", "Businesses, communities and local partners — tell us how we could work together.")}</p>}
           </div>
         </Reveal>
         <Reveal delay={0.08}>
@@ -230,7 +230,7 @@ export const HavenPartner: React.FC = () => {
 /* ───────────────────────── contact ───────────────────────── */
 
 export const HavenContact: React.FC = () => {
-  const { t, draft, primary, navLabel } = useTpl();
+  const { t, draft, primary, navLabel, c } = useTpl();
   const hours = groupOpeningHours(draft?.openingHours);
   const policy = draft?.stayPolicy || {};
   const showForm = draft?.contactEnableInquiryForm !== false;
@@ -246,13 +246,13 @@ export const HavenContact: React.FC = () => {
 
   return (
     <>
-      <PageHeader eyebrow="Get in touch" title={draft?.contactPageHeading || navLabel("contact", "Contact")} sub={draft?.contactPageIntro || undefined} crumbs={[{ label: "Home", onClick: () => t.goToSection("home") }, { label: "Contact" }]} />
+      <PageHeader eyebrow={c("contact.eyebrow", "Get in touch")} title={draft?.contactPageHeading || navLabel("contact", "Contact")} sub={draft?.contactPageIntro || undefined} crumbs={[{ label: "Home", onClick: () => t.goToSection("home") }, { label: "Contact" }]} />
       <section className="tp-wrap grid gap-8 py-10 md:py-14 lg:grid-cols-[1.1fr_0.9fr] lg:gap-12">
         {showForm ? (
           <Reveal>
             <div className="tp-card p-7 md:p-10">
               <h2 className="tp-h3 mb-1">{usePrimary && primary ? primary.profile.labels.leadTitle : "Send us a message"}</h2>
-              <p className="tp-muted mb-7 text-[15px]">We usually reply within a day.</p>
+              <p className="tp-muted mb-7 text-[15px]">{c("contact.formSub", "We usually reply within a day.")}</p>
               {usePrimary && primary ? <LeadFormPanel service={primary} /> : <MessageForm inquiryType="General Enquiry" submitLabel="Send message" success={draft?.contactInquirySuccessMessage || "Thank you. Your inquiry has been submitted successfully."} />}
             </div>
           </Reveal>

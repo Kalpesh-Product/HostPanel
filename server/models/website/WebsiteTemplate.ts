@@ -264,6 +264,8 @@ const templateSchema = new mongoose.Schema(
       ],
       default: [],
     },
+    // Heading of the About section on the home page and the About page banner.
+    aboutTitle: { type: String, default: "" },
     aboutPageIntro: { type: String, default: "" },
     aboutPageOverview: { type: String, default: "" },
     aboutPageStory: { type: String, default: "" },
@@ -333,6 +335,13 @@ const templateSchema = new mongoose.Schema(
     // Co-living "schedule a visit" toggle.
     tourBooking: {
       enabled: { type: Boolean, default: true },
+    },
+    // Wording, photo picks and steps the owner edits for the newer templates
+    // (Savor, Wayfarer, Haven, Commons). Shape: { copy: {key: text}, images: {key: url}, steps: [{title, body, image}] }.
+    // Empty means "use the template's own wording".
+    templateContent: {
+      type: mongoose.Schema.Types.Mixed,
+      default: () => ({ copy: {}, images: {}, steps: [] }),
     },
     contactPersonName: { type: String, default: "" },
     contactPersonRole: { type: String, default: "" },

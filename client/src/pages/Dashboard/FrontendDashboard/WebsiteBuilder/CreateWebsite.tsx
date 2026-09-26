@@ -31,12 +31,15 @@ import SectionPreviewInfo from "./SectionPreviewInfo";
 import CreditsIndicator from "../../../../components/CreditsIndicator";
 import RoomsSection from "./RoomsSection";
 import ThemeColors from "./ThemeColors";
+import TemplateContentPanel from "./TemplateContentPanel";
 import { supportsThemeColors } from "./templates/templateTheme";
+import { emptyTemplateContent, hasTemplateContent, normalizeTemplateContent } from "./templates/templateContent";
 import PackagesSection from "./PackagesSection";
 import DormsSection from "./DormsSection";
 import MenuSection from "./MenuSection";
 import ItemExtraFields from "./ItemExtraFields";
 import { clearSelectedServices, readSelectedServices } from "./templates/serviceChoices";
+import { buildSampleContent, buildServiceSample, hasSampleContent, isSampleService, resolveSampleServices } from "./templates/sampleContent";
 import ServiceSettingsPanel from "./ServiceSettingsPanel";
 import {
   defaultReservation,
@@ -419,7 +422,7 @@ const toSearchKey = (value: unknown): string =>
     .trim()
     .toLowerCase()
     .split("-")[0]
-    .replace(/\s+/g, "");
+    .replace(/[^a-z0-9_]/g, "");
 
 const toSlug = (value: unknown): string =>
   String(value || "")
@@ -667,6 +670,7 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
   reservation: normalizeReservation(formValues?.reservation),
   stayPolicy: normalizeStayPolicy(formValues?.stayPolicy),
   tourBooking: normalizeTourBooking(formValues?.tourBooking),
+  templateContent: normalizeTemplateContent(formValues?.templateContent),
   galleryTitle: String(formValues?.galleryTitle || "").trim(),
   testimonialTitle: String(formValues?.testimonialTitle || "").trim(),
   testimonials: Array.isArray(formValues?.testimonials)
@@ -813,6 +817,9 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
   partnerFormTitle: String(formValues?.partnerFormTitle || "").trim(),
   careersPageHeading: String(formValues?.careersPageHeading || "").trim(),
   careersPageIntro: String(formValues?.careersPageIntro || "").trim(),
+  careersClosingHeading: String(formValues?.careersClosingHeading || "").trim(),
+  careersClosingText: String(formValues?.careersClosingText || "").trim(),
+  careersApplyButtonText: String(formValues?.careersApplyButtonText || "").trim(),
   careersFormFields: Array.isArray(formValues?.careersFormFields)
     ? formValues.careersFormFields
     : tryParseJson(formValues?.careersFormFields, []),
@@ -1379,6 +1386,7 @@ const CreateWebsite = () => {
       reservation: defaultReservation(),
       stayPolicy: defaultStayPolicy(),
       tourBooking: { enabled: true },
+      templateContent: emptyTemplateContent(),
       contactPersonName: "",
       contactPersonRole: "",
       contactPersonEmail: "",
@@ -1390,6 +1398,9 @@ const CreateWebsite = () => {
       // Careers page
       careersPageHeading: "",
       careersPageIntro: "",
+      careersClosingHeading: "",
+      careersClosingText: "",
+      careersApplyButtonText: "",
       careersFormFields: [],
       // Founders (about page)
       founders: [{ name: "", role: "", bio: "", highlights: "", image: null }],
@@ -2135,6 +2146,7 @@ const CreateWebsite = () => {
             reservation: normalizeReservation(draftData?.reservation ?? found?.reservation),
             stayPolicy: normalizeStayPolicy(draftData?.stayPolicy ?? found?.stayPolicy),
             tourBooking: normalizeTourBooking(draftData?.tourBooking ?? found?.tourBooking),
+            templateContent: normalizeTemplateContent(draftData?.templateContent ?? found?.templateContent),
             contactPersonName: String(
               draftData?.contactPersonName || found?.contactPersonName || "",
             ).trim(),
@@ -2161,6 +2173,15 @@ const CreateWebsite = () => {
             ).trim(),
             careersPageIntro: String(
               draftData?.careersPageIntro || found?.careersPageIntro || "",
+            ).trim(),
+            careersClosingHeading: String(
+              draftData?.careersClosingHeading || found?.careersClosingHeading || "",
+            ).trim(),
+            careersClosingText: String(
+              draftData?.careersClosingText || found?.careersClosingText || "",
+            ).trim(),
+            careersApplyButtonText: String(
+              draftData?.careersApplyButtonText || found?.careersApplyButtonText || "",
             ).trim(),
             careersFormFields: tryParseJson(
               draftData?.careersFormFields ?? found?.careersFormFields ?? "[]",
@@ -2463,6 +2484,8 @@ const CreateWebsite = () => {
 
     fd.set("about", JSON.stringify(values.about.map((p) => p.text)));
     appendFileIfPresent("companyLogo", values.companyLogo);
+    // Without a logo in the form the saved one (if any) is removed on the server.
+    fd.set("removeCompanyLogo", values.companyLogo ? "false" : "true");
     appendFileIfPresent("mainHeroImage", values.mainHeroImage);
 
     fd.delete("heroImages");
@@ -2593,6 +2616,7 @@ const CreateWebsite = () => {
     fd.set("reservation", JSON.stringify(normalizeReservation(values.reservation)));
     fd.set("stayPolicy", JSON.stringify(normalizeStayPolicy(values.stayPolicy)));
     fd.set("tourBooking", JSON.stringify(normalizeTourBooking(values.tourBooking)));
+    fd.set("templateContent", JSON.stringify(normalizeTemplateContent(values.templateContent)));
     fd.set("contactPersonName", values.contactPersonName || "");
     fd.set("contactPersonRole", values.contactPersonRole || "");
     fd.set("contactPersonEmail", values.contactPersonEmail || "");
@@ -2602,6 +2626,9 @@ const CreateWebsite = () => {
     fd.set("partnerFormTitle", values.partnerFormTitle || "");
     fd.set("careersPageHeading", values.careersPageHeading || "");
     fd.set("careersPageIntro", values.careersPageIntro || "");
+    fd.set("careersClosingHeading", values.careersClosingHeading || "");
+    fd.set("careersClosingText", values.careersClosingText || "");
+    fd.set("careersApplyButtonText", values.careersApplyButtonText || "");
     fd.set(
       "careersFormFields",
       JSON.stringify(
@@ -2889,6 +2916,7 @@ const CreateWebsite = () => {
       reservation: normalizeReservation(formValues?.reservation),
       stayPolicy: normalizeStayPolicy(formValues?.stayPolicy),
       tourBooking: normalizeTourBooking(formValues?.tourBooking),
+      templateContent: normalizeTemplateContent(formValues?.templateContent),
       galleryTitle: String(formValues?.galleryTitle || "Gallery").trim(),
       inclusions: Array.isArray(formValues?.inclusions) ? formValues.inclusions : [],
       faqs: Array.isArray(formValues?.faqs) ? formValues.faqs.map((faq: any) => ({ question: String(faq?.question || "").trim(), answer: String(faq?.answer || "").trim(), enabled: faq?.enabled !== false })).filter((faq: any) => faq.question) : [],
@@ -2940,6 +2968,9 @@ const CreateWebsite = () => {
       partnerFormTitle: String(formValues?.partnerFormTitle || "").trim(),
       careersPageHeading: String(formValues?.careersPageHeading || "").trim(),
       careersPageIntro: String(formValues?.careersPageIntro || "").trim(),
+      careersClosingHeading: String(formValues?.careersClosingHeading || "").trim(),
+      careersClosingText: String(formValues?.careersClosingText || "").trim(),
+      careersApplyButtonText: String(formValues?.careersApplyButtonText || "").trim(),
       careersFormFields: Array.isArray(formValues?.careersFormFields)
         ? formValues.careersFormFields
         : tryParseJson(formValues?.careersFormFields, []),
@@ -3119,14 +3150,19 @@ const CreateWebsite = () => {
         const mergedSubProducts = currentSubProducts.map((sp: any, subIdx: number) => {
           const savedImages = savedSubProducts[subIdx]?.images;
           if (!Array.isArray(savedImages) || !savedImages.length) return sp;
+          // Swap the Files this request uploaded for their saved refs. Keeping the Files here meant the next
+          // autosave sent them as empty placeholders and the saved photos were wiped.
+          const submitted: File[] = pendingFieldFiles[`subProductImages_${pageIdx}_${subIdx}`] || [];
+          if (!submitted.length) return sp;
+          const newlyUploaded = savedImages.slice(-submitted.length);
+          if (newlyUploaded.length !== submitted.length) return sp;
+          const fileToSaved = new Map<File, any>();
+          submitted.forEach((file: File, idx: number) => fileToSaved.set(file, newlyUploaded[idx]));
           const currentImages = sp?.images || [];
-          const mergedImages = savedImages.map((saved: any, imgIdx: number) => {
-            const current = currentImages[imgIdx];
-            // Keep File objects if they're newer than saved; otherwise use saved S3 object
-            if (current instanceof File) return current;
-            return saved;
-          });
-          return { ...sp, images: mergedImages };
+          return {
+            ...sp,
+            images: currentImages.map((img: any) => (img instanceof File && fileToSaved.has(img) ? fileToSaved.get(img) : img)),
+          };
         });
         return { ...page, subProducts: mergedSubProducts };
       });
@@ -3671,6 +3707,58 @@ const CreateWebsite = () => {
       inclusions: DEFAULT_PRODUCT_PAGE_INCLUSION_KEYS.map((k) => ({ key: k, enabled: false })),
     });
     setActiveProductPageTab(productPageFields.length);
+    void fillServiceWithSample(trimmed, slug);
+  };
+
+  // A service page added from the list on a newer template comes with that service's sample text,
+  // photos and items (only where the site has none yet), so it looks finished like the rest.
+  const fillServiceWithSample = async (name: string, slug: string) => {
+    const theme = String(getValues("themeVariant") || "");
+    if (!hasSampleContent(theme) || !isSampleService(name)) return; // custom pages start blank
+    try {
+      const sample = await buildServiceSample({
+        themeVariant: theme,
+        serviceName: name,
+        companyName: String(getValues("companyName") || prefillCompanyName || "").trim(),
+      });
+      const pages = getValues("productDropdownPages") || [];
+      const index = pages.findIndex((item: any) => String(item?.slug || "").trim().toLowerCase() === slug);
+      if (index < 0) return; // removed again while the photos were loading
+      // Never overwrite what the owner already typed on this page.
+      const page = pages[index] || {};
+      const blank = (value: unknown) => !String(value ?? "").trim();
+      const untouched = (value: unknown) => blank(value) || String(value).trim() === name;
+      const merged = {
+        ...page,
+        ...sample.page,
+        heroHeading: untouched(page.heroHeading) ? sample.page.heroHeading : page.heroHeading,
+        heroSubHeading: blank(page.heroSubHeading) ? sample.page.heroSubHeading : page.heroSubHeading,
+        homeCardHeading: untouched(page.homeCardHeading) ? sample.page.homeCardHeading : page.homeCardHeading,
+        homeCardSubText: blank(page.homeCardSubText) ? sample.page.homeCardSubText : page.homeCardSubText,
+        heroImages: page.heroImages?.length ? page.heroImages : sample.page.heroImages,
+        homeCardImage: page.homeCardImage || sample.page.homeCardImage,
+        faqs: page.faqs?.length ? page.faqs : sample.page.faqs,
+        subProducts: (page.subProducts || []).some((item: any) => String(item?.name || "").trim())
+          ? page.subProducts
+          : sample.page.subProducts || page.subProducts,
+      };
+      setValue("productDropdownPages", pages.map((item: any, i: number) => (i === index ? merged : item)));
+      // Lists shared by every service of this kind are filled only when still empty.
+      Object.entries(sample.lists).forEach(([key, list]) => {
+        const current = getValues(key as any);
+        const hasContent = Array.isArray(current) && current.some((entry: any) => String(entry?.title || entry?.name || "").trim());
+        if (!hasContent) setValue(key as any, list as any);
+      });
+      const { openingHours, reservation, stayPolicy, tourBooking } = sample.settings;
+      const hours = getValues("openingHours");
+      if (openingHours && !(Array.isArray(hours) && hours.length)) setValue("openingHours", normalizeOpeningHours(openingHours));
+      if (reservation && !getValues("reservation")?.enabled) setValue("reservation", normalizeReservation(reservation));
+      if (stayPolicy && !getValues("stayPolicy")?.checkInTime) setValue("stayPolicy", normalizeStayPolicy(stayPolicy));
+      if (tourBooking) setValue("tourBooking", normalizeTourBooking(tourBooking));
+      toast.info(`Sample content added for ${name}. Replace it with your own.`);
+    } catch {
+      // The page is still added; it just starts blank.
+    }
   };
 
   // "+ Add New Page" seeds a blank "Product N" page, incrementing past any name
@@ -3703,19 +3791,12 @@ const CreateWebsite = () => {
 
   const hasSeededDefaultServicesPageRef = useRef(false);
 
-  useEffect(() => {
-    const currentPages = getValues("productDropdownPages");
-    if (Array.isArray(currentPages) && currentPages.length > 0) {
-      hasSeededDefaultServicesPageRef.current = true;
-      return;
-    }
-    if (hasSeededDefaultServicesPageRef.current) return;
-    // Services the business ticked in the template picker become the starting pages.
-    // Cafe pages keep lead capture on only when the chosen template can take
-    // reservations; older templates have no reservation form.
-    const chosen = isEditMode ? [] : readSelectedServices();
+  // Services the business ticked in the template picker become the starting pages.
+  // Cafe pages keep lead capture on only when the chosen template can take
+  // reservations; older templates have no reservation form.
+  const buildServicePagesFor = (chosen: string[]) => {
     const supportsBooking = Boolean(TEMPLATE_REGISTRY[String(getValues("themeVariant") || "")]?.supportsBooking);
-    const seededPages = chosen.length
+    return chosen.length
       ? chosen.map((name) => {
           const page = buildDefaultProductPage(name);
           const menu = isMenuPageSlug(page.slug);
@@ -3728,12 +3809,175 @@ const CreateWebsite = () => {
           };
         })
       : [buildDefaultProductPage()];
-    setValue("productDropdownPages", seededPages, { shouldDirty: false });
+  };
+  const buildPickerServicePages = () => buildServicePagesFor(isEditMode ? [] : readSelectedServices());
+
+  useEffect(() => {
+    if (hasSeededDefaultServicesPageRef.current) return;
+    // The form starts with one blank "Service Page 1"; that untouched placeholder still counts as "no pages yet".
+    const currentPages = getValues("productDropdownPages");
+    const onlyPlaceholder =
+      Array.isArray(currentPages) &&
+      currentPages.length === 1 &&
+      currentPages[0]?.slug === "service-page-1" &&
+      !String(currentPages[0]?.heroSubHeading || "").trim() &&
+      !(currentPages[0]?.faqs || []).length;
+    if (Array.isArray(currentPages) && currentPages.length > 0 && !onlyPlaceholder) {
+      hasSeededDefaultServicesPageRef.current = true;
+      return;
+    }
+    setValue("productDropdownPages", buildPickerServicePages(), { shouldDirty: false });
     setActiveProductPageTab(0);
     hasSeededDefaultServicesPageRef.current = true;
   }, [getValues, setValue, setActiveProductPageTab]);
 
-  if (isCheckingExistingWebsite) {
+  // "Start from sample content": a brand-new site with a vertical template opens filled with that
+  // template's demo text and photos (real, editable form content) so it looks finished at once.
+  const [samplePending, setSamplePending] = useState(() => !isEditMode && hasSampleContent(initialThemeVariant));
+  const [sampleApplied, setSampleApplied] = useState(false);
+  const [sampleFilling, setSampleFilling] = useState(false);
+  const sampleStartedRef = useRef(false);
+
+  // Writes a built sample into the form: site-wide text and photos, opening hours and settings, every
+  // page except Careers switched on, and each service page filled from the sample for its service.
+  const applySampleValues = (sample: any, basePages: any[]) => {
+    const current: any = getValues();
+    const servicePages = basePages.map((page: any, index: number) => ({
+      ...page,
+      ...(sample.pages[index] || {}),
+    }));
+    reset({
+      ...current,
+      ...sample.values,
+      openingHours: normalizeOpeningHours(sample.values.openingHours),
+      ...(sample.values.reservation ? { reservation: normalizeReservation(sample.values.reservation) } : {}),
+      ...(sample.values.stayPolicy ? { stayPolicy: normalizeStayPolicy(sample.values.stayPolicy) } : {}),
+      ...(sample.values.tourBooking ? { tourBooking: normalizeTourBooking(sample.values.tourBooking) } : {}),
+      // Every page with sample content goes live, except Careers (no openings to show).
+      pageNavItems: buildDefaultPageNavItems().map((item) => ({ ...item, enabled: item.slug !== "careers" })),
+      productDropdownPages: servicePages,
+    });
+    setActiveProductPageTab(0);
+    setSampleApplied(true);
+  };
+
+  useEffect(() => {
+    if (!samplePending || sampleStartedRef.current || isCheckingExistingWebsite) return;
+    // A saved website/draft always wins over sample content.
+    if (hasHydratedFromDbRef.current || hasExistingWebsite || !String(prefillCompanyName || "").trim()) {
+      setSamplePending(false);
+      return;
+    }
+    sampleStartedRef.current = true;
+    (async () => {
+      try {
+        const theme = String(getValues("themeVariant") || "");
+        if (!hasSampleContent(theme)) return;
+        const sample = await buildSampleContent({
+          themeVariant: theme,
+          services: readSelectedServices(),
+          companyName: String(prefillCompanyName).trim(),
+        });
+        applySampleValues(sample, (getValues() as any).productDropdownPages || []);
+      } catch {
+        // A blank form is a fine fallback if the sample can't be built.
+      } finally {
+        setSamplePending(false);
+      }
+    })();
+  }, [samplePending, isCheckingExistingWebsite, hasExistingWebsite, prefillCompanyName, getValues, reset, setActiveProductPageTab]);
+
+  const clearSampleContent = () => {
+    if (!window.confirm("Remove all the sample text and photos and start with a blank website?")) return;
+    formRef.current?.reset();
+    const current: any = getValues();
+    reset({
+      ...current,
+      title: "",
+      subTitle: "",
+      CTAButtonText: "",
+      heroImages: [],
+      gallery: [],
+      about: [{ text: "" }],
+      aboutTitle: "",
+      aboutPageStory: "",
+      aboutPageMission: "",
+      aboutPageValues: "",
+      aboutPageTeamHeading: "",
+      aboutPageImages: [],
+      aboutPageImageCards: [{ title: "", description: "", image: null }],
+      founders: [{ name: "", role: "", bio: "", highlights: "", image: null }],
+      testimonials: [defaultTestimonial],
+      partnerPageHeading: "",
+      partnerPageContent: "",
+      productTitle: "",
+      contactTitle: "",
+      galleryTitle: "",
+      faqs: [],
+      inclusions: [],
+      menuItems: [],
+      rooms: [],
+      meetingRooms: [],
+      coLivingRooms: [],
+      packages: [],
+      dorms: [],
+      openingHours: [],
+      reservation: defaultReservation(),
+      stayPolicy: defaultStayPolicy(),
+      tourBooking: { enabled: true },
+      pageNavItems: buildDefaultPageNavItems(),
+      productDropdownPages: buildPickerServicePages(),
+    });
+    setActiveProductPageTab(0);
+    setSampleApplied(false);
+  };
+
+  // A saved website that was never filled in (an empty draft) can still be given the sample.
+  const websiteIsBlank = (v: any) => {
+    const text = (value: any) => String(value ?? "").trim();
+    const some = (list: any) => Array.isArray(list) && list.length > 0;
+    const pageHasContent = (page: any) =>
+      Boolean(text(page?.heroSubHeading) || some(page?.heroImages) || page?.homeCardImage) ||
+      (page?.subProducts || []).some((item: any) => text(item?.name) || text(item?.description) || some(item?.images));
+    return !(
+      text(v.title) ||
+      text(v.subTitle) ||
+      some(v.heroImages) ||
+      some(v.gallery) ||
+      (v.about || []).some((item: any) => text(item?.text)) ||
+      (v.testimonials || []).some((item: any) => text(item?.testimony) || text(item?.name)) ||
+      some(v.faqs) ||
+      ["menuItems", "rooms", "meetingRooms", "coLivingRooms", "packages", "dorms"].some((key) => some(v[key])) ||
+      (v.productDropdownPages || []).some(pageHasContent)
+    );
+  };
+  const canOfferSample =
+    hasSampleContent(String(values?.themeVariant || "")) &&
+    !sampleApplied &&
+    !sampleFilling &&
+    (hasHydratedFromDbRef.current || !effectiveEditMode) &&
+    websiteIsBlank(values || {});
+
+  const fillBlankWithSample = async () => {
+    if (sampleFilling) return;
+    setSampleFilling(true);
+    try {
+      const theme = String(getValues("themeVariant") || "");
+      const pages: any[] = (getValues("productDropdownPages") as any[]) || [];
+      // Keep service pages already named after a service; otherwise start from the template's own service.
+      const named = pages.map((page) => String(page?.name || "").trim()).filter(isSampleService);
+      const names = resolveSampleServices(theme, named);
+      const companyName = String(getValues("companyName") || prefillCompanyName || "").trim();
+      const sample = await buildSampleContent({ themeVariant: theme, services: names, companyName });
+      applySampleValues(sample, named.length ? pages : buildServicePagesFor(names));
+    } catch {
+      toast.error("Could not load the sample content. Please try again.");
+    } finally {
+      setSampleFilling(false);
+    }
+  };
+
+  if (isCheckingExistingWebsite || samplePending) {
     return <WebsiteBuilderEditorSkeleton />;
   }
 
@@ -3823,6 +4067,51 @@ const CreateWebsite = () => {
                 </p>
               </div>
             </div>
+
+            {canOfferSample ? (
+              <div
+                role="status"
+                className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-900"
+              >
+                <p className="min-w-0 flex-1 leading-relaxed">
+                  <span className="font-semibold">This website is still empty.</span> Fill it with sample text, photos,
+                  rooms or menu, reviews and team members to see the finished look, then edit or replace anything with
+                  your own before publishing.
+                </p>
+                <button
+                  type="button"
+                  onClick={fillBlankWithSample}
+                  className="shrink-0 rounded-lg bg-[#2563EB] px-3 py-1.5 font-semibold text-white transition hover:bg-blue-700"
+                >
+                  Fill with sample content
+                </button>
+              </div>
+            ) : null}
+            {sampleFilling ? (
+              <div role="status" className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs font-semibold text-blue-900">
+                Adding sample content and photos…
+              </div>
+            ) : null}
+
+            {sampleApplied ? (
+              <div
+                role="status"
+                className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-900"
+              >
+                <p className="min-w-0 flex-1 leading-relaxed">
+                  <span className="font-semibold">Your website starts with sample content.</span> The text, photos,
+                  rooms or menu, reviews and team members are placeholders so you can see the finished look. Edit or
+                  replace anything below with your own before publishing.
+                </p>
+                <button
+                  type="button"
+                  onClick={clearSampleContent}
+                  className="shrink-0 rounded-lg border border-blue-300 bg-white px-3 py-1.5 font-semibold text-blue-700 transition hover:bg-blue-100"
+                >
+                  Start from blank
+                </button>
+              </div>
+            ) : null}
 
             <form
               ref={formRef}
@@ -4854,6 +5143,41 @@ const CreateWebsite = () => {
                       />
                     )}
                   />
+                  <Controller
+                    name="careersClosingHeading"
+                    control={control}
+                    render={({ field }) => (
+                      <WebsiteFormField
+                        field={field}
+                        label="Closing Box Heading"
+                        placeholder="Don't see your role?"
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="careersClosingText"
+                    control={control}
+                    render={({ field }) => (
+                      <WebsiteFormField
+                        field={field}
+                        label="Closing Box Text"
+                        placeholder="Send us a general application and tell us how you'd like to contribute."
+                        multiline
+                        minRows={3}
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="careersApplyButtonText"
+                    control={control}
+                    render={({ field }) => (
+                      <WebsiteFormField
+                        field={field}
+                        label="General Application Button"
+                        placeholder="General application"
+                      />
+                    )}
+                  />
                   <div data-tour="wb-editor-careers-page-form-layout">
                     <div className="border-b-default border-borderGray py-4">
                       <span className="text-subtitle font-pmedium inline-flex items-center gap-2">Apply Now Form Layout <SectionPreviewInfo section="applyForm" /></span>
@@ -5099,6 +5423,9 @@ const CreateWebsite = () => {
           <div className="md:grid grid-cols-2 sm:grid-cols-1 md:grid-cols-2 gap-4" data-tour="wb-editor-home-content">
             {supportsThemeColors(watch("themeVariant")) && (
               <ThemeColors control={control} templateId={watch("themeVariant")} />
+            )}
+            {hasTemplateContent(watch("themeVariant")) && (
+              <TemplateContentPanel control={control} templateId={watch("themeVariant")} />
             )}
             {/* HERO / COMPANY */}
             {activeSections.includes("hero") && (

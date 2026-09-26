@@ -214,7 +214,7 @@ const OffersPage: React.FC<{ service: Service }> = ({ service }) => {
 /* ───────────────────────── policies + inline booking ───────────────────────── */
 
 const PolicyBlock: React.FC = () => {
-  const { draft } = useSavor();
+  const { draft, c } = useSavor();
   const policy = draft?.stayPolicy || {};
   const rules: string[] = policy.houseRules || [];
   const facts = [
@@ -228,8 +228,8 @@ const PolicyBlock: React.FC = () => {
       <Reveal>
         <div className="tp-soft grid gap-8 p-7 md:grid-cols-[1fr_1.3fr] md:p-10">
           <div>
-            <p className="tp-eyebrow mb-3">Before you book</p>
-            <h2 className="tp-h3">Stay policy</h2>
+            <p className="tp-eyebrow mb-3">{c("services.policy.eyebrow", "Before you book")}</p>
+            <h2 className="tp-h3">{c("services.policy.title", "Stay policy")}</h2>
             {facts.length ? (
               <dl className="mt-5 space-y-3">
                 {facts.map(([label, value]) => (
@@ -282,13 +282,13 @@ const InlineBooking: React.FC<{ service: Service }> = ({ service }) => {
 
 /** Links to the business's other services, so a guest on one page can still find the rest. */
 const MoreFromUs: React.FC<{ current: Service }> = ({ current }) => {
-  const { services } = useSavor();
+  const { services, c } = useSavor();
   const others = services.filter((s) => s.key !== current.key);
   if (!others.length) return null;
   return (
     <section className="tp-section" style={{ paddingTop: 24 }}>
       <div className="tp-wrap">
-        <SectionHead eyebrow="More from us" title="Also here" />
+        <SectionHead eyebrow={c("services.other.eyebrow", "More from us")} title={c("services.other.title", "Also here")} />
         <TileGrid services={others} cols={3} />
       </div>
     </section>
@@ -328,7 +328,7 @@ export const ServicePage: React.FC<{ service: Service }> = ({ service }) => {
 /* ───────────────────────── item detail ───────────────────────── */
 
 export const ItemDetail: React.FC<{ service: Service; item: ServiceItem }> = ({ service, item }) => {
-  const { goToService, goToItem } = useSavor();
+  const { goToService, goToItem, c } = useSavor();
   const [shot, setShot] = useState(0);
   useEffect(() => setShot(0), [item.key]);
   const images = item.images.length ? item.images : [];
@@ -415,7 +415,7 @@ export const ItemDetail: React.FC<{ service: Service; item: ServiceItem }> = ({ 
 
         {related.length ? (
           <div className="mt-20">
-            <SectionHead title={service.kind === "menu" ? "You might also like" : `More ${service.profile.labels.items}`} />
+            <SectionHead title={c("services.related.title", service.kind === "menu" ? "You might also like" : `More ${service.profile.labels.items}`)} />
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {related.map((other, index) => <ItemCard key={other.key} item={other} service={service} index={index} />)}
             </div>
@@ -432,7 +432,7 @@ export const ItemDetail: React.FC<{ service: Service; item: ServiceItem }> = ({ 
 /* ───────────────────────── services index ───────────────────────── */
 
 export const ServicesIndex: React.FC = () => {
-  const { services, draft } = useSavor();
+  const { services, draft, c } = useSavor();
   if (!services.length) {
     return (
       <>
@@ -444,7 +444,7 @@ export const ServicesIndex: React.FC = () => {
   if (services.length === 1) return <ServicePage service={services[0]} />;
   return (
     <>
-      <PageHero eyebrow="What we do" title={draft?.productTitle || "Our services"} sub="Pick where you'd like to start." />
+      <PageHero eyebrow={c("services.index.eyebrow", "What we do")} title={draft?.productTitle || "Our services"} sub={c("services.index.sub", "Pick where you'd like to start.")} />
       <section className="tp-section" style={{ paddingTop: 48 }}>
         <div className="tp-wrap">
           <TileGrid services={services} cols={2} />

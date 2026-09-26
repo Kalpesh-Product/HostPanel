@@ -18,12 +18,14 @@ import WorkspaceSubscription from "../../models/WorkspaceSubscription.js";
 import recordWebsiteCreditEvent from "../../utils/websiteCreditLedger.js";
 import { findWorkspaceSubscription } from "../subscriptionHelpers.js";
 import { assertWebsiteEditLock } from "./websiteEditLockControllers.js";
+import { runExclusive } from "../../utils/keyedMutex.js";
 import {
   parseJsonField,
   sanitizeItemExtras,
   sanitizeOpeningHours,
   sanitizeReservation,
   sanitizeStayPolicy,
+  sanitizeTemplateContent,
   sanitizeTourBooking,
 } from "../../utils/websiteOfferingFields.js";
 
@@ -114,7 +116,7 @@ const escapeRegex = (value = "") =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const normalizeSearchKeyFromName = (name = "") =>
-  String(name).toLowerCase().split("-")[0].replace(/\s+/g, "");
+  String(name).toLowerCase().split("-")[0].replace(/[^a-z0-9_]/g, "");
 
 const toBool = (value, fallback = false) => {
   if (typeof value === "boolean") return value;
@@ -588,7 +590,7 @@ const ensureNomadsCompanyRecord = async ({
   }
 };
 
-export const saveTemplateDraft = async (req, res) => {
+const saveTemplateDraftHandler = async (req, res) => {
   try {
     const parsedDraftData =
       typeof req.body?.draftData === "string"
@@ -751,6 +753,10 @@ export const saveTemplateDraft = async (req, res) => {
         const existing = template.productDropdownPages?.[index] || {};
         return {
           ...page,
+          // A sub-product whose photos arrive empty (the client still holds them as Files) keeps the ones already saved.
+          subProducts: (page.subProducts || []).map((sp, subIndex) =>
+            sp?.images?.length ? sp : { ...sp, images: existing?.subProducts?.[subIndex]?.images || [] },
+          ),
           ...(page?.heroImage?.url
             ? { heroImage: page.heroImage }
             : existing?.heroImage
@@ -768,6 +774,10 @@ export const saveTemplateDraft = async (req, res) => {
         };
       });
     }
+    template.aboutTitle =
+      draftData?.aboutTitle !== undefined
+        ? String(draftData.aboutTitle || "").trim()
+        : template.aboutTitle;
     template.aboutPageIntro =
       draftData?.aboutPageIntro !== undefined
         ? String(draftData.aboutPageIntro || "").trim()
@@ -859,6 +869,9 @@ export const saveTemplateDraft = async (req, res) => {
     }
     if (draftData?.tourBooking !== undefined) {
       template.tourBooking = sanitizeTourBooking(draftData.tourBooking);
+    }
+    if (draftData?.templateContent !== undefined) {
+      template.templateContent = sanitizeTemplateContent(draftData.templateContent);
     }
     template.products = Array.isArray(draftData?.products)
       ? draftData.products.map((item, index) => {
@@ -1078,6 +1091,15 @@ export const saveTemplateDraft = async (req, res) => {
         1,
       );
       template.companyLogo = uploaded[0] || template.companyLogo;
+    } else if (
+      // The builder tells us the logo was removed by sending an empty signature for it.
+      draftData?.mediaSignature &&
+      draftData.mediaSignature.companyLogo === "" &&
+      template.companyLogo?.url
+    ) {
+      // The live (published) copy may still show this logo until the next publish, so keep the file.
+      await deleteImagesFromS3([template.companyLogo], collectMediaUrls(template.publishedData));
+      template.companyLogo = undefined;
     }
 
     if (filesByField.mainHeroImage?.[0]) {
@@ -1421,7 +1443,7 @@ export const saveTemplateDraft = async (req, res) => {
   }
 };
 
-export const createTemplate = async (req, res, next) => {
+const createTemplateHandler = async (req, res, next) => {
   try {
     console.log("REQ BODY VERTICAL:", req.body.vertical);
     console.log("REQ BODY COMPANY:", req.body.companyName);
@@ -1665,7 +1687,7 @@ export const createTemplate = async (req, res, next) => {
       const invalids = ["n/a", "na", "none", "undefined", "null", "-"];
       if (invalids.includes(trimmed)) return "";
 
-      return trimmed.split("-")[0].replace(/\s+/g, "");
+      return trimmed.split("-")[0].replace(/[^a-z0-9_]/g, "");
     };
 
     const resolvedCompanyName = resolveUsableCompanyName(
@@ -1744,6 +1766,7 @@ export const createTemplate = async (req, res, next) => {
           title: String(req.body?.logoCarouselTitle || "").trim(),
           logos: [],
         },
+        aboutTitle: String(req.body?.aboutTitle || "").trim(),
         aboutPageIntro: String(req.body?.aboutPageIntro || "").trim(),
         aboutPageOverview: String(req.body?.aboutPageOverview || "").trim(),
         aboutPageStory: String(req.body?.aboutPageStory || "").trim(),
@@ -1766,6 +1789,7 @@ export const createTemplate = async (req, res, next) => {
         reservation: sanitizeReservation(parseJsonField(req.body?.reservation, {})),
         stayPolicy: sanitizeStayPolicy(parseJsonField(req.body?.stayPolicy, {})),
         tourBooking: sanitizeTourBooking(parseJsonField(req.body?.tourBooking, {})),
+        templateContent: sanitizeTemplateContent(parseJsonField(req.body?.templateContent, {})),
         contactPersonName: String(req.body?.contactPersonName || "").trim(),
         contactPersonRole: String(req.body?.contactPersonRole || "").trim(),
         contactPersonEmail: String(req.body?.contactPersonEmail || "").trim(),
@@ -1839,6 +1863,7 @@ export const createTemplate = async (req, res, next) => {
           title: String(req.body?.logoCarouselTitle || "").trim(),
           logos: [],
         },
+        aboutTitle: String(req.body?.aboutTitle || "").trim(),
         aboutPageIntro: String(req.body?.aboutPageIntro || "").trim(),
         aboutPageOverview: String(req.body?.aboutPageOverview || "").trim(),
         aboutPageStory: String(req.body?.aboutPageStory || "").trim(),
@@ -1861,6 +1886,7 @@ export const createTemplate = async (req, res, next) => {
         reservation: sanitizeReservation(parseJsonField(req.body?.reservation, {})),
         stayPolicy: sanitizeStayPolicy(parseJsonField(req.body?.stayPolicy, {})),
         tourBooking: sanitizeTourBooking(parseJsonField(req.body?.tourBooking, {})),
+        templateContent: sanitizeTemplateContent(parseJsonField(req.body?.templateContent, {})),
         contactPersonName: String(req.body?.contactPersonName || "").trim(),
         contactPersonRole: String(req.body?.contactPersonRole || "").trim(),
         contactPersonEmail: String(req.body?.contactPersonEmail || "").trim(),
@@ -2494,7 +2520,7 @@ export const getTemplate = async (req, res) => {
 
     const formatCompanyName = (name) => {
       if (!name) return "";
-      return name.toLowerCase().split("-")[0].replace(/\s+/g, "");
+      return name.toLowerCase().split("-")[0].replace(/[^a-z0-9_]/g, "");
     };
 
     const searchKey = formatCompanyName(companyName);
@@ -2691,7 +2717,7 @@ export const activateTemplate = async (req, res) => {
   }
 };
 
-export const editTemplate = async (req, res, next) => {
+const editTemplateHandler = async (req, res, next) => {
   try {
     let {
       products,
@@ -2741,7 +2767,7 @@ export const editTemplate = async (req, res, next) => {
     const parsedInclusions = safeParse(inclusions, null);
 
     const formatCompanyName = (name) =>
-      (name || "").toLowerCase().split("-")[0].replace(/\s+/g, "");
+      (name || "").toLowerCase().split("-")[0].replace(/[^a-z0-9_]/g, "");
     const bodySearchKey = String(req.body?.searchKey || "").trim().toLowerCase();
     const searchKey = bodySearchKey || formatCompanyName(companyName);
     const baseFolder = `hosts/template/${searchKey}`;
@@ -3054,6 +3080,10 @@ export const editTemplate = async (req, res, next) => {
           : template.logoCarousel?.title ?? "",
         logos: Array.isArray(template.logoCarousel?.logos) ? template.logoCarousel.logos : [],
       },
+      aboutTitle:
+        req.body?.aboutTitle !== undefined
+          ? String(req.body.aboutTitle || "").trim()
+          : template.aboutTitle,
       aboutPageIntro:
         req.body?.aboutPageIntro !== undefined
           ? String(req.body.aboutPageIntro || "").trim()
@@ -3142,6 +3172,10 @@ export const editTemplate = async (req, res, next) => {
         req.body?.tourBooking !== undefined
           ? sanitizeTourBooking(parseJsonField(req.body.tourBooking, {}))
           : template.tourBooking,
+      templateContent:
+        req.body?.templateContent !== undefined
+          ? sanitizeTemplateContent(parseJsonField(req.body.templateContent, {}))
+          : template.templateContent,
       contactPersonName:
         req.body?.contactPersonName !== undefined
           ? String(req.body.contactPersonName || "").trim()
@@ -3260,6 +3294,10 @@ export const editTemplate = async (req, res, next) => {
         1,
       );
       template.companyLogo = uploaded[0];
+    } else if (String(req.body?.removeCompanyLogo || "").toLowerCase() === "true" && template.companyLogo?.url) {
+      // The logo was removed in the builder.
+      await deleteImagesFromS3([template.companyLogo]);
+      template.companyLogo = undefined;
     }
 
     // === MAIN HERO IMAGE (limit 1) ===
@@ -3843,3 +3881,13 @@ export const publishWebsite = async (req, res, next) => {
     return next(error);
   }
 };
+
+// One website document per company: saves for the same company are queued, not interleaved.
+const websiteLockKey = (req: any) =>
+  String(req.body?.companyId || req.body?.workspaceId || req.body?.searchKey || req.params?.searchKey || "")
+    .trim()
+    .toLowerCase();
+
+export const saveTemplateDraft = (req, res) => runExclusive(websiteLockKey(req), () => saveTemplateDraftHandler(req, res));
+export const createTemplate = (req, res, next) => runExclusive(websiteLockKey(req), () => createTemplateHandler(req, res, next));
+export const editTemplate = (req, res, next) => runExclusive(websiteLockKey(req), () => editTemplateHandler(req, res, next));

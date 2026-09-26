@@ -148,7 +148,7 @@ const PROFILES: Record<ServiceKind, ServiceProfile> = {
     },
     defaultPriceUnit: "per hour",
     palette: { bg: "#f5f6f8", text: "#14161a", accent: "#3b6cf0" },
-    recommendedTemplate: "default",
+    recommendedTemplate: "huddle",
   },
   workspace: {
     kind: "workspace",

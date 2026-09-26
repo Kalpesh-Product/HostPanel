@@ -135,4 +135,11 @@ export const priceWithUnit = (price: string, unit: string) => {
 /** Currency prefix of a free-text price ("₹1,200" -> "₹"). */
 export const currencyPrefix = (price: string) => (String(price).match(/^[^\d]*/)?.[0] || "").trim();
 
+/** Founder highlights as separate lines: accepts a list or text, splitting on new lines and commas. */
+export const highlightLines = (value: unknown): string[] =>
+  (Array.isArray(value) ? value : [value])
+    .flatMap((entry) => String(entry ?? "").split(/[\n,]+/))
+    .map((line) => line.trim())
+    .filter(Boolean);
+
 export { getServiceProfile };
