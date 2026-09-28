@@ -2,6 +2,8 @@
 import { Router } from "express";
 import {
   completeWorkspaceSetup,
+  getSetupAgreement,
+  uploadSetupDocument,
   backfillWorkspaceModules,
   getCurrentHostCompanyIdentity,
   getWorkspaceManagementOverview,
@@ -16,6 +18,7 @@ import {
   deleteManagedWorkspace,
   requestWorkspaceRecovery,
 } from "../controllers/workspaceControllers.js";
+import { uploadDocuments } from "../config/multerConfig.js";
 import {
   getTourProgress,
   saveTourProgress,
@@ -24,6 +27,8 @@ import {
 const router = Router();
 
 router.post("/setup", completeWorkspaceSetup);
+router.get("/setup-agreement", getSetupAgreement);
+router.post("/setup-documents", uploadDocuments.single("file"), uploadSetupDocument);
 router.get("/validate-name", validateWorkspaceName);
 router.get("/management", getWorkspaceManagementOverview);
 router.patch("/management/:workspaceId/status", setWorkspaceActiveStatus);

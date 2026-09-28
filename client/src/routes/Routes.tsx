@@ -102,6 +102,7 @@ import ForgotPassword from "../pages/LoginPage/ForgotPassword";
 import ResetPassword from "../pages/LoginPage/ResetPassword";
 import RegisterPage from "../pages/LoginPage/RegisterPage";
 import RegisterOtpVerification from "../pages/LoginPage/RegisterOtpVerification";
+import PaymentSuccessPage from "../pages/LoginPage/PaymentSuccessPage";
 import StaffViewPage from "../pages/StaffView/StaffViewPage";
 import FounderWorkspaceSelectionPage from "../pages/LoginPage/FounderWorkspaceSelectionPage";
 import CompanyReviews from "../pages/Dashboard/FrontendDashboard/CompanyReviews";
@@ -294,6 +295,11 @@ export const routes = createBrowserRouter([
             path: "/select-workspace",
             element: <FounderWorkspaceSelectionPage />,
           },
+  {
+    // Public — Stripe redirects a first-time payer here before they have an account.
+    path: "/payment-success",
+    element: <PaymentSuccessPage />,
+  },
   {
     path: "/signup/:token",
     element: <RegisterPage />,

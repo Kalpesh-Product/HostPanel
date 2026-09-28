@@ -1273,6 +1273,89 @@ const buildAccountReadyEmailBody = ({ email, loginUrl }) => `
     </td>
   </tr>`;
 
+// Shared tail of invite registration: stores the password, links workspace
+// memberships for workspace-employee invites and backfills employee profiles.
+const applyInviteRegistration = async ({ decoded, user, inviteEmail, name, password }) => {
+  user.name = name;
+  user.password = password;
+  user.inviteStatus = "registered";
+  user.registeredAt = new Date();
+  await user.save();
+
+  if (decoded?.inviteType === "workspace-employee" && decoded?.workspaceId) {
+    const workspace = await Workspace.findById(decoded.workspaceId).lean().exec();
+    if (workspace?._id) {
+      const profile = await EmployeeProfile.findOne({
+        workspaceId: workspace._id,
+        email: normalizeInviteEmail(inviteEmail),
+      }).lean().exec();
+
+      if (profile) {
+        const profileRole = profile.workspaceRole || null;
+        const profileDepartments = Array.isArray(profile.departments) ? profile.departments.filter(Boolean) : [];
+        // Completing registration for an invited workspace — if this is the
+        // user's first unit it becomes their main unit.
+        const existingActiveMembershipCount = await WorkspaceMember.countDocuments({
+          user: user._id,
+          isActive: true,
+        }).exec();
+        await WorkspaceMember.findOneAndUpdate(
+          { workspace: workspace._id, user: user._id },
+          {
+            $set: {
+              workspace: workspace._id,
+              user: user._id,
+              role: profileRole,
+              departments: profileDepartments,
+              status: "active",
+              isPrimary: true,
+              isMainUnit: existingActiveMembershipCount === 0,
+              isActive: true,
+            },
+          },
+          { upsert: true, new: true, setDefaultsOnInsert: true },
+        ).exec();
+      }
+    }
+  }
+
+  const linkedMemberships = await WorkspaceMember.find({ user: user._id })
+    .populate("role")
+    .populate("departments")
+    .exec();
+  for (const membership of linkedMemberships) {
+    const membershipWorkspace = await Workspace.findById(membership.workspace).lean().exec();
+    if (!membershipWorkspace) continue;
+    await ensureEmployeeProfileForMember({
+      workspace: membershipWorkspace,
+      member: membership,
+      user,
+    });
+  }
+};
+
+const sendInviteAccountReadyEmail = async ({ inviteEmail, name }) => {
+  try {
+    const loginUrl = `${resolveHostPanelFrontendUrl()}/`;
+    await sendMail({
+      to: inviteEmail,
+      subject: "Your WONO Account Is Ready",
+      html: renderNotificationEmail({
+        heroTitle: "Your WONO Account Is Ready",
+        heroSubtitle: "Your account has been created successfully.",
+        greetingHtml: `
+          <p style="margin:0 0 4px;">Hello ${name},</p>
+          <p class="email-text" style="margin:0;">Thank you for completing your verification. Your WONO account has been successfully created and you can now log in to continue setting up your new business location.</p>
+          <p class="email-text" style="margin:8px 0 0;">It only takes two quick steps before you reach your dashboard.</p>
+        `,
+        bodyHtml: buildAccountReadyEmailBody({ email: inviteEmail, loginUrl }),
+      }),
+    });
+  } catch (emailError) {
+    console.error("Failed to send account-ready email:", emailError?.message);
+  }
+};
+
 export const verifyRegisterOtpAndComplete = async (req, res, next) => {
   try {
     const { token } = req.params;
@@ -1333,84 +1416,94 @@ export const verifyRegisterOtpAndComplete = async (req, res, next) => {
         .json({ message: "Registration session expired. Start again." });
     }
 
-    user.name = payloadName;
-    user.password = payloadPassword;
-    user.inviteStatus = "registered";
-    user.registeredAt = new Date();
-    await user.save();
-
-    if (decoded?.inviteType === "workspace-employee" && decoded?.workspaceId) {
-      const workspace = await Workspace.findById(decoded.workspaceId).lean().exec();
-      if (workspace?._id) {
-        const profile = await EmployeeProfile.findOne({
-          workspaceId: workspace._id,
-          email: normalizeInviteEmail(inviteEmail),
-        }).lean().exec();
-
-        if (profile) {
-          const profileRole = profile.workspaceRole || null;
-          const profileDepartments = Array.isArray(profile.departments) ? profile.departments.filter(Boolean) : [];
-          // Completing registration for an invited workspace — if this is the
-          // user's first unit it becomes their main unit.
-          const existingActiveMembershipCount = await WorkspaceMember.countDocuments({
-            user: user._id,
-            isActive: true,
-          }).exec();
-          await WorkspaceMember.findOneAndUpdate(
-            { workspace: workspace._id, user: user._id },
-            {
-              $set: {
-                workspace: workspace._id,
-                user: user._id,
-                role: profileRole,
-                departments: profileDepartments,
-                status: "active",
-                isPrimary: true,
-                isMainUnit: existingActiveMembershipCount === 0,
-                isActive: true,
-              },
-            },
-            { upsert: true, new: true, setDefaultsOnInsert: true },
-          ).exec();
-        }
-      }
-    }
-
-    const linkedMemberships = await WorkspaceMember.find({ user: user._id })
-      .populate("role")
-      .populate("departments")
-      .exec();
-    for (const membership of linkedMemberships) {
-      const membershipWorkspace = await Workspace.findById(membership.workspace).lean().exec();
-      if (!membershipWorkspace) continue;
-      await ensureEmployeeProfileForMember({
-        workspace: membershipWorkspace,
-        member: membership,
-        user,
-      });
-    }
+    await applyInviteRegistration({
+      decoded,
+      user,
+      inviteEmail,
+      name: payloadName,
+      password: payloadPassword,
+    });
 
     await Otp.updateOne({ _id: otpRecord._id }, { $set: { isUsed: true } });
 
-    try {
-      const loginUrl = `${resolveHostPanelFrontendUrl()}/`;
-      await sendMail({
-        to: inviteEmail,
-        subject: "Your WONO Account Is Ready",
-        html: renderNotificationEmail({
-          heroTitle: "Your WONO Account Is Ready",
-          heroSubtitle: "Your account has been created successfully.",
-          greetingHtml: `
-            <p style="margin:0 0 4px;">Hello ${payloadName},</p>
-            <p class="email-text" style="margin:0;">Thank you for completing your verification. Your WONO account has been successfully created and you can now log in to continue setting up your new business location.</p>
-            <p class="email-text" style="margin:8px 0 0;">It only takes two quick steps before you reach your dashboard.</p>
-          `,
-          bodyHtml: buildAccountReadyEmailBody({ email: inviteEmail, loginUrl }),
-        }),
+    await sendInviteAccountReadyEmail({ inviteEmail, name: payloadName });
+
+    return res.status(200).json({
+      message: "Registration completed successfully. You can now sign in.",
+    });
+  } catch (error) {
+    if (error?.message === "INVITE_COMPANY_NOT_FOUND") {
+      return res.status(400).json({
+        message:
+          "No company found to attach this invited user. Please create at least one company first.",
       });
-    } catch (emailError) {
-      console.error("Failed to send account-ready email:", emailError?.message);
     }
+    if (error?.name === "TokenExpiredError") {
+      return res.status(400).json({ message: "Invite link has expired." });
+    }
+    if (error?.name === "JsonWebTokenError") {
+      return res.status(400).json({ message: "Invalid invite link." });
+    }
+    next(error);
+  }
+};
+
+// Invite registration for founders invited by the master panel. The invite
+// link is only ever emailed to the lead's address, and that address was already
+// verified (link + OTP) when the lead signed up — so this skips the second OTP.
+// Member/employee invites still go through the OTP endpoints above.
+export const completeInviteRegistration = async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    const { fullName, email, password, confirmPassword } = req.body;
+    if (!token)
+      return res.status(400).json({ message: "Invite token is required." });
+    if (!password || !confirmPassword) {
+      return res
+        .status(400)
+        .json({ message: "Password and confirm password are required." });
+    }
+    if (password !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match." });
+    }
+    const strengthMessage = validateStrongPassword(password);
+    if (strengthMessage) return res.status(400).json({ message: strengthMessage });
+
+    const decoded = decodeSignupInviteToken(token);
+    const { inviteCompanyId, inviteEmail, inviteName, inviteType } =
+      extractInviteIdentity(decoded);
+
+    if (!inviteEmail || !inviteName) {
+      return res.status(400).json({ message: "Invalid invite token payload." });
+    }
+    if (inviteType !== "master") {
+      return res.status(400).json({
+        code: "OTP_REQUIRED",
+        message: "This invite requires email verification.",
+      });
+    }
+    if (email !== inviteEmail || fullName !== inviteName) {
+      return res
+        .status(400)
+        .json({ message: "Invite details mismatch for this registration link." });
+    }
+
+    const user = await ensureInviteUserRecord(inviteEmail, inviteName, inviteCompanyId);
+
+    if (user.password) {
+      return res.status(409).json({
+        message: "Account is already registered. Please sign in.",
+      });
+    }
+
+    await applyInviteRegistration({
+      decoded,
+      user,
+      inviteEmail,
+      name: inviteName,
+      password,
+    });
+    await sendInviteAccountReadyEmail({ inviteEmail, name: inviteName });
 
     return res.status(200).json({
       message: "Registration completed successfully. You can now sign in.",

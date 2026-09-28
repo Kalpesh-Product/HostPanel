@@ -51,6 +51,7 @@ import { useNavigate } from "react-router-dom";
 import Card from "../../../components/Card";
 import PageFrame from "../../../components/Pages/PageFrame";
 import PrimaryButton from "../../../components/PrimaryButton";
+import StartTrialConfirmModal from "../../../components/StartTrialConfirmModal";
 import useAuth from "../../../hooks/useAuth";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import { PLAN_UI_DATA } from "../../WorkspaceSetup/workspaceSetupPlans";
@@ -338,6 +339,7 @@ const AddModulesPage = () => {
     freeTrialDurationDays: null as number | null,
   });
   const [isStartingTrial, setIsStartingTrial] = useState(false);
+  const [isTrialConfirmOpen, setIsTrialConfirmOpen] = useState(false);
   const [openAddOnGroups, setOpenAddOnGroups] = useState<Record<string, boolean>>({});
   const [openDepartmentGroups, setOpenDepartmentGroups] = useState<Record<string, boolean>>({});
 
@@ -1253,7 +1255,7 @@ const AddModulesPage = () => {
                               ? `Start ${trialOffer.freeTrialDurationDays}-Day Free Trial`
                               : "Start Free Trial"
                         }
-                        handleSubmit={handleStartTrial}
+                        handleSubmit={() => setIsTrialConfirmOpen(true)}
                         disabled={isStartingTrial || isUpgradeSubmitting}
                         className="w-full rounded-full"
                         padding="py-2"
@@ -1288,6 +1290,14 @@ const AddModulesPage = () => {
           </div>
         </div>
       , document.body) : null}
+
+      <StartTrialConfirmModal
+        open={isTrialConfirmOpen}
+        durationDays={trialOffer.freeTrialDurationDays}
+        isStarting={isStartingTrial}
+        onConfirm={handleStartTrial}
+        onLater={() => setIsTrialConfirmOpen(false)}
+      />
 
       <CustomPlanModuleSelectionModal
         open={isCustomModuleModalOpen}

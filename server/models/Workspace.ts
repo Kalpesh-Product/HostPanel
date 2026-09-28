@@ -258,6 +258,21 @@ const workspaceSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // What the founder agreed to / uploaded on Create Business Location.
+    agreement: {
+      accepted: { type: Boolean, default: false },
+      acceptedAt: { type: Date, default: null },
+      agreementUrl: { type: String, trim: true, default: "" },
+      signedDocument: {
+        url: { type: String, trim: true, default: "" },
+        id: { type: String, trim: true, default: "" },
+        name: { type: String, trim: true, default: "" },
+      },
+      businessDocuments: {
+        type: [{ url: String, id: String, name: String }],
+        default: [],
+      },
+    },
   },
   { timestamps: true },
 );

@@ -1,9 +1,10 @@
 // @ts-nocheck
 import { Router } from "express";
-import upload from "../config/multerConfig.js";
+import { uploadDocuments } from "../config/multerConfig.js";
 
 import {
   getVerifyBusinessOverview,
+  getVerifyBusinessSummary,
   submitVerifyBusinessRequest,
   payVerifyBusiness,
   setVerifyBusinessBadgeVisibility,
@@ -13,7 +14,8 @@ import {
 const router = Router();
 
 router.get("/overview", getVerifyBusinessOverview);
-router.post("/request", upload.any(), submitVerifyBusinessRequest);
+router.get("/summary", getVerifyBusinessSummary);
+router.post("/request", uploadDocuments.any(), submitVerifyBusinessRequest);
 router.post("/pay", payVerifyBusiness);
 router.patch("/badge-visibility", setVerifyBusinessBadgeVisibility);
 router.get("/history", getVerifyBusinessHistory);

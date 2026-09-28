@@ -18,6 +18,7 @@ import {
   sendFounderSignupOtp,
   verifyRegisterOtpDirect,
   verifyRegisterOtpAndComplete,
+  completeInviteRegistration,
   getTenantRegisterPrefill,
   registerTenantEmployee,
   sendTenantRegisterOtp,
@@ -47,6 +48,7 @@ router.get("/register/:token/prefill", getRegisterPrefill);
 router.post("/register/:token/start", startRegisterWithOtp);
 router.post("/register/:token/resend-otp", resendRegisterOtp);
 router.post("/register/:token/verify-otp", verifyRegisterOtpAndComplete);
+router.post("/register/:token/complete", completeInviteRegistration);
 router.post("/register/start", startRegisterDirect);
 router.post("/register/resend-otp", resendRegisterOtpDirect);
 router.post("/register/verify-otp", verifyRegisterOtpDirect);

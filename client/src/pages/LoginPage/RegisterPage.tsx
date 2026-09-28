@@ -12,8 +12,10 @@ import {
   TextField,
 } from "@mui/material";
 import { toast } from "sonner";
+import { showSuccessAlert } from "../../utils/alerts";
 import Footer from "../../components/Footer";
 import { api } from "../../utils/axios";
+import { writeInviteOnboardingState } from "../../utils/inviteOnboarding";
 import type { InviteType, PlanType } from "../../utils/inviteOnboarding";
 import logo from "../../assets/WONO_LOGO_Black_TP.svg";
 import "./ClientLogin.css";
@@ -201,6 +203,43 @@ export default function RegisterPage() {
           },
         });
       } else {
+        // Founders invited from the master panel were already email-verified
+        // when they signed up, so registration finishes right here. Any other
+        // invite type answers OTP_REQUIRED and takes the OTP path below.
+        if (token) {
+          try {
+            const completeResponse = await api.post(`/api/auth/register/${token}/complete`, {
+              fullName: prefill.fullName,
+              email: prefill.email,
+              password,
+              confirmPassword,
+            });
+            // Same hand-off the OTP screen does: Create Business Location
+            // prefills (and locks) location/vertical fields from this.
+            writeInviteOnboardingState({
+              source: "invite",
+              email: prefill.email,
+              fullName: prefill.fullName,
+              selectedPlan: prefill.selectedPlan,
+              businessName: prefill.businessName,
+              inviteType: prefill.inviteType,
+              country: prefill.country,
+              state: prefill.state,
+              city: prefill.city,
+              businessTypes: prefill.businessTypes,
+              billingCycle: prefill.billingCycle,
+            });
+            // Same success popup the OTP screen shows, then on to login.
+            await showSuccessAlert(
+              completeResponse.data?.message || "Registration successful. Redirecting to Login...",
+            );
+            navigate("/", { replace: true });
+            return;
+          } catch (completeError) {
+            const code = (completeError as AxiosError<{ code?: string }>).response?.data?.code;
+            if (code !== "OTP_REQUIRED") throw completeError;
+          }
+        }
         const endpoint = token
           ? `/api/auth/register/${token}/start`
           : "/api/auth/register/start";

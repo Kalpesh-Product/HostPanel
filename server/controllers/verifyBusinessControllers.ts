@@ -32,15 +32,10 @@ const COMPANY_TYPE_TO_INDUSTRY = {
   cafe: "Cafe",
 };
 
-// Proof-of-registration documents a host can attach. The first two are
-// mandatory - staff need at least a registration certificate plus a tax ID to
-// check the business (and so its listings) is real.
-const VERIFICATION_DOCUMENT_TYPES = [
-  { key: "business_registration", label: "Business Registration Certificate", required: true },
-  { key: "tax_id", label: "Tax / GST Registration", required: true },
-  { key: "address_proof", label: "Business Address Proof", required: false },
-  { key: "signatory_id", label: "Authorized Signatory ID", required: false },
-];
+// Proof documents for a verification request: at least 1, at most this many.
+// They start from the business documents the host already uploaded while
+// creating their first business location, and the host can add more.
+const MAX_PROOF_DOCUMENTS = 5;
 
 // Shared by every handler below: resolves the logged-in host's HostCompany
 // and their live Nomads listings, mirroring resolveOwnedListing's shape in
@@ -79,6 +74,26 @@ const resolveHostContext = async (req) => {
   return { authedUser, company, effectiveNomadsCompanyId, listings };
 };
 
+// A host can request verification once they have at least one active, public
+// listing — OR once their request to bring existing wono.co listings into this
+// account has been approved (those listings then belong to them even if some
+// are still switched off).
+const isExistingListingsClaimApproved = (company) =>
+  Boolean(company?.linkedNomadsCompanyId) ||
+  company?.existingCompanyClaim?.status === "approved";
+
+const resolveVerificationEligibility = (company, listings) => {
+  const activeListings = listings.filter((l) => l.isActive && l.isPublic);
+  const claimApproved = isExistingListingsClaimApproved(company);
+  return {
+    eligible: activeListings.length > 0 || (claimApproved && listings.length > 0),
+    // Listings the request is about; falls back to all of them when eligibility
+    // came from an approved claim rather than from active listings.
+    requestListings: activeListings.length ? activeListings : listings,
+    claimApproved,
+  };
+};
+
 const fetchVerificationStatus = async (companyId: string) => {
   const response = await axios.get(
     `${MASTER_PANEL_BASE_URL}/api/hostpanel/verification-requests`,
@@ -99,7 +114,10 @@ export const getVerifyBusinessOverview = async (req, res) => {
     const { authedUser, company, effectiveNomadsCompanyId, listings } =
       context;
 
-    const eligibleListings = listings.filter((l) => l.isActive && l.isPublic);
+    const { eligible, requestListings } = resolveVerificationEligibility(
+      company,
+      listings,
+    );
 
     let verification = null;
     try {
@@ -110,7 +128,7 @@ export const getVerifyBusinessOverview = async (req, res) => {
 
     const industry = [
       ...new Set(
-        eligibleListings
+        requestListings
           .map((l) => COMPANY_TYPE_TO_INDUSTRY[l.companyType])
           .filter(Boolean),
       ),
@@ -120,9 +138,13 @@ export const getVerifyBusinessOverview = async (req, res) => {
       companyId: effectiveNomadsCompanyId,
       companyName: company.companyName,
       listings,
-      eligible: eligibleListings.length > 0,
+      eligible,
       verification,
-      documentTypes: VERIFICATION_DOCUMENT_TYPES,
+      // Pulled from onboarding so the host isn't asked for them again.
+      onboardingDocuments: (company.agreementAcceptance?.businessDocuments || [])
+        .filter((doc) => doc?.url)
+        .map((doc) => ({ url: doc.url, id: doc.id || "", name: doc.name || "Document" })),
+      maxDocuments: MAX_PROOF_DOCUMENTS,
       prefill: {
         fullName: authedUser.name || "",
         email: authedUser.email || "",
@@ -142,6 +164,46 @@ export const getVerifyBusinessOverview = async (req, res) => {
   }
 };
 
+// GET /api/verify-business/summary — just the verification record, for
+// dashboard banners (free period ending / badge expired). Deliberately skips
+// the Nomads listings fetch the full overview does.
+export const getVerifyBusinessSummary = async (req, res) => {
+  try {
+    const authedUser = await HostUser.findById(req.user).lean().exec();
+    if (!authedUser) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const company =
+      (authedUser.companyId &&
+        (await HostCompany.findOne({ companyId: authedUser.companyId }).lean())) ||
+      (authedUser.company && (await HostCompany.findById(authedUser.company).lean()));
+    if (!company) return res.status(200).json({ verification: null });
+
+    let verification = null;
+    try {
+      verification = await fetchVerificationStatus(
+        company.linkedNomadsCompanyId || company.companyId,
+      );
+    } catch (error) {
+      console.error("Failed to fetch verification status:", error.message);
+    }
+    return res.status(200).json({
+      verification: verification
+        ? {
+            status: verification.status,
+            paymentStatus: verification.paymentStatus,
+            isFreePeriod: Boolean(verification.isFreePeriod),
+            activeTier: verification.activeTier || null,
+            verificationStartsAt: verification.verificationStartsAt || null,
+            verificationExpiresAt: verification.verificationExpiresAt || null,
+          }
+        : null,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 // POST /api/verify-business/request - multipart. Submits the business for
 // staff review with its proof documents. Text fields come in as strings;
 // each document file is sent under its document-type key (see
@@ -155,21 +217,21 @@ export const submitVerifyBusinessRequest = async (req, res) => {
     }
     const { company, effectiveNomadsCompanyId, listings } = context;
 
-    const eligibleListings = listings.filter((l) => l.isActive && l.isPublic);
-    if (!eligibleListings.length) {
+    const { eligible, requestListings: eligibleListings } =
+      resolveVerificationEligibility(company, listings);
+    if (!eligible) {
       return res.status(400).json({
         message:
-          "You need at least one active, public listing before requesting verification.",
+          "Add and activate at least one listing (or get your existing wono.co listings approved) before requesting verification.",
       });
     }
 
     const body = req.body || {};
-    const { requestedTier } = body;
-    if (!["1m", "1y"].includes(requestedTier)) {
-      return res
-        .status(400)
-        .json({ message: "requestedTier must be one of 1m, 1y" });
-    }
+    // The badge is free for the first 3 months, so no plan is chosen up front;
+    // "1m" is just the default renewal plan recorded on the request.
+    const requestedTier = ["1m", "1y"].includes(body.requestedTier)
+      ? body.requestedTier
+      : "1m";
 
     const requiredText = [
       "fullName",
@@ -186,45 +248,60 @@ export const submitVerifyBusinessRequest = async (req, res) => {
       return res.status(400).json({ message: `${missing} is required` });
     }
 
-    const filesByKey = {};
-    (req.files || []).forEach((f) => {
-      filesByKey[f.fieldname] = f;
-    });
-    const missingDoc = VERIFICATION_DOCUMENT_TYPES.find(
-      (d) => d.required && !filesByKey[d.key] && !body[`existing_${d.key}`],
-    );
-    if (missingDoc) {
-      return res
-        .status(400)
-        .json({ message: `${missingDoc.label} is required` });
+    // Documents already on file — the onboarding ones, or those from an earlier
+    // submission — come back as references. Only files this company itself
+    // uploaded are accepted, since the client sends them back verbatim.
+    let existingDocuments = [];
+    try {
+      existingDocuments = JSON.parse(body.existingDocuments || "[]");
+    } catch {
+      existingDocuments = [];
+    }
+    const allowedPrefixes = [
+      `host-setup-documents/${company.companyId}/`,
+      `verification-documents/${effectiveNomadsCompanyId}/`,
+      `company-claim-documents/${company.companyId}/`,
+    ];
+    const keptDocuments = (Array.isArray(existingDocuments) ? existingDocuments : [])
+      .filter(
+        (doc) =>
+          doc &&
+          typeof doc.id === "string" &&
+          typeof doc.url === "string" &&
+          allowedPrefixes.some((prefix) => doc.id.startsWith(prefix)) &&
+          doc.url.endsWith(`/${doc.id}`),
+      )
+      .map((doc) => ({
+        label: String(doc.name || "Document").slice(0, 200),
+        url: doc.url,
+        id: doc.id,
+      }));
+    const newFiles = (req.files || []).filter((f) => f.fieldname === "documents");
+
+    const totalDocuments = keptDocuments.length + newFiles.length;
+    if (totalDocuments < 1) {
+      return res.status(400).json({
+        message: "Add at least one document that verifies your business.",
+      });
+    }
+    if (totalDocuments > MAX_PROOF_DOCUMENTS) {
+      return res.status(400).json({
+        message: `You can submit up to ${MAX_PROOF_DOCUMENTS} documents.`,
+      });
     }
 
-    const proofDocuments = [];
-    for (const docType of VERIFICATION_DOCUMENT_TYPES) {
-      const file = filesByKey[docType.key];
-      if (file) {
-        const safeName = String(file.originalname || "file").replace(
-          /[^a-zA-Z0-9._-]/g,
-          "_",
-        );
-        const uploaded = await uploadFileToS3(
-          `verification-documents/${effectiveNomadsCompanyId}/${docType.key}-${Date.now()}-${safeName}`,
-          file,
-        );
-        proofDocuments.push({
-          label: docType.label,
-          url: uploaded.url,
-          id: uploaded.id,
-        });
-      } else if (body[`existing_${docType.key}`]) {
-        // Resubmission after a rejection: keep the document already on file
-        // for this slot instead of forcing the host to re-upload it.
-        proofDocuments.push({
-          label: docType.label,
-          url: body[`existing_${docType.key}`],
-          id: body[`existing_${docType.key}_id`] || "",
-        });
-      }
+    const proofDocuments = [...keptDocuments];
+    for (const file of newFiles) {
+      const safeName = String(file.originalname || "file").replace(/[^a-zA-Z0-9._-]/g, "_");
+      const uploaded = await uploadFileToS3(
+        `verification-documents/${effectiveNomadsCompanyId}/document-${Date.now()}-${safeName}`,
+        file,
+      );
+      proofDocuments.push({
+        label: String(file.originalname || "Document").slice(0, 200),
+        url: uploaded.url,
+        id: uploaded.id,
+      });
     }
 
     const industry = [

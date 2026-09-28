@@ -32,6 +32,7 @@ import {
   resolveMainWorkspaceId,
 } from "../utils/accountPlan.js";
 import HostLeadCompany from "../models/HostLeadCompany.js";
+import { uploadFileToS3 } from "../config/s3config.js";
 
 // Resolves the plan-billing-cycle fields for a brand-new workspace at the
 // moment it's created. Plan is an account-level entitlement (see the
@@ -273,6 +274,95 @@ const buildAuthUserPayload = (
   };
 };
 
+// ---------------------------------------------------------------------------
+// Agreement + documents on Create Business Location
+//
+// Staff may attach an agreement PDF to the invite (stored on the company row).
+// The founder reads it, ticks "I agree", and uploads a filled-in copy plus any
+// business document. Files are uploaded as they are picked (so they survive
+// the Back button between the two setup steps) and only their references are
+// sent with the final setup request.
+// ---------------------------------------------------------------------------
+const SETUP_DOCUMENT_KINDS = ["signedAgreement", "businessDocument"];
+const MAX_BUSINESS_DOCUMENTS = 5;
+
+const setupDocumentPrefix = (companyId: string) =>
+  `host-setup-documents/${String(companyId || "").trim()}/`;
+
+const toSafeFileName = (name: unknown) =>
+  String(name || "document")
+    .replace(/[^A-Za-z0-9._-]+/g, "_")
+    .replace(/^_+|_+$/g, "") || "document";
+
+// Only accept references that came from uploadSetupDocument for THIS company —
+// the client sends them back verbatim, so never trust an arbitrary URL.
+const normalizeSetupDocument = (doc: any, companyId: string) => {
+  if (!doc || typeof doc !== "object") return null;
+  const id = String(doc.id || "").trim();
+  const url = String(doc.url || "").trim();
+  if (!id || !url) return null;
+  if (!id.startsWith(setupDocumentPrefix(companyId))) return null;
+  if (!url.endsWith(`/${id}`)) return null;
+  return {
+    url,
+    id,
+    name: String(doc.name || "").trim().slice(0, 200) || toSafeFileName(id.split("/").pop()),
+  };
+};
+
+const findCompanyAgreement = async (user: any) => {
+  const company =
+    (user?.companyId && (await Company.findOne({ companyId: user.companyId }).lean().exec())) ||
+    (user?.company && (await Company.findById(user.company).lean().exec())) ||
+    null;
+  const agreement = (company as any)?.agreementDocument;
+  return agreement?.url
+    ? { url: agreement.url, name: agreement.name || "Agreement.pdf" }
+    : null;
+};
+
+// GET /api/workspaces/setup-agreement
+export const getSetupAgreement = async (req, res, next) => {
+  try {
+    const user = await HostUser.findById(req.user).select("companyId company").lean().exec();
+    if (!user) return res.status(404).json({ message: "Host user not found." });
+    return res.status(200).json({ agreement: await findCompanyAgreement(user) });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/workspaces/setup-documents (multipart: file, kind)
+export const uploadSetupDocument = async (req, res, next) => {
+  try {
+    const kind = String(req.body?.kind || "").trim();
+    if (!SETUP_DOCUMENT_KINDS.includes(kind)) {
+      return res.status(400).json({ message: "Unknown document type." });
+    }
+    if (!req.file) {
+      return res.status(400).json({ message: "Choose a file to upload." });
+    }
+    const user = await HostUser.findById(req.user).select("companyId").lean().exec();
+    if (!user?.companyId) {
+      return res.status(404).json({ message: "Host user not found." });
+    }
+
+    const uploaded = await uploadFileToS3(
+      `${setupDocumentPrefix(user.companyId)}${kind}/${Date.now()}_${toSafeFileName(req.file.originalname)}`,
+      req.file,
+    );
+    return res.status(201).json({
+      document: {
+        url: uploaded.url,
+        id: uploaded.id,
+        name: String(req.file.originalname || "").slice(0, 200) || "document",
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const completeWorkspaceSetup = async (req, res, next) => {
   try {
     const { workspaceDetails, selectedPlan, enabledModuleIds, additionalWorkspaceMode } = req.body;
@@ -294,6 +384,49 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       return res.status(409).json({
         message: "Workspace setup is already completed for this user.",
       });
+    }
+
+    // Agreement + documents apply to the founder's first unit only — an
+    // additional unit belongs to a company that already accepted.
+    let agreementRecord = null;
+    if (!isAdditionalWorkspaceMode) {
+      const submitted = workspaceDetails.agreement || {};
+      const sentAgreement = await findCompanyAgreement(user);
+      const signedDocument = normalizeSetupDocument(submitted.signedDocument, user.companyId);
+      const businessDocuments = (Array.isArray(submitted.businessDocuments)
+        ? submitted.businessDocuments
+        : []
+      )
+        .slice(0, MAX_BUSINESS_DOCUMENTS)
+        .map((doc) => normalizeSetupDocument(doc, user.companyId))
+        .filter(Boolean);
+
+      if (businessDocuments.length === 0) {
+        return res.status(400).json({
+          message: "Please upload at least one business document to continue.",
+        });
+      }
+
+      if (sentAgreement) {
+        if (submitted.accepted !== true) {
+          return res.status(400).json({
+            message: "Please read and accept the agreement to continue.",
+          });
+        }
+        if (!signedDocument) {
+          return res.status(400).json({
+            message: "Please upload the filled-in agreement to continue.",
+          });
+        }
+      }
+
+      agreementRecord = {
+        accepted: Boolean(sentAgreement && submitted.accepted === true),
+        acceptedAt: sentAgreement ? new Date() : null,
+        agreementUrl: sentAgreement?.url || "",
+        signedDocument: signedDocument || { url: "", id: "", name: "" },
+        businessDocuments,
+      };
     }
 
     // Plan is an account-level entitlement. When the founder adds another
@@ -458,8 +591,25 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       modules: finalWorkspaceModules,
       isSetupComplete: true,
       isActive: true,
+      ...(agreementRecord ? { agreement: agreementRecord } : {}),
       ...planLifecycleFields,
     });
+
+    // Mirror onto the company row so staff can read it from the master panel.
+    if (agreementRecord && company?._id) {
+      await Company.updateOne(
+        { _id: company._id },
+        {
+          $set: {
+            agreementAcceptance: {
+              ...agreementRecord,
+              acceptedByName: user.name || "",
+              acceptedByEmail: user.email || "",
+            },
+          },
+        },
+      );
+    }
 
     let founderRole = await Role.findOne({ name: "founder" });
     if (!founderRole) {

@@ -19,6 +19,8 @@ import {
   StatCard, QuickLink, SectionCard, RecentItem, DonutWidget, BarWidget,
 } from "./DashboardShared";
 import type { QuickLinkItem } from "./DashboardShared";
+import WonoListingsCard from "./WonoListingsCard";
+import VerifiedBadgeNotice from "./VerifiedBadgeNotice";
 import { statusBadgeColor, humanRelTime, hasModuleUse, pickCardCols } from "./dashboardUtils";
 import { ICON_BY_ID, DEFAULT_SECTION_ROUTES } from "../ModuleCardsLanding";
 import type { WorkspaceModuleSection } from "../../../../hooks/useDashboardAccess";
@@ -299,6 +301,10 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
         </span>
         <ArrowRight size={14} className="text-accent flex-shrink-0" />
       </div>
+
+      <VerifiedBadgeNotice />
+
+      <WonoListingsCard />
 
       {overviewCardCount > 0 && (
       <div data-tour="dashboard-overview">

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowRight, ChevronDown } from "lucide-react";
+import { ArrowRight, ChevronDown, FileText, Paperclip, X } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Country, State } from "country-state-city";
 import { Autocomplete, TextField } from "@mui/material";
@@ -107,6 +107,18 @@ const normalizeBusinessTypes = (values: unknown): string[] => {
   return Array.from(new Set(normalized));
 };
 
+interface SetupDocument {
+  url: string;
+  id: string;
+  name: string;
+}
+
+type SetupDocumentKind = "signedAgreement" | "businessDocument";
+
+const SETUP_DOCUMENT_ACCEPT = ".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp";
+const SETUP_DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
+const MAX_BUSINESS_DOCUMENTS = 5;
+
 const workspaceSelectClassName =
   "w-full h-[42px] appearance-none rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 pr-10 text-[13px] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff] disabled:bg-[#f2f4f8] disabled:opacity-100";
 
@@ -200,11 +212,31 @@ const CreateWorkspacePage: React.FC = () => {
     "idle" | "checking" | "available" | "taken"
   >("idle");
   const [workspaceNameMessage, setWorkspaceNameMessage] = useState("");
+  const initialAgreementState = location.state?.workspaceDetails?.agreement || {};
+  const [agreementInfo, setAgreementInfo] = useState<{ url: string; name: string } | null>(
+    null,
+  );
+  const [isAgreementLoaded, setIsAgreementLoaded] = useState(false);
+  const [agreementAccepted, setAgreementAccepted] = useState(
+    Boolean(initialAgreementState.accepted),
+  );
+  const [signedDocument, setSignedDocument] = useState<SetupDocument | null>(
+    initialAgreementState.signedDocument || null,
+  );
+  const [businessDocuments, setBusinessDocuments] = useState<SetupDocument[]>(
+    Array.isArray(initialAgreementState.businessDocuments)
+      ? initialAgreementState.businessDocuments
+      : [],
+  );
+  const [uploadingKind, setUploadingKind] = useState<SetupDocumentKind | "">("");
   const selectedPlanFromInviteOrState =
     location.state?.selectedPlan || activeInviteOnboarding?.selectedPlan || "basic";
   const billingCycleFromInviteOrState =
     location.state?.billingCycle || activeInviteOnboarding?.billingCycle || "monthly";
   const isAdditionalWorkspaceMode = Boolean(location.state?.additionalWorkspaceMode);
+  // An additional unit belongs to a company that already accepted, so the
+  // agreement/documents section is only for the founder's first unit.
+  const showAgreementSection = !isAdditionalWorkspaceMode;
   const selectedCountryOption =
     countries.find((item) => item.name === country) || null;
   const timezoneOptions = Array.from(
@@ -273,6 +305,11 @@ const CreateWorkspacePage: React.FC = () => {
     businessTypes: businessTypes.length ? businessTypes.join(",") : "",
     timezone: timezone.trim(),
     currency: currency.trim(),
+    // Only required when staff attached an agreement to the invite.
+    agreementAccepted: showAgreementSection && agreementInfo && !agreementAccepted ? "" : "yes",
+    signedAgreement: showAgreementSection && agreementInfo && !signedDocument ? "" : "yes",
+    // At least one document that verifies the business is always required.
+    businessDocument: showAgreementSection && businessDocuments.length === 0 ? "" : "yes",
   };
 
   const isFieldMissing = (field: keyof typeof requiredFieldValues) =>
@@ -464,6 +501,76 @@ const CreateWorkspacePage: React.FC = () => {
   }, [axiosPrivate, workspaceName]);
 
   useEffect(() => {
+    if (!showAgreementSection) {
+      setIsAgreementLoaded(true);
+      return;
+    }
+    let active = true;
+    const loadAgreement = async () => {
+      try {
+        const response = await axiosPrivate.get("/api/workspaces/setup-agreement");
+        if (active) setAgreementInfo(response?.data?.agreement || null);
+      } catch {
+        if (active) {
+          toast.error("Couldn't load your agreement. Refresh the page to try again.");
+        }
+      } finally {
+        if (active) setIsAgreementLoaded(true);
+      }
+    };
+    loadAgreement();
+    return () => {
+      active = false;
+    };
+  }, [axiosPrivate, showAgreementSection]);
+
+  const uploadSetupDocument = async (
+    kind: SetupDocumentKind,
+    file: File | undefined,
+  ): Promise<SetupDocument | null> => {
+    if (!file) return null;
+    if (file.size > SETUP_DOCUMENT_MAX_BYTES) {
+      toast.error("Each file must be 10 MB or smaller.");
+      return null;
+    }
+    const formData = new FormData();
+    formData.append("kind", kind);
+    formData.append("file", file);
+    try {
+      setUploadingKind(kind);
+      const response = await axiosPrivate.post("/api/workspaces/setup-documents", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return (response?.data?.document as SetupDocument) || null;
+    } catch (error: unknown) {
+      const message = (error as { response?: { data?: { message?: string } }; message?: string })
+        ?.response?.data?.message;
+      toast.error(message || "Failed to upload the file. Please try again.");
+      return null;
+    } finally {
+      setUploadingKind("");
+    }
+  };
+
+  const handleSignedAgreementPick = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    const uploaded = await uploadSetupDocument("signedAgreement", file);
+    if (uploaded) setSignedDocument(uploaded);
+  };
+
+  const handleBusinessDocumentPick = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (businessDocuments.length >= MAX_BUSINESS_DOCUMENTS) {
+      toast.error(`You can add up to ${MAX_BUSINESS_DOCUMENTS} business documents.`);
+      return;
+    }
+    const uploaded = await uploadSetupDocument("businessDocument", file);
+    if (uploaded) setBusinessDocuments((prev) => [...prev, uploaded]);
+  };
+
+  useEffect(() => {
     if (!isBusinessTypeOpen) return;
 
     const handleOutsideClick = (event: MouseEvent) => {
@@ -551,6 +658,14 @@ const CreateWorkspacePage: React.FC = () => {
                 toast.error("Please complete the highlighted required field.");
                 return;
               }
+              if (showAgreementSection && !isAgreementLoaded) {
+                toast.error("Please wait while we load your agreement.");
+                return;
+              }
+              if (uploadingKind) {
+                toast.error("Please wait for the upload to finish.");
+                return;
+              }
               if (workspaceNameStatus === "checking") {
                 focusField("workspaceName");
                 toast.error("Please wait while we check the unit name.");
@@ -576,6 +691,17 @@ const CreateWorkspacePage: React.FC = () => {
                     billing: getCountryBillingDefaults(selectedCountryOption?.isoCode || "", stateName),
                     address,
                     businessTypes,
+                    ...(showAgreementSection
+                      ? {
+                          agreement: {
+                            accepted: Boolean(agreementInfo && agreementAccepted),
+                            agreementName: agreementInfo?.name || "",
+                            agreementUrl: agreementInfo?.url || "",
+                            signedDocument,
+                            businessDocuments,
+                          },
+                        }
+                      : {}),
                   },
                   selectedPlan: selectedPlanFromInviteOrState,
                   billingCycle: billingCycleFromInviteOrState,
@@ -594,7 +720,7 @@ const CreateWorkspacePage: React.FC = () => {
                 <input
                   id="workspace-workspaceName"
                   type="text"
-                  placeholder="Enter Unique unit name"
+                  placeholder="Company Name Unit - 1"
                   value={workspaceName}
                   onChange={(e) => setWorkspaceName(e.target.value)}
                   aria-required="true"
@@ -992,6 +1118,172 @@ const CreateWorkspacePage: React.FC = () => {
               </p>
             </div>
           </div>
+
+          {showAgreementSection ? (
+            <div className="rounded-2xl border border-[#d9e1ec] bg-[#f7f9fc] p-4 md:p-5 space-y-4">
+              <div>
+                <p className="text-[10px] md:text-xs font-pmedium tracking-[0.16em] uppercase text-[#3d4d67]">
+                  Agreement &amp; Documents
+                </p>
+                <p className="mt-1 text-[12px] font-pmedium text-[#63738d]">
+                  {agreementInfo
+                    ? "Read the agreement, fill it in, then upload the completed copy below. Also upload a document that verifies your business."
+                    : "Upload a document that verifies your business, such as a registration certificate or licence."}
+                </p>
+              </div>
+
+              {agreementInfo ? (
+                <a
+                  href={agreementInfo.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-xl border border-[#c8d6f2] bg-white px-3.5 py-2.5 text-[13px] font-pmedium text-[#2d67f0] hover:bg-[#eef3ff]"
+                >
+                  <FileText size={16} />
+                  <span className="break-all">View agreement (PDF) · {agreementInfo.name}</span>
+                </a>
+              ) : null}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+                <div className="flex flex-col">
+                  <label className="text-[10px] md:text-xs font-pmedium tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+                    {agreementInfo ? "Filled-in Agreement" : "Agreement Document"}
+                    {agreementInfo ? requiredMark : null}
+                  </label>
+                  {signedDocument ? (
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-[#d2d9e5] bg-white px-3.5 py-2.5">
+                      <a
+                        href={signedDocument.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex min-w-0 items-center gap-2 text-[13px] font-pmedium text-[#334155] hover:underline"
+                      >
+                        <Paperclip size={14} className="shrink-0 text-[#8d99ad]" />
+                        <span className="truncate">{signedDocument.name}</span>
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => setSignedDocument(null)}
+                        aria-label="Remove agreement document"
+                        className="shrink-0 text-[#8d99ad] hover:text-rose-600"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <label
+                      className={`flex h-[42px] cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed bg-white px-3.5 text-[13px] font-pmedium text-[#63738d] hover:border-[#2d67f0] hover:text-[#2d67f0] ${isFieldMissing("signedAgreement") ? "border-rose-500" : "border-[#c2ccdc]"}`}
+                    >
+                      <Paperclip size={14} />
+                      {uploadingKind === "signedAgreement" ? "Uploading..." : "Upload agreement"}
+                      <input
+                        id="workspace-signedAgreement"
+                        type="file"
+                        accept={SETUP_DOCUMENT_ACCEPT}
+                        className="sr-only"
+                        disabled={Boolean(uploadingKind)}
+                        onChange={handleSignedAgreementPick}
+                      />
+                    </label>
+                  )}
+                  {isFieldMissing("signedAgreement") ? (
+                    <p className="mt-1 text-[11px] font-pmedium text-rose-600">
+                      Upload the filled-in agreement.
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="text-[10px] md:text-xs font-pmedium tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+                    Business Documents{requiredMark}
+                  </label>
+                  <div className="space-y-2">
+                    {businessDocuments.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-[#d2d9e5] bg-white px-3.5 py-2.5"
+                      >
+                        <a
+                          href={doc.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex min-w-0 items-center gap-2 text-[13px] font-pmedium text-[#334155] hover:underline"
+                        >
+                          <Paperclip size={14} className="shrink-0 text-[#8d99ad]" />
+                          <span className="truncate">{doc.name}</span>
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setBusinessDocuments((prev) => prev.filter((item) => item.id !== doc.id))
+                          }
+                          aria-label={`Remove ${doc.name}`}
+                          className="shrink-0 text-[#8d99ad] hover:text-rose-600"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+                    {businessDocuments.length < MAX_BUSINESS_DOCUMENTS ? (
+                      <label className="flex h-[42px] cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[#c2ccdc] bg-white px-3.5 text-[13px] font-pmedium text-[#63738d] hover:border-[#2d67f0] hover:text-[#2d67f0]">
+                        <Paperclip size={14} />
+                        {uploadingKind === "businessDocument" ? "Uploading..." : "Add a document"}
+                        <input
+                          id="workspace-businessDocument"
+                          type="file"
+                          accept={SETUP_DOCUMENT_ACCEPT}
+                          className="sr-only"
+                          disabled={Boolean(uploadingKind)}
+                          onChange={handleBusinessDocumentPick}
+                        />
+                      </label>
+                    ) : null}
+                  </div>
+                  {isFieldMissing("businessDocument") ? (
+                    <p className="mt-1 text-[11px] font-pmedium text-rose-600">
+                      Upload at least one business document.
+                    </p>
+                  ) : null}
+                  <p className="mt-1 text-[11px] font-pmedium text-[#7b8ba3]">
+                    Any business-related document that verifies your business. PDF, Word or image, up to 10 MB each.
+                  </p>
+                </div>
+              </div>
+
+              {agreementInfo ? (
+                <div>
+                  <label className="inline-flex items-start gap-2.5 cursor-pointer select-none text-[13px] font-pmedium text-[#334155]">
+                    <input
+                      id="workspace-agreementAccepted"
+                      type="checkbox"
+                      checked={agreementAccepted}
+                      onChange={(event) => setAgreementAccepted(event.target.checked)}
+                      aria-required="true"
+                      aria-invalid={isFieldMissing("agreementAccepted")}
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-[#2d67f0]"
+                    />
+                    <span>
+                      I have read and agree to this{" "}
+                      <a
+                        href={agreementInfo.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[#2d67f0] underline"
+                      >
+                        agreement
+                      </a>
+                      .{requiredMark}
+                    </span>
+                  </label>
+                  {isFieldMissing("agreementAccepted") ? (
+                    <p className="mt-1 text-[11px] font-pmedium text-rose-600">
+                      You need to accept the agreement to continue.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="pt-5 border-t border-[#e1e6ef] mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <p className="text-[13px] font-pmedium text-[#63738d]">

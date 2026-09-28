@@ -53,6 +53,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Card from "../../../components/Card";
 import PageFrame from "../../../components/Pages/PageFrame";
 import PrimaryButton from "../../../components/PrimaryButton";
+import StartTrialConfirmModal from "../../../components/StartTrialConfirmModal";
 import useAuth from "../../../hooks/useAuth";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import { getProfileTabItemsForPlan } from "../../Profile/profileAccess";
@@ -618,6 +619,7 @@ export const UpgradePlanModal = ({
     freeTrialDurationDays: null as number | null,
   });
   const [isStartingTrial, setIsStartingTrial] = useState(false);
+  const [isTrialConfirmOpen, setIsTrialConfirmOpen] = useState(false);
 
   const upgradePlanCards = getUpgradePlanOptions(currentPlan);
 
@@ -871,7 +873,7 @@ export const UpgradePlanModal = ({
                           ? `Start ${trialOffer.freeTrialDurationDays}-Day Free Trial`
                           : "Start Free Trial"
                     }
-                    handleSubmit={handleStartTrial}
+                    handleSubmit={() => setIsTrialConfirmOpen(true)}
                     disabled={isStartingTrial || isUpgradeSubmitting}
                     className="w-full rounded-full"
                     padding="py-2"
@@ -904,6 +906,14 @@ export const UpgradePlanModal = ({
           ))}
         </div>
       </div>
+
+      <StartTrialConfirmModal
+        open={isTrialConfirmOpen}
+        durationDays={trialOffer.freeTrialDurationDays}
+        isStarting={isStartingTrial}
+        onConfirm={handleStartTrial}
+        onLater={() => setIsTrialConfirmOpen(false)}
+      />
 
       <CustomPlanModuleSelectionModal
         open={isCustomModuleModalOpen}

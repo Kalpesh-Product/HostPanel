@@ -1,15 +1,15 @@
 // @ts-nocheck
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import ExistingCompanyClaimModal, {
   CLAIM_STATUS_QUERY_KEY,
 } from "./ExistingCompanyClaimModal";
 import PageFrame from "../../../components/Pages/PageFrame";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import useAuth from "../../../hooks/useAuth";
 import { toast } from "sonner";
-import { AlertTriangle, Building2, CheckCircle2, Edit3, ExternalLink, Eye, Globe, Layers, ListChecks, Loader2, Plus, RotateCcw, Search, Target, Trash2, XCircle } from "lucide-react";
+import { AlertTriangle, Building2, CheckCircle2, Clock, Edit3, ExternalLink, Eye, Globe, Layers, ListChecks, Loader2, Lock, Plus, RotateCcw, Search, Target, Trash2, XCircle } from "lucide-react";
 import { MdVerified } from "react-icons/md";
 import { statusPillClass } from '../../../lib/status-pill';
 import useNomadListingCapacity, {
@@ -72,11 +72,37 @@ export default function NomadListingsOverview() {
 
   const [showClaimModal, setShowClaimModal] = useState(false);
 
+  // Arriving from the dashboard's "Verify Existing Listings" button opens the
+  // claim dialog straight away; the state is cleared so a refresh doesn't
+  // reopen it.
+  const location = useLocation();
+  useEffect(() => {
+    if (!location.state?.openVerify) return;
+    setShowClaimModal(true);
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.state, location.pathname, navigate]);
+
   // Host-initiated claim on an existing Companies-page company — drives the
   // "Verify Listings" button label (pending / rejected) below.
   const { data: claimStatus } = useQuery({
     queryKey: CLAIM_STATUS_QUERY_KEY,
     queryFn: async () => (await axios.get("/api/listings/existing-company/status")).data,
+  });
+
+  // While the existing-listings request is with our team, show the listings it
+  // covers (read-only) so the host can see what's being verified.
+  const pendingClaimCompanyId =
+    claimStatus?.status === "pending" ? claimStatus?.nomadsCompanyId || "" : "";
+  const { data: pendingClaimListings = [] } = useQuery({
+    queryKey: ["pending-claim-listings", pendingClaimCompanyId],
+    enabled: Boolean(pendingClaimCompanyId),
+    retry: false,
+    queryFn: async () =>
+      (
+        await axios.get(
+          `/api/listings/existing-company/${encodeURIComponent(pendingClaimCompanyId)}/listings`,
+        )
+      ).data?.listings || [],
   });
 
   // Once staff have created this company's Companies entry, "request to be
@@ -231,7 +257,17 @@ export default function NomadListingsOverview() {
   // the click here too.
   const verifiedListing = listings.find((l) => l.isVerified);
 
+  // Verification opens up once there is at least one active, public listing, or
+  // once a request to bring existing wono.co listings here has been approved.
+  // A host who is already verified can always open it to manage the badge.
+  const canVerifyBusiness =
+    Boolean(verifiedListing) ||
+    listings.some((l) => l.isActive && l.isPublic) ||
+    (listings.length > 0 &&
+      (claimStatus?.status === "approved" || claimStatus?.linked || isLinkedToExistingCompany));
+
   const handleVerifyBusinessClick = () => {
+    if (!canVerifyBusiness) return;
     navigate("/key-apps/verify-business");
   };
 
@@ -268,6 +304,21 @@ export default function NomadListingsOverview() {
     }
     return result;
   }, [listings, statusFilter, searchQuery]);
+
+  // Listings of the requested company (still with our team) are shown in the
+  // same table as read-only rows. They have no Active/Inactive state yet, so
+  // they only appear under "All", and follow the search box like the rest.
+  const pendingRows = useMemo(() => {
+    if (statusFilter !== "all") return [];
+    const q = searchQuery.trim().toLowerCase();
+    return pendingClaimListings.filter(
+      (l) =>
+        !q ||
+        [l.companyName, l.companyTitle, l.companyType, l.city, l.state, l.country].some((value) =>
+          String(value || "").toLowerCase().includes(q),
+        ),
+    );
+  }, [pendingClaimListings, statusFilter, searchQuery]);
 
   const handleAddClick = () => {
     if (isAtLimit) {
@@ -315,8 +366,8 @@ export default function NomadListingsOverview() {
           {claimStatus?.status === "pending" && (
             <div className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-blue-200 bg-blue-50">
               <div className="font-pmedium text-slate-700">
-                Verification pending — your claim on <b>{claimStatus.nomadsCompanyName || "the selected company"}</b>
-                {claimStatus.listingCount ? ` (${claimStatus.listingCount} listings)` : ""} is with our team.
+                Verification pending — your request for <b>{claimStatus.nomadsCompanyName || "the selected company"}</b>
+                {claimStatus.listingCount ? ` (${claimStatus.listingCount} listings)` : ""} and its verified badge (free for 3 months) is with our team.
               </div>
             </div>
           )}
@@ -528,12 +579,15 @@ export default function NomadListingsOverview() {
                   <button
                     type="button"
                     onClick={handleVerifyBusinessClick}
+                    disabled={!canVerifyBusiness}
                     title={
-                      verifiedListing
-                        ? "Manage your verification badge on Nomads"
-                        : "Verify your business on Nomads"
+                      !canVerifyBusiness
+                        ? "Add and activate a listing — or get your existing wono.co listings approved — to enable verification"
+                        : verifiedListing
+                          ? "Manage your verification badge on Nomads"
+                          : "Verify your business on Nomads — free for the first 3 months"
                     }
-                    className="px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm transition-all whitespace-nowrap border bg-white text-[#2563EB] border-[#2563EB]/30 hover:bg-blue-50"
+                    className="px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm transition-all whitespace-nowrap border bg-white text-[#2563EB] border-[#2563EB]/30 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
                   >
                     <MdVerified size={15} />{" "}
                     {verifiedListing ? "MANAGE VERIFICATION" : "VERIFY BUSINESS"}
@@ -559,7 +613,7 @@ export default function NomadListingsOverview() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
-                    {filteredListings.length === 0 ? (
+                    {filteredListings.length === 0 && pendingRows.length === 0 ? (
                       <tr>
                         <td colSpan={10} className="px-5 py-16 text-center">
                           <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-400 mx-auto"><Target size={28} /></div>
@@ -567,7 +621,8 @@ export default function NomadListingsOverview() {
                         </td>
                       </tr>
                     ) : (
-                      filteredListings.map((item, idx) => (
+                      <>
+                      {filteredListings.map((item, idx) => (
                         <tr key={item._id || idx} className="hover:bg-slate-50/50 transition-colors group">
                           <td className="px-5 py-4 whitespace-nowrap">
                             <span className="text-[12px] font-pmedium text-slate-400">{idx + 1}</span>
@@ -728,7 +783,63 @@ export default function NomadListingsOverview() {
                             )}
                           </td>
                         </tr>
-                      ))
+                      ))}
+                      {pendingRows.map((l, i) => (
+                        <tr
+                          key={`pending-${l.businessId || i}`}
+                          className="bg-amber-50/30"
+                          title="Waiting for our team to approve your existing-listings request"
+                        >
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <span className="text-[12px] font-pmedium text-slate-400">
+                              {filteredListings.length + i + 1}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2.5">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-[9px] font-pmedium text-white shadow-sm">
+                                {getInitials(l.companyName || claimStatus?.nomadsCompanyName)}
+                              </div>
+                              <p className="text-[12px] font-pmedium text-slate-900">
+                                {l.companyName || claimStatus?.nomadsCompanyName || "—"}
+                              </p>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <span className="text-[12px] font-pmedium text-slate-600">{l.companyTitle || "—"}</span>
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <span className="text-[12px] font-pmedium text-slate-600 capitalize">{l.companyType || "—"}</span>
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <span className="text-[12px] font-pmedium text-slate-600">{l.country || "—"}</span>
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <span className="text-[12px] font-pmedium text-slate-600">{l.state || "—"}</span>
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <span className="text-[12px] font-pmedium text-slate-600">{l.city || "—"}</span>
+                          </td>
+                          {[0, 1].map((col) => (
+                            <td key={col} className="px-5 py-4 whitespace-nowrap">
+                              <span className="inline-block rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider text-amber-700">
+                                Verification Pending
+                              </span>
+                            </td>
+                          ))}
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <div className="flex items-center justify-center">
+                              <span
+                                title="Available once the verification is approved"
+                                className="inline-flex cursor-not-allowed p-1.5 text-slate-300"
+                              >
+                                <Lock size={15} strokeWidth={2.5} />
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      </>
                     )}
                   </tbody>
                 </table>

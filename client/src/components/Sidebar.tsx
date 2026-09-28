@@ -613,6 +613,19 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey
     if (item.id === "website-builder") {
       return pathname === "/key-apps/website-builder";
     }
+    if (item.id === "wono-nomad") {
+      // The landing page's four cards open pages under their own routes, so
+      // keep Nomad Listings highlighted on all of them, not only the landing.
+      return (
+        pathname.startsWith(normalizeLegacyRoute(item.route)) ||
+        [
+          "/key-apps/nomad-listings",
+          "/key-apps/reviews",
+          "/key-apps/nomads-leads",
+          "/key-apps/verify-business",
+        ].some((route) => pathname.startsWith(route))
+      );
+    }
     return pathname.startsWith(normalizeLegacyRoute(item.route));
   })();
 

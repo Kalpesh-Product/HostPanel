@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import PageFrame from "../../../components/Pages/PageFrame";
@@ -86,8 +87,12 @@ const projectPeriod = (currentExpiry?: string | null, tier?: string) => {
   return { start, end, stillActive };
 };
 
+const VERIFY_DISABLED_REASON =
+  "Add and activate a listing — or get your existing wono.co listings approved — to enable verification.";
+
 const VerifyBusiness = () => {
   const axiosPrivate = useAxiosPrivate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("listings");
   const [formOpen, setFormOpen] = useState(false);
@@ -171,10 +176,20 @@ const VerifyBusiness = () => {
   // lets the host pick a different plan.
   const firstPaymentDue = canPay && !isPaid;
   const verifiedNow = isPaid && !expired;
+  // Every approved request starts with a free 3-month period (isFreePeriod);
+  // the first paid renewal turns it off.
+  const isFreePeriod = Boolean(verification?.isFreePeriod);
+  const canVerify = Boolean(overview?.eligible);
+  const daysLeft = verification?.verificationExpiresAt
+    ? Math.ceil(
+        (new Date(verification.verificationExpiresAt).getTime() - Date.now()) /
+          (24 * 60 * 60 * 1000),
+      )
+    : null;
 
   let statusLabel = "Not Verified";
   if (isPaid && !expired) {
-    statusLabel = `Verified until ${formatDate(verification.verificationExpiresAt)}`;
+    statusLabel = `${isFreePeriod ? "Verified (free) until" : "Verified until"} ${formatDate(verification.verificationExpiresAt)}`;
   } else if (isPaid && expired) {
     statusLabel = "Expired";
   } else if (reqStatus === "approved") {
@@ -193,6 +208,15 @@ const VerifyBusiness = () => {
     );
     setPlanModalOpen(true);
   };
+
+  // Renewal emails link here with ?action=renew|change — open the plan picker.
+  useEffect(() => {
+    const action = searchParams.get("action");
+    if (!action || !overview) return;
+    if (isPaid && (action === "renew" || action === "change")) openPlanModal();
+    setSearchParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overview]);
 
   const handleEnableClick = (item: any) => {
     if (item.isVerified) {
@@ -272,21 +296,22 @@ const VerifyBusiness = () => {
                   </span>
                 </div>
                 {!verification && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!overview?.eligible) {
-                        toast.error(
-                          "Enable at least one listing to submit request for verification",
-                        );
-                        return;
-                      }
-                      setFormOpen(true);
-                    }}
-                    className="bg-[#2563EB] text-white px-5 py-2.5 rounded-2xl font-pmedium text-[11px] shadow-sm hover:bg-blue-700 transition-colors"
-                  >
-                    Verify Business
-                  </button>
+                  <div className="flex flex-col items-start gap-1 sm:items-end">
+                    <button
+                      type="button"
+                      disabled={!canVerify}
+                      title={canVerify ? undefined : VERIFY_DISABLED_REASON}
+                      onClick={() => setFormOpen(true)}
+                      className="bg-[#2563EB] text-white px-5 py-2.5 rounded-2xl font-pmedium text-[11px] shadow-sm hover:bg-blue-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[#2563EB]"
+                    >
+                      Verify Business
+                    </button>
+                    {!canVerify && (
+                      <p className="max-w-[280px] text-[10px] font-pmedium text-slate-500 sm:text-right">
+                        {VERIFY_DISABLED_REASON}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -502,17 +527,23 @@ const VerifyBusiness = () => {
                       </p>
                       <button
                         type="button"
-                        disabled={!overview?.eligible}
+                        disabled={!canVerify}
                         onClick={() => setFormOpen(true)}
-                        title={
-                          overview?.eligible
-                            ? undefined
-                            : "Activate and publish at least one listing first"
-                        }
+                        title={canVerify ? undefined : VERIFY_DISABLED_REASON}
                         className="bg-[#2563EB] text-white px-5 py-2.5 rounded-2xl font-pmedium text-[11px] shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Verify Business
                       </button>
+                      {!canVerify && (
+                        <p className="mx-auto mt-3 max-w-sm text-[11px] font-pmedium text-slate-500">
+                          {VERIFY_DISABLED_REASON}
+                        </p>
+                      )}
+                      {canVerify && (
+                        <p className="mx-auto mt-3 max-w-sm text-[11px] font-pmedium text-emerald-700">
+                          Your verified badge is free for the first 3 months once approved.
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <div className="flex flex-col gap-5">
@@ -534,10 +565,61 @@ const VerifyBusiness = () => {
                         </p>
                       </div>
 
+                      {isPaid && (
+                        <div
+                          className={`rounded-xl border p-4 ${
+                            isFreePeriod && !expired && daysLeft !== null && daysLeft <= 30
+                              ? "border-amber-200 bg-amber-50/60"
+                              : expired
+                                ? "border-rose-200 bg-rose-50/60"
+                                : "border-slate-100 bg-slate-50/60"
+                          }`}
+                        >
+                          <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500 mb-3">
+                            Verification period
+                          </p>
+                          <dl className="grid grid-cols-2 gap-3 text-[12px] font-pmedium sm:grid-cols-4">
+                            <div>
+                              <dt className="text-slate-500">Plan</dt>
+                              <dd className="text-slate-900">
+                                {isFreePeriod ? "Free · 3 months" : tierLabel(verification.activeTier)}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-slate-500">Started</dt>
+                              <dd className="text-slate-900">
+                                {formatDate(verification.verificationStartsAt || verification.paidAt)}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-slate-500">Ends</dt>
+                              <dd className="text-slate-900">{formatDate(verification.verificationExpiresAt)}</dd>
+                            </div>
+                            <div>
+                              <dt className="text-slate-500">Time left</dt>
+                              <dd className={expired ? "text-rose-600" : "text-slate-900"}>
+                                {expired
+                                  ? "Expired"
+                                  : daysLeft !== null
+                                    ? `${daysLeft} day${daysLeft === 1 ? "" : "s"}`
+                                    : "--"}
+                              </dd>
+                            </div>
+                          </dl>
+                          {isFreePeriod && !expired && (
+                            <p className="mt-3 text-[11px] font-pmedium text-slate-600">
+                              The badge is free for the first 3 months. Renew for{" "}
+                              {TIER_OPTIONS.map((t) => `${t.label} ($${t.price})`).join(" or ")}{" "}
+                              before it ends to keep it — we&apos;ll remind you a month ahead.
+                            </p>
+                          )}
+                        </div>
+                      )}
+
                       {reqStatus === "pending" && (
                         <p className="text-[12px] font-pmedium text-slate-600">
                           Our team is reviewing your details and documents. Once
-                          approved, you'll be able to choose a plan and pay here.
+                          approved, your verified badge is activated free for 3 months.
                         </p>
                       )}
 
@@ -563,8 +645,12 @@ const VerifyBusiness = () => {
                         <div className="flex flex-col gap-3 rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 sm:flex-row sm:items-center sm:justify-between">
                           <p className="text-[12px] font-pmedium text-emerald-800">
                             {verifiedNow
-                              ? `Verified until ${formatDate(verification.verificationExpiresAt)}.`
-                              : `Approved. Pay for your ${tierLabel(verification.requestedTier)} plan to get your verified badge. The payment link is also emailed to ${verification.email}.`}
+                              ? isFreePeriod
+                                ? `Your free verified badge is active until ${formatDate(verification.verificationExpiresAt)}. Renew before then to keep it.`
+                                : `Verified until ${formatDate(verification.verificationExpiresAt)}.`
+                              : expired
+                                ? "Your verified badge has expired. Renew to bring it back."
+                                : `Approved. Pay for your ${tierLabel(verification.requestedTier)} plan to get your verified badge. The payment link is also emailed to ${verification.email}.`}
                           </p>
                           <button
                             type="button"
@@ -580,7 +666,9 @@ const VerifyBusiness = () => {
                               <Loader2 size={13} className="animate-spin" />
                             ) : null}
                             {isPaid
-                              ? "Renew / Change Plan"
+                              ? isFreePeriod
+                                ? "Renew"
+                                : "Renew / Change Plan"
                               : `Pay Now — ${tierLabel(verification?.requestedTier)}`}
                           </button>
                         </div>
@@ -685,7 +773,7 @@ const VerifyBusiness = () => {
         <VerifyBusinessForm
           companyName={overview.companyName}
           prefill={overview.prefill}
-          documentTypes={overview.documentTypes || []}
+          onboardingDocuments={overview.onboardingDocuments || []}
           previous={reqStatus === "rejected" ? verification : undefined}
           onClose={() => setFormOpen(false)}
           onSubmitted={() => {

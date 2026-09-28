@@ -10,16 +10,26 @@ import {
   parsePhoneNumberFromString,
 } from "libphonenumber-js";
 import type { CountryCode } from "libphonenumber-js";
-import { Eye, FileText, Loader2, Upload, X } from "lucide-react";
+import { BadgeCheck, Eye, FileText, Loader2, Upload, X } from "lucide-react";
 
-import { TIER_OPTIONS } from "./verifyBusinessTiers";
 
-type DocumentType = { key: string; label: string; required: boolean };
+// One proof document in the list: either already on file (from onboarding or an
+// earlier submission — has a url) or a new file picked in this form.
+type DocEntry = {
+  key: string;
+  name: string;
+  source: "setup" | "previous" | "new";
+  url?: string;
+  storageId?: string;
+  file?: File;
+};
+type OnboardingDocument = { url: string; id?: string; name?: string };
 
 interface VerifyBusinessFormProps {
   companyName: string;
   prefill: Record<string, any>;
-  documentTypes: DocumentType[];
+  // Business documents uploaded during onboarding — pre-filled so they aren't asked for again.
+  onboardingDocuments?: OnboardingDocument[];
   // Present when resubmitting after a rejection — pre-fills the form and
   // lets documents already on file be kept instead of re-uploaded.
   previous?: any;
@@ -27,8 +37,9 @@ interface VerifyBusinessFormProps {
   onSubmitted: () => void;
 }
 
-const ALLOWED_EXTENSIONS = ["pdf", "jpg", "jpeg", "png", "webp"];
-const MAX_FILE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_EXTENSIONS = ["pdf", "doc", "docx", "jpg", "jpeg", "png", "webp"];
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const MAX_DOCUMENTS = 5;
 
 export const ROLE_OPTIONS = [
   "Owner",
@@ -104,7 +115,7 @@ const Field = ({
 const VerifyBusinessForm = ({
   companyName,
   prefill,
-  documentTypes,
+  onboardingDocuments = [],
   previous,
   onClose,
   onSubmitted,
@@ -139,23 +150,25 @@ const VerifyBusinessForm = ({
       ? String(parsedMobile.nationalNumber)
       : String(source.mobile || "").replace(/\D/g, ""),
   );
-  const [tier, setTier] = useState(
-    TIER_OPTIONS.some((t) => t.value === previous?.requestedTier)
-      ? previous.requestedTier
-      : "1m",
-  );
-  const [files, setFiles] = useState<Record<string, File | null>>({});
-  const [removedExisting, setRemovedExisting] = useState<Record<string, boolean>>(
-    {},
-  );
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [submitted, setSubmitted] = useState(false);
-  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const addInputRef = useRef<HTMLInputElement | null>(null);
 
-  const existingDocs: Record<string, any> = {};
-  (previous?.proofDocuments || []).forEach((doc: any) => {
-    const match = documentTypes.find((d) => d.label === doc.label);
-    if (match) existingDocs[match.key] = doc;
+  // Start from what's already on file: the previous submission when
+  // resubmitting after a rejection, otherwise the onboarding documents.
+  const [docs, setDocs] = useState<DocEntry[]>(() => {
+    const fromPrevious = Array.isArray(previous?.proofDocuments) && previous.proofDocuments.length > 0;
+    const saved: any[] = fromPrevious ? previous.proofDocuments : onboardingDocuments;
+    return saved
+      .filter((doc) => doc?.url)
+      .slice(0, MAX_DOCUMENTS)
+      .map((doc, index) => ({
+        key: `existing-${index}`,
+        name: doc.name || doc.label || "Document",
+        source: fromPrevious ? ("previous" as const) : ("setup" as const),
+        url: doc.url,
+        storageId: doc.id || "",
+      }));
   });
 
   const industry: string[] = prefill?.industry || previous?.industry || [];
@@ -206,15 +219,7 @@ const VerifyBusinessForm = ({
   if (!fields.companyCountry) errors.companyCountry = "Select a country";
   if (!fields.companyState.trim()) errors.companyState = "Select a state";
   if (!fields.companyCity.trim()) errors.companyCity = "Select a city";
-  documentTypes.forEach((d) => {
-    if (
-      d.required &&
-      !files[d.key] &&
-      !(existingDocs[d.key] && !removedExisting[d.key])
-    ) {
-      errors[`doc_${d.key}`] = `${d.label} is required`;
-    }
-  });
+  if (!docs.length) errors.docs = "Add at least one document that verifies your business";
 
   const showError = (key: string) =>
     submitted || touched[key] ? errors[key] : undefined;
@@ -237,40 +242,57 @@ const VerifyBusinessForm = ({
   const handleStateChange = (name: string) =>
     setFields((prev) => ({ ...prev, companyState: name, companyCity: "" }));
 
-  const handleFile = (key: string, file: File | undefined) => {
-    if (!file) return;
-    const ext = file.name.split(".").pop()?.toLowerCase() || "";
-    if (!ALLOWED_EXTENSIONS.includes(ext)) {
-      toast.error(`Only ${ALLOWED_EXTENSIONS.join(", ")} files are allowed.`);
-      return;
+  const handleAddFiles = (list: FileList | null) => {
+    const chosen = Array.from(list || []);
+    if (addInputRef.current) addInputRef.current.value = "";
+    if (!chosen.length) return;
+
+    let room = MAX_DOCUMENTS - docs.length;
+    const accepted: DocEntry[] = [];
+    for (const file of chosen) {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "";
+      if (!ALLOWED_EXTENSIONS.includes(ext)) {
+        toast.error(`Only ${ALLOWED_EXTENSIONS.join(", ")} files are allowed.`);
+        continue;
+      }
+      if (file.size > MAX_FILE_BYTES) {
+        toast.error(`"${file.name}" is over 10MB. Please upload a smaller file.`);
+        continue;
+      }
+      if (room <= 0) {
+        toast.error(`You can add up to ${MAX_DOCUMENTS} documents.`);
+        break;
+      }
+      accepted.push({
+        key: `new-${Date.now()}-${accepted.length}-${file.name}`,
+        name: file.name,
+        source: "new",
+        file,
+      });
+      room -= 1;
     }
-    if (file.size > MAX_FILE_BYTES) {
-      toast.error(`"${file.name}" is over 5MB. Please upload a smaller file.`);
-      return;
-    }
-    setFiles((prev) => ({ ...prev, [key]: file }));
-    setRemovedExisting((prev) => ({ ...prev, [key]: true }));
+    if (accepted.length) setDocs((prev) => [...prev, ...accepted]);
   };
 
-  const clearFile = (key: string) => {
-    setFiles((prev) => ({ ...prev, [key]: null }));
-    if (inputRefs.current[key]) inputRefs.current[key]!.value = "";
-  };
+  const removeDoc = (key: string) =>
+    setDocs((prev) => prev.filter((doc) => doc.key !== key));
 
   const submitMutation = useMutation({
     mutationFn: async () => {
       const formData = new FormData();
       Object.entries(fields).forEach(([k, v]) => formData.append(k, v));
       formData.append("mobile", e164Mobile);
-      formData.append("requestedTier", tier);
-      documentTypes.forEach((d) => {
-        const file = files[d.key];
-        if (file) {
-          formData.append(d.key, file);
-        } else if (existingDocs[d.key] && !removedExisting[d.key]) {
-          formData.append(`existing_${d.key}`, existingDocs[d.key].url);
-          formData.append(`existing_${d.key}_id`, existingDocs[d.key].id || "");
-        }
+      // Documents already on file go back as references; new ones as files.
+      formData.append(
+        "existingDocuments",
+        JSON.stringify(
+          docs
+            .filter((doc) => !doc.file && doc.url)
+            .map((doc) => ({ url: doc.url, id: doc.storageId || "", name: doc.name })),
+        ),
+      );
+      docs.forEach((doc) => {
+        if (doc.file) formData.append("documents", doc.file);
       });
       const response = await axiosPrivate.post(
         "/api/verify-business/request",
@@ -520,116 +542,97 @@ const VerifyBusinessForm = ({
             </div>
           </div>
 
-          <div className="mt-5">
-            <label className={labelClass}>Proof Documents</label>
+          <div className="mt-5" data-invalid={submitted && errors.docs ? "true" : undefined}>
+            <label className={labelClass}>
+              Proof Documents<span className="text-rose-500"> *</span>
+            </label>
             <p className="mt-1 text-[11px] font-pmedium text-slate-400">
-              PDF, JPG, PNG or WEBP, up to 5MB each. Fields marked * are required.
+              {docs.some((doc) => doc.source === "setup")
+                ? "We've pulled in the business documents you uploaded during setup. "
+                : ""}
+              Add any document that verifies your business — up to {MAX_DOCUMENTS} in total. PDF,
+              Word or image, up to 10MB each.
             </p>
             <div className="mt-2 flex flex-col gap-2.5">
-              {documentTypes.map((d) => {
-                const file = files[d.key];
-                const existing =
-                  existingDocs[d.key] && !removedExisting[d.key]
-                    ? existingDocs[d.key]
-                    : null;
-                const docError = submitted ? errors[`doc_${d.key}`] : undefined;
-                return (
-                  <div
-                    key={d.key}
-                    data-invalid={docError ? "true" : undefined}
-                    className={`flex flex-col gap-2 rounded-xl border px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between ${
-                      docError ? "border-rose-400" : "border-slate-200/60"
-                    }`}
-                  >
-                    <div className="min-w-0">
-                      <p className="text-[12px] font-pmedium text-slate-900">
-                        {d.label}
-                        {d.required ? <span className="text-rose-500"> *</span> : null}
-                      </p>
-                      <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] font-pmedium text-slate-500">
-                        <FileText size={12} className="shrink-0" />
-                        {file
-                          ? file.name
-                          : existing
-                            ? "On file from your last submission"
-                            : "No file chosen"}
-                      </p>
-                      {docError ? (
-                        <p className="mt-0.5 text-[11px] font-pmedium text-rose-600">
-                          {docError}
-                        </p>
-                      ) : null}
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {(file || existing) && (
-                        <button
-                          type="button"
-                          title="Preview"
-                          onClick={() =>
-                            window.open(
-                              file ? URL.createObjectURL(file) : existing.url,
-                              "_blank",
-                              "noopener,noreferrer",
-                            )
-                          }
-                          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-                        >
-                          <Eye size={15} />
-                        </button>
-                      )}
-                      {file && (
-                        <button
-                          type="button"
-                          title="Remove"
-                          onClick={() => clearFile(d.key)}
-                          className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50"
-                        >
-                          <X size={15} />
-                        </button>
-                      )}
-                      <input
-                        ref={(el) => {
-                          inputRefs.current[d.key] = el;
-                        }}
-                        type="file"
-                        hidden
-                        accept={ALLOWED_EXTENSIONS.map((e) => `.${e}`).join(",")}
-                        onChange={(e) => handleFile(d.key, e.target.files?.[0])}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => inputRefs.current[d.key]?.click()}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-[#2563EB]/30 bg-white px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-wider text-[#2563EB] hover:bg-blue-50"
-                      >
-                        <Upload size={12} />
-                        {file || existing ? "Replace" : "Choose File"}
-                      </button>
-                    </div>
+              {docs.map((doc) => (
+                <div
+                  key={doc.key}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/60 px-3.5 py-3"
+                >
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 truncate text-[12px] font-pmedium text-slate-900">
+                      <FileText size={13} className="shrink-0 text-slate-500" />
+                      <span className="truncate">{doc.name}</span>
+                    </p>
+                    <p className="mt-0.5 text-[11px] font-pmedium text-slate-500">
+                      {doc.source === "setup"
+                        ? "From your setup"
+                        : doc.source === "previous"
+                          ? "On file from your last submission"
+                          : "New"}
+                    </p>
                   </div>
-                );
-              })}
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      title="Preview"
+                      onClick={() =>
+                        window.open(
+                          doc.file ? URL.createObjectURL(doc.file) : doc.url,
+                          "_blank",
+                          "noopener,noreferrer",
+                        )
+                      }
+                      className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                    >
+                      <Eye size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      title="Remove"
+                      onClick={() => removeDoc(doc.key)}
+                      className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <input
+                ref={addInputRef}
+                type="file"
+                hidden
+                multiple
+                accept={ALLOWED_EXTENSIONS.map((e) => `.${e}`).join(",")}
+                onChange={(e) => handleAddFiles(e.target.files)}
+              />
+              <button
+                type="button"
+                disabled={docs.length >= MAX_DOCUMENTS}
+                onClick={() => addInputRef.current?.click()}
+                className={`inline-flex w-max items-center gap-1.5 rounded-full border bg-white px-3 py-1.5 text-[10px] font-pmedium uppercase tracking-wider text-[#2563EB] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 ${
+                  submitted && errors.docs ? "border-rose-400" : "border-[#2563EB]/30"
+                }`}
+              >
+                <Upload size={12} />
+                {docs.length >= MAX_DOCUMENTS
+                  ? `Maximum ${MAX_DOCUMENTS} documents`
+                  : docs.length
+                    ? "Add another document"
+                    : "Add a document"}
+              </button>
+              {submitted && errors.docs ? (
+                <p className="text-[11px] font-pmedium text-rose-600">{errors.docs}</p>
+              ) : null}
             </div>
           </div>
 
-          <div className="mt-5">
-            <label className={labelClass}>
-              Plan — you'll pay for this plan once your request is approved
-            </label>
-            <div className="mt-2 grid max-w-sm grid-cols-2 gap-3">
-              {TIER_OPTIONS.map((t) => (
-                <button
-                  key={t.value}
-                  type="button"
-                  onClick={() => setTier(t.value)}
-                  className={`rounded-xl border px-2 py-3 text-center transition-colors ${
-                    tier === t.value ? "border-[#2563EB] bg-blue-50" : "border-slate-200"
-                  }`}
-                >
-                  <div className="font-pmedium text-slate-900">${t.price}</div>
-                  <div className="text-[10px] font-pmedium text-slate-500">{t.label}</div>
-                </button>
-              ))}
-            </div>
+          <div className="mt-5 flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-[12px] font-pmedium text-emerald-800">
+            <BadgeCheck size={16} className="mt-0.5 shrink-0 text-emerald-600" />
+            <p>
+              Your verified badge is <b>free for the first 3 months</b> once our team approves
+              your documents. After that you can renew for 1 month or 1 year.
+            </p>
           </div>
         </div>
 

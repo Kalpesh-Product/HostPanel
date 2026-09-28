@@ -24,6 +24,8 @@ import {
   StatCard, QuickLink, SectionCard, RecentItem, DonutWidget, BarWidget,
 } from "./DashboardShared";
 import type { QuickLinkItem } from "./DashboardShared";
+import WonoListingsCard from "./WonoListingsCard";
+import VerifiedBadgeNotice from "./VerifiedBadgeNotice";
 import { statusBadgeColor, humanRelTime, pickCardCols, hasModuleUse } from "./dashboardUtils";
 import { getStoredUser } from "../../../../lib/auth-session";
 import { getTenantCompanies } from "../../../../services/tenant-companies";
@@ -409,6 +411,10 @@ const ProfessionalDashboard = ({
           <ArrowRight size={14} className={isTrialExpiringSoon ? "text-amber-600 flex-shrink-0" : "text-accent flex-shrink-0"} />
         </a>
       )}
+
+      <VerifiedBadgeNotice />
+
+      <WonoListingsCard />
 
       {overviewCardCount > 0 && (
       <div data-tour="professional-overview">

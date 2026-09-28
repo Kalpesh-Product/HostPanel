@@ -14,16 +14,6 @@ const masterPanelHeaders = () => ({
   "x-hostpanel-service-key": process.env.HOSTPANEL_SERVICE_API_KEY,
 });
 
-// One shared document set covers every listing under the claimed company, so
-// the first two are mandatory: staff need a registration certificate plus a
-// tax ID to trust that the business (and so all its listings) is really theirs.
-const CLAIM_DOCUMENT_TYPES = [
-  { key: "business_registration", label: "Business Registration Certificate", required: true },
-  { key: "tax_id", label: "Tax / GST Registration", required: true },
-  { key: "address_proof", label: "Business Address Proof", required: false },
-  { key: "signatory_id", label: "Authorized Signatory ID", required: false },
-];
-
 const resolveHostCompany = async (req) => {
   const authedUser = await HostUser.findById(req.user)
     .select("companyId company name email phone designation")
@@ -89,6 +79,7 @@ export const getExistingCompanyClaimStatus = async (req, res) => {
     const claim = company.existingCompanyClaim || {};
     return res.status(200).json({
       linked: Boolean(company.linkedNomadsCompanyId),
+      suggestedNomadsCompanyId: company.suggestedNomadsCompanyId || "",
       reviewedAt: claim.reviewedAt || null,
       // Whoever is submitting (the workspace founder or any member) - the
       // modal starts from their own details instead of a blank form.
@@ -101,6 +92,7 @@ export const getExistingCompanyClaimStatus = async (req, res) => {
           company.registeredEntityName || company.companyName || "",
       },
       status: claim.status || "",
+      nomadsCompanyId: claim.nomadsCompanyId || "",
       nomadsCompanyName: claim.nomadsCompanyName || "",
       listingCount: claim.listingCount || 0,
       requestedAt: claim.requestedAt || null,
@@ -119,9 +111,9 @@ export const getExistingCompanyClaimStatus = async (req, res) => {
   }
 };
 
-// POST /api/listings/existing-company/claim (multipart)
-// Body: nomadsCompanyId, fullName, email, mobile, role, registeredCompanyName,
-// plus one file per CLAIM_DOCUMENT_TYPES key.
+// POST /api/listings/existing-company/claim
+// Body: nomadsCompanyId. Contact details and proof documents are taken from the
+// account and from Create Business Location, so nothing else is sent.
 export const submitExistingCompanyClaim = async (req, res) => {
   try {
     const context = await resolveHostCompany(req);
@@ -141,24 +133,19 @@ export const submitExistingCompanyClaim = async (req, res) => {
       return res.status(400).json({ message: "Select the company that owns your listings." });
     }
 
-    const missing = ["fullName", "email", "mobile", "role", "registeredCompanyName"].find(
-      (k) => !String(body[k] || "").trim(),
-    );
-    if (missing) {
-      return res.status(400).json({ message: `${missing} is required` });
-    }
-
-    const filesByKey = {};
-    (req.files || []).forEach((f) => {
-      filesByKey[f.fieldname] = f;
-    });
-    const priorDocs = company.existingCompanyClaim?.documents || [];
-    const missingDoc = CLAIM_DOCUMENT_TYPES.find(
-      (d) => d.required && !filesByKey[d.key] && !priorDocs.some((p) => p.label === d.label),
-    );
-    if (missingDoc) {
-      return res.status(400).json({ message: `${missingDoc.label} is required` });
-    }
+    // No form or uploads any more: contact details come from the signed-in
+    // account (a body value still wins if one is sent), and the proof
+    // documents are the ones already collected on Create Business Location.
+    const { authedUser } = context;
+    const contact = {
+      fullName: String(body.fullName || authedUser?.name || "").trim(),
+      email: String(body.email || authedUser?.email || "").trim(),
+      mobile: String(body.mobile || authedUser?.phone || "").trim(),
+      role: String(body.role || authedUser?.designation || "Founder / Co-Founder").trim(),
+      registeredCompanyName: String(
+        body.registeredCompanyName || company.registeredEntityName || company.companyName || "",
+      ).trim(),
+    };
 
     // Re-verify the target server-side: it must still exist and be unlinked,
     // and we snapshot its name + listing count for staff. Never trust the client.
@@ -173,33 +160,30 @@ export const submitExistingCompanyClaim = async (req, res) => {
       return forwardMasterError(res, error);
     }
 
+    const acceptance = company.agreementAcceptance || {};
     const documents = [];
-    for (const docType of CLAIM_DOCUMENT_TYPES) {
-      const file = filesByKey[docType.key];
-      if (file) {
-        const safeName = String(file.originalname || "file").replace(/[^a-zA-Z0-9._-]/g, "_");
-        const uploaded = await uploadFileToS3(
-          `company-claim-documents/${company.companyId}/${docType.key}-${Date.now()}-${safeName}`,
-          file,
-        );
-        documents.push({ label: docType.label, url: uploaded.url, id: uploaded.id });
-      } else {
-        // Resubmission after a rejection: keep the document already on file.
-        const prior = priorDocs.find((p) => p.label === docType.label);
-        if (prior) documents.push({ label: prior.label, url: prior.url, id: prior.id });
-      }
+    if (acceptance.signedDocument?.url) {
+      documents.push({
+        label: "Signed Agreement",
+        url: acceptance.signedDocument.url,
+        id: acceptance.signedDocument.id,
+      });
     }
+    (acceptance.businessDocuments || []).forEach((doc, index) => {
+      if (!doc?.url) return;
+      documents.push({
+        label: doc.name || `Business Document ${index + 1}`,
+        url: doc.url,
+        id: doc.id,
+      });
+    });
 
     company.existingCompanyClaim = {
       status: "pending",
       nomadsCompanyId,
       nomadsCompanyName: target?.companyName || "",
       listingCount: Array.isArray(target?.listings) ? target.listings.length : 0,
-      fullName: String(body.fullName).trim(),
-      email: String(body.email).trim(),
-      mobile: String(body.mobile).trim(),
-      role: String(body.role).trim(),
-      registeredCompanyName: String(body.registeredCompanyName).trim(),
+      ...contact,
       documents,
       requestedAt: new Date(),
       reviewedAt: null,
@@ -208,7 +192,7 @@ export const submitExistingCompanyClaim = async (req, res) => {
     await company.save();
 
     return res.status(200).json({
-      message: "Claim submitted — our team will verify your documents and transfer the listings.",
+      message: "Request submitted — our team will verify it and transfer the listings.",
     });
   } catch (error) {
     return res.status(500).json({ message: error.message });

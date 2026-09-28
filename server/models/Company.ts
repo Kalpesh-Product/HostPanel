@@ -162,6 +162,34 @@ const hostCompanySchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    // Set by the master panel from the lead: the wono.co company they asked to
+    // verify. Pre-selected in Verify Existing Listings; does not link anything.
+    suggestedNomadsCompanyId: { type: String, trim: true, default: "" },
+    // Agreement PDF staff attached to the invite (set by the master panel).
+    // Shown with an "I agree" checkbox on Create Business Location.
+    agreementDocument: {
+      url: { type: String, trim: true, default: "" },
+      id: { type: String, trim: true, default: "" },
+      name: { type: String, trim: true, default: "" },
+      sentAt: { type: Date, default: null },
+    },
+    // Recorded by completeWorkspaceSetup; staff read it in the master panel.
+    agreementAcceptance: {
+      accepted: { type: Boolean, default: false },
+      acceptedAt: { type: Date, default: null },
+      acceptedByName: { type: String, trim: true, default: "" },
+      acceptedByEmail: { type: String, trim: true, default: "" },
+      agreementUrl: { type: String, trim: true, default: "" },
+      signedDocument: {
+        url: { type: String, trim: true, default: "" },
+        id: { type: String, trim: true, default: "" },
+        name: { type: String, trim: true, default: "" },
+      },
+      businessDocuments: {
+        type: [{ url: String, id: String, name: String }],
+        default: [],
+      },
+    },
     // Host-initiated request to be linked to an existing Companies-page
     // company (whole-company transfer). Staff approve via the master panel's
     // Transfer action, which flips status to "approved".

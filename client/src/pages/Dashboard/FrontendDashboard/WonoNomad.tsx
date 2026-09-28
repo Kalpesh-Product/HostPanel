@@ -1,9 +1,31 @@
+import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { MdOutlineTravelExplore, MdOutlineRateReview } from "react-icons/md";
 import Card from "../../../components/Card";
 import PageFrame from "../../../components/Pages/PageFrame";
+import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import { ContactRound, BadgeCheck } from "lucide-react";
 
+const VERIFY_LOCKED_REASON =
+  "Add and activate a listing — or get your existing wono.co listings approved — to unlock Verify Business.";
+
 const WonoNomad = () => {
+  const axiosPrivate = useAxiosPrivate();
+
+  // Same query (and cache entry) the Verify Business page uses.
+  const { data: overview, isPending, isError } = useQuery({
+    queryKey: ["verify-business-overview"],
+    queryFn: async () => (await axiosPrivate.get("/api/verify-business/overview")).data,
+    retry: false,
+  });
+
+  // Follows the Verify Business page's own rule: open once the host has an
+  // active, public listing or an approved claim on existing listings. A host
+  // who already has a verification record can always get in to manage it.
+  // While loading, or if the check itself fails, don't lock anyone out.
+  const verifyLocked =
+    !isPending && !isError && !overview?.eligible && !overview?.verification;
+
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
@@ -49,6 +71,9 @@ const WonoNomad = () => {
                 icon={<BadgeCheck />}
                 title="Verify Business"
                 route="/key-apps/verify-business"
+                locked={verifyLocked}
+                lockReason={VERIFY_LOCKED_REASON}
+                onClick={verifyLocked ? () => toast(VERIFY_LOCKED_REASON) : undefined}
               />
             </div>
           </div>

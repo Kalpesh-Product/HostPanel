@@ -195,7 +195,19 @@ const FinalizeSetupPage: React.FC = () => {
       : selectedPlan === "professional"
         ? planUiData.filter(({ key }) => key === "custom")
         : [];
-  const workspaceRows = [
+  // Set on Create Business Location (first unit only): the checkbox
+  // acceptance plus the documents uploaded there.
+  const agreementDetails = workspaceDetails.agreement || {};
+  // Each document opens in a new tab so it can be reviewed before finishing.
+  type DocLink = { name: string; url: string };
+  const toDocLinks = (docs: unknown): DocLink[] =>
+    (Array.isArray(docs) ? docs : [])
+      .filter((doc: { url?: string }) => doc?.url)
+      .map((doc: { name?: string; url: string }) => ({
+        name: doc.name || "Document",
+        url: doc.url,
+      }));
+  const workspaceRows: Array<{ label: string; value?: string; links?: DocLink[] }> = [
     { label: "Unit Name", value: workspaceDetails.workspaceName },
     { label: "Company Name", value: workspaceDetails.businessName },
     { label: "Brand Name", value: workspaceDetails.brandName },
@@ -211,7 +223,22 @@ const FinalizeSetupPage: React.FC = () => {
         ? workspaceDetails.businessTypes.join(", ")
         : workspaceDetails.businessType,
     },
-  ].filter((row) => row.value);
+    {
+      label: "Agreement",
+      value: agreementDetails.agreementName && agreementDetails.accepted ? "Accepted" : "",
+      links: agreementDetails.accepted
+        ? toDocLinks([{ name: agreementDetails.agreementName, url: agreementDetails.agreementUrl }])
+        : [],
+    },
+    {
+      label: "Filled-in Agreement",
+      links: toDocLinks([agreementDetails.signedDocument]),
+    },
+    {
+      label: "Business Documents",
+      links: toDocLinks(agreementDetails.businessDocuments),
+    },
+  ].filter((row) => row.value || row.links?.length);
 
   const getUpgradeRequestStorageKey = (companyId: string) =>
     `hostpanel_upgrade_request_status_${companyId}`;
@@ -665,6 +692,20 @@ const FinalizeSetupPage: React.FC = () => {
                         <span className="font-pmedium text-[#1f3553] text-[12px]">{row.label}:</span>{" "}
                         <span className="font-pmedium text-[#1f3553]">
                           {row.value}
+                          {row.value && row.links?.length ? " · " : ""}
+                          {row.links?.map((link, index) => (
+                            <span key={link.url}>
+                              {index > 0 ? ", " : ""}
+                              <a
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[#2d67f0] underline underline-offset-2 hover:opacity-80"
+                              >
+                                {link.name}
+                              </a>
+                            </span>
+                          ))}
                         </span>
                       </p>
                     </div>
