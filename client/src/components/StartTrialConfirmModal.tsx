@@ -8,10 +8,24 @@ interface StartTrialConfirmModalProps {
   isStarting: boolean;
   onConfirm: () => void;
   onLater: () => void;
+  // Optional copy overrides — lets ClaimBonusTrialModal-style call sites
+  // (a staff-granted extra trial window, not the first-time free trial)
+  // reuse this same confirm/date-preview UI with their own wording.
+  title?: string;
+  subtitle?: string;
+  confirmLabel?: string;
+  confirmingLabel?: string;
+  bullets?: string[];
 }
 
 const formatLongDate = (date: Date) =>
   date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+const DEFAULT_BULLETS = [
+  "Professional modules unlock across all your business locations straight away.",
+  "The trial can be started only once per company.",
+  "Renew before it ends to keep Professional — otherwise you go back to the Basic plan.",
+];
 
 // "Are you sure?" step before a free trial starts. Shows what the trial is and,
 // if started now, exactly when it ends. Starts the same way the server does:
@@ -22,6 +36,11 @@ const StartTrialConfirmModal = ({
   isStarting,
   onConfirm,
   onLater,
+  title,
+  subtitle,
+  confirmLabel,
+  confirmingLabel,
+  bullets,
 }: StartTrialConfirmModalProps) => {
   if (!open) return null;
 
@@ -41,10 +60,10 @@ const StartTrialConfirmModal = ({
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <h3 className="text-[18px] font-bold text-[#111b33]">
-              Start your {days ? `${days}-day ` : ""}free trial?
+              {title || `Start your ${days ? `${days}-day ` : ""}free trial?`}
             </h3>
             <p className="mt-1 text-[13px] text-[#63738d]">
-              Try the Professional plan free — no payment needed to begin.
+              {subtitle || "Try the Professional plan free — no payment needed to begin."}
             </p>
           </div>
           <button
@@ -72,11 +91,7 @@ const StartTrialConfirmModal = ({
         )}
 
         <ul className="mb-5 space-y-2 text-[13px] text-[#4f627d]">
-          {[
-            "Professional modules unlock across all your business locations straight away.",
-            "The trial can be started only once per company.",
-            "Renew before it ends to keep Professional — otherwise you go back to the Basic plan.",
-          ].map((line) => (
+          {(bullets || DEFAULT_BULLETS).map((line) => (
             <li key={line} className="flex items-start gap-2">
               <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-[#23c35c]" />
               <span>{line}</span>
@@ -100,7 +115,7 @@ const StartTrialConfirmModal = ({
             className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#2d67f0] px-6 text-[13px] font-medium text-white hover:bg-[#2558d5] disabled:opacity-60"
           >
             {isStarting ? <Loader2 size={14} className="animate-spin" /> : null}
-            {isStarting ? "Starting..." : "Start now"}
+            {isStarting ? confirmingLabel || "Starting..." : confirmLabel || "Start now"}
           </button>
         </div>
       </div>

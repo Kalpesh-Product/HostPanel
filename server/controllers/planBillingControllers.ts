@@ -106,6 +106,15 @@ export const getPlanBillingSummary = async (req, res, next) => {
         isTrialing: Boolean(workspace.isTrialing),
         hasUsedTrial: Boolean(leadCompany?.hasUsedTrial),
         trialEndAt: leadCompany?.trialEndAt || null,
+        // A staff-granted extra trial window for THIS company specifically
+        // (Plan Pricing > trial companies, MasterPanel) — drives the
+        // dashboard's BonusTrialOfferNotice banner. Only meaningful while
+        // active is true and claimedAt is unset.
+        bonusTrialOffer: {
+          active: Boolean(leadCompany?.bonusTrialOffer?.active),
+          durationDays: leadCompany?.bonusTrialOffer?.durationDays ?? null,
+          claimedAt: leadCompany?.bonusTrialOffer?.claimedAt || null,
+        },
       },
     });
   } catch (error) {
@@ -158,6 +167,31 @@ export const startTrial = async (req, res, next) => {
     const { data } = await axios.patch(
       `${MASTER_PANEL_BASE_URL}/api/hosts/start-trial`,
       { companyId: workspace.companyId, companyName: workspace.businessName },
+      { headers: masterPanelHeaders() },
+    );
+    return res.status(200).json(data);
+  } catch (error) {
+    if (error?.response) {
+      return res.status(error.response.status || 502).json(error.response.data);
+    }
+    next(error);
+  }
+};
+
+// POST /api/plan-billing/claim-bonus-trial — self-serve, mirrors startTrial
+// above but for a staff-granted extra trial window specific to this company
+// (see bonusTrialOffer on getPlanBillingSummary). MasterPanel's endpoint is
+// the source of truth for eligibility (bonusTrialOffer.active + not already
+// claimed) and applies the extension to every workspace under the company.
+export const claimBonusTrial = async (req, res, next) => {
+  try {
+    const workspace = await resolveCurrentWorkspace(req);
+    if (!workspace) {
+      return res.status(404).json({ message: "Workspace not found for this user." });
+    }
+    const { data } = await axios.patch(
+      `${MASTER_PANEL_BASE_URL}/api/hosts/claim-bonus-trial`,
+      { companyId: workspace.companyId },
       { headers: masterPanelHeaders() },
     );
     return res.status(200).json(data);

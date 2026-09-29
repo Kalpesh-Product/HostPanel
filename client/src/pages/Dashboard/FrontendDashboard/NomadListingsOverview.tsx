@@ -8,6 +8,7 @@ import ExistingCompanyClaimModal, {
 import PageFrame from "../../../components/Pages/PageFrame";
 import { useLocation, useNavigate } from "react-router-dom";
 import useAuth from "../../../hooks/useAuth";
+import useRefresh from "../../../hooks/useRefresh";
 import { toast } from "sonner";
 import { AlertTriangle, Building2, CheckCircle2, Clock, Edit3, ExternalLink, Eye, Globe, Layers, ListChecks, Loader2, Lock, Plus, RotateCcw, Search, Target, Trash2, XCircle } from "lucide-react";
 import { MdVerified } from "react-icons/md";
@@ -88,6 +89,21 @@ export default function NomadListingsOverview() {
     queryKey: CLAIM_STATUS_QUERY_KEY,
     queryFn: async () => (await axios.get("/api/listings/existing-company/status")).data,
   });
+
+  // This status is read fresh from the DB every time, so it flips to
+  // "linked" the moment staff approve — but companyId above comes from
+  // user.effectiveNomadsCompanyId, which is only recomputed on login/token
+  // refresh, not on every request. Without this, the "approved" banner shows
+  // immediately while the listings table (fetched by that stale companyId)
+  // stays empty until something else happens to trigger a token refresh
+  // (e.g. the access token expiring while navigating elsewhere). Pulling a
+  // fresh user the moment we see `linked` flip true — while our own copy of
+  // it is still false — closes that gap without waiting for one.
+  const refresh = useRefresh();
+  useEffect(() => {
+    if (!claimStatus?.linked || isLinkedToExistingCompany) return;
+    refresh().catch(() => {});
+  }, [claimStatus?.linked, isLinkedToExistingCompany, refresh]);
 
   // While the existing-listings request is with our team, show the listings it
   // covers (read-only) so the host can see what's being verified.
@@ -389,7 +405,7 @@ export default function NomadListingsOverview() {
           {claimStatus?.status === "approved" && (
             <div className="flex items-center gap-2 p-4 rounded-2xl border border-emerald-200 bg-emerald-50 font-pmedium text-slate-700">
               <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-              Verification approved — the listings of <b>{claimStatus.nomadsCompanyName || "your company"}</b> are now part of your account.
+              Verification approved — the listings of <b>{claimStatus.nomadsCompanyName || "your company"}</b> are now part of your account and Verified.
             </div>
           )}
 

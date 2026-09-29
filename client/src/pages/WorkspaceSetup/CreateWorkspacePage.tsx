@@ -720,7 +720,7 @@ const CreateWorkspacePage: React.FC = () => {
                 <input
                   id="workspace-workspaceName"
                   type="text"
-                  placeholder="Company Name Unit - 1"
+                  placeholder="Enter Company Name Unit - 1"
                   value={workspaceName}
                   onChange={(e) => setWorkspaceName(e.target.value)}
                   aria-required="true"

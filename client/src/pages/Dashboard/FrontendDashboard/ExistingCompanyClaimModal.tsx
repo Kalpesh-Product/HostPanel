@@ -26,6 +26,7 @@ export default function ExistingCompanyClaimModal({ onClose }) {
   const [debouncedSearch, setDebouncedSearch] = useState(ownCompanyName);
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [badgeAccepted, setBadgeAccepted] = useState(false);
   const [suggestedDismissed, setSuggestedDismissed] = useState(false);
 
   useEffect(() => {
@@ -106,7 +107,7 @@ export default function ExistingCompanyClaimModal({ onClose }) {
     },
   });
 
-  const canSubmit = Boolean(selectedCompany) && confirmed && !isSubmitting;
+  const canSubmit = Boolean(selectedCompany) && confirmed && badgeAccepted && !isSubmitting;
 
   const listings = companyListings?.listings || [];
 
@@ -127,7 +128,7 @@ export default function ExistingCompanyClaimModal({ onClose }) {
       <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-100 bg-white shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-slate-100 bg-white p-5">
           <div>
-            <p className="text-[14px] font-pmedium text-slate-950">Verify your existing listings on wono.co</p>
+            <p className="text-[14px] font-pmedium text-slate-950">Verify your existing listings on wono.co and get verified</p>
             <p className="mt-1 text-[12px] font-pmedium text-slate-500">
               Already listed on wono.co? Find your company and confirm the listings are yours. One
               approval from our team brings every listing into your account and activates your
@@ -195,17 +196,21 @@ export default function ExistingCompanyClaimModal({ onClose }) {
                       · {[selectedCompany.companyCity, selectedCompany.companyCountry].filter(Boolean).join(", ")}
                     </span>
                   </span>
-                  <button
-                    type="button"
-                    className="text-blue-700 underline"
-                    onClick={() => {
-                      setSelectedCompany(null);
-                      setConfirmed(false);
-                      setSuggestedDismissed(true);
-                    }}
-                  >
-                    Change
-                  </button>
+                  {/* Came from "Verify Business" on wono.co: the company is already known, so no changing it. */}
+                  {selectedCompany.companyId !== suggestedId && (
+                    <button
+                      type="button"
+                      className="text-blue-700 underline"
+                      onClick={() => {
+                        setSelectedCompany(null);
+                        setConfirmed(false);
+                        setBadgeAccepted(false);
+                        setSuggestedDismissed(true);
+                      }}
+                    >
+                      Change
+                    </button>
+                  )}
                 </label>
               ) : (
                 <>
@@ -325,6 +330,16 @@ export default function ExistingCompanyClaimModal({ onClose }) {
                       />
                       I confirm all {listings.length} listing{listings.length === 1 ? "" : "s"} above
                       belong to my business and should be transferred to this account.
+                    </label>
+                    <label className="mt-2 flex items-start gap-2 text-[12px] font-pmedium text-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 accent-blue-600"
+                        checked={badgeAccepted}
+                        onChange={(e) => setBadgeAccepted(e.target.checked)}
+                      />
+                      I understand the verified badge will be applied to my account, free for 3 months,
+                      and the verification will be done through this same request.
                     </label>
                   </>
                 )}

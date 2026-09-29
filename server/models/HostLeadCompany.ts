@@ -20,6 +20,11 @@ const hostLeadCompanySchema = new mongoose.Schema(
     trialEndAt: { type: Date, default: null },
     isTrialActive: { type: Boolean, default: false },
     hasUsedTrial: { type: Boolean, default: false },
+    bonusTrialOffer: {
+      active: { type: Boolean, default: false },
+      durationDays: { type: Number, default: 30 },
+      claimedAt: { type: Date, default: null },
+    },
   },
   { timestamps: true, strict: false },
 );

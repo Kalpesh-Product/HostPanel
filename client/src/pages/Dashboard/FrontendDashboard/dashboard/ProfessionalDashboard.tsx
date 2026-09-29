@@ -26,6 +26,7 @@ import {
 import type { QuickLinkItem } from "./DashboardShared";
 import WonoListingsCard from "./WonoListingsCard";
 import VerifiedBadgeNotice from "./VerifiedBadgeNotice";
+import BonusTrialOfferNotice from "./BonusTrialOfferNotice";
 import { statusBadgeColor, humanRelTime, pickCardCols, hasModuleUse } from "./dashboardUtils";
 import { getStoredUser } from "../../../../lib/auth-session";
 import { getTenantCompanies } from "../../../../services/tenant-companies";
@@ -368,6 +369,7 @@ const ProfessionalDashboard = ({
 
   return (
     <div className="flex flex-col gap-5">
+      <WonoListingsCard />
 
       {/* Upgrade nudge — opens modal for Custom plan */}
       <div
@@ -413,8 +415,7 @@ const ProfessionalDashboard = ({
       )}
 
       <VerifiedBadgeNotice />
-
-      <WonoListingsCard />
+      <BonusTrialOfferNotice />
 
       {overviewCardCount > 0 && (
       <div data-tour="professional-overview">

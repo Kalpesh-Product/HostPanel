@@ -21,6 +21,7 @@ import {
 import type { QuickLinkItem } from "./DashboardShared";
 import WonoListingsCard from "./WonoListingsCard";
 import VerifiedBadgeNotice from "./VerifiedBadgeNotice";
+import BonusTrialOfferNotice from "./BonusTrialOfferNotice";
 import { statusBadgeColor, humanRelTime, hasModuleUse, pickCardCols } from "./dashboardUtils";
 import { ICON_BY_ID, DEFAULT_SECTION_ROUTES } from "../ModuleCardsLanding";
 import type { WorkspaceModuleSection } from "../../../../hooks/useDashboardAccess";
@@ -285,6 +286,8 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
 
   return (
     <div className="flex flex-col gap-5">
+      <WonoListingsCard />
+
       {/* Plan strip — compact, opens the upgrade modal */}
       <div
         data-tour="dashboard-plan"
@@ -303,8 +306,7 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
       </div>
 
       <VerifiedBadgeNotice />
-
-      <WonoListingsCard />
+      <BonusTrialOfferNotice />
 
       {overviewCardCount > 0 && (
       <div data-tour="dashboard-overview">

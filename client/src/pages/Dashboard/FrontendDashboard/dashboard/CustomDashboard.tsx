@@ -33,6 +33,7 @@ import {
 } from "./DashboardShared";
 import type { QuickLinkItem, StatCardProps } from "./DashboardShared";
 import VerifiedBadgeNotice from "./VerifiedBadgeNotice";
+import BonusTrialOfferNotice from "./BonusTrialOfferNotice";
 import { statusBadgeColor, humanRelTime, fmtINR, pickCardCols, hasModuleUse, resolveWorkspaceId } from "./dashboardUtils";
 import { getStoredUser } from "../../../../lib/auth-session";
 import useWorkspacePreferences from "../../../../hooks/useWorkspacePreferences";
@@ -452,6 +453,7 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
     <div className="flex flex-col gap-5">
 
       <VerifiedBadgeNotice />
+      <BonusTrialOfferNotice />
 
       {/* Clock in / out */}
       {showAttendance && <div data-tour="custom-attendance"><TodayAttendanceCard /></div>}
