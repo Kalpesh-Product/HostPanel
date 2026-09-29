@@ -547,7 +547,22 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       await company.save();
     }
 
-    const normalizedRequestedEnabledIds = normalizeStringArray(enabledModuleIds);
+    const planLifecycleFields = await resolvePlanLifecycleFields({
+      effectivePlan,
+      companyId: user.companyId,
+      ownerId: user._id,
+      isAdditionalWorkspaceMode,
+    });
+
+    // A Custom plan's specific paid add-ons (staff-picked in Master Panel's
+    // module picker, priced, and actually paid for — planLifecycleFields.
+    // customPlanModuleIds) must land in enabledModuleIds too, not just be
+    // recorded for billing — otherwise the host logs in after paying and
+    // still can't see the modules they paid for.
+    const normalizedRequestedEnabledIds = normalizeStringArray([
+      ...(Array.isArray(enabledModuleIds) ? enabledModuleIds : []),
+      ...(effectivePlan === "custom" ? planLifecycleFields.customPlanModuleIds || [] : []),
+    ]);
     const finalEnabledModuleIds = getEffectiveEnabledModuleIds({
       selectedPlan: effectivePlan,
       existingEnabledModuleIds: normalizedRequestedEnabledIds,
@@ -555,13 +570,6 @@ export const completeWorkspaceSetup = async (req, res, next) => {
     const finalWorkspaceModules = buildWorkspaceModulesStructure({
       selectedPlan: effectivePlan,
       enabledModuleIds: finalEnabledModuleIds,
-    });
-
-    const planLifecycleFields = await resolvePlanLifecycleFields({
-      effectivePlan,
-      companyId: user.companyId,
-      ownerId: user._id,
-      isAdditionalWorkspaceMode,
     });
 
     const workspace = await Workspace.create({

@@ -219,7 +219,7 @@ export default function PaymentSuccessPage() {
                   </button>
                 ) : (
                   <a
-                    href="https://wono.co"
+                    href="https://host.wono.co"
                     className="inline-flex h-10 items-center rounded-xl bg-[#2d67f0] px-6 text-[13px] font-semibold text-white hover:bg-[#2558d5]"
                   >
                     Back to WONO
