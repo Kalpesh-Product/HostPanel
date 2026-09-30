@@ -18,6 +18,11 @@ const DEFAULT_TEMPLATE_SETTINGS = {
     { templateId: "emerald-studio", enabled: true, visible: true, allowedPlans: ["custom"] },
     { templateId: "minimal-swiss", enabled: false, visible: true, allowedPlans: ["basic", "professional", "custom"], disabledReason: "Coming soon" },
     { templateId: "figma-make", enabled: false, visible: false, allowedPlans: [] },
+    { templateId: "savor", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
+    { templateId: "wayfarer", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
+    { templateId: "haven", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
+    { templateId: "commons", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
+    { templateId: "huddle", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
   ],
 };
 
@@ -67,7 +72,12 @@ const findWebsite = async ({ websiteId, workspace }) => {
 
 const getSettings = async () => {
   const stored = await WebsiteTemplateSettings.findOne({ key: "global" }).lean().exec();
-  const storedTemplates = Array.isArray(stored?.templates) ? stored.templates : [];
+  const storedRows = Array.isArray(stored?.templates) ? stored.templates : [];
+  // Templates added after the settings were last saved show up with their defaults.
+  const knownIds = new Set(storedRows.map((item: any) => normalizeTemplateId(item?.templateId)));
+  const storedTemplates = storedRows.length
+    ? [...storedRows, ...DEFAULT_TEMPLATE_SETTINGS.templates.filter((item) => !knownIds.has(item.templateId))]
+    : [];
   return {
     limitPeriod: stored?.limitPeriod === "lifetime" ? "lifetime" : "monthly",
     planChangeLimits: {
@@ -121,6 +131,24 @@ const serializeRequest = (request: any) => {
     completedAt: value?.completedAt || null,
     updatedAt: value?.updatedAt || null,
   };
+};
+
+// Which templates the first-time picker may show. Plans are not enforced here (that only applies
+// to changing the template of an existing website); this is just visible / enabled.
+export const getTemplateAvailability = async (_req, res, next) => {
+  try {
+    const settings = await getSettings();
+    return res.status(200).json({
+      templates: settings.templates.map((row: any) => ({
+        templateId: row.templateId,
+        enabled: row.enabled,
+        visible: row.visible,
+        disabledReason: row.disabledReason,
+      })),
+    });
+  } catch (error) {
+    return next(error);
+  }
 };
 
 export const getTemplateChangeSummary = async (req, res, next) => {

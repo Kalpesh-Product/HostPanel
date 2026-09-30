@@ -9,7 +9,7 @@ export const administrationDashboardTour: BasicPageTour = {
     { selector: '[data-tour="sidebar"]', title: "Your workspace navigation", description: "Use the sidebar to move between the modules available to your role. Other page tours will focus only on their own functionality." },
     { selector: '[data-tour="breadcrumb"]', title: "Your current location", description: "The breadcrumb shows the active workspace section and page." },
     { selector: '[data-tour="workspace-switcher"]', title: "Switch workspaces", description: "If you belong to multiple workspaces, switch here. Your automatic guides are remembered across all of your units." },
-    { selector: '[data-notification-trigger]', title: "Workspace notifications", description: "Open notifications to review recent activity and updates requiring attention." },
+    { selector: '[data-notification-trigger]', title: "Unit notifications", description: "Open notifications to review recent activity and updates requiring attention." },
     { selector: '[data-tour="administration-attendance"]', title: "Clock in and out", description: "Log your attendance for the day directly from the dashboard." },
     { selector: '[data-tour="administration-overview"]', title: "Operational overview", description: "Live, actionable numbers for Administration's core areas — today's visitors, total tenants, meeting room bookings, resources, and pending housekeeping tasks. Select a card to open its complete module." },
     { selector: '[data-tour="administration-team-status"]', title: "Team live status", description: "See who on the Administration team is currently clocked in and working right now." },

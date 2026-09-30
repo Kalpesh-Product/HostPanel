@@ -9,7 +9,7 @@ export const itDashboardTour: BasicPageTour = {
     { selector: '[data-tour="sidebar"]', title: "Your workspace navigation", description: "Use the sidebar to move between the modules available to your role. Other page tours will focus only on their own functionality." },
     { selector: '[data-tour="breadcrumb"]', title: "Your current location", description: "The breadcrumb shows the active workspace section and page." },
     { selector: '[data-tour="workspace-switcher"]', title: "Switch workspaces", description: "If you belong to multiple workspaces, switch here. Your automatic guides are remembered across all of your units." },
-    { selector: '[data-notification-trigger]', title: "Workspace notifications", description: "Open notifications to review recent activity and updates requiring attention." },
+    { selector: '[data-notification-trigger]', title: "Unit notifications", description: "Open notifications to review recent activity and updates requiring attention." },
     { selector: '[data-tour="it-overview"]', title: "Repair log overview", description: "Resolution rate, open logs, in-progress logs, and total logs at a glance. Select any card to open the complete Repair Logs module." },
     { selector: '[data-tour="it-team-status"]', title: "Team status", description: "See who on the IT team is currently checked in and working." },
     { selector: '[data-tour="it-visitors"]', title: "Visitor requests", description: "Review visitors waiting on an IT host to accept or reject their visit." },

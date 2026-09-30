@@ -1,6 +1,16 @@
 ﻿// @ts-nocheck
 import mongoose from "mongoose";
 
+// Optional presentation fields shared by every offering type (menu items, dorms,
+// rooms, packages...). All default to empty, so sites saved before these existed
+// are unaffected. Vertical-specific extras are declared next to each item type.
+const itemExtras = {
+  badge: { type: String, default: "" },
+  priceUnit: { type: String, default: "" },
+  features: { type: [String], default: [] },
+  featured: { type: Boolean, default: false },
+};
+
 const templateSchema = new mongoose.Schema(
   {
     searchKey: { type: String, required: true, index: true },
@@ -232,6 +242,10 @@ const templateSchema = new mongoose.Schema(
           subProducts: {
             type: [
               {
+                ...itemExtras,
+                // Co-working spaces: how many people it seats, and when members can use it.
+                seats: { type: Number },
+                accessHours: { type: String, default: "" },
                 name: { type: String, default: "" },
                 description: { type: String, default: "" },
                 cost: { type: String, default: "" },
@@ -250,6 +264,8 @@ const templateSchema = new mongoose.Schema(
       ],
       default: [],
     },
+    // Heading of the About section on the home page and the About page banner.
+    aboutTitle: { type: String, default: "" },
     aboutPageIntro: { type: String, default: "" },
     aboutPageOverview: { type: String, default: "" },
     aboutPageStory: { type: String, default: "" },
@@ -288,6 +304,45 @@ const templateSchema = new mongoose.Schema(
     contactEnableInquiryForm: { type: Boolean, default: true },
     contactInquirySuccessMessage: { type: String, default: "" },
     contactBusinessHours: { type: String, default: "" },
+    // Structured weekly hours — drives the hours table and reservation time slots.
+    openingHours: {
+      type: [
+        {
+          day: { type: String, default: "" }, // mon..sun
+          open: { type: String, default: "" }, // HH:mm
+          close: { type: String, default: "" }, // HH:mm
+          closed: { type: Boolean, default: false },
+        },
+      ],
+      default: [],
+    },
+    // Cafe table-reservation settings.
+    reservation: {
+      enabled: { type: Boolean, default: true },
+      maxGuests: { type: Number, default: 10 },
+      slotIntervalMinutes: { type: Number, default: 30 },
+      seatingOptions: { type: [String], default: [] },
+      confirmationNote: { type: String, default: "" },
+    },
+    // Hostel / co-living stay policy.
+    stayPolicy: {
+      checkInTime: { type: String, default: "" },
+      checkOutTime: { type: String, default: "" },
+      minStayNights: { type: Number },
+      houseRules: { type: [String], default: [] },
+      cancellationNote: { type: String, default: "" },
+    },
+    // Co-living "schedule a visit" toggle.
+    tourBooking: {
+      enabled: { type: Boolean, default: true },
+    },
+    // Wording, photo picks and steps the owner edits for the newer templates
+    // (Savor, Wayfarer, Haven, Commons). Shape: { copy: {key: text}, images: {key: url}, steps: [{title, body, image}] }.
+    // Empty means "use the template's own wording".
+    templateContent: {
+      type: mongoose.Schema.Types.Mixed,
+      default: () => ({ copy: {}, images: {}, steps: [] }),
+    },
     contactPersonName: { type: String, default: "" },
     contactPersonRole: { type: String, default: "" },
     contactPersonEmail: { type: String, default: "" },
@@ -295,6 +350,7 @@ const templateSchema = new mongoose.Schema(
     rooms: {
       type: [
         {
+          ...itemExtras,
           title: { type: String },
           description: { type: String },
           enabled: { type: Boolean, default: true },
@@ -312,6 +368,8 @@ const templateSchema = new mongoose.Schema(
     meetingRooms: {
       type: [
         {
+          ...itemExtras,
+          capacity: { type: Number },
           title: { type: String },
           description: { type: String },
           enabled: { type: Boolean, default: true },
@@ -329,6 +387,14 @@ const templateSchema = new mongoose.Schema(
     coLivingRooms: {
       type: [
         {
+          ...itemExtras,
+          occupancy: { type: String, default: "" }, // single | double | triple
+          furnished: { type: Boolean, default: false },
+          ac: { type: Boolean, default: false },
+          bathroom: { type: String, default: "" }, // ensuite | shared
+          deposit: { type: String, default: "" },
+          availableFrom: { type: String, default: "" }, // YYYY-MM-DD
+          minStayMonths: { type: Number },
           title: { type: String },
           description: { type: String },
           enabled: { type: Boolean, default: true },
@@ -346,6 +412,9 @@ const templateSchema = new mongoose.Schema(
     packages: {
       type: [
         {
+          ...itemExtras,
+          inclusions: { type: [String], default: [] },
+          perPerson: { type: Boolean, default: false },
           title: { type: String },
           description: { type: String },
           price: { type: String },
@@ -364,6 +433,11 @@ const templateSchema = new mongoose.Schema(
     dorms: {
       type: [
         {
+          ...itemExtras,
+          bedType: { type: String, default: "" }, // bunk | single
+          genderPolicy: { type: String, default: "" }, // mixed | female | male
+          roomKind: { type: String, default: "" }, // dorm | private
+          bathroom: { type: String, default: "" }, // ensuite | shared
           title: { type: String },
           description: { type: String },
           capacity: { type: Number },
@@ -382,6 +456,10 @@ const templateSchema = new mongoose.Schema(
     menuItems: {
       type: [
         {
+          ...itemExtras,
+          dietary: { type: String, default: "" }, // veg | non-veg | vegan | egg
+          spiceLevel: { type: Number, default: 0 }, // 0-3
+          popular: { type: Boolean, default: false },
           category: { type: String },
           name: { type: String },
           description: { type: String },

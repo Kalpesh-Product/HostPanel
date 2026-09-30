@@ -30,9 +30,26 @@ import {
 import SectionPreviewInfo from "./SectionPreviewInfo";
 import CreditsIndicator from "../../../../components/CreditsIndicator";
 import RoomsSection from "./RoomsSection";
+import ThemeColors from "./ThemeColors";
+import TemplateContentPanel from "./TemplateContentPanel";
+import { supportsThemeColors } from "./templates/templateTheme";
+import { emptyTemplateContent, hasTemplateContent, normalizeTemplateContent } from "./templates/templateContent";
 import PackagesSection from "./PackagesSection";
 import DormsSection from "./DormsSection";
 import MenuSection from "./MenuSection";
+import ItemExtraFields from "./ItemExtraFields";
+import { clearSelectedServices, readSelectedServices } from "./templates/serviceChoices";
+import { buildSampleContent, buildServiceSample, hasSampleContent, isSampleService, resolveSampleServices } from "./templates/sampleContent";
+import ServiceSettingsPanel from "./ServiceSettingsPanel";
+import {
+  defaultReservation,
+  defaultStayPolicy,
+  normalizeOpeningHours,
+  normalizeReservation,
+  normalizeStayPolicy,
+  normalizeTourBooking,
+  pickItemExtras,
+} from "./templates/offeringFields";
 import Skeleton from "../../../../components/ui/Skeleton";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import TemplateChangeRequestControl from "./TemplateChangeRequestControl";
@@ -405,7 +422,7 @@ const toSearchKey = (value: unknown): string =>
     .trim()
     .toLowerCase()
     .split("-")[0]
-    .replace(/\s+/g, "");
+    .replace(/[^a-z0-9_]/g, "");
 
 const toSlug = (value: unknown): string =>
   String(value || "")
@@ -590,6 +607,8 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
         name: String(item?.name || "").trim(),
         price: String(item?.price || "").trim(),
         description: String(item?.description || "").trim(),
+        enabled: item?.enabled !== false,
+        ...pickItemExtras("menu", item),
       }))
     : [],
   meetingRooms: Array.isArray(formValues?.meetingRooms)
@@ -597,12 +616,16 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
         title: String(item?.title || "").trim(),
         description: String(item?.description || "").trim(),
         price: String(item?.price || "").trim(),
+        enabled: item?.enabled !== false,
+        ...pickItemExtras("meeting", item),
       }))
     : Array.isArray(formValues?.rooms)
       ? formValues.rooms.map((item: any) => ({
           title: String(item?.title || "").trim(),
           description: String(item?.description || "").trim(),
           price: String(item?.price || "").trim(),
+          enabled: item?.enabled !== false,
+          ...pickItemExtras("meeting", item),
         }))
       : [],
   rooms: Array.isArray(formValues?.rooms)
@@ -610,6 +633,8 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
         title: String(item?.title || "").trim(),
         description: String(item?.description || "").trim(),
         price: String(item?.price || "").trim(),
+        enabled: item?.enabled !== false,
+        ...pickItemExtras("room", item),
       }))
     : [],
   coLivingRooms: Array.isArray(formValues?.coLivingRooms)
@@ -617,6 +642,8 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
         title: String(item?.title || "").trim(),
         description: String(item?.description || "").trim(),
         price: String(item?.price || "").trim(),
+        enabled: item?.enabled !== false,
+        ...pickItemExtras("coLiving", item),
       }))
     : [],
   packages: Array.isArray(formValues?.packages)
@@ -625,6 +652,8 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
         description: String(item?.description || "").trim(),
         price: String(item?.price || "").trim(),
         duration: String(item?.duration || "").trim(),
+        enabled: item?.enabled !== false,
+        ...pickItemExtras("package", item),
       }))
     : [],
   dorms: Array.isArray(formValues?.dorms)
@@ -633,8 +662,15 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
         description: String(item?.description || "").trim(),
         price: String(item?.price || "").trim(),
         capacity: item?.capacity ?? "",
+        enabled: item?.enabled !== false,
+        ...pickItemExtras("dorm", item),
       }))
     : [],
+  openingHours: normalizeOpeningHours(formValues?.openingHours),
+  reservation: normalizeReservation(formValues?.reservation),
+  stayPolicy: normalizeStayPolicy(formValues?.stayPolicy),
+  tourBooking: normalizeTourBooking(formValues?.tourBooking),
+  templateContent: normalizeTemplateContent(formValues?.templateContent),
   galleryTitle: String(formValues?.galleryTitle || "").trim(),
   testimonialTitle: String(formValues?.testimonialTitle || "").trim(),
   testimonials: Array.isArray(formValues?.testimonials)
@@ -696,6 +732,7 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
               description: String(sp?.description || "").trim(),
               cost: String(sp?.cost || "").trim(),
               enabled: sp?.enabled !== false,
+              ...pickItemExtras("subProduct", sp),
               images: Array.isArray(sp?.images) ? sp.images : [],
             }))
           : [],
@@ -709,6 +746,8 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
         subText: String(item?.homeCardSubText || "").trim(),
         cardImage:
           getMediaUrlForPreview(item?.homeCardImage) ||
+          getMediaUrlForPreview(item?.heroImage) ||
+          getMediaUrlForPreview((item?.heroImages || [])[0]) ||
           getMediaUrlForPreview(formValues?.products?.[index]?.files?.[0]),
         heroHeading: String(item?.heroHeading || "").trim(),
         heroSubHeading: String(item?.heroSubHeading || "").trim(),
@@ -728,6 +767,7 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
               description: String(sp?.description || "").trim(),
               cost: String(sp?.cost || "").trim(),
               enabled: sp?.enabled !== false,
+              ...pickItemExtras("subProduct", sp),
               images: (sp?.images || [])
                 .map((img: unknown) => getMediaUrlForPreview(img))
                 .filter(Boolean),
@@ -777,6 +817,9 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
   partnerFormTitle: String(formValues?.partnerFormTitle || "").trim(),
   careersPageHeading: String(formValues?.careersPageHeading || "").trim(),
   careersPageIntro: String(formValues?.careersPageIntro || "").trim(),
+  careersClosingHeading: String(formValues?.careersClosingHeading || "").trim(),
+  careersClosingText: String(formValues?.careersClosingText || "").trim(),
+  careersApplyButtonText: String(formValues?.careersApplyButtonText || "").trim(),
   careersFormFields: Array.isArray(formValues?.careersFormFields)
     ? formValues.careersFormFields
     : tryParseJson(formValues?.careersFormFields, []),
@@ -1109,6 +1152,12 @@ const ProductPageSubProducts = ({
               )}
             />
           </div>
+          <ItemExtraFields
+            control={control}
+            register={control.register}
+            name={`productDropdownPages.${pageIndex}.subProducts.${index}`}
+            kind="subProduct"
+          />
         </div>
       ))}
       <button
@@ -1209,6 +1258,20 @@ const CreateWebsite = () => {
   // just before the click can still fire afterward with pre-edit data (e.g.
   // pre-deletion), overwriting what the explicit save just persisted.
   const draftAutosaveTimeoutRef = useRef<number | null>(null);
+  // True while a draft-save request is on the wire. Uploading several images
+  // in one request takes longer than the 1.2s autosave debounce, so without
+  // this a second autosave fires with the same (not yet marked-uploaded)
+  // files while the first is still running; the two saves then race on the
+  // same document and one fails as "Draft save failed".
+  const draftSaveInFlightRef = useRef(false);
+  // Set when a draft request left some images out to stay under the request
+  // size budget, so the next autosave must still run even if nothing else
+  // changed.
+  const draftHasDeferredFilesRef = useRef(false);
+  // Each image is capped at 1MB, so 6MB carries up to 6 per request. If a
+  // proxy in front of the API rejects that (413), fall back to ~700KB
+  // requests (one image each) for the rest of the session.
+  const draftFileByteBudgetRef = useRef(6 * 1024 * 1024);
   // Synchronous double-submit guard for the main Save/Publish action. The
   // button's `disabled` state only takes effect on the next render, which is
   // late enough for a fast double-click (or double form-submit event) to
@@ -1223,6 +1286,8 @@ const CreateWebsite = () => {
   // resolve after the first run and re-trigger the effect. Once we've loaded the DB data and
   // called reset(), we do NOT want to do it again.
   const hasHydratedFromDbRef = useRef(false);
+  // Set once this session's autosave has sent a draft (see the guard in the existing-website lookup).
+  const sessionDraftStartedRef = useRef(false);
   // Tracks whether a checkExistingWebsite call is already in-flight so concurrent
   // async runs (triggered by rapid dep changes) don't race each other.
   const isCheckingWebsiteInFlightRef = useRef(false);
@@ -1319,6 +1384,11 @@ const CreateWebsite = () => {
       contactInquirySuccessMessage:
         "Thank you. Your inquiry has been submitted successfully.",
       contactBusinessHours: "",
+      openingHours: [],
+      reservation: defaultReservation(),
+      stayPolicy: defaultStayPolicy(),
+      tourBooking: { enabled: true },
+      templateContent: emptyTemplateContent(),
       contactPersonName: "",
       contactPersonRole: "",
       contactPersonEmail: "",
@@ -1330,6 +1400,9 @@ const CreateWebsite = () => {
       // Careers page
       careersPageHeading: "",
       careersPageIntro: "",
+      careersClosingHeading: "",
+      careersClosingText: "",
+      careersApplyButtonText: "",
       careersFormFields: [],
       // Founders (about page)
       founders: [{ name: "", role: "", bio: "", highlights: "", image: null }],
@@ -1696,6 +1769,14 @@ const CreateWebsite = () => {
           null;
 
         if (found) {
+          // This session's own autosave has already created the draft record, and this lookup only
+          // re-ran because something else resolved late (business name, company identity...). The form
+          // holds everything the person and the sample content put in, including photos that have not
+          // uploaded yet, so loading the server copy over it would wipe those. Keep the form as it is.
+          if (!isEditModeRef.current && sessionDraftStartedRef.current && found?.isPublished !== true) {
+            hasHydratedFromDbRef.current = true;
+            return;
+          }
           // A DB record now exists, so its own themeVariant (set below) always
           // wins from here on — the localStorage hint has served its purpose.
           try {
@@ -1703,6 +1784,7 @@ const CreateWebsite = () => {
           } catch {
             // ignore
           }
+          clearSelectedServices();
           // An unpublished autosave draft record existing is NOT the same as
           // the site having actually been published before — hasExistingWebsite
           // drives whether Publish goes through create-website (free) or
@@ -1750,6 +1832,7 @@ const CreateWebsite = () => {
                 DEFAULT_TEMPLATE_ID,
             ).trim(),
             sectionOverrides: draftData?.sectionOverrides || found?.sectionOverrides || {},
+            styleConfig: draftData?.styleConfig || found?.styleConfig || {},
             companyId: String(draftData?.companyId || prefillCompanyId || found?.companyId || "").trim(),
             companyName: String(draftData?.companyName || prefillCompanyName || found?.companyName || "").trim(),
             companyLogo: found?.companyLogo || null,
@@ -1826,9 +1909,14 @@ const CreateWebsite = () => {
                   : Array.isArray(draftData?.rooms)
                     ? draftData.rooms
                     : [],
-            coLivingRooms: Array.isArray(draftData?.coLivingRooms)
-              ? draftData.coLivingRooms
-              : [],
+            // Same precedence as rooms/packages/dorms: the saved template copy
+            // carries the uploaded images; the draft copy is text-only, so
+            // loading it alone dropped every co-living image on reload.
+            coLivingRooms: Array.isArray(found?.coLivingRooms)
+              ? found.coLivingRooms
+              : Array.isArray(draftData?.coLivingRooms)
+                ? draftData.coLivingRooms
+                : [],
             packages: Array.isArray(found?.packages)
               ? found.packages
               : Array.isArray(draftData?.packages)
@@ -2062,6 +2150,13 @@ const CreateWebsite = () => {
             contactBusinessHours: String(
               draftData?.contactBusinessHours || found?.contactBusinessHours || "",
             ).trim(),
+            openingHours: normalizeOpeningHours(
+              Array.isArray(draftData?.openingHours) ? draftData.openingHours : found?.openingHours,
+            ),
+            reservation: normalizeReservation(draftData?.reservation ?? found?.reservation),
+            stayPolicy: normalizeStayPolicy(draftData?.stayPolicy ?? found?.stayPolicy),
+            tourBooking: normalizeTourBooking(draftData?.tourBooking ?? found?.tourBooking),
+            templateContent: normalizeTemplateContent(draftData?.templateContent ?? found?.templateContent),
             contactPersonName: String(
               draftData?.contactPersonName || found?.contactPersonName || "",
             ).trim(),
@@ -2088,6 +2183,15 @@ const CreateWebsite = () => {
             ).trim(),
             careersPageIntro: String(
               draftData?.careersPageIntro || found?.careersPageIntro || "",
+            ).trim(),
+            careersClosingHeading: String(
+              draftData?.careersClosingHeading || found?.careersClosingHeading || "",
+            ).trim(),
+            careersClosingText: String(
+              draftData?.careersClosingText || found?.careersClosingText || "",
+            ).trim(),
+            careersApplyButtonText: String(
+              draftData?.careersApplyButtonText || found?.careersApplyButtonText || "",
             ).trim(),
             careersFormFields: tryParseJson(
               draftData?.careersFormFields ?? found?.careersFormFields ?? "[]",
@@ -2390,6 +2494,8 @@ const CreateWebsite = () => {
 
     fd.set("about", JSON.stringify(values.about.map((p) => p.text)));
     appendFileIfPresent("companyLogo", values.companyLogo);
+    // Without a logo in the form the saved one (if any) is removed on the server.
+    fd.set("removeCompanyLogo", values.companyLogo ? "false" : "true");
     appendFileIfPresent("mainHeroImage", values.mainHeroImage);
 
     fd.delete("heroImages");
@@ -2463,6 +2569,7 @@ const CreateWebsite = () => {
     fd.set("inclusions", JSON.stringify(values.inclusions || []));
     fd.set("faqs", JSON.stringify(values.faqs || []));
     fd.set("sectionOverrides", JSON.stringify(values.sectionOverrides || {}));
+    fd.set("styleConfig", JSON.stringify(values.styleConfig || {}));
     // themeVariant is never bound to a real form input (it's set once by the
     // template picker and shown read-only afterward), so FormData(formEl)
     // never picks it up on its own — without this explicit set, the chosen
@@ -2515,6 +2622,11 @@ const CreateWebsite = () => {
         "Thank you. Your inquiry has been submitted successfully.",
     );
     fd.set("contactBusinessHours", values.contactBusinessHours || "");
+    fd.set("openingHours", JSON.stringify(normalizeOpeningHours(values.openingHours)));
+    fd.set("reservation", JSON.stringify(normalizeReservation(values.reservation)));
+    fd.set("stayPolicy", JSON.stringify(normalizeStayPolicy(values.stayPolicy)));
+    fd.set("tourBooking", JSON.stringify(normalizeTourBooking(values.tourBooking)));
+    fd.set("templateContent", JSON.stringify(normalizeTemplateContent(values.templateContent)));
     fd.set("contactPersonName", values.contactPersonName || "");
     fd.set("contactPersonRole", values.contactPersonRole || "");
     fd.set("contactPersonEmail", values.contactPersonEmail || "");
@@ -2524,6 +2636,9 @@ const CreateWebsite = () => {
     fd.set("partnerFormTitle", values.partnerFormTitle || "");
     fd.set("careersPageHeading", values.careersPageHeading || "");
     fd.set("careersPageIntro", values.careersPageIntro || "");
+    fd.set("careersClosingHeading", values.careersClosingHeading || "");
+    fd.set("careersClosingText", values.careersClosingText || "");
+    fd.set("careersApplyButtonText", values.careersApplyButtonText || "");
     fd.set(
       "careersFormFields",
       JSON.stringify(
@@ -2668,6 +2783,7 @@ const CreateWebsite = () => {
           .filter(Boolean),
       })),
       meetingRooms: (formValues?.meetingRooms || formValues?.rooms || []).map((item: any) => ({
+        ...pickItemExtras("meeting", item),
         title: String(item?.title || "").trim(),
         price: String(item?.price || "").trim(),
         description: String(item?.description || "").trim(),
@@ -2677,6 +2793,7 @@ const CreateWebsite = () => {
           .filter(Boolean),
       })),
       rooms: (formValues?.rooms || []).map((item: any) => ({
+        ...pickItemExtras("room", item),
         title: String(item?.title || "").trim(),
         price: String(item?.price || "").trim(),
         description: String(item?.description || "").trim(),
@@ -2686,6 +2803,7 @@ const CreateWebsite = () => {
           .filter(Boolean),
       })),
       coLivingRooms: (formValues?.coLivingRooms || []).map((item: any) => ({
+        ...pickItemExtras("coLiving", item),
         title: String(item?.title || "").trim(),
         price: String(item?.price || "").trim(),
         description: String(item?.description || "").trim(),
@@ -2695,6 +2813,7 @@ const CreateWebsite = () => {
           .filter(Boolean),
       })),
       packages: (formValues?.packages || []).map((item: any) => ({
+        ...pickItemExtras("package", item),
         title: String(item?.title || "").trim(),
         price: String(item?.price || "").trim(),
         duration: String(item?.duration || "").trim(),
@@ -2705,6 +2824,7 @@ const CreateWebsite = () => {
           .filter(Boolean),
       })),
       dorms: (formValues?.dorms || []).map((item: any) => ({
+        ...pickItemExtras("dorm", item),
         title: String(item?.title || "").trim(),
         capacity: item?.capacity,
         price: String(item?.price || "").trim(),
@@ -2725,6 +2845,8 @@ const CreateWebsite = () => {
         subText: String(item?.homeCardSubText || "").trim(),
         cardImage:
           getMediaUrlForPreview(item?.homeCardImage) ||
+          getMediaUrlForPreview(item?.heroImage) ||
+          getMediaUrlForPreview((item?.heroImages || [])[0]) ||
           getMediaUrlForPreview(formValues?.products?.[index]?.files?.[0]),
         heroHeading: String(item?.heroHeading || "").trim(),
         heroSubHeading: String(item?.heroSubHeading || "").trim(),
@@ -2744,6 +2866,7 @@ const CreateWebsite = () => {
               description: String(sp?.description || "").trim(),
               cost: String(sp?.cost || "").trim(),
               enabled: sp?.enabled !== false,
+              ...pickItemExtras("subProduct", sp),
               images: (sp?.images || [])
                 .map((img: unknown) => getMediaUrlForPreview(img))
                 .filter(Boolean),
@@ -2765,6 +2888,8 @@ const CreateWebsite = () => {
         homeCardSubText: String(item?.homeCardSubText || "").trim(),
         cardImage:
           getMediaUrlForPreview(item?.homeCardImage) ||
+          getMediaUrlForPreview(item?.heroImage) ||
+          getMediaUrlForPreview((item?.heroImages || [])[0]) ||
           getMediaUrlForPreview(formValues?.products?.[index]?.files?.[0]),
         homeCardImage: getMediaUrlForPreview(item?.homeCardImage),
         heroImage: getMediaUrlForPreview(item?.heroImage),
@@ -2781,6 +2906,7 @@ const CreateWebsite = () => {
               description: String(sp?.description || "").trim(),
               cost: String(sp?.cost || "").trim(),
               enabled: sp?.enabled !== false,
+              ...pickItemExtras("subProduct", sp),
               images: (sp?.images || [])
                 .map((img: unknown) => getMediaUrlForPreview(img))
                 .filter(Boolean),
@@ -2788,6 +2914,7 @@ const CreateWebsite = () => {
           : [],
       })),
       menuItems: (formValues?.menuItems || []).map((item: any) => ({
+        ...pickItemExtras("menu", item),
         category: String(item?.category || "").trim(),
         name: String(item?.name || "").trim(),
         price: String(item?.price || "").trim(),
@@ -2795,6 +2922,11 @@ const CreateWebsite = () => {
         enabled: item?.enabled !== false,
         image: getMediaUrlForPreview(item?.image),
       })),
+      openingHours: normalizeOpeningHours(formValues?.openingHours),
+      reservation: normalizeReservation(formValues?.reservation),
+      stayPolicy: normalizeStayPolicy(formValues?.stayPolicy),
+      tourBooking: normalizeTourBooking(formValues?.tourBooking),
+      templateContent: normalizeTemplateContent(formValues?.templateContent),
       galleryTitle: String(formValues?.galleryTitle || "Gallery").trim(),
       inclusions: Array.isArray(formValues?.inclusions) ? formValues.inclusions : [],
       faqs: Array.isArray(formValues?.faqs) ? formValues.faqs.map((faq: any) => ({ question: String(faq?.question || "").trim(), answer: String(faq?.answer || "").trim(), enabled: faq?.enabled !== false })).filter((faq: any) => faq.question) : [],
@@ -2846,6 +2978,9 @@ const CreateWebsite = () => {
       partnerFormTitle: String(formValues?.partnerFormTitle || "").trim(),
       careersPageHeading: String(formValues?.careersPageHeading || "").trim(),
       careersPageIntro: String(formValues?.careersPageIntro || "").trim(),
+      careersClosingHeading: String(formValues?.careersClosingHeading || "").trim(),
+      careersClosingText: String(formValues?.careersClosingText || "").trim(),
+      careersApplyButtonText: String(formValues?.careersApplyButtonText || "").trim(),
       careersFormFields: Array.isArray(formValues?.careersFormFields)
         ? formValues.careersFormFields
         : tryParseJson(formValues?.careersFormFields, []),
@@ -2945,6 +3080,49 @@ const CreateWebsite = () => {
       savedTemplate.aboutPageImages,
       pendingFieldFiles.aboutPageImages,
     );
+    // Rooms / co-living spaces / packages / dorms / meeting rooms: swap the
+    // Files this request uploaded for their saved refs, per item. Without
+    // this the form keeps raw Files, and Submit then serialises them as
+    // empty `{}` objects that wipe the images just saved.
+    const itemImageLists: Array<[string, string]> = [
+      ["rooms", "draftRoomImages_"],
+      ["meetingRooms", "draftMeetingRoomImages_"],
+      ["coLivingRooms", "draftCoLivingRoomImages_"],
+      ["packages", "draftPackageImages_"],
+      ["dorms", "draftDormImages_"],
+    ];
+    itemImageLists.forEach(([listName, fieldPrefix]) => {
+      const savedList = (savedTemplate as any)[listName];
+      if (!Array.isArray(savedList)) return;
+      const currentList = getValues(listName as any);
+      if (!Array.isArray(currentList)) return;
+      let changed = false;
+      const nextList = currentList.map((item: any, itemIdx: number) => {
+        // This request's Files for this item, in the order they were sent.
+        const submitted: File[] = [];
+        Object.keys(pendingFieldFiles)
+          .filter((key) => new RegExp(`^${fieldPrefix}${itemIdx}_\\d+$`).test(key))
+          .sort(
+            (a, b) =>
+              Number(a.split("_").pop()) - Number(b.split("_").pop()),
+          )
+          .forEach((key) => submitted.push(...pendingFieldFiles[key]));
+        const savedImages = savedList[itemIdx]?.images;
+        if (!submitted.length || !Array.isArray(savedImages)) return item;
+        const newlyUploaded = savedImages.slice(-submitted.length);
+        if (newlyUploaded.length !== submitted.length) return item;
+        const fileToSaved = new Map<File, any>();
+        submitted.forEach((file, idx) => fileToSaved.set(file, newlyUploaded[idx]));
+        changed = true;
+        return {
+          ...item,
+          images: (item?.images || []).map((img: any) =>
+            img instanceof File && fileToSaved.has(img) ? fileToSaved.get(img) : img,
+          ),
+        };
+      });
+      if (changed) setValue(listName as any, nextList, { shouldDirty: false });
+    });
     // Founder images
     if (Array.isArray(savedTemplate.founders) && savedTemplate.founders.length) {
       const currentFounders = getValues("founders") || [];
@@ -2982,14 +3160,19 @@ const CreateWebsite = () => {
         const mergedSubProducts = currentSubProducts.map((sp: any, subIdx: number) => {
           const savedImages = savedSubProducts[subIdx]?.images;
           if (!Array.isArray(savedImages) || !savedImages.length) return sp;
+          // Swap the Files this request uploaded for their saved refs. Keeping the Files here meant the next
+          // autosave sent them as empty placeholders and the saved photos were wiped.
+          const submitted: File[] = pendingFieldFiles[`subProductImages_${pageIdx}_${subIdx}`] || [];
+          if (!submitted.length) return sp;
+          const newlyUploaded = savedImages.slice(-submitted.length);
+          if (newlyUploaded.length !== submitted.length) return sp;
+          const fileToSaved = new Map<File, any>();
+          submitted.forEach((file: File, idx: number) => fileToSaved.set(file, newlyUploaded[idx]));
           const currentImages = sp?.images || [];
-          const mergedImages = savedImages.map((saved: any, imgIdx: number) => {
-            const current = currentImages[imgIdx];
-            // Keep File objects if they're newer than saved; otherwise use saved S3 object
-            if (current instanceof File) return current;
-            return saved;
-          });
-          return { ...sp, images: mergedImages };
+          return {
+            ...sp,
+            images: currentImages.map((img: any) => (img instanceof File && fileToSaved.has(img) ? fileToSaved.get(img) : img)),
+          };
         });
         return { ...page, subProducts: mergedSubProducts };
       });
@@ -3006,7 +3189,10 @@ const CreateWebsite = () => {
       return res.data;
     },
     onSuccess: (data, variables) => {
-      lastDraftSnapshotRef.current = pendingDraftSnapshotRef.current;
+      lastDraftSnapshotRef.current = draftHasDeferredFilesRef.current
+        ? ""
+        : pendingDraftSnapshotRef.current;
+      draftHasDeferredFilesRef.current = false;
       pendingDraftSnapshotRef.current = "";
       pendingDraftFileKeysRef.current.forEach((key) =>
         uploadedDraftFileKeysRef.current.add(key),
@@ -3024,10 +3210,17 @@ const CreateWebsite = () => {
       // autosave request's response lands first.
       syncSavedMediaIntoForm(data?.template, variables?.pendingFieldFiles);
     },
-    onError: () => {
+    onError: (error: any) => {
+      if (error?.response?.status === 413) {
+        draftFileByteBudgetRef.current = 700 * 1024;
+      }
       pendingDraftSnapshotRef.current = "";
       pendingDraftFileKeysRef.current = [];
+      draftHasDeferredFilesRef.current = false;
       setDraftStatus("error");
+    },
+    onSettled: () => {
+      draftSaveInFlightRef.current = false;
     },
   });
 
@@ -3048,6 +3241,10 @@ const CreateWebsite = () => {
     if (snapshot === lastDraftSnapshotRef.current) return;
 
     const timeoutId = window.setTimeout(() => {
+      // A save is still running: skip. When it settles, the status change
+      // re-renders and this effect schedules a follow-up for anything that
+      // changed in the meantime.
+      if (draftSaveInFlightRef.current) return;
       setDraftStatus("saving");
       pendingDraftSnapshotRef.current = snapshot;
       const fd = new FormData();
@@ -3069,10 +3266,23 @@ const CreateWebsite = () => {
       const pendingFieldFiles: Record<string, File[]> = {};
       const getFileKey = (file: File) =>
         `${file.name}__${file.size}__${file.lastModified}`;
+      // Production sits behind a proxy that rejects request bodies over ~1MB
+      // (413), so a multi-select of several ~1MB images can't go in one
+      // request. Send only what fits; the rest stays un-marked and follows in
+      // the next autosave request.
+      let requestFileBytes = 0;
       const appendDraftFileOnce = (fieldName: string, file?: File | null) => {
-        if (!file) return;
+        // Item image lists mix saved {id,url} refs with fresh Files; only Files
+        // are uploaded (a saved ref would be sent as "[object Object]" and
+        // corrupt the request size count).
+        if (!(file instanceof File)) return;
         const key = `${fieldName}::${getFileKey(file)}`;
         if (uploadedDraftFileKeysRef.current.has(key)) return;
+        if (pendingFileKeys.length > 0 && requestFileBytes + file.size > draftFileByteBudgetRef.current) {
+          draftHasDeferredFilesRef.current = true;
+          return;
+        }
+        requestFileBytes += file.size;
         fd.append(fieldName, file);
         pendingFileKeys.push(key);
         (pendingFieldFiles[fieldName] ||= []).push(file);
@@ -3172,6 +3382,8 @@ const CreateWebsite = () => {
       });
 
       pendingDraftFileKeysRef.current = pendingFileKeys;
+      draftSaveInFlightRef.current = true;
+      sessionDraftStartedRef.current = true;
       saveWebsiteDraft({ fd, pendingFieldFiles });
     }, 1200);
     draftAutosaveTimeoutRef.current = timeoutId;
@@ -3495,14 +3707,69 @@ const CreateWebsite = () => {
       homeCardHeading: trimmed,
       homeCardSubText: "",
       homeCardImage: null,
-      leadEnabled: !isMenuPageSlug(slug),
-      leadFormLabel: isMenuPageSlug(slug)
-        ? "Menu Inquiry Disabled"
-        : "View More / Get Details",
+      leadEnabled:
+        !isMenuPageSlug(slug) ||
+        Boolean(TEMPLATE_REGISTRY[String(values?.themeVariant || "")]?.supportsBooking),
+      leadFormLabel:
+        isMenuPageSlug(slug) && !TEMPLATE_REGISTRY[String(values?.themeVariant || "")]?.supportsBooking
+          ? "Menu Inquiry Disabled"
+          : "View More / Get Details",
       faqs: [],
       inclusions: DEFAULT_PRODUCT_PAGE_INCLUSION_KEYS.map((k) => ({ key: k, enabled: false })),
     });
     setActiveProductPageTab(productPageFields.length);
+    void fillServiceWithSample(trimmed, slug);
+  };
+
+  // A service page added from the list on a newer template comes with that service's sample text,
+  // photos and items (only where the site has none yet), so it looks finished like the rest.
+  const fillServiceWithSample = async (name: string, slug: string) => {
+    const theme = String(getValues("themeVariant") || "");
+    if (!hasSampleContent(theme) || !isSampleService(name)) return; // custom pages start blank
+    try {
+      const sample = await buildServiceSample({
+        themeVariant: theme,
+        serviceName: name,
+        companyName: String(getValues("companyName") || prefillCompanyName || "").trim(),
+      });
+      const pages = getValues("productDropdownPages") || [];
+      const index = pages.findIndex((item: any) => String(item?.slug || "").trim().toLowerCase() === slug);
+      if (index < 0) return; // removed again while the photos were loading
+      // Never overwrite what the owner already typed on this page.
+      const page = pages[index] || {};
+      const blank = (value: unknown) => !String(value ?? "").trim();
+      const untouched = (value: unknown) => blank(value) || String(value).trim() === name;
+      const merged = {
+        ...page,
+        ...sample.page,
+        heroHeading: untouched(page.heroHeading) ? sample.page.heroHeading : page.heroHeading,
+        heroSubHeading: blank(page.heroSubHeading) ? sample.page.heroSubHeading : page.heroSubHeading,
+        homeCardHeading: untouched(page.homeCardHeading) ? sample.page.homeCardHeading : page.homeCardHeading,
+        homeCardSubText: blank(page.homeCardSubText) ? sample.page.homeCardSubText : page.homeCardSubText,
+        heroImages: page.heroImages?.length ? page.heroImages : sample.page.heroImages,
+        homeCardImage: page.homeCardImage || sample.page.homeCardImage,
+        faqs: page.faqs?.length ? page.faqs : sample.page.faqs,
+        subProducts: (page.subProducts || []).some((item: any) => String(item?.name || "").trim())
+          ? page.subProducts
+          : sample.page.subProducts || page.subProducts,
+      };
+      setValue("productDropdownPages", pages.map((item: any, i: number) => (i === index ? merged : item)));
+      // Lists shared by every service of this kind are filled only when still empty.
+      Object.entries(sample.lists).forEach(([key, list]) => {
+        const current = getValues(key as any);
+        const hasContent = Array.isArray(current) && current.some((entry: any) => String(entry?.title || entry?.name || "").trim());
+        if (!hasContent) setValue(key as any, list as any);
+      });
+      const { openingHours, reservation, stayPolicy, tourBooking } = sample.settings;
+      const hours = getValues("openingHours");
+      if (openingHours && !(Array.isArray(hours) && hours.length)) setValue("openingHours", normalizeOpeningHours(openingHours));
+      if (reservation && !getValues("reservation")?.enabled) setValue("reservation", normalizeReservation(reservation));
+      if (stayPolicy && !getValues("stayPolicy")?.checkInTime) setValue("stayPolicy", normalizeStayPolicy(stayPolicy));
+      if (tourBooking) setValue("tourBooking", normalizeTourBooking(tourBooking));
+      toast.info(`Sample content added for ${name}. Replace it with your own.`);
+    } catch {
+      // The page is still added; it just starts blank.
+    }
   };
 
   // "+ Add New Page" seeds a blank "Product N" page, incrementing past any name
@@ -3535,19 +3802,193 @@ const CreateWebsite = () => {
 
   const hasSeededDefaultServicesPageRef = useRef(false);
 
+  // Services the business ticked in the template picker become the starting pages.
+  // Cafe pages keep lead capture on only when the chosen template can take
+  // reservations; older templates have no reservation form.
+  const buildServicePagesFor = (chosen: string[]) => {
+    const supportsBooking = Boolean(TEMPLATE_REGISTRY[String(getValues("themeVariant") || "")]?.supportsBooking);
+    return chosen.length
+      ? chosen.map((name) => {
+          const page = buildDefaultProductPage(name);
+          const menu = isMenuPageSlug(page.slug);
+          const ownItems = /workation|hostel|co-living|coliving|meeting|cafe|menu/.test(page.slug);
+          return {
+            ...page,
+            leadEnabled: !menu || supportsBooking,
+            leadFormLabel: menu && !supportsBooking ? "Menu Inquiry Disabled" : page.leadFormLabel,
+            subProducts: ownItems ? [] : page.subProducts,
+          };
+        })
+      : [buildDefaultProductPage()];
+  };
+  const buildPickerServicePages = () => buildServicePagesFor(isEditMode ? [] : readSelectedServices());
+
   useEffect(() => {
+    if (hasSeededDefaultServicesPageRef.current) return;
+    // The form starts with one blank "Service Page 1"; that untouched placeholder still counts as "no pages yet".
     const currentPages = getValues("productDropdownPages");
-    if (Array.isArray(currentPages) && currentPages.length > 0) {
+    const onlyPlaceholder =
+      Array.isArray(currentPages) &&
+      currentPages.length === 1 &&
+      currentPages[0]?.slug === "service-page-1" &&
+      !String(currentPages[0]?.heroSubHeading || "").trim() &&
+      !(currentPages[0]?.faqs || []).length;
+    if (Array.isArray(currentPages) && currentPages.length > 0 && !onlyPlaceholder) {
       hasSeededDefaultServicesPageRef.current = true;
       return;
     }
-    if (hasSeededDefaultServicesPageRef.current) return;
-    setValue("productDropdownPages", [buildDefaultProductPage()], { shouldDirty: false });
+    setValue("productDropdownPages", buildPickerServicePages(), { shouldDirty: false });
     setActiveProductPageTab(0);
     hasSeededDefaultServicesPageRef.current = true;
   }, [getValues, setValue, setActiveProductPageTab]);
 
-  if (isCheckingExistingWebsite) {
+  // "Start from sample content": a brand-new site with a vertical template opens filled with that
+  // template's demo text and photos (real, editable form content) so it looks finished at once.
+  const [samplePending, setSamplePending] = useState(() => !isEditMode && hasSampleContent(initialThemeVariant));
+  const [sampleApplied, setSampleApplied] = useState(false);
+  const [sampleFilling, setSampleFilling] = useState(false);
+  const sampleStartedRef = useRef(false);
+
+  // Writes a built sample into the form: site-wide text and photos, opening hours and settings, every
+  // page except Careers switched on, and each service page filled from the sample for its service.
+  const applySampleValues = (sample: any, basePages: any[]) => {
+    const current: any = getValues();
+    const servicePages = basePages.map((page: any, index: number) => ({
+      ...page,
+      ...(sample.pages[index] || {}),
+    }));
+    reset({
+      ...current,
+      ...sample.values,
+      openingHours: normalizeOpeningHours(sample.values.openingHours),
+      ...(sample.values.reservation ? { reservation: normalizeReservation(sample.values.reservation) } : {}),
+      ...(sample.values.stayPolicy ? { stayPolicy: normalizeStayPolicy(sample.values.stayPolicy) } : {}),
+      ...(sample.values.tourBooking ? { tourBooking: normalizeTourBooking(sample.values.tourBooking) } : {}),
+      // Every page with sample content goes live, except Careers (no openings to show).
+      pageNavItems: buildDefaultPageNavItems().map((item) => ({ ...item, enabled: item.slug !== "careers" })),
+      productDropdownPages: servicePages,
+    });
+    setActiveProductPageTab(0);
+    setSampleApplied(true);
+  };
+
+  useEffect(() => {
+    if (!samplePending || sampleStartedRef.current || isCheckingExistingWebsite) return;
+    // A saved website/draft always wins over sample content.
+    if (hasHydratedFromDbRef.current || hasExistingWebsite || !String(prefillCompanyName || "").trim()) {
+      setSamplePending(false);
+      return;
+    }
+    sampleStartedRef.current = true;
+    (async () => {
+      try {
+        const theme = String(getValues("themeVariant") || "");
+        if (!hasSampleContent(theme)) return;
+        const sample = await buildSampleContent({
+          themeVariant: theme,
+          services: readSelectedServices(),
+          companyName: String(prefillCompanyName).trim(),
+        });
+        applySampleValues(sample, (getValues() as any).productDropdownPages || []);
+      } catch {
+        // A blank form is a fine fallback if the sample can't be built.
+      } finally {
+        setSamplePending(false);
+      }
+    })();
+  }, [samplePending, isCheckingExistingWebsite, hasExistingWebsite, prefillCompanyName, getValues, reset, setActiveProductPageTab]);
+
+  const clearSampleContent = () => {
+    if (!window.confirm("Remove all the sample text and photos and start with a blank website?")) return;
+    formRef.current?.reset();
+    const current: any = getValues();
+    reset({
+      ...current,
+      title: "",
+      subTitle: "",
+      CTAButtonText: "",
+      heroImages: [],
+      gallery: [],
+      about: [{ text: "" }],
+      aboutTitle: "",
+      aboutPageStory: "",
+      aboutPageMission: "",
+      aboutPageValues: "",
+      aboutPageTeamHeading: "",
+      aboutPageImages: [],
+      aboutPageImageCards: [{ title: "", description: "", image: null }],
+      founders: [{ name: "", role: "", bio: "", highlights: "", image: null }],
+      testimonials: [defaultTestimonial],
+      partnerPageHeading: "",
+      partnerPageContent: "",
+      productTitle: "",
+      contactTitle: "",
+      galleryTitle: "",
+      faqs: [],
+      inclusions: [],
+      menuItems: [],
+      rooms: [],
+      meetingRooms: [],
+      coLivingRooms: [],
+      packages: [],
+      dorms: [],
+      openingHours: [],
+      reservation: defaultReservation(),
+      stayPolicy: defaultStayPolicy(),
+      tourBooking: { enabled: true },
+      pageNavItems: buildDefaultPageNavItems(),
+      productDropdownPages: buildPickerServicePages(),
+    });
+    setActiveProductPageTab(0);
+    setSampleApplied(false);
+  };
+
+  // A saved website that was never filled in (an empty draft) can still be given the sample.
+  const websiteIsBlank = (v: any) => {
+    const text = (value: any) => String(value ?? "").trim();
+    const some = (list: any) => Array.isArray(list) && list.length > 0;
+    const pageHasContent = (page: any) =>
+      Boolean(text(page?.heroSubHeading) || some(page?.heroImages) || page?.homeCardImage) ||
+      (page?.subProducts || []).some((item: any) => text(item?.name) || text(item?.description) || some(item?.images));
+    return !(
+      text(v.title) ||
+      text(v.subTitle) ||
+      some(v.heroImages) ||
+      some(v.gallery) ||
+      (v.about || []).some((item: any) => text(item?.text)) ||
+      (v.testimonials || []).some((item: any) => text(item?.testimony) || text(item?.name)) ||
+      some(v.faqs) ||
+      ["menuItems", "rooms", "meetingRooms", "coLivingRooms", "packages", "dorms"].some((key) => some(v[key])) ||
+      (v.productDropdownPages || []).some(pageHasContent)
+    );
+  };
+  const canOfferSample =
+    hasSampleContent(String(values?.themeVariant || "")) &&
+    !sampleApplied &&
+    !sampleFilling &&
+    (hasHydratedFromDbRef.current || !effectiveEditMode) &&
+    websiteIsBlank(values || {});
+
+  const fillBlankWithSample = async () => {
+    if (sampleFilling) return;
+    setSampleFilling(true);
+    try {
+      const theme = String(getValues("themeVariant") || "");
+      const pages: any[] = (getValues("productDropdownPages") as any[]) || [];
+      // Keep service pages already named after a service; otherwise start from the template's own service.
+      const named = pages.map((page) => String(page?.name || "").trim()).filter(isSampleService);
+      const names = resolveSampleServices(theme, named);
+      const companyName = String(getValues("companyName") || prefillCompanyName || "").trim();
+      const sample = await buildSampleContent({ themeVariant: theme, services: names, companyName });
+      applySampleValues(sample, named.length ? pages : buildServicePagesFor(names));
+    } catch {
+      toast.error("Could not load the sample content. Please try again.");
+    } finally {
+      setSampleFilling(false);
+    }
+  };
+
+  if (isCheckingExistingWebsite || samplePending) {
     return <WebsiteBuilderEditorSkeleton />;
   }
 
@@ -3637,6 +4078,51 @@ const CreateWebsite = () => {
                 </p>
               </div>
             </div>
+
+            {canOfferSample ? (
+              <div
+                role="status"
+                className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-900"
+              >
+                <p className="min-w-0 flex-1 leading-relaxed">
+                  <span className="font-semibold">This website is still empty.</span> Fill it with sample text, photos,
+                  rooms or menu, reviews and team members to see the finished look, then edit or replace anything with
+                  your own before publishing.
+                </p>
+                <button
+                  type="button"
+                  onClick={fillBlankWithSample}
+                  className="shrink-0 rounded-lg bg-[#2563EB] px-3 py-1.5 font-semibold text-white transition hover:bg-blue-700"
+                >
+                  Fill with sample content
+                </button>
+              </div>
+            ) : null}
+            {sampleFilling ? (
+              <div role="status" className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs font-semibold text-blue-900">
+                Adding sample content and photos…
+              </div>
+            ) : null}
+
+            {sampleApplied ? (
+              <div
+                role="status"
+                className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-900"
+              >
+                <p className="min-w-0 flex-1 leading-relaxed">
+                  <span className="font-semibold">Your website starts with sample content.</span> The text, photos,
+                  rooms or menu, reviews and team members are placeholders so you can see the finished look. Edit or
+                  replace anything below with your own before publishing.
+                </p>
+                <button
+                  type="button"
+                  onClick={clearSampleContent}
+                  className="shrink-0 rounded-lg border border-blue-300 bg-white px-3 py-1.5 font-semibold text-blue-700 transition hover:bg-blue-100"
+                >
+                  Start from blank
+                </button>
+              </div>
+            ) : null}
 
             <form
               ref={formRef}
@@ -4025,7 +4511,12 @@ const CreateWebsite = () => {
                               currentProductPageSlug.includes("hostel");
 
                             if (isCafePage) {
-                              return <MenuSection control={control} register={register} />;
+                              return (
+                                <>
+                                  <MenuSection control={control} register={register} />
+                                  <ServiceSettingsPanel control={control} kind="cafe" />
+                                </>
+                              );
                             }
                             if (isMeetingRoomsPage) {
                               return (
@@ -4042,15 +4533,18 @@ const CreateWebsite = () => {
                             }
                             if (isCoLivingPage) {
                               return (
-                                <RoomsSection
-                                  control={control}
-                                  register={register}
-                                  fieldName="coLivingRooms"
-                                  sectionTitle="Co-Living Spaces"
-                                  itemLabel="Space"
-                                  imageLabel="Space Images"
-                                  priceLabel="Price per night"
-                                />
+                                <>
+                                  <RoomsSection
+                                    control={control}
+                                    register={register}
+                                    fieldName="coLivingRooms"
+                                    sectionTitle="Co-Living Spaces"
+                                    itemLabel="Space"
+                                    imageLabel="Space Images"
+                                    priceLabel="Price per night"
+                                  />
+                                  <ServiceSettingsPanel control={control} kind="coLiving" />
+                                </>
                               );
                             }
                             if (isWorkationPage) {
@@ -4059,10 +4553,19 @@ const CreateWebsite = () => {
                               );
                             }
                             if (isHostelPage) {
-                              return <DormsSection control={control} register={register} />;
+                              return (
+                                <>
+                                  <DormsSection control={control} register={register} />
+                                  <ServiceSettingsPanel control={control} kind="hostel" />
+                                </>
+                              );
                             }
 
-                            return (
+                            const isCoWorkingPage =
+                              currentProductPageSlug.includes("co-working") ||
+                              currentProductPageSlug.includes("coworking");
+
+                            const subProductsEditor = (
                               <ProductPageSubProducts
                                 // Deliberately just the tab index, not
                                 // productPageFields[...].id — that RHF-owned
@@ -4078,6 +4581,14 @@ const CreateWebsite = () => {
                                 pageIndex={activeProductPageTab}
                                 pageName={watch(`productDropdownPages.${activeProductPageTab}.name`)}
                               />
+                            );
+                            return isCoWorkingPage ? (
+                              <>
+                                {subProductsEditor}
+                                <ServiceSettingsPanel control={control} kind="coWorking" />
+                              </>
+                            ) : (
+                              subProductsEditor
                             );
                           })()}
                         </div>
@@ -4525,7 +5036,7 @@ const CreateWebsite = () => {
                             name="gallery"
                             label="Gallery Images"
                             maxFiles={40}
-                            allowedExtensions={["jpg", "jpeg", "png", "pdf", "webp"]}
+                            allowedExtensions={["jpg", "jpeg", "png", "webp"]}
                             id="gallery-page-synced"
                             enabledToggle
                           />
@@ -4640,6 +5151,41 @@ const CreateWebsite = () => {
                         placeholder="Tell visitors about your company and why they should join..."
                         multiline
                         minRows={6}
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="careersClosingHeading"
+                    control={control}
+                    render={({ field }) => (
+                      <WebsiteFormField
+                        field={field}
+                        label="Closing Box Heading"
+                        placeholder="Don't see your role?"
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="careersClosingText"
+                    control={control}
+                    render={({ field }) => (
+                      <WebsiteFormField
+                        field={field}
+                        label="Closing Box Text"
+                        placeholder="Send us a general application and tell us how you'd like to contribute."
+                        multiline
+                        minRows={3}
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="careersApplyButtonText"
+                    control={control}
+                    render={({ field }) => (
+                      <WebsiteFormField
+                        field={field}
+                        label="General Application Button"
+                        placeholder="General application"
                       />
                     )}
                   />
@@ -4886,6 +5432,12 @@ const CreateWebsite = () => {
           </div>
           {activeMainPageSlug === "home" ? (
           <div className="md:grid grid-cols-2 sm:grid-cols-1 md:grid-cols-2 gap-4" data-tour="wb-editor-home-content">
+            {supportsThemeColors(watch("themeVariant")) && (
+              <ThemeColors control={control} templateId={watch("themeVariant")} />
+            )}
+            {hasTemplateContent(watch("themeVariant")) && (
+              <TemplateContentPanel control={control} templateId={watch("themeVariant")} />
+            )}
             {/* HERO / COMPANY */}
             {activeSections.includes("hero") && (
             <div>
@@ -4937,7 +5489,7 @@ const CreateWebsite = () => {
                       name="heroImages" // important so FormData picks the files
                       label="Carousel Images"
                       maxFiles={5}
-                      allowedExtensions={["jpg", "jpeg", "png", "pdf", "webp"]}
+                      allowedExtensions={["jpg", "jpeg", "png", "webp"]}
                       id="heroImages"
                     />
                   )}
@@ -5478,7 +6030,6 @@ const CreateWebsite = () => {
                               "jpeg",
                               "png",
                               "webp",
-                              "pdf",
                             ]}
                             id={`products.${index}.files`}
                           />
@@ -5511,7 +6062,10 @@ const CreateWebsite = () => {
               <PackagesSection control={control} register={register} />
             )}
             {selectedVertical === "hostel" && (
-              <DormsSection control={control} register={register} />
+              <>
+                <DormsSection control={control} register={register} />
+                <ServiceSettingsPanel control={control} kind="hostel" />
+              </>
             )}
             {selectedVertical === "meeting-rooms" && (
               <RoomsSection
@@ -5525,7 +6079,10 @@ const CreateWebsite = () => {
               />
             )}
             {selectedVertical === "cafe" && (
-              <MenuSection control={control} register={register} />
+              <>
+                <MenuSection control={control} register={register} />
+                <ServiceSettingsPanel control={control} kind="cafe" />
+              </>
             )}
 
             {/* GALLERY */}
@@ -5562,7 +6119,7 @@ const CreateWebsite = () => {
                       name="gallery"
                       label="Gallery Images"
                       maxFiles={40}
-                      allowedExtensions={["jpg", "jpeg", "png", "pdf", "webp"]}
+                      allowedExtensions={["jpg", "jpeg", "png", "webp"]}
                       id="gallery"
                       enabledToggle
                     />
@@ -5735,7 +6292,7 @@ const CreateWebsite = () => {
                         {...field}
                         label="Logo Images"
                         maxFiles={12}
-                        allowedExtensions={["jpg", "jpeg", "png", "webp", "svg"]}
+                        allowedExtensions={["jpg", "jpeg", "png", "webp"]}
                         id="logo-carousel-logos-persistent"
                       />
                     )}

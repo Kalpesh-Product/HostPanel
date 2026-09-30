@@ -5,6 +5,7 @@ import { MdOutlineRateReview } from "react-icons/md";
 import { MdOutlineWorkHistory } from "react-icons/md";
 import Card from "../../../../components/Card";
 import PageFrame from "../../../../components/Pages/PageFrame";
+import { TemplatePicker } from "./SelectWebsiteTemplate";
 import Skeleton from "../../../../components/ui/Skeleton";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import useAuth from "../../../../hooks/useAuth";
@@ -102,6 +103,7 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
   const selectedCompany = useSelector((state: any) => state.company.selectedCompany);
   const [existingWebsite, setExistingWebsite] = useState<any>(null);
   const [isCheckingWebsite, setIsCheckingWebsite] = useState(true);
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const [workspaceBusinessName, setWorkspaceBusinessName] = useState("");
   const [workspaceBusinessTypes, setWorkspaceBusinessTypes] = useState<string[]>([]);
   const [isWorkspaceDataLoading, setIsWorkspaceDataLoading] = useState(true);
@@ -304,7 +306,6 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
   // }, [axios, companyId]);
 
   const createOrEditRoute = `${builderBasePath}/dynamic/create-website`;
-  const selectTemplateRoute = `${builderBasePath}/dynamic/select-template`;
   const leadsRoute = `${builderBasePath}/dynamic/leads`;
   const reviewsRoute = `${builderBasePath}/dynamic/reviews`;
   const careersRoute = `${builderBasePath}/dynamic/careers`;
@@ -420,8 +421,8 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
       BUSINESS_TYPE_TO_VERTICAL_KEY[selectedType] || "co-working";
     localStorage.setItem("selectedVertical", selectedVertical);
     localStorage.setItem("selectedVerticalLabel", selectedType);
-    // Brand-new website: pick a template first, then land in the builder.
-    navigate(selectTemplateRoute);
+    // Brand-new website: pick a template in a popup, then land in the builder.
+    setTemplatePickerOpen(true);
   };
 
   if (isCheckingWebsite) {
@@ -516,6 +517,7 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
           </div>
         </div>
       </PageFrame>
+      {templatePickerOpen ? <TemplatePicker onClose={() => setTemplatePickerOpen(false)} /> : null}
     </div>
   );
 };

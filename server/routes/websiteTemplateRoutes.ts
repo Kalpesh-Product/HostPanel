@@ -22,6 +22,7 @@ import {
 import {
   createTemplateChangeRequest,
   getTemplateChangeSummary,
+  getTemplateAvailability,
 } from "../controllers/websiteTemplateChangeController.js";
 
 const router = Router();
@@ -47,6 +48,7 @@ router.get("/get-inactive-websites", getInActiveTemplates);
 router.post("/save-website-draft", uploadImages.any(), saveTemplateDraft);
 router.post("/publish-website", publishWebsite);
 router.get("/template-change/summary", getTemplateChangeSummary);
+router.get("/template-change/availability", getTemplateAvailability);
 router.post("/template-change/requests", createTemplateChangeRequest);
 
 export default router;

@@ -424,6 +424,9 @@ export default function CompanyLeads({ leadScope = "website" }) {
                     const att = !sameAsNop(selectedLead.attendees) ? selectedLead.attendees : null;
                     const inq = !isRedundant(selectedLead.inquiryType) ? selectedLead.inquiryType : null;
                     const slot = selectedLead.timeSlot || null;
+                    const endTime = selectedLead.endTime || null;
+                    const seating = selectedLead.seating || null;
+                    const meetingLength = selectedLead.duration || null;
                     const bud = selectedLead.budget || null;
                     const loc = selectedLead.location || null;
 
@@ -438,7 +441,9 @@ export default function CompanyLeads({ leadScope = "website" }) {
                       pkg && { label: "Package / Plan", value: pkg },
                       att && { label: "Attendees / Team Size", value: att },
                       inq && { label: "Inquiry Type", value: inq },
-                      slot && { label: "Preferred Time / Slot", value: slot },
+                      slot && { label: "Preferred Time / Slot", value: endTime ? `${slot} – ${endTime}` : slot },
+                      meetingLength && { label: "Duration", value: meetingLength },
+                      seating && { label: "Seating", value: seating },
                       bud && { label: "Budget", value: bud },
                       loc && { label: "Location", value: loc },
                     ].filter(Boolean);

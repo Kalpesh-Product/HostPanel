@@ -110,7 +110,7 @@ export const isMenuProductSlug = (slug: string) => {
   return normalized.includes("cafe") || normalized.includes("menu");
 };
 
-const getMediaSrc = (value: any): string => {
+export const getMediaSrc = (value: any): string => {
   if (!value) return "";
   if (typeof value === "string") return value;
   if (Array.isArray(value) && value.length > 0) return getMediaSrc(value[0]);
@@ -144,6 +144,17 @@ const getSocialHref = (key: string, link: unknown) => {
     return digits ? `https://wa.me/${digits}` : "";
   }
   return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+};
+
+const isUsableSocialHref = (key: string, href: string) => {
+  if (!href) return false;
+  if (key === "whatsapp") return /^https:\/\/wa\.me\/\d{7,}$/.test(href);
+  try {
+    const url = new URL(href);
+    return /^https?:$/.test(url.protocol) && /\.[a-z]{2,}$/i.test(url.hostname);
+  } catch {
+    return false;
+  }
 };
 
 export const getCareersJobTitle = (job: any) =>
@@ -231,7 +242,7 @@ const getLeadFieldsForProduct = (slug: string) => {
   ];
 };
 
-const getProductContentItems = (draft: any, slug: string, page?: any) => {
+export const getProductContentItems = (draft: any, slug: string, page?: any) => {
   const normalized = normalizeSlug(slug);
   if (normalized.includes("meeting")) {
     return Array.isArray(draft?.meetingRooms) ? draft.meetingRooms : Array.isArray(draft?.rooms) ? draft.rooms : [];
@@ -278,6 +289,9 @@ export const useWebsiteTemplateData = () => {
   const [leadSubmitted, setLeadSubmitted] = useState(false);
   const [leadSubmitPending, setLeadSubmitPending] = useState(false);
   const [leadSubmitError, setLeadSubmitError] = useState("");
+  // Extra lead answers the new templates collect (time slot, seating, notes, an
+  // explicit inquiryType...). Empty for the older templates, so their payload is unchanged.
+  const [leadExtras, setLeadExtras] = useState<Record<string, string>>({});
   const [leadForm, setLeadForm] = useState({
     fullName: "",
     people: "",
@@ -413,10 +427,14 @@ export const useWebsiteTemplateData = () => {
       .filter((item: any) => item?.enabled !== false)
       .map((item: any) => {
         const slug = normalizeSlug(item?.slug || item?.name || "page");
-        // Older saved drafts may still literally have name: "Products" —
-        // always render the current label for this section regardless of
-        // what was persisted.
-        return { name: slug === "products" ? "Services" : item?.name || "Page", slug };
+        // Older saved drafts literally have name: "Products" (the pre-rename
+        // default) — show "Services" for that, but honour any custom name.
+        const rawName = String(item?.name || "").trim();
+        const name =
+          slug === "products" && (!rawName || rawName.toLowerCase() === "products")
+            ? "Services"
+            : rawName || "Page";
+        return { name, slug };
       });
     return fromDraft.length ? fromDraft : FALLBACK_NAV;
   }, [sourceNavItems]);
@@ -456,6 +474,8 @@ export const useWebsiteTemplateData = () => {
     const resolveCardImage = (item: any, index: number) =>
       getMediaSrc(item?.cardImage) ||
       getMediaSrc(item?.homeCardImage) ||
+      getMediaSrc((Array.isArray(item?.heroImages) ? item.heroImages : [])[0]) ||
+      getMediaSrc(item?.heroImage) ||
       getMediaSrc(
         (Array.isArray(item?.subProducts) ? item.subProducts : []).find(
           (sp: any) => sp?.enabled !== false && getMediaSrc(sp?.images?.[0]),
@@ -519,7 +539,15 @@ export const useWebsiteTemplateData = () => {
     if (!currentItemSlug || !selectedProductPage) return null;
     const contentItems = getProductContentItems(draft, (selectedProductPage as any)?.slug || (selectedProductPage as any)?.name || "", selectedProductPage);
     const pool = contentItems.length ? contentItems : [selectedProductPage];
-    return pool.find((item: any) => normalizeSlug(item?.title || item?.name || item?.heading || "") === currentItemSlug) || null;
+    const found = pool.find((item: any) => normalizeSlug(item?.title || item?.name || item?.heading || "") === currentItemSlug);
+    if (found) return found;
+    // Menu items live in `draft.menuItems` (not in the page's own items), so a dish
+    // detail route resolves against them.
+    if (isMenuProductSlug((selectedProductPage as any)?.slug || (selectedProductPage as any)?.name || "")) {
+      const dishes = Array.isArray(draft?.menuItems) ? draft.menuItems : [];
+      return dishes.find((item: any) => item?.enabled !== false && normalizeSlug(item?.name || item?.title || "") === currentItemSlug) || null;
+    }
+    return null;
   }, [currentItemSlug, selectedProductPage, draft]);
 
   const selectedProductContentItems = selectedProductPage
@@ -559,6 +587,7 @@ export const useWebsiteTemplateData = () => {
         setLeadSubmitted(false);
         setLeadSubmitError("");
         setLeadForm({ fullName: "", people: "", mobile: "", email: "", startDate: "", endDate: "" });
+        setLeadExtras({});
       }
     } else if (!selectedDetailItem) {
       prevDetailItemSlugRef.current = "";
@@ -651,7 +680,9 @@ export const useWebsiteTemplateData = () => {
   // current carousel image so those templates still show something before a
   // dedicated main image is ever set.
   const mainHeroImage = getMediaSrc(draft?.mainHeroImage) || heroImage || "";
-  const galleryItems = Array.isArray(draft?.gallery) ? draft.gallery.map((item: any) => getMediaSrc(item)).filter(Boolean) : [];
+  const galleryItems = Array.isArray(draft?.gallery)
+    ? draft.gallery.filter((item: any) => item?.enabled !== false).map((item: any) => getMediaSrc(item)).filter(Boolean)
+    : [];
   const homeGalleryItems = galleryItems.slice(0, 6);
   const draftTestimonials = (Array.isArray(draft?.testimonials) ? draft.testimonials : [])
     .map((item: any, index: number) => ({
@@ -728,12 +759,14 @@ export const useWebsiteTemplateData = () => {
   const footerCompanyName = String(draft?.registeredCompanyName || draft?.companyName || "").trim();
   const footerCopyrightText = String(draft?.copyrightText || "").trim();
   const footerAddress = String(draft?.address || "").trim();
+  // Enabled platforms always show their icon; `href` is only set when the
+  // link is a usable URL, so an empty/invalid link renders as a plain icon
+  // instead of a broken redirect.
   const footerSocialLinks = FOOTER_SOCIAL_KEYS.map((key) => {
     const entry = draft?.socials?.[key];
     if (entry?.enabled !== true) return null;
     const href = getSocialHref(key, entry?.link);
-    if (!href) return null;
-    return { key, href };
+    return { key, href: isUsableSocialHref(key, href) ? href : "" };
   }).filter(Boolean) as Array<{ key: string; href: string }>;
 
   const resolvedHomeHeroImage = heroImage || galleryItems[0] || "";
@@ -793,11 +826,15 @@ export const useWebsiteTemplateData = () => {
     setGalleryViewerIndex(((index % galleryItems.length) + galleryItems.length) % galleryItems.length);
   };
 
-  const openLeadModal = (product: any) => {
+  const openLeadModal = (
+    product: any,
+    prefill?: { form?: Partial<typeof leadForm>; extras?: Record<string, string> },
+  ) => {
     setSelectedLeadProduct(product);
     setLeadSubmitted(false);
     setLeadSubmitError("");
-    setLeadForm({ fullName: "", people: "", mobile: "", email: "", startDate: "", endDate: "" });
+    setLeadForm({ fullName: "", people: "", mobile: "", email: "", startDate: "", endDate: "", ...(prefill?.form || {}) });
+    setLeadExtras({ ...(prefill?.extras || {}) });
   };
   const closeLeadModal = () => setSelectedLeadProduct(null);
 
@@ -808,8 +845,11 @@ export const useWebsiteTemplateData = () => {
     }, 2200);
   };
 
-  const submitLeadForm = async (event: FormEvent) => {
+  // `overrides` lets the new templates pass answers that are derived at submit time
+  // (e.g. the inquiryType for the form variant currently shown).
+  const submitLeadForm = async (event: FormEvent, overrides?: Record<string, string>) => {
     event.preventDefault();
+    const extras = { ...leadExtras, ...(overrides || {}) };
     setLeadSubmitPending(true);
     setLeadSubmitError("");
     try {
@@ -836,8 +876,21 @@ export const useWebsiteTemplateData = () => {
         stayDuration: leadForm.endDate ? `${leadForm.startDate || ""} to ${leadForm.endDate}` : "",
         startDate: leadForm.startDate,
         endDate: leadForm.endDate,
-        timeSlot: "",
-        inquiryType: slug.includes("cafe") ? "Cafe" : "",
+        ...extras,
+        // Surface free-text notes as the lead's message so they show in the leads list.
+        ...(extras.notes ? { message: extras.notes } : {}),
+        timeSlot: extras.time || "",
+        // How long a meeting-room booking is, worked out from its start and end time.
+        duration: (() => {
+          const [sh, sm] = String(extras.time || "").split(":").map(Number);
+          const [eh, em] = String(extras.endTime || "").split(":").map(Number);
+          const mins = eh * 60 + em - (sh * 60 + sm);
+          if (!(mins > 0)) return "";
+          const h = Math.floor(mins / 60);
+          const m = mins % 60;
+          return [h ? `${h} hr${h > 1 ? "s" : ""}` : "", m ? `${m} min` : ""].filter(Boolean).join(" ");
+        })(),
+        inquiryType: extras.inquiryType || (slug.includes("cafe") ? "Cafe" : ""),
         websiteUrl: window.location.href,
       });
       setLeadSubmitted(true);
@@ -1021,6 +1074,8 @@ export const useWebsiteTemplateData = () => {
     selectedLeadProduct,
     leadForm,
     setLeadForm,
+    leadExtras,
+    setLeadExtras,
     leadSubmitted,
     setLeadSubmitted,
     leadSubmitPending,

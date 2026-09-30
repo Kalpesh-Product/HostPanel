@@ -1163,14 +1163,25 @@ export default function VisitorsManagementPage() {
     ]),
     [],
   );
+  // The blanket module grant ("visitor-management" => every tab/mode) is only a
+  // fallback for legacy grants that carry no individual visitor feature ids.
+  // Once any tab/mode id is present the grant list is explicit (e.g. Basic
+  // plan: Daily/History/Standard only), so tabs missing from it must stay
+  // locked instead of being re-unlocked by the module id.
+  const hasExplicitVisitorFeatureGrants = useMemo(
+    () => Array.from(visitorManagementFeatureGrantKeys).some((key) => memberGrantedModules.includes(key)),
+    [memberGrantedModules, visitorManagementFeatureGrantKeys],
+  );
   const hasGrant = useCallback((key = '') => {
     const normalizedKey = String(key || '').trim().toLowerCase();
     return (
-      (hasVisitorManagementModuleGrant && visitorManagementFeatureGrantKeys.has(normalizedKey)) ||
+      (hasVisitorManagementModuleGrant &&
+        !hasExplicitVisitorFeatureGrants &&
+        visitorManagementFeatureGrantKeys.has(normalizedKey)) ||
       memberGrantedModules.includes(normalizedKey) ||
       userPermissions.includes(String(key || '').trim())
     );
-  }, [hasVisitorManagementModuleGrant, memberGrantedModules, userPermissions, visitorManagementFeatureGrantKeys]);
+  }, [hasVisitorManagementModuleGrant, hasExplicitVisitorFeatureGrants, memberGrantedModules, userPermissions, visitorManagementFeatureGrantKeys]);
   const visitorAccess = useMemo(
     () => {
       const base = {
@@ -4173,28 +4184,28 @@ export default function VisitorsManagementPage() {
                 title={!visitorAccess.modes.standard ? 'You do not have permission for Standard Visitor.' : undefined}
                 onClick={() => { setVisitorMode('standard'); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); setForm((prev) => ({ ...prev, standardVisitorType: prev.standardVisitorType || 'standard' })); }}
                 className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visitorMode === 'standard' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'} ${!visitorAccess.modes.standard ? 'cursor-not-allowed opacity-60' : ''}`}
-              ><UserCheck size={14} />Standard Visitor</button>
+              >{!visitorAccess.modes.standard ? <Lock size={14} /> : <UserCheck size={14} />}Standard Visitor</button>
               <button
                 type="button"
                 disabled={!visitorAccess.modes.tour}
                 title={!visitorAccess.modes.tour ? 'You do not have permission for Unit Tour.' : undefined}
                 onClick={() => { setVisitorMode('tour'); setTourTouched({}); setTourSubmitAttempted(false); }}
                 className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visitorMode === 'tour' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'} ${!visitorAccess.modes.tour ? 'cursor-not-allowed opacity-60' : ''}`}
-              ><Building size={14} />Unit Tour</button>
+              >{!visitorAccess.modes.tour ? <Lock size={14} /> : <Building size={14} />}Unit Tour</button>
               <button
                 type="button"
                 disabled={!visitorAccess.modes.walkin_booking}
                 title={!visitorAccess.modes.walkin_booking ? 'You do not have permission for Walk-in Booking.' : undefined}
                 onClick={() => { setVisitorMode('walkin_booking'); setWalkInTouched({}); setWalkInSubmitAttempted(false); }}
                 className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visitorMode === 'walkin_booking' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'} ${!visitorAccess.modes.walkin_booking ? 'cursor-not-allowed opacity-60' : ''}`}
-              ><CalendarDays size={14} />Walk-in Booking</button>
+              >{!visitorAccess.modes.walkin_booking ? <Lock size={14} /> : <CalendarDays size={14} />}Walk-in Booking</button>
               <button
                 type="button"
                 disabled={!visitorAccess.modes.verify_booking}
                 title={!visitorAccess.modes.verify_booking ? 'You do not have permission for Verify Booking ID.' : undefined}
                 onClick={() => { setVisitorMode('verify_booking'); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); }}
                 className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visitorMode === 'verify_booking' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'} ${!visitorAccess.modes.verify_booking ? 'cursor-not-allowed opacity-60' : ''}`}
-              ><ShieldCheck size={14} />Verify Booking</button>
+              >{!visitorAccess.modes.verify_booking ? <Lock size={14} /> : <ShieldCheck size={14} />}Verify Booking</button>
             </div>
 
             {/* stat cards — 4 per active tab (tenant-company style) */}

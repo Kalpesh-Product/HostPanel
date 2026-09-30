@@ -3,6 +3,7 @@ import { Controller, useFieldArray } from "react-hook-form";
 import UploadFileInput from "../../../../components/UploadFileInput";
 import EnabledSwitch from "../../../../components/ui/EnabledSwitch";
 import WebsiteFormField from "../../../../components/WebsiteFormField";
+import ItemExtraFields, { OfferingDescription } from "./ItemExtraFields";
 
 const MenuSection = ({ control, register }) => {
   const { fields, append, remove } = useFieldArray({
@@ -44,12 +45,7 @@ const MenuSection = ({ control, register }) => {
                 label="Price"
                 registration={register(`menuItems.${index}.price`)}
               />
-              <WebsiteFormField
-                label="Description"
-                multiline
-                minRows={3}
-                registration={register(`menuItems.${index}.description`)}
-              />
+              <OfferingDescription control={control} register={register} name={`menuItems.${index}.description`} kind="menu" />
             </div>
             <div className="pt-4">
               <Controller
@@ -83,6 +79,12 @@ const MenuSection = ({ control, register }) => {
                 )}
               />
             </div>
+            <ItemExtraFields
+              control={control}
+              register={register}
+              name={`menuItems.${index}`}
+              kind="menu"
+            />
           </div>
         ))}
         <button

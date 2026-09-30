@@ -9,7 +9,7 @@ export const hrDashboardTour: BasicPageTour = {
     { selector: '[data-tour="sidebar"]', title: "Your workspace navigation", description: "Use the sidebar to move between the modules available to your role. Other page tours will focus only on their own functionality." },
     { selector: '[data-tour="breadcrumb"]', title: "Your current location", description: "The breadcrumb shows the active workspace section and page." },
     { selector: '[data-tour="workspace-switcher"]', title: "Switch workspaces", description: "If you belong to multiple workspaces, switch here. Your automatic guides are remembered across all of your units." },
-    { selector: '[data-notification-trigger]', title: "Workspace notifications", description: "Open notifications to review recent activity and updates requiring attention." },
+    { selector: '[data-notification-trigger]', title: "Unit notifications", description: "Open notifications to review recent activity and updates requiring attention." },
     { selector: '[data-tour="hr-greeting"]', title: "Your dashboard", description: "Confirms your current workspace plan alongside a personal greeting." },
     { selector: '[data-tour="hr-attendance"]', title: "Clock in and out", description: "Log your attendance for the day directly from the dashboard." },
     { selector: '[data-tour="hr-overview"]', title: "HR overview", description: "Your team headcount, pending leaves, correction requests, open positions, payroll, this month's birthdays, and resignation activity, all in one row. Select a card to open its matching page." },
