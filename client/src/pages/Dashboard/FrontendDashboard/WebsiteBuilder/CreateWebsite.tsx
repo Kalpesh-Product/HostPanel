@@ -467,6 +467,7 @@ const hasMeaningfulDraftContent = (draftData: any) => {
     draftData?.testimonialTitle,
     draftData?.contactTitle,
     draftData?.mapUrl,
+    draftData?.heroVideoUrl,
     draftData?.websiteEmail,
     draftData?.phone,
     draftData?.address,
@@ -683,6 +684,7 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
     : [],
   contactTitle: String(formValues?.contactTitle || "").trim(),
   mapUrl: String(formValues?.mapUrl || "").trim(),
+  heroVideoUrl: String(formValues?.heroVideoUrl || "").trim(),
   websiteEmail: String(formValues?.websiteEmail || "").trim(),
   phone: String(formValues?.phone || "").trim(),
   address: String(formValues?.address || "").trim(),
@@ -1352,6 +1354,7 @@ const CreateWebsite = () => {
       // contact
       contactTitle: "",
       mapUrl: "",
+      heroVideoUrl: "",
       websiteEmail: "",
       phone: "",
       address: "",
@@ -1623,6 +1626,7 @@ const CreateWebsite = () => {
     testimonialTestimony: 200,
     contactTitle: 100,
     mapUrl: 2048,
+    heroVideoUrl: 2048,
     websiteEmail: 100,
     phone: 30,
     address: 200,
@@ -1950,6 +1954,7 @@ const CreateWebsite = () => {
                   : [defaultTestimonial],
             contactTitle: String(draftData?.contactTitle || found?.contactTitle || "").trim(),
             mapUrl: String(draftData?.mapUrl || found?.mapUrl || "").trim(),
+            heroVideoUrl: String(draftData?.heroVideoUrl || found?.heroVideoUrl || "").trim(),
             websiteEmail: String(draftData?.websiteEmail || found?.email || "").trim(),
             phone: String(draftData?.phone || found?.phone || "").trim(),
             address: String(draftData?.address || found?.address || "").trim(),
@@ -2687,6 +2692,7 @@ const CreateWebsite = () => {
       appendFileIfPresent(`aboutPageImageCardImage_${index}`, card?.image);
     });
     fd.set("mapUrl", normalizeMapUrl(values.mapUrl));
+    fd.set("heroVideoUrl", String(values.heroVideoUrl || "").trim());
     if (!String(values.registeredCompanyName || "").trim()) {
       fd.set("registeredCompanyName", finalCompanyName);
     }
@@ -2962,6 +2968,7 @@ const CreateWebsite = () => {
       phone: String(formValues?.phone || "").trim(),
       address: String(formValues?.address || "").trim(),
       mapUrl: String(formValues?.mapUrl || "").trim(),
+      heroVideoUrl: String(formValues?.heroVideoUrl || "").trim(),
       contactEnableInquiryForm: formValues?.contactEnableInquiryForm !== false,
       pageNavItems: (formValues?.pageNavItems || []).map((item: any) => ({
         name: String(item?.name || "").trim(),
@@ -3594,6 +3601,7 @@ const CreateWebsite = () => {
 
       contactTitle: "",
       mapUrl: "",
+      heroVideoUrl: "",
       websiteEmail: "",
       phone: "",
       address: "",
@@ -3678,7 +3686,7 @@ const CreateWebsite = () => {
     "meeting-rooms","training-rooms","it-support","tea-coffee","assist","community",
     "on-demand","maintenance","generator","pickup-drop","car-bike-bus","housekeeping",
     "swimming-pool","television","gas","laundry","secure","personalised",
-    "electricity","ups","events","furnished-office","cafeteria","high-speed-internet","assistance",
+    "electricity","ups","events","furnished-office","cafeteria","high-speed-internet","assistance","spa-wellness","excursions",
   ];
 
   // Adds a product page for the given name (predefined preset or custom), then
@@ -4629,7 +4637,7 @@ const CreateWebsite = () => {
                                 "meeting-rooms","training-rooms","it-support","tea-coffee","assist","community",
                                 "on-demand","maintenance","generator","pickup-drop","car-bike-bus","housekeeping",
                                 "swimming-pool","television","gas","laundry","secure","personalised",
-                                "electricity","ups","events","furnished-office","cafeteria","high-speed-internet","assistance",
+                                "electricity","ups","events","furnished-office","cafeteria","high-speed-internet","assistance","spa-wellness","excursions",
                               ];
                               const ALL_LABELS: Record<string, string> = {
                                 "workspace": "Workspace", "living-space": "Living Space", "air-condition": "Air Condition",
@@ -4643,6 +4651,7 @@ const CreateWebsite = () => {
                                 "electricity": "Electricity", "ups": "UPS", "events": "Events",
                                 "furnished-office": "Furnished Office", "cafeteria": "Cafeteria",
                                 "high-speed-internet": "High Speed Internet", "assistance": "Assistance",
+                                "spa-wellness": "Spa & Wellness", "excursions": "Excursions & Tours",
                               };
                               const current: Array<{ key: string; enabled: boolean }> = Array.isArray(field.value)
                                 ? field.value
@@ -5515,6 +5524,29 @@ const CreateWebsite = () => {
                   />
                 )}
 
+                {/* heroVideoUrl — Camelia can play a looping video in the hero instead of the
+                    photo carousel above. A direct link, not an upload (keeps video hosting off
+                    our own storage); other templates ignore this field entirely. */}
+                {watch("themeVariant") === "camelia" && (
+                  <Controller
+                    name="heroVideoUrl"
+                    control={control}
+                    render={({ field }) => (
+                      <WebsiteFormField
+                        field={field}
+                        label="Hero Video URL (Optional)"
+                        placeholder="https://your-video-host.com/hero.mp4"
+                        maxLength={CHAR_LIMITS.heroVideoUrl}
+                        helperText={
+                          errors?.heroVideoUrl?.message ||
+                          "A direct link to an .mp4 (or similar) file. Leave empty to use the carousel images above instead."
+                        }
+                        error={!!errors.heroVideoUrl}
+                      />
+                    )}
+                  />
+                )}
+
                 <Controller
                   name="title"
                   control={control}
@@ -5801,7 +5833,7 @@ const CreateWebsite = () => {
                     "meeting-rooms","training-rooms","it-support","tea-coffee","assist","community",
                     "on-demand","maintenance","generator","pickup-drop","car-bike-bus","housekeeping",
                     "swimming-pool","television","gas","laundry","secure","personalised",
-                    "electricity","ups","events","furnished-office","cafeteria","high-speed-internet","assistance",
+                    "electricity","ups","events","furnished-office","cafeteria","high-speed-internet","assistance","spa-wellness","excursions",
                   ];
                   const ALL_LABELS: Record<string, string> = {
                     "workspace":"Workspace","living-space":"Living Space","air-condition":"Air Condition",
@@ -5815,6 +5847,7 @@ const CreateWebsite = () => {
                     "electricity":"Electricity","ups":"UPS","events":"Events",
                     "furnished-office":"Furnished Office","cafeteria":"Cafeteria",
                     "high-speed-internet":"High Speed Internet","assistance":"Assistance",
+                    "spa-wellness":"Spa & Wellness","excursions":"Excursions & Tours",
                   };
                   const current: Array<{ key: string; enabled: boolean }> = Array.isArray(field.value) ? field.value : ALL_KEYS.map((k) => ({ key: k, enabled: false }));
                   const toggle = (key: string) => {
