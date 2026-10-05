@@ -168,64 +168,115 @@ export default function PaymentSuccessPage() {
 
           {view === "confirmed" && payment ? (
             <>
-              <div className={`${iconWrap} bg-emerald-50`}>
-                <CheckCircle2 className="text-emerald-600" size={36} strokeWidth={2.5} />
-              </div>
-              <h1 className={headingClass}>Payment Successful</h1>
-              <p className={bodyClass}>
-                Thank you! Your payment has been received
-                {payment.email ? ` and a receipt is on its way to ${payment.email}` : ""}.
-              </p>
-
-              <dl className="mt-6 divide-y divide-[#e4ecf8] rounded-2xl border border-[#e4ecf8] bg-white px-5 text-left text-[13px]">
-                {rows.map(([label, value]) => (
-                  <div key={label} className="flex justify-between gap-4 py-3">
-                    <dt className="text-[#6b7fa7]">{label}</dt>
-                    <dd className="font-semibold text-[#102a56] text-right">{value}</dd>
+              {/* An existing company's first-ever PAID plan (changeType "initial" with
+                  hasWorkspace true) only happens one way today: a free-Basic company
+                  paying for Professional for the first time — i.e. the self-serve
+                  upgrade flow. A brand-new signup's first payment also reports
+                  "initial" but hasWorkspace is false then (no Workspace exists yet),
+                  so the two never collide. */}
+              {payment.hasWorkspace && payment.changeType === "initial" ? (
+                <>
+                  <div className={`${iconWrap} bg-emerald-50`}>
+                    <CheckCircle2 className="text-emerald-600" size={36} strokeWidth={2.5} />
                   </div>
-                ))}
-              </dl>
-
-              <div className="mt-6 rounded-2xl bg-[#eef4ff] px-5 py-4 text-left text-[13px] leading-relaxed text-[#35507d]">
-                <p className="font-semibold text-[#102a56] mb-1">What happens next</p>
-                {payment.hasWorkspace ? (
-                  <p>Your plan is active. You can review it any time under Plan &amp; Billing.</p>
-                ) : (
-                  <p>
-                    Our team will now send you an invitation email to complete your WONO signup.
-                    Keep an eye on your inbox.
+                  <h1 className={headingClass}>Congratulations — you&apos;re now on Professional!</h1>
+                  <p className={bodyClass}>
+                    Your plan has been upgraded from Basic to Professional
+                    {payment.email ? ` and a receipt is on its way to ${payment.email}` : ""}. Every
+                    Professional feature is unlocked.
                   </p>
-                )}
-              </div>
 
-              <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
-                {payment.hostedInvoiceUrl ? (
-                  <a
-                    href={payment.hostedInvoiceUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#c8d6f2] bg-white px-5 text-[13px] font-semibold text-[#2d67f0] hover:bg-[#eef3ff]"
-                  >
-                    View invoice <ExternalLink size={14} />
-                  </a>
-                ) : null}
-                {payment.hasWorkspace ? (
-                  <button
-                    type="button"
-                    onClick={() => navigate("/profile/plan-billing", { replace: true })}
-                    className="h-10 rounded-xl bg-[#2d67f0] px-6 text-[13px] font-semibold text-white hover:bg-[#2558d5]"
-                  >
-                    Go to Plan &amp; Billing
-                  </button>
-                ) : (
-                  <a
-                    href="https://host.wono.co"
-                    className="inline-flex h-10 items-center rounded-xl bg-[#2d67f0] px-6 text-[13px] font-semibold text-white hover:bg-[#2558d5]"
-                  >
-                    Back to WONO
-                  </a>
-                )}
-              </div>
+                  <dl className="mt-6 divide-y divide-[#e4ecf8] rounded-2xl border border-[#e4ecf8] bg-white px-5 text-left text-[13px]">
+                    {rows.map(([label, value]) => (
+                      <div key={label} className="flex justify-between gap-4 py-3">
+                        <dt className="text-[#6b7fa7]">{label}</dt>
+                        <dd className="font-semibold text-[#102a56] text-right">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+
+                  <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+                    {payment.hostedInvoiceUrl ? (
+                      <a
+                        href={payment.hostedInvoiceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#c8d6f2] bg-white px-5 text-[13px] font-semibold text-[#2d67f0] hover:bg-[#eef3ff]"
+                      >
+                        View invoice <ExternalLink size={14} />
+                      </a>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => navigate("/dashboard", { replace: true })}
+                      className="h-10 rounded-xl bg-[#2d67f0] px-6 text-[13px] font-semibold text-white hover:bg-[#2558d5]"
+                    >
+                      Go to Dashboard
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className={`${iconWrap} bg-emerald-50`}>
+                    <CheckCircle2 className="text-emerald-600" size={36} strokeWidth={2.5} />
+                  </div>
+                  <h1 className={headingClass}>Payment Successful</h1>
+                  <p className={bodyClass}>
+                    Thank you! Your payment has been received
+                    {payment.email ? ` and a receipt is on its way to ${payment.email}` : ""}.
+                  </p>
+
+                  <dl className="mt-6 divide-y divide-[#e4ecf8] rounded-2xl border border-[#e4ecf8] bg-white px-5 text-left text-[13px]">
+                    {rows.map(([label, value]) => (
+                      <div key={label} className="flex justify-between gap-4 py-3">
+                        <dt className="text-[#6b7fa7]">{label}</dt>
+                        <dd className="font-semibold text-[#102a56] text-right">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+
+                  <div className="mt-6 rounded-2xl bg-[#eef4ff] px-5 py-4 text-left text-[13px] leading-relaxed text-[#35507d]">
+                    <p className="font-semibold text-[#102a56] mb-1">What happens next</p>
+                    {payment.hasWorkspace ? (
+                      <p>Your plan is active. You can review it any time under Plan &amp; Billing.</p>
+                    ) : (
+                      <p>
+                        Our team will now send you an invitation email to complete your WONO signup.
+                        Keep an eye on your inbox.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+                    {payment.hostedInvoiceUrl ? (
+                      <a
+                        href={payment.hostedInvoiceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#c8d6f2] bg-white px-5 text-[13px] font-semibold text-[#2d67f0] hover:bg-[#eef3ff]"
+                      >
+                        View invoice <ExternalLink size={14} />
+                      </a>
+                    ) : null}
+                    {payment.hasWorkspace ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate("/profile/plan-billing", { replace: true })}
+                        className="h-10 rounded-xl bg-[#2d67f0] px-6 text-[13px] font-semibold text-white hover:bg-[#2558d5]"
+                      >
+                        Go to Plan &amp; Billing
+                      </button>
+                    ) : (
+                      <a
+                        href="https://host.wono.co"
+                        className="inline-flex h-10 items-center rounded-xl bg-[#2d67f0] px-6 text-[13px] font-semibold text-white hover:bg-[#2558d5]"
+                      >
+                        Back to WONO
+                      </a>
+                    )}
+                  </div>
+                </>
+              )}
             </>
           ) : null}
 

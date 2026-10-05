@@ -7,8 +7,11 @@
  *  - plan limit reached     -> a "Plan limit reached" badge instead of Add
  *    Listings (hover explains; the plan strip above already has Upgrade)
  * "Verify Existing Listings" stays until the host's existing wono.co listings
- * are linked (or approved). Every button opens the Listings page; "verify"
- * also opens the claim dialog, pre-searched with the company name.
+ * are linked (or approved) — but once the host already manages listings of
+ * their own, it only still shows while a claim is actually in flight
+ * (pending/rejected), not as a standing invite. Every button opens the
+ * Listings page; "verify" also opens the claim dialog, pre-searched with the
+ * company name.
  */
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -54,6 +57,10 @@ const WonoListingsCard = () => {
 
   // While the listing count loads, show the full pitch rather than flashing.
   const hasListings = !isPending && used > 0;
+  // Once the host already manages listings of their own, there's nothing to
+  // "bring in" by default — only still offer this while an actual claim
+  // (pending/rejected) is in flight, so its status stays visible.
+  const showVerifyCta = Boolean(claim?.status) || !hasListings;
 
   let message;
   if (!hasListings) {
@@ -138,7 +145,7 @@ const WonoListingsCard = () => {
             <Plus size={12} strokeWidth={3} /> Add Listings
           </button>
         )}
-        {!alreadyLinked && (
+        {!alreadyLinked && showVerifyCta && (
           <button
             type="button"
             onClick={() => navigate(LISTINGS_ROUTE, { state: { openVerify: true } })}
