@@ -308,6 +308,23 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContentDef> = {
     },
   },
 
+  travigo: {
+    slots: [
+      image("home.hero.image1", HOME, "Hero: first circle photo"),
+      image("home.hero.image2", HOME, "Hero: second circle photo"),
+      image("home.hero.image3", HOME, "Hero: third circle photo"),
+      image("home.hero.image4", HOME, "Hero: fourth circle photo"),
+      image("home.hero.pill", HOME, "Hero: photo inside the title"),
+      image("home.explore.image", HOME, "Explore section photo"),
+      image("home.gallery.image1", HOME, "Budget travel: large left photo"),
+      image("home.gallery.image2", HOME, "Budget travel: small top photo"),
+      image("home.gallery.image3", HOME, "Budget travel: large right photo"),
+      image("home.gallery.image4", HOME, "Budget travel: small bottom photo"),
+      image("home.cta.image", HOME, "Journey band: round photo"),
+    ],
+    switches: [],
+  },
+
   wayfarer: {
     slots: [
       text("home.stays.title", HOME, "Stays: heading", "Choose your stay", SAME),
