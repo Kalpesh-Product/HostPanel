@@ -167,8 +167,8 @@ export const TemplatePicker = ({ onClose }: { onClose?: () => void }) => {
     <>
           <div className="flex flex-col gap-5 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
             <div>
-              <p className="text-sm font-semibold text-slate-800">1. What is your main business?</p>
-              <p className="mt-0.5 text-xs text-slate-500">
+              <p className="text-sm font-pmedium text-slate-800">1. What is your main business?</p>
+              <p className="mt-0.5 text-xs font-pmedium text-slate-500">
                 Choose the one that matters most. We'll recommend the template built for it and lead your website with it.
               </p>
               <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Main business">
@@ -181,7 +181,7 @@ export const TemplatePicker = ({ onClose }: { onClose?: () => void }) => {
                       role="radio"
                       aria-checked={active}
                       onClick={() => chooseMain(choice.name)}
-                      className={`rounded-full border px-4 py-2 text-left text-xs font-semibold transition ${
+                      className={`rounded-full border px-4 py-2 text-left text-xs font-pmedium transition ${
                         active
                           ? "border-[#2563EB] bg-[#2563EB] text-white shadow-sm"
                           : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
@@ -198,10 +198,10 @@ export const TemplatePicker = ({ onClose }: { onClose?: () => void }) => {
             </div>
 
             <div className={main ? "" : "opacity-50"}>
-              <p className="text-sm font-semibold text-slate-800">
-                2. Anything else you offer? <span className="font-normal text-slate-400">(optional)</span>
+              <p className="text-sm font-pmedium text-slate-800">
+                2. Anything else you offer? <span className="font-pmedium text-slate-400">(optional)</span>
               </p>
-              <p className="mt-0.5 text-xs text-slate-500">
+              <p className="mt-0.5 text-xs font-pmedium text-slate-500">
                 Each one gets its own service page. Every template can show them, and you can add more later.
               </p>
               <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Other services you offer">
@@ -214,7 +214,7 @@ export const TemplatePicker = ({ onClose }: { onClose?: () => void }) => {
                       aria-pressed={active}
                       disabled={!main}
                       onClick={() => toggleExtra(choice.name)}
-                      className={`rounded-full border px-4 py-2 text-left text-xs font-semibold transition disabled:cursor-not-allowed ${
+                      className={`rounded-full border px-4 py-2 text-left text-xs font-pmedium transition disabled:cursor-not-allowed ${
                         active
                           ? "border-[#2563EB] bg-[#2563EB] text-white shadow-sm"
                           : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
@@ -264,11 +264,11 @@ export const TemplatePicker = ({ onClose }: { onClose?: () => void }) => {
                     <div className="flex items-start justify-between gap-2">
                       <div className="h-2 w-10 rounded-full" style={{ backgroundColor: template.swatch.accent }} />
                       {switchedOff ? (
-                        <span className="rounded-full bg-slate-700 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wide text-white shadow-sm">
+                        <span className="rounded-full bg-slate-700 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-wide text-white shadow-sm">
                           {availability[template.id]?.disabledReason || "Coming soon"}
                         </span>
                       ) : matchedKind ? (
-                        <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wide text-white shadow-sm">
+                        <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-[7px] font-pmedium uppercase tracking-wide text-white shadow-sm">
                           Recommended for your {main}
                         </span>
                       ) : null}
@@ -280,7 +280,7 @@ export const TemplatePicker = ({ onClose }: { onClose?: () => void }) => {
                   </div>
 
                   <div className="flex flex-1 flex-col gap-2 p-4">
-                    <span className="text-sm font-semibold text-slate-800">
+                    <span className="text-sm font-pmedium text-slate-800">
                       {template.name}
                       {isSelected ? (
                         <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide text-[#2563EB]">
@@ -288,7 +288,7 @@ export const TemplatePicker = ({ onClose }: { onClose?: () => void }) => {
                         </span>
                       ) : null}
                     </span>
-                    <span className="text-xs text-slate-500">{template.description}</span>
+                    <span className="text-xs font-pmedium text-slate-500">{template.description}</span>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -326,7 +326,7 @@ export const TemplatePicker = ({ onClose }: { onClose?: () => void }) => {
           <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
             <div>
               <h2 id="select-template-title" className="text-title font-pmedium text-primary uppercase">Choose a Template</h2>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs font-pmedium text-slate-500">
                 Pick the visual style for your website. Preview each one with sample content before deciding —
                 once you get started, the template can't be changed later.
               </p>

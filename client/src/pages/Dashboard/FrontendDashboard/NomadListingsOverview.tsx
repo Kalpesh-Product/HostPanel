@@ -577,7 +577,9 @@ export default function NomadListingsOverview() {
                   >
                     <Plus size={13} strokeWidth={3} /> ADD LISTING
                   </button>
-                  {!isLinkedToExistingCompany && !claimStatus?.linked && (
+                  {!isLinkedToExistingCompany &&
+                    !claimStatus?.linked &&
+                    (claimStatus?.status || !nonDeletedListings.length) && (
                     <button
                       type="button"
                       onClick={() => setShowClaimModal(true)}

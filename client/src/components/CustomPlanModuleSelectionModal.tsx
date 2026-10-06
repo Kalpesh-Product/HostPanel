@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ArrowLeft, Check } from "lucide-react";
 import useAxiosPrivate from "../hooks/useAxiosPrivate";
+import PlanBillingCycleToggle from "./PlanBillingCycleToggle";
 
 const MASTER_PANEL_BASE_URL =
   String(import.meta.env.VITE_MASTER_PANEL_BE_URL || "").trim() || "https://masterpanel.wono.co";
@@ -16,7 +17,7 @@ type PricingRow = {
 type Props = {
   open: boolean;
   onClose: () => void;
-  onSubmit: (selectedModuleIds: string[]) => void;
+  onSubmit: (selectedModuleIds: string[], billingCycle: "monthly" | "annual") => void;
   isSubmitting?: boolean;
 };
 
@@ -27,10 +28,11 @@ type Props = {
 // NOT shown here — the host just picks what they want; staff see the
 // computed price on their side when reviewing the request.
 //
-// Sized and framed to match the plan-cards modal it replaces (same dimmed
-// backdrop, same max-w-4xl rounded card — see UpgradePlanModal above) rather
-// than taking over the full screen, with a back arrow standing in for the
-// plan cards' close button.
+// Sized to match the plan-cards card it replaces (same max-w-4xl rounded
+// card — see UpgradePlanModal above). Every caller renders this swapped in
+// place of the plan cards inside the SAME persistent backdrop div rather
+// than mounting a second one, with a back arrow standing in for the plan
+// cards' close button.
 const CustomPlanModuleSelectionModal: React.FC<Props> = ({
   open,
   onClose,
@@ -41,6 +43,7 @@ const CustomPlanModuleSelectionModal: React.FC<Props> = ({
   const [selectedModuleIds, setSelectedModuleIds] = useState<string[]>([]);
   const [rows, setRows] = useState<PricingRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
 
   useEffect(() => {
     if (!open) return;
@@ -65,85 +68,90 @@ const CustomPlanModuleSelectionModal: React.FC<Props> = ({
 
   if (!open) return null;
 
+  // No outer fixed/backdrop wrapper here on purpose: every caller already
+  // renders this inside its own persistent backdrop div (swapping just this
+  // inner card in place of the plan-cards content) so the backdrop element
+  // itself never unmounts/remounts. A fresh backdrop-blur element can render
+  // one frame without the blur applied in Chromium, which looked like a
+  // flash when this modal used to carry its own separate backdrop.
   return (
-    <div className="fixed inset-0 z-[1400] bg-[#0f172a]/45 backdrop-blur-[2px] px-4 py-6 flex items-center justify-center">
-      <div className="w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl bg-[linear-gradient(180deg,#ffffff_0%,#f7faff_100%)] border border-[#dbe5f2] shadow-[0_20px_80px_rgba(15,23,42,0.28)] flex flex-col">
-        {/* Header */}
-        <div className="px-5 sm:px-6 py-4 sm:py-5 border-b border-[#dbe5f2] flex items-center gap-4 shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            title="Back"
-            className="w-9 h-9 shrink-0 bg-white border border-[#dbe5f2] rounded-full flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-colors"
-          >
-            <ArrowLeft size={17} />
-          </button>
-          <div className="min-w-0">
-            <h1 className="text-base font-pbold text-[#0f1b35]">Choose Your Custom Plan Modules</h1>
-            <p className="text-[12px] font-pmedium text-[#667791] mt-0.5">
-              Select the extra modules or departments you want on top of
-              everything in Professional. Your request goes to our team for
-              review before you're asked to pay.
-            </p>
-          </div>
+    <div className="w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl bg-[linear-gradient(180deg,#ffffff_0%,#f7faff_100%)] border border-[#dbe5f2] shadow-[0_20px_80px_rgba(15,23,42,0.28)] flex flex-col">
+      {/* Header */}
+      <div className="px-5 sm:px-6 py-4 sm:py-5 border-b border-[#dbe5f2] flex items-center gap-4 shrink-0">
+        <button
+          type="button"
+          onClick={onClose}
+          title="Back"
+          className="w-9 h-9 shrink-0 bg-white border border-[#dbe5f2] rounded-full flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-colors"
+        >
+          <ArrowLeft size={17} />
+        </button>
+        <div className="min-w-0">
+          <h1 className="text-base font-pbold text-[#0f1b35]">Choose Your Custom Plan Modules</h1>
+          <p className="text-[12px] font-pmedium text-[#667791] mt-0.5">
+            Select the extra modules or departments you want on top of
+            everything in Professional. Your request goes to our team for
+            review before you're asked to pay.
+          </p>
         </div>
+      </div>
 
-        {/* Module grid */}
-        <div className="px-5 sm:px-6 py-5 overflow-y-auto flex-1">
-          {isLoading ? (
-            <p className="text-[13px] text-slate-400">Loading modules…</p>
-          ) : rows.length ? (
-            <div className="font-pmedium grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {rows.map((row) => {
-                const isSelected = selectedModuleIds.includes(row.itemId);
-                return (
-                  <button
-                    key={row.itemId}
-                    type="button"
-                    onClick={() => toggleModule(row.itemId)}
-                    className={`relative flex flex-col items-start gap-1.5 rounded-2xl border p-4 text-left transition-all ${
+      {/* Module grid */}
+      <div className="px-5 sm:px-6 py-5 overflow-y-auto flex-1">
+        <PlanBillingCycleToggle value={billingCycle} onChange={setBillingCycle} savePercent={0} />
+        {isLoading ? (
+          <p className="text-[13px] text-slate-400">Loading modules…</p>
+        ) : rows.length ? (
+          <div className="font-pmedium grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {rows.map((row) => {
+              const isSelected = selectedModuleIds.includes(row.itemId);
+              return (
+                <button
+                  key={row.itemId}
+                  type="button"
+                  onClick={() => toggleModule(row.itemId)}
+                  className={`relative flex flex-col items-start gap-1.5 rounded-2xl border p-4 text-left transition-all ${
+                    isSelected
+                      ? "border-[#2563EB] bg-blue-50/60 shadow-sm ring-1 ring-[#2563EB]/30"
+                      : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
                       isSelected
-                        ? "border-[#2563EB] bg-blue-50/60 shadow-sm ring-1 ring-[#2563EB]/30"
-                        : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                        ? "bg-[#2563EB] border-[#2563EB] text-white"
+                        : "border-slate-300 text-transparent"
                     }`}
                   >
-                    <span
-                      className={`absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
-                        isSelected
-                          ? "bg-[#2563EB] border-[#2563EB] text-white"
-                          : "border-slate-300 text-transparent"
-                      }`}
-                    >
-                      <Check size={12} strokeWidth={3} />
+                    <Check size={12} strokeWidth={3} />
+                  </span>
+                  {row.itemType === "department" && (
+                    <span className="text-[9px] uppercase tracking-wider text-blue-500 font-semibold">
+                      Department
                     </span>
-                    {row.itemType === "department" && (
-                      <span className="text-[9px] uppercase tracking-wider text-blue-500 font-semibold">
-                        Department
-                      </span>
-                    )}
-                    <span className="text-[13px] font-medium text-slate-800 pr-5">{row.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-[13px] text-slate-400">
-              No add-on modules are configured yet — contact our team.
-            </p>
-          )}
-        </div>
+                  )}
+                  <span className="text-[13px] font-medium text-slate-800 pr-5">{row.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-[13px] text-slate-400">
+            No add-on modules are configured yet — contact our team.
+          </p>
+        )}
+      </div>
 
-        {/* Footer */}
-        <div className="px-5 sm:px-6 py-4 border-t border-[#dbe5f2] shrink-0 flex justify-end">
-          <button
-            type="button"
-            onClick={() => onSubmit(selectedModuleIds)}
-            disabled={isSubmitting || !selectedModuleIds.length}
-            className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-medium text-[13px] shadow-sm hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? "Sending..." : "Submit Request"}
-          </button>
-        </div>
+      {/* Footer */}
+      <div className="px-5 sm:px-6 py-4 border-t border-[#dbe5f2] shrink-0 flex justify-end">
+        <button
+          type="button"
+          onClick={() => onSubmit(selectedModuleIds, billingCycle)}
+          disabled={isSubmitting || !selectedModuleIds.length}
+          className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-medium text-[13px] shadow-sm hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isSubmitting ? "Sending..." : "Submit Request"}
+        </button>
       </div>
     </div>
   );

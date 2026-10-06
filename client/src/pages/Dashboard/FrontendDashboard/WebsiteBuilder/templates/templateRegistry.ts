@@ -10,6 +10,7 @@ import HavenTemplate from "./haven/HavenTemplate";
 import CameliaTemplate from "./camelia/CameliaTemplate";
 import CommonsTemplate from "./commons/CommonsTemplate";
 import HuddleTemplate from "./huddle/HuddleTemplate";
+import TravigoTemplate from "./travigo/TravigoTemplate";
 import type { ServiceKind } from "./verticalProfiles";
 
 export interface TemplateDefinition {
@@ -104,6 +105,21 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       fg: "#0c2a2e",
       accent: "#f26b3a",
       font: "'Sora', sans-serif",
+    },
+    recommendedFor: ["hostel"],
+    supportsBooking: true,
+  },
+  travigo: {
+    id: "travigo",
+    name: "Travigo",
+    description:
+      "Editorial travel style — oversized typography, circular destination photography, room-led browsing and direct hostel booking.",
+    component: TravigoTemplate,
+    swatch: {
+      bg: "#f5f3ed",
+      fg: "#111111",
+      accent: "#d8ff48",
+      font: "'Manrope', sans-serif",
     },
     recommendedFor: ["hostel"],
     supportsBooking: true,

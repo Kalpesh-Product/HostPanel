@@ -42,8 +42,46 @@ export const useProfessionalPlanPriceLabel = (billingCycle?: string): string => 
   // as a real price; keep the static fallback instead.
   if (rate == null || rate <= 0) return staticLabel;
   return isAnnual
-    ? `$${Number(rate).toLocaleString("en-US")} /year · billed annually`
+    ? `$${Number(rate).toLocaleString("en-US")} /year `
     : `$${rate} /month`;
+};
+
+export type ProfessionalPricing = {
+  monthlyUsd: number | null;
+  annualUsd: number | null;
+  savePercent: number;
+};
+
+export const useProfessionalPlanPricing = (): ProfessionalPricing => {
+  const axios = useAxiosPrivate();
+  const { data } = useQuery({
+    queryKey: ["professionalPlanPrice"],
+    queryFn: async () => {
+      const res = await axios.get<PlanPricingResponse>("/api/plan-billing/professional-price");
+      return res?.data ?? null;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const monthlyUsd = data?.professionalPlanPriceUsd || null;
+  const annualUsd = data?.professionalAnnualPlanPriceUsd || null;
+  const savePercent =
+    monthlyUsd && annualUsd
+      ? Math.max(0, Math.round((1 - annualUsd / (monthlyUsd * 12)) * 100))
+      : 0;
+  return { monthlyUsd, annualUsd, savePercent };
+};
+
+export const formatProfessionalPriceLabel = (
+  billingCycle: "monthly" | "annual",
+  pricing: ProfessionalPricing,
+): string => {
+  if (billingCycle === "annual" && pricing.annualUsd) {
+    return `$${Number(pricing.annualUsd).toLocaleString("en-US")} /year `;
+  }
+  if (billingCycle === "monthly" && pricing.monthlyUsd) {
+    return `$${pricing.monthlyUsd} /month`;
+  }
+  return PLAN_UI_DATA.find((plan) => plan.key === "professional")?.priceLabel || "$199 /month";
 };
 
 // Returns PLAN_UI_DATA with the Professional card's priceLabel replaced by
