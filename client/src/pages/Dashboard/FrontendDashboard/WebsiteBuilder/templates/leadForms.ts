@@ -196,7 +196,7 @@ export const getLeadFormDefinition = (kind: ServiceKind, ctx: LeadFormContext = 
       fields: [
         ...contactFields(),
         { key: "startDate", label: "Move-in date", type: "date", required: true, target: "form", half: true, min: ctx.today },
-        { key: "endDate", label: "Staying until (optional)", type: "date", target: "form", half: true, min: ctx.date || ctx.today },
+        { key: "endDate", label: "Staying until", type: "date", target: "form", half: true, min: ctx.date || ctx.today },
         { key: "people", label: "Occupants", type: "number", required: true, target: "form", min: 1 },
         { key: "notes", label: "Anything we should know?", type: "textarea", target: "extra" },
       ],

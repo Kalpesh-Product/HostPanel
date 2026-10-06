@@ -465,7 +465,7 @@ const coLiving: DemoBusiness = {
     { question: "Can I visit before I decide?", answer: "Yes. Schedule a visit and we'll show you the rooms and the shared spaces." },
     { question: "Is there a deposit?", answer: "One month of rent, fully refundable when you move out." },
   ],
-  inclusions: ["furnished-office", "fast-internet", "housekeeping", "laundry", "air-condition", "secure", "community", "cafe-dining"],
+  inclusions: ["swimming-pool", "fast-internet", "housekeeping", "laundry", "air-condition", "secure", "community", "cafe-dining"],
   partnerHeading: "Partner with Common Ground",
   partnerContent: "We work with employers, relocation services and universities to house people in a new city.\nTell us about your team and we'll put together a plan.",
   address: "18 Koramangala 5th Block, Bengaluru 560095",
@@ -482,7 +482,7 @@ const coLiving: DemoBusiness = {
     heroImage: U(IMG.coliving.single[0], 1600),
     cardImage: U(IMG.coliving.single[1], 900),
     faqs: [],
-    inclusions: ["furnished-office", "fast-internet", "housekeeping", "laundry"],
+    inclusions: ["swimming-pool", "fast-internet", "housekeeping", "laundry"],
   },
   extra: {
     coLivingRooms: on([

@@ -7,6 +7,7 @@ import EmeraldStudioTemplate from "./EmeraldStudioTemplate";
 import SavorTemplate from "./savor/SavorTemplate";
 import WayfarerTemplate from "./wayfarer/WayfarerTemplate";
 import HavenTemplate from "./haven/HavenTemplate";
+import CameliaTemplate from "./camelia/CameliaTemplate";
 import CommonsTemplate from "./commons/CommonsTemplate";
 import HuddleTemplate from "./huddle/HuddleTemplate";
 import type { ServiceKind } from "./verticalProfiles";
@@ -118,6 +119,21 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       fg: "#26312b",
       accent: "#5b7f6a",
       font: "'Fraunces', Georgia, serif",
+    },
+    recommendedFor: ["coLiving", "workation"],
+    supportsBooking: true,
+  },
+  camelia: {
+    id: "camelia",
+    name: "Camelia",
+    description:
+      "Boutique-resort style — a plain top bar (not a floating pill), a full-bleed hero and a bold geometric sans paired with a light editorial serif. A calmer, quieter alternative to Haven. Made for co-living and workation stays, works for any service.",
+    component: CameliaTemplate,
+    swatch: {
+      bg: "#f6f3ec",
+      fg: "#2b2a26",
+      accent: "#8a9a86",
+      font: "'Poppins', ui-sans-serif, sans-serif",
     },
     recommendedFor: ["coLiving", "workation"],
     supportsBooking: true,

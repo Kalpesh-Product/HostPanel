@@ -4,9 +4,9 @@
 //
 // Each template previews the kind of business it is made for (Savor a café, Wayfarer a
 // hostel, Haven a co-living home, Commons a co-working space), with that business's own photos
-// and text (see demoContent.ts), and every other service added alongside it so the preview shows
-// how a multi-service business looks. When the picker has services selected, the sample is built
-// from those services instead.
+// and text (see demoContent.ts). When the picker has services explicitly selected, the sample is
+// built from those services instead — that's the only way unrelated verticals (e.g. Meeting
+// Rooms) end up mixed into a preview; by default a template only shows its own kind.
 import type { ServiceKind } from "./verticalProfiles";
 import { serviceNameToKind } from "./serviceChoices";
 import { DEMO_BUSINESSES, withFaqs, type DemoBusiness } from "./demoContent";
@@ -15,6 +15,7 @@ const TEMPLATE_KIND: Record<string, ServiceKind> = {
   savor: "menu",
   wayfarer: "hostel",
   haven: "coLiving",
+  camelia: "coLiving",
   commons: "workspace",
   huddle: "meeting",
 };
@@ -40,11 +41,12 @@ const pageFor = (kind: ServiceKind, business: DemoBusiness, slug: string) => ({
   subProducts: kind === "workspace" ? business.pageItems || [] : [],
 });
 
-const ALL_KINDS: ServiceKind[] = ["workspace", "hostel", "menu", "coLiving", "meeting", "workation"];
-
 export const buildDemoPreviewDraft = (themeVariant: string, serviceNames: string[] = []) => {
   const main = defaultKindForTemplate(themeVariant);
-  const kinds: ServiceKind[] = serviceNames.length ? serviceNames.map(serviceNameToKind) : [main, ...ALL_KINDS.filter((kind) => kind !== main)];
+  // Only the services explicitly picked in the picker widen this beyond the template's own kind
+  // — otherwise a co-living template like Camelia would preview with meeting-room/cafe/hostel
+  // content bolted on by default, which reads as broken rather than "multi-service".
+  const kinds: ServiceKind[] = serviceNames.length ? serviceNames.map(serviceNameToKind) : [main];
   const primary = DEMO_BUSINESSES[kinds[0]];
 
   const pages = kinds.map((kind, index) => {
