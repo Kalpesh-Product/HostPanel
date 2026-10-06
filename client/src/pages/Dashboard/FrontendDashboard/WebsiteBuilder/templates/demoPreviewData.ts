@@ -110,6 +110,9 @@ const demoBusinessFor = (kind: ServiceKind, themeVariant: string) =>
 /** The kind of business a template is previewed with when no services are chosen. */
 export const defaultKindForTemplate = (themeVariant: string): ServiceKind => TEMPLATE_KIND[themeVariant] || "workspace";
 
+// Pexels "Video of a House Interior" (free to use, no attribution needed); 2K file, 21 seconds.
+const CAMELIA_DEMO_VIDEO = "https://videos.pexels.com/video-files/7578546/7578546-uhd_2560_1440_30fps.mp4";
+
 const slugOf = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, "");
 
 const pageFor = (kind: ServiceKind, business: DemoBusiness, slug: string) => ({
@@ -153,6 +156,9 @@ export const buildDemoPreviewDraft = (themeVariant: string, serviceNames: string
     companyId: "demo",
     workspaceId: "",
     themeVariant,
+    // Camelia's hero plays a looping video when one is linked (see the builder's "Hero Video URL").
+    // The sample clip is a placeholder for previews only; a real site sets its own link.
+    heroVideoUrl: themeVariant === "camelia" ? CAMELIA_DEMO_VIDEO : "",
     styleConfig: {},
     sectionOverrides: {},
     vertical: primary.vertical,

@@ -69,7 +69,23 @@ const Hero: React.FC = () => {
           <p className="tp-tagline mx-auto max-w-md text-[22px]" style={{ color: "rgba(255,255,255,.92)" }}>{draft.subTitle}</p>
         ) : null}
       </div>
-      <span className="cm-scroll-cue absolute bottom-6 left-1/2 -translate-x-1/2" aria-hidden="true">{Icon.chevron(16)}</span>
+      {/* Scrolls to the section straight after the hero. The header is sticky (80px), so the
+          target is offset by that height to land the section just under the bar. */}
+      <button
+        type="button"
+        aria-label="Scroll to the next section"
+        className="cm-scroll-cue absolute bottom-6 left-0 right-0 mx-auto flex items-center justify-center rounded-full border border-white/70 text-white transition-colors hover:bg-white hover:text-black"
+        onClick={() => {
+          const next = document.getElementById("cm-hero")?.nextElementSibling as HTMLElement | null;
+          if (!next) return;
+          const scroller = document.getElementById("scrollable-content");
+          const top = next.getBoundingClientRect().top + (scroller ? scroller.scrollTop : window.scrollY) - 80;
+          if (scroller) scroller.scrollTo({ top, behavior: "smooth" });
+          else window.scrollTo({ top, behavior: "smooth" });
+        }}
+      >
+        {Icon.chevron(16)}
+      </button>
     </section>
   );
 };
