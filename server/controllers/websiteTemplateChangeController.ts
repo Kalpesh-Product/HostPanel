@@ -23,6 +23,7 @@ const DEFAULT_TEMPLATE_SETTINGS = {
     { templateId: "travigo", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
     { templateId: "haven", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
     { templateId: "camelia", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
+    { templateId: "tulum", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
     { templateId: "commons", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
     { templateId: "huddle", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
   ],
