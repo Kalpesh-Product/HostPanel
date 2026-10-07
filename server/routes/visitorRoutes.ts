@@ -5,6 +5,7 @@ import {
   checkOutVisitor,
   createVisitor,
   getMyVisitorRequests,
+  getVisitorDashboardSummary,
   getVisitorsOverview,
   listVisitors,
   reviewVisitorDecision,
@@ -14,6 +15,7 @@ import {
 const router = Router();
 
 router.get("/overview", getVisitorsOverview);
+router.get("/dashboard-summary", getVisitorDashboardSummary);
 router.get("/my-requests", getMyVisitorRequests);
 router.get("/", listVisitors);
 router.post("/", createVisitor);

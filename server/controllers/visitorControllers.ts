@@ -523,6 +523,100 @@ export const listVisitors = async (req, res, next) => {
   }
 };
 
+export const getVisitorDashboardSummary = async (req, res, next) => {
+  try {
+    const workspace = await getCurrentWorkspaceForRequest(req);
+    if (!workspace) return res.status(404).json({ message: "Workspace not found for this user." });
+    const membership = await getWorkspaceMembership(toId(workspace._id), toId(req.user));
+    if (!membership) return res.status(403).json({ message: "You do not have workspace access." });
+    if (
+      !hasVisitorAccess({
+        workspace,
+        membership,
+        permissionKey: VISITOR_PERMISSION_KEYS.pages.manageVisitors,
+      })
+    ) {
+      return res.status(403).json({ message: "You do not have permission to access Visitor Management." });
+    }
+
+    const workspaceTimeZone = normalizeTimeZone(workspace?.preferences?.timezone);
+    const todayKey = getWorkspaceDateKey(new Date(), workspaceTimeZone);
+    const [localYear, localMonth] = todayKey.split("-").map(Number);
+    const financialYearStart = localMonth >= 4 ? localYear : localYear - 1;
+
+    const [summaryResult, recentVisitorDocs] = await Promise.all([
+      VisitorLog.aggregate([
+        { $match: { workspace: workspace._id } },
+        {
+          $project: {
+            status: { $toLower: { $ifNull: ["$status", ""] } },
+            effectiveDate: { $ifNull: ["$checkInAt", "$createdAt"] },
+          },
+        },
+        {
+          $facet: {
+            total: [{ $count: "count" }],
+            checkedIn: [{ $match: { status: "checked_in" } }, { $count: "count" }],
+            today: [
+              {
+                $match: {
+                  $expr: {
+                    $eq: [
+                      { $dateToString: { date: "$effectiveDate", format: "%Y-%m-%d", timezone: workspaceTimeZone } },
+                      todayKey,
+                    ],
+                  },
+                },
+              },
+              { $count: "count" },
+            ],
+            monthly: [
+              { $match: { effectiveDate: { $ne: null } } },
+              {
+                $group: {
+                  _id: {
+                    year: { $toInt: { $dateToString: { date: "$effectiveDate", format: "%Y", timezone: workspaceTimeZone } } },
+                    month: { $toInt: { $dateToString: { date: "$effectiveDate", format: "%m", timezone: workspaceTimeZone } } },
+                  },
+                  count: { $sum: 1 },
+                },
+              },
+            ],
+          },
+        },
+      ]),
+      VisitorLog.find({ workspace: workspace._id }).sort({ createdAt: -1 }).limit(5).lean().exec(),
+    ]);
+
+    const summary = summaryResult?.[0] || {};
+    const monthlyTrend = new Array(12).fill(0);
+    (summary.monthly || []).forEach((entry: any) => {
+      const year = Number(entry?._id?.year);
+      const month = Number(entry?._id?.month);
+      const isCurrentFinancialYear =
+        (year === financialYearStart && month >= 4) ||
+        (year === financialYearStart + 1 && month <= 3);
+      if (!isCurrentFinancialYear) return;
+      const index = month >= 4 ? month - 4 : month + 8;
+      monthlyTrend[index] = Number(entry.count || 0);
+    });
+
+    return res.status(200).json({
+      message: "Visitor dashboard summary loaded successfully.",
+      data: {
+        todayCount: Number(summary.today?.[0]?.count || 0),
+        totalCount: Number(summary.total?.[0]?.count || 0),
+        checkedIn: Number(summary.checkedIn?.[0]?.count || 0),
+        financialYearStart,
+        monthlyTrend,
+        recentVisitors: recentVisitorDocs.map(formatVisitor),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const createVisitor = async (req, res, next) => {
   try {
     const workspace = await getCurrentWorkspaceForRequest(req);

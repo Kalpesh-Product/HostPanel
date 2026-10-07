@@ -5,7 +5,7 @@
  */
 import type { ElementType, ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import DonutChart from "../../../../components/graphs/DonutChart";
 import BarGraph from "../../../../components/graphs/BarGraph";
 
@@ -33,13 +33,8 @@ export const StatCard = ({
   route,
   onClick,
 }: StatCardProps) => {
-  const navigate = useNavigate();
-  return (
-    <div
-      className="flex items-center justify-between gap-3 rounded-2xl border border-borderGray border-l-4 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md cursor-pointer"
-      style={{ borderLeftColor: color }}
-      onClick={() => { if (onClick) onClick(); else if (route) navigate(route); }}
-    >
+  const content = (
+    <>
       <div className="min-w-0">
         <p className="text-small font-pmedium text-gray-800 uppercase tracking-widest mb-1 truncate">{label}</p>
         <p className="text-2xl font-pmedium text-gray-800">{value}</p>
@@ -48,8 +43,19 @@ export const StatCard = ({
       <div className="p-2.5 rounded-xl shrink-0" style={{ backgroundColor: `${color}18` }}>
         <Icon size={20} style={{ color }} />
       </div>
-    </div>
+    </>
   );
+
+  const className = "flex w-full items-center justify-between gap-3 rounded-2xl border border-borderGray border-l-4 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
+  const style = { borderLeftColor: color };
+
+  if (onClick) {
+    return <button type="button" className={`${className} cursor-pointer`} style={style} onClick={onClick}>{content}</button>;
+  }
+  if (route) {
+    return <Link className={`${className} cursor-pointer`} style={style} to={route}>{content}</Link>;
+  }
+  return <div className={className} style={style}>{content}</div>;
 };
 
 // ─── QuickLink ────────────────────────────────────────────────────────────────
@@ -69,11 +75,10 @@ export const QuickLink = ({
   route,
   color = "#1E3D73",
 }: QuickLinkItem) => {
-  const navigate = useNavigate();
   return (
-    <div
-      className="flex items-center gap-3 p-3 rounded-xl border border-borderGray bg-white hover:border-primary hover:shadow-md cursor-pointer transition-all duration-200 group"
-      onClick={() => navigate(route)}
+    <Link
+      className="group flex items-center gap-3 rounded-xl border border-borderGray bg-white p-3 transition-all duration-200 hover:border-primary hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      to={route}
     >
       <div className="p-2 rounded-lg flex-shrink-0" style={{ backgroundColor: color + "18" }}>
         <Icon size={18} style={{ color }} />
@@ -83,7 +88,7 @@ export const QuickLink = ({
         <p className="text-small text-gray-500 truncate">{description}</p>
       </div>
       <ArrowRight size={12} className="ml-auto flex-shrink-0 text-gray-300 group-hover:text-primary transition-colors" />
-    </div>
+    </Link>
   );
 };
 
