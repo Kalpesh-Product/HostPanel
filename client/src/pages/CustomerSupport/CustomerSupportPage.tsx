@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2, Eye, ExternalLink, Download, FileText, Plus, Pencil, Trash2, Paperclip } from "lucide-react";
+import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2, UserCheck, Eye, ExternalLink, Download, FileText, Plus, Pencil, Trash2, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
@@ -223,6 +223,7 @@ export default function CustomerSupportPage() {
     [draftTicket, supportData],
   );
   const openCount = useMemo(() => allTickets.filter(t => t.status === "Open").length, [allTickets]);
+  const acceptedCount = useMemo(() => allTickets.filter(t => t.status === "Accepted").length, [allTickets]);
   const inProgressCount = useMemo(() => allTickets.filter(t => t.status === "In Progress").length, [allTickets]);
   const resolvedCount = useMemo(() => allTickets.filter(t => t.status === "Resolved" || t.status === "Closed").length, [allTickets]);
 
@@ -604,7 +605,7 @@ export default function CustomerSupportPage() {
           </div>
 
           {/* 2. STAT CARDS */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 shrink-0">
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
               <div className="min-w-0">
                 <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Tickets</p>
@@ -619,6 +620,13 @@ export default function CustomerSupportPage() {
               </div>
               <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><AlertTriangle size={16} /></div>
             </div>
+            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-violet-500">
+              <div className="min-w-0">
+                <p className="text-[10px] font-pmedium text-violet-600 uppercase tracking-widest mb-1">Accepted</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{acceptedCount}</p>
+              </div>
+              <div className="p-2 rounded-2xl bg-violet-50 text-violet-600 shrink-0"><UserCheck size={16} /></div>
+            </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
               <div className="min-w-0">
                 <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">In Progress</p>
@@ -628,7 +636,7 @@ export default function CustomerSupportPage() {
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Resolved / Closed</p>
+                <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Closed</p>
                 <p className="text-[15px] font-pmedium text-slate-900">{resolvedCount}</p>
               </div>
               <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><CheckCircle2 size={16} /></div>
