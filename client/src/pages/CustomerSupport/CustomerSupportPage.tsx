@@ -667,7 +667,7 @@ export default function CustomerSupportPage() {
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
               {activeTab === "raised" ? (
                 <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-                  {['All', 'Draft', 'Open', 'In Progress', 'Resolved', 'Closed'].map((status) => (
+                  {['All', 'Draft', 'Open', 'In Progress'].map((status) => (
                     <button
                       key={status}
                       onClick={() => setStatusFilter(status)}

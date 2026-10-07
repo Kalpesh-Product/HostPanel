@@ -80,11 +80,12 @@ export const getSupportTickets = async (req, res, next) => {
       .lean()
       .exec();
 
+    const isHistoryStatus = (status: any) => ["Resolved", "Closed"].includes(normalizeStatus(status));
     const raised = tickets
-      .filter((ticket) => normalizeStatus(ticket.status) !== "Closed")
+      .filter((ticket) => !isHistoryStatus(ticket.status))
       .map((ticket, index) => mapTicket(ticket, index + 1));
     const history = tickets
-      .filter((ticket) => normalizeStatus(ticket.status) === "Closed")
+      .filter((ticket) => isHistoryStatus(ticket.status))
       .map((ticket, index) => mapTicket(ticket, index + 1));
 
     return res.status(200).json({ data: { raised, history } });
