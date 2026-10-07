@@ -17,6 +17,7 @@ const TEMPLATE_KIND: Record<string, ServiceKind> = {
   travigo: "hostel",
   haven: "coLiving",
   camelia: "coLiving",
+  tulum: "coLiving",
   commons: "workspace",
   huddle: "meeting",
 };
@@ -24,6 +25,8 @@ const TEMPLATE_KIND: Record<string, ServiceKind> = {
 const photo = (id: string, width = 1200) =>
   `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${width}&q=78`;
 const photoValue = (id: string, width = 1000) => ({ url: photo(id, width) });
+// Portrait crops centred on the face, for team photos (4:5, matching the team cards).
+const faceCrop = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=crop&crop=faces&w=700&h=875&q=78`;
 
 // Travigo intentionally has its own photo direction instead of inheriting Wayfarer's
 // hostel library. These images lean into tropical rooms, real traveller moments and
@@ -104,8 +107,85 @@ const TRAVIGO_DEMO_BUSINESS: DemoBusiness = {
   },
 };
 
-const demoBusinessFor = (kind: ServiceKind, themeVariant: string) =>
-  themeVariant === "travigo" && kind === "hostel" ? TRAVIGO_DEMO_BUSINESS : DEMO_BUSINESSES[kind];
+// Tulum has its own co-living photo set, so its preview never shares images with Haven or Camelia.
+const TULUM_PHOTOS = {
+  hero: ["photo-1721222203415-69033eaf3bd1", "photo-1668854084710-386c7d25f771", "photo-1668277280345-f3949c1b6aa2", "photo-1752769041878-f24e37fd6aea"],
+  interiors: [
+    "photo-1738168279272-c08d6dd22002", "photo-1738168246881-40f35f8aba0a", "photo-1680416124510-5eae1beca412", "photo-1638454668466-e8dbd5462f20",
+    "photo-1715985160053-d339e8b6eb94", "photo-1741764014072-68953e93cd48", "photo-1757924461488-ef9ad0670978", "photo-1611094016919-36b65678f3d6",
+  ],
+  villas: ["photo-1668277280358-a9b7f09c1cc5", "photo-1668277157922-ecd8330ea809", "photo-1512914890251-2f96a9b0bbe2", "photo-1759389964108-1940ff61db0e", "photo-1668277156357-3e174dff9f1a", "photo-1668277155898-704a26a5cfa3"],
+  extra: ["photo-1668277155756-0ebb2801f6b4", "photo-1668277155881-9d3bccb1683a", "photo-1643867144950-a2af9f6d5dc8", "photo-1668277156355-08d083dcfea4"],
+};
+// Four units, four photos each: two apartments from the interiors set, two villas.
+const TULUM_ROOM_PHOTOS = [
+  TULUM_PHOTOS.interiors.slice(0, 4),
+  TULUM_PHOTOS.interiors.slice(4, 8),
+  TULUM_PHOTOS.villas.slice(0, 4),
+  TULUM_PHOTOS.villas.slice(2, 6),
+];
+const TULUM_DEMO_VIDEO = "https://videos.pexels.com/video-files/4010511/4010511-hd_1920_1080_25fps.mp4";
+
+const tulumDemo: DemoBusiness = (() => {
+  const base = DEMO_BUSINESSES.coLiving;
+  const rooms = ((base.extra as any).coLivingRooms || []) as any[];
+  return {
+    ...base,
+    companyName: "Tulum Residences",
+    title: "Live by the sea, slow and easy.",
+    subTitle: "Furnished apartments steps from the beach, with a terrace, fast Wi-Fi and a concierge on call.",
+    heroImages: TULUM_PHOTOS.hero.map((id) => photo(id, 1600)),
+    gallery: [...TULUM_PHOTOS.interiors.slice(4), ...TULUM_PHOTOS.villas.slice(0, 2), ...TULUM_PHOTOS.extra].map((id) => photo(id, 1200)),
+    aboutImages: [TULUM_PHOTOS.villas[0], TULUM_PHOTOS.interiors[2], TULUM_PHOTOS.extra[1]].map((id) => photo(id, 1000)),
+    address: "Calle Playa 14, Tulum, Quintana Roo",
+    // Three team members, as in the reference's team block.
+    founders: [
+      { name: "Ana Morales", role: "CEO", bio: "Ana started Tulum Residences after a decade of hosting travellers on the Yucatán coast. She still walks every new unit before a guest moves in.", highlights: "10 years in hospitality\nFounded Tulum Residences in 2019", image: faceCrop("photo-1573496359142-b8d87734a5a2") },
+      { name: "Sofia Bennett", role: "CFO", bio: "Sofia looks after the numbers and the long-term plans for each building. She is proudest of guests who return season after season.", highlights: "Former hotel finance lead\nChartered accountant", image: faceCrop("photo-1580894732444-8ecded7900cd") },
+      { name: "Lucas Ortega", role: "CTO", bio: "Lucas built the booking and check-in systems the team uses today, and keeps the apartments connected, comfortable and secure.", highlights: "Smart-building specialist\nLed three property tech launches", image: faceCrop("photo-1551836022-deb4988cc6c0") },
+    ],
+    aboutTitle: "A stay made for slow days",
+    aboutPageStory: "We started with one apartment near the beach and a simple goal: a home where guests can work, rest and wake up to the sea. Today we look after a small group of apartments and villas, each run with the same care.",
+    about: [
+      "Tulum Residences is a small collection of furnished apartments and villas a short walk from the beach.",
+      "Every unit has a terrace, fast Wi-Fi and a concierge who can help with local plans, from cenote trips to the best place for dinner.",
+    ],
+    partnerHeading: "Partner with Tulum Residences",
+    page: {
+      ...base.page,
+      heroHeading: "Units",
+      heroSubHeading: "Apartments and villas, each with its own terrace and everything you need for a long stay.",
+      heroImage: photo(TULUM_PHOTOS.villas[0], 1600),
+      cardImage: photo(TULUM_PHOTOS.interiors[0], 1000),
+    },
+    extra: {
+      ...base.extra,
+      coLivingRooms: rooms.slice(0, 4).map((room, index) => ({
+        ...room,
+        // Named units and nightly rates, to match the hero's "price per night" line.
+        title: ["Apartment Kaan", "Apartment Maktu", "Villa Sian", "Villa Tankah"][index],
+        area: ["340 ft", "240 ft", "420 ft", "310 ft"][index],
+        // Eight lines per unit, so the list fills the same height as the photo beside it.
+        features: [
+          ["Wi-Fi", "Housekeeping", "Study desk", "Wardrobe", "Air conditioning", "Private terrace", "Kitchen", "Laundry"],
+          ["Smart TV", "Housekeeping", "Dining area", "Walk-in shower", "Air conditioning", "Private balcony", "Kitchen", "Laundry"],
+          ["Plunge pool", "Concierge", "Outdoor shower", "Two bedrooms", "Dining room", "Living room", "Kitchen", "Terrace"],
+          ["Rooftop deck", "Concierge", "Two bathrooms", "Office nook", "Dining room", "Living room", "Kitchen", "Terrace"],
+        ][index],
+        price: ["₹4,200", "₹5,600", "₹9,800", "₹12,500"][index],
+        priceUnit: "per night",
+        images: TULUM_ROOM_PHOTOS[index].map((id) => photoValue(id)),
+        image: photo(TULUM_ROOM_PHOTOS[index][0], 1000),
+      })),
+    },
+  };
+})();
+
+const demoBusinessFor = (kind: ServiceKind, themeVariant: string): DemoBusiness => {
+  if (themeVariant === "travigo" && kind === "hostel") return TRAVIGO_DEMO_BUSINESS;
+  if (themeVariant === "tulum" && kind === "coLiving") return tulumDemo;
+  return DEMO_BUSINESSES[kind];
+};
 
 /** The kind of business a template is previewed with when no services are chosen. */
 export const defaultKindForTemplate = (themeVariant: string): ServiceKind => TEMPLATE_KIND[themeVariant] || "workspace";
@@ -158,7 +238,7 @@ export const buildDemoPreviewDraft = (themeVariant: string, serviceNames: string
     themeVariant,
     // Camelia's hero plays a looping video when one is linked (see the builder's "Hero Video URL").
     // The sample clip is a placeholder for previews only; a real site sets its own link.
-    heroVideoUrl: themeVariant === "camelia" ? CAMELIA_DEMO_VIDEO : "",
+    heroVideoUrl: themeVariant === "camelia" ? CAMELIA_DEMO_VIDEO : themeVariant === "tulum" ? TULUM_DEMO_VIDEO : "",
     styleConfig: {},
     sectionOverrides: {},
     vertical: primary.vertical,
@@ -180,7 +260,8 @@ export const buildDemoPreviewDraft = (themeVariant: string, serviceNames: string
     aboutPageTeamHeading: primary.aboutPageTeamHeading,
     aboutPageImages: primary.aboutImages.map((url) => ({ url })),
     aboutPageImageCards: primary.team.map((member) => ({ ...member, enabled: true })),
-    founders: primary.founders,
+    // Tulum always shows its own three team members, whichever services were picked.
+    founders: themeVariant === "tulum" ? tulumDemo.founders : primary.founders,
     testimonials: primary.testimonials,
     testimonialsEnableWriteReview: true,
     testimonialsHomePreviewCount: 3,

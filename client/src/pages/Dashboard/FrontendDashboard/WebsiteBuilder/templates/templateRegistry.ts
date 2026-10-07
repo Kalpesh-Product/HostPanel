@@ -11,6 +11,7 @@ import CameliaTemplate from "./camelia/CameliaTemplate";
 import CommonsTemplate from "./commons/CommonsTemplate";
 import HuddleTemplate from "./huddle/HuddleTemplate";
 import TravigoTemplate from "./travigo/TravigoTemplate";
+import TulumTemplate from "./tulum/TulumTemplate";
 import type { ServiceKind } from "./verticalProfiles";
 
 export interface TemplateDefinition {
@@ -122,6 +123,21 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       font: "'Manrope', sans-serif",
     },
     recommendedFor: ["hostel"],
+    supportsBooking: true,
+  },
+  tulum: {
+    id: "tulum",
+    name: "Tulum",
+    description:
+      "Quiet editorial co-living style: a full-bleed video hero with a nightly price, serif headings, sage bands, unit rows and pricing cards. Made for co-living and workation stays, works for any service.",
+    component: TulumTemplate,
+    swatch: {
+      bg: "#f1f1ed",
+      fg: "#4f5a53",
+      accent: "#8a968f",
+      font: "'Cormorant Upright', serif",
+    },
+    recommendedFor: ["coLiving", "workation"],
     supportsBooking: true,
   },
   haven: {
