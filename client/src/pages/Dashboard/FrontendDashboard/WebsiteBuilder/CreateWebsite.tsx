@@ -5524,10 +5524,10 @@ const CreateWebsite = () => {
                   />
                 )}
 
-                {/* heroVideoUrl — Camelia can play a looping video in the hero instead of the
-                    photo carousel above. A direct link, not an upload (keeps video hosting off
+                {/* heroVideoUrl — Camelia and Tulum can play a looping video in the hero instead of
+                    the photo carousel above. A direct link, not an upload (keeps video hosting off
                     our own storage); other templates ignore this field entirely. */}
-                {watch("themeVariant") === "camelia" && (
+                {["camelia", "tulum", "grindelwald"].includes(watch("themeVariant")) && (
                   <Controller
                     name="heroVideoUrl"
                     control={control}
