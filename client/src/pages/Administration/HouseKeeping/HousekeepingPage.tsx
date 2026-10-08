@@ -798,9 +798,8 @@ function HousekeepingPageInner() {
       tasks.filter(
         (task) =>
           task.sourceType !== 'booking' &&
-          task.status !== 'Completed' &&
           task.status !== 'Cancelled' &&
-          (statusFilter === 'All Status' || task.status === statusFilter) &&
+          (statusFilter === 'All Status' ? task.status !== 'Completed' : task.status === statusFilter) &&
           [task.taskName, task.area, task.floor, task.wing, task.assignedTo].some((v) =>
             String(v || '').toLowerCase().includes(searchQuery.toLowerCase()),
           ),
