@@ -56,9 +56,9 @@ ${WAYFARER_CSS}
 .gw-hero-circle { position: absolute; inset: 0; margin: auto; width: min(570px, 72vw); aspect-ratio: 1; border-radius: 50%; overflow: hidden; background: #2a4f4b; }
 .gw-hero-circle img, .gw-hero-circle video { width: 100%; height: 100%; object-fit: cover; }
 .gw-hero-title { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; text-align: center; }
-.gw-hero-line-1, .gw-hero-line-4 { font-size: clamp(88px, 13vw, 176px); line-height: .9; color: #fff; }
-.gw-hero-line-2 { font-size: clamp(88px, 13vw, 176px); line-height: .9; color: var(--t-accent); font-style: italic; margin-left: 14vw; }
-.gw-hero-line-3 { font-size: clamp(26px, 2.6vw, 36px); line-height: 1.2; color: #fff; font-weight: 500; margin: 6px 0 0 -8vw; }
+.gw-hero-line-1, .gw-hero-line-4 { font-size: clamp(96px, 15vw, 204px); line-height: .9; color: #fff; }
+.gw-hero-line-2 { font-size: clamp(96px, 15vw, 204px); line-height: .9; color: var(--t-accent); font-style: italic; margin-left: 14vw; }
+.gw-hero-line-3 { font-size: clamp(28px, 3vw, 40px); line-height: 1.2; color: #fff; font-weight: 500; margin: 6px 0 0 -8vw; }
 .gw-hero-sub { position: absolute; left: 0; right: 0; bottom: 56px; text-align: center; font-size: 18px; font-weight: 600; line-height: 1.45; color: #fff; }
 .gw-play { position: absolute; right: 12%; left: auto; top: 0; bottom: 0; margin: auto 0; z-index: 3; width: 72px; height: 72px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--t-accent); color: #1b3936; border: 0; cursor: pointer; box-shadow: 0 0 0 14px rgba(117,255,105,.22); transition: transform .4s ease; }
 .gw-play:hover { transform: scale(1.06); }
@@ -141,8 +141,10 @@ ${WAYFARER_CSS}
 .gw-footer a:hover { text-decoration: underline; text-underline-offset: 4px; }
 
 @media (max-width: 767px) {
-  /* Grids without an explicit column count take the full phone width, and their children may shrink. */
-  .gw :where(.grid) { grid-template-columns: minmax(0, 1fr); }
+  /* A grid with no explicit column count already stacks into one implicit column on its own;
+     this just keeps grid children (long text, images) from forcing the track wider than the phone,
+     without touching grids that set their own column count (e.g. a base grid-cols-2 meant to
+     stay two columns on phones too). */
   .gw :where(.grid) > * { min-width: 0; }
   .gw .tp-wrap { padding-left: 18px; padding-right: 18px; }
   .gw .tp-section { padding-top: 70px; padding-bottom: 70px; }
