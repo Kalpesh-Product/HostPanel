@@ -67,5 +67,18 @@ export async function getCities(country: string, state: string) {
     .map((item) => String(item.name || "").trim())
     .filter(Boolean);
 
+  // The bundled country-state-city dataset leaves most UK county/council
+  // entries (e.g. Aberdeen, Camden, Surrey) with zero mapped cities, even
+  // though the country overall has thousands. Rather than showing an empty
+  // dropdown, fall back to the full country-level city list so the field is
+  // still usable — this never fires for countries whose state-level data is
+  // already populated.
+  if (cities.length === 0) {
+    const countryCities = City.getCitiesOfCountry(countryRecord.isoCode)
+      .map((item) => String(item.name || "").trim())
+      .filter(Boolean);
+    return normalizeOptions(countryCities);
+  }
+
   return normalizeOptions(cities);
 }

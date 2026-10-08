@@ -603,7 +603,11 @@ export function LeaveRequestsPage() {
     Boolean(item.department) && assignedDepartmentKeys.has(normalizeRole(item.department)) && normalizeRole(item.requesterRole) === 'employee',
   [assignedDepartmentKeys]);
   const canViewApprovalQueueRequest = useCallback((item: LeaveRequest, isMyEntry: boolean) => {
-    if (isMyEntry || !canManageLeaveRequests) return false;
+    // A founder's own request only appears here when the backend made them
+    // their own approver (no HR Manager configured) — the sole case a
+    // self-entry belongs in the approval queue.
+    const isFounderSoleApprover = isMyEntry && item.requesterRole === 'founder' && item.isApprovalRecipient === true;
+    if ((isMyEntry && !isFounderSoleApprover) || !canManageLeaveRequests) return false;
     // HR's shared queue only surfaces employee-submitted requests here;
     // requests from managers/admins/HR/etc. are handled in HR's dedicated
     // Leave Requests Processing console instead.
@@ -612,8 +616,11 @@ export function LeaveRequestsPage() {
   }, [canManageLeaveRequests, isHrProfile]);
 
   const canCurrentUserActionRequest = useCallback(
+    // canAction already reflects the backend's approver list, which only
+    // includes the requester themselves when they're a founder with no HR
+    // Manager configured — the one case a self-entry should be actionable.
     (item: LeaveRequest, isMyEntry: boolean) =>
-      !isMyEntry && item.status === 'pending' && item.canAction === true,
+      item.status === 'pending' && item.canAction === true && (!isMyEntry || item.requesterRole === 'founder'),
     [],
   );
   const availableBalance = Object.values(leaveBalances).reduce((sum, balance) => sum + Math.max(0, Number(balance.remaining) || 0), 0);
@@ -766,7 +773,9 @@ export function LeaveRequestsPage() {
       setFormData({ ...INITIAL_LEAVE_FORM, type: leaveTypes[0]?.id || "" });
       setMedicalCertFile(null);
     } catch (error: any) {
-      setErrorMessage(error.message || 'Failed to submit leave request.');
+      const message = error.message || 'Failed to submit leave request.';
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setIsSubmittingLeave(false);
     }
@@ -1598,6 +1607,9 @@ export function LeaveRequestsPage() {
                           </div>
                         </div>
                       )}
+                      {errorMessage ? (
+                        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-semibold text-red-600">{errorMessage}</div>
+                      ) : null}
                       <div className="flex gap-2">
                         <button type="button" onClick={() => setIsApplyModalOpen(false)} className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl font-pmedium hover:bg-slate-200 transition-all text-[10px] uppercase tracking-wider">CANCEL</button>
                         <button type="submit" disabled={isSubmittingLeave} className="flex-1 py-3 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider">
