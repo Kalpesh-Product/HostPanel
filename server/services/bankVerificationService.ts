@@ -37,6 +37,7 @@ export const listBanksByCountry = async ({
   const banks = country === "IN"
     ? INDIA_FALLBACK_BANKS.map((name) => ({ code: name, name, countryCode: country }))
     : [];
+  banks.sort((a, b) => a.name.localeCompare(b.name));
   return {
     banks,
     source: banks.length ? "india-built-in" : "manual-entry",
