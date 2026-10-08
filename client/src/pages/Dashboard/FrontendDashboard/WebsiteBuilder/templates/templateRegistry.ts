@@ -12,6 +12,7 @@ import CommonsTemplate from "./commons/CommonsTemplate";
 import HuddleTemplate from "./huddle/HuddleTemplate";
 import TravigoTemplate from "./travigo/TravigoTemplate";
 import TulumTemplate from "./tulum/TulumTemplate";
+import GrindelwaldTemplate from "./grindelwald/GrindelwaldTemplate";
 import type { ServiceKind } from "./verticalProfiles";
 
 export interface TemplateDefinition {
@@ -136,6 +137,21 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       fg: "#4f5a53",
       accent: "#8a968f",
       font: "'Cormorant Upright', serif",
+    },
+    recommendedFor: ["coLiving", "workation"],
+    supportsBooking: true,
+  },
+  grindelwald: {
+    id: "grindelwald",
+    name: "Grindelwald",
+    description:
+      "Forest-retreat style: a deep green hero with a round photo and dashed neon rings, a pale intro with stats, a parallax photo, room cards, a photo slider and a closing band. Made for co-living and cabin stays, works for any service.",
+    component: GrindelwaldTemplate,
+    swatch: {
+      bg: "#f8f8f8",
+      fg: "#1b3936",
+      accent: "#75ff69",
+      font: "'Bodoni Moda', serif",
     },
     recommendedFor: ["coLiving", "workation"],
     supportsBooking: true,
