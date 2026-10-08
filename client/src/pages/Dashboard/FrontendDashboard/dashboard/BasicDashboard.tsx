@@ -5,7 +5,7 @@
  * dashboard widgets so it stays consistent with the other plan dashboards.
  * Upgrade nudge → opens the upgrade modal (Professional only).
  */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
@@ -13,7 +13,7 @@ import WidgetSection from "../../../../components/WidgetSection";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import useAuth from "../../../../hooks/useAuth";
 import {
-  Globe, Users, Eye, UserPlus, FileText, Zap, ArrowRight, LayoutGrid,
+  Globe, Users, Eye, UserPlus, FileText, Zap, ArrowRight, LayoutGrid, X,
 } from "lucide-react";
 import {
   StatCard, QuickLink, SectionCard, RecentItem, DonutWidget, BarWidget,
@@ -116,6 +116,27 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
 
   const workspaceId = selectedCompany?.workspaceId || auth?.user?.primaryWorkspace || auth?.user?.workspaceMembership?.workspace || auth?.user?.workspaceId || "";
   const companyId = selectedCompany?.companyId || auth?.user?.companyId || "";
+
+  // Dismissing the upgrade nudge is purely cosmetic (the banner's message
+  // never changes), so a per-browser flag is enough — no need for a
+  // server-side field. Keyed by workspace so switching workspaces doesn't
+  // carry the dismissal over.
+  const upgradeBannerStorageKey = `hostpanel_dashboard_upgrade_banner_dismissed:${workspaceId}`;
+  const [isUpgradeBannerDismissed, setIsUpgradeBannerDismissed] = useState(() => {
+    try {
+      return localStorage.getItem(upgradeBannerStorageKey) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const dismissUpgradeBanner = () => {
+    setIsUpgradeBannerDismissed(true);
+    try {
+      localStorage.setItem(upgradeBannerStorageKey, "1");
+    } catch {
+      // Best-effort only; worst case the banner reappears next visit.
+    }
+  };
 
   // A card only renders when its module is both included in the plan/
   // workspace (enabled axis) AND granted to the current member (access axis).
@@ -264,23 +285,39 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
     <div className="flex flex-col gap-5">
       <WonoListingsCard />
 
-      {/* Plan strip — compact, opens the upgrade modal */}
-      <button
-        type="button"
-        data-tour="dashboard-plan"
-        className="flex w-full items-center gap-3 rounded-xl border-2 border-accent/30 bg-blue-50 p-4 text-left transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-        onClick={onUpgradeClick}
-      >
-        <Zap size={18} className="text-accent flex-shrink-0" />
-        <p className="text-content font-pmedium text-blue-800 min-w-0 truncate">
-          You're on the <strong>Basic Plan</strong> — Upgrade to{" "}
-          <strong>Professional Plan</strong> for Meeting Room Bookings, Ticketing, Sales Modules & more.
-        </p>
-        <span className="ml-auto flex-shrink-0 px-3 py-1 rounded-full text-[10px] font-pmedium uppercase tracking-widest border bg-accent text-white border-accent whitespace-nowrap">
-          Upgrade ↑
-        </span>
-        <ArrowRight size={14} className="text-accent flex-shrink-0" />
-      </button>
+      {/* Plan strip — compact, opens the upgrade modal. Dismissible since its
+          message is static promotion, not a status the host needs to track. */}
+      {!isUpgradeBannerDismissed && (
+        <div
+          data-tour="dashboard-plan"
+          className="flex w-full items-center gap-2 rounded-xl border-2 border-accent/30 bg-blue-50 p-4"
+        >
+          <button
+            type="button"
+            className="flex flex-1 min-w-0 items-center gap-3 text-left transition-colors hover:bg-blue-100 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            onClick={onUpgradeClick}
+          >
+            <Zap size={18} className="text-accent flex-shrink-0" />
+            <p className="text-content font-pmedium text-blue-800 min-w-0 truncate">
+              You're on the <strong>Basic Plan</strong> — Upgrade to{" "}
+              <strong>Professional Plan</strong> for Meeting Room Bookings, Ticketing, Sales Modules & more.
+            </p>
+            <span className="ml-auto flex-shrink-0 px-3 py-1 rounded-full text-[10px] font-pmedium uppercase tracking-widest border bg-accent text-white border-accent whitespace-nowrap">
+              Upgrade ↑
+            </span>
+            <ArrowRight size={14} className="text-accent flex-shrink-0" />
+          </button>
+          <button
+            type="button"
+            onClick={dismissUpgradeBanner}
+            title="Dismiss"
+            aria-label="Dismiss upgrade banner"
+            className="flex-shrink-0 p-1.5 text-blue-400 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          >
+            <X size={16} strokeWidth={2.5} />
+          </button>
+        </div>
+      )}
 
       <VerifiedBadgeNotice />
       <BonusTrialOfferNotice />
