@@ -36,6 +36,10 @@ const formatDate = (value?: string | null) => {
   return date.toLocaleDateString("en-US", { month: "long", day: "2-digit", year: "numeric" });
 };
 
+// "Professional Plan" -> "Professional", "Custom Plan" -> "Custom" — for the
+// short headline; the body sentence uses the full planLabel instead.
+const planName = (planLabel: string) => String(planLabel || "").replace(/\s*Plan$/i, "") || "your new plan";
+
 const formatAmount = (amount: number, currency: string) => {
   try {
     return new Intl.NumberFormat("en-US", {
@@ -179,11 +183,13 @@ export default function PaymentSuccessPage() {
                   <div className={`${iconWrap} bg-emerald-50`}>
                     <CheckCircle2 className="text-emerald-600" size={36} strokeWidth={2.5} />
                   </div>
-                  <h1 className={headingClass}>Congratulations — you&apos;re now on Professional!</h1>
+                  <h1 className={headingClass}>
+                    Congratulations — you&apos;re now on {planName(payment.planLabel)}!
+                  </h1>
                   <p className={bodyClass}>
-                    Your plan has been upgraded from Basic to Professional
-                    {payment.email ? ` and a receipt is on its way to ${payment.email}` : ""}. Every
-                    Professional feature is unlocked.
+                    Your plan has been upgraded from Basic to {payment.planLabel}
+                    {payment.email ? ` and a receipt is on its way to ${payment.email}` : ""}. Every{" "}
+                    {planName(payment.planLabel)} feature is unlocked.
                   </p>
 
                   <dl className="mt-6 divide-y divide-[#e4ecf8] rounded-2xl border border-[#e4ecf8] bg-white px-5 text-left text-[13px]">
