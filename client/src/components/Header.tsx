@@ -27,6 +27,7 @@ import { queryClient } from "../main";
 import WoNoLogo from "../assets/WONO_LOGO_Black_TP.svg";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
 import NotificationPanel from "./NotificationPanel";
+import HeaderSearchPalette from "./HeaderSearchPalette";
 
 interface HeaderProps {
   notifications?: Array<any>;
@@ -294,7 +295,11 @@ const Header = ({
             </div>
           </div>
         </div>
-        {!isMobile && <div className="w-full flex items-center pl-8" />}
+        {!isMobile && (
+          <div className="w-full flex items-center pl-8">
+            <HeaderSearchPalette />
+          </div>
+        )}
         <div className="flex items-center gap-3 md:w-fit w-fit">
           <WorkspaceSwitcher />
           <button

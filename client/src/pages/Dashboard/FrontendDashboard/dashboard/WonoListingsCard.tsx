@@ -13,9 +13,10 @@
  * Listings page; "verify" also opens the claim dialog, pre-searched with the
  * company name.
  */
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Building2, Globe, Plus } from "lucide-react";
+import { Building2, Globe, Plus, X } from "lucide-react";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import useAuth from "../../../../hooks/useAuth";
 import useNomadListingCapacity, {
@@ -61,6 +62,30 @@ const WonoListingsCard = () => {
   // "bring in" by default — only still offer this while an actual claim
   // (pending/rejected) is in flight, so its status stays visible.
   const showVerifyCta = Boolean(claim?.status) || !hasListings;
+
+  // Dismiss is keyed to which message is currently showing, not to the card
+  // in general — so once the status actually changes (reviewing -> live,
+  // live -> limit reached, etc.) it's a different key and the new message
+  // shows up again. Nothing the host still needs to see stays hidden.
+  const statusKey = !hasListings ? "pitch" : liveCount === 0 ? "reviewing" : isAtLimit ? "limit" : "live";
+  const dismissStorageKey = `hostpanel_dashboard_listings_banner_dismissed:${companyId}:${statusKey}`;
+  const [dismissVersion, setDismissVersion] = useState(0);
+  const isDismissed = useMemo(() => {
+    try {
+      return localStorage.getItem(dismissStorageKey) === "1";
+    } catch {
+      return false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dismissStorageKey, dismissVersion]);
+  const dismissBanner = () => {
+    try {
+      localStorage.setItem(dismissStorageKey, "1");
+    } catch {
+      // Best-effort only; worst case it reappears next visit.
+    }
+    setDismissVersion((v) => v + 1);
+  };
 
   let message;
   if (!hasListings) {
@@ -115,6 +140,10 @@ const WonoListingsCard = () => {
     );
   }
 
+  if (isDismissed) {
+    return null;
+  }
+
   return (
     <div
       data-tour="dashboard-wono-listings"
@@ -128,7 +157,7 @@ const WonoListingsCard = () => {
         </span>
         <p className="text-content font-pmedium text-slate-700">{message}</p>
       </div>
-      <div className="flex flex-shrink-0 flex-wrap gap-2 md:ml-auto">
+      <div className="flex flex-shrink-0 flex-wrap items-center gap-2 md:ml-auto">
         {hasListings && isAtLimit ? (
           <span
             title="Upgrade your plan to get more listings on wono.co"
@@ -154,6 +183,15 @@ const WonoListingsCard = () => {
             <Building2 size={12} strokeWidth={3} /> {verifyLabel}
           </button>
         )}
+        <button
+          type="button"
+          onClick={dismissBanner}
+          title="Dismiss"
+          aria-label="Dismiss listings banner"
+          className="flex-shrink-0 p-1.5 text-accent/50 hover:text-accent hover:bg-blue-100 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+        >
+          <X size={16} strokeWidth={2.5} />
+        </button>
       </div>
     </div>
   );

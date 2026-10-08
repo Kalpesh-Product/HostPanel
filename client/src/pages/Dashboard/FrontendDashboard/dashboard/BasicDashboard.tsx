@@ -5,7 +5,7 @@
  * dashboard widgets so it stays consistent with the other plan dashboards.
  * Upgrade nudge → opens the upgrade modal (Professional only).
  */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -13,7 +13,7 @@ import WidgetSection from "../../../../components/WidgetSection";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import useAuth from "../../../../hooks/useAuth";
 import {
-  Globe, Users, Eye, UserPlus, FileText, Zap, ArrowRight, LayoutGrid,
+  Globe, Users, Eye, UserPlus, FileText, Zap, ArrowRight, LayoutGrid, X,
 } from "lucide-react";
 import {
   StatCard, QuickLink, SectionCard, RecentItem, DonutWidget, BarWidget,
@@ -120,6 +120,27 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
 
   const workspaceId = selectedCompany?.workspaceId || auth?.user?.primaryWorkspace || auth?.user?.workspaceMembership?.workspace || auth?.user?.workspaceId || "";
   const companyId = selectedCompany?.companyId || auth?.user?.companyId || "";
+
+  // Dismissing the upgrade nudge is purely cosmetic (the banner's message
+  // never changes), so a per-browser flag is enough — no need for a
+  // server-side field. Keyed by workspace so switching workspaces doesn't
+  // carry the dismissal over.
+  const upgradeBannerStorageKey = `hostpanel_dashboard_upgrade_banner_dismissed:${workspaceId}`;
+  const [isUpgradeBannerDismissed, setIsUpgradeBannerDismissed] = useState(() => {
+    try {
+      return localStorage.getItem(upgradeBannerStorageKey) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const dismissUpgradeBanner = () => {
+    setIsUpgradeBannerDismissed(true);
+    try {
+      localStorage.setItem(upgradeBannerStorageKey, "1");
+    } catch {
+      // Best-effort only; worst case the banner reappears next visit.
+    }
+  };
 
   // A card only renders when its module is both included in the plan/
   // workspace (enabled axis) AND granted to the current member (access axis).
