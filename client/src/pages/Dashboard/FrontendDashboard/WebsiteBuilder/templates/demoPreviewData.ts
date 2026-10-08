@@ -18,6 +18,7 @@ const TEMPLATE_KIND: Record<string, ServiceKind> = {
   haven: "coLiving",
   camelia: "coLiving",
   tulum: "coLiving",
+  grindelwald: "coLiving",
   commons: "workspace",
   huddle: "meeting",
 };
@@ -181,9 +182,80 @@ const tulumDemo: DemoBusiness = (() => {
   };
 })();
 
+// Grindelwald has its own forest photo set: the hero is a lake, the cabins are exteriors and the slider shows interiors.
+const GRINDELWALD_PHOTOS = {
+  hero: ["photo-1473448912268-2022ce9509d8", "photo-1786962904165-ec070af23a64", "photo-1557456170-0cf4f4d0d362"],
+  cabins: [
+    ["photo-1449158743715-0a90ebb6d2d8", "photo-1570793005386-840846445fed", "photo-1518107784960-eb57c673a7ba", "photo-1537197518227-a36efeafd477"],
+    ["photo-1601919051950-bb9f3ffb3fee", "photo-1702959638073-3fa29ddb6a98", "photo-1772955543023-a6e99819e161", "photo-1759675001595-7b1e5ff997f0"],
+    ["photo-1510798831971-661eb04b3739", "photo-1621771674545-849014cf91fa", "photo-1767711384997-6804f4b54997", "photo-1566754844421-9bc834baf4a3"],
+  ],
+  interiors: [
+    "photo-1631630259742-c0f0b17c6c10", "photo-1773579089983-50348cc9abd0", "photo-1645242075656-e4e435b7a5f5", "photo-1631941392209-70cad44ecfb7", "photo-1697807713040-b5fb60d6f012",
+    "photo-1787755144917-cbcf31e44f26", "photo-1761782791727-3994283faa88", "photo-1591825729269-caeb344f6df2", "photo-1726090401458-7abb00f7450c", "photo-1680703486830-1b5af60635d7",
+  ],
+  extra: ["photo-1786962904165-ec070af23a64", "photo-1557456170-0cf4f4d0d362", "photo-1473448912268-2022ce9509d8"],
+};
+// Pexels "Cabin in the woods" (free to use, no attribution needed); 720p, 18 seconds.
+const GRINDELWALD_DEMO_VIDEO = "https://videos.pexels.com/video-files/7664024/7664024-hd_1366_720_24fps.mp4";
+
+const grindelwaldDemo: DemoBusiness = (() => {
+  const base = DEMO_BUSINESSES.coLiving;
+  const rooms = ((base.extra as any).coLivingRooms || []) as any[];
+  return {
+    ...base,
+    companyName: "Cedar Ridge Cabins",
+    title: "Cozy cabins in the woods.",
+    subTitle: "Peaceful cabins among the pines, a short drive from town, with a hot tub, trails and a fire pit.",
+    heroImages: GRINDELWALD_PHOTOS.hero.map((id) => photo(id, 1600)),
+    gallery: [...GRINDELWALD_PHOTOS.interiors, ...GRINDELWALD_PHOTOS.extra].map((id) => photo(id, 1200)),
+    aboutImages: [GRINDELWALD_PHOTOS.cabins[0][0], GRINDELWALD_PHOTOS.cabins[1][0], GRINDELWALD_PHOTOS.extra[0]].map((id) => photo(id, 1000)),
+    address: "Forest Road 9, Pine Ridge Valley, Himachal Pradesh",
+    founders: [
+      { name: "Maya Forrest", role: "Host and founder", bio: "Maya opened Cedar Ridge Cabins to share quiet mornings in the pines. She still greets every guest at the gate.", highlights: "12 years hosting in the mountains\nFounded Cedar Ridge Cabins in 2018", image: faceCrop("photo-1580489944761-15a19d654956") },
+      { name: "Ravi Menon", role: "Operations", bio: "Ravi keeps the cabins warm, stocked and ready for every arrival, and plans the trail and fire-pit schedule each week.", highlights: "Former resort operations lead\nCertified outdoor first-aid", image: faceCrop("photo-1507003211169-0a1dd7228f2d") },
+      { name: "Elena Brooks", role: "Guest experience", bio: "Elena designs the stay from the first enquiry to the last morning, with local guides and quiet corners for each guest.", highlights: "Ten years in guest services\nLocal trail guide", image: faceCrop("photo-1699899657680-421c2c2d5064") },
+    ],
+    aboutTitle: "A cabin for slow days",
+    aboutPageStory: "We started with one cabin among the pines and a simple wish: a place where guests can switch off, breathe and listen to the forest. Today we look after three cabins, each run with the same care.",
+    about: [
+      "Cedar Ridge Cabins is a small set of cabins among the pines, a short drive from town.",
+      "Every cabin has a wood stove, a hot tub and a deck, plus trail maps and a host who can point you to the best views.",
+    ],
+    partnerHeading: "Partner with Cedar Ridge Cabins",
+    page: {
+      ...base.page,
+      heroHeading: "Rooms",
+      heroSubHeading: "Three cabins, each with its own deck, wood stove and a view of the trees.",
+      heroImage: photo(GRINDELWALD_PHOTOS.cabins[2][0], 1600),
+      cardImage: photo(GRINDELWALD_PHOTOS.cabins[0][0], 1000),
+    },
+    extra: {
+      ...base.extra,
+      coLivingRooms: rooms.slice(0, 3).map((room, index) => ({
+        ...room,
+        title: ["Cedar Cabin", "Pine Hollow", "Ridge Lodge"][index],
+        description: ["For the times when life is too much, quit everything and enjoy the woods.", "A snug cabin under the trees, with a deck for morning coffee and a wood stove for the evenings.", "Our largest cabin, with a hot tub on the deck and views across the valley."][index],
+        area: ["320 sq ft", "410 sq ft", "560 sq ft"][index],
+        // Eight lines per cabin, so the list fills the same height as the photo beside it.
+        features: [
+          ["Wood stove", "Hot tub", "Private deck", "Fire pit", "Wi-Fi", "Kitchenette", "Heating", "Parking"],
+          ["Wood stove", "Reading nook", "Private deck", "Fire pit", "Wi-Fi", "Kitchenette", "Heating", "Parking"],
+          ["Hot tub", "Two bedrooms", "Panoramic deck", "Fire pit", "Wi-Fi", "Full kitchen", "Heating", "Parking"],
+        ][index],
+        price: ["₹6,500", "₹8,200", "₹11,400"][index],
+        priceUnit: "per night",
+        images: GRINDELWALD_PHOTOS.cabins[index].map((id) => photoValue(id)),
+        image: photo(GRINDELWALD_PHOTOS.cabins[index][0], 1000),
+      })),
+    },
+  };
+})();
+
 const demoBusinessFor = (kind: ServiceKind, themeVariant: string): DemoBusiness => {
   if (themeVariant === "travigo" && kind === "hostel") return TRAVIGO_DEMO_BUSINESS;
   if (themeVariant === "tulum" && kind === "coLiving") return tulumDemo;
+  if (themeVariant === "grindelwald" && kind === "coLiving") return grindelwaldDemo;
   return DEMO_BUSINESSES[kind];
 };
 
@@ -238,7 +310,7 @@ export const buildDemoPreviewDraft = (themeVariant: string, serviceNames: string
     themeVariant,
     // Camelia's hero plays a looping video when one is linked (see the builder's "Hero Video URL").
     // The sample clip is a placeholder for previews only; a real site sets its own link.
-    heroVideoUrl: themeVariant === "camelia" ? CAMELIA_DEMO_VIDEO : themeVariant === "tulum" ? TULUM_DEMO_VIDEO : "",
+    heroVideoUrl: themeVariant === "camelia" ? CAMELIA_DEMO_VIDEO : themeVariant === "tulum" ? TULUM_DEMO_VIDEO : themeVariant === "grindelwald" ? GRINDELWALD_DEMO_VIDEO : "",
     styleConfig: {},
     sectionOverrides: {},
     vertical: primary.vertical,
@@ -261,7 +333,7 @@ export const buildDemoPreviewDraft = (themeVariant: string, serviceNames: string
     aboutPageImages: primary.aboutImages.map((url) => ({ url })),
     aboutPageImageCards: primary.team.map((member) => ({ ...member, enabled: true })),
     // Tulum always shows its own three team members, whichever services were picked.
-    founders: themeVariant === "tulum" ? tulumDemo.founders : primary.founders,
+    founders: themeVariant === "tulum" ? tulumDemo.founders : themeVariant === "grindelwald" ? grindelwaldDemo.founders : primary.founders,
     testimonials: primary.testimonials,
     testimonialsEnableWriteReview: true,
     testimonialsHomePreviewCount: 3,

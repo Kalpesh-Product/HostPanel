@@ -39,6 +39,7 @@ export const THEME_DEFAULTS: Record<string, ThemeDefaults> = {
   haven: { bg: "#f4f1ea", text: "#26312b", accent: "#5b7f6a", surfaceUp: true },
   camelia: { bg: "#f6f3ec", text: "#2b2a26", accent: "#8a9a86", surfaceUp: true },
   tulum: { bg: "#f1f1ed", text: "#4f5a53", accent: "#8a968f", surfaceUp: true },
+  grindelwald: { bg: "#f8f8f8", text: "#1b3936", accent: "#75ff69", surfaceUp: true },
   commons: { bg: "#f6f7f9", text: "#0b1f3a", accent: "#ffc21a", surfaceUp: true },
   huddle: { bg: "#f5f6f8", text: "#14161a", accent: "#3b6cf0", surfaceUp: true },
 };
