@@ -686,21 +686,34 @@ const getApproversForRequester = async (
 
   const workspace = await Workspace.findById(workspaceId).select("owner").lean().exec();
 
+  const addFounder = () => {
+    const founderUserId = toId(workspace?.owner);
+    if (founderUserId && founderUserId !== requesterUserId) recipients.add(founderUserId);
+  };
+
   // HR is a common approval authority for every request. The role hierarchy is
   // added separately, so either authority may make the single final decision.
   addHrManagers();
   const hrRecipientCount = recipients.size;
 
   if (requesterRoleKey === "founder") {
-    // A founder request is routed to HR; a requester can never approve their own request.
+    // A founder request is routed to HR. If no HR Manager is configured,
+    // the founder is the sole authority left in the workspace — they
+    // become their own approver rather than being permanently blocked.
+    if (recipients.size === hrRecipientCount && requesterUserId) {
+      recipients.add(requesterUserId);
+    }
   } else if (requesterRoleKey === "super_admin") {
-    const founderUserId = toId(workspace?.owner);
-    if (founderUserId && founderUserId !== requesterUserId) recipients.add(founderUserId);
+    addFounder();
   } else if (requesterRoleKey === "admin" || requesterRoleKey === "admin_manager") {
     addSuperAdmins();
+    // No Super Admin configured either — Founder is next in the hierarchy.
+    if (recipients.size === hrRecipientCount) addFounder();
   } else if (requesterRoleKey === "manager") {
     addAssignedAdmins();
     if (recipients.size === hrRecipientCount) addSuperAdmins();
+    // Still nothing beyond HR — fall all the way back to Founder.
+    if (recipients.size === hrRecipientCount) addFounder();
   } else if (requesterDepartmentName && isAdministrationDepartmentName(requesterDepartmentName)) {
     // Administration Manager first; fall back to plain Admin (in the same
     // department) only if no Administration Manager is assigned. HR Manager
@@ -715,6 +728,16 @@ const getApproversForRequester = async (
   } else {
     // Employee requests go to their department manager as well as HR.
     await addDepartmentManagers();
+    if (recipients.size === hrRecipientCount) {
+      // Neither an HR Manager nor a department manager is configured — fall
+      // back to Super Admin, then the Founder, so the employee is never
+      // stuck with no one able to approve their leave request.
+      addSuperAdmins();
+      if (recipients.size === hrRecipientCount) {
+        const founderUserId = toId(workspace?.owner);
+        if (founderUserId && founderUserId !== requesterUserId) recipients.add(founderUserId);
+      }
+    }
   }
 
   return [...recipients];
@@ -1361,10 +1384,6 @@ export async function updateLeaveRequestForUser(userId: string, leaveRequestId: 
     throw httpError("Rejection reason is required when rejecting a leave request.", 400);
   }
 
-  if (leaveRequest.requesterUserId && String(leaveRequest.requesterUserId) === actor.userId) {
-    throw httpError("You cannot approve or reject your own leave request.", 403);
-  }
-
   if (leaveRequest.status !== "pending") {
     const actionedBy = leaveRequest.actionedByName ? ` by ${leaveRequest.actionedByName}` : "";
     throw httpError(`This leave request was already ${leaveRequest.status}${actionedBy}.`, 409);
@@ -1384,6 +1403,17 @@ export async function updateLeaveRequestForUser(userId: string, leaveRequestId: 
     requesterDepartmentName,
     toId(leaveRequest.requesterUserId),
   );
+
+  const requesterIsSelf = Boolean(leaveRequest.requesterUserId && String(leaveRequest.requesterUserId) === actor.userId);
+  // Self-action is blocked unless the requester is the ONLY approver on
+  // record — that only happens for a founder with no HR Manager
+  // configured, who is otherwise permanently stuck with no one to approve
+  // their own request.
+  const isSoleApprover = requesterIsSelf && approverUserIds.length === 1 && approverUserIds[0] === actor.userId;
+  if (requesterIsSelf && !isSoleApprover) {
+    throw httpError("You cannot approve or reject your own leave request.", 403);
+  }
+
   if (!approverUserIds.includes(actor.userId)) {
     throw httpError("This leave request is assigned to another approver.", 403);
   }

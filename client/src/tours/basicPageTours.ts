@@ -127,7 +127,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
     description: "Manage your co-working and co-living space listings across Nomads Listings. Create listings, track their status, and keep your workspace presence up to date.",
     recordsDescription: "Each listing shows your workspace name, type, city, publication status, and creation date.",
     steps: [
-      { selector: '[data-tour="nomad-summary"]', title: "Listing counts at a glance", description: "These five cards show Total Listings, Active (live on Nomads), Inactive (hidden or paused), Product Types used against your plan, and Listings Left (how many more you can create under your plan limit)." },
+      { selector: '[data-tour="nomad-summary"]', title: "Listing counts at a glance", description: "These five cards show Total Listings, Active (live on Nomads), Inactive (hidden or paused), Product Types (Meetingrooms, Coworking, Cafe, Hostels, Coliving, Workiation) used against your plan, and Listings Left (how many more you can create under your plan limit)." },
       { selector: '[data-tour="nomad-status-filter"]', title: "Filter by status", description: "Switch between All, Active, or Inactive listings. Active listings are live and visible to Nomads visitors. Inactive listings are hidden but preserved." },
       { selector: '[data-tour="nomad-search"]', title: "Search listings", description: "Find a listing by company name, workspace type, or city. Results update as you type." },
       { selector: '[data-tour="nomad-add-listing"]', title: "Add a new listing", description: "Opens the listing form where you enter workspace details — name, type, location, amenities, images, and contact info. If you've reached your plan limit, this button will be disabled." },
