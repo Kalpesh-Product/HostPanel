@@ -15,6 +15,12 @@ jobs:
         with:
           node-version: 20
 
+      - name: Write client .env
+        working-directory: client
+        run: printf '%s\n' "$CLIENT_ENV" > .env
+        env:
+          CLIENT_ENV: ${{ secrets.CLIENT_ENV }}
+
       - name: Install and build frontend
         working-directory: client
         run: |
