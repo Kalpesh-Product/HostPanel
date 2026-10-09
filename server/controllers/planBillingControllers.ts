@@ -75,13 +75,28 @@ export const getPlanBillingSummary = async (req, res, next) => {
         : [],
     );
     const effectiveIds = new Set([...planIds, ...customAddonIds]);
+    const isBasicPlan = String(workspace.selectedPlan || "").trim().toLowerCase() === "basic";
     const includedModules = Array.from(effectiveIds)
-      .map((id) => ({
-        id,
-        label: MODULE_LABEL_BY_ID[id] || id,
-        section: MODULE_SECTION_BY_ID[id] || "Other",
-        source: customAddonIds.has(id) && !planIds.has(id) ? "addon" : "plan",
-      }))
+      .map((id) => {
+        let section = MODULE_SECTION_BY_ID[id] || "Other";
+        // "website-review" shares its id between the Key Apps entry and the
+        // Tech Department tab of the same name, and MODULE_SECTION_BY_ID
+        // resolves the later-walked one (Tech Department) since Key Apps has
+        // no matching entry to protect it, unlike its website-builder/
+        // website-leads siblings. Basic has this module (BASIC_DEFAULT_IDS)
+        // but no Tech Department at all, so don't label it with a department
+        // this plan doesn't have — group it with Key Apps instead, same as
+        // its siblings.
+        if (isBasicPlan && id === "website-review" && section === "Tech Department") {
+          section = "Key Apps";
+        }
+        return {
+          id,
+          label: MODULE_LABEL_BY_ID[id] || id,
+          section,
+          source: customAddonIds.has(id) && !planIds.has(id) ? "addon" : "plan",
+        };
+      })
       .sort((a, b) => a.section.localeCompare(b.section) || a.label.localeCompare(b.label));
 
     // hasUsedTrial/isTrialing drive the Add Modules upgrade modal's "Start

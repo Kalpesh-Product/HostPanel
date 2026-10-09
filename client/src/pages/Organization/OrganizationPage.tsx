@@ -1556,14 +1556,14 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
             title={!canAccessDepartmentsTab ? 'You do not have access to departments.' : ''}
             disabled={!canAccessDepartmentsTab}
             onClick={() => { setActiveTab('departments'); setView('list'); }}
-            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
+            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
               !canAccessDepartmentsTab
-                ? 'text-slate-300 cursor-not-allowed'
+                ? 'text-slate-500 cursor-not-allowed'
                 : activeTab === 'departments'
                   ? 'bg-[#2563EB] text-white shadow-sm'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
             }`}>
-            <Building2 size={16} className="inline mr-1"/> DEPARTMENTS {!canAccessDepartmentsTab ? <Lock size={12} className="inline" /> : null}
+            {!canAccessDepartmentsTab && <Lock size={12} />} DEPARTMENTS
           </button>
         </div>
 
