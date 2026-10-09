@@ -1,0 +1,45 @@
+name: Deploy HostPanel
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install and build frontend
+        working-directory: client
+        run: |
+          npm ci
+          npm run build
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Upload built frontend to EC2
+        run: |
+          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key" client/dist/ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/ubuntu/apps/HostPanel/client/dist/
+
+      - name: Update backend and restart
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} '
+            set -e
+            cd /home/ubuntu/apps/HostPanel
+            git pull origin main
+            if git diff --name-only HEAD@{1} HEAD -- server/package.json | grep -q package.json; then
+              cd server && npm install
+            fi
+            sudo -u ubuntu pm2 restart hostpanel
+          '
