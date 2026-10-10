@@ -255,30 +255,33 @@ const grindelwaldDemo: DemoBusiness = (() => {
 
 // Lodge has its own rental-house photos (slider, intro cards, feature band, rooms) so it never
 // previews with the hostel library Wayfarer and Travigo use.
+// Lodge's own hostel-flavoured photo set — a hostel entrance, dorm bunks and hotel-style twin
+// rooms — instead of the shared IMG.hostel/IMG.coliving pools other templates already draw
+// from, so its preview doesn't look like a reshuffled Wayfarer/Haven.
 const LODGE_PHOTOS = {
   hero: [
-    "photo-1774186184495-dc059ef40c75",
-    "photo-1743867840110-ee532b7c6fb9",
-    "photo-1657040899606-b22f17a6afd5",
-    "photo-1782479590739-cbb9147c20a3",
+    "photo-1783254877023-f27a32c7e8bb",
+    "photo-1776763255235-046cd40f3093",
+    "photo-1762195804066-2fece9b24496",
+    "photo-1789175095779-631b03bccdc8",
   ],
   // Four photos for each rental, in the order of the dorms list: 6-bed mixed, 4-bed female,
   // private double, private twin.
   rooms: [
-    ["photo-1555854877-bab0e564b8d5", "photo-1630827807282-6be2a754361d", "photo-1718711621245-9c18514277cc", "photo-1764006195843-e6f9a5781500"],
-    ["photo-1706074801692-65d1a1489068", "photo-1700809888988-8eee683cc758", "photo-1776363116182-51694a04a1d5", "photo-1612152605347-f93296cb657d"],
-    ["photo-1727706572437-4fcda0cbd66f", "photo-1611892440504-42a792e24d32", "photo-1773423391716-04e278b07b1b", "photo-1679939153964-2b9bd027f6e3"],
-    ["photo-1635247049915-dff57098ea0f", "photo-1736940924904-0e026dccf4d6", "photo-1588796460718-f457ad1e1a1f", "photo-1604307612848-fcb357b1360c"],
+    ["photo-1721299417031-de890ff33b26", "photo-1574716236621-87d2be17b3a3", "photo-1767884162402-683fdd430046", "photo-1781415980730-bfcf192e38bc"],
+    ["photo-1790774877815-5358d88f4c52", "photo-1790774881068-06250724c951", "photo-1790774888379-dd545dfa3343", "photo-1790774868320-64fd572a7aa7"],
+    ["photo-1631844820835-e698dc518bc6", "photo-1631844820822-caeca853b27d", "photo-1675409145919-277c0fc2aa7d", "photo-1790774868084-32fb1a98cd85"],
+    ["photo-1785486250394-868889952dcd", "photo-1763419161907-1e00b2f883c5", "photo-1781004672179-9790a9623a77", "photo-1744187170998-368291b6e16e"],
   ],
   gallery: [
-    "photo-1651407825801-eec2dcbd86bd",
-    "photo-1615876234886-fd9a39fda97f",
-    "photo-1721614664523-5e0d3fc786d0",
-    "photo-1758523417133-41f21fb9f058",
-    "photo-1772724317486-6e664a4e8bbb",
-    "photo-1772724317667-afe2d40f6158",
-    "photo-1661006117166-6227bfc9c8b0",
-    "photo-1772724317595-eab4ab9ff42e",
+    "photo-1770991921455-f83141f4665a",
+    "photo-1627024195483-145aea7809d7",
+    "photo-1486591511419-0c7056604f63",
+    "photo-1777113310184-140ff530f4dd",
+    "photo-1785486250446-b048054c8484",
+    "photo-1578608609519-8ce68e5211a4",
+    "photo-1668884405041-aa8963908538",
+    "photo-1558942594-0f34b1d36599",
   ],
 };
 
