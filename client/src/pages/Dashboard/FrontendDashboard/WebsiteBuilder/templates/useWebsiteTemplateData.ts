@@ -6,6 +6,26 @@ import { api } from "../../../../../utils/axios";
 
 const LIVE_PREVIEW_DRAFT_STORAGE_KEY = "website_builder_live_preview_draft";
 
+// Read synchronously so the very first render already has the draft (when one is already
+// saved) instead of mounting with draft === null and flashing every template's "no preview
+// data" fallback for a tick before the loading effect below catches up.
+const readPreviewDraftRaw = (): string | null => {
+  try {
+    return localStorage.getItem(LIVE_PREVIEW_DRAFT_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+};
+const parsePreviewDraft = (raw: string | null): any => {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    console.error("Failed to parse preview draft", error);
+    return null;
+  }
+};
+
 // Shared data/logic layer used by every template going forward (Minimal
 // Swiss, Bold Editorial, Warm Organic) — Classic keeps its own self-
 // contained copy, untouched, proven working. Covers the full site: home,
@@ -265,8 +285,8 @@ export const getProductContentItems = (draft: any, slug: string, page?: any) => 
 export const useWebsiteTemplateData = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [draft, setDraft] = useState<any>(null);
-  const previewDraftRawRef = useRef<string | null>(null);
+  const [draft, setDraft] = useState<any>(() => parsePreviewDraft(readPreviewDraftRaw()));
+  const previewDraftRawRef = useRef<string | null>(readPreviewDraftRaw());
 
   const [heroIndex, setHeroIndex] = useState(0);
   const [testimonialIndex, setTestimonialIndex] = useState(0);
@@ -371,18 +391,10 @@ export const useWebsiteTemplateData = () => {
 
   useEffect(() => {
     const loadDraft = () => {
-      try {
-        const raw = localStorage.getItem(LIVE_PREVIEW_DRAFT_STORAGE_KEY);
-        if (raw === previewDraftRawRef.current) return;
-        previewDraftRawRef.current = raw;
-        if (!raw) {
-          setDraft(null);
-          return;
-        }
-        setDraft(JSON.parse(raw));
-      } catch (error) {
-        console.error("Failed to parse preview draft", error);
-      }
+      const raw = readPreviewDraftRaw();
+      if (raw === previewDraftRawRef.current) return;
+      previewDraftRawRef.current = raw;
+      setDraft(parsePreviewDraft(raw));
     };
 
     const handleStorage = (event: StorageEvent) => {

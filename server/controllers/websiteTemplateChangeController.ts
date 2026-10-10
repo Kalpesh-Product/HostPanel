@@ -21,6 +21,7 @@ const DEFAULT_TEMPLATE_SETTINGS = {
     { templateId: "savor", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
     { templateId: "wayfarer", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
     { templateId: "travigo", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
+    { templateId: "lodge", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
     { templateId: "haven", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
     { templateId: "camelia", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
     { templateId: "tulum", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },

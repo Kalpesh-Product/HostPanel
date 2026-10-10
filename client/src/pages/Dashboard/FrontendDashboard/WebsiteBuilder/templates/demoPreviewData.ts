@@ -15,6 +15,7 @@ const TEMPLATE_KIND: Record<string, ServiceKind> = {
   savor: "menu",
   wayfarer: "hostel",
   travigo: "hostel",
+  lodge: "hostel",
   haven: "coLiving",
   camelia: "coLiving",
   tulum: "coLiving",
@@ -252,8 +253,72 @@ const grindelwaldDemo: DemoBusiness = (() => {
   };
 })();
 
+// Lodge has its own rental-house photos (slider, intro cards, feature band, rooms) so it never
+// previews with the hostel library Wayfarer and Travigo use.
+// Lodge's own hostel-flavoured photo set — a hostel entrance, dorm bunks and hotel-style twin
+// rooms — instead of the shared IMG.hostel/IMG.coliving pools other templates already draw
+// from, so its preview doesn't look like a reshuffled Wayfarer/Haven.
+const LODGE_PHOTOS = {
+  hero: [
+    "photo-1783254877023-f27a32c7e8bb",
+    "photo-1776763255235-046cd40f3093",
+    "photo-1762195804066-2fece9b24496",
+    "photo-1789175095779-631b03bccdc8",
+  ],
+  // Four photos for each rental, in the order of the dorms list: 6-bed mixed, 4-bed female,
+  // private double, private twin.
+  rooms: [
+    ["photo-1721299417031-de890ff33b26", "photo-1574716236621-87d2be17b3a3", "photo-1767884162402-683fdd430046", "photo-1781415980730-bfcf192e38bc"],
+    ["photo-1790774877815-5358d88f4c52", "photo-1790774881068-06250724c951", "photo-1790774888379-dd545dfa3343", "photo-1790774868320-64fd572a7aa7"],
+    ["photo-1631844820835-e698dc518bc6", "photo-1631844820822-caeca853b27d", "photo-1675409145919-277c0fc2aa7d", "photo-1790774868084-32fb1a98cd85"],
+    ["photo-1785486250394-868889952dcd", "photo-1763419161907-1e00b2f883c5", "photo-1781004672179-9790a9623a77", "photo-1744187170998-368291b6e16e"],
+  ],
+  gallery: [
+    "photo-1770991921455-f83141f4665a",
+    "photo-1627024195483-145aea7809d7",
+    "photo-1486591511419-0c7056604f63",
+    "photo-1777113310184-140ff530f4dd",
+    "photo-1785486250446-b048054c8484",
+    "photo-1578608609519-8ce68e5211a4",
+    "photo-1668884405041-aa8963908538",
+    "photo-1558942594-0f34b1d36599",
+  ],
+};
+
+const LODGE_DEMO_BUSINESS: DemoBusiness = {
+  ...hostelDemo,
+  companyName: "Lodge Stays",
+  title: "Find a place you'll love to stay",
+  subTitle: "Comfortable rooms, a friendly community and everything you need close by.",
+  heroImages: LODGE_PHOTOS.hero.map((id) => photo(id, 1600)),
+  gallery: LODGE_PHOTOS.gallery.map((id) => photo(id, 1200)),
+  aboutImages: [LODGE_PHOTOS.gallery[0], LODGE_PHOTOS.gallery[2], LODGE_PHOTOS.gallery[4]].map((id) => photo(id, 1000)),
+  address: "Riverside 25, Anjuna Beach Road, Goa 403509",
+  aboutTitle: "A home base for people on the move",
+  aboutPageStory: "Made for comfortable, easy stays.",
+  about: [
+    "Lodge Stays began with a simple idea: a place to stay should feel like home from the first night.",
+    "Our rooms are quiet and well kept, the shared spaces are warm and friendly, and our team is always a message away.",
+  ],
+  page: {
+    ...hostelDemo.page,
+    heroHeading: "Latest rentals",
+    heroSubHeading: "Quiet rooms and shared spaces, set up for easy stays.",
+    heroImage: photo(LODGE_PHOTOS.rooms[3][0], 1600),
+    cardImage: photo(LODGE_PHOTOS.rooms[0][0], 1000),
+  },
+  extra: {
+    ...hostelDemo.extra,
+    dorms: hostelDorms.map((room, index) => ({
+      ...room,
+      images: (LODGE_PHOTOS.rooms[index] || LODGE_PHOTOS.rooms[0]).map((id) => photoValue(id)),
+    })),
+  },
+};
+
 const demoBusinessFor = (kind: ServiceKind, themeVariant: string): DemoBusiness => {
   if (themeVariant === "travigo" && kind === "hostel") return TRAVIGO_DEMO_BUSINESS;
+  if (themeVariant === "lodge" && kind === "hostel") return LODGE_DEMO_BUSINESS;
   if (themeVariant === "tulum" && kind === "coLiving") return tulumDemo;
   if (themeVariant === "grindelwald" && kind === "coLiving") return grindelwaldDemo;
   return DEMO_BUSINESSES[kind];

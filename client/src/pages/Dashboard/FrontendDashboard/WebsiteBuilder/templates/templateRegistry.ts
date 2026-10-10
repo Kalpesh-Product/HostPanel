@@ -13,6 +13,7 @@ import HuddleTemplate from "./huddle/HuddleTemplate";
 import TravigoTemplate from "./travigo/TravigoTemplate";
 import TulumTemplate from "./tulum/TulumTemplate";
 import GrindelwaldTemplate from "./grindelwald/GrindelwaldTemplate";
+import LodgeTemplate from "./lodge/LodgeTemplate";
 import type { ServiceKind } from "./verticalProfiles";
 
 export interface TemplateDefinition {
@@ -154,6 +155,21 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       font: "'Bodoni Moda', serif",
     },
     recommendedFor: ["coLiving", "workation"],
+    supportsBooking: true,
+  },
+  lodge: {
+    id: "lodge",
+    name: "Lodge",
+    description:
+      "Rental-house style: a full-bleed photo slider, pill-shaped amenity chips, rolling counters and a dark guest-quote band. Made for hostels and short rentals, works for any service.",
+    component: LodgeTemplate,
+    swatch: {
+      bg: "#ffffff",
+      fg: "#1c1f21",
+      accent: "#7fa388",
+      font: "'Inter', sans-serif",
+    },
+    recommendedFor: ["hostel"],
     supportsBooking: true,
   },
   haven: {
