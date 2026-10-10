@@ -36,6 +36,7 @@ export const THEME_DEFAULTS: Record<string, ThemeDefaults> = {
   savor: { bg: "#fff7ed", text: "#2a1a12", accent: "#e4572e", surfaceUp: true },
   wayfarer: { bg: "#f3fbfa", text: "#0c2a2e", accent: "#f26b3a", surfaceUp: true },
   travigo: { bg: "#f5f3ed", text: "#111111", accent: "#111111", surfaceUp: true },
+  lodge: { bg: "#ffffff", text: "#1c1f21", accent: "#7fa388", surfaceUp: true },
   haven: { bg: "#f4f1ea", text: "#26312b", accent: "#5b7f6a", surfaceUp: true },
   camelia: { bg: "#f6f3ec", text: "#2b2a26", accent: "#8a9a86", surfaceUp: true },
   tulum: { bg: "#f1f1ed", text: "#4f5a53", accent: "#8a968f", surfaceUp: true },
