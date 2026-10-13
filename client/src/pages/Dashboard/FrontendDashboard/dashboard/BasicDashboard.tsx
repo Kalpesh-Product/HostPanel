@@ -290,20 +290,19 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
       {!isUpgradeBannerDismissed && (
         <div
           data-tour="dashboard-plan"
-          className="flex w-full items-center gap-2 rounded-xl border-2 border-accent/30 bg-blue-50 p-4"
+          className="flex w-full items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5"
         >
           <button
             type="button"
-            className="flex flex-1 min-w-0 items-center gap-3 text-left transition-colors hover:bg-blue-100 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            className="flex flex-1 min-w-0 items-center gap-2 text-left transition-colors hover:text-primary rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             onClick={onUpgradeClick}
           >
             <Zap size={18} className="text-accent flex-shrink-0" />
-            <p className="text-content font-pmedium text-blue-800 min-w-0 truncate">
-              You're on the <strong>Basic Plan</strong> — Upgrade to{" "}
-              <strong>Professional Plan</strong> for Meeting Room Bookings, Ticketing, Sales Modules & more.
+            <p className="text-small font-pmedium text-slate-600 min-w-0 truncate">
+              Basic Plan · Unlock Meeting Rooms, Ticketing, Sales Modules and more.
             </p>
-            <span className="ml-auto flex-shrink-0 px-3 py-1 rounded-full text-[10px] font-pmedium uppercase tracking-widest border bg-accent text-white border-accent whitespace-nowrap">
-              Upgrade ↑
+            <span className="ml-auto flex-shrink-0 text-[10px] font-pmedium uppercase tracking-widest text-primary whitespace-nowrap">
+              Explore plans
             </span>
             <ArrowRight size={14} className="text-accent flex-shrink-0" />
           </button>

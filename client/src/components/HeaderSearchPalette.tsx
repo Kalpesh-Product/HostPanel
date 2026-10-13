@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, X, ChevronRight, FileText } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Search, X, ChevronRight, FileText, ContactRound, Magnet, UserRound, Building2 } from "lucide-react";
 import useAuth from "../hooks/useAuth";
+import useAxiosPrivate from "../hooks/useAxiosPrivate";
 import useDashboardAccess from "../hooks/useDashboardAccess";
+import { getNomadsApiBase } from "../hooks/useNomadListingCapacity";
 import { isModuleAllowedForMember } from "../routes/ModuleAccessGuard";
 import { ROUTE_BY_ID } from "./Sidebar";
 
@@ -12,10 +15,39 @@ interface SearchDestination {
   moduleId: string;
   section: string;
   searchText: string;
+  resultType?: "page" | "visitor" | "lead" | "user" | "listing";
+  description?: string;
+  record?: any;
 }
 
 const RECENT_HISTORY_LIMIT = 3;
 const RECENT_HISTORY_KEY_PREFIX = "hostpanel:header-search:recent:";
+const AUTHORIZED_CHILD_PAGES = [
+  {
+    parentModuleId: "website-builder",
+    title: "Edit Website",
+    route: "/key-apps/website-builder/edit-website",
+    section: "Website Builder",
+  },
+  {
+    parentModuleId: "website-builder",
+    title: "Website Leads",
+    route: "/key-apps/website-builder/leads",
+    section: "Website Builder",
+  },
+  {
+    parentModuleId: "website-builder",
+    title: "Website Review",
+    route: "/key-apps/website-builder/dynamic/reviews",
+    section: "Website Builder",
+  },
+  {
+    parentModuleId: "website-builder",
+    title: "Careers",
+    route: "/key-apps/website-builder/dynamic/careers",
+    section: "Website Builder",
+  },
+];
 
 const readRecentHistory = (storageKey: string | null): string[] => {
   if (!storageKey) return [];
@@ -61,7 +93,7 @@ const buildAuthorizedDestinations = ({
   workspaceEnabledModuleIds,
   plan,
 }: {
-  moduleMap: { sections: Array<{ sectionLabel?: string; items?: any[] }> };
+  moduleMap: { sections: Array<{ sectionId?: string; sectionLabel?: string; items?: any[] }> };
   roleBand: string;
   grantedModuleIds: Set<string>;
   workspaceEnabledModuleIds: string[];
@@ -70,6 +102,10 @@ const buildAuthorizedDestinations = ({
   const destinationsByRoute = new Map<string, SearchDestination>();
 
   (moduleMap?.sections || []).forEach((section) => {
+    // Add-ons remain discoverable from their dedicated sidebar catalogue,
+    // but should not be mixed into the header's page-navigation results.
+    if (String(section?.sectionId || "").trim().toLowerCase() === "add-ons") return;
+
     const sectionLabel = String(section?.sectionLabel || "").trim();
     (section?.items || []).forEach((item: any) => {
       const candidates = Array.isArray(item?.tabs) && item.tabs.length > 0 ? item.tabs : [item];
@@ -101,11 +137,46 @@ const buildAuthorizedDestinations = ({
     });
   });
 
+  // Nested pages are not separate entries in the workspace module catalog.
+  // Add only safe, parameter-free routes and inherit authorization from the
+  // parent module so child pages never bypass the normal access rules.
+  const authorizedModuleIds = new Set(
+    Array.from(destinationsByRoute.values()).map((destination) => destination.moduleId),
+  );
+  AUTHORIZED_CHILD_PAGES.forEach((child) => {
+    if (!authorizedModuleIds.has(child.parentModuleId) || destinationsByRoute.has(child.route)) return;
+    Array.from(destinationsByRoute.entries()).forEach(([route, destination]) => {
+      if (destination.title.trim().toLowerCase() === child.title.toLowerCase()) {
+        destinationsByRoute.delete(route);
+      }
+    });
+    destinationsByRoute.set(child.route, {
+      title: child.title,
+      route: child.route,
+      moduleId: child.parentModuleId,
+      section: child.section,
+      searchText: `${child.title} ${child.section}`.toLowerCase(),
+      resultType: "page",
+    });
+  });
+
+  // Profile is available to every authenticated user from the account menu,
+  // so it is intentionally independent of workspace module grants.
+  destinationsByRoute.set("/profile/my-profile", {
+    title: "Profile",
+    route: "/profile/my-profile",
+    moduleId: "profile",
+    section: "Account",
+    searchText: "profile my profile account".toLowerCase(),
+    resultType: "page",
+  });
+
   return Array.from(destinationsByRoute.values()).sort((a, b) => a.title.localeCompare(b.title));
 };
 
 const HeaderSearchPalette = () => {
   const { auth } = useAuth();
+  const axiosPrivate = useAxiosPrivate();
   const navigate = useNavigate();
   const { plan, roleBand, grantedModuleIds, workspaceEnabledModuleIds, moduleMap, isLoading } =
     useDashboardAccess();
@@ -116,6 +187,7 @@ const HeaderSearchPalette = () => {
   const [search, setSearch] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [historyRoutes, setHistoryRoutes] = useState<string[]>([]);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   const userId = (auth?.user as any)?.id || (auth?.user as any)?._id || "";
   const historyStorageKey = userId ? `${RECENT_HISTORY_KEY_PREFIX}${userId}` : null;
@@ -124,6 +196,169 @@ const HeaderSearchPalette = () => {
     () => buildAuthorizedDestinations({ moduleMap, roleBand, grantedModuleIds, workspaceEnabledModuleIds, plan }),
     [moduleMap, roleBand, grantedModuleIds, workspaceEnabledModuleIds, plan],
   );
+
+  const authorizedModuleById = useMemo(
+    () => new Map(authorizedDestinations.map((destination) => [destination.moduleId, destination])),
+    [authorizedDestinations],
+  );
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 250);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  const recordSearchEnabled = debouncedSearch.length >= 2;
+  const companyId = String(
+    (auth?.user as any)?.effectiveNomadsCompanyId || (auth?.user as any)?.companyId || "",
+  ).trim();
+  const workspaceId = String(
+    (auth?.user as any)?.workspaceMembership?.workspace ||
+      (auth?.user as any)?.primaryWorkspace ||
+      (auth?.user as any)?.workspaceId ||
+      "",
+  ).trim();
+
+  const { data: recordDestinations = [], isFetching: isSearchingRecords } = useQuery<SearchDestination[]>({
+    queryKey: ["header-record-search", debouncedSearch, workspaceId, companyId, Array.from(authorizedModuleById.keys()).sort()],
+    enabled: recordSearchEnabled && !isLoading,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const normalizedQuery = debouncedSearch.toLowerCase();
+      const requests: Array<Promise<{ type: string; data: any }>> = [];
+
+      if (authorizedModuleById.has("visitor-management")) {
+        requests.push(
+          axiosPrivate
+            .get("/api/v1/visitors", { params: { search: debouncedSearch, limit: 8 } })
+            .then((response) => ({ type: "visitor", data: response?.data?.data?.visitors || [] })),
+        );
+      }
+      if (authorizedModuleById.has("website-leads") && (workspaceId || companyId)) {
+        requests.push(
+          Promise.all([
+            axiosPrivate.get("/api/leads/get-leads", { params: { workspaceId, companyId, leadScope: "website" } }),
+            axiosPrivate.get("/api/leads/get-leads", { params: { workspaceId, companyId, leadScope: "nomads" } }),
+          ]).then(([website, nomads]) => ({
+            type: "lead",
+            data: [...(Array.isArray(website?.data) ? website.data : []), ...(Array.isArray(nomads?.data) ? nomads.data : [])],
+          })),
+        );
+      }
+      if (authorizedModuleById.has("organization-management")) {
+        requests.push(
+          axiosPrivate.get("/api/organization/overview").then((response) => ({
+            type: "user",
+            data: response?.data?.data?.teamMembers || response?.data?.teamMembers || [],
+          })),
+        );
+      }
+      if (authorizedModuleById.has("wono-nomad") && companyId) {
+        requests.push(
+          axiosPrivate
+            .get(`${getNomadsApiBase()}/api/company/get-listings/${encodeURIComponent(companyId)}`)
+            .then((response) => ({ type: "listing", data: Array.isArray(response?.data) ? response.data : [] })),
+        );
+      }
+
+      const settled = await Promise.allSettled(requests);
+      const results: SearchDestination[] = [];
+      // Record results use word-prefix matching to avoid noisy two-character
+      // matches in the middle of unrelated words (for example, "te" inside
+      // "Enterprises"). Page names keep their more forgiving contains match.
+      const matches = (values: unknown[]) =>
+        values.some((value) =>
+          String(value || "")
+            .toLowerCase()
+            .split(/[^a-z0-9@.+-]+/)
+            .filter(Boolean)
+            .some((word) => word.startsWith(normalizedQuery)),
+        );
+
+      settled.forEach((outcome) => {
+        if (outcome.status !== "fulfilled") return;
+        const rows = Array.isArray(outcome.value.data) ? outcome.value.data : [];
+
+        if (outcome.value.type === "visitor") {
+          rows.slice(0, 8).forEach((visitor: any) => {
+            const id = String(visitor.recordId || visitor.id || visitor._id || "");
+            if (!id) return;
+            results.push({
+              title: visitor.name || visitor.fullName || "Visitor",
+              description: [visitor.visitorCode, visitor.company, visitor.phone].filter(Boolean).join(" · "),
+              route: `/visitors/visitor-management?globalSearch=${encodeURIComponent(debouncedSearch)}&recordId=${encodeURIComponent(id)}`,
+              moduleId: "visitor-management",
+              section: "Visitors",
+              searchText: "",
+              resultType: "visitor",
+              record: visitor,
+            });
+          });
+        }
+
+        if (outcome.value.type === "lead") {
+          rows
+            .filter((lead: any) => matches([lead.fullName, lead.email, lead.mobileNumber, lead.companyName, lead.productType, lead.source]))
+            .slice(0, 8)
+            .forEach((lead: any) => {
+              const id = String(lead._id || lead.id || "");
+              if (!id) return;
+              results.push({
+                title: lead.fullName || "Lead",
+                description: [lead.companyName, lead.email || lead.mobileNumber, lead.source].filter(Boolean).join(" · "),
+                route: `/key-apps/all-leads?globalSearch=${encodeURIComponent(debouncedSearch)}&recordId=${encodeURIComponent(id)}`,
+                moduleId: "website-leads",
+                section: "Leads",
+                searchText: "",
+                resultType: "lead",
+                record: lead,
+              });
+            });
+        }
+
+        if (outcome.value.type === "user") {
+          rows
+            .filter((member: any) => matches([member.fullName, member.name, member.email, member.employeeId, member.role, ...(member.departmentNames || [])]))
+            .slice(0, 8)
+            .forEach((member: any) => {
+              const id = String(member.userId || member.id || member._id || "");
+              if (!id) return;
+              results.push({
+                title: member.fullName || member.name || member.email || "User",
+                description: [member.role, member.email].filter(Boolean).join(" · "),
+                route: `/core-modules/organization-management?globalSearch=${encodeURIComponent(debouncedSearch)}&recordId=${encodeURIComponent(id)}`,
+                moduleId: "organization-management",
+                section: "Users",
+                searchText: "",
+                resultType: "user",
+                record: member,
+              });
+            });
+        }
+
+        if (outcome.value.type === "listing") {
+          rows
+            .filter((listing: any) => !listing.isDeleted && matches([listing.companyName, listing.companyTitle, listing.companyType, listing.city, listing.state, listing.country]))
+            .slice(0, 8)
+            .forEach((listing: any) => {
+              const id = String(listing.businessId || listing._id || listing.id || "");
+              if (!id) return;
+              results.push({
+                title: listing.companyTitle || listing.companyName || "Listing",
+                description: [listing.companyType, listing.city, listing.country].filter(Boolean).join(" · "),
+                route: "/key-apps/nomad-listings/edit",
+                moduleId: "wono-nomad",
+                section: "Listings",
+                searchText: "",
+                resultType: "listing",
+                record: listing,
+              });
+            });
+        }
+      });
+
+      return results;
+    },
+  });
 
   useEffect(() => {
     if (!historyStorageKey) {
@@ -146,10 +381,11 @@ const HeaderSearchPalette = () => {
     const query = search.trim().toLowerCase();
     if (!query) return recentDestinations;
     const terms = query.split(/\s+/).filter(Boolean);
-    return authorizedDestinations
+    const pages = authorizedDestinations
       .filter((destination) => terms.every((term) => destination.searchText.includes(term)))
       .sort((a, b) => getMatchRank(a, query) - getMatchRank(b, query) || a.title.localeCompare(b.title));
-  }, [authorizedDestinations, recentDestinations, search]);
+    return [...pages, ...recordDestinations];
+  }, [authorizedDestinations, recentDestinations, recordDestinations, search]);
 
   const closePalette = () => {
     setOpen(false);
@@ -158,8 +394,27 @@ const HeaderSearchPalette = () => {
   };
 
   const openDestination = (destination?: SearchDestination) => {
-    if (!destination || !authorizedDestinations.some((d) => d.route === destination.route)) return;
-    if (historyStorageKey) {
+    if (!destination) return;
+    const authorizedModule = authorizedModuleById.has(destination.moduleId);
+    const authorizedPage = authorizedDestinations.some((d) => d.route === destination.route);
+    if (!authorizedModule && !authorizedPage) return;
+    if (destination.resultType === "listing" && destination.record) {
+      const listingCompanyId = String(
+        destination.record.companyId || companyId || "",
+      );
+      const businessId = String(destination.record.businessId || "");
+      if (listingCompanyId) sessionStorage.setItem("companyId", listingCompanyId);
+      if (destination.record.companyName) {
+        sessionStorage.setItem("companyName", String(destination.record.companyName));
+      }
+      if (businessId) sessionStorage.setItem("businessId", businessId);
+      closePalette();
+      navigate("/key-apps/nomad-listings/edit", {
+        state: { website: destination.record, companyId: listingCompanyId },
+      });
+      return;
+    }
+    if (historyStorageKey && destination.resultType !== "visitor" && destination.resultType !== "lead" && destination.resultType !== "user" && destination.resultType !== "listing") {
       const routes = [destination.route, ...readRecentHistory(historyStorageKey).filter((r) => r !== destination.route)].slice(
         0,
         RECENT_HISTORY_LIMIT,
@@ -168,7 +423,17 @@ const HeaderSearchPalette = () => {
       setHistoryRoutes(routes);
     }
     closePalette();
-    navigate(destination.route);
+    navigate(destination.route, {
+      state: destination.resultType && destination.resultType !== "page"
+        ? {
+            globalSearchRecord: {
+              type: destination.resultType,
+              record: destination.record,
+            },
+            globalSearchQuery: search.trim(),
+          }
+        : undefined,
+    });
   };
 
   useEffect(() => {
@@ -279,11 +544,17 @@ const HeaderSearchPalette = () => {
                     activeIndex === index ? "bg-blue-50" : "hover:bg-slate-50"
                   }`}
                 >
-                  <FileText className="shrink-0 text-[#2563EB]" size={16} />
+                  {destination.resultType === "visitor" ? <ContactRound className="shrink-0 text-[#2563EB]" size={16} />
+                    : destination.resultType === "lead" ? <Magnet className="shrink-0 text-[#2563EB]" size={16} />
+                    : destination.resultType === "user" ? <UserRound className="shrink-0 text-[#2563EB]" size={16} />
+                    : destination.resultType === "listing" ? <Building2 className="shrink-0 text-[#2563EB]" size={16} />
+                    : <FileText className="shrink-0 text-[#2563EB]" size={16} />}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[12px] font-pmedium text-[#0F172A]">{destination.title}</span>
                     {destination.section ? (
-                      <span className="block text-[10px] text-slate-400">{destination.section}</span>
+                      <span className="block truncate text-[10px] text-slate-400">
+                        {destination.section}{destination.description ? ` · ${destination.description}` : ""}
+                      </span>
                     ) : null}
                   </span>
                   <ChevronRight className="text-slate-300" size={14} />
@@ -291,7 +562,11 @@ const HeaderSearchPalette = () => {
               ))
             ) : (
               <div className="px-4 py-10 text-center text-[11px] font-pmedium text-slate-400">
-                {search.trim() ? `No authorized pages match "${search.trim()}".` : "No recent pages yet."}
+                {search.trim()
+                  ? isSearchingRecords
+                    ? "Searching pages and records..."
+                    : `No authorized pages or records match "${search.trim()}".`
+                  : "No recent pages yet."}
               </div>
             )}
           </div>

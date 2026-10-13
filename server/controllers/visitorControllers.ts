@@ -500,6 +500,22 @@ export const listVisitors = async (req, res, next) => {
 
     const limit = Math.min(Math.max(Number(req.query?.limit || 20), 1), 100);
     const query: any = { workspace: workspace._id };
+    const search = String(req.query?.search || "").trim().slice(0, 100);
+    if (search) {
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const match = { $regex: escapedSearch, $options: "i" };
+      query.$or = [
+        { visitorCode: match },
+        { fullName: match },
+        { firstName: match },
+        { lastName: match },
+        { phone: match },
+        { email: match },
+        { company: match },
+        { tenantCompanyName: match },
+        { purpose: match },
+      ];
+    }
     if (req.query?.status) query.status = String(req.query.status);
     if (req.query?.approvalStatus) query.approvalStatus = String(req.query.approvalStatus);
     if (req.query?.purpose) {
