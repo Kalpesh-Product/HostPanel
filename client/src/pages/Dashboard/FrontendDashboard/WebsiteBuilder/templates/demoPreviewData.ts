@@ -14,6 +14,7 @@ import { DEMO_BUSINESSES, withFaqs, type DemoBusiness } from "./demoContent";
 const TEMPLATE_KIND: Record<string, ServiceKind> = {
   savor: "menu",
   tastyc: "menu",
+  flowspace: "meeting",
   wayfarer: "hostel",
   travigo: "hostel",
   lodge: "hostel",
@@ -387,8 +388,54 @@ const TASTYC_DEMO_BUSINESS: DemoBusiness = (() => {
   };
 })();
 
+// Flowspace keeps a separate photo library from Huddle: warmer materials, more daylight and
+// a high-end editorial direction that mirrors the reference without repeating another template.
+const pexels = (id: string, width = 1600) =>
+  `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=${width}`;
+const pexelsValue = (id: string, width = 1200) => ({ url: pexels(id, width) });
+const FLOWSPACE_PHOTOS = {
+  hero: ["3184465", "32800582", "20390771"],
+  rooms: ["1181406", "3184292", "3184339", "3184360", "3182773", "2451566", "380769", "3184418", "3184431", "3184460", "3183197", "1181354"],
+};
+const FLOWSPACE_DEMO_BUSINESS: DemoBusiness = (() => {
+  const base = DEMO_BUSINESSES.meeting;
+  const rooms = ((base.extra as any).meetingRooms || []) as any[];
+  return {
+    ...base,
+    companyName: "Lumen Rooms",
+    title: "Your next meeting starts here.",
+    subTitle: "Design-led meeting rooms with everything ready—from quick calls to full-day workshops.",
+    cta: "Find your desk",
+    heroImages: FLOWSPACE_PHOTOS.hero.map((id) => pexels(id, 1800)),
+    gallery: [...FLOWSPACE_PHOTOS.hero, ...FLOWSPACE_PHOTOS.rooms].map((id) => pexels(id, 1400)),
+    aboutImages: [FLOWSPACE_PHOTOS.hero[1], FLOWSPACE_PHOTOS.hero[2], FLOWSPACE_PHOTOS.rooms[8]].map((id) => pexels(id, 1100)),
+    aboutTitle: "Spaces built around better conversations",
+    aboutPageStory: "We make finding a polished, fully equipped meeting room feel effortless.",
+    about: [
+      "Lumen Rooms began with one simple observation: teams do better work when the room is calm, considered and ready before they arrive.",
+      "Every space combines natural light, reliable technology and thoughtful support, with clear hourly pricing and a real person on hand.",
+    ],
+    address: "12 Museum Road, Ashok Nagar, Bengaluru 560001",
+    page: {
+      ...base.page,
+      heroHeading: "Rooms for work that matters",
+      heroSubHeading: "Private, fully equipped spaces for interviews, workshops, presentations and team decisions.",
+      heroImage: pexels(FLOWSPACE_PHOTOS.hero[0], 1800),
+      cardImage: pexels(FLOWSPACE_PHOTOS.hero[1], 1000),
+    },
+    extra: {
+      ...base.extra,
+      meetingRooms: rooms.map((room, index) => ({
+        ...room,
+        images: FLOWSPACE_PHOTOS.rooms.slice(index * 3, index * 3 + 3).map((id) => pexelsValue(id)),
+      })),
+    },
+  };
+})();
+
 const demoBusinessFor = (kind: ServiceKind, themeVariant: string): DemoBusiness => {
   if (themeVariant === "tastyc" && kind === "menu") return TASTYC_DEMO_BUSINESS;
+  if (themeVariant === "flowspace" && kind === "meeting") return FLOWSPACE_DEMO_BUSINESS;
   if (themeVariant === "travigo" && kind === "hostel") return TRAVIGO_DEMO_BUSINESS;
   if (themeVariant === "lodge" && kind === "hostel") return LODGE_DEMO_BUSINESS;
   if (themeVariant === "tulum" && kind === "coLiving") return tulumDemo;
