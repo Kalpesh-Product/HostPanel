@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { buildDemoPreviewDraft } from "./demoPreviewData";
 import { resolveTemplate } from "./templateRegistry";
 
 const LIVE_PREVIEW_DRAFT_STORAGE_KEY = "website_builder_live_preview_draft";
@@ -21,10 +22,25 @@ const readThemeVariant = (): string => {
 //
 // Manual testing helper: until the real picker UI is built, append
 // ?previewTemplate=<id> to the preview URL (e.g. /website-preview?previewTemplate=minimal-swiss)
-// to force a specific template regardless of what's saved on the draft.
-// Display-only — never writes back to the draft.
+// to force a specific template regardless of what's saved on the draft. Add
+// &demo=1 to seed that template's local-only demo draft for visual QA.
 const WebsiteTemplateRenderer: React.FC = () => {
-  const [themeVariant, setThemeVariant] = useState<string>(readThemeVariant);
+  const params = new URLSearchParams(window.location.search);
+  const previewOverride = params.get("previewTemplate");
+  const [themeVariant, setThemeVariant] = useState<string>(() => {
+    if (previewOverride && params.get("demo") === "1") {
+      try {
+        localStorage.setItem(
+          LIVE_PREVIEW_DRAFT_STORAGE_KEY,
+          JSON.stringify(buildDemoPreviewDraft(previewOverride)),
+        );
+        return previewOverride;
+      } catch {
+        return readThemeVariant();
+      }
+    }
+    return readThemeVariant();
+  });
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -36,7 +52,6 @@ const WebsiteTemplateRenderer: React.FC = () => {
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
-  const previewOverride = new URLSearchParams(window.location.search).get("previewTemplate");
   const { component: TemplateComponent } = resolveTemplate(previewOverride || themeVariant);
   return <TemplateComponent />;
 };
