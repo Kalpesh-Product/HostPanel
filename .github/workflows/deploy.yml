@@ -19,11 +19,11 @@ jobs:
         working-directory: client
         run: |
           cat <<EOF > .env
-          VITE_PROD_LINK="${VITE_PROD_LINK}"
-          VITE_DEV_LINK="${VITE_DEV_LINK}"
-          VITE_REDUX_PERSIST="${VITE_REDUX_PERSIST}"
-          VITE_MASTER_PANEL_BE_URL="${VITE_MASTER_PANEL_BE_URL}"
-          VITE_NOMADS_API_URL="${VITE_NOMADS_API_URL}"
+          VITE_PROD_LINK=${VITE_PROD_LINK}
+          VITE_DEV_LINK=${VITE_DEV_LINK}
+          VITE_REDUX_PERSIST=${VITE_REDUX_PERSIST}
+          VITE_MASTER_PANEL_BE_URL=${VITE_MASTER_PANEL_BE_URL}
+          VITE_NOMADS_API_URL=${VITE_NOMADS_API_URL}
           EOF
         env:
           VITE_PROD_LINK: ${{ secrets.VITE_PROD_LINK }}
