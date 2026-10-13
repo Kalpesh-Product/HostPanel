@@ -13,6 +13,7 @@ import { DEMO_BUSINESSES, withFaqs, type DemoBusiness } from "./demoContent";
 
 const TEMPLATE_KIND: Record<string, ServiceKind> = {
   savor: "menu",
+  tastyc: "menu",
   wayfarer: "hostel",
   travigo: "hostel",
   lodge: "hostel",
@@ -316,7 +317,78 @@ const LODGE_DEMO_BUSINESS: DemoBusiness = {
   },
 };
 
+// Tastyc has a separate coffee-house photo direction so its preview never looks like Savor.
+// Dark roast details, moody interiors and close-up pastry photography mirror the reference's
+// cinematic coffee-house mood while keeping every image replaceable in the builder.
+const TASTYC_PHOTOS = {
+  hero: [
+    "photo-1442512595331-e89e73853f31",
+    "photo-1498804103079-a6351b050096",
+    "photo-1501339847302-ac426a4a7cbb",
+  ],
+  interior: [
+    "photo-1554118811-1e0d58224f24",
+    "photo-1501339847302-ac426a4a7cbb",
+    "photo-1559925393-8be0ec4767c8",
+    "photo-1493857671505-72967e2e2760",
+  ],
+  coffee: [
+    "photo-1512568400610-62da28bc8a13",
+    "photo-1509042239860-f550ce710b93",
+    "photo-1514432324607-a09d9b4aefdd",
+    "photo-1461023058943-07fcbe16d735",
+  ],
+  food: [
+    "photo-1555507036-ab1f4038808a",
+    "photo-1567620905732-2d1ec7ab7445",
+    "photo-1541519227354-08fa5d50c44d",
+    "photo-1578985545062-69928b1d9587",
+    "photo-1621996346565-e3dbc646d9a9",
+    "photo-1513104890138-7c749659a591",
+    "photo-1512621776951-a57141f2eefd",
+    "photo-1568901346375-23c9450c58cd",
+  ],
+};
+
+const TASTYC_DEMO_BUSINESS: DemoBusiness = (() => {
+  const base = DEMO_BUSINESSES.menu;
+  const menuItems = ((base.extra as any).menuItems || []) as any[];
+  const menuPhotos = [...TASTYC_PHOTOS.coffee, ...TASTYC_PHOTOS.food];
+  return {
+    ...base,
+    companyName: "Ember & Oak",
+    title: "Coffee & chocolate",
+    subTitle: "Small-batch coffee, handmade pastries and a room worth staying in.",
+    cta: "Book a table",
+    heroImages: TASTYC_PHOTOS.hero.map((id) => photo(id, 1800)),
+    gallery: [...TASTYC_PHOTOS.interior, ...TASTYC_PHOTOS.coffee, ...TASTYC_PHOTOS.food].map((id) => photo(id, 1200)),
+    aboutImages: TASTYC_PHOTOS.interior.slice(0, 3).map((id) => photo(id, 1000)),
+    aboutTitle: "We invite you to visit our coffee house",
+    aboutPageStory: "We roast in small batches, bake before sunrise and keep a table ready for people who like their coffee with a little more time.",
+    about: [
+      "Ember & Oak began with one espresso machine, a small oven and the belief that a coffee house should feel memorable before the first sip.",
+      "Today our baristas work with carefully sourced beans, our kitchen bakes throughout the morning and every plate is made to order.",
+    ],
+    address: "18 Roastery Lane, Indiranagar, Bengaluru 560038",
+    page: {
+      ...base.page,
+      heroHeading: "Coffee menu",
+      heroSubHeading: "Espresso, slow brews, breakfast plates and pastries baked every morning.",
+      heroImage: photo(TASTYC_PHOTOS.interior[1], 1800),
+      cardImage: photo(TASTYC_PHOTOS.coffee[0], 1000),
+    },
+    extra: {
+      ...base.extra,
+      menuItems: menuItems.map((item, index) => ({
+        ...item,
+        image: photoValue(menuPhotos[index % menuPhotos.length]),
+      })),
+    },
+  };
+})();
+
 const demoBusinessFor = (kind: ServiceKind, themeVariant: string): DemoBusiness => {
+  if (themeVariant === "tastyc" && kind === "menu") return TASTYC_DEMO_BUSINESS;
   if (themeVariant === "travigo" && kind === "hostel") return TRAVIGO_DEMO_BUSINESS;
   if (themeVariant === "lodge" && kind === "hostel") return LODGE_DEMO_BUSINESS;
   if (themeVariant === "tulum" && kind === "coLiving") return tulumDemo;

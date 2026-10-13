@@ -14,6 +14,7 @@ import TravigoTemplate from "./travigo/TravigoTemplate";
 import TulumTemplate from "./tulum/TulumTemplate";
 import GrindelwaldTemplate from "./grindelwald/GrindelwaldTemplate";
 import LodgeTemplate from "./lodge/LodgeTemplate";
+import TastycTemplate from "./tastyc/TastycTemplate";
 import type { ServiceKind } from "./verticalProfiles";
 
 export interface TemplateDefinition {
@@ -93,6 +94,21 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       fg: "#2a1a12",
       accent: "#e4572e",
       font: "'Bricolage Grotesque', sans-serif",
+    },
+    recommendedFor: ["menu"],
+    supportsBooking: true,
+  },
+  tastyc: {
+    id: "tastyc",
+    name: "Tastyc",
+    description:
+      "Dark editorial coffee-house style — full-screen roast photography, elegant serif type, menu lists, reservations, working hours and gallery storytelling.",
+    component: TastycTemplate,
+    swatch: {
+      bg: "#06191b",
+      fg: "#fffdf8",
+      accent: "#cf7736",
+      font: "'Playfair Display', Georgia, serif",
     },
     recommendedFor: ["menu"],
     supportsBooking: true,

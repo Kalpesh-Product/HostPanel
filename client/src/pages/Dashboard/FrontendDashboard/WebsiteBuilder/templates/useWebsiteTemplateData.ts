@@ -1039,6 +1039,7 @@ export const useWebsiteTemplateData = () => {
     resolvedHomeHeroImage,
     showHeroCarousel,
     heroIndex,
+    setHeroIndex,
     handleHeroNext,
     handleHeroPrev,
     galleryItems,

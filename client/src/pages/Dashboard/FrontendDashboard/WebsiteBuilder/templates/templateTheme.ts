@@ -34,6 +34,7 @@ export const THEME_DEFAULTS: Record<string, ThemeDefaults> = {
   // The three vertical-led templates start from the palette of the service the
   // business sells (see verticalProfiles.ts); these are the picker placeholders.
   savor: { bg: "#fff7ed", text: "#2a1a12", accent: "#e4572e", surfaceUp: true },
+  tastyc: { bg: "#f4efe7", text: "#1a1715", accent: "#cf7736", surfaceUp: true },
   wayfarer: { bg: "#f3fbfa", text: "#0c2a2e", accent: "#f26b3a", surfaceUp: true },
   travigo: { bg: "#f5f3ed", text: "#111111", accent: "#111111", surfaceUp: true },
   lodge: { bg: "#ffffff", text: "#1c1f21", accent: "#7fa388", surfaceUp: true },
