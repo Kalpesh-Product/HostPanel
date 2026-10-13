@@ -15,6 +15,7 @@ import TulumTemplate from "./tulum/TulumTemplate";
 import GrindelwaldTemplate from "./grindelwald/GrindelwaldTemplate";
 import LodgeTemplate from "./lodge/LodgeTemplate";
 import TastycTemplate from "./tastyc/TastycTemplate";
+import FlowspaceTemplate from "./flowspace/FlowspaceTemplate";
 import type { ServiceKind } from "./verticalProfiles";
 
 export interface TemplateDefinition {
@@ -244,6 +245,21 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       fg: "#14161a",
       accent: "#3b6cf0",
       font: "'Sora', sans-serif",
+    },
+    recommendedFor: ["meeting"],
+    supportsBooking: true,
+  },
+  flowspace: {
+    id: "flowspace",
+    name: "Flowspace",
+    description:
+      "Warm editorial meeting-room design — oversized typography, cinematic room photography, lime accents, flowing space discovery and booking-led pages.",
+    component: FlowspaceTemplate,
+    swatch: {
+      bg: "#f2efe6",
+      fg: "#10110f",
+      accent: "#d9ff4f",
+      font: "'Inter', sans-serif",
     },
     recommendedFor: ["meeting"],
     supportsBooking: true,
