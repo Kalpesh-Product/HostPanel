@@ -17,9 +17,24 @@ jobs:
 
       - name: Write client .env
         working-directory: client
-        run: printf '%s\n' "$CLIENT_ENV" > .env
+        run: |
+          cat <<EOF > .env
+          VITE_PROD_LINK="${VITE_PROD_LINK}"
+          VITE_DEV_LINK="${VITE_DEV_LINK}"
+          VITE_REDUX_PERSIST="${VITE_REDUX_PERSIST}"
+          VITE_MASTER_PANEL_BE_URL="${VITE_MASTER_PANEL_BE_URL}"
+          VITE_NOMADS_API_URL="${VITE_NOMADS_API_URL}"
+          EOF
         env:
-          CLIENT_ENV: ${{ secrets.CLIENT_ENV }}
+          VITE_PROD_LINK: ${{ secrets.VITE_PROD_LINK }}
+          VITE_DEV_LINK: ${{ secrets.VITE_DEV_LINK }}
+          VITE_REDUX_PERSIST: ${{ secrets.VITE_REDUX_PERSIST }}
+          VITE_MASTER_PANEL_BE_URL: ${{ secrets.VITE_MASTER_PANEL_BE_URL }}
+          VITE_NOMADS_API_URL: ${{ secrets.VITE_NOMADS_API_URL }}
+
+      - name: Debug env keys (names only, no values)
+        working-directory: client
+        run: grep -o '^[A-Za-z_]*' .env || true
 
       - name: Install and build frontend
         working-directory: client
