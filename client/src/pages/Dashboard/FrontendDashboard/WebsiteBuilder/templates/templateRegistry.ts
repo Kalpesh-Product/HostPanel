@@ -16,6 +16,7 @@ import GrindelwaldTemplate from "./grindelwald/GrindelwaldTemplate";
 import LodgeTemplate from "./lodge/LodgeTemplate";
 import TastycTemplate from "./tastyc/TastycTemplate";
 import FlowspaceTemplate from "./flowspace/FlowspaceTemplate";
+import WorpaceTemplate from "./worpace/WorpaceTemplate";
 import type { ServiceKind } from "./verticalProfiles";
 
 export interface TemplateDefinition {
@@ -262,6 +263,21 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       font: "'Inter', sans-serif",
     },
     recommendedFor: ["meeting"],
+    supportsBooking: true,
+  },
+  worpace: {
+    id: "worpace",
+    name: "Worpace",
+    description:
+      "High-contrast editorial co-working design — oversized typography, warm workspace photography, reservation-led hero, space discovery, community proof and refined motion.",
+    component: WorpaceTemplate,
+    swatch: {
+      bg: "#f7f7e8",
+      fg: "#11110f",
+      accent: "#11110f",
+      font: "'Inter', sans-serif",
+    },
+    recommendedFor: ["workspace"],
     supportsBooking: true,
   },
   "warm-organic": {

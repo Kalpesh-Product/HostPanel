@@ -15,6 +15,7 @@ const TEMPLATE_KIND: Record<string, ServiceKind> = {
   savor: "menu",
   tastyc: "menu",
   flowspace: "meeting",
+  worpace: "workspace",
   wayfarer: "hostel",
   travigo: "hostel",
   lodge: "hostel",
@@ -433,9 +434,51 @@ const FLOWSPACE_DEMO_BUSINESS: DemoBusiness = (() => {
   };
 })();
 
+// Worpace uses a distinct, natural-light editorial photo direction rather than Commons' bento imagery.
+const worpacePhoto = (id: string, width = 1600) =>
+  `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=${width}`;
+const worpaceValue = (id: string, width = 1200) => ({ url: worpacePhoto(id, width) });
+const WORPACE_PHOTOS = {
+  hero: ["36631703", "7534224", "5825371"],
+  spaces: ["26966416", "15465916", "18513001", "33393712", "1170412", "1181396", "31709069", "29284287", "1181345", "3760093", "2608517", "3184431"],
+};
+const WORPACE_DEMO_BUSINESS: DemoBusiness = (() => {
+  const base = DEMO_BUSINESSES.workspace;
+  const items = (base.pageItems || []) as any[];
+  return {
+    ...base,
+    companyName: "Northline Works",
+    title: "CREATIVE WORKSPACE",
+    subTitle: "Flexible desks, private offices and a useful community for people building what comes next.",
+    cta: "Get Started",
+    heroImages: WORPACE_PHOTOS.hero.map((id) => worpacePhoto(id, 1900)),
+    gallery: [...WORPACE_PHOTOS.hero, ...WORPACE_PHOTOS.spaces].map((id) => worpacePhoto(id, 1450)),
+    aboutImages: [WORPACE_PHOTOS.spaces[6], WORPACE_PHOTOS.spaces[2], WORPACE_PHOTOS.spaces[7]].map((id) => worpacePhoto(id, 1200)),
+    aboutTitle: "Where productivity meets comfort",
+    aboutPageStory: "Northline Works brings focused desks, private rooms and an open community together under one carefully run roof.",
+    founders: [
+      { name: "Mira Shah", role: "Founder & Workplace Director", bio: "Mira shapes calm, useful spaces where independent people and growing teams can do their best work.", image: worpaceValue("3769021", 900) },
+      { name: "Arjun Mehta", role: "Community Lead", bio: "Arjun connects members, hosts thoughtful events and makes every new arrival feel at home.", image: worpaceValue("2379004", 900) },
+    ],
+    address: "18 Residency Road, Ashok Nagar, Bengaluru 560025",
+    page: {
+      ...base.page,
+      heroHeading: "Workspace options that fit you",
+      heroSubHeading: "Choose a desk, office or team suite and shape it around the way you work.",
+      heroImage: worpacePhoto(WORPACE_PHOTOS.hero[0], 1900),
+      cardImage: worpacePhoto(WORPACE_PHOTOS.hero[1], 1100),
+    },
+    pageItems: items.map((item, index) => ({
+      ...item,
+      images: WORPACE_PHOTOS.spaces.slice(index * 2, index * 2 + 3).map((id) => worpaceValue(id)),
+    })),
+  };
+})();
+
 const demoBusinessFor = (kind: ServiceKind, themeVariant: string): DemoBusiness => {
   if (themeVariant === "tastyc" && kind === "menu") return TASTYC_DEMO_BUSINESS;
   if (themeVariant === "flowspace" && kind === "meeting") return FLOWSPACE_DEMO_BUSINESS;
+  if (themeVariant === "worpace" && kind === "workspace") return WORPACE_DEMO_BUSINESS;
   if (themeVariant === "travigo" && kind === "hostel") return TRAVIGO_DEMO_BUSINESS;
   if (themeVariant === "lodge" && kind === "hostel") return LODGE_DEMO_BUSINESS;
   if (themeVariant === "tulum" && kind === "coLiving") return tulumDemo;
