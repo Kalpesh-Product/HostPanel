@@ -20,6 +20,12 @@ const ACTIVE_STATUSES = ['Pending', 'In Progress'];
 const STATUS_OPTIONS = ['Pending', 'In Progress', 'Completed', 'Rejected'];
 const REFRESH_INTERVAL_MS = 15000;
 
+interface PrintoutAttachment {
+  id: string;
+  url: string;
+  name: string;
+}
+
 interface PrintoutRequestRecord {
   _id: string;
   requestCode: string;
@@ -43,7 +49,7 @@ interface PrintoutRequestRecord {
   rejectionReason?: string;
   printedByName?: string;
   completedAt?: string;
-  attachments?: { id: string; url: string; name: string }[];
+  attachments?: PrintoutAttachment[];
   createdAt: string;
 }
 
@@ -301,9 +307,112 @@ export default function PrintoutManagementPage() {
     }
   };
 
+  const openAttachmentPrintView = (attachments: PrintoutAttachment[]) => {
+    const printableAttachments = attachments.filter((attachment) => Boolean(attachment?.url));
+    if (printableAttachments.length === 0) return;
+
+    const printFrame = document.createElement('iframe');
+    printFrame.setAttribute('aria-hidden', 'true');
+    Object.assign(printFrame.style, {
+      position: 'fixed',
+      left: '-10000px',
+      top: '0',
+      width: '1000px',
+      height: '800px',
+      border: '0',
+    });
+    document.body.appendChild(printFrame);
+
+    const printWindow = printFrame.contentWindow;
+    const printDocument = printFrame.contentDocument;
+    if (!printWindow || !printDocument) {
+      printFrame.remove();
+      toast.error('Unable to prepare the attachment for printing.');
+      return;
+    }
+
+    printDocument.title = ' ';
+    printDocument.documentElement.lang = 'en';
+
+    const style = printDocument.createElement('style');
+    style.textContent = `
+      @page { size: auto; margin: 0; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; background: #fff; }
+      body { font-family: Arial, sans-serif; }
+      .print-page {
+        display: flex; width: 100%; min-height: 100vh;
+        align-items: center; justify-content: center;
+        overflow: hidden; background: #fff;
+        break-after: page; page-break-after: always;
+      }
+      .print-page:last-child { break-after: auto; page-break-after: auto; }
+      .print-page img {
+        display: block; max-width: 100%; max-height: 100vh;
+        width: auto; height: auto; object-fit: contain;
+      }
+      .print-page iframe {
+        display: block; width: 100%; height: 100vh; border: 0; background: #fff;
+      }
+      @media print {
+        .print-page { min-height: 100vh; }
+      }
+    `;
+    printDocument.head.replaceChildren(style);
+    printDocument.body.replaceChildren();
+
+    const cleanupPrintFrame = () => printFrame.remove();
+    printWindow.addEventListener('afterprint', cleanupPrintFrame, { once: true });
+
+    let pendingAttachments = printableAttachments.length;
+    let printScheduled = false;
+    const schedulePrint = () => {
+      pendingAttachments -= 1;
+      if (pendingAttachments > 0 || printScheduled) return;
+      printScheduled = true;
+      printWindow.setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+        window.setTimeout(cleanupPrintFrame, 1000);
+      }, 250);
+    };
+
+    printableAttachments.forEach((attachment) => {
+      const page = printDocument.createElement('section');
+      page.className = 'print-page';
+      const cleanUrl = attachment.url.trim();
+      const cleanName = String(attachment.name || '').split('?')[0].toLowerCase();
+      const cleanPath = cleanUrl.split('?')[0].toLowerCase();
+      const isImage = /\.(avif|bmp|gif|jpe?g|png|svg|webp)$/.test(cleanName)
+        || /\.(avif|bmp|gif|jpe?g|png|svg|webp)$/.test(cleanPath);
+
+      if (isImage) {
+        const image = printDocument.createElement('img');
+        image.alt = '';
+        image.addEventListener('load', schedulePrint, { once: true });
+        image.addEventListener('error', schedulePrint, { once: true });
+        image.src = cleanUrl;
+        page.appendChild(image);
+      } else {
+        const frame = printDocument.createElement('iframe');
+        frame.title = 'Printable attachment';
+        frame.addEventListener('load', schedulePrint, { once: true });
+        frame.src = cleanUrl;
+        page.appendChild(frame);
+      }
+
+      printDocument.body.appendChild(page);
+    });
+
+    printWindow.setTimeout(() => {
+      if (printScheduled) return;
+      pendingAttachments = 0;
+      schedulePrint();
+    }, 4000);
+  };
+
   const openAttachmentsForPrint = (request: PrintoutRequestRecord) => {
-    if (!request.attachments || request.attachments.length === 0) return;
-    request.attachments.forEach((a) => window.open(a.url, '_blank', 'noopener,noreferrer'));
+    openAttachmentPrintView(request.attachments || []);
   };
 
   const requesterTypeBadge = (request: PrintoutRequestRecord) => (
@@ -315,20 +424,20 @@ export default function PrintoutManagementPage() {
     </span>
   );
 
-  const renderAttachments = (attachments?: { id: string; url: string; name: string }[]) => {
+  const renderAttachments = (attachments?: PrintoutAttachment[]) => {
     if (!attachments || attachments.length === 0) return <span className="text-slate-400 font-pmedium">—</span>;
     return (
       <div className="flex flex-col gap-1">
         {attachments.map((a) => (
-          <a
+          <button
+            type="button"
             key={a.id || a.url}
-            href={a.url}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 text-[11px] font-pmedium text-blue-700 hover:underline truncate max-w-[180px]"
+            onClick={() => openAttachmentPrintView([a])}
+            className="inline-flex max-w-[180px] items-center gap-1 truncate text-left text-[11px] font-pmedium text-blue-700 hover:underline"
+            title={`Open ${a.name} in print view`}
           >
             <Paperclip size={11} className="shrink-0" /> {a.name}
-          </a>
+          </button>
         ))}
       </div>
     );
