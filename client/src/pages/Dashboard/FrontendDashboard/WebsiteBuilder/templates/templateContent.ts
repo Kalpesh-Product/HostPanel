@@ -705,6 +705,31 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContentDef> = {
     switches: [],
   },
 
+  workscape: {
+    slots: [
+      text("home.hero.title", HOME, "Hero: oversized title", "Work Better, Together"),
+      image("home.hero.image", HOME, "Hero: workspace photo"),
+      text("home.news.title", HOME, "Hero card: heading", "New Location"),
+      text("home.news.body", HOME, "Hero card: description", "Our newest meeting suite is open. Discover a calmer place for your next big conversation."),
+      text("home.values.title", HOME, "Values: heading", "Our Values"),
+      text("home.values.body", HOME, "Values: description", "Spaces should make it easier to connect, think clearly and do meaningful work."),
+      text("home.spaces.title", HOME, "Spaces: heading", "Explore Spaces"),
+      text("home.spaces.body", HOME, "Spaces: description", "Choose a service, compare the room options and send your preferred time."),
+      text("home.gallery.title", HOME, "Gallery: heading", "Inside the Workscape"),
+      text("home.pricing.title", HOME, "Pricing: heading", "Pricing Plan"),
+      text("home.contact.title", HOME, "Contact strip: heading", "Let's Keep in Touch"),
+      text("home.contact.body", HOME, "Contact strip: description", "Your ideal meeting room is one message or call away."),
+      text("services.index.title", SERVICES, "Services page: heading", "Work in Workscape"),
+      text("services.index.body", SERVICES, "Services page: description", "Flexible spaces for meetings, workshops and focused work."),
+      text("services.rooms.title", SERVICES, "Service page: heading", "Choose the space that fits"),
+      text("about.title", OTHER, "About page: heading", "Empowering collaboration, fostering innovation"),
+      text("about.team.title", OTHER, "Team section: heading", "The people behind the workspace"),
+      text("partner.title", OTHER, "Partner page: heading", "Build a better workday with us"),
+      text("footer.about", FOOTER, "Footer: introduction", "Flexible meeting rooms for clear thinking, useful conversations and teams in motion."),
+    ],
+    switches: [],
+  },
+
   worpace: {
     slots: [
       text("home.hero.title", HOME, "Hero: oversized title", "CREATIVE WORKSPACE"),
