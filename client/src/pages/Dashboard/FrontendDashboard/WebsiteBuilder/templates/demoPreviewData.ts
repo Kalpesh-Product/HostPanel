@@ -14,6 +14,7 @@ import { DEMO_BUSINESSES, withFaqs, type DemoBusiness } from "./demoContent";
 const TEMPLATE_KIND: Record<string, ServiceKind> = {
   savor: "menu",
   tastyc: "menu",
+  grandbar: "menu",
   flowspace: "meeting",
   workscape: "meeting",
   worpace: "workspace",
@@ -390,6 +391,128 @@ const TASTYC_DEMO_BUSINESS: DemoBusiness = (() => {
   };
 })();
 
+const GRAND_BAR_PHOTOS = {
+  hero: [
+    "photo-1572116469696-31de0f17cc34",
+    "photo-1470337458703-46ad1756a1875",
+    "photo-1543007630-9710e4a00a20",
+  ],
+  interior: [
+    "photo-1514933651103-005eec06c04b",
+    "photo-1552566626-52f8b828add9",
+    "photo-1527761939622-911909463c76",
+    "photo-1541544741938-0af808871cc0",
+  ],
+  drinks: [
+    "photo-1536935338788-846bb9981813",
+    "photo-1513558161293-cdaf765ed2fd",
+    "photo-1544145945-f90425340c7e",
+    "photo-1551024709-8f23befc6f87",
+    "photo-1510812431401-41d2bd2722f3",
+    "photo-1560512823-829485b8bf24",
+  ],
+  plates: [
+    "photo-1515003197210-e0cd71810b5f",
+    "photo-1547592180-85f173990554",
+    "photo-1551024506-0bccd828d307",
+    "photo-1547592166-23ac45744acd",
+    "photo-1559847844-5315695dadae",
+    "photo-1504674900247-0877df9cc836",
+  ],
+};
+
+const GRAND_BAR_MENU_ITEMS = [
+  { category: "Cocktails", name: "Blackberry Citrus Smash", price: "₹850", description: "Crushed blackberries, dry gin, fresh lemon, mint and a splash of soda over pebble ice.", image: GRAND_BAR_PHOTOS.drinks[0] },
+  { category: "Cocktails", name: "Garden Mojito", price: "₹780", description: "White rum, muddled mint, lime, cane sugar and chilled soda in a tall glass.", image: GRAND_BAR_PHOTOS.drinks[1] },
+  { category: "Cocktails", name: "Blood Orange Margarita", price: "₹720", description: "Reposado tequila, blood orange, lime and agave, served bright with a citrus wheel.", image: GRAND_BAR_PHOTOS.drinks[2] },
+  { category: "Cocktails", name: "House Cocktail Flight", price: "₹690", description: "Three seasonal signatures — tropical, herbaceous and berry-led — made for tasting together.", image: GRAND_BAR_PHOTOS.drinks[3] },
+  { category: "Wine & Champagne", name: "Cabernet Table Pour", price: "₹650", description: "A generous pour of full-bodied cabernet with dark fruit, gentle oak and a smooth finish.", image: GRAND_BAR_PHOTOS.drinks[4] },
+  { category: "Wine & Champagne", name: "Sunset Aperol Spritz", price: "₹750", description: "Aperol, sparkling wine, soda and fresh orange poured over ice.", image: GRAND_BAR_PHOTOS.drinks[5] },
+  { category: "Desserts", name: "Salted Caramel Brownie", price: "₹420", description: "Warm chocolate brownie, vanilla ice cream, crisp wafer and salted caramel sauce.", image: GRAND_BAR_PHOTOS.plates[2] },
+  { category: "Food & Bites", name: "Truffle Egg Tagliatelle", price: "₹480", description: "Handmade pasta, soft egg, wild mushrooms, parmesan and a touch of truffle.", image: GRAND_BAR_PHOTOS.plates[0] },
+  { category: "Food & Bites", name: "Charred Salmon Grain Bowl", price: "₹520", description: "Grilled salmon, herb couscous, green beans, cherry tomatoes and toasted seeds.", image: GRAND_BAR_PHOTOS.plates[1] },
+  { category: "Food & Bites", name: "Coastal Prawn Curry", price: "₹680", description: "Tiger prawns in a gently spiced coconut curry with steamed rice and fresh herbs.", image: GRAND_BAR_PHOTOS.plates[4] },
+  { category: "Food & Bites", name: "Thai Beef Salad", price: "₹890", description: "Sliced grilled beef, crisp lettuce, red onion, toasted cashews and chilli-lime dressing.", image: GRAND_BAR_PHOTOS.plates[5] },
+];
+
+const GRAND_BAR_FAQS = [
+  { question: "Do you take walk-ins?", answer: "We hold half the bar for walk-ins every night, but a booking guarantees your table." },
+  { question: "Is there a dress code?", answer: "Smart casual after 7 PM — think elevated, not formal." },
+  { question: "Can I book the bar for a private event?", answer: "Yes, we host private parties and corporate evenings. Send us a note and we'll build a menu around it." },
+  { question: "Do you have a non-alcoholic menu?", answer: "Absolutely — ask your server for our zero-proof cocktail list." },
+];
+
+const GRAND_BAR_DEMO_BUSINESS: DemoBusiness = (() => {
+  const base = DEMO_BUSINESSES.menu;
+  const galleryPhotos = [
+    GRAND_BAR_PHOTOS.interior[0],
+    GRAND_BAR_PHOTOS.interior[1],
+    GRAND_BAR_PHOTOS.drinks[2],
+    GRAND_BAR_PHOTOS.drinks[0],
+    GRAND_BAR_PHOTOS.plates[0],
+    GRAND_BAR_PHOTOS.hero[0],
+    GRAND_BAR_PHOTOS.drinks[3],
+    GRAND_BAR_PHOTOS.interior[0],
+    GRAND_BAR_PHOTOS.plates[1],
+    GRAND_BAR_PHOTOS.drinks[4],
+    GRAND_BAR_PHOTOS.interior[3],
+    ...GRAND_BAR_PHOTOS.drinks.slice(1),
+    ...GRAND_BAR_PHOTOS.plates.slice(2),
+  ];
+  return {
+    ...base,
+    companyName: "Grand Bar",
+    title: "A Mixologist's Paradise",
+    subTitle: "World-class cocktails, vibrant plates and an evening atmosphere worth dressing up for.",
+    cta: "Book a table",
+    heroImages: GRAND_BAR_PHOTOS.hero.map((id) => photo(id, 1900)),
+    gallery: galleryPhotos.map((id) => photo(id, 1400)),
+    aboutImages: [GRAND_BAR_PHOTOS.interior[0], GRAND_BAR_PHOTOS.interior[2], GRAND_BAR_PHOTOS.hero[1]].map((id) => photo(id, 1200)),
+    aboutTitle: "A room shaped by flavor, music and generous hospitality",
+    aboutPageStory: "Grand Bar brings classic technique, seasonal ingredients and after-dark energy together under one roof.",
+    about: [
+      "We built Grand Bar for evenings that unfold slowly: a first drink at the counter, a plate shared across the table and one last round before home.",
+      "Our bartenders respect the classics while the kitchen follows the seasons, keeping every visit familiar enough to relax and surprising enough to remember.",
+    ],
+    founders: [
+      { name: "Maya D'Souza", role: "Founder & Creative Director", bio: "Maya shapes the room, the music and the small details that turn service into an experience.", image: photoValue("photo-1534528741775-53994a69daeb", 900) },
+      { name: "Armaan Khanna", role: "Head Mixologist", bio: "Armaan pairs classic technique with Indian botanicals and a restless curiosity for new flavor.", image: photoValue("photo-1507003211169-0a1dd7228f2d", 900) },
+    ],
+    address: "42 Lavelle Road, Ashok Nagar, Bengaluru 560001",
+    faqs: GRAND_BAR_FAQS,
+    page: {
+      ...base.page,
+      name: "Our Menus",
+      slug: "our-menus",
+      heroHeading: "Cocktails, plates and late-night favorites",
+      heroSubHeading: "Explore signature drinks, wine, desserts and food made for sharing.",
+      homeCardHeading: "Our Menus",
+      homeCardSubText: "Cocktails, wine, desserts and food made for sharing.",
+      heroImage: photo(GRAND_BAR_PHOTOS.hero[2], 1900),
+      cardImage: photo(GRAND_BAR_PHOTOS.drinks[0], 1100),
+      faqs: GRAND_BAR_FAQS.slice(0, 2),
+    },
+    extra: {
+      ...base.extra,
+      menuItems: GRAND_BAR_MENU_ITEMS.map((item) => ({
+        category: item.category,
+        name: item.name,
+        price: item.price,
+        description: item.description,
+        image: photoValue(item.image),
+        dietary: "veg",
+        spiceLevel: 0,
+        popular: false,
+        badge: "",
+        features: [],
+        enabled: true,
+        priceUnit: "",
+        featured: false,
+      })),
+    },
+  };
+})();
+
 // Flowspace keeps a separate photo library from Huddle: warmer materials, more daylight and
 // a high-end editorial direction that mirrors the reference without repeating another template.
 const pexels = (id: string, width = 1600) =>
@@ -524,6 +647,7 @@ const WORPACE_DEMO_BUSINESS: DemoBusiness = (() => {
 
 const demoBusinessFor = (kind: ServiceKind, themeVariant: string): DemoBusiness => {
   if (themeVariant === "tastyc" && kind === "menu") return TASTYC_DEMO_BUSINESS;
+  if (themeVariant === "grandbar" && kind === "menu") return GRAND_BAR_DEMO_BUSINESS;
   if (themeVariant === "flowspace" && kind === "meeting") return FLOWSPACE_DEMO_BUSINESS;
   if (themeVariant === "workscape" && kind === "meeting") return WORKSCAPE_DEMO_BUSINESS;
   if (themeVariant === "worpace" && kind === "workspace") return WORPACE_DEMO_BUSINESS;
@@ -539,6 +663,8 @@ export const defaultKindForTemplate = (themeVariant: string): ServiceKind => TEM
 
 // Pexels "Video of a House Interior" (free to use, no attribution needed); 2K file, 21 seconds.
 const CAMELIA_DEMO_VIDEO = "https://videos.pexels.com/video-files/7578546/7578546-uhd_2560_1440_30fps.mp4";
+// Pexels "A Bartender Making A Cocktail Drink" (free to use, no attribution needed); HD, portrait.
+const GRAND_BAR_DEMO_VIDEO = "https://videos.pexels.com/video-files/7608984/7608984-hd_720_1280_25fps.mp4";
 
 const slugOf = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, "");
 
@@ -585,7 +711,7 @@ export const buildDemoPreviewDraft = (themeVariant: string, serviceNames: string
     themeVariant,
     // Camelia's hero plays a looping video when one is linked (see the builder's "Hero Video URL").
     // The sample clip is a placeholder for previews only; a real site sets its own link.
-    heroVideoUrl: themeVariant === "camelia" ? CAMELIA_DEMO_VIDEO : themeVariant === "tulum" ? TULUM_DEMO_VIDEO : themeVariant === "grindelwald" ? GRINDELWALD_DEMO_VIDEO : "",
+    heroVideoUrl: themeVariant === "camelia" ? CAMELIA_DEMO_VIDEO : themeVariant === "tulum" ? TULUM_DEMO_VIDEO : themeVariant === "grindelwald" ? GRINDELWALD_DEMO_VIDEO : themeVariant === "grandbar" ? GRAND_BAR_DEMO_VIDEO : "",
     styleConfig: {},
     sectionOverrides: {},
     vertical: primary.vertical,

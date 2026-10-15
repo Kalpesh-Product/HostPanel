@@ -15,6 +15,7 @@ import TulumTemplate from "./tulum/TulumTemplate";
 import GrindelwaldTemplate from "./grindelwald/GrindelwaldTemplate";
 import LodgeTemplate from "./lodge/LodgeTemplate";
 import TastycTemplate from "./tastyc/TastycTemplate";
+import GrandBarTemplate from "./grandbar/GrandBarTemplate";
 import FlowspaceTemplate from "./flowspace/FlowspaceTemplate";
 import WorpaceTemplate from "./worpace/WorpaceTemplate";
 import WorkscapeTemplate from "./workscape/WorkscapeTemplate";
@@ -112,6 +113,21 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       fg: "#fffdf8",
       accent: "#cf7736",
       font: "'Playfair Display', Georgia, serif",
+    },
+    recommendedFor: ["menu"],
+    supportsBooking: true,
+  },
+  grandbar: {
+    id: "grandbar",
+    name: "Grand Bar",
+    description:
+      "Nocturnal cocktail-bar design — centered seal, oversized serif typography, arched photography, menu discovery, location storytelling and polished reservations.",
+    component: GrandBarTemplate,
+    swatch: {
+      bg: "#0b1b22",
+      fg: "#f2eee7",
+      accent: "#aa8867",
+      font: "'Cormorant Garamond', Georgia, serif",
     },
     recommendedFor: ["menu"],
     supportsBooking: true,
