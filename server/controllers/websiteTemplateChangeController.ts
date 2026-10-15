@@ -20,6 +20,7 @@ const DEFAULT_TEMPLATE_SETTINGS = {
     { templateId: "figma-make", enabled: false, visible: false, allowedPlans: [] },
     { templateId: "savor", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
     { templateId: "tastyc", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
+    { templateId: "workscape", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
     { templateId: "wayfarer", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
     { templateId: "travigo", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
     { templateId: "lodge", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },

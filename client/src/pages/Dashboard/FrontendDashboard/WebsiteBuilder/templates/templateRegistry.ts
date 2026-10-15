@@ -17,6 +17,7 @@ import LodgeTemplate from "./lodge/LodgeTemplate";
 import TastycTemplate from "./tastyc/TastycTemplate";
 import FlowspaceTemplate from "./flowspace/FlowspaceTemplate";
 import WorpaceTemplate from "./worpace/WorpaceTemplate";
+import WorkscapeTemplate from "./workscape/WorkscapeTemplate";
 import type { ServiceKind } from "./verticalProfiles";
 
 export interface TemplateDefinition {
@@ -260,6 +261,21 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       bg: "#f2efe6",
       fg: "#10110f",
       accent: "#d9ff4f",
+      font: "'Inter', sans-serif",
+    },
+    recommendedFor: ["meeting"],
+    supportsBooking: true,
+  },
+  workscape: {
+    id: "workscape",
+    name: "Workscape",
+    description:
+      "Bright editorial meeting-space design — modular photography, oversized offset headings, flexible room discovery and a polished booking flow.",
+    component: WorkscapeTemplate,
+    swatch: {
+      bg: "#ffffff",
+      fg: "#20201f",
+      accent: "#a99d93",
       font: "'Inter', sans-serif",
     },
     recommendedFor: ["meeting"],

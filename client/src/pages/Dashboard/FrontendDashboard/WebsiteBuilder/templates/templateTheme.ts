@@ -36,6 +36,7 @@ export const THEME_DEFAULTS: Record<string, ThemeDefaults> = {
   savor: { bg: "#fff7ed", text: "#2a1a12", accent: "#e4572e", surfaceUp: true },
   tastyc: { bg: "#f4efe7", text: "#1a1715", accent: "#cf7736", surfaceUp: true },
   flowspace: { bg: "#fbfaeb", text: "#11110f", accent: "#11110f", surfaceUp: true },
+  workscape: { bg: "#ffffff", text: "#20201f", accent: "#a99d93", surfaceUp: true },
   worpace: { bg: "#f7f7e8", text: "#11110f", accent: "#11110f", surfaceUp: true },
   wayfarer: { bg: "#f3fbfa", text: "#0c2a2e", accent: "#f26b3a", surfaceUp: true },
   travigo: { bg: "#f5f3ed", text: "#111111", accent: "#111111", surfaceUp: true },
