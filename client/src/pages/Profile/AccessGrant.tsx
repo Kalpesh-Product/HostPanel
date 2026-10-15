@@ -1689,26 +1689,14 @@ export default function AccessGrantsPage() {
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-end gap-2">
                               {user.roleGroup === 'Founder' ? (
-                                <>
-                                  <button
-                                    type="button"
-                                    disabled
-                                    aria-disabled="true"
-                                    className="p-1.5 rounded-lg transition-all bg-slate-100 text-slate-400 opacity-55 cursor-not-allowed"
-                                    title="Self Protected - sidebar access cannot be changed"
-                                  >
-                                    <Shield size={15} strokeWidth={2.5} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled
-                                    aria-disabled="true"
-                                    className="p-1.5 rounded-lg transition-all bg-slate-100 text-slate-400 opacity-55 cursor-not-allowed"
-                                    title="Self Protected - owner role cannot be changed"
-                                  >
-                                    <UserCog size={15} strokeWidth={2.5} />
-                                  </button>
-                                </>
+                                <span
+                                  className="inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-2 text-[9px] font-pmedium uppercase leading-none tracking-wide text-emerald-700"
+                                  title="Founder has access to all departments and all modules enabled by the current plan. Founder access cannot be edited."
+                                  aria-label="Full access. Founder access cannot be edited."
+                                >
+                                  <Shield size={11} strokeWidth={2.5} aria-hidden="true" />
+                                  Full Access
+                                </span>
                               ) : (
                                 <>
                                   {!hideAccessButtonForSelfSuperAdmin ? (

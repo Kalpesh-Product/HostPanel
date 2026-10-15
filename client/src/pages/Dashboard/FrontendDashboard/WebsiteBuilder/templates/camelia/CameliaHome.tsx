@@ -49,7 +49,7 @@ const Hero: React.FC = () => {
   // poster image behind the <video> so there's no blank flash while it buffers) — so this
   // matches that: everything renders at full opacity immediately, like the reference does.
   return (
-    <section id="cm-hero" className="relative -mt-20 aspect-[4/3] w-full overflow-hidden md:aspect-[16/8]">
+    <section id="cm-hero" className="relative -mt-20 aspect-[4/3] min-h-[560px] w-full overflow-hidden md:aspect-[16/8]">
       {video ? (
         <video className="absolute inset-0 h-full w-full object-cover" src={video} poster={main || undefined} autoPlay muted loop playsInline />
       ) : main ? (

@@ -248,7 +248,7 @@ function formatGeofenceCoverage(radiusMeters: number): string {
 }
 
 function buildGeofenceShareUrl(latitude: number | null, longitude: number | null): string {
-  if (!Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) return "";
+  if (latitude == null || longitude == null || !Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) return "";
   return `https://www.google.com/maps?q=${latitude},${longitude}`;
 }
 
@@ -356,9 +356,25 @@ function buildGeofenceEmbedUrlFromInput(input: string): string {
   return `https://www.google.com/maps?q=${encodeURIComponent(searchTerm)}&output=embed`;
 }
 
-function buildGeofenceIframeUrl(latitude: number | null, longitude: number | null): string {
-  if (!Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) return "";
-  return `https://www.google.com/maps?q=${latitude},${longitude}&output=embed`;
+function buildGeofenceIframeUrl(latitude: number | null, longitude: number | null, zoom = 18): string {
+  if (latitude == null || longitude == null || !Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) return "";
+  const safeZoom = Math.max(10, Math.min(20, Math.round(zoom)));
+  return `https://www.google.com/maps?q=${latitude},${longitude}&z=${safeZoom}&output=embed`;
+}
+
+function getMapMetersPerPixel(latitude: number, zoom: number): number {
+  const latitudeRadians = (Math.max(-85, Math.min(85, latitude)) * Math.PI) / 180;
+  return (156543.03392 * Math.cos(latitudeRadians)) / Math.pow(2, zoom);
+}
+
+function getGeofenceFitZoom(radiusMeters: number, latitude: number): number {
+  const safeRadius = Math.max(25, Number(radiusMeters) || 150);
+  const targetDiameterPixels = 96;
+  const latitudeRadians = (Math.max(-85, Math.min(85, latitude)) * Math.PI) / 180;
+  const zoom = Math.log2(
+    (156543.03392 * Math.cos(latitudeRadians) * targetDiameterPixels) / (safeRadius * 2),
+  );
+  return Math.max(10, Math.min(20, Math.round(zoom)));
 }
 
 /* ──────────────────────────────────────────────────────────────── */
@@ -596,6 +612,7 @@ export default function HRAttendanceReviewPage() {
   const [geofenceMapUrl, setGeofenceMapUrl] = useState("");
   const [geofenceMapError, setGeofenceMapError] = useState("");
   const [geofencePreviewUrl, setGeofencePreviewUrl] = useState("");
+  const [geofenceMapZoom, setGeofenceMapZoom] = useState(18);
   const [attendanceSettings, setAttendanceSettings] = useState<AttendanceSettingsConfig>({
     weeklyWorkingHours: null,
     workingHoursStart: "",
@@ -637,7 +654,21 @@ export default function HRAttendanceReviewPage() {
     return geofenceReady && settingsReady;
   }, [geofenceConfig, attendanceSettings]);
 
-  const geofenceMapEmbed = useMemo(() => geofencePreviewUrl, [geofencePreviewUrl]);
+  const geofenceMapEmbed = useMemo(() => {
+    if (
+      geofenceConfig.latitude != null &&
+      geofenceConfig.longitude != null &&
+      Number.isFinite(Number(geofenceConfig.latitude)) &&
+      Number.isFinite(Number(geofenceConfig.longitude))
+    ) {
+      return buildGeofenceIframeUrl(
+        geofenceConfig.latitude,
+        geofenceConfig.longitude,
+        geofenceMapZoom,
+      );
+    }
+    return geofencePreviewUrl;
+  }, [geofenceConfig.latitude, geofenceConfig.longitude, geofenceMapZoom, geofencePreviewUrl]);
 
   const geofenceCoverage = useMemo(
     () => formatGeofenceCoverage(geofenceConfig.radiusMeters),
@@ -645,14 +676,12 @@ export default function HRAttendanceReviewPage() {
   );
 
   const geofenceCircleSize = useMemo(() => {
-    const minRadius = 25;
-    const maxRadius = 5000;
-    const minSize = 96;
-    const maxSize = 240;
-    const radius = Math.max(minRadius, Math.min(maxRadius, Number(geofenceConfig.radiusMeters) || 150));
-    const ratio = (radius - minRadius) / (maxRadius - minRadius);
-    return Math.round(minSize + ratio * (maxSize - minSize));
-  }, [geofenceConfig.radiusMeters]);
+    const latitude = Number(geofenceConfig.latitude);
+    if (!Number.isFinite(latitude)) return 0;
+    const radius = Math.max(25, Math.min(5000, Number(geofenceConfig.radiusMeters) || 150));
+    const metersPerPixel = getMapMetersPerPixel(latitude, geofenceMapZoom);
+    return Math.max(2, (radius * 2) / metersPerPixel);
+  }, [geofenceConfig.latitude, geofenceConfig.radiusMeters, geofenceMapZoom]);
 
   /* Fetch data */
   useEffect(() => {
@@ -893,17 +922,22 @@ export default function HRAttendanceReviewPage() {
   useEffect(() => {
     if (!showGeofenceModal) return;
     const hasSavedGeofence =
+      geofenceConfig.latitude != null &&
+      geofenceConfig.longitude != null &&
       Number.isFinite(Number(geofenceConfig.latitude)) &&
       Number.isFinite(Number(geofenceConfig.longitude));
     if (hasSavedGeofence) {
       setGeofenceMapUrl(buildGeofenceShareUrl(geofenceConfig.latitude, geofenceConfig.longitude));
       setGeofencePreviewUrl(buildGeofenceIframeUrl(geofenceConfig.latitude, geofenceConfig.longitude));
+      setGeofenceMapZoom(
+        getGeofenceFitZoom(geofenceConfig.radiusMeters, Number(geofenceConfig.latitude)),
+      );
     } else {
       setGeofenceMapUrl("");
       setGeofencePreviewUrl("");
     }
     setGeofenceMapError("");
-  }, [showGeofenceModal, geofenceConfig.latitude, geofenceConfig.longitude]);
+  }, [showGeofenceModal, geofenceConfig.latitude, geofenceConfig.longitude, geofenceConfig.radiusMeters]);
 
   const handleGeofenceMapUrlChange = (value: string) => {
     setGeofenceMapUrl(value);
@@ -933,6 +967,9 @@ export default function HRAttendanceReviewPage() {
             latitude,
             longitude,
           }));
+          setGeofenceMapZoom(
+            getGeofenceFitZoom(geofenceConfig.radiusMeters, Number(latitude)),
+          );
         }
 
         setGeofenceMapError("");
@@ -956,6 +993,9 @@ export default function HRAttendanceReviewPage() {
             latitude,
             longitude,
           }));
+          setGeofenceMapZoom(
+            getGeofenceFitZoom(geofenceConfig.radiusMeters, latitude),
+          );
           setGeofencePreviewUrl(buildGeofenceIframeUrl(latitude, longitude));
           setGeofenceMapUrl(buildGeofenceShareUrl(latitude, longitude));
           return;
@@ -988,6 +1028,9 @@ export default function HRAttendanceReviewPage() {
           latitude,
           longitude,
         }));
+        setGeofenceMapZoom(
+          getGeofenceFitZoom(geofenceConfig.radiusMeters, latitude),
+        );
         setGeofenceMapError("");
         setGeofenceMapUrl(buildGeofenceShareUrl(latitude, longitude));
         setGeofencePreviewUrl(buildGeofenceIframeUrl(latitude, longitude));
@@ -1642,7 +1685,7 @@ export default function HRAttendanceReviewPage() {
                       <iframe
                         title="Attendance geofence map preview"
                         src={geofenceMapEmbed}
-                        className="h-[240px] w-full border-0"
+                        className="pointer-events-none h-[240px] w-full border-0"
                         loading="lazy"
                         referrerPolicy="no-referrer-when-downgrade"
                       />
@@ -1661,14 +1704,61 @@ export default function HRAttendanceReviewPage() {
                     )}
 
                     {geofenceMapEmbed && (
-                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                        <div
-                          className="relative rounded-full border-2 border-red-500/80 bg-red-500/15"
-                          style={{ width: `${geofenceCircleSize}px`, height: `${geofenceCircleSize}px` }}
-                        >
-                          <div className="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-600 shadow-lg" />
+                      <>
+                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
+                          <div
+                            className="relative shrink-0 rounded-full border-2 border-red-500/80 bg-red-500/15"
+                            style={{ width: `${geofenceCircleSize}px`, height: `${geofenceCircleSize}px` }}
+                          >
+                            <div className="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-600 shadow-lg" />
+                          </div>
                         </div>
-                      </div>
+
+                        <div className="absolute right-3 top-3 flex flex-col gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setGeofenceMapZoom((zoom) => Math.min(20, zoom + 1))}
+                            disabled={geofenceMapZoom >= 20}
+                            className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-lg font-pmedium text-slate-700 shadow-md hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            aria-label="Zoom map in"
+                          >
+                            +
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setGeofenceMapZoom((zoom) => Math.max(10, zoom - 1))}
+                            disabled={geofenceMapZoom <= 10}
+                            className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-lg font-pmedium text-slate-700 shadow-md hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            aria-label="Zoom map out"
+                          >
+                            −
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setGeofenceMapZoom(getGeofenceFitZoom(
+                              geofenceConfig.radiusMeters,
+                              Number(geofenceConfig.latitude),
+                            ))}
+                            className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[9px] font-pmedium uppercase tracking-wide text-slate-600 shadow-md hover:bg-slate-50"
+                            aria-label="Fit geofence radius on map"
+                          >
+                            Fit
+                          </button>
+                        </div>
+
+                        <a
+                          href={buildGeofenceShareUrl(geofenceConfig.latitude, geofenceConfig.longitude)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="absolute left-3 top-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-pmedium text-[#2563EB] shadow-md hover:bg-blue-50"
+                        >
+                          Open in Maps
+                        </a>
+
+                        <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-slate-900/80 px-3 py-1.5 text-[10px] font-pmedium text-white shadow-lg">
+                          {Math.round(geofenceConfig.radiusMeters || 150)} m radius · zoom {geofenceMapZoom}
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>

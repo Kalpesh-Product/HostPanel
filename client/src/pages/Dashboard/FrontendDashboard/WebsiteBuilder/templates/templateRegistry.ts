@@ -12,6 +12,12 @@ import CommonsTemplate from "./commons/CommonsTemplate";
 import HuddleTemplate from "./huddle/HuddleTemplate";
 import TravigoTemplate from "./travigo/TravigoTemplate";
 import TulumTemplate from "./tulum/TulumTemplate";
+import GrindelwaldTemplate from "./grindelwald/GrindelwaldTemplate";
+import LodgeTemplate from "./lodge/LodgeTemplate";
+import TastycTemplate from "./tastyc/TastycTemplate";
+import FlowspaceTemplate from "./flowspace/FlowspaceTemplate";
+import WorpaceTemplate from "./worpace/WorpaceTemplate";
+import WorkscapeTemplate from "./workscape/WorkscapeTemplate";
 import type { ServiceKind } from "./verticalProfiles";
 
 export interface TemplateDefinition {
@@ -95,6 +101,21 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
     recommendedFor: ["menu"],
     supportsBooking: true,
   },
+  tastyc: {
+    id: "tastyc",
+    name: "Tastyc",
+    description:
+      "Dark editorial coffee-house style — full-screen roast photography, elegant serif type, menu lists, reservations, working hours and gallery storytelling.",
+    component: TastycTemplate,
+    swatch: {
+      bg: "#06191b",
+      fg: "#fffdf8",
+      accent: "#cf7736",
+      font: "'Playfair Display', Georgia, serif",
+    },
+    recommendedFor: ["menu"],
+    supportsBooking: true,
+  },
   wayfarer: {
     id: "wayfarer",
     name: "Wayfarer",
@@ -138,6 +159,36 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       font: "'Cormorant Upright', serif",
     },
     recommendedFor: ["coLiving", "workation"],
+    supportsBooking: true,
+  },
+  grindelwald: {
+    id: "grindelwald",
+    name: "Grindelwald",
+    description:
+      "Forest-retreat style: a deep green hero with a round photo and dashed neon rings, a pale intro with stats, a parallax photo, room cards, a photo slider and a closing band. Made for co-living and cabin stays, works for any service.",
+    component: GrindelwaldTemplate,
+    swatch: {
+      bg: "#f8f8f8",
+      fg: "#1b3936",
+      accent: "#75ff69",
+      font: "'Bodoni Moda', serif",
+    },
+    recommendedFor: ["coLiving", "workation"],
+    supportsBooking: true,
+  },
+  lodge: {
+    id: "lodge",
+    name: "Lodge",
+    description:
+      "Rental-house style: a full-bleed photo slider, pill-shaped amenity chips, rolling counters and a dark guest-quote band. Made for hostels and short rentals, works for any service.",
+    component: LodgeTemplate,
+    swatch: {
+      bg: "#ffffff",
+      fg: "#1c1f21",
+      accent: "#7fa388",
+      font: "'Inter', sans-serif",
+    },
+    recommendedFor: ["hostel"],
     supportsBooking: true,
   },
   haven: {
@@ -198,6 +249,51 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       font: "'Sora', sans-serif",
     },
     recommendedFor: ["meeting"],
+    supportsBooking: true,
+  },
+  flowspace: {
+    id: "flowspace",
+    name: "Flowspace",
+    description:
+      "Warm editorial meeting-room design — oversized typography, cinematic room photography, lime accents, flowing space discovery and booking-led pages.",
+    component: FlowspaceTemplate,
+    swatch: {
+      bg: "#f2efe6",
+      fg: "#10110f",
+      accent: "#d9ff4f",
+      font: "'Inter', sans-serif",
+    },
+    recommendedFor: ["meeting"],
+    supportsBooking: true,
+  },
+  workscape: {
+    id: "workscape",
+    name: "Workscape",
+    description:
+      "Bright editorial meeting-space design — modular photography, oversized offset headings, flexible room discovery and a polished booking flow.",
+    component: WorkscapeTemplate,
+    swatch: {
+      bg: "#ffffff",
+      fg: "#20201f",
+      accent: "#a99d93",
+      font: "'Inter', sans-serif",
+    },
+    recommendedFor: ["meeting"],
+    supportsBooking: true,
+  },
+  worpace: {
+    id: "worpace",
+    name: "Worpace",
+    description:
+      "High-contrast editorial co-working design — oversized typography, warm workspace photography, reservation-led hero, space discovery, community proof and refined motion.",
+    component: WorpaceTemplate,
+    swatch: {
+      bg: "#f7f7e8",
+      fg: "#11110f",
+      accent: "#11110f",
+      font: "'Inter', sans-serif",
+    },
+    recommendedFor: ["workspace"],
     supportsBooking: true,
   },
   "warm-organic": {
