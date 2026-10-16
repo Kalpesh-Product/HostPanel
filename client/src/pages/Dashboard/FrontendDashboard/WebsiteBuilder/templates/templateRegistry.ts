@@ -14,6 +14,11 @@ import TravigoTemplate from "./travigo/TravigoTemplate";
 import TulumTemplate from "./tulum/TulumTemplate";
 import GrindelwaldTemplate from "./grindelwald/GrindelwaldTemplate";
 import LodgeTemplate from "./lodge/LodgeTemplate";
+import TastycTemplate from "./tastyc/TastycTemplate";
+import GrandBarTemplate from "./grandbar/GrandBarTemplate";
+import FlowspaceTemplate from "./flowspace/FlowspaceTemplate";
+import WorpaceTemplate from "./worpace/WorpaceTemplate";
+import WorkscapeTemplate from "./workscape/WorkscapeTemplate";
 import type { ServiceKind } from "./verticalProfiles";
 
 export interface TemplateDefinition {
@@ -93,6 +98,36 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       fg: "#2a1a12",
       accent: "#e4572e",
       font: "'Bricolage Grotesque', sans-serif",
+    },
+    recommendedFor: ["menu"],
+    supportsBooking: true,
+  },
+  tastyc: {
+    id: "tastyc",
+    name: "Tastyc",
+    description:
+      "Dark editorial coffee-house style — full-screen roast photography, elegant serif type, menu lists, reservations, working hours and gallery storytelling.",
+    component: TastycTemplate,
+    swatch: {
+      bg: "#06191b",
+      fg: "#fffdf8",
+      accent: "#cf7736",
+      font: "'Playfair Display', Georgia, serif",
+    },
+    recommendedFor: ["menu"],
+    supportsBooking: true,
+  },
+  grandbar: {
+    id: "grandbar",
+    name: "Grand Bar",
+    description:
+      "Nocturnal cocktail-bar design — centered seal, oversized serif typography, arched photography, menu discovery, location storytelling and polished reservations.",
+    component: GrandBarTemplate,
+    swatch: {
+      bg: "#0b1b22",
+      fg: "#f2eee7",
+      accent: "#aa8867",
+      font: "'Cormorant Garamond', Georgia, serif",
     },
     recommendedFor: ["menu"],
     supportsBooking: true,
@@ -230,6 +265,51 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       font: "'Sora', sans-serif",
     },
     recommendedFor: ["meeting"],
+    supportsBooking: true,
+  },
+  flowspace: {
+    id: "flowspace",
+    name: "Flowspace",
+    description:
+      "Warm editorial meeting-room design — oversized typography, cinematic room photography, lime accents, flowing space discovery and booking-led pages.",
+    component: FlowspaceTemplate,
+    swatch: {
+      bg: "#f2efe6",
+      fg: "#10110f",
+      accent: "#d9ff4f",
+      font: "'Inter', sans-serif",
+    },
+    recommendedFor: ["meeting"],
+    supportsBooking: true,
+  },
+  workscape: {
+    id: "workscape",
+    name: "Workscape",
+    description:
+      "Bright editorial meeting-space design — modular photography, oversized offset headings, flexible room discovery and a polished booking flow.",
+    component: WorkscapeTemplate,
+    swatch: {
+      bg: "#ffffff",
+      fg: "#20201f",
+      accent: "#a99d93",
+      font: "'Inter', sans-serif",
+    },
+    recommendedFor: ["meeting"],
+    supportsBooking: true,
+  },
+  worpace: {
+    id: "worpace",
+    name: "Worpace",
+    description:
+      "High-contrast editorial co-working design — oversized typography, warm workspace photography, reservation-led hero, space discovery, community proof and refined motion.",
+    component: WorpaceTemplate,
+    swatch: {
+      bg: "#f7f7e8",
+      fg: "#11110f",
+      accent: "#11110f",
+      font: "'Inter', sans-serif",
+    },
+    recommendedFor: ["workspace"],
     supportsBooking: true,
   },
   "warm-organic": {
