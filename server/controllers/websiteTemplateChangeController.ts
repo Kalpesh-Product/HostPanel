@@ -22,6 +22,7 @@ const DEFAULT_TEMPLATE_SETTINGS = {
     { templateId: "tastyc", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
     { templateId: "grandbar", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
     { templateId: "workscape", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
+    { templateId: "qerja", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
     { templateId: "wayfarer", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
     { templateId: "travigo", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
     { templateId: "lodge", enabled: true, visible: true, allowedPlans: ["basic", "professional", "custom"] },
