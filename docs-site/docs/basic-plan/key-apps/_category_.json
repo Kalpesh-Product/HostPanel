@@ -1,0 +1,8 @@
+{
+  "label": "Key Apps",
+  "position": 3,
+  "link": {
+    "type": "generated-index",
+    "description": "The core working apps: Website Builder, Nomad Listings, All Leads, and Visitor Management."
+  }
+}
