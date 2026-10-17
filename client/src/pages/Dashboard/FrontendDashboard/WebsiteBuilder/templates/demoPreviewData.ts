@@ -18,6 +18,7 @@ const TEMPLATE_KIND: Record<string, ServiceKind> = {
   flowspace: "meeting",
   workscape: "meeting",
   worpace: "workspace",
+  qerja: "workspace",
   wayfarer: "hostel",
   travigo: "hostel",
   lodge: "hostel",
@@ -645,12 +646,59 @@ const WORPACE_DEMO_BUSINESS: DemoBusiness = (() => {
   };
 })();
 
+// Qerja uses a crisp, people-first photo direction with brighter communal spaces and teal/yellow branding.
+const qerjaPhoto = (id: string, width = 1600) =>
+  `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=${width}`;
+const qerjaValue = (id: string, width = 1200) => ({ url: qerjaPhoto(id, width) });
+const QERJA_PHOTOS = {
+  hero: ["3182759", "3183190", "3182827"],
+  spaces: ["3182812", "3184416", "3182811", "3182765", "3182826", "3182833", "3184287", "3205570", "3768904", "3861958", "4348404", "7654118"],
+};
+const QERJA_DEMO_BUSINESS: DemoBusiness = (() => {
+  const base = DEMO_BUSINESSES.workspace;
+  const items = (base.pageItems || []) as any[];
+  return {
+    ...base,
+    companyName: "Qerja",
+    title: "We’re the Perfect Working Space for You",
+    subTitle: "Thoughtfully designed workspaces, useful services and a community that helps every workday flow better.",
+    cta: "Learn more",
+    heroImages: QERJA_PHOTOS.hero.map((id) => qerjaPhoto(id, 1900)),
+    gallery: [...QERJA_PHOTOS.hero, ...QERJA_PHOTOS.spaces].map((id) => qerjaPhoto(id, 1450)),
+    aboutImages: [QERJA_PHOTOS.spaces[1], QERJA_PHOTOS.spaces[5], QERJA_PHOTOS.spaces[8]].map((id) => qerjaPhoto(id, 1200)),
+    aboutTitle: "We help businesses feel at home while they grow",
+    aboutPageStory: "Qerja Collective combines practical workspaces, thoughtful hospitality and an active professional community in one bright, welcoming place.",
+    about: [
+      "We designed Qerja for people who want the freedom of flexible work without giving up the energy and support of a shared workplace.",
+      "Every desk, room and service is shaped around useful workdays: comfortable, reliable and ready to change as your team changes.",
+    ],
+    founders: [
+      { name: "Aanya Mehta", role: "Founder & Community Director", bio: "Aanya builds useful spaces and the connections that make them feel alive.", image: qerjaValue("6893942", 900) },
+      { name: "Dev Malhotra", role: "Workspace Experience Lead", bio: "Dev makes sure every member and guest has what they need for a productive day.", image: qerjaValue("4348404", 900) },
+      { name: "Maya Rao", role: "Partnerships Lead", bio: "Maya brings teams, local businesses and the wider creative community together.", image: qerjaValue("774909", 900) },
+    ],
+    address: "42 Residency Road, Ashok Nagar, Bengaluru 560025",
+    page: {
+      ...base.page,
+      heroHeading: "Find Your Ideal Workspace",
+      heroSubHeading: "Choose a flexible desk, private office or team suite and make the workday your own.",
+      heroImage: qerjaPhoto(QERJA_PHOTOS.hero[0], 1900),
+      cardImage: qerjaPhoto(QERJA_PHOTOS.hero[1], 1100),
+    },
+    pageItems: items.map((item, index) => ({
+      ...item,
+      images: QERJA_PHOTOS.spaces.slice(index * 2, index * 2 + 3).map((id) => qerjaValue(id)),
+    })),
+  };
+})();
+
 const demoBusinessFor = (kind: ServiceKind, themeVariant: string): DemoBusiness => {
   if (themeVariant === "tastyc" && kind === "menu") return TASTYC_DEMO_BUSINESS;
   if (themeVariant === "grandbar" && kind === "menu") return GRAND_BAR_DEMO_BUSINESS;
   if (themeVariant === "flowspace" && kind === "meeting") return FLOWSPACE_DEMO_BUSINESS;
   if (themeVariant === "workscape" && kind === "meeting") return WORKSCAPE_DEMO_BUSINESS;
   if (themeVariant === "worpace" && kind === "workspace") return WORPACE_DEMO_BUSINESS;
+  if (themeVariant === "qerja" && kind === "workspace") return QERJA_DEMO_BUSINESS;
   if (themeVariant === "travigo" && kind === "hostel") return TRAVIGO_DEMO_BUSINESS;
   if (themeVariant === "lodge" && kind === "hostel") return LODGE_DEMO_BUSINESS;
   if (themeVariant === "tulum" && kind === "coLiving") return tulumDemo;
@@ -747,7 +795,7 @@ export const buildDemoPreviewDraft = (themeVariant: string, serviceNames: string
     email: `hello@${handle}.com`,
     phone: "+91 98765 43210",
     address: primary.address,
-    mapUrl: "https://www.openstreetmap.org/export/embed.html?bbox=77.58%2C12.96%2C77.65%2C12.99&layer=mapnik",
+    mapUrl: themeVariant === "qerja" ? `https://www.google.com/maps?q=${encodeURIComponent(primary.address)}&output=embed` : "https://www.openstreetmap.org/export/embed.html?bbox=77.58%2C12.96%2C77.65%2C12.99&layer=mapnik",
     contactPersonName: primary.contactPersonName,
     contactPersonRole: primary.contactPersonRole,
     contactPersonEmail: `${primary.contactPersonName.split(" ")[0].toLowerCase()}@${handle}.com`,

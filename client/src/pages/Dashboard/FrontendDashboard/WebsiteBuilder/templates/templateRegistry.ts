@@ -19,6 +19,7 @@ import GrandBarTemplate from "./grandbar/GrandBarTemplate";
 import FlowspaceTemplate from "./flowspace/FlowspaceTemplate";
 import WorpaceTemplate from "./worpace/WorpaceTemplate";
 import WorkscapeTemplate from "./workscape/WorkscapeTemplate";
+import QerjaTemplate from "./qerja/QerjaTemplate";
 import type { ServiceKind } from "./verticalProfiles";
 
 export interface TemplateDefinition {
@@ -308,6 +309,21 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       fg: "#11110f",
       accent: "#11110f",
       font: "'Inter', sans-serif",
+    },
+    recommendedFor: ["workspace"],
+    supportsBooking: true,
+  },
+  qerja: {
+    id: "qerja",
+    name: "Qerja",
+    description:
+      "Confident modern coworking design — deep teal, bright yellow accents, image-led storytelling, flexible space discovery, community proof and polished enquiry flows.",
+    component: QerjaTemplate,
+    swatch: {
+      bg: "#ffffff",
+      fg: "#003f3a",
+      accent: "#f3c441",
+      font: "'Manrope', sans-serif",
     },
     recommendedFor: ["workspace"],
     supportsBooking: true,
