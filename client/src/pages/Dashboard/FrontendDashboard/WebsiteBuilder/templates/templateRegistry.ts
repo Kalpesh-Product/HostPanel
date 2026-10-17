@@ -14,6 +14,7 @@ import TravigoTemplate from "./travigo/TravigoTemplate";
 import TulumTemplate from "./tulum/TulumTemplate";
 import GrindelwaldTemplate from "./grindelwald/GrindelwaldTemplate";
 import LodgeTemplate from "./lodge/LodgeTemplate";
+import CaliHostelTemplate from "./caliHostel/CaliHostelTemplate";
 import TastycTemplate from "./tastyc/TastycTemplate";
 import GrandBarTemplate from "./grandbar/GrandBarTemplate";
 import FlowspaceTemplate from "./flowspace/FlowspaceTemplate";
@@ -204,6 +205,21 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       fg: "#1c1f21",
       accent: "#7fa388",
       font: "'Inter', sans-serif",
+    },
+    recommendedFor: ["hostel"],
+    supportsBooking: true,
+  },
+  "cali-hostel": {
+    id: "cali-hostel",
+    name: "Cali Hostel",
+    description:
+      "Cinematic social-hostel style — floating pill navigation, immersive photography, editorial room rows, sticky story scenes and a playful hostel-stamp loader.",
+    component: CaliHostelTemplate,
+    swatch: {
+      bg: "#f2eadb",
+      fg: "#171711",
+      accent: "#e86d43",
+      font: "'Instrument Serif', Georgia, serif",
     },
     recommendedFor: ["hostel"],
     supportsBooking: true,

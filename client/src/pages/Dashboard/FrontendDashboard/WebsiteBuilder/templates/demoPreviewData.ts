@@ -22,6 +22,7 @@ const TEMPLATE_KIND: Record<string, ServiceKind> = {
   wayfarer: "hostel",
   travigo: "hostel",
   lodge: "hostel",
+  "cali-hostel": "hostel",
   haven: "coLiving",
   camelia: "coLiving",
   tulum: "coLiving",
@@ -692,6 +693,84 @@ const QERJA_DEMO_BUSINESS: DemoBusiness = (() => {
   };
 })();
 
+// Cali Hostel has its own sun-washed, people-first photo library so it never
+// repeats the room imagery or travel tone of Wayfarer, Travigo or Lodge.
+const caliPhoto = (id: string, width = 1600) =>
+  `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=${width}`;
+const caliValue = (id: string, width = 1200) => ({ url: caliPhoto(id, width) });
+const CALI_HOSTEL_PHOTOS = {
+  hero: ["4907181", "5158948", "7969104"],
+  rooms: [
+    "5137980", "7969098", "4907181", "7969104", "4907199",
+    "4907207", "4907208", "4907229", "4907175", "5158948",
+    "4907190", "4907236", "4907235", "4907429", "5158945",
+    "7969106", "7969099", "4907179", "4907183", "4907617",
+  ],
+  life: ["5158948", "4907175", "4907179", "4907183", "4907617", "7969106", "7969099", "7969104", "4907207", "4907199", "4907181", "4907229"],
+};
+const CALI_HOSTEL_DEMO_BUSINESS: DemoBusiness = (() => {
+  const base = DEMO_BUSINESSES.hostel;
+  const rooms = ((base.extra as any).dorms || []) as any[];
+  const roomNames = ["Sunset Social Dorm", "The Quiet Six", "Women’s Garden Dorm", "Private Hideaway"];
+  const roomCopy = [
+    "An airy mixed dorm with privacy curtains, reading lights and room for easy conversation before the day begins.",
+    "Six calm bunks, generous lockers and a quieter position in the house for travellers who take sleep seriously.",
+    "A light-filled women-only dorm beside the garden, with ensuite access and thoughtful personal storage.",
+    "A warm private room for two with a queen bed, its own bathroom and all the energy of the hostel just downstairs.",
+  ];
+  return {
+    ...base,
+    companyName: "Marea House",
+    title: "Come for the coast. Stay for the people.",
+    subTitle: "Social rooms, deep sleep and good stories in the middle of everything.",
+    cta: "Find Your Bed",
+    heroImages: CALI_HOSTEL_PHOTOS.hero.map((id) => caliPhoto(id, 2000)),
+    gallery: [...CALI_HOSTEL_PHOTOS.life, ...CALI_HOSTEL_PHOTOS.rooms].map((id) => caliPhoto(id, 1500)),
+    aboutImages: [CALI_HOSTEL_PHOTOS.life[0], CALI_HOSTEL_PHOTOS.life[4], CALI_HOSTEL_PHOTOS.life[6]].map((id) => caliPhoto(id, 1300)),
+    address: "18 Palm Grove Road, Anjuna, Goa 403509",
+    aboutTitle: "A house made for crossing paths",
+    aboutPageStory: "Marea House began with a simple idea: travelling alone should never feel lonely. We turned a sun-washed old house into a relaxed base for people who want proper rest, honest local tips and new company when they want it.",
+    about: [
+      "Our rooms are designed for sleep first—solid bunks, privacy curtains, quiet corners and space for your things.",
+      "Downstairs, the long table, garden and rooftop make it easy to meet without forcing the moment. Join in, head out, or take the afternoon for yourself.",
+    ],
+    founders: [
+      { name: "Nina D'Souza", role: "Founder & Host", bio: "Nina built Marea as the hostel she always hoped to find on the road: warm, useful and full of local character.", image: caliValue("3763188", 900) },
+      { name: "Kabir Menon", role: "House & Experience Lead", bio: "Kabir knows every beach bus, late-night food stop and sunrise route worth taking.", image: caliValue("2379004", 900) },
+      { name: "Lena Costa", role: "Community Host", bio: "Lena runs the shared table, walking plans and the little rituals that turn arrivals into friendships.", image: caliValue("733872", 900) },
+    ],
+    page: {
+      ...base.page,
+      heroHeading: "Beds made for real rest",
+      heroSubHeading: "Social dorms, quiet bunks and a private room—each with thoughtful details and no hotel stiffness.",
+      heroImage: caliPhoto(CALI_HOSTEL_PHOTOS.rooms[0], 1900),
+      cardImage: caliPhoto(CALI_HOSTEL_PHOTOS.rooms[4], 1200),
+    },
+    extra: {
+      ...base.extra,
+      // roomKind/genderPolicy/capacity/bedType/bathroom drive the listing chips (see
+      // buildChips in serviceAdapter.ts) — set explicitly per room instead of inheriting
+      // the base hostel's values, which belonged to differently-named rooms at these indexes
+      // and produced chips that contradicted these rooms' own names and descriptions.
+      dorms: rooms.slice(0, 4).map((room, index) => ({
+        ...room,
+        title: roomNames[index],
+        description: roomCopy[index],
+        price: ["850", "1,050", "1,150", "3,200"][index],
+        priceUnit: "night",
+        badge: index === 0 ? "Most social" : index === 2 ? "Women only" : "",
+        images: CALI_HOSTEL_PHOTOS.rooms.slice(index * 5, index * 5 + 5).map((id) => caliValue(id)),
+        features: ["Privacy curtain", "Personal reading light", "Lockable storage", "Fast Wi-Fi", index === 3 ? "Private bathroom" : "Hot shared showers", "Fresh linen"],
+        roomKind: index === 3 ? "private" : "dorm",
+        genderPolicy: index === 2 ? "female" : "mixed",
+        capacity: [6, 6, 4, 2][index],
+        bedType: index === 3 ? "queen" : "bunk",
+        bathroom: index === 2 || index === 3 ? "ensuite" : "shared",
+      })),
+    },
+  };
+})();
+
 const demoBusinessFor = (kind: ServiceKind, themeVariant: string): DemoBusiness => {
   if (themeVariant === "tastyc" && kind === "menu") return TASTYC_DEMO_BUSINESS;
   if (themeVariant === "grandbar" && kind === "menu") return GRAND_BAR_DEMO_BUSINESS;
@@ -701,6 +780,7 @@ const demoBusinessFor = (kind: ServiceKind, themeVariant: string): DemoBusiness 
   if (themeVariant === "qerja" && kind === "workspace") return QERJA_DEMO_BUSINESS;
   if (themeVariant === "travigo" && kind === "hostel") return TRAVIGO_DEMO_BUSINESS;
   if (themeVariant === "lodge" && kind === "hostel") return LODGE_DEMO_BUSINESS;
+  if (themeVariant === "cali-hostel" && kind === "hostel") return CALI_HOSTEL_DEMO_BUSINESS;
   if (themeVariant === "tulum" && kind === "coLiving") return tulumDemo;
   if (themeVariant === "grindelwald" && kind === "coLiving") return grindelwaldDemo;
   return DEMO_BUSINESSES[kind];
@@ -756,6 +836,10 @@ export const buildDemoPreviewDraft = (themeVariant: string, serviceNames: string
     searchKey: "demo-preview",
     companyId: "demo",
     workspaceId: "",
+    // Demo previews always show USD, independent of whoever's browsing the template
+    // gallery — a real company's own currency only kicks in once they've started
+    // building their own site (see useWebsiteTemplateData's workspace-currency fallback).
+    currency: "USD",
     themeVariant,
     // Camelia's hero plays a looping video when one is linked (see the builder's "Hero Video URL").
     // The sample clip is a placeholder for previews only; a real site sets its own link.
@@ -795,7 +879,7 @@ export const buildDemoPreviewDraft = (themeVariant: string, serviceNames: string
     email: `hello@${handle}.com`,
     phone: "+91 98765 43210",
     address: primary.address,
-    mapUrl: themeVariant === "qerja" ? `https://www.google.com/maps?q=${encodeURIComponent(primary.address)}&output=embed` : "https://www.openstreetmap.org/export/embed.html?bbox=77.58%2C12.96%2C77.65%2C12.99&layer=mapnik",
+    mapUrl: themeVariant === "qerja" || themeVariant === "cali-hostel" ? `https://www.google.com/maps?q=${encodeURIComponent(primary.address)}&output=embed` : "https://www.openstreetmap.org/export/embed.html?bbox=77.58%2C12.96%2C77.65%2C12.99&layer=mapnik",
     contactPersonName: primary.contactPersonName,
     contactPersonRole: primary.contactPersonRole,
     contactPersonEmail: `${primary.contactPersonName.split(" ")[0].toLowerCase()}@${handle}.com`,
