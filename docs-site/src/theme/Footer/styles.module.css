@@ -181,7 +181,7 @@
 }
 
 [data-theme='dark'] .footer {
-  background-color: #191a1c;
+  background-color: #242526;
   color: #f9fafb;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
 }
@@ -208,7 +208,7 @@
 }
 
 [data-theme='dark'] .bottomBar {
-  background-color: #191a1c;
+  background-color: #242526;
   border-top-color: #262626;
 }
 
