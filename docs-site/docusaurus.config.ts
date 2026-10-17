@@ -5,7 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
 const config: Config = {
-  title: 'HostPanel Docs',
+  title: 'HostPanel',
   tagline: 'Documentation for HostPanel Platform',
   favicon: 'img/favicon.png',
 
@@ -97,18 +97,20 @@ const config: Config = {
       respectPrefersColorScheme: true,
     },
     navbar: {
-      title: 'HostPanel Docs',
+      title: 'HostPanel',
       logo: {
         alt: 'HostPanel Logo',
         src: 'img/hostpanel-logo.svg',
         srcDark: 'img/hostpanel-logo-dark.svg',
+        href: 'https://hostpanel.wono.co',
+        target: '_self',
       },
       items: [
         {
           type: 'docSidebar',
           sidebarId: 'tutorialSidebar',
           position: 'left',
-          label: 'Tutorial',
+          label: 'Docs',
         },
         // {to: '/blog', label: 'Blog', position: 'left'},
         // {
@@ -125,8 +127,8 @@ const config: Config = {
           title: 'Docs',
           items: [
             {
-              label: 'Tutorial',
-              to: '/intro',
+              label: 'Docs',
+              to: '/',
             },
           ],
         },
