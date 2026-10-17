@@ -6,7 +6,9 @@ import useAuth from "../hooks/useAuth";
 import useAxiosPrivate from "../hooks/useAxiosPrivate";
 import useDashboardAccess from "../hooks/useDashboardAccess";
 import { getNomadsApiBase } from "../hooks/useNomadListingCapacity";
-import { isModuleAllowedForMember } from "../routes/ModuleAccessGuard";
+import { hasEquivalentModuleId, isModuleAllowedForMember } from "../routes/ModuleAccessGuard";
+import { getProfileTabItemsForPlan } from "../pages/Profile/profileAccess";
+import { canSearchOrganizationUsers, getSearchDestinationKey, isAuthorizedChildPage } from "./HeaderSearchPalette.helpers";
 import { ROUTE_BY_ID } from "./Sidebar";
 
 interface SearchDestination {
@@ -22,7 +24,13 @@ interface SearchDestination {
 
 const RECENT_HISTORY_LIMIT = 3;
 const RECENT_HISTORY_KEY_PREFIX = "hostpanel:header-search:recent:";
-const AUTHORIZED_CHILD_PAGES = [
+const AUTHORIZED_CHILD_PAGES: Array<{
+  parentModuleId: string;
+  title: string;
+  route: string;
+  section: string;
+  requiredAccessAny?: string[];
+}> = [
   {
     parentModuleId: "website-builder",
     title: "Edit Website",
@@ -46,6 +54,88 @@ const AUTHORIZED_CHILD_PAGES = [
     title: "Careers",
     route: "/key-apps/website-builder/dynamic/careers",
     section: "Website Builder",
+  },
+  {
+    parentModuleId: "website-builder",
+    title: "Select Website Theme",
+    route: "/key-apps/website-builder/select-theme",
+    section: "Website Builder",
+  },
+  {
+    parentModuleId: "website-builder",
+    title: "Preview Website Theme",
+    route: "/key-apps/website-builder/view-theme",
+    section: "Website Builder",
+  },
+  {
+    parentModuleId: "website-builder",
+    title: "Website Live Demo",
+    route: "/key-apps/website-builder/live-demo",
+    section: "Website Builder",
+  },
+  {
+    parentModuleId: "website-builder",
+    title: "Create Website",
+    route: "/key-apps/website-builder/dynamic/create-website",
+    section: "Website Builder",
+  },
+  {
+    parentModuleId: "visitor-management",
+    title: "Visitor Frontdesk Action",
+    route: "/visitors/visitor-management/frontdesk-action",
+    section: "Visitor Management",
+    requiredAccessAny: [
+      "visitors_mode_standard",
+      "visitors_mode_workspace_tour",
+      "visitors_mode_walkin_booking",
+      "visitors_mode_verify_booking",
+    ],
+  },
+  {
+    parentModuleId: "visitor-management",
+    title: "Internal Visitors",
+    route: "/visitors/manage-visitors/internal-visitors",
+    section: "Visitor Management",
+    requiredAccessAny: ["visitors_manage_internal_visitors"],
+  },
+  {
+    parentModuleId: "visitor-management",
+    title: "External Clients",
+    route: "/visitors/manage-visitors/external-clients",
+    section: "Visitor Management",
+    requiredAccessAny: ["visitors_manage_external_clients"],
+  },
+  {
+    parentModuleId: "visitor-management",
+    title: "Visitor Team Members",
+    route: "/visitors/team-members",
+    section: "Visitor Management",
+    requiredAccessAny: ["visitor_team_members"],
+  },
+  {
+    parentModuleId: "visitor-management",
+    title: "Visitor Reports",
+    route: "/visitors/reports",
+    section: "Visitor Management",
+    requiredAccessAny: ["visitor_reports"],
+  },
+  {
+    parentModuleId: "team-management",
+    title: "Team Roster",
+    route: "/extra-common-modules/team-management/roster",
+    section: "Team Management",
+  },
+  {
+    parentModuleId: "team-management",
+    title: "Department SOPs",
+    route: "/extra-common-modules/team-management/sops",
+    section: "Team Management",
+  },
+  {
+    parentModuleId: "team-management",
+    title: "Department Policies",
+    route: "/extra-common-modules/team-management/policies",
+    section: "Team Management",
   },
 ];
 
@@ -92,12 +182,16 @@ const buildAuthorizedDestinations = ({
   grantedModuleIds,
   workspaceEnabledModuleIds,
   plan,
+  departmentNames = [],
+  userPermissions = [],
 }: {
   moduleMap: { sections: Array<{ sectionId?: string; sectionLabel?: string; items?: any[] }> };
   roleBand: string;
   grantedModuleIds: Set<string>;
   workspaceEnabledModuleIds: string[];
   plan: string;
+  departmentNames?: string[];
+  userPermissions?: string[];
 }): SearchDestination[] => {
   const destinationsByRoute = new Map<string, SearchDestination>();
 
@@ -144,7 +238,8 @@ const buildAuthorizedDestinations = ({
     Array.from(destinationsByRoute.values()).map((destination) => destination.moduleId),
   );
   AUTHORIZED_CHILD_PAGES.forEach((child) => {
-    if (!authorizedModuleIds.has(child.parentModuleId) || destinationsByRoute.has(child.route)) return;
+    if (!hasEquivalentModuleId(authorizedModuleIds, child.parentModuleId) || destinationsByRoute.has(child.route)) return;
+    if (!isAuthorizedChildPage(child, roleBand, grantedModuleIds, userPermissions)) return;
     Array.from(destinationsByRoute.entries()).forEach(([route, destination]) => {
       if (destination.title.trim().toLowerCase() === child.title.toLowerCase()) {
         destinationsByRoute.delete(route);
@@ -160,26 +255,35 @@ const buildAuthorizedDestinations = ({
     });
   });
 
-  // Profile is available to every authenticated user from the account menu,
-  // so it is intentionally independent of workspace module grants.
-  destinationsByRoute.set("/profile/my-profile", {
-    title: "Profile",
-    route: "/profile/my-profile",
-    moduleId: "profile",
-    section: "Account",
-    searchText: "profile my profile account".toLowerCase(),
-    resultType: "page",
+  // Profile is available to every authenticated user from the account menu, but
+  // which tabs are reachable follows profileAccess.ts (Company Profile and
+  // Plan & Billing are role/department gated) and the workspace plan.
+  getProfileTabItemsForPlan(plan, { roleBand, departmentNames }).forEach((profilePage) => {
+    destinationsByRoute.set(profilePage.route, {
+      title: profilePage.label,
+      route: profilePage.route,
+      moduleId: "profile",
+      section: "Account",
+      searchText: `${profilePage.label} profile account`.toLowerCase(),
+      resultType: "page",
+    });
   });
 
   return Array.from(destinationsByRoute.values()).sort((a, b) => a.title.localeCompare(b.title));
 };
 
-const HeaderSearchPalette = () => {
+const HeaderSearchPalette = ({ compact = false }: { compact?: boolean }) => {
   const { auth } = useAuth();
   const axiosPrivate = useAxiosPrivate();
   const navigate = useNavigate();
-  const { plan, roleBand, grantedModuleIds, workspaceEnabledModuleIds, moduleMap, isLoading } =
+  const { plan, roleBand, departmentNames, grantedModuleIds, workspaceEnabledModuleIds, moduleMap, isLoading } =
     useDashboardAccess();
+  const userPermissions = useMemo<string[]>(
+    () => Array.isArray((auth?.user as any)?.permissions?.permissions)
+      ? (auth?.user as any).permissions.permissions
+      : [],
+    [auth?.user],
+  );
 
   const inputRef = useRef<HTMLInputElement>(null);
   const paletteRef = useRef<HTMLDivElement>(null);
@@ -193,8 +297,8 @@ const HeaderSearchPalette = () => {
   const historyStorageKey = userId ? `${RECENT_HISTORY_KEY_PREFIX}${userId}` : null;
 
   const authorizedDestinations = useMemo(
-    () => buildAuthorizedDestinations({ moduleMap, roleBand, grantedModuleIds, workspaceEnabledModuleIds, plan }),
-    [moduleMap, roleBand, grantedModuleIds, workspaceEnabledModuleIds, plan],
+    () => buildAuthorizedDestinations({ moduleMap, roleBand, grantedModuleIds, workspaceEnabledModuleIds, plan, departmentNames, userPermissions }),
+    [moduleMap, roleBand, grantedModuleIds, workspaceEnabledModuleIds, plan, departmentNames, userPermissions],
   );
 
   const authorizedModuleById = useMemo(
@@ -217,9 +321,10 @@ const HeaderSearchPalette = () => {
       (auth?.user as any)?.workspaceId ||
       "",
   ).trim();
+  const canSearchUsers = canSearchOrganizationUsers(roleBand, grantedModuleIds);
 
-  const { data: recordDestinations = [], isFetching: isSearchingRecords } = useQuery<SearchDestination[]>({
-    queryKey: ["header-record-search", debouncedSearch, workspaceId, companyId, Array.from(authorizedModuleById.keys()).sort()],
+  const { data: recordSearchData, isFetching: isSearchingRecords } = useQuery<{ results: SearchDestination[]; hadFailure: boolean }>({
+    queryKey: ["header-record-search", debouncedSearch, workspaceId, companyId, roleBand, canSearchUsers, Array.from(authorizedModuleById.keys()).sort()],
     enabled: recordSearchEnabled && !isLoading,
     staleTime: 30_000,
     queryFn: async () => {
@@ -236,15 +341,15 @@ const HeaderSearchPalette = () => {
       if (authorizedModuleById.has("website-leads") && (workspaceId || companyId)) {
         requests.push(
           Promise.all([
-            axiosPrivate.get("/api/leads/get-leads", { params: { workspaceId, companyId, leadScope: "website" } }),
-            axiosPrivate.get("/api/leads/get-leads", { params: { workspaceId, companyId, leadScope: "nomads" } }),
+            axiosPrivate.get("/api/leads/get-leads", { params: { workspaceId, companyId, leadScope: "website", search: debouncedSearch, limit: 8 } }),
+            axiosPrivate.get("/api/leads/get-leads", { params: { workspaceId, companyId, leadScope: "nomads", search: debouncedSearch, limit: 8 } }),
           ]).then(([website, nomads]) => ({
             type: "lead",
             data: [...(Array.isArray(website?.data) ? website.data : []), ...(Array.isArray(nomads?.data) ? nomads.data : [])],
           })),
         );
       }
-      if (authorizedModuleById.has("organization-management")) {
+      if (authorizedModuleById.has("organization-management") && canSearchUsers) {
         requests.push(
           axiosPrivate.get("/api/organization/overview").then((response) => ({
             type: "user",
@@ -356,9 +461,11 @@ const HeaderSearchPalette = () => {
         }
       });
 
-      return results;
+      return { results, hadFailure: settled.some((outcome) => outcome.status === "rejected") };
     },
   });
+  const recordDestinations = useMemo(() => recordSearchData?.results || [], [recordSearchData?.results]);
+  const recordSearchHadError = Boolean(recordSearchData?.hadFailure);
 
   useEffect(() => {
     if (!historyStorageKey) {
@@ -487,7 +594,7 @@ const HeaderSearchPalette = () => {
   };
 
   return (
-    <div ref={paletteRef} className="relative flex w-full max-w-md items-center" onKeyDown={handleKeyDown}>
+    <div ref={paletteRef} className={`${compact && !open ? "relative w-10" : compact ? "fixed inset-x-4 top-16 z-[1600]" : "relative w-full max-w-md"} flex items-center`} onKeyDown={handleKeyDown}>
       <div className="relative flex h-10 min-w-0 flex-1 items-center">
         <Search className="pointer-events-none absolute left-3.5 z-10 text-slate-400" size={16} />
         <input
@@ -499,10 +606,10 @@ const HeaderSearchPalette = () => {
             setOpen(true);
           }}
           disabled={isLoading}
-          placeholder="Search pages..."
+          placeholder={compact && !open ? "" : "Search pages..."}
           aria-label="Search authorized pages"
           aria-expanded={open}
-          className="h-10 w-full rounded-lg border border-slate-200/60 bg-slate-50 pl-10 pr-16 text-[12px] font-pmedium text-[#0F172A] outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20"
+          className={`h-10 w-full rounded-lg border border-slate-200/60 bg-slate-50 pl-10 text-[12px] font-pmedium text-[#0F172A] outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 ${compact && !open ? "cursor-pointer pr-0 text-transparent" : "pr-16"}`}
         />
         {open ? (
           <button
@@ -514,11 +621,11 @@ const HeaderSearchPalette = () => {
           >
             <X size={16} />
           </button>
-        ) : (
+        ) : !compact ? (
           <kbd className="pointer-events-none absolute right-3 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-pmedium text-slate-400">
             Ctrl K
           </kbd>
-        )}
+        ) : null}
       </div>
 
       {open && (
@@ -537,7 +644,7 @@ const HeaderSearchPalette = () => {
               filteredDestinations.map((destination, index) => (
                 <button
                   type="button"
-                  key={destination.route}
+                  key={getSearchDestinationKey(destination)}
                   onMouseEnter={() => setActiveIndex(index)}
                   onClick={() => openDestination(destination)}
                   className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
@@ -565,7 +672,9 @@ const HeaderSearchPalette = () => {
                 {search.trim()
                   ? isSearchingRecords
                     ? "Searching pages and records..."
-                    : `No authorized pages or records match "${search.trim()}".`
+                    : recordSearchHadError
+                      ? "Some records could not be searched. Try again."
+                      : `No authorized pages or records match "${search.trim()}".`
                   : "No recent pages yet."}
               </div>
             )}
@@ -578,7 +687,7 @@ const HeaderSearchPalette = () => {
               <span className="pl-3">Esc Close</span>
             </div>
             <span className="ml-auto">
-              {filteredDestinations.length} page{filteredDestinations.length === 1 ? "" : "s"}
+              {filteredDestinations.length} result{filteredDestinations.length === 1 ? "" : "s"}
             </span>
           </div>
         </section>

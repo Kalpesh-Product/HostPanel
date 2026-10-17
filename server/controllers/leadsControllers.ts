@@ -26,6 +26,31 @@ const filterLeadsByScope = (leads, leadScope) => {
   return leads;
 };
 
+// Global-search support: apply the same word-prefix matching the header
+// palette uses, server-side, and cap the payload so a broad query can never
+// return the entire tenant lead set. The tenant filters above (workspaceId /
+// companyId / escalatedWorkspaceId) are always applied first, so this only
+// ever narrows data the caller was already allowed to see.
+const filterLeadSearchResults = (leads, search, limit) => {
+  const query = sanitizeValue(search).toLowerCase();
+  const requestedLimit = Number(limit);
+  const cappedLimit = Number.isFinite(requestedLimit)
+    ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 50)
+    : null;
+  const matches = (lead) =>
+    !query ||
+    [lead?.fullName, lead?.email, lead?.mobileNumber, lead?.companyName, lead?.productType, lead?.source]
+      .some((value) =>
+        sanitizeValue(value)
+          .toLowerCase()
+          .split(/[^a-z0-9@.+-]+/)
+          .filter(Boolean)
+          .some((word) => word.startsWith(query)),
+      );
+  const filtered = leads.filter(matches);
+  return cappedLimit ? filtered.slice(0, cappedLimit) : filtered;
+};
+
 const filterEscalatedLeadsForWorkspace = (leads, workspaceId) => {
   const normalizedWorkspaceId = sanitizeValue(workspaceId);
   if (!normalizedWorkspaceId) return [];
@@ -98,6 +123,8 @@ const resolveWorkspaceIdFromCompany = async (companyId) => {
 export const getLeads = async (req, res, next) => {
   try {
     const leadScope = sanitizeValue(req.query?.leadScope).toLowerCase();
+    const search = sanitizeValue(req.query?.search);
+    const limit = req.query?.limit;
     const isNomadsScope = leadScope === "nomads";
     const requestedWorkspaceId =
       sanitizeValue(req.query?.workspaceId) ||
@@ -227,13 +254,13 @@ export const getLeads = async (req, res, next) => {
         return bDate - aDate;
       });
       if (remote.length > 0) {
-        return res.status(200).json(remote);
+        return res.status(200).json(filterLeadSearchResults(remote, search, limit));
       }
     } catch (error) {
       // fall back to local leads
     }
 
-    return res.status(200).json(mappedLocal);
+    return res.status(200).json(filterLeadSearchResults(mappedLocal, search, limit));
   } catch (error) {
     console.error("Get Leads Error:", error);
 
