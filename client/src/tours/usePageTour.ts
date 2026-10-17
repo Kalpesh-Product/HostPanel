@@ -170,6 +170,9 @@ const buildSteps = (tour: NonNullable<ReturnType<typeof getBasicPageTour>>): Tou
 
 export default function usePageTour() {
   const location = useLocation();
+  const suppressAutomaticTour = Boolean(
+    (location.state as Record<string, unknown> | null)?.suppressPageTourAutoStart,
+  );
   const axios = useAxiosPrivate();
   const queryClient = useQueryClient();
   const { auth } = useAuth();
@@ -346,6 +349,7 @@ export default function usePageTour() {
       isProgressLoading ||
       (!isTenantUser && access.plan !== "basic" && access.plan !== "professional" && access.plan !== "custom") ||
       !currentTour ||
+      suppressAutomaticTour ||
       // Manual-only tours (autoStart: false) never play on page load;
       // they run only through the Guide button above.
       currentTour.autoStart === false ||
@@ -378,6 +382,7 @@ export default function usePageTour() {
     isProgressLoading,
     progress,
     startCurrentTour,
+    suppressAutomaticTour,
     user?.tenantRole,
     userScope,
   ]);

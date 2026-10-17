@@ -904,11 +904,13 @@ useEffect(() => {
       void loadSidebarData();
     };
     // const intervalId = window.setInterval(refresh, 5000);
+    window.addEventListener("organization:updated", refresh);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => {
       active = false;
       // window.clearInterval(intervalId);
+      window.removeEventListener("organization:updated", refresh);
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
