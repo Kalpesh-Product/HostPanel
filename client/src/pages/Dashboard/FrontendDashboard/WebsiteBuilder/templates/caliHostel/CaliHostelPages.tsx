@@ -1,0 +1,39 @@
+import React from "react";
+import { getCareersJobMeta, getCareersJobTitle } from "../useWebsiteTemplateData";
+import { ApplyForm, MessageForm, RoleSection } from "../shared/TplForms";
+import { FaqSection } from "../shared/TplParts";
+import { useTpl } from "../shared/TplContext";
+import { ChArrow, ChLabel, ChPageHero, ChPhoto, ChReveal } from "./CaliHostelUI";
+
+const img = (value: any) => typeof value === "string" ? value : value?.url || "";
+
+export const CaliHostelAbout: React.FC = () => {
+  const { t, draft, navLabel, c } = useTpl();
+  const photos = ((draft?.aboutPageImages || []) as any[]).map(img).filter(Boolean).concat(t.galleryItems || []);
+  const team = t.aboutPageImageCards || [];
+  const founders = t.founders || [];
+  return <><ChPageHero eyebrow={c("about.eyebrow", "The Marea story")} title={navLabel("about", draft?.aboutTitle || "Built for the in-between moments")} text={t.aboutIntroBlocks?.[0]} image={photos[0]} /><section className="ch-dark ch-about-story"><div className="ch-shell"><ChReveal><h2>{c("about.story.title", "We made the hostel we wanted to find.")}</h2></ChReveal><div className="ch-about-collage"><ChReveal><ChPhoto src={photos[1]} alt="Hostel life" /></ChReveal><ChReveal delay={0.1}><p>{t.aboutIntroBlocks?.slice(1).join("\n\n") || draft?.aboutPageStory}</p></ChReveal><ChReveal delay={0.16}><ChPhoto src={photos[2]} alt="Travellers at the hostel" /></ChReveal></div></div></section>{t.aboutNarrativeBlocks?.length ? <section className="ch-purpose"><div className="ch-shell ch-purpose-grid"><ChReveal className="ch-purpose-intro"><ChLabel>{c("about.values.eyebrow", "Why we are here")}</ChLabel><h2>{c("about.values.title", "Our mission, our vision, our way.")}</h2><ChPhoto src={photos[3] || photos[1]} alt="Life together at the hostel" /></ChReveal><div className="ch-purpose-list">{t.aboutNarrativeBlocks.map((block: any, index: number) => <ChReveal key={block.title} delay={index * 0.05}><article><span>{String(index + 1).padStart(2, "0")}</span><div><h3>{block.title}</h3><p>{block.body}</p></div></article></ChReveal>)}</div></div></section> : null}{founders.length || team.length ? <section className="ch-team"><div className="ch-shell"><ChReveal><ChLabel>{c("about.team.eyebrow", "The people behind the pillows")}</ChLabel><h2>{c("about.team.title", "Your local crew.")}</h2></ChReveal><div className="ch-team-grid">{[...founders, ...team].slice(0, 6).map((person: any, index: number) => <ChReveal key={`${person.name || person.title}-${index}`} delay={index * 0.04}><ChPhoto src={img(person.image)} alt={person.name || person.title} /><h3>{person.name || person.title}</h3><p>{person.role || person.description}</p></ChReveal>)}</div></div></section> : null}<FaqSection faqs={draft?.faqs} /></>;
+};
+
+export const CaliHostelGallery: React.FC = () => {
+  const { t, draft, navLabel } = useTpl(); const photos = t.galleryItems || [];
+  return <><ChPageHero eyebrow="Camera roll" title={draft?.galleryPageHeading || navLabel("gallery", "The days we keep")} text="Rooms, rooftops, new friends and the city just beyond our door." image={photos[0]} /><section className="ch-shell ch-gallery-page">{photos.map((src: string, index: number) => <ChReveal key={`${src}-${index}`} delay={(index % 4) * 0.04}><button type="button" onClick={() => t.openGalleryViewer(index)} className={index % 5 === 0 ? "is-wide" : index % 3 === 1 ? "is-tall" : ""}><img src={src} alt="" loading="lazy" /></button></ChReveal>)}</section></>;
+};
+
+export const CaliHostelTestimonials: React.FC = () => {
+  const { t, draft } = useTpl(); const reviews = t.testimonials || [];
+  return <><ChPageHero eyebrow="Guest book" title="Stories from the top bunk" text="Real notes from the people who slept, explored and stayed up talking here." image={t.galleryItems?.[3]} /><section className="ch-shell ch-reviews"><div className="ch-review-intro"><h2>{reviews.length ? `${reviews.length} shared stories` : "Be the first to leave a note"}</h2><button type="button" className="ch-pill-link" onClick={() => t.setReviewModalOpen(true)}>Write a review <ChArrow /></button></div>{reviews.map((review: any, index: number) => <ChReveal key={index}><blockquote><span>“</span><p>{review.comment || review.review || review.text}</p><footer><strong>{review.name || review.customerName || "Guest"}</strong><small>{"★".repeat(Math.max(1, Math.min(5, Number(review.rating) || 5)))}</small></footer></blockquote></ChReveal>)}</section></>;
+};
+
+const InquiryPage: React.FC<{ type: "partner" | "contact" }> = ({ type }) => {
+  const { t, draft, navLabel } = useTpl(); const partner = type === "partner";
+  return <><ChPageHero eyebrow={partner ? "Make something together" : "Drop us a line"} title={partner ? (draft?.partnerHeading || navLabel("partner", "Partner with the house")) : navLabel("contact", "Let’s plan your arrival")} text={partner ? (draft?.partnerIntro || "Local guide, creative brand or travel partner? Tell us what you have in mind.") : "Questions about rooms, arrival time or the neighbourhood? Our crew will help."} image={t.galleryItems?.[partner ? 5 : 4]} /><section className="ch-shell ch-inquiry"><div><ChLabel>{partner ? "Collaborate" : "Contact"}</ChLabel><h2>{partner ? "Good ideas travel better together." : "No call-centre scripts. Just real local humans."}</h2>{!partner ? <div className="ch-contact-list">{t.contactAddress ? <p><span>Find us</span>{t.contactAddress}</p> : null}{t.contactPhone ? <p><span>Call</span>{t.contactPhone}</p> : null}{t.contactEmail ? <p><span>Email</span>{t.contactEmail}</p> : null}</div> : null}</div><div className="ch-form-card"><MessageForm inquiryType={partner ? "Partnership" : "Contact"} submitLabel={partner ? "Send partnership idea" : "Send message"} success={partner ? "Thanks — our partnerships team will be in touch." : "Thanks — the hostel crew will reply soon."} /></div></section>{!partner && draft?.mapUrl ? <section className="ch-shell ch-contact-map"><iframe title="Map" src={draft.mapUrl} loading="lazy" /></section> : null}</>;
+};
+export const CaliHostelPartner = () => <InquiryPage type="partner" />;
+export const CaliHostelContact = () => <InquiryPage type="contact" />;
+
+export const CaliHostelCareers: React.FC = () => {
+  const { t, draft } = useTpl(); const job = t.careersApplyJob;
+  if (job) return <><ChPageHero eyebrow={job.department || "Join the crew"} title={getCareersJobTitle(job)} text={getCareersJobMeta(job)} image={t.galleryItems?.[2]} /><section className="ch-shell ch-job"><div><RoleSection title="About this role" text={job.aboutTheJob} /><RoleSection title="Key responsibilities" text={job.keyResponsibilities} asList /><RoleSection title="Requirements" text={job.requirements} asList /></div><aside className="ch-form-card"><button type="button" className="ch-back" onClick={t.closeCareersJob}>← All roles</button><h2>Apply to join us</h2><ApplyForm /></aside></section></>;
+  return <><ChPageHero eyebrow="Work where people meet" title={draft?.careersPageHeading || `Join ${draft?.companyName || "our crew"}`} text={draft?.careersPageIntro || t.careersFallbackIntro?.[0]} image={t.galleryItems?.[2]} /><section className="ch-shell ch-careers"><ChReveal><ChLabel>Open roles</ChLabel><h2>Bring your energy. We’ll teach the rest.</h2></ChReveal>{t.careersJobsLoading ? <p>Loading roles…</p> : t.careersJobs.length ? <div className="ch-role-list">{t.careersJobs.map((role: any, index: number) => <button type="button" key={index} onClick={() => t.openCareersJob(role)}><span>{getCareersJobMeta(role)}</span><strong>{getCareersJobTitle(role)}</strong><ChArrow /></button>)}</div> : <div className="ch-no-roles"><p>No listed roles today, but good people are always welcome.</p><button type="button" className="ch-pill-link" onClick={t.openCareersGeneralApply}>Send a general application <ChArrow /></button></div>}</section></>;
+};

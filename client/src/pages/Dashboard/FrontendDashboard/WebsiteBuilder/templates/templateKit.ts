@@ -1,6 +1,7 @@
 // Helpers shared by the new templates (Savor, Wayfarer, Haven).
 import type { CSSProperties } from "react";
 import { api } from "../../../../../utils/axios";
+import { getWorkspaceCurrencySymbol, normalizeWorkspaceCurrency } from "../../../../../lib/workspaceLocalization";
 import { buildThemeVars, resolveThemeColors } from "./templateTheme";
 import { contrastRatio, luminance, mix } from "./emeraldTheme";
 import { formatTime12h } from "./leadForms";
@@ -125,11 +126,29 @@ export const postWebsiteLead = (draft: any, fields: Record<string, unknown>) =>
     ...fields,
   });
 
-/** "₹500" + "per night" -> "₹500 / night". */
-export const priceWithUnit = (price: string, unit: string) => {
+// The currency every template's price display resolves to when a call site
+// doesn't pass one explicitly. Set once per render by useWebsiteTemplateData
+// from the draft's own currency (demo previews force "USD"; a real company's
+// builder preview falls back to their workspace currency), so the ~30
+// existing priceWithUnit(price, unit) call sites across every template don't
+// each need to thread a currency prop through. Defaults to USD rather than
+// the workspace-localization default of INR, so a price with no currency
+// context yet (old saved drafts, a stray demo path) reads as generic rather
+// than assuming India.
+let activeTemplateCurrency = "USD";
+export const setActiveTemplateCurrency = (currency?: string) => {
+  const trimmed = String(currency || "").trim();
+  activeTemplateCurrency = trimmed ? normalizeWorkspaceCurrency(trimmed) : "USD";
+};
+
+/** "500" + "per night" -> "₹500 / night" (symbol resolved from the active/given currency, any symbol already in `price` is replaced). */
+export const priceWithUnit = (price: string, unit: string, currency?: string) => {
   if (!price) return "";
   const cleaned = String(unit || "").replace(/^per\s+/i, "").replace(/^\/\s*/, "").trim();
-  return cleaned ? `${price} / ${cleaned}` : price;
+  const numeric = String(price).replace(/^[^\d]+/, "").trim();
+  const symbol = getWorkspaceCurrencySymbol(currency || activeTemplateCurrency);
+  const priced = numeric ? `${symbol}${numeric}` : String(price);
+  return cleaned ? `${priced} / ${cleaned}` : priced;
 };
 
 /** Currency prefix of a free-text price ("₹1,200" -> "₹"). */

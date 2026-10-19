@@ -15,6 +15,27 @@ jobs:
         with:
           node-version: 20
 
+      - name: Write client .env
+        working-directory: client
+        run: |
+          cat <<EOF > .env
+          VITE_PROD_LINK=${VITE_PROD_LINK}
+          VITE_DEV_LINK=${VITE_DEV_LINK}
+          VITE_REDUX_PERSIST=${VITE_REDUX_PERSIST}
+          VITE_MASTER_PANEL_BE_URL=${VITE_MASTER_PANEL_BE_URL}
+          VITE_NOMADS_API_URL=${VITE_NOMADS_API_URL}
+          EOF
+        env:
+          VITE_PROD_LINK: ${{ secrets.VITE_PROD_LINK }}
+          VITE_DEV_LINK: ${{ secrets.VITE_DEV_LINK }}
+          VITE_REDUX_PERSIST: ${{ secrets.VITE_REDUX_PERSIST }}
+          VITE_MASTER_PANEL_BE_URL: ${{ secrets.VITE_MASTER_PANEL_BE_URL }}
+          VITE_NOMADS_API_URL: ${{ secrets.VITE_NOMADS_API_URL }}
+
+      - name: Debug env keys (names only, no values)
+        working-directory: client
+        run: grep -o '^[A-Za-z_]*' .env || true
+
       - name: Install and build frontend
         working-directory: client
         run: |
@@ -30,7 +51,17 @@ jobs:
 
       - name: Upload built frontend to EC2
         run: |
-          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key" client/dist/ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/ubuntu/apps/HostPanel/client/dist/
+          rsync -az --omit-dir-times --no-perms --no-owner --no-group -e "ssh -i ~/.ssh/deploy_key" client/dist/ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/ubuntu/apps/HostPanel/client/dist/
+
+      - name: Build docs
+        working-directory: docs-site
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload docs to EC2
+        run: |
+          rsync -az --delete --omit-dir-times --no-perms --no-owner --no-group -e "ssh -i ~/.ssh/deploy_key" docs-site/build/ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/ubuntu/apps/HostPanel/docs-site/build/
 
       - name: Update backend and restart
         run: |

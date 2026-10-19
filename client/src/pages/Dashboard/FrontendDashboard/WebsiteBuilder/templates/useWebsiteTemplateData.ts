@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Country, State, City } from "country-state-city";
 import { api } from "../../../../../utils/axios";
+import useWorkspacePreferences from "../../../../../hooks/useWorkspacePreferences";
+import { setActiveTemplateCurrency } from "./templateKit";
 
 const LIVE_PREVIEW_DRAFT_STORAGE_KEY = "website_builder_live_preview_draft";
 
@@ -287,6 +289,13 @@ export const useWebsiteTemplateData = () => {
   const navigate = useNavigate();
   const [draft, setDraft] = useState<any>(() => parsePreviewDraft(readPreviewDraftRaw()));
   const previewDraftRawRef = useRef<string | null>(readPreviewDraftRaw());
+
+  // Demo drafts carry their own currency (always "USD" — see buildDemoPreviewDraft) so every
+  // template preview reads the same regardless of who's browsing it. A real company's draft has
+  // none yet, so every template's price displays fall back to their actual workspace currency —
+  // set synchronously (not in an effect) so the first paint is already correct.
+  const workspacePreferences = useWorkspacePreferences();
+  setActiveTemplateCurrency(draft?.currency || workspacePreferences.currency);
 
   const [heroIndex, setHeroIndex] = useState(0);
   const [testimonialIndex, setTestimonialIndex] = useState(0);
