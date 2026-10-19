@@ -2,7 +2,7 @@ import React from "react";
 import { motion } from "../motion";
 import { priceWithUnit } from "../templateKit";
 import { useTpl } from "../shared/TplContext";
-import { ChArrow, ChLabel, ChPhoto, ChReveal } from "./CaliHostelUI";
+import { ChArrow, ChLabel, ChLifePhoto, ChPhoto, ChReveal } from "./CaliHostelUI";
 
 export const CaliHostelHome: React.FC = () => {
   const { t, draft, primary, services, openLead, goToItem, c, photo } = useTpl();
@@ -52,7 +52,7 @@ export const CaliHostelHome: React.FC = () => {
     <section className="ch-life ch-dark">
       <div className="ch-life-sticky"><ChLabel>{c("home.life.eyebrow", "Life at Marea")}</ChLabel><h2>{c("home.life.title", "A bed. A table. A city waiting.")}</h2><p>{c("home.life.sub", "The best hostel moments happen between plans—over breakfast, on the roof, or halfway through a story with someone you just met.")}</p></div>
       <div className="ch-life-scenes">
-        {[["01", "Wake up rested", gallery[4] || hero], ["02", "Share the long table", gallery[5] || hero], ["03", "Follow the local trail", gallery[6] || hero]].map(([n, title, src], index) => <ChReveal key={n} className={`ch-life-scene scene-${index + 1}`}><ChPhoto src={src} alt={title} /><div><span>{n}</span><h3>{title}</h3></div></ChReveal>)}
+        {[["01", "Wake up rested", gallery[4] || hero], ["02", "Share the long table", gallery[5] || hero], ["03", "Follow the local trail", gallery[6] || hero]].map(([n, title, src], index) => <ChReveal key={n} className={`ch-life-scene scene-${index + 1}`}><ChLifePhoto src={src} alt={title} index={index} /><div><span>{n}</span><h3>{title}</h3></div></ChReveal>)}
       </div>
     </section>
 
