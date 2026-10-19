@@ -332,7 +332,7 @@ const SECTION_ABBR: Record<string, string> = {
   "add-ons": "ADO",
 };
 
-const ROUTE_BY_ID: Record<string, string> = {
+export const ROUTE_BY_ID: Record<string, string> = {
   dashboard: "/dashboard",
   attendance: "/common-modules/attendance",
   "customer-support": "/common-modules/customer-support",

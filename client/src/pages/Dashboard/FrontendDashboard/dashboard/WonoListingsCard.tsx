@@ -15,7 +15,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Building2, Globe, Plus } from "lucide-react";
+import { ArrowRight, Building2, CheckCircle2, Clock3, Globe, Plus } from "lucide-react";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import useAuth from "../../../../hooks/useAuth";
 import useNomadListingCapacity, {
@@ -61,6 +61,8 @@ const WonoListingsCard = () => {
   // "bring in" by default — only still offer this while an actual claim
   // (pending/rejected) is in flight, so its status stays visible.
   const showVerifyCta = Boolean(claim?.status) || !hasListings;
+
+  const statusKey = !hasListings ? "pitch" : liveCount === 0 ? "reviewing" : isAtLimit ? "limit" : "live";
 
   let message;
   if (!hasListings) {
@@ -115,33 +117,57 @@ const WonoListingsCard = () => {
     );
   }
 
+  const statusHeading = statusKey === "reviewing"
+    ? "Listing review in progress"
+    : statusKey === "live"
+      ? "Your business is live"
+      : statusKey === "limit"
+        ? "Listing plan limit reached"
+        : "Create your first listing";
+  const nextActionLabel = statusKey === "reviewing"
+    ? "Complete Company Profile"
+    : statusKey === "live"
+      ? "Manage Listings"
+      : statusKey === "limit"
+        ? "Review Your Listings"
+        : "Create Your First Listing";
+  const nextActionRoute = statusKey === "reviewing" ? "/profile/company-profile" : LISTINGS_ROUTE;
+  const StatusIcon = statusKey === "reviewing" ? Clock3 : statusKey === "live" ? CheckCircle2 : Globe;
+
   return (
     <div
       data-tour="dashboard-wono-listings"
-      className={`flex flex-col gap-3 rounded-xl border-2 border-accent/40 bg-gradient-to-r from-blue-50 via-white to-blue-50 shadow-sm md:flex-row md:items-center ${
-        hasListings ? "p-3" : "p-4"
-      }`}
+      className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
     >
-      <div className="flex min-w-0 items-center gap-3">
-        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-accent text-white">
-          <Globe size={18} />
-        </span>
-        <p className="text-content font-pmedium text-slate-700">{message}</p>
-      </div>
-      <div className="flex flex-shrink-0 flex-wrap gap-2 md:ml-auto">
-        {hasListings && isAtLimit ? (
-          <span
-            title="Upgrade your plan to get more listings on wono.co"
-            className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-full border border-slate-300 bg-slate-100 px-3.5 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-500 whitespace-nowrap"
-          >
-            Plan limit reached
+      <div className="border-l-4 border-l-amber-500 p-4 sm:p-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+            <StatusIcon size={19} />
           </span>
-        ) : (
+          <div className="min-w-0">
+            <p className="text-[10px] font-pmedium uppercase tracking-widest text-amber-600">Account Status</p>
+            <h2 className="mt-0.5 text-sm font-pmedium text-slate-900 sm:text-base">{statusHeading}</h2>
+          </div>
+        </div>
+        <p className="mt-3 text-content font-pmedium leading-relaxed text-slate-600">{message}</p>
+
+        <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Recommended Next Action</p>
+            <p className="mt-0.5 text-content font-pmedium text-slate-800">{nextActionLabel}</p>
+          </div>
           <button
             type="button"
-            onClick={() => navigate(LISTINGS_ROUTE)}
-            className="inline-flex items-center gap-1.5 rounded-full border border-accent bg-accent px-3.5 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-white whitespace-nowrap hover:opacity-90"
+            onClick={() => navigate(nextActionRoute)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-wider text-white transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
+            {nextActionLabel} <ArrowRight size={14} />
+          </button>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 bg-slate-50/70 px-4 py-2.5 sm:px-5">
+        {hasListings && !isAtLimit && statusKey !== "reviewing" && (
+          <button type="button" onClick={() => navigate(LISTINGS_ROUTE)} className="inline-flex items-center gap-1.5 text-[10px] font-pmedium uppercase tracking-wider text-primary hover:underline">
             <Plus size={12} strokeWidth={3} /> Add Listings
           </button>
         )}
@@ -149,7 +175,7 @@ const WonoListingsCard = () => {
           <button
             type="button"
             onClick={() => navigate(LISTINGS_ROUTE, { state: { openVerify: true } })}
-            className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-white px-3.5 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-accent whitespace-nowrap hover:bg-blue-50"
+            className="inline-flex items-center gap-1.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-500 hover:text-primary"
           >
             <Building2 size={12} strokeWidth={3} /> {verifyLabel}
           </button>

@@ -5,15 +5,15 @@
  * dashboard widgets so it stays consistent with the other plan dashboards.
  * Upgrade nudge → opens the upgrade modal (Professional only).
  */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import WidgetSection from "../../../../components/WidgetSection";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import useAuth from "../../../../hooks/useAuth";
 import {
-  Globe, Users, Eye, UserPlus, FileText, Zap, ArrowRight, LayoutGrid,
+  Globe, Users, Eye, UserPlus, FileText, Zap, ArrowRight, LayoutGrid, X,
 } from "lucide-react";
 import {
   StatCard, QuickLink, SectionCard, RecentItem, DonutWidget, BarWidget,
@@ -25,7 +25,6 @@ import BonusTrialOfferNotice from "./BonusTrialOfferNotice";
 import { statusBadgeColor, humanRelTime, hasModuleUse, pickCardCols } from "./dashboardUtils";
 import { ICON_BY_ID, DEFAULT_SECTION_ROUTES } from "../ModuleCardsLanding";
 import type { WorkspaceModuleSection } from "../../../../hooks/useDashboardAccess";
-import dayjs from "dayjs";
 import PlanDashboardSkeleton from "./PlanDashboardSkeleton";
 
 interface BasicDashboardProps {
@@ -63,8 +62,6 @@ const BASIC_MODULE_COPY: Record<string, { description: string; color: string }> 
 // FY month labels Apr–Mar
 const FY_MONTHS = ["Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
 
-const fyMonthIndex = (date: Date) => (date.getMonth() + 9) % 12;
-
 // Lead pipeline stages — mirrors the statuses on the Website Leads page.
 const LEAD_STAGES = [
   { key: "Pending", label: "Pending", color: "#f59e0b" },
@@ -83,7 +80,6 @@ const GETTING_STARTED_STEPS = [
 ];
 
 const GettingStartedCard = () => {
-  const navigate = useNavigate();
   return (
     <div className="border-default rounded-xl overflow-hidden">
       <div className="p-4 border-b-2 border-borderGray uppercase">
@@ -91,10 +87,10 @@ const GettingStartedCard = () => {
       </div>
       <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
         {GETTING_STARTED_STEPS.map((step, i) => (
-          <div
+          <Link
             key={step.route}
-            className="flex items-start gap-3 p-3 rounded-xl border border-borderGray bg-white hover:border-primary hover:shadow-md cursor-pointer transition-all duration-200"
-            onClick={() => navigate(step.route)}
+            className="flex items-start gap-3 rounded-xl border border-borderGray bg-white p-3 transition-all duration-200 hover:border-primary hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            to={step.route}
           >
             <div
               className="flex items-center justify-center h-7 w-7 rounded-full text-white text-content font-pmedium flex-shrink-0"
@@ -106,7 +102,7 @@ const GettingStartedCard = () => {
               <p className="text-content font-pmedium text-gray-900">{step.label}</p>
               <p className="text-small text-gray-500 mt-0.5">{step.description}</p>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </div>
@@ -121,6 +117,27 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
   const workspaceId = selectedCompany?.workspaceId || auth?.user?.primaryWorkspace || auth?.user?.workspaceMembership?.workspace || auth?.user?.workspaceId || "";
   const companyId = selectedCompany?.companyId || auth?.user?.companyId || "";
 
+  // Dismissing the upgrade nudge is purely cosmetic (the banner's message
+  // never changes), so a per-browser flag is enough — no need for a
+  // server-side field. Keyed by workspace so switching workspaces doesn't
+  // carry the dismissal over.
+  const upgradeBannerStorageKey = `hostpanel_dashboard_upgrade_banner_dismissed:${workspaceId}`;
+  const [isUpgradeBannerDismissed, setIsUpgradeBannerDismissed] = useState(() => {
+    try {
+      return localStorage.getItem(upgradeBannerStorageKey) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const dismissUpgradeBanner = () => {
+    setIsUpgradeBannerDismissed(true);
+    try {
+      localStorage.setItem(upgradeBannerStorageKey, "1");
+    } catch {
+      // Best-effort only; worst case the banner reappears next visit.
+    }
+  };
+
   // A card only renders when its module is both included in the plan/
   // workspace (enabled axis) AND granted to the current member (access axis).
   const canUse = (id: string) => hasModuleUse(grantedModuleIds, enabledModuleIds, id);
@@ -128,13 +145,12 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
   const showLeads = canUse("website-leads");
   const showOrg = canUse("organization-management");
 
-  // ── Visitors (same endpoint as the Visitor Management terminal) ──────────────
-  const { data: visitorsRaw = [], isLoading: visitorsLoading } = useQuery({
-    queryKey: ["dashboard-visitors-basic"],
+  // ── Complete workspace metrics + the five most recent visitor records ──────
+  const { data: visitorDashboard, isLoading: visitorsLoading } = useQuery({
+    queryKey: ["dashboard-visitors-basic", workspaceId],
     queryFn: async () => {
-      const res = await axiosPrivate.get("/api/v1/visitors", { params: { limit: 100 } });
-      const visitors = res?.data?.data?.visitors ?? [];
-      return Array.isArray(visitors) ? visitors : [];
+      const res = await axiosPrivate.get("/api/v1/visitors/dashboard-summary");
+      return res?.data?.data ?? {};
     },
     staleTime: 5 * 60 * 1000,
     enabled: showVisitors,
@@ -153,32 +169,19 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
     staleTime: 5 * 60 * 1000,
   });
 
-  // ── Derived: visitor stats ─────────────────────────────────────────────────
-  const visitorStats = useMemo(() => {
-    const today = dayjs();
-    const todayVisitors = visitorsRaw.filter((v: any) => {
-      const d = v.checkInAt || v.createdAt || "";
-      return d && dayjs(d).isSame(today, "day");
-    });
-    const checkedIn = visitorsRaw.filter(
-      (v: any) => String(v.status || "").toLowerCase() === "checked_in",
-    ).length;
-    return {
-      todayCount: todayVisitors.length,
-      totalCount: visitorsRaw.length,
-      checkedIn,
-    };
-  }, [visitorsRaw]);
+  const visitorStats = {
+    todayCount: Number(visitorDashboard?.todayCount || 0),
+    totalCount: Number(visitorDashboard?.totalCount || 0),
+    checkedIn: Number(visitorDashboard?.checkedIn || 0),
+  };
 
   // ── Derived: monthly visitor trend (FY) ────────────────────────────────────
-  const visitorsByMonth = useMemo(() => {
-    const counts = new Array(12).fill(0);
-    visitorsRaw.forEach((v: any) => {
-      const d = new Date(v.checkInAt || v.createdAt || "");
-      if (!isNaN(d.getTime())) counts[fyMonthIndex(d)]++;
-    });
-    return [{ name: "Visitors", data: counts }];
-  }, [visitorsRaw]);
+  const visitorsByMonth = [{
+    name: "Visitors",
+    data: Array.isArray(visitorDashboard?.monthlyTrend)
+      ? visitorDashboard.monthlyTrend
+      : new Array(12).fill(0),
+  }];
 
   const visitorBarOptions = {
     chart: { toolbar: { show: false }, fontFamily: "Poppins-Regular" },
@@ -230,15 +233,9 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
   );
 
   // ── Recent visitors ────────────────────────────────────────────────────────
-  const recentVisitors = useMemo(
-    () => [...visitorsRaw]
-      .sort((a: any, b: any) =>
-        new Date(b.checkInAt || b.createdAt || 0).getTime() -
-        new Date(a.checkInAt || a.createdAt || 0).getTime()
-      )
-      .slice(0, 5),
-    [visitorsRaw],
-  );
+  const recentVisitors = Array.isArray(visitorDashboard?.recentVisitors)
+    ? visitorDashboard.recentVisitors
+    : [];
 
   // ── Quick actions — built from what this workspace actually has, not a
   // hand-picked subset. Walks the real module catalog, keeps only top-level
@@ -288,22 +285,38 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
     <div className="flex flex-col gap-5">
       <WonoListingsCard />
 
-      {/* Plan strip — compact, opens the upgrade modal */}
-      <div
-        data-tour="dashboard-plan"
-        className="flex items-center gap-3 p-4 rounded-xl border-2 border-accent/30 bg-blue-50 cursor-pointer hover:bg-blue-100 transition-colors"
-        onClick={onUpgradeClick}
-      >
-        <Zap size={18} className="text-accent flex-shrink-0" />
-        <p className="text-content font-pmedium text-blue-800 min-w-0 truncate">
-          You're on the <strong>Basic Plan</strong> — Upgrade to{" "}
-          <strong>Professional Plan</strong> for Meeting Room Bookings, Ticketing, Sales Modules & more.
-        </p>
-        <span className="ml-auto flex-shrink-0 px-3 py-1 rounded-full text-[10px] font-pmedium uppercase tracking-widest border bg-accent text-white border-accent whitespace-nowrap">
-          Upgrade ↑
-        </span>
-        <ArrowRight size={14} className="text-accent flex-shrink-0" />
-      </div>
+      {/* Plan strip — compact, opens the upgrade modal. Dismissible since its
+          message is static promotion, not a status the host needs to track. */}
+      {!isUpgradeBannerDismissed && (
+        <div
+          data-tour="dashboard-plan"
+          className="flex w-full items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5"
+        >
+          <button
+            type="button"
+            className="flex flex-1 min-w-0 items-center gap-2 text-left transition-colors hover:text-primary rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            onClick={onUpgradeClick}
+          >
+            <Zap size={18} className="text-accent flex-shrink-0" />
+            <p className="text-small font-pmedium text-slate-600 min-w-0 truncate">
+              Basic Plan · Unlock Meeting Rooms, Ticketing, Sales Modules and more.
+            </p>
+            <span className="ml-auto flex-shrink-0 text-[10px] font-pmedium uppercase tracking-widest text-primary whitespace-nowrap">
+              Explore plans
+            </span>
+            <ArrowRight size={14} className="text-accent flex-shrink-0" />
+          </button>
+          <button
+            type="button"
+            onClick={dismissUpgradeBanner}
+            title="Dismiss"
+            aria-label="Dismiss upgrade banner"
+            className="flex-shrink-0 p-1.5 text-blue-400 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          >
+            <X size={16} strokeWidth={2.5} />
+          </button>
+        </div>
+      )}
 
       <VerifiedBadgeNotice />
       <BonusTrialOfferNotice />

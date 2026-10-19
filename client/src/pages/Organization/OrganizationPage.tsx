@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   Building2, Plus, Trash2, X, Users, UserPlus, ArrowLeft,
@@ -258,6 +259,8 @@ function saveUserOwnerAccessSettings(user, accessState) {
 }
 
 export function OrganizationPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { auth } = useAuth();
   const axiosPrivate = useAxiosPrivate();
   const [currentUser, setCurrentUser] = useState(() => auth?.user || getStoredUser());
@@ -863,6 +866,20 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
       return matchesSearch && matchesStatus && matchesRole && matchesDepartment;
     });
   }, [teamMembers, searchQuery, statusFilter, deptRoleFilter, departments]);
+
+  useEffect(() => {
+    const searchRecord = location.state?.globalSearchRecord;
+    if (searchRecord?.type !== 'user' || isLoading) return;
+    const recordId = String(searchRecord?.record?.userId || searchRecord?.record?.id || searchRecord?.record?._id || '');
+    const matchingMember = teamMembers.find((member) =>
+      String(member?.userId || member?.id || member?._id || '') === recordId,
+    );
+    setActiveTab('users');
+    setView('list');
+    setSearchQuery(String(location.state?.globalSearchQuery || searchRecord?.record?.name || searchRecord?.record?.email || ''));
+    if (matchingMember) setViewingMember(matchingMember);
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
+  }, [isLoading, location.pathname, location.search, location.state, navigate, teamMembers]);
 
   const filteredTransferredTeamMembers = useMemo(() => {
     const normalizedSearch = searchQuery.toLowerCase().trim();
