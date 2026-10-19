@@ -5,30 +5,6 @@ import { isModuleLockedForPlan } from "../utils/workspacePlanAccess";
 import { getGatedModuleIdForPath } from "../utils/gatedModuleRoutes";
 import AccessDeniedPage from "../pages/AccessDeniedPage";
 
-// Mirrors Sidebar.tsx's ORG_CHILD_KEYS: a member granted any organization
-// sub-permission (Users/Departments tabs, invite, role change, access toggle,
-// department create/edit, manager assignment) sees Organization Management in
-// the sidebar even when the "organization-management" id itself isn't in their
-// grantedModules.
-const ORG_CHILD_KEYS = new Set([
-  "org-tab-users",
-  "org-tab-departments",
-  "org-users-invite-member",
-  "org-users-change-role",
-  "org-users-toggle-access",
-  "org-departments-create",
-  "org-departments-edit",
-  "org-departments-assign-manager",
-  "org-departments-assign-acting-manager",
-  "org-departments-remove-acting-manager",
-]);
-
-const normalizeModuleToken = (value: string) =>
-  String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[_\s]+/g, "-");
-
 // Same alias set as Sidebar.tsx (visitor-management/visitors-management) plus
 // the department fallbacks it resolves (administration-visitor-management ->
 // visitors-management, housekeeping -> house-keeping).
@@ -56,8 +32,7 @@ export const hasEquivalentModuleId = (ids: Set<string>, moduleId: string): boole
 // wrap each one individually. A route is only reachable when the module it
 // maps to would actually be unlocked for the current member in the sidebar:
 //   1. role axis  — founder/super_admin can see every enabled module; everyone
-//      else only what their grantedModules allow (plus Organization Management
-//      when any org sub-permission is granted),
+//      else only what their grantedModules allow,
 //   2. workspace/plan axis — the module must be enabled on this workspace and
 //      not hard-locked for the workspace's plan.
 // Tenant-portal routes use a separate access model and are skipped entirely.
@@ -114,19 +89,10 @@ export function isModuleAllowedForMember(
   // Role axis: founder/super_admin are the management bands — they get every
   // workspace-enabled module (mirroring the sidebar's founder-core-modules
   // section and the server granting super_admin the full enabled set by
-  // default). Every other band grants are the member's grantedModules, plus
-  // the Organization Management auto-add when any org sub-permission is held.
+  // default). Every other band only gets its explicitly granted parent module.
   const isManagementBand = roleBand === "owner" || roleBand === "super_admin";
-  const grantedNormalized = new Set(
-    Array.from(grantedModuleIds)
-      .map((id) => normalizeModuleToken(String(id || "")))
-      .filter(Boolean),
-  );
-  const hasOrgAutoAdd =
-    moduleId === "organization-management" &&
-    Array.from(ORG_CHILD_KEYS).some((key) => grantedNormalized.has(key));
   const roleUnlocked =
-    isManagementBand || hasOrgAutoAdd || hasEquivalentModuleId(grantedModuleIds, moduleId);
+    isManagementBand || hasEquivalentModuleId(grantedModuleIds, moduleId);
 
   // Plan axis: a few module ids are hard-locked for Basic even if the
   // workspace data still lists them as enabled (mirrors Sidebar's

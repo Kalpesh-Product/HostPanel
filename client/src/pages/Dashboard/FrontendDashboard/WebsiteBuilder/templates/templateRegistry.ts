@@ -14,8 +14,13 @@ import TravigoTemplate from "./travigo/TravigoTemplate";
 import TulumTemplate from "./tulum/TulumTemplate";
 import GrindelwaldTemplate from "./grindelwald/GrindelwaldTemplate";
 import LodgeTemplate from "./lodge/LodgeTemplate";
+import CaliHostelTemplate from "./caliHostel/CaliHostelTemplate";
 import TastycTemplate from "./tastyc/TastycTemplate";
+import GrandBarTemplate from "./grandbar/GrandBarTemplate";
 import FlowspaceTemplate from "./flowspace/FlowspaceTemplate";
+import WorpaceTemplate from "./worpace/WorpaceTemplate";
+import WorkscapeTemplate from "./workscape/WorkscapeTemplate";
+import QerjaTemplate from "./qerja/QerjaTemplate";
 import type { ServiceKind } from "./verticalProfiles";
 
 export interface TemplateDefinition {
@@ -114,6 +119,21 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
     recommendedFor: ["menu"],
     supportsBooking: true,
   },
+  grandbar: {
+    id: "grandbar",
+    name: "Grand Bar",
+    description:
+      "Nocturnal cocktail-bar design — centered seal, oversized serif typography, arched photography, menu discovery, location storytelling and polished reservations.",
+    component: GrandBarTemplate,
+    swatch: {
+      bg: "#0b1b22",
+      fg: "#f2eee7",
+      accent: "#aa8867",
+      font: "'Cormorant Garamond', Georgia, serif",
+    },
+    recommendedFor: ["menu"],
+    supportsBooking: true,
+  },
   wayfarer: {
     id: "wayfarer",
     name: "Wayfarer",
@@ -185,6 +205,21 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       fg: "#1c1f21",
       accent: "#7fa388",
       font: "'Inter', sans-serif",
+    },
+    recommendedFor: ["hostel"],
+    supportsBooking: true,
+  },
+  "cali-hostel": {
+    id: "cali-hostel",
+    name: "Cali Hostel",
+    description:
+      "Cinematic social-hostel style — floating pill navigation, immersive photography, editorial room rows, sticky story scenes and a playful hostel-stamp loader.",
+    component: CaliHostelTemplate,
+    swatch: {
+      bg: "#f2eadb",
+      fg: "#171711",
+      accent: "#e86d43",
+      font: "'Instrument Serif', Georgia, serif",
     },
     recommendedFor: ["hostel"],
     supportsBooking: true,
@@ -262,6 +297,51 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       font: "'Inter', sans-serif",
     },
     recommendedFor: ["meeting"],
+    supportsBooking: true,
+  },
+  workscape: {
+    id: "workscape",
+    name: "Workscape",
+    description:
+      "Bright editorial meeting-space design — modular photography, oversized offset headings, flexible room discovery and a polished booking flow.",
+    component: WorkscapeTemplate,
+    swatch: {
+      bg: "#ffffff",
+      fg: "#20201f",
+      accent: "#a99d93",
+      font: "'Inter', sans-serif",
+    },
+    recommendedFor: ["meeting"],
+    supportsBooking: true,
+  },
+  worpace: {
+    id: "worpace",
+    name: "Worpace",
+    description:
+      "High-contrast editorial co-working design — oversized typography, warm workspace photography, reservation-led hero, space discovery, community proof and refined motion.",
+    component: WorpaceTemplate,
+    swatch: {
+      bg: "#f7f7e8",
+      fg: "#11110f",
+      accent: "#11110f",
+      font: "'Inter', sans-serif",
+    },
+    recommendedFor: ["workspace"],
+    supportsBooking: true,
+  },
+  qerja: {
+    id: "qerja",
+    name: "Qerja",
+    description:
+      "Confident modern coworking design — deep teal, bright yellow accents, image-led storytelling, flexible space discovery, community proof and polished enquiry flows.",
+    component: QerjaTemplate,
+    swatch: {
+      bg: "#ffffff",
+      fg: "#003f3a",
+      accent: "#f3c441",
+      font: "'Manrope', sans-serif",
+    },
+    recommendedFor: ["workspace"],
     supportsBooking: true,
   },
   "warm-organic": {

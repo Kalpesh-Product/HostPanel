@@ -19,8 +19,9 @@ import { queryClient } from "../main";
 import usePageTour from "../tours/usePageTour";
 import PageGuideButton from "../tours/PageGuideButton";
 import PlanExpiryBanner from "../components/PlanExpiryBanner";
+import { RotateCw, Smartphone } from "lucide-react";
 
-const MainLayout = () => {
+const MainLayoutContent = () => {
   const { auth } = useAuth();
   const axios = useAxiosPrivate();
   const [showFooter, setShowFooter] = useState(false);
@@ -172,6 +173,34 @@ const MainLayout = () => {
       )} */}
     </div>
   );
+};
+
+const MainLayout = () => {
+  // Temporary: keep phone portrait mode locked until Host Panel is fully responsive.
+  const isPhonePortrait = useMediaQuery("(max-width: 767px) and (orientation: portrait)");
+
+  if (isPhonePortrait) {
+    return (
+      <main className="flex min-h-[100dvh] items-center justify-center bg-[#F7F8FA] px-6 py-10 text-center">
+        <section className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white px-6 py-10 shadow-sm">
+          <div className="relative mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-blue-50 text-[#1E3D73]">
+            <Smartphone size={38} strokeWidth={1.8} />
+            <RotateCw
+              size={24}
+              strokeWidth={2}
+              className="absolute -bottom-1 -right-1 rounded-full bg-[#1E3D73] p-1 text-white"
+            />
+          </div>
+          <h1 className="text-xl font-semibold text-slate-900">Rotate your device</h1>
+          <p className="mt-3 text-sm leading-6 text-slate-600">
+            Host Panel works in landscape mode on phones. Rotate your device to continue.
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  return <MainLayoutContent />;
 };
 
 export default MainLayout;

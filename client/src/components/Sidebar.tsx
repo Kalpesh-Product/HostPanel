@@ -332,7 +332,7 @@ const SECTION_ABBR: Record<string, string> = {
   "add-ons": "ADO",
 };
 
-const ROUTE_BY_ID: Record<string, string> = {
+export const ROUTE_BY_ID: Record<string, string> = {
   dashboard: "/dashboard",
   attendance: "/common-modules/attendance",
   "customer-support": "/common-modules/customer-support",
@@ -614,6 +614,7 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey
   const [isOpen, setIsOpen] = useState(item.defaultOpen !== false);
   const hasChildren = Boolean(item.children?.length);
   const isGroupOpen = forceOpen || isOpen;
+  const opensCollapsedDepartmentLanding = collapsed && hasChildren && sectionKey === "department-accesses";
   const isActive = (() => {
     if (!item.route) return false;
     if (item.id === "website-builder") {
@@ -637,6 +638,22 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey
 
   const handleClick = () => {
     if (hasChildren) {
+      if (opensCollapsedDepartmentLanding) {
+        onNavigate(
+          {
+            ...item,
+            route: `/module-sections/department-accesses/${item.id}`,
+            state: {
+              ...item.state,
+              fromSection: "department-accesses",
+              departmentId: item.id,
+              departmentLabel: item.label,
+            },
+          },
+          sectionKey,
+        );
+        return;
+      }
       setIsOpen((prev) => !prev);
       return;
     }
@@ -657,7 +674,7 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey
         isActive={isActive}
         disabled={item.disabled || !item.route}
         locked={Boolean(item.disabled)}
-        unavailable={!item.route}
+        unavailable={!item.route && !opensCollapsedDepartmentLanding}
         disabledTitle={item.disabledTitle}
         forceBold={hasChildren}
         forceSmall={!hasChildren && depth > 0}
@@ -887,11 +904,13 @@ useEffect(() => {
       void loadSidebarData();
     };
     // const intervalId = window.setInterval(refresh, 5000);
+    window.addEventListener("organization:updated", refresh);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => {
       active = false;
       // window.clearInterval(intervalId);
+      window.removeEventListener("organization:updated", refresh);
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
