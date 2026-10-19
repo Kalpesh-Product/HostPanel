@@ -1483,6 +1483,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
       const savedDepartment = response?.data?.data?.department || {};
       const savedDepartmentId = String(savedDepartment.id || editingDepartmentId).trim();
       await loadOrganization(savedDepartmentId || null);
+      window.dispatchEvent(new Event('organization:updated'));
       setShowDepartmentModal(false);
       setNewDepartmentForm({ departmentId: '', name: '', description: '', moduleIds: [] });
 
@@ -1529,6 +1530,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
         setView('list');
       }
       await loadOrganization();
+      window.dispatchEvent(new Event('organization:updated'));
     } catch (error) {
       console.error('Failed to delete custom department', error);
       toast.error((error as any)?.response?.data?.message || 'Failed to delete custom department.');

@@ -295,11 +295,9 @@ const Header = ({
             </div>
           </div>
         </div>
-        {!isMobile && (
-          <div className="w-full flex items-center pl-8">
-            <HeaderSearchPalette />
-          </div>
-        )}
+        <div className={isMobile ? "flex items-center" : "w-full flex items-center pl-8"}>
+          <HeaderSearchPalette compact={isMobile} />
+        </div>
         <div className="flex items-center gap-3 md:w-fit w-fit">
           <WorkspaceSwitcher />
           <button

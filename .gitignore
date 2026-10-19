@@ -13,3 +13,6 @@ WEBSITE_BUILDER_TEMPLATES_PLAN.md
 
 # Local product review notes
 documentation/
+
+# graphify codebase graph (regenerable local artifact)
+graphify-out/

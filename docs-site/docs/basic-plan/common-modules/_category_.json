@@ -1,0 +1,8 @@
+{
+  "label": "Common Modules",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "Baseline modules available to every workspace on the Basic plan."
+  }
+}

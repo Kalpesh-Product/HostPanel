@@ -10,7 +10,7 @@ import { DEMO_BUSINESSES } from "./demoContent";
 import { buildDemoPreviewDraft, defaultKindForTemplate } from "./demoPreviewData";
 import { SERVICE_CHOICES, serviceNameToKind } from "./serviceChoices";
 
-export const SAMPLE_TEMPLATE_IDS = ["savor", "tastyc", "flowspace", "workscape", "worpace", "wayfarer", "travigo", "tulum", "grindelwald", "lodge", "haven", "camelia", "commons", "huddle"];
+export const SAMPLE_TEMPLATE_IDS = ["savor", "tastyc", "grandbar", "flowspace", "workscape", "worpace", "qerja", "wayfarer", "travigo", "lodge", "cali-hostel", "tulum", "grindelwald", "haven", "camelia", "commons", "huddle"];
 
 export const hasSampleContent = (themeVariant?: string | null) =>
   SAMPLE_TEMPLATE_IDS.includes(String(themeVariant || "").trim());
