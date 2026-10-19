@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
-  CheckCircle2, Eye, Download, FileText, Globe, Mail, Phone, Search, Sparkles, Target, Users, X,
+  CheckCircle2, Eye, Download, FileText, Mail, Phone, Search, Sparkles, Target, Users, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -141,11 +141,6 @@ export default function CompanyLeads({ leadScope = "website" }) {
     [leads, selectedLeadId],
   );
 
-  const showPageGuide = () => {
-    const guideButton = document.querySelector<HTMLButtonElement>('[data-tour="page-guide-button"]');
-    guideButton?.click();
-  };
-
   useEffect(() => {
     const searchRecord = location.state?.globalSearchRecord;
     if (searchRecord?.type !== "lead" || isPending) return;
@@ -271,46 +266,9 @@ export default function CompanyLeads({ leadScope = "website" }) {
             </div>
 
             {visibleLeads.length === 0 ? (
-              <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center" data-tour="wb-leads-empty-state">
-                <div className={`mb-4 flex h-16 w-16 items-center justify-center rounded-full ${leads.length === 0 ? "bg-blue-50 text-[#2563EB]" : "bg-slate-50 text-slate-400"}`}>
-                  <Target size={28} />
-                </div>
-                <h3 className="text-[15px] font-pmedium text-slate-900">
-                  {leads.length === 0 ? "No leads yet" : `No matching ${pageTitle.toLowerCase()} found`}
-                </h3>
-                <p className="mt-2 max-w-md text-[12px] font-pmedium leading-relaxed text-slate-500">
-                  {leads.length === 0
-                    ? "Publish your website to start receiving enquiries. New submissions will appear here automatically."
-                    : "Try another search term or clear the current status and search filters."}
-                </p>
-                <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                  {leads.length === 0 ? (
-                    <Link
-                      to="/key-apps/website-builder"
-                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-wider text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
-                    >
-                      <Globe size={14} /> Publish Website
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearchQuery("");
-                        setStageFilter("All");
-                      }}
-                      className="inline-flex items-center justify-center rounded-lg bg-[#2563EB] px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-wider text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
-                    >
-                      Clear Filters
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={showPageGuide}
-                    className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[11px] font-pmedium text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-[#2563EB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
-                  >
-                    Show Page Guide
-                  </button>
-                </div>
+              <div className="flex flex-1 flex-col items-center justify-center px-6 py-20 text-center">
+                <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-400"><Target size={28} /></div>
+                <p className="text-slate-400 font-semibold">No matching {pageTitle.toLowerCase()} found.</p>
               </div>
             ) : (
               <div className="overflow-x-auto flex-1">
