@@ -53,6 +53,16 @@ jobs:
         run: |
           rsync -az --omit-dir-times --no-perms --no-owner --no-group -e "ssh -i ~/.ssh/deploy_key" client/dist/ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/ubuntu/apps/HostPanel/client/dist/
 
+      - name: Build docs
+        working-directory: docs-site
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload docs to EC2
+        run: |
+          rsync -az --delete --omit-dir-times --no-perms --no-owner --no-group -e "ssh -i ~/.ssh/deploy_key" docs-site/build/ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/ubuntu/apps/HostPanel/docs-site/build/
+
       - name: Update backend and restart
         run: |
           ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} '
