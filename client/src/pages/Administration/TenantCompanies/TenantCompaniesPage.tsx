@@ -1419,15 +1419,6 @@ export default function AdministrationTenantCompaniesPage() {
             </div>
           </div>
 
-          <div data-tour="admin-tenant-tabs" className="mt-8 mb-8 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-            <button
-              type="button"
-              className="flex-1 rounded-xl bg-[#2563EB] px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest text-white shadow-sm"
-            >
-              Tenant companies
-            </button>
-          </div>
-
           <div data-tour="admin-tenant-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8 shrink-0">
             {summaryCards.map((card) => {
               const Icon = card.icon;

@@ -957,7 +957,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
     description: "The administration directory of every onboarded tenant company — contracts, contacts, packages, and renewals in one place.",
     steps: [
       { selector: '[data-tour="admin-tenant-summary"]', title: "Directory totals", description: "Counts of tenants on file split into Total Tenants, Active Contracts, Expiring Soon, and Expired Contracts so renewal work stands out." },
-      { selector: '[data-tour="admin-tenant-tabs"]', title: "Filter by contract state", description: "Switch between All, Active, Expiring Soon, and Expired contracts to focus on records that need attention." },
+      { selector: '[data-tour="admin-tenant-status-filters"]', title: "Filter by contract state", description: "Switch between All, Active, Expiring Soon, and Expired contracts to focus on records that need attention." },
       { selector: '[data-tour="admin-tenant-search"]', title: "Find a company", description: "Search instantly by company name or contact person instead of scrolling the directory." },
       { selector: '[data-tour="admin-tenant-status-select"]', title: "Filter by package", description: "Narrow the directory to tenants contracted on one specific package." },
       { selector: '[data-tour="admin-tenant-table"]', title: "Directory and actions", description: "Each row shows company and contact details, contract period, package and credits, and status. View Details opens the complete profile, Edit Company Record corrects saved information, and Renew Contract extends duration or adds credits.", side: "top" },

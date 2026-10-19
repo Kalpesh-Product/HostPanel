@@ -3371,6 +3371,7 @@ export function MeetingRoomsPage() {
         from: '/meeting-rooms',
         intent: preset === 'tenant_inventory' ? 'add-tenant-inventory' : 'add-meeting-resource',
         openResourceModal: true,
+        suppressPageTourAutoStart: true,
         preset,
         resourceCategory: preset === 'tenant_inventory' ? 'open_desk' : 'meeting_room',
         inventoryMode: preset === 'tenant_inventory' ? 'area' : 'area',
