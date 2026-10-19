@@ -17,6 +17,7 @@ const TEMPLATE_KIND: Record<string, ServiceKind> = {
   grandbar: "menu",
   flowspace: "meeting",
   workscape: "meeting",
+  brixspace: "meeting",
   worpace: "workspace",
   qerja: "workspace",
   wayfarer: "hostel",
@@ -606,6 +607,55 @@ const WORKSCAPE_DEMO_BUSINESS: DemoBusiness = (() => {
   };
 })();
 
+// Brixspace uses a people-first, green-accented photo set that is separate from the
+// architectural Workscape and warm Flowspace meeting-room libraries.
+const BRIXSPACE_PHOTOS = {
+  hero: ["photo-1521737711867-e3b97375f902", "photo-1552664730-d307ca884978", "photo-1522071820081-009f0129c71c"],
+  rooms: [
+    "photo-1497366811353-6870744d04b2", "photo-1497366754035-f200968a6e72", "photo-1497366216548-37526070297c", "photo-1524758631624-e2822e304c36", "photo-1497215728101-856f4ea42174",
+    "photo-1505409859467-3a796fd5798e", "photo-1517245386807-bb43f82c33c4", "photo-1556761175-b413da4baf72", "photo-1556761175-4b46a572b786", "photo-1556761175-5973dc0f32e7",
+    "photo-1497366412874-3415097a27e7", "photo-1522202176988-66273c2fd55f", "photo-1524178232363-1fb2b075b655", "photo-1542744173-8e7e53415bb0", "photo-1551836022-d5d88e9218df",
+    "photo-1568992687947-868a62a9f521", "photo-1600508774634-4e11d34730e2", "photo-1504384308090-c894fdcc538d", "photo-1552664730-d307ca884978", "photo-1521737711867-e3b97375f902",
+    "photo-1517502884422-41eaead166d4", "photo-1524758631624-e2822e304c36", "photo-1497215842964-222b430dc094", "photo-1551836022-d5d88e9218df", "photo-1542744173-8e7e53415bb0",
+  ],
+};
+const BRIXSPACE_DEMO_BUSINESS: DemoBusiness = (() => {
+  const base = DEMO_BUSINESSES.meeting;
+  const rooms = ((base.extra as any).meetingRooms || []) as any[];
+  const names = ["Focus Room", "Huddle Studio", "Strategy Suite", "Boardroom", "Training Loft"];
+  const descriptions = [
+    "A calm two-to-four person room for interviews, one-to-ones and focused decisions.",
+    "A bright team room with a screen and whiteboard for quick workshops and weekly syncs.",
+    "A flexible collaboration suite for planning sessions, client reviews and project kick-offs.",
+    "A polished boardroom with dependable video conferencing for important presentations.",
+    "An adaptable studio for training days, facilitated workshops and larger team sessions.",
+  ];
+  return {
+    ...base,
+    companyName: "Brix Rooms",
+    title: "Connect, Collaborate, Grow Together",
+    subTitle: "Thoughtful meeting rooms, reliable technology and hospitality that helps every conversation move forward.",
+    cta: "Book Space",
+    heroImages: BRIXSPACE_PHOTOS.hero.map(id => photo(id, 2000)),
+    gallery: [...BRIXSPACE_PHOTOS.hero, ...BRIXSPACE_PHOTOS.rooms].map(id => photo(id, 1500)),
+    aboutImages: [BRIXSPACE_PHOTOS.hero[1], BRIXSPACE_PHOTOS.rooms[7], BRIXSPACE_PHOTOS.rooms[12]].map(id => photo(id, 1300)),
+    aboutTitle: "A better room for work that matters",
+    aboutPageStory: "Brix Rooms makes it easier for teams to gather, focus and make progress in spaces that feel considered from the moment they arrive.",
+    about: [
+      "We believe useful work starts with the right environment: calm, comfortable and ready before the first guest walks in.",
+      "Our team combines flexible layouts, reliable technology and genuine hospitality so every meeting can stay focused on its purpose.",
+    ],
+    founders: [
+      { name: "Anika Shah", role: "Founder & Space Director", bio: "Anika designs rooms around the way people actually meet, think and decide.", image: photoValue("photo-1494790108377-be9c29b29330", 900) },
+      { name: "Rohan Mehta", role: "Guest Experience Lead", bio: "Rohan makes sure every room, screen and coffee is ready before the team arrives.", image: photoValue("photo-1500648767791-00dcc994a43e", 900) },
+      { name: "Maya Iyer", role: "Community & Partnerships", bio: "Maya connects Brix Rooms with facilitators, local teams and growing businesses.", image: photoValue("photo-1534528741775-53994a69daeb", 900) },
+    ],
+    address: "42 Residency Road, Ashok Nagar, Bengaluru 560025",
+    page: { ...base.page, heroHeading: "Meeting spaces built for momentum", heroSubHeading: "Choose a focused room, flexible studio or polished boardroom and make it yours for the hour.", heroImage: photo(BRIXSPACE_PHOTOS.hero[0], 1900), cardImage: photo(BRIXSPACE_PHOTOS.hero[1], 1100) },
+    extra: { ...base.extra, meetingRooms: rooms.slice(0, 5).map((room, index) => ({ ...room, title: names[index], description: descriptions[index], price: ["650", "950", "1,400", "2,200", "3,200"][index], priceUnit: "hour", capacity: [4, 8, 12, 16, 30][index], images: BRIXSPACE_PHOTOS.rooms.slice(index * 5, index * 5 + 5).map(id => photoValue(id)) })) },
+  };
+})();
+
 // Worpace uses a distinct, natural-light editorial photo direction rather than Commons' bento imagery.
 const worpacePhoto = (id: string, width = 1600) =>
   `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=${width}`;
@@ -776,6 +826,7 @@ const demoBusinessFor = (kind: ServiceKind, themeVariant: string): DemoBusiness 
   if (themeVariant === "grandbar" && kind === "menu") return GRAND_BAR_DEMO_BUSINESS;
   if (themeVariant === "flowspace" && kind === "meeting") return FLOWSPACE_DEMO_BUSINESS;
   if (themeVariant === "workscape" && kind === "meeting") return WORKSCAPE_DEMO_BUSINESS;
+  if (themeVariant === "brixspace" && kind === "meeting") return BRIXSPACE_DEMO_BUSINESS;
   if (themeVariant === "worpace" && kind === "workspace") return WORPACE_DEMO_BUSINESS;
   if (themeVariant === "qerja" && kind === "workspace") return QERJA_DEMO_BUSINESS;
   if (themeVariant === "travigo" && kind === "hostel") return TRAVIGO_DEMO_BUSINESS;

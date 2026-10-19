@@ -775,6 +775,30 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContentDef> = {
     switches: [],
   },
 
+  brixspace: {
+    slots: [
+      text("home.hero.eyebrow", HOME, "Hero: small label", "Growth-sparking spaces"),
+      text("home.hero.title", HOME, "Hero: heading", "Connect, Collaborate, Grow Together"),
+      text("home.hero.body", HOME, "Hero: description", "Meeting rooms made for useful conversations, clear decisions and teams moving forward."),
+      image("home.hero.image", HOME, "Hero: main photograph"),
+      text("home.about.title", HOME, "About section: heading", "We build great work through better connections."),
+      text("home.about.body", HOME, "About section: description", "From a two-person interview to a thirty-person workshop, every room is prepared around the people and purpose inside it."),
+      text("home.rooms.title", HOME, "Room options: heading", "The ideal room, solo or with a team."),
+      text("home.rooms.body", HOME, "Room options: description", "Compare capacities, facilities and rates, then reserve the setting that fits your agenda."),
+      text("home.facilities.title", HOME, "Facilities: heading", "Every corner helps your meeting flow."),
+      text("home.location.title", HOME, "Location section: heading", "Your next great idea starts in the right room."),
+      text("home.why.title", HOME, "Why choose us: heading", "Where thoughtful teams come to meet."),
+      text("home.testimonials.title", HOME, "Testimonials: heading", "Good rooms make better stories."),
+      text("services.index.title", SERVICES, "Services page: heading", "A room for every kind of conversation."),
+      text("services.index.body", SERVICES, "Services page: description", "Compare flexible spaces for interviews, workshops, presentations and important decisions."),
+      text("about.title", OTHER, "About page: heading", "The room shapes what happens inside it."),
+      text("about.team.title", OTHER, "Team section: heading", "The people behind every prepared room."),
+      text("footer.cta", FOOTER, "Footer: call-to-action", "Ready to meet where you belong?"),
+      text("footer.about", FOOTER, "Footer: introduction", "Thoughtful meeting rooms, reliable technology and hospitality that keeps every conversation moving."),
+    ],
+    switches: [],
+  },
+
   worpace: {
     slots: [
       text("home.hero.title", HOME, "Hero: oversized title", "CREATIVE WORKSPACE"),
