@@ -19,20 +19,20 @@ const PlanExpiryBanner = ({ expiryDate, modulesAtRisk = [] }: PlanExpiryBannerPr
       })
     : "soon";
 
-  return (
-    <div className="w-full bg-amber-500 text-white text-xs sm:text-sm font-semibold text-center py-1.5 px-3 flex items-center justify-center gap-2 flex-wrap">
-      <span>
-        Your plan expires on {formattedDate}. You'll be downgraded to Basic
-        {modulesAtRisk.length ? ` and lose access to: ${modulesAtRisk.join(", ")}` : ""}.
-      </span>
-      <Link
-        to="/profile/plan-billing"
-        className="underline underline-offset-2 hover:text-amber-100"
-      >
-        Renew now
-      </Link>
-    </div>
-  );
+  // return (
+  //   <div className="w-full bg-amber-500 text-white text-xs sm:text-sm font-semibold text-center py-1.5 px-3 flex items-center justify-center gap-2 flex-wrap">
+  //     <span>
+  //       Your plan expires on {formattedDate}. You'll be downgraded to Basic
+  //       {modulesAtRisk.length ? ` and lose access to: ${modulesAtRisk.join(", ")}` : ""}.
+  //     </span>
+  //     <Link
+  //       to="/profile/plan-billing"
+  //       className="underline underline-offset-2 hover:text-amber-100"
+  //     >
+  //       Renew now
+  //     </Link>
+  //   </div>
+  // );
 };
 
 export default PlanExpiryBanner;

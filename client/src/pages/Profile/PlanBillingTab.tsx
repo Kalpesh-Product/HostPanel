@@ -319,7 +319,7 @@ const PlanBillingTab = () => {
         </div>
       </div>
 
-      {planStatus === "expiring_soon" && (
+      {/* {planStatus === "expiring_soon" && (
         <div className="rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 text-[12px] text-amber-800">
           {isTrialing ? (
             <>
@@ -335,7 +335,7 @@ const PlanBillingTab = () => {
             </>
           )}
         </div>
-      )}
+      )} */}
       {isTrialing && planStatus !== "expiring_soon" && (
         <div className="rounded-2xl bg-blue-50 border border-blue-200 px-4 py-3 text-[12px] text-blue-800">
           You're on a free trial of the {planLabel}, active until <b>{formatDate(summary?.planExpiryDate)}</b>.

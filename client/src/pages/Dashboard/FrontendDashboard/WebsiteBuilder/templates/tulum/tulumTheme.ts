@@ -128,4 +128,9 @@ ${WAYFARER_CSS}
 }
 `;
 
-export const TULUM_PALETTE = { bg: "#f1f1ed", text: "#6e7a73", accent: "#8a968f", secondary: "#d4d6ce" };
+export const TULUM_PALETTE = {
+  bg: "#f1f1ed",
+  text: "#6e7a73",
+  accent: "#8a968f",
+  secondary: "#d4d6ce",
+};
