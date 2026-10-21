@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
-  AlertTriangle, BadgeCheck, CheckCircle2, ExternalLink, Eye, EyeOff, FileText, Search, Sparkles, Star, Target, X, XCircle,
+  AlertTriangle, BadgeCheck, CheckCircle2, ExternalLink, Eye, EyeOff, FileText, Globe, Search, Sparkles, Star, Target, X, XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,9 +12,14 @@ import useAuth from "../../../../hooks/useAuth";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import { statusPillClass } from '../../../../lib/status-pill';
 import { WebsiteReviewsSkeleton } from '../../../../components/ui/Skeleton';
+import { isSameCompanyWebsite, resolveWebsiteEmptyAction } from './WebsiteBuilderReviews.helpers';
 
 const STATUSES = ["pending", "approved", "rejected"];
 const REVIEW_CACHE_KEY = "wbr_review_cache";
+
+// Shared empty-state action styling — mirrors the CompanyLeads empty state.
+const EMPTY_PRIMARY_ACTION_CLASS =
+  "inline-flex items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-wider text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2";
 
 function formatDate(raw) {
   if (!raw) return "—";
@@ -54,6 +60,7 @@ export default function WebsiteBuilderReviews() {
 
   const companyId = (selectedCompany?.companyId ?? auth?.user?.companyId ?? "").trim();
   const workspaceId = (selectedCompany?.workspaceId ?? auth?.user?.primaryWorkspace ?? auth?.user?.workspaceId ?? "").trim();
+  const companyName = (selectedCompany?.companyName ?? auth?.user?.companyName ?? "").trim();
 
   const { data: rawData, isPending, isError } = useQuery({
     queryKey: ["websiteReviews", companyId, workspaceId],
@@ -68,6 +75,22 @@ export default function WebsiteBuilderReviews() {
       return Array.isArray(raw) ? raw : [];
     },
   });
+
+  // Same website lookup CompanyLeads uses, so both pages agree on whether the
+  // host has no website, a saved draft, or a live site.
+  const { data: website = null, isPending: isWebsitePending, isError: isWebsiteError } = useQuery({
+    queryKey: ["companyWebsite", companyId, workspaceId, companyName],
+    enabled: !!(companyId || workspaceId || companyName),
+    queryFn: async () => {
+      const response = await axiosPrivate.get("/api/editor/get-websites", {
+        params: { companyId, workspaceId, businessName: companyName },
+      });
+      const websites = Array.isArray(response?.data) ? response.data : [];
+      return websites.find((item) => isSameCompanyWebsite(item, companyId, workspaceId, companyName)) || null;
+    },
+  });
+
+  const websiteAction = resolveWebsiteEmptyAction({ website, isWebsitePending, isWebsiteError });
 
   const [localCache, setLocalCache] = useState(() => {
     try {
@@ -154,6 +177,11 @@ export default function WebsiteBuilderReviews() {
     updateMutation.mutate(confirmAction);
     setConfirmAction(null);
     setSelectedReviewId(null);
+  };
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setStageFilter("all");
   };
 
   const reviewStats = useMemo(() => {
@@ -294,8 +322,50 @@ export default function WebsiteBuilderReviews() {
 
             {visibleReviews.length === 0 ? (
               <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
-                <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-400"><Target size={28} /></div>
-                <p className="text-slate-400 font-semibold">No matching reviews found.</p>
+                <div className={`mb-4 flex h-16 w-16 items-center justify-center rounded-full ${reviews.length === 0 ? "bg-blue-50 text-[#2563EB]" : "bg-slate-50 text-slate-400"}`}><Target size={28} /></div>
+                <h3 className="text-[15px] font-pmedium text-slate-900">
+                  {reviews.length === 0 ? "No reviews yet" : "No matching reviews found"}
+                </h3>
+                <p className="mt-2 max-w-md text-[12px] font-pmedium leading-relaxed text-slate-500">
+                  {reviews.length === 0
+                    ? websiteAction.kind === "pending"
+                      ? "Checking your website so we can show the right next step."
+                      : websiteAction.kind === "error"
+                        ? "Open Website Builder to check your website and choose the next step."
+                        : !website
+                          ? "Create your website to start collecting reviews. New reviews will appear here automatically."
+                          : websiteAction.isWebsitePublished
+                            ? "Your website is live and ready to collect reviews. New reviews will appear here automatically."
+                            : "Your website is saved but not live yet. Finish editing and publish it to start collecting reviews."
+                    : "Try another search term or clear the current status and search filters."}
+                </p>
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                  {reviews.length === 0 ? (
+                    <>
+                      <Link
+                        to={websiteAction.to}
+                        aria-disabled={websiteAction.disabled}
+                        className={`${EMPTY_PRIMARY_ACTION_CLASS} ${websiteAction.disabled ? "pointer-events-none opacity-60" : ""}`}
+                      >
+                        <Globe size={14} /> {websiteAction.label}
+                      </Link>
+                      {websiteAction.isWebsitePublished && websiteAction.publishedWebsiteUrl && (
+                        <a
+                          href={websiteAction.publishedWebsiteUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[11px] font-pmedium text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-[#2563EB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
+                        >
+                          <Eye size={14} /> View Live Website
+                        </a>
+                      )}
+                    </>
+                  ) : (
+                    <button type="button" onClick={clearFilters} className={EMPTY_PRIMARY_ACTION_CLASS}>
+                      Clear Filters
+                    </button>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="overflow-x-auto flex-1">

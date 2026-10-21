@@ -1,7 +1,8 @@
 // @ts-nocheck
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
-  AlertTriangle, BadgeCheck, CheckCircle2, Eye, EyeOff, FileText, Search, Sparkles, Star, Target, X, XCircle,
+  AlertTriangle, BadgeCheck, CheckCircle2, Eye, EyeOff, FileText, Layers, Search, Sparkles, Star, Target, X, XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -10,9 +11,15 @@ import { format, isValid } from "date-fns";
 import PageFrame from "../../../components/Pages/PageFrame";
 import useAuth from "../../../hooks/useAuth";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
+import useNomadListingCapacity from "../../../hooks/useNomadListingCapacity";
 import { statusPillClass } from '../../../lib/status-pill';
+import { resolveListingsEmptyAction } from "./CompanyReviews.helpers";
 
 const STATUSES = ["pending", "approved", "rejected"];
+
+// Shared empty-state action styling — mirrors the CompanyLeads empty state.
+const EMPTY_PRIMARY_ACTION_CLASS =
+  "inline-flex items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-wider text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2";
 
 function formatDate(raw) {
   if (!raw) return "—";
@@ -65,6 +72,27 @@ export default function CompanyReviews() {
 
   const companyId = (selectedCompany?.companyId ?? auth?.user?.companyId ?? "").trim();
   const workspaceId = (selectedCompany?.workspaceId ?? auth?.user?.primaryWorkspace ?? auth?.user?.workspaceId ?? "").trim();
+
+  // Nomads reviews only exist for active, public listings — reuse the listings
+  // query so the empty state can point at the right next step (add / manage /
+  // view) instead of always saying "View Listings".
+  const {
+    used: listingCount,
+    listings,
+    isPending: isListingsPending,
+    isError: isListingsError,
+  } = useNomadListingCapacity(companyId);
+
+  const activePublicListingCount = listings.filter(
+    (listing) => !listing?.isDeleted && listing?.isActive && listing?.isPublic,
+  ).length;
+
+  const listingsAction = resolveListingsEmptyAction({
+    isPending: isListingsPending,
+    isError: isListingsError,
+    listingCount,
+    activePublicListingCount,
+  });
 
   const { data: rawData, isPending, isError } = useQuery({
     queryKey: ["companyReviews", companyId],
@@ -124,6 +152,14 @@ export default function CompanyReviews() {
   const confirmReviewChange = () => {
     if (!confirmAction) return;
     updateMutation.mutate(confirmAction);
+  };
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setStageFilter("all");
+    setRatingFilter("all");
+    setTypeFilter("all");
+    setListingFilter("all");
   };
 
   const reviewStats = useMemo(() => {
@@ -343,8 +379,39 @@ export default function CompanyReviews() {
 
             {visibleReviews.length === 0 ? (
               <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
-                <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-400"><Target size={28} /></div>
-                <p className="text-slate-400 font-semibold">No matching reviews found.</p>
+                <div className={`mb-4 flex h-16 w-16 items-center justify-center rounded-full ${reviews.length === 0 ? "bg-blue-50 text-[#2563EB]" : "bg-slate-50 text-slate-400"}`}><Target size={28} /></div>
+                <h3 className="text-[15px] font-pmedium text-slate-900">
+                  {reviews.length === 0 ? "No reviews yet" : "No matching reviews found"}
+                </h3>
+                <p className="mt-2 max-w-md text-[12px] font-pmedium leading-relaxed text-slate-500">
+                  {reviews.length === 0
+                    ? listingsAction.kind === "pending"
+                      ? "Checking your listings so we can show the right next step."
+                      : listingsAction.kind === "error"
+                        ? "Open your listings to check their status and choose the next step."
+                        : listingsAction.kind === "add"
+                          ? "You don't have any Nomads listings yet. Add one and keep it active and public so visitors can leave reviews."
+                          : listingsAction.kind === "manage"
+                            ? "Your listings are saved but none are active and public yet. Activate a listing and switch it public so visitors can leave reviews."
+                            : "Your listings are active and public. Reviews visitors leave will appear here automatically."
+                    : "Try another search term or clear the current stage, rating, type, listing and search filters."}
+                </p>
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                  {reviews.length === 0 ? (
+                    <Link
+                      to={listingsAction.to}
+                      state={{ companyId }}
+                      aria-disabled={listingsAction.disabled}
+                      className={`${EMPTY_PRIMARY_ACTION_CLASS} ${listingsAction.disabled ? "pointer-events-none opacity-60" : ""}`}
+                    >
+                      <Layers size={14} /> {listingsAction.label}
+                    </Link>
+                  ) : (
+                    <button type="button" onClick={clearFilters} className={EMPTY_PRIMARY_ACTION_CLASS}>
+                      Clear Filters
+                    </button>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="overflow-x-auto flex-1">
