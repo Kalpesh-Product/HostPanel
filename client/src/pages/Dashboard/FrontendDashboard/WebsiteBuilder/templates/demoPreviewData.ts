@@ -1637,6 +1637,9 @@ const CAMELIA_DEMO_VIDEO =
 // Pexels "A Bartender Making A Cocktail Drink" (free to use, no attribution needed); HD, portrait.
 const GRAND_BAR_DEMO_VIDEO =
   "https://videos.pexels.com/video-files/7608984/7608984-hd_720_1280_25fps.mp4";
+// Pexels "Barista Crafting Latte Art in Coffee Shop"; used only by the Aromatica demo preview.
+const AROMATICA_DEMO_VIDEO =
+  "https://www.pexels.com/download/video/30090157/";
 
 const slugOf = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, "");
 
@@ -1713,7 +1716,9 @@ export const buildDemoPreviewDraft = (
             ? GRINDELWALD_DEMO_VIDEO
             : themeVariant === "grandbar"
               ? GRAND_BAR_DEMO_VIDEO
-              : "",
+              : themeVariant === "aromatica"
+                ? AROMATICA_DEMO_VIDEO
+                : "",
     styleConfig: {},
     sectionOverrides: {},
     vertical: primary.vertical,

@@ -34,10 +34,19 @@ export const AromaticaHome: React.FC = () => {
   const { t, draft, primary, testimonials, openLead, goToService, c, photo } =
     useAromatica();
   const [reviewIndex, setReviewIndex] = useState(0);
-  const hero = photo(
+  const [videoPlaying, setVideoPlaying] = useState(false);
+  const configuredHeroImages = (t.heroImages || [])
+    .map(mediaUrl)
+    .filter(Boolean);
+  const heroFallback = photo(
     "home.hero",
     mediaUrl(t.heroImages?.[0]) || primary?.heroImage || primary?.items[0]?.image,
   );
+  const heroSlides = configuredHeroImages.length > 1
+    ? configuredHeroImages
+    : [heroFallback].filter(Boolean);
+  const hero = heroSlides[t.heroIndex % heroSlides.length] || heroFallback;
+  const videoUrl = String(draft?.heroVideoUrl || "").trim();
   const products = useMemo(() => primary?.items || [], [primary?.items]);
   const gallery = (t.galleryItems || []).map(mediaUrl).filter(Boolean);
   const reviews = testimonials?.length
@@ -71,7 +80,18 @@ export const AromaticaHome: React.FC = () => {
   return (
     <>
       <section className="aroma-cafe-hero">
-        <AromaImage src={hero} alt="Friends sharing coffee at the cafe" eager />
+        <AnimatePresence initial={false}>
+          <motion.div
+            className="aroma-cafe-hero-media"
+            key={hero}
+            initial={{ opacity: 0, scale: 1.04 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <AromaImage src={hero} alt="Friends sharing coffee at the cafe" eager />
+          </motion.div>
+        </AnimatePresence>
         <div className="aroma-cafe-hero-shade" />
         <div className="aroma-shell aroma-cafe-hero-copy">
           <motion.p
@@ -261,23 +281,42 @@ export const AromaticaHome: React.FC = () => {
       </section>
 
       <section className="aroma-video-story">
-        <motion.div
-          initial={{ scale: 1.08 }}
-          whileInView={{ scale: 1 }}
-          viewport={{ once: true, amount: 0.2 }}
-          transition={{ duration: 1.3, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <AromaImage src={videoPoster} alt="Barista pouring latte art" />
-        </motion.div>
-        <div className="aroma-video-shade" />
-        <button
-          type="button"
-          aria-label="Open cafe gallery"
-          onClick={() => t.goToSection("gallery")}
-        >
-          <span>▶</span>
-          Play
-        </button>
+        {videoPlaying && videoUrl ? (
+          <motion.video
+            key="video"
+            className="aroma-video-player"
+            src={videoUrl}
+            poster={videoPoster}
+            controls
+            autoPlay
+            playsInline
+            preload="metadata"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.45 }}
+          />
+        ) : (
+          <motion.div
+            key="poster"
+            initial={{ scale: 1.08 }}
+            whileInView={{ scale: 1 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 1.3, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <AromaImage src={videoPoster} alt="Barista pouring latte art" />
+          </motion.div>
+        )}
+        {!videoPlaying ? <div className="aroma-video-shade" /> : null}
+        {!videoPlaying && videoUrl ? (
+          <button
+            type="button"
+            aria-label="Play cafe video"
+            onClick={() => setVideoPlaying(true)}
+          >
+            <span>▶</span>
+            Play
+          </button>
+        ) : null}
       </section>
 
       <section className="aroma-enjoy">
