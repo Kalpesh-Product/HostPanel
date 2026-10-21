@@ -4,25 +4,617 @@ import { ApplyForm, MessageForm } from "../shared/TplForms";
 import type { Service, ServiceItem } from "../serviceAdapter";
 import { priceWithUnit } from "../templateKit";
 import { useWorkscape } from "./WorkscapeContext";
-import { WksIcon, WksImage, WksPageHero, WksReveal, WksSectionHead, WksSpaceCard } from "./WorkscapeUI";
+import {
+  WksIcon,
+  WksImage,
+  WksPageHero,
+  WksReveal,
+  WksSectionHead,
+  WksSpaceCard,
+} from "./WorkscapeUI";
 
-const mapSrc = (address: string) => `https://www.google.com/maps?q=${encodeURIComponent(address || "Bengaluru")}&output=embed`;
+const mapSrc = (address: string) =>
+  `https://www.google.com/maps?q=${encodeURIComponent(address || "Bengaluru")}&output=embed`;
 
-export const WorkscapeAbout: React.FC = () => { const { t, draft, c } = useWorkscape(); const images = [...(t.aboutImages || []), ...(t.galleryItems || [])]; const image = images[0] || t.homeHeroImage; const paragraphs = (t.aboutParagraphs || draft?.about || [draft?.aboutPageStory]).filter(Boolean).map((paragraph: any) => typeof paragraph === "string" ? paragraph : paragraph?.text || "").filter(Boolean); const values = [["Community Building", "A space where every person feels welcome and connected."], ["Sustainable Actions", "Thoughtful practices that reduce waste without reducing comfort."], ["Incubating Innovations", "An environment that encourages new ideas and useful growth."], ["Room for Flexibility", "Adaptable settings for teams, interviews and workshops."]]; const logos = ["NORTH/CO", "STUDIO—01", "WORKFORM", "UNION SPACE", "COMMON", "ORBIT"]; return <><WksPageHero number="01" title={draft?.aboutTitle || "About Workscape"} image={image}/><section className="wks-section wks-about-intro"><div className="wks-shell wks-about-grid"><WksReveal><h2>{c("about.title", "Empowering Collaboration, Fostering Innovation")}</h2></WksReveal><div>{paragraphs.length ? paragraphs.map((paragraph: string, i: number) => <p key={i}>{paragraph}</p>) : <p>We make room for teams to connect, focus and do their most useful work together.</p>}</div></div><div className="wks-shell wks-about-stats">{[["500+", "Happy members and growing community"], ["96%", "Member satisfaction rate"], ["300+", "Teams supported and empowered"], ["1000+", "Community events hosted"]].map(([value, label]) => <article key={label}><p>{label}</p><strong>{value}</strong></article>)}</div></section><section className="wks-section wks-about-values"><div className="wks-shell"><div><h2>Our Values</h2><p>A thoughtful workplace should help people feel welcome, supported and ready to make progress.</p><button type="button" onClick={() => t.goToSection("contact")}>Let's get in touch</button></div><div>{values.map(([title, body], index) => <WksReveal key={title} delay={index * .04}><article><span>0{index + 1}</span><h3>{title}</h3><p>{body}</p></article></WksReveal>)}</div></div></section><section className="wks-section wks-facilities"><div className="wks-shell"><h2>Our Work Facilities</h2><div>{[[images[1] || image, "Modern Meeting Room"], [images[2] || image, "Comfortable Lounge Areas"], [images[3] || image, "Gourmet Coffee Bar"]].map(([src, title], index) => <article key={title as string} className={`wks-facility-${index}`}><WksImage src={src} alt={title as string}/><h3>{title}</h3></article>)}</div></div></section><section className="wks-trusted"><div className="wks-shell"><p className="wks-label">Trusted by companies</p><div>{logos.map((logo) => <span key={logo}>{logo}</span>)}</div></div></section><section className="wks-section wks-about-glimpse"><div className="wks-shell"><h2>A Glimpse Inside</h2><div>{[images[4] || image, images[5] || images[1] || image, images[6] || images[2] || image].map((src, index) => <WksReveal key={index} className={`wks-glimpse-${index}`}><WksImage src={src} alt="Inside the workspace"/></WksReveal>)}</div></div></section></>; };
+export const WorkscapeAbout: React.FC = () => {
+  const { t, draft, c } = useWorkscape();
+  const images = [...(t.aboutImages || []), ...(t.galleryItems || [])];
+  const image = images[0] || t.homeHeroImage;
+  const paragraphs = (
+    t.aboutParagraphs ||
+    draft?.about || [draft?.aboutPageStory]
+  )
+    .filter(Boolean)
+    .map((paragraph: any) =>
+      typeof paragraph === "string" ? paragraph : paragraph?.text || "",
+    )
+    .filter(Boolean);
+  const values = [
+    [
+      "Community Building",
+      "A space where every person feels welcome and connected.",
+    ],
+    [
+      "Sustainable Actions",
+      "Thoughtful practices that reduce waste without reducing comfort.",
+    ],
+    [
+      "Incubating Innovations",
+      "An environment that encourages new ideas and useful growth.",
+    ],
+    [
+      "Room for Flexibility",
+      "Adaptable settings for teams, interviews and workshops.",
+    ],
+  ];
+  const logos = [
+    "NORTH/CO",
+    "STUDIO—01",
+    "WORKFORM",
+    "UNION SPACE",
+    "COMMON",
+    "ORBIT",
+  ];
+  return (
+    <>
+      <WksPageHero
+        number="01"
+        title={draft?.aboutTitle || "About Workscape"}
+        image={image}
+      />
+      <section className="wks-section wks-about-intro">
+        <div className="wks-shell wks-about-grid">
+          <WksReveal>
+            <h2>
+              {c(
+                "about.title",
+                "Empowering Collaboration, Fostering Innovation",
+              )}
+            </h2>
+          </WksReveal>
+          <div>
+            {paragraphs.length ? (
+              paragraphs.map((paragraph: string, i: number) => (
+                <p key={i}>{paragraph}</p>
+              ))
+            ) : (
+              <p>
+                We make room for teams to connect, focus and do their most
+                useful work together.
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="wks-shell wks-about-stats">
+          {[
+            ["500+", "Happy members and growing community"],
+            ["96%", "Member satisfaction rate"],
+            ["300+", "Teams supported and empowered"],
+            ["1000+", "Community events hosted"],
+          ].map(([value, label]) => (
+            <article key={label}>
+              <p>{label}</p>
+              <strong>{value}</strong>
+            </article>
+          ))}
+        </div>
+      </section>
+      <section className="wks-section wks-about-values">
+        <div className="wks-shell">
+          <div>
+            <h2>Our Values</h2>
+            <p>
+              A thoughtful workplace should help people feel welcome, supported
+              and ready to make progress.
+            </p>
+            <button type="button" onClick={() => t.goToSection("contact")}>
+              Let's get in touch
+            </button>
+          </div>
+          <div>
+            {values.map(([title, body], index) => (
+              <WksReveal key={title} delay={index * 0.04}>
+                <article>
+                  <span>0{index + 1}</span>
+                  <h3>{title}</h3>
+                  <p>{body}</p>
+                </article>
+              </WksReveal>
+            ))}
+          </div>
+        </div>
+      </section>
+      <section className="wks-section wks-facilities">
+        <div className="wks-shell">
+          <h2>Our Work Facilities</h2>
+          <div>
+            {[
+              [images[1] || image, "Modern Meeting Room"],
+              [images[2] || image, "Comfortable Lounge Areas"],
+              [images[3] || image, "Gourmet Coffee Bar"],
+            ].map(([src, title], index) => (
+              <article
+                key={title as string}
+                className={`wks-facility-${index}`}
+              >
+                <WksImage src={src} alt={title as string} />
+                <h3>{title}</h3>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+      <section className="wks-trusted">
+        <div className="wks-shell">
+          <p className="wks-label">Trusted by companies</p>
+          <div>
+            {logos.map((logo) => (
+              <span key={logo}>{logo}</span>
+            ))}
+          </div>
+        </div>
+      </section>
+      <section className="wks-section wks-about-glimpse">
+        <div className="wks-shell">
+          <h2>A Glimpse Inside</h2>
+          <div>
+            {[
+              images[4] || image,
+              images[5] || images[1] || image,
+              images[6] || images[2] || image,
+            ].map((src, index) => (
+              <WksReveal key={index} className={`wks-glimpse-${index}`}>
+                <WksImage src={src} alt="Inside the workspace" />
+              </WksReveal>
+            ))}
+          </div>
+        </div>
+      </section>
+    </>
+  );
+};
 
-export const ServicesIndex: React.FC = () => { const { services, goToService, t, c } = useWorkscape(); const image = services[0]?.heroImage || t.homeHeroImage; return <><WksPageHero number="02" title={c("services.index.title", "Work in Workscape")} image={image} body={c("services.index.body", "Flexible spaces for meetings, workshops and focused work.")}/><section className="wks-section wks-services-list"><div className="wks-shell wks-service-directory">{services.map((service, i) => <WksReveal key={service.key}><button type="button" onClick={() => goToService(service)}><div className="wks-service-photo"><WksImage src={service.cardImage || service.heroImage} alt={service.name}/><span>{WksIcon.arrow()}</span></div><div className="wks-service-copy"><h2>{service.name}</h2><p>{service.subText || service.heroSubHeading || "A flexible, fully equipped setting for your best work."}</p><div><span>{service.items.length || 1} spaces</span><b>From {service.items[0]?.price ? priceWithUnit(service.items[0].price, service.items[0].priceUnit) : "on request"}</b></div></div></button></WksReveal>)}</div></section></>; };
+export const ServicesIndex: React.FC = () => {
+  const { services, goToService, t, c } = useWorkscape();
+  const image = services[0]?.heroImage || t.homeHeroImage;
+  return (
+    <>
+      <WksPageHero
+        number="02"
+        title={c("services.index.title", "Work in Workscape")}
+        image={image}
+        body={c(
+          "services.index.body",
+          "Flexible spaces for meetings, workshops and focused work.",
+        )}
+      />
+      <section className="wks-section wks-services-list">
+        <div className="wks-shell wks-service-directory">
+          {services.map((service, i) => (
+            <WksReveal key={service.key}>
+              <button type="button" onClick={() => goToService(service)}>
+                <div className="wks-service-photo">
+                  <WksImage
+                    src={service.cardImage || service.heroImage}
+                    alt={service.name}
+                  />
+                  <span>{WksIcon.arrow()}</span>
+                </div>
+                <div className="wks-service-copy">
+                  <h2>{service.name}</h2>
+                  <p>
+                    {service.subText ||
+                      service.heroSubHeading ||
+                      "A flexible, fully equipped setting for your best work."}
+                  </p>
+                  <div>
+                    <span>{service.items.length || 1} spaces</span>
+                    <b>
+                      From{" "}
+                      {service.items[0]?.price
+                        ? priceWithUnit(
+                            service.items[0].price,
+                            service.items[0].priceUnit,
+                          )
+                        : "on request"}
+                    </b>
+                  </div>
+                </div>
+              </button>
+            </WksReveal>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+};
 
-export const ServicePage: React.FC<{ service: Service }> = ({ service }) => { const { c } = useWorkscape(); return <><WksPageHero number="03" title={service.heroHeading || service.name} image={service.heroImage} body={service.heroSubHeading}/><section className="wks-section wks-room-list"><div className="wks-shell"><WksSectionHead label={service.name} title={c("services.rooms.title", "Choose the space that fits")}/><div className={`wks-card-grid wks-count-${Math.min(service.items.length, 6)}`}>{service.items.map((item, index) => <WksSpaceCard key={item.key} service={service} item={item} index={index}/>)}</div></div></section></>; };
+export const ServicePage: React.FC<{ service: Service }> = ({ service }) => {
+  const { c } = useWorkscape();
+  return (
+    <>
+      <WksPageHero
+        number="03"
+        title={service.heroHeading || service.name}
+        image={service.heroImage}
+        body={service.heroSubHeading}
+      />
+      <section className="wks-section wks-room-list">
+        <div className="wks-shell">
+          <WksSectionHead
+            label={service.name}
+            title={c("services.rooms.title", "Choose the space that fits")}
+          />
+          <div
+            className={`wks-card-grid wks-count-${Math.min(service.items.length, 6)}`}
+          >
+            {service.items.map((item, index) => (
+              <WksSpaceCard
+                key={item.key}
+                service={service}
+                item={item}
+                index={index}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+    </>
+  );
+};
 
-export const ItemDetail: React.FC<{ service: Service; item: ServiceItem }> = ({ service, item }) => { const { openLead, t } = useWorkscape(); const itemImages = Array.isArray(item.images) ? item.images : []; const images = itemImages.length ? itemImages : [item.image, service.heroImage, ...(t.galleryItems || [])].filter(Boolean); const features = [...(item.chips || []), ...(item.features || [])].filter(Boolean).slice(0, 6); const suggestions = service.items.filter((entry) => entry.key !== item.key).slice(0, 3); return <><WksPageHero number="03" title={item.title} image={item.image || service.heroImage} body={item.description} variant="detail"/><section className="wks-detail"><div className="wks-shell"><div className="wks-detail-overview"><div><p className="wks-label">Room details</p><h2>A meeting room ready before you arrive.</h2><p>{item.description || service.heroSubHeading || "A calm, considered room for conversations that matter."}</p><ul>{features.map((feature) => <li key={feature}>{WksIcon.check()}<span>{feature}</span></li>)}</ul></div><aside><p className="wks-label">Room specification</p><div><span>Capacity</span><b>{item.capacity ? `Up to ${item.capacity} people` : "Flexible setup"}</b></div><div><span>Access</span><b>High-speed Wi-Fi and on-site support</b></div><div><span>Rate</span><strong>{item.price ? priceWithUnit(item.price, item.priceUnit) : "On request"}</strong></div><button type="button" onClick={() => openLead(service, item)}>Book Now {WksIcon.arrow()}</button></aside></div><div className="wks-detail-images">{images.slice(0, 2).map((src, i) => <button type="button" key={`${String(src)}-${i}`} onClick={() => { const index = t.galleryItems.indexOf(src); if (index >= 0) t.openGalleryViewer(index); }}><WksImage src={src} alt={item.title}/></button>)}</div><div className="wks-detail-cinema"><WksImage src={images[2] || images[0]} alt={`${item.title} workspace`}/><span>Ⅱ</span></div><section className="wks-detail-location"><div><p className="wks-label">Visit the space</p><h2>Easy to find.<br/>Easy to settle in.</h2></div><div className="wks-map"><iframe title="Location map" src={mapSrc(t.contactAddress)} loading="lazy" referrerPolicy="no-referrer-when-downgrade"/></div></section></div></section>{suggestions.length ? <section className="wks-suggestions"><div className="wks-shell"><WksSectionHead label="Keep exploring" title="Other rooms you may like"/><div className="wks-suggestion-grid">{suggestions.map((entry, i) => <WksSpaceCard key={entry.key} service={service} item={entry} index={i}/>)}</div></div></section> : null}</>; };
+export const ItemDetail: React.FC<{ service: Service; item: ServiceItem }> = ({
+  service,
+  item,
+}) => {
+  const { openLead, t } = useWorkscape();
+  const itemImages = Array.isArray(item.images) ? item.images : [];
+  const images = itemImages.length
+    ? itemImages
+    : [item.image, service.heroImage, ...(t.galleryItems || [])].filter(
+        Boolean,
+      );
+  const features = [...(item.chips || []), ...(item.features || [])]
+    .filter(Boolean)
+    .slice(0, 6);
+  const suggestions = service.items
+    .filter((entry) => entry.key !== item.key)
+    .slice(0, 3);
+  return (
+    <>
+      <WksPageHero
+        number="03"
+        title={item.title}
+        image={item.image || service.heroImage}
+        body={item.description}
+        variant="detail"
+      />
+      <section className="wks-detail">
+        <div className="wks-shell">
+          <div className="wks-detail-overview">
+            <div>
+              <p className="wks-label">Room details</p>
+              <h2>A meeting room ready before you arrive.</h2>
+              <p>
+                {item.description ||
+                  service.heroSubHeading ||
+                  "A calm, considered room for conversations that matter."}
+              </p>
+              <ul>
+                {features.map((feature) => (
+                  <li key={feature}>
+                    {WksIcon.check()}
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <aside>
+              <p className="wks-label">Room specification</p>
+              <div>
+                <span>Capacity</span>
+                <b>
+                  {item.capacity
+                    ? `Up to ${item.capacity} people`
+                    : "Flexible setup"}
+                </b>
+              </div>
+              <div>
+                <span>Access</span>
+                <b>High-speed Wi-Fi and on-site support</b>
+              </div>
+              <div>
+                <span>Rate</span>
+                <strong>
+                  {item.price
+                    ? priceWithUnit(item.price, item.priceUnit)
+                    : "On request"}
+                </strong>
+              </div>
+              <button type="button" onClick={() => openLead(service, item)}>
+                Book Now {WksIcon.arrow()}
+              </button>
+            </aside>
+          </div>
+          <div className="wks-detail-images">
+            {images.slice(0, 2).map((src, i) => (
+              <button
+                type="button"
+                key={`${String(src)}-${i}`}
+                onClick={() => {
+                  const index = t.galleryItems.indexOf(src);
+                  if (index >= 0) t.openGalleryViewer(index);
+                }}
+              >
+                <WksImage src={src} alt={item.title} />
+              </button>
+            ))}
+          </div>
+          <div className="wks-detail-cinema">
+            <WksImage
+              src={images[2] || images[0]}
+              alt={`${item.title} workspace`}
+            />
+            <span>Ⅱ</span>
+          </div>
+          <section className="wks-detail-location">
+            <div>
+              <p className="wks-label">Visit the space</p>
+              <h2>
+                Easy to find.
+                <br />
+                Easy to settle in.
+              </h2>
+            </div>
+            <div className="wks-map">
+              <iframe
+                title="Location map"
+                src={mapSrc(t.contactAddress)}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+          </section>
+        </div>
+      </section>
+      {suggestions.length ? (
+        <section className="wks-suggestions">
+          <div className="wks-shell">
+            <WksSectionHead
+              label="Keep exploring"
+              title="Other rooms you may like"
+            />
+            <div className="wks-suggestion-grid">
+              {suggestions.map((entry, i) => (
+                <WksSpaceCard
+                  key={entry.key}
+                  service={service}
+                  item={entry}
+                  index={i}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+    </>
+  );
+};
 
-export const WorkscapeGallery: React.FC = () => { const { t } = useWorkscape(); return <><WksPageHero number="04" title="Inside Workscape" image={t.galleryItems?.[0] || t.homeHeroImage}/><section className="wks-section"><div className="wks-shell wks-gallery-grid">{(t.galleryItems || []).map((src: string, i: number) => <motion.button type="button" key={`${src}-${i}`} onClick={() => t.openGalleryViewer(i)} whileHover={{ y: -6 }}><WksImage src={src} alt="Workspace"/></motion.button>)}</div></section></>; };
+export const WorkscapeGallery: React.FC = () => {
+  const { t } = useWorkscape();
+  return (
+    <>
+      <WksPageHero
+        number="04"
+        title="Inside Workscape"
+        image={t.galleryItems?.[0] || t.homeHeroImage}
+      />
+      <section className="wks-section">
+        <div className="wks-shell wks-gallery-grid">
+          {(t.galleryItems || []).map((src: string, i: number) => (
+            <motion.button
+              type="button"
+              key={`${src}-${i}`}
+              onClick={() => t.openGalleryViewer(i)}
+              whileHover={{ y: -6 }}
+            >
+              <WksImage src={src} alt="Workspace" />
+            </motion.button>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+};
 
-export const WorkscapeTestimonials: React.FC = () => { const { t } = useWorkscape(); return <><WksPageHero number="05" title="Member Stories" image={t.galleryItems?.[1] || t.homeHeroImage}/><section className="wks-section"><div className="wks-shell"><div className="wks-review-grid">{t.testimonials.map((review: any, i: number) => <WksReveal key={i}><article><span>“</span><blockquote>{review.quote || review.review || review.testimonial || review.testimony || review.text}</blockquote><strong>{review.name || review.reviewerName}</strong><p>{review.role}</p></article></WksReveal>)}</div>{t.showWriteReview ? <button className="wks-book wks-review-button" type="button" onClick={() => t.setReviewModalOpen(true)}>Write a review</button> : null}</div></section></>; };
+export const WorkscapeTestimonials: React.FC = () => {
+  const { t } = useWorkscape();
+  return (
+    <>
+      <WksPageHero
+        number="05"
+        title="Member Stories"
+        image={t.galleryItems?.[1] || t.homeHeroImage}
+      />
+      <section className="wks-section">
+        <div className="wks-shell">
+          <div className="wks-review-grid">
+            {t.testimonials.map((review: any, i: number) => (
+              <WksReveal key={i}>
+                <article>
+                  <span>“</span>
+                  <blockquote>
+                    {review.quote ||
+                      review.review ||
+                      review.testimonial ||
+                      review.testimony ||
+                      review.text}
+                  </blockquote>
+                  <strong>{review.name || review.reviewerName}</strong>
+                  <p>{review.role}</p>
+                </article>
+              </WksReveal>
+            ))}
+          </div>
+          {t.showWriteReview ? (
+            <button
+              className="wks-book wks-review-button"
+              type="button"
+              onClick={() => t.setReviewModalOpen(true)}
+            >
+              Write a review
+            </button>
+          ) : null}
+        </div>
+      </section>
+    </>
+  );
+};
 
-export const WorkscapePartner: React.FC = () => { const { t, c } = useWorkscape(); return <><WksPageHero number="06" title={t.partnerPageHeading || "Partner With Us"} image={t.galleryItems?.[2] || t.homeHeroImage}/><section className="wks-section"><div className="wks-shell wks-form-grid"><div><p className="wks-label">Grow together</p><h2>{c("partner.title", "Build a better workday with us")}</h2><p>{t.partnerPageContent || "Tell us how your organisation, community or local business would like to work together."}</p></div><MessageForm inquiryType="partner" submitLabel="Send partnership enquiry" success="Thank you. Our partnerships team will contact you shortly."/></div></section></>; };
+export const WorkscapePartner: React.FC = () => {
+  const { t, c } = useWorkscape();
+  return (
+    <>
+      <WksPageHero
+        number="06"
+        title={t.partnerPageHeading || "Partner With Us"}
+        image={t.galleryItems?.[2] || t.homeHeroImage}
+      />
+      <section className="wks-section">
+        <div className="wks-shell wks-form-grid">
+          <div>
+            <p className="wks-label">Grow together</p>
+            <h2>{c("partner.title", "Build a better workday with us")}</h2>
+            <p>
+              {t.partnerPageContent ||
+                "Tell us how your organisation, community or local business would like to work together."}
+            </p>
+          </div>
+          <MessageForm
+            inquiryType="partner"
+            submitLabel="Send partnership enquiry"
+            success="Thank you. Our partnerships team will contact you shortly."
+          />
+        </div>
+      </section>
+    </>
+  );
+};
 
-export const WorkscapeCareers: React.FC = () => { const { t } = useWorkscape(); const jobs = t.careersJobs || []; return <><WksPageHero number="07" title="Careers at Workscape" image={t.galleryItems?.[3] || t.homeHeroImage}/><section className="wks-section"><div className="wks-shell"><WksSectionHead label="Join the team" title="Help people do their best work"/><div className="wks-jobs">{t.careersJobsLoading ? <p>Loading roles…</p> : jobs.length ? jobs.map((job: any) => <button type="button" key={job._id || job.id} onClick={() => { t.setCareersApplyJob(job); t.setCareersDetailTab("apply"); }}><span>{job.department || "Operations"}</span><h3>{job.title || job.jobTitle}</h3><p>{job.location || "On site"}</p>{WksIcon.arrow()}</button>) : <p className="wks-empty">No open roles right now. Please check again soon.</p>}</div>{t.careersApplyJob ? <div className="wks-apply"><h2>Apply for {t.careersApplyJob.title || t.careersApplyJob.jobTitle}</h2><ApplyForm/></div> : null}</div></section></>; };
+export const WorkscapeCareers: React.FC = () => {
+  const { t } = useWorkscape();
+  const jobs = t.careersJobs || [];
+  return (
+    <>
+      <WksPageHero
+        number="07"
+        title="Careers at Workscape"
+        image={t.galleryItems?.[3] || t.homeHeroImage}
+      />
+      <section className="wks-section">
+        <div className="wks-shell">
+          <WksSectionHead
+            label="Join the team"
+            title="Help people do their best work"
+          />
+          <div className="wks-jobs">
+            {t.careersJobsLoading ? (
+              <p>Loading roles…</p>
+            ) : jobs.length ? (
+              jobs.map((job: any) => (
+                <button
+                  type="button"
+                  key={job._id || job.id}
+                  onClick={() => {
+                    t.setCareersApplyJob(job);
+                    t.setCareersDetailTab("apply");
+                  }}
+                >
+                  <span>{job.department || "Operations"}</span>
+                  <h3>{job.title || job.jobTitle}</h3>
+                  <p>{job.location || "On site"}</p>
+                  {WksIcon.arrow()}
+                </button>
+              ))
+            ) : (
+              <p className="wks-empty">
+                No open roles right now. Please check again soon.
+              </p>
+            )}
+          </div>
+          {t.careersApplyJob ? (
+            <div className="wks-apply">
+              <h2>
+                Apply for{" "}
+                {t.careersApplyJob.title || t.careersApplyJob.jobTitle}
+              </h2>
+              <ApplyForm />
+            </div>
+          ) : null}
+        </div>
+      </section>
+    </>
+  );
+};
 
-export const WorkscapeContact: React.FC = () => { const { t } = useWorkscape(); return <><WksPageHero number="08" title="Contact Workscape" image={t.galleryItems?.[4] || t.homeHeroImage} variant="contact"/><section className="wks-section wks-contact-section"><div className="wks-shell wks-form-grid"><div className="wks-contact-form"><MessageForm inquiryType="contact" submitLabel="Send message" success="Thank you. We will get back to you shortly."/></div><div className="wks-contact-intro"><p className="wks-label">Get in touch</p><h2>Let’s plan your next meeting.</h2><p>Tell us what your team needs and we will help you find the right room.</p><div className="wks-contact-lines">{t.contactPhone ? <a href={`tel:${String(t.contactPhone).replace(/[^\d+]/g, "")}`}><span>☎</span>{t.contactPhone}</a> : null}{t.contactEmail ? <a href={`mailto:${t.contactEmail}`}><span>✉</span>{t.contactEmail}</a> : null}<div><span>●</span>{t.contactAddress}</div></div></div></div><div className="wks-map wks-contact-map"><iframe title="Location map" src={mapSrc(t.contactAddress)} loading="lazy" referrerPolicy="no-referrer-when-downgrade"/></div></section></>; };
-
+export const WorkscapeContact: React.FC = () => {
+  const { t } = useWorkscape();
+  return (
+    <>
+      <WksPageHero
+        number="08"
+        title="Contact Workscape"
+        image={t.galleryItems?.[4] || t.homeHeroImage}
+        variant="contact"
+      />
+      <section className="wks-section wks-contact-section">
+        <div className="wks-shell wks-form-grid">
+          <div className="wks-contact-form">
+            <MessageForm
+              inquiryType="contact"
+              submitLabel="Send message"
+              success="Thank you. We will get back to you shortly."
+            />
+          </div>
+          <div className="wks-contact-intro">
+            <p className="wks-label">Get in touch</p>
+            <h2>Let’s plan your next meeting.</h2>
+            <p>
+              Tell us what your team needs and we will help you find the right
+              room.
+            </p>
+            <div className="wks-contact-lines">
+              {t.contactPhone ? (
+                <a
+                  href={`tel:${String(t.contactPhone).replace(/[^\d+]/g, "")}`}
+                >
+                  <span>☎</span>
+                  {t.contactPhone}
+                </a>
+              ) : null}
+              {t.contactEmail ? (
+                <a href={`mailto:${t.contactEmail}`}>
+                  <span>✉</span>
+                  {t.contactEmail}
+                </a>
+              ) : null}
+              <div>
+                <span>●</span>
+                {t.contactAddress}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="wks-map wks-contact-map">
+          <iframe
+            title="Location map"
+            src={mapSrc(t.contactAddress)}
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+        </div>
+      </section>
+    </>
+  );
+};
