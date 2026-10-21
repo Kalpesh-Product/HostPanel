@@ -19,6 +19,7 @@ import { queryClient } from "../main";
 import usePageTour from "../tours/usePageTour";
 import PageGuideButton from "../tours/PageGuideButton";
 import PlanExpiryBanner from "../components/PlanExpiryBanner";
+import { getPlanExpiryReminderThreshold } from "../utils/plan-expiry-reminder";
 import { RotateCw, Smartphone } from "lucide-react";
 
 const MainLayoutContent = () => {
@@ -26,6 +27,7 @@ const MainLayoutContent = () => {
   const axios = useAxiosPrivate();
   const [showFooter, setShowFooter] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [dismissedPlanReminder, setDismissedPlanReminder] = useState("");
   const dummyRef = useRef<HTMLDivElement | null>(null);
   const location = useLocation();
   const { isSidebarOpen } = useSidebar();
@@ -58,6 +60,37 @@ const MainLayoutContent = () => {
   const isTenantRoute = location.pathname.startsWith("/dashboard/tenant") || (hasTenantRole && location.pathname.startsWith("/profile/"));
   const isMobile = useMediaQuery("(max-width: 768px)");
 
+  const planExpiryReminder = (() => {
+    const selectedPlan = String(planSummary?.selectedPlan || "").toLowerCase();
+    if (planSummary?.isTrialing || !["professional", "custom"].includes(selectedPlan)) return null;
+    const expiryMs = new Date(planSummary?.planExpiryDate || "").getTime();
+    if (!Number.isFinite(expiryMs)) return null;
+    const threshold = getPlanExpiryReminderThreshold(planSummary.planExpiryDate);
+    if (!threshold) return null;
+    const companyId = String(planSummary?.companyId || auth?.user?.companyId || "workspace");
+    const expiryKey = new Date(expiryMs).toISOString().slice(0, 10);
+    const key = `hostpanel_plan_expiry_reminder_dismissed:${companyId}:${expiryKey}:${threshold}`;
+    let dismissed = dismissedPlanReminder === key;
+    if (!dismissed && threshold !== "expired") {
+      try {
+        dismissed = localStorage.getItem(key) === "1";
+      } catch {
+        dismissed = false;
+      }
+    }
+    return { key, threshold, dismissed, canDismiss: threshold !== "expired" };
+  })();
+
+  const dismissPlanExpiryReminder = () => {
+    if (!planExpiryReminder?.canDismiss) return;
+    try {
+      localStorage.setItem(planExpiryReminder.key, "1");
+    } catch {
+      // Best-effort only; worst case the reminder remains visible.
+    }
+    setDismissedPlanReminder(planExpiryReminder.key);
+  };
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -89,10 +122,14 @@ const MainLayoutContent = () => {
           Viewing as {auth?.user?.companyName || "this company"} — read-only staff view
         </div>
       ) : null}
-      {!planSummary?.isTrialing && planSummary?.planStatus === "expiring_soon" ? (
+      {planExpiryReminder && !planExpiryReminder.dismissed ? (
         <PlanExpiryBanner
           expiryDate={planSummary.planExpiryDate}
           modulesAtRisk={planSummary.modulesLostOnDowngrade}
+          reminderKey={String(planExpiryReminder.threshold)}
+          canDismiss={planExpiryReminder.canDismiss}
+          isExpired={planExpiryReminder.threshold === "expired"}
+          onDismiss={dismissPlanExpiryReminder}
         />
       ) : null}
       <header className="flex w-full shadow-md items-center px-4">

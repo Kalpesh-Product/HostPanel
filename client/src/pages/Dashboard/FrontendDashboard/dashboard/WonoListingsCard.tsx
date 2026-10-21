@@ -13,7 +13,7 @@
  * Listings page; "verify" also opens the claim dialog, pre-searched with the
  * company name.
  */
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Building2, Globe, Plus, X } from "lucide-react";
@@ -24,6 +24,7 @@ import useNomadListingCapacity, {
 } from "../../../../hooks/useNomadListingCapacity";
 
 const LISTINGS_ROUTE = "/key-apps/nomad-listings";
+const LISTING_REMINDER_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
 
 const PLAN_NAMES: Record<string, string> = {
   basic: "Basic",
@@ -65,18 +66,18 @@ const WonoListingsCard = () => {
 
   const statusKey = !hasListings ? "pitch" : liveCount === 0 ? "reviewing" : isAtLimit ? "limit" : "live";
   const dismissStorageKey = `hostpanel_dashboard_listings_banner_dismissed:${companyId}:${statusKey}`;
-  const [dismissVersion, setDismissVersion] = useState(0);
-  const isDismissed = useMemo(() => {
+  const [, setDismissVersion] = useState(0);
+  const isDismissed = (() => {
     try {
-      return localStorage.getItem(dismissStorageKey) === "1";
+      const dismissedAt = Number(localStorage.getItem(dismissStorageKey));
+      return Number.isFinite(dismissedAt) && Date.now() - dismissedAt < LISTING_REMINDER_SNOOZE_MS;
     } catch {
       return false;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dismissStorageKey, dismissVersion]);
+  })();
   const dismissBanner = () => {
     try {
-      localStorage.setItem(dismissStorageKey, "1");
+      localStorage.setItem(dismissStorageKey, String(Date.now()));
     } catch {
       // Best-effort only; worst case it reappears next visit.
     }
