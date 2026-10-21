@@ -30,34 +30,111 @@ export const THEME_DEFAULTS: Record<string, ThemeDefaults> = {
   "figma-make": { bg: "#4a6b96", text: "#ffffff", accent: "#ffffff" },
   "fresh-studio": { bg: "#0a0a12", text: "#ffffff", accent: "#d94b4b" },
   default: { bg: "#efefef", text: "#1f1f1f", accent: "#3b82f6" },
-  "warm-organic": { bg: "#f1e6d3", text: "#2b211a", accent: "#b85c38", surfaceUp: true },
+  "warm-organic": {
+    bg: "#f1e6d3",
+    text: "#2b211a",
+    accent: "#b85c38",
+    surfaceUp: true,
+  },
   // The three vertical-led templates start from the palette of the service the
   // business sells (see verticalProfiles.ts); these are the picker placeholders.
   savor: { bg: "#fff7ed", text: "#2a1a12", accent: "#e4572e", surfaceUp: true },
-  tastyc: { bg: "#f4efe7", text: "#1a1715", accent: "#cf7736", surfaceUp: true },
-  grandbar: { bg: "#0b1b22", text: "#f2eee7", accent: "#aa8867", surfaceUp: true },
-  flowspace: { bg: "#fbfaeb", text: "#11110f", accent: "#11110f", surfaceUp: true },
-  workscape: { bg: "#ffffff", text: "#20201f", accent: "#a99d93", surfaceUp: true },
-  brixspace: { bg: "#ffffff", text: "#101211", accent: "#078b52", surfaceUp: true },
-  worpace: { bg: "#f7f7e8", text: "#11110f", accent: "#11110f", surfaceUp: true },
+  tastyc: {
+    bg: "#f4efe7",
+    text: "#1a1715",
+    accent: "#cf7736",
+    surfaceUp: true,
+  },
+  grandbar: {
+    bg: "#0b1b22",
+    text: "#f2eee7",
+    accent: "#aa8867",
+    surfaceUp: true,
+  },
+  aromatica: {
+    bg: "#f4f0e8",
+    text: "#11111b",
+    accent: "#e9a542",
+    surfaceUp: true,
+  },
+  flowspace: {
+    bg: "#fbfaeb",
+    text: "#11110f",
+    accent: "#11110f",
+    surfaceUp: true,
+  },
+  workscape: {
+    bg: "#ffffff",
+    text: "#20201f",
+    accent: "#a99d93",
+    surfaceUp: true,
+  },
+  brixspace: {
+    bg: "#ffffff",
+    text: "#101211",
+    accent: "#078b52",
+    surfaceUp: true,
+  },
+  worpace: {
+    bg: "#f7f7e8",
+    text: "#11110f",
+    accent: "#11110f",
+    surfaceUp: true,
+  },
   qerja: { bg: "#ffffff", text: "#152725", accent: "#f3c441", surfaceUp: true },
-  wayfarer: { bg: "#f3fbfa", text: "#0c2a2e", accent: "#f26b3a", surfaceUp: true },
-  travigo: { bg: "#f5f3ed", text: "#111111", accent: "#111111", surfaceUp: true },
+  wayfarer: {
+    bg: "#f3fbfa",
+    text: "#0c2a2e",
+    accent: "#f26b3a",
+    surfaceUp: true,
+  },
+  travigo: {
+    bg: "#f5f3ed",
+    text: "#111111",
+    accent: "#111111",
+    surfaceUp: true,
+  },
   lodge: { bg: "#ffffff", text: "#1c1f21", accent: "#7fa388", surfaceUp: true },
-  "cali-hostel": { bg: "#f2eadb", text: "#171711", accent: "#e86d43", surfaceUp: true },
+  "cali-hostel": {
+    bg: "#f2eadb",
+    text: "#171711",
+    accent: "#e86d43",
+    surfaceUp: true,
+  },
   haven: { bg: "#f4f1ea", text: "#26312b", accent: "#5b7f6a", surfaceUp: true },
-  camelia: { bg: "#f6f3ec", text: "#2b2a26", accent: "#8a9a86", surfaceUp: true },
+  camelia: {
+    bg: "#f6f3ec",
+    text: "#2b2a26",
+    accent: "#8a9a86",
+    surfaceUp: true,
+  },
   tulum: { bg: "#f1f1ed", text: "#4f5a53", accent: "#8a968f", surfaceUp: true },
-  grindelwald: { bg: "#f8f8f8", text: "#1b3936", accent: "#75ff69", surfaceUp: true },
-  commons: { bg: "#f6f7f9", text: "#0b1f3a", accent: "#ffc21a", surfaceUp: true },
-  huddle: { bg: "#f5f6f8", text: "#14161a", accent: "#3b6cf0", surfaceUp: true },
+  grindelwald: {
+    bg: "#f8f8f8",
+    text: "#1b3936",
+    accent: "#75ff69",
+    surfaceUp: true,
+  },
+  commons: {
+    bg: "#f6f7f9",
+    text: "#0b1f3a",
+    accent: "#ffc21a",
+    surfaceUp: true,
+  },
+  huddle: {
+    bg: "#f5f6f8",
+    text: "#14161a",
+    accent: "#3b6cf0",
+    surfaceUp: true,
+  },
 };
 
 export const supportsThemeColors = (templateId?: string | null) =>
   Boolean(THEME_DEFAULTS[String(templateId || "").trim() || "default"]);
 
 export const getThemeDefaults = (templateId?: string | null): ThemeDefaults =>
-  THEME_DEFAULTS[String(templateId || "").trim() || "default"] || THEME_DEFAULTS.default;
+  THEME_DEFAULTS[String(templateId || "").trim() || "default"] ||
+  THEME_DEFAULTS.default;
 
 export const hasCustomTheme = (config?: ThemeConfig | null) =>
   Boolean(
@@ -69,12 +146,15 @@ export const hasCustomTheme = (config?: ThemeConfig | null) =>
 // Nudge `hex` toward the text colour until it reads on `bg` (4.5:1).
 const readableAgainst = (hex: string, bg: string, text: string) => {
   let out = hex;
-  for (let i = 1; i <= 10 && contrastRatio(out, bg) < 4.5; i++) out = mix(hex, text, i / 10);
+  for (let i = 1; i <= 10 && contrastRatio(out, bg) < 4.5; i++)
+    out = mix(hex, text, i / 10);
   return out;
 };
 
 const readableOn = (hex: string) =>
-  contrastRatio(hex, "#111111") >= contrastRatio(hex, "#ffffff") ? "#111111" : "#ffffff";
+  contrastRatio(hex, "#111111") >= contrastRatio(hex, "#ffffff")
+    ? "#111111"
+    : "#ffffff";
 
 // The colours actually in effect: what the business picked, else the template's
 // own, with a readable text colour chosen when only the background was changed.
@@ -114,8 +194,16 @@ export const buildThemeVars = (
       vars["--t-surface2"] = mix(bgC, "#ffffff", dark ? 0.12 : 0.3);
       vars["--t-raised"] = mix(bgC, "#ffffff", dark ? 0.1 : 0.75);
     } else {
-      vars["--t-surface"] = mix(bgC, dark ? "#ffffff" : "#000000", dark ? 0.06 : 0.05);
-      vars["--t-surface2"] = mix(bgC, dark ? "#ffffff" : "#000000", dark ? 0.1 : 0.08);
+      vars["--t-surface"] = mix(
+        bgC,
+        dark ? "#ffffff" : "#000000",
+        dark ? 0.06 : 0.05,
+      );
+      vars["--t-surface2"] = mix(
+        bgC,
+        dark ? "#ffffff" : "#000000",
+        dark ? 0.1 : 0.08,
+      );
       vars["--t-raised"] = vars["--t-surface"];
     }
     vars["--t-line"] = mix(bgC, text, 0.2);

@@ -7,10 +7,33 @@
 // Deliberately NOT filled in: the business's own identity (company name, address, phone, email,
 // map, social links, contact person, logo) and the "trusted by" logos. Those must be the user's own.
 import { DEMO_BUSINESSES } from "./demoContent";
-import { buildDemoPreviewDraft, defaultKindForTemplate } from "./demoPreviewData";
+import {
+  buildDemoPreviewDraft,
+  defaultKindForTemplate,
+} from "./demoPreviewData";
 import { SERVICE_CHOICES, serviceNameToKind } from "./serviceChoices";
 
-export const SAMPLE_TEMPLATE_IDS = ["savor", "tastyc", "grandbar", "flowspace", "workscape", "brixspace", "worpace", "qerja", "wayfarer", "travigo", "lodge", "cali-hostel", "tulum", "grindelwald", "haven", "camelia", "commons", "huddle"];
+export const SAMPLE_TEMPLATE_IDS = [
+  "savor",
+  "tastyc",
+  "grandbar",
+  "aromatica",
+  "flowspace",
+  "workscape",
+  "brixspace",
+  "worpace",
+  "qerja",
+  "wayfarer",
+  "travigo",
+  "lodge",
+  "cali-hostel",
+  "tulum",
+  "grindelwald",
+  "haven",
+  "camelia",
+  "commons",
+  "huddle",
+];
 
 export const hasSampleContent = (themeVariant?: string | null) =>
   SAMPLE_TEMPLATE_IDS.includes(String(themeVariant || "").trim());
@@ -24,7 +47,11 @@ const PARALLEL_FETCHES = 6;
 const LIMITS = { hero: 3, gallery: 12, about: 3, itemImages: 5, pageHero: 1 };
 
 const urlOf = (value: any): string =>
-  typeof value === "string" ? value : typeof value?.url === "string" ? value.url : "";
+  typeof value === "string"
+    ? value
+    : typeof value?.url === "string"
+      ? value.url
+      : "";
 
 const createImageLoader = () => {
   const blobs = new Map<string, Promise<Blob | null>>();
@@ -52,7 +79,11 @@ const createImageLoader = () => {
       const response = await fetch(url, { signal: controller.signal });
       if (!response.ok) return null;
       const blob = await response.blob();
-      if (!/^image\/(jpeg|png|webp)$/.test(blob.type) || blob.size > MAX_IMAGE_BYTES) return null;
+      if (
+        !/^image\/(jpeg|png|webp)$/.test(blob.type) ||
+        blob.size > MAX_IMAGE_BYTES
+      )
+        return null;
       return blob;
     } catch {
       return null;
@@ -78,39 +109,70 @@ const createImageLoader = () => {
     if (!blobs.has(url)) blobs.set(url, fetchBlob(url));
     const blob = await blobs.get(url)!;
     if (!blob) return null;
-    const extension = blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
-    const base = (url.match(/photo-[\w-]+/)?.[0] || `sample-${blobs.size}`).slice(0, 40);
+    const extension =
+      blob.type === "image/png"
+        ? "png"
+        : blob.type === "image/webp"
+          ? "webp"
+          : "jpg";
+    const base = (
+      url.match(/photo-[\w-]+/)?.[0] || `sample-${blobs.size}`
+    ).slice(0, 40);
     // A fresh File per use, so the same photo can sit in two places without sharing one object.
-    return new File([blob], `${base}.${extension}`, { type: blob.type, lastModified: 1700000000000 });
+    return new File([blob], `${base}.${extension}`, {
+      type: blob.type,
+      lastModified: 1700000000000,
+    });
   };
 };
 
-const compact = <T,>(list: Array<T | null | undefined>): T[] => list.filter(Boolean) as T[];
+const compact = <T>(list: Array<T | null | undefined>): T[] =>
+  list.filter(Boolean) as T[];
 
 // The demo business has a made-up name; swap it for the user's own so no fake company shows up.
-const rebrand = <T,>(value: T, from: string, to: string): T => {
+const rebrand = <T>(value: T, from: string, to: string): T => {
   if (!from || !to || from === to) return value;
   if (typeof value === "string") {
-    return (/^(https?:|data:)/i.test(value) ? value : value.split(from).join(to)) as unknown as T;
+    return (/^(https?:|data:)/i.test(value)
+      ? value
+      : value.split(from).join(to)) as unknown as T;
   }
-  if (Array.isArray(value)) return value.map((item) => rebrand(item, from, to)) as unknown as T;
+  if (Array.isArray(value))
+    return value.map((item) => rebrand(item, from, to)) as unknown as T;
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, rebrand(item, from, to)])) as T;
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        rebrand(item, from, to),
+      ]),
+    ) as T;
   }
   return value;
 };
 
 /** The service names a new site starts with: the picker's choice, else the template's own kind. */
-export const resolveSampleServices = (themeVariant: string, chosen: string[]): string[] => {
+export const resolveSampleServices = (
+  themeVariant: string,
+  chosen: string[],
+): string[] => {
   if (chosen.length) return chosen;
   const kind = defaultKindForTemplate(themeVariant);
-  const match = SERVICE_CHOICES.find((choice) => serviceNameToKind(choice.name) === kind);
+  const match = SERVICE_CHOICES.find(
+    (choice) => serviceNameToKind(choice.name) === kind,
+  );
   return [match?.name || "Co-Working"];
 };
 
 const SHORT_NAMES: Record<string, string[]> = { "Nimbus Coworks": ["Nimbus"] };
 
-const ITEM_LISTS = ["menuItems", "rooms", "meetingRooms", "coLivingRooms", "packages", "dorms"] as const;
+const ITEM_LISTS = [
+  "menuItems",
+  "rooms",
+  "meetingRooms",
+  "coLivingRooms",
+  "packages",
+  "dorms",
+] as const;
 
 export interface SampleContent {
   /** Top-level form values to merge into the builder form. */
@@ -134,52 +196,93 @@ export const buildSampleContent = async ({
   const names = resolveSampleServices(themeVariant, services);
   const primaryKind = serviceNameToKind(names[0]);
   const fromName = DEMO_BUSINESSES[primaryKind].companyName;
-  let draft: any = rebrand(buildDemoPreviewDraft(themeVariant, names), fromName, companyName);
+  let draft: any = rebrand(
+    buildDemoPreviewDraft(themeVariant, names),
+    fromName,
+    companyName,
+  );
   // Some sample text uses a short form of the made-up name ("Nimbus fills three floors").
   (SHORT_NAMES[fromName] || []).forEach((short) => {
     draft = rebrand(draft, short, companyName);
   });
   const load = createImageLoader();
-  const loadMany = async (list: any[] = [], limit = 99) => compact(await Promise.all(list.slice(0, limit).map(load)));
+  const loadMany = async (list: any[] = [], limit = 99) =>
+    compact(await Promise.all(list.slice(0, limit).map(load)));
 
   const loadItem = async (item: any) => {
     const { image, images, ...rest } = item || {};
     const next: Record<string, any> = { ...rest };
     if ("image" in (item || {})) next.image = image ? await load(image) : null;
-    if ("images" in (item || {})) next.images = await loadMany(images, LIMITS.itemImages);
+    if ("images" in (item || {}))
+      next.images = await loadMany(images, LIMITS.itemImages);
     return next;
   };
 
-  const values: Record<string, any> = serviceOnly ? {} : {
-    title: draft.title,
-    subTitle: draft.subTitle,
-    CTAButtonText: draft.CTAButtonText,
-    about: draft.about,
-    aboutTitle: draft.aboutTitle,
-    aboutPageStory: draft.aboutPageStory,
-    aboutPageMission: draft.aboutPageMission,
-    aboutPageValues: draft.aboutPageValues,
-    aboutPageTeamHeading: draft.aboutPageTeamHeading,
-    partnerPageHeading: draft.partnerPageHeading,
-    partnerPageContent: draft.partnerPageContent,
-    productTitle: draft.productTitle,
-    contactTitle: draft.contactTitle,
-    galleryTitle: draft.galleryTitle,
-    faqs: draft.faqs,
-    inclusions: draft.inclusions,
-  };
+  const values: Record<string, any> = serviceOnly
+    ? {}
+    : {
+        title: draft.title,
+        subTitle: draft.subTitle,
+        CTAButtonText: draft.CTAButtonText,
+        about: draft.about,
+        aboutTitle: draft.aboutTitle,
+        aboutPageStory: draft.aboutPageStory,
+        aboutPageMission: draft.aboutPageMission,
+        aboutPageValues: draft.aboutPageValues,
+        aboutPageTeamHeading: draft.aboutPageTeamHeading,
+        partnerPageHeading: draft.partnerPageHeading,
+        partnerPageContent: draft.partnerPageContent,
+        productTitle: draft.productTitle,
+        contactTitle: draft.contactTitle,
+        galleryTitle: draft.galleryTitle,
+        faqs: draft.faqs,
+        inclusions: draft.inclusions,
+      };
   values.openingHours = draft.openingHours;
   (["reservation", "stayPolicy", "tourBooking"] as const).forEach((key) => {
     if (draft[key] !== undefined) values[key] = draft[key];
   });
 
-  const [heroImages, gallery, aboutPageImages, aboutPageImageCards, founders, testimonials, pages] = await Promise.all([
+  const [
+    heroImages,
+    gallery,
+    aboutPageImages,
+    aboutPageImageCards,
+    founders,
+    testimonials,
+    pages,
+  ] = await Promise.all([
     serviceOnly ? [] : loadMany(draft.heroImages, LIMITS.hero),
     serviceOnly ? [] : loadMany(draft.gallery, LIMITS.gallery),
     serviceOnly ? [] : loadMany(draft.aboutPageImages, LIMITS.about),
-    Promise.all((serviceOnly ? [] : draft.aboutPageImageCards || []).map(async (card: any) => ({ title: card.title, description: card.description, enabled: true, image: await load(card.image) }))),
-    Promise.all((serviceOnly ? [] : draft.founders || []).map(async (founder: any) => ({ name: founder.name, role: founder.role, bio: founder.bio, highlights: founder.highlights, image: await load(founder.image) }))),
-    Promise.all((serviceOnly ? [] : draft.testimonials || []).map(async (item: any) => ({ name: item.name, jobPosition: item.jobPosition, testimony: item.testimony, rating: Number(item.rating) || 5, file: await load(item.image) }))),
+    Promise.all(
+      (serviceOnly ? [] : draft.aboutPageImageCards || []).map(
+        async (card: any) => ({
+          title: card.title,
+          description: card.description,
+          enabled: true,
+          image: await load(card.image),
+        }),
+      ),
+    ),
+    Promise.all(
+      (serviceOnly ? [] : draft.founders || []).map(async (founder: any) => ({
+        name: founder.name,
+        role: founder.role,
+        bio: founder.bio,
+        highlights: founder.highlights,
+        image: await load(founder.image),
+      })),
+    ),
+    Promise.all(
+      (serviceOnly ? [] : draft.testimonials || []).map(async (item: any) => ({
+        name: item.name,
+        jobPosition: item.jobPosition,
+        testimony: item.testimony,
+        rating: Number(item.rating) || 5,
+        file: await load(item.image),
+      })),
+    ),
     Promise.all(
       (draft.productDropdownPages || []).map(async (page: any) => ({
         heroHeading: page.heroHeading,
@@ -191,15 +294,26 @@ export const buildSampleContent = async ({
         faqs: page.faqs,
         inclusions: page.inclusions,
         // Co-working keeps its spaces on the service page itself.
-        ...(Array.isArray(page.subProducts) && page.subProducts.length ? { subProducts: await Promise.all(page.subProducts.map(loadItem)) } : {}),
+        ...(Array.isArray(page.subProducts) && page.subProducts.length
+          ? { subProducts: await Promise.all(page.subProducts.map(loadItem)) }
+          : {}),
       })),
     ),
   ]);
-  if (!serviceOnly) Object.assign(values, { heroImages, gallery, aboutPageImages, aboutPageImageCards, founders, testimonials });
+  if (!serviceOnly)
+    Object.assign(values, {
+      heroImages,
+      gallery,
+      aboutPageImages,
+      aboutPageImageCards,
+      founders,
+      testimonials,
+    });
 
   await Promise.all(
     ITEM_LISTS.map(async (key) => {
-      if (Array.isArray(draft[key]) && draft[key].length) values[key] = await Promise.all(draft[key].map(loadItem));
+      if (Array.isArray(draft[key]) && draft[key].length)
+        values[key] = await Promise.all(draft[key].map(loadItem));
     }),
   );
 
@@ -225,13 +339,21 @@ export const buildServiceSample = async ({
   serviceName: string;
   companyName: string;
 }): Promise<ServiceSample> => {
-  const sample = await buildSampleContent({ themeVariant, services: [serviceName], companyName, serviceOnly: true });
+  const sample = await buildSampleContent({
+    themeVariant,
+    services: [serviceName],
+    companyName,
+    serviceOnly: true,
+  });
   const lists: Record<string, any[]> = {};
   ITEM_LISTS.forEach((key) => {
-    if (Array.isArray(sample.values[key]) && sample.values[key].length) lists[key] = sample.values[key];
+    if (Array.isArray(sample.values[key]) && sample.values[key].length)
+      lists[key] = sample.values[key];
   });
   const settings: Record<string, any> = {};
-  (["openingHours", "reservation", "stayPolicy", "tourBooking"] as const).forEach((key) => {
+  (
+    ["openingHours", "reservation", "stayPolicy", "tourBooking"] as const
+  ).forEach((key) => {
     if (sample.values[key] !== undefined) settings[key] = sample.values[key];
   });
   return { page: sample.pages[0] || {}, lists, settings };
@@ -239,4 +361,10 @@ export const buildServiceSample = async ({
 
 /** True when the page name is one of the predefined services the sample content covers. */
 export const isSampleService = (name: string) =>
-  SERVICE_CHOICES.some((choice) => choice.name.toLowerCase() === String(name || "").trim().toLowerCase());
+  SERVICE_CHOICES.some(
+    (choice) =>
+      choice.name.toLowerCase() ===
+      String(name || "")
+        .trim()
+        .toLowerCase(),
+  );
