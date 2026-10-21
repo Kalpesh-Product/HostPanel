@@ -11,12 +11,14 @@ import {
 } from "../controllers/ticketController.js";
 import verifyJwt from "../middlewares/verifyJwt.js";
 import upload from "../config/multerConfig.js";
+import { proxyTicketAttachment } from "../controllers/attachmentProxyController.js";
 
 const router = express.Router();
 
 // Apply auth middleware to all ticket routes
 router.use(verifyJwt);
 
+router.get("/attachments/file", proxyTicketAttachment);       // GET /api/tickets/attachments/file
 router.post("/", upload.array("attachments", 5), createTicket); // POST /api/tickets
 router.get("/", getTickets);                                 // GET /api/tickets
 router.get("/issue-suggestions", getIssueSuggestions);       // GET /api/tickets/issue-suggestions

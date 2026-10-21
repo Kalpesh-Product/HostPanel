@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2, UserCheck, Eye, ExternalLink, Download, FileText, Plus, Pencil, Trash2, Paperclip } from "lucide-react";
+import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2, UserCheck, Eye, FileText, Plus, Pencil, Trash2, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
@@ -14,6 +14,7 @@ import { isDateInExportPeriod } from '@/utils/export-period';
 import { downloadReportFile } from "../../utils/report-download";
 import { CustomerSupportSkeleton } from "../../components/ui/Skeleton";
 import { getStoredUser } from "../../lib/auth-session";
+import { LocalAttachmentList, StoredAttachmentList } from "../../components/AttachmentPreview";
 
 type TicketStatus =
   | "Open"
@@ -878,50 +879,41 @@ export default function CustomerSupportPage() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Attachments</label>
-                  <input
-                    id="issue-image"
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,application/pdf,text/csv"
-                    multiple
-                    className="hidden"
-                    onChange={(event) => {
-                      handleAttachmentFilesSelected(event.target.files);
-                      event.target.value = "";
-                    }}
-                  />
-                  <label
-                    htmlFor="issue-image"
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={(event) => {
-                      event.preventDefault();
-                      handleAttachmentFilesSelected(event.dataTransfer.files);
-                    }}
-                    className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-white hover:bg-slate-50 hover:border-[#2563EB] transition-colors cursor-pointer group"
-                  >
-                    <div className="w-12 h-12 bg-blue-50 rounded-full shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                      <Paperclip className="text-[#2563EB]" size={20} />
-                    </div>
-                    <p className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A]">Upload screenshot or document</p>
-                    <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1">PNG, JPG, WEBP, PDF or CSV up to {MAX_ATTACHMENT_SIZE_MB}MB, max {MAX_ATTACHMENTS} files</p>
-                  </label>
+                  {imageFiles.length < MAX_ATTACHMENTS && (
+                    <>
+                      <input
+                        id="issue-image"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,application/pdf,text/csv"
+                        multiple
+                        className="hidden"
+                        onChange={(event) => {
+                          handleAttachmentFilesSelected(event.target.files);
+                          event.target.value = "";
+                        }}
+                      />
+                      <label
+                        htmlFor="issue-image"
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          handleAttachmentFilesSelected(event.dataTransfer.files);
+                        }}
+                        className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-white hover:bg-slate-50 hover:border-[#2563EB] transition-colors cursor-pointer group"
+                      >
+                        <div className="w-12 h-12 bg-blue-50 rounded-full shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                          <Paperclip className="text-[#2563EB]" size={20} />
+                        </div>
+                        <p className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A]">Upload screenshot or document</p>
+                        <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1">PNG, JPG, WEBP, PDF or CSV up to {MAX_ATTACHMENT_SIZE_MB}MB, max {MAX_ATTACHMENTS} files</p>
+                      </label>
+                    </>
+                  )}
                   {attachmentError ? (
                     <p className="text-[10px] sm:text-[11px] text-red-500 font-pmedium">{attachmentError}</p>
                   ) : null}
                   {imageFiles.length > 0 && (
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      {imageFiles.map((file, index) => (
-                        <div key={`${file.name}-${index}`} className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg pl-2.5 pr-1.5 py-1 text-[11px] font-pmedium max-w-[220px]">
-                          <span className="truncate">{file.name}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeAttachmentFile(index)}
-                            className="shrink-0 w-4 h-4 flex items-center justify-center rounded-full hover:bg-blue-100 text-blue-500"
-                          >
-                            <X size={12} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                    <LocalAttachmentList files={imageFiles} onRemove={removeAttachmentFile} />
                   )}
                 </div>
               </div>
@@ -1027,27 +1019,16 @@ export default function CustomerSupportPage() {
                   </div>
                   <div>
                     <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Issue Attachment{((selectedTicket.images?.length || 0) > 1) ? "s" : ""}</p>
-                    {(selectedTicket.images && selectedTicket.images.length > 0) ? (
-                      <div className="flex flex-wrap gap-2">
-                        {selectedTicket.images.map((image, index) => (
-                          <a
-                            key={`${image.id}-${index}`}
-                            href={image.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-[10px] font-pmedium tracking-wide hover:bg-blue-100 transition-colors"
-                          >
-                            <ExternalLink size={11} /> {image.name || `Attachment ${index + 1}`}
-                          </a>
-                        ))}
-                      </div>
-                    ) : selectedTicket.image?.url ? (
-                      <a href={selectedTicket.image.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-[10px] font-pmedium tracking-wide hover:bg-blue-100 transition-colors">
-                        <ExternalLink size={11} /> View Uploaded Image
-                      </a>
-                    ) : (
-                      <p className="text-[12px] font-pmedium text-slate-400">No attachment</p>
-                    )}
+                    <StoredAttachmentList
+                      attachments={
+                        selectedTicket.images && selectedTicket.images.length > 0
+                          ? selectedTicket.images
+                          : selectedTicket.image?.url
+                            ? [{ ...selectedTicket.image, name: "Uploaded Image" }]
+                            : []
+                      }
+                      emptyText="No attachment"
+                    />
                   </div>
                 </div>
               </div>
@@ -1063,13 +1044,14 @@ export default function CustomerSupportPage() {
                   </div>
                   <div>
                     <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Resolution Attachment</p>
-                    {selectedTicket.resolutionAttachment?.url ? (
-                      <a href={selectedTicket.resolutionAttachment.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-[10px] font-pmedium tracking-wide hover:bg-blue-100 transition-colors">
-                        <ExternalLink size={11} /> View Resolution File
-                      </a>
-                    ) : (
-                      <p className="text-[12px] font-pmedium text-slate-400">No resolution attachment</p>
-                    )}
+                    <StoredAttachmentList
+                      attachments={
+                        selectedTicket.resolutionAttachment?.url
+                          ? [{ ...selectedTicket.resolutionAttachment, name: "Resolution File" }]
+                          : []
+                      }
+                      emptyText="No resolution attachment"
+                    />
                   </div>
                 </div>
               </div>
@@ -1236,50 +1218,41 @@ export default function CustomerSupportPage() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Attachments</label>
-                  <input
-                    id="edit-issue-image"
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,application/pdf,text/csv"
-                    multiple
-                    className="hidden"
-                    onChange={(event) => {
-                      handleEditAttachmentFilesSelected(event.target.files);
-                      event.target.value = "";
-                    }}
-                  />
-                  <label
-                    htmlFor="edit-issue-image"
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={(event) => {
-                      event.preventDefault();
-                      handleEditAttachmentFilesSelected(event.dataTransfer.files);
-                    }}
-                    className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-white hover:bg-slate-50 hover:border-[#2563EB] transition-colors cursor-pointer group"
-                  >
-                    <div className="w-12 h-12 bg-blue-50 rounded-full shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                      <Paperclip className="text-[#2563EB]" size={20} />
-                    </div>
-                    <p className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A]">Upload screenshot or document</p>
-                    <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1">PNG, JPG, WEBP, PDF or CSV up to {MAX_ATTACHMENT_SIZE_MB}MB, max {MAX_ATTACHMENTS} files</p>
-                  </label>
+                  {editImageFiles.length < MAX_ATTACHMENTS && (
+                    <>
+                      <input
+                        id="edit-issue-image"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,application/pdf,text/csv"
+                        multiple
+                        className="hidden"
+                        onChange={(event) => {
+                          handleEditAttachmentFilesSelected(event.target.files);
+                          event.target.value = "";
+                        }}
+                      />
+                      <label
+                        htmlFor="edit-issue-image"
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          handleEditAttachmentFilesSelected(event.dataTransfer.files);
+                        }}
+                        className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-white hover:bg-slate-50 hover:border-[#2563EB] transition-colors cursor-pointer group"
+                      >
+                        <div className="w-12 h-12 bg-blue-50 rounded-full shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                          <Paperclip className="text-[#2563EB]" size={20} />
+                        </div>
+                        <p className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A]">Upload screenshot or document</p>
+                        <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1">PNG, JPG, WEBP, PDF or CSV up to {MAX_ATTACHMENT_SIZE_MB}MB, max {MAX_ATTACHMENTS} files</p>
+                      </label>
+                    </>
+                  )}
                   {editAttachmentError ? (
                     <p className="text-[10px] sm:text-[11px] text-red-500 font-pmedium">{editAttachmentError}</p>
                   ) : null}
                   {editImageFiles.length > 0 && (
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      {editImageFiles.map((file, index) => (
-                        <div key={`${file.name}-${index}`} className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg pl-2.5 pr-1.5 py-1 text-[11px] font-pmedium max-w-[220px]">
-                          <span className="truncate">{file.name}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeEditAttachmentFile(index)}
-                            className="shrink-0 w-4 h-4 flex items-center justify-center rounded-full hover:bg-blue-100 text-blue-500"
-                          >
-                            <X size={12} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                    <LocalAttachmentList files={editImageFiles} onRemove={removeEditAttachmentFile} />
                   )}
                 </div>
               </div>

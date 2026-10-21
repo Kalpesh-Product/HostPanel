@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
-import { Paperclip, X } from 'lucide-react';
+import { Paperclip } from 'lucide-react';
+import { LocalAttachmentList } from './AttachmentPreview';
 
 const DEFAULT_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/csv'];
 
@@ -67,50 +68,41 @@ export default function AttachmentDropzone({
   return (
     <div className="space-y-1.5">
       <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">{label}</label>
-      <input
-        ref={inputRef}
-        type="file"
-        accept={allowedTypes.join(',')}
-        multiple
-        className="hidden"
-        onChange={(e) => {
-          handleFilesSelected(e.target.files);
-          e.target.value = '';
-        }}
-      />
-      <div
-        onClick={() => inputRef.current?.click()}
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault();
-          handleFilesSelected(e.dataTransfer.files);
-        }}
-        className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-white hover:bg-slate-50 hover:border-[#2563EB] transition-colors cursor-pointer group"
-      >
-        <div className="w-12 h-12 bg-blue-50 rounded-full shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-          <Paperclip className="text-[#2563EB]" size={20} />
-        </div>
-        <p className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A]">Upload screenshot or document</p>
-        <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1">{resolvedHelperText}</p>
-      </div>
+      {files.length < maxFiles && (
+        <>
+          <input
+            ref={inputRef}
+            type="file"
+            accept={allowedTypes.join(',')}
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              handleFilesSelected(e.target.files);
+              e.target.value = '';
+            }}
+          />
+          <div
+            onClick={() => inputRef.current?.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              handleFilesSelected(e.dataTransfer.files);
+            }}
+            className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-white hover:bg-slate-50 hover:border-[#2563EB] transition-colors cursor-pointer group"
+          >
+            <div className="w-12 h-12 bg-blue-50 rounded-full shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+              <Paperclip className="text-[#2563EB]" size={20} />
+            </div>
+            <p className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A]">Upload screenshot or document</p>
+            <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1">{resolvedHelperText}</p>
+          </div>
+        </>
+      )}
       {error ? (
         <p className="text-[10px] sm:text-[11px] text-red-500 font-pmedium">{error}</p>
       ) : null}
       {files.length > 0 && (
-        <div className="flex flex-wrap gap-2 pt-1">
-          {files.map((file, index) => (
-            <div key={`${file.name}-${index}`} className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg pl-2.5 pr-1.5 py-1 text-[11px] font-pmedium max-w-[220px]">
-              <span className="truncate">{file.name}</span>
-              <button
-                type="button"
-                onClick={() => removeFile(index)}
-                className="shrink-0 w-4 h-4 flex items-center justify-center rounded-full hover:bg-blue-100 text-blue-500"
-              >
-                <X size={12} />
-              </button>
-            </div>
-          ))}
-        </div>
+        <LocalAttachmentList files={files} onRemove={removeFile} />
       )}
     </div>
   );
