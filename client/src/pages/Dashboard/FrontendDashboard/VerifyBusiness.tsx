@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import PageFrame from "../../../components/Pages/PageFrame";
 import { toast } from "sonner";
 import { MdVerified } from "react-icons/md";
 import {
+  AlertTriangle,
   BadgeCheck,
   Ban,
   BadgeX,
@@ -14,6 +15,7 @@ import {
   CreditCard,
   ExternalLink,
   FileText,
+  Layers,
   Loader2,
   RefreshCw,
   Target,
@@ -78,6 +80,10 @@ const tierLabel = (value?: string | null) =>
 const VERIFY_DISABLED_REASON =
   "Add and activate a listing — or get your existing wono.co listings approved — to enable verification.";
 
+// Shared empty-state action styling — mirrors the CompanyLeads empty state.
+const EMPTY_PRIMARY_ACTION_CLASS =
+  "inline-flex items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-wider text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2";
+
 const VerifyBusiness = () => {
   const axiosPrivate = useAxiosPrivate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -86,7 +92,7 @@ const VerifyBusiness = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [planModalOpen, setPlanModalOpen] = useState(false);
 
-  const { data: overview, isPending } = useQuery({
+  const { data: overview, isPending, isError, refetch } = useQuery({
     queryKey: ["verify-business-overview"],
     queryFn: async () => {
       const response = await axiosPrivate.get("/api/verify-business/overview");
@@ -264,6 +270,22 @@ const VerifyBusiness = () => {
             <div className="flex justify-center py-16">
               <Loader2 className="animate-spin text-slate-300" size={28} />
             </div>
+          ) : isError ? (
+            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-100 bg-white px-6 py-16 text-center shadow-sm">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 text-amber-500"><AlertTriangle size={28} /></div>
+              <p className="text-[15px] font-pmedium text-slate-900">Couldn&apos;t load your verification status</p>
+              <p className="mx-auto max-w-md text-[12px] font-pmedium leading-relaxed text-slate-500">
+                We couldn&apos;t confirm your verification status just now. This doesn&apos;t mean nothing is set up — try again or open your listings.
+              </p>
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                <button type="button" onClick={() => refetch()} className={EMPTY_PRIMARY_ACTION_CLASS}>
+                  Try Again
+                </button>
+                <Link to="/key-apps/nomad-listings" className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[11px] font-pmedium text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-[#2563EB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2">
+                  <Layers size={14} /> Open Listings
+                </Link>
+              </div>
+            </div>
           ) : (
             <>
               {/* STATUS BAR */}
@@ -339,11 +361,19 @@ const VerifyBusiness = () => {
                       <tbody className="divide-y divide-slate-100/60">
                         {listings.length === 0 ? (
                           <tr>
-                            <td colSpan={10} className="px-5 py-16 text-center">
-                              <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-400 mx-auto">
+                            <td colSpan={10} className="px-6 py-16 text-center">
+                              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-[#2563EB] mx-auto">
                                 <Target size={28} />
                               </div>
-                              <p className="text-slate-400 font-pmedium">No listings found.</p>
+                              <p className="text-[15px] font-pmedium text-slate-900">No listings to verify yet</p>
+                              <p className="mx-auto mt-2 max-w-md text-[12px] font-pmedium leading-relaxed text-slate-500">
+                                Verification applies to your active, public Nomads listings. Add a listing, then activate and publish it to enable verification.
+                              </p>
+                              <div className="mt-5 flex justify-center">
+                                <Link to="/key-apps/nomad-listings" className={EMPTY_PRIMARY_ACTION_CLASS}>
+                                  <Layers size={14} /> Manage Listings
+                                </Link>
+                              </div>
                             </td>
                           </tr>
                         ) : (

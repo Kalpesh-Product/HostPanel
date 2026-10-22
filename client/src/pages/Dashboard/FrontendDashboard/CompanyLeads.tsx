@@ -33,6 +33,16 @@ function getInitials(value) {
   return String(value || "").trim().split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "LD";
 }
 
+function isSameCompanyWebsite(website, companyId, workspaceId, companyName) {
+  const websiteCompanyId = String(website?.companyId || "").trim();
+  const websiteWorkspaceId = String(website?.workspaceId || "").trim();
+  const websiteCompanyName = String(website?.companyName || "").trim().toLowerCase();
+
+  if (companyId && websiteCompanyId) return websiteCompanyId === String(companyId).trim();
+  if (workspaceId && websiteWorkspaceId) return websiteWorkspaceId === String(workspaceId).trim();
+  return Boolean(companyName) && websiteCompanyName === String(companyName).trim().toLowerCase();
+}
+
 export default function CompanyLeads({ leadScope = "website" }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -51,6 +61,7 @@ export default function CompanyLeads({ leadScope = "website" }) {
 
   const workspaceId = selectedCompany?.workspaceId || auth?.user?.primaryWorkspace || auth?.user?.workspaceMembership?.workspace || auth?.user?.workspaceId || "";
   const companyId = selectedCompany?.companyId || auth?.user?.companyId || "";
+  const companyName = selectedCompany?.companyName || auth?.user?.companyName || "";
   const isAllLeads = String(leadScope).toLowerCase() === "all";
   const isNomadsLeads = String(leadScope).toLowerCase() === "nomads";
   const pageTitle = isAllLeads ? "All Leads" : isNomadsLeads ? "Leads" : "Website Leads";
@@ -97,6 +108,33 @@ export default function CompanyLeads({ leadScope = "website" }) {
     },
   });
 
+  const { data: website = null, isPending: isWebsitePending, isError: isWebsiteError } = useQuery({
+    queryKey: ["companyWebsite", companyId, workspaceId, companyName],
+    enabled: !!(companyId || workspaceId || companyName),
+    queryFn: async () => {
+      const response = await axiosPrivate.get("/api/editor/get-websites", {
+        params: { companyId, workspaceId, businessName: companyName },
+      });
+      const websites = Array.isArray(response?.data) ? response.data : [];
+      return websites.find((item) => isSameCompanyWebsite(item, companyId, workspaceId, companyName)) || null;
+    },
+  });
+
+  const websiteSearchKey = String(website?.searchKey || "").trim();
+  const publishedWebsiteUrl = String(website?.deployedUrl || website?.publishedProjectUrl || "").trim();
+  const isWebsitePublished = Boolean(website?.isPublished === true || publishedWebsiteUrl);
+  const websiteAction = website
+    ? {
+        label: "Edit Website",
+        to: websiteSearchKey
+          ? `/key-apps/website-builder/edit-website/${encodeURIComponent(websiteSearchKey)}`
+          : "/key-apps/website-builder/dynamic/create-website",
+      }
+    : {
+        label: isWebsiteError ? "Open Website Builder" : "Create Website",
+        to: "/key-apps/website-builder",
+      };
+
   const updateLeadMutation = useMutation({
     mutationFn: async (payload) => {
       const res = await axiosPrivate.patch("/api/leads/update-lead", payload);
@@ -140,11 +178,6 @@ export default function CompanyLeads({ leadScope = "website" }) {
     () => leads.find((l) => l._id === selectedLeadId) || null,
     [leads, selectedLeadId],
   );
-
-  const showPageGuide = () => {
-    const guideButton = document.querySelector<HTMLButtonElement>('[data-tour="page-guide-button"]');
-    guideButton?.click();
-  };
 
   useEffect(() => {
     const searchRecord = location.state?.globalSearchRecord;
@@ -280,16 +313,25 @@ export default function CompanyLeads({ leadScope = "website" }) {
                 </h3>
                 <p className="mt-2 max-w-md text-[12px] font-pmedium leading-relaxed text-slate-500">
                   {leads.length === 0
-                    ? "Publish your website to start receiving enquiries. New submissions will appear here automatically."
+                    ? isWebsitePending
+                      ? "Checking your website so we can show the right next step."
+                      : isWebsiteError
+                        ? "Open Website Builder to check your website and choose the next step."
+                        : !website
+                          ? "Create your website to start receiving enquiries. New submissions will appear here automatically."
+                          : isWebsitePublished
+                            ? "Your website is live and ready to receive enquiries. New submissions will appear here automatically."
+                            : "Your website is saved but not live yet. Finish editing and publish it to start receiving enquiries."
                     : "Try another search term or clear the current status and search filters."}
                 </p>
                 <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
                   {leads.length === 0 ? (
                     <Link
-                      to="/key-apps/website-builder"
-                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-wider text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
+                      to={websiteAction.to}
+                      aria-disabled={isWebsitePending}
+                      className={`inline-flex items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-wider text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 ${isWebsitePending ? "pointer-events-none opacity-60" : ""}`}
                     >
-                      <Globe size={14} /> Publish Website
+                      <Globe size={14} /> {isWebsitePending ? "Checking Website" : websiteAction.label}
                     </Link>
                   ) : (
                     <button
@@ -303,13 +345,16 @@ export default function CompanyLeads({ leadScope = "website" }) {
                       Clear Filters
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={showPageGuide}
-                    className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[11px] font-pmedium text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-[#2563EB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
-                  >
-                    Show Page Guide
-                  </button>
+                  {leads.length === 0 && isWebsitePublished && publishedWebsiteUrl && (
+                    <a
+                      href={publishedWebsiteUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[11px] font-pmedium text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-[#2563EB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
+                    >
+                      <Eye size={14} /> View Live Website
+                    </a>
+                  )}
                 </div>
               </div>
             ) : (
