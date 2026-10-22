@@ -64,9 +64,9 @@ const PlanExpiringNotice = () => {
         type="button"
         onClick={() => setModalOpen(true)}
         data-tour="dashboard-plan-expiring-notice"
-        className="flex w-full items-center gap-3 rounded-xl border-2 border-indigo-300/60 bg-indigo-50 p-4 text-left text-indigo-800 transition-colors hover:bg-indigo-100"
+        className="flex w-full items-center gap-3 rounded-xl border-2 border-violet-300/60 bg-violet-50 p-4 text-left text-violet-800 transition-colors hover:bg-violet-100"
       >
-        <Clock size={18} className="flex-shrink-0 text-indigo-600" />
+        <Clock size={18} className="flex-shrink-0 text-violet-600" />
         <p className="min-w-0 text-content font-pmedium">
           Your <strong>{planLabel} Plan</strong> ends on {formatDate(data.planExpiryDate)} (
           {daysLeft} day{daysLeft === 1 ? "" : "s"} left). Renew to avoid being downgraded to Basic
@@ -78,10 +78,10 @@ const PlanExpiringNotice = () => {
           ) : null}
           .
         </p>
-        <span className="ml-auto flex-shrink-0 whitespace-nowrap rounded-full border border-indigo-500 bg-indigo-500 px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-white">
+        <span className="ml-auto flex-shrink-0 whitespace-nowrap rounded-full border border-violet-500 bg-violet-500 px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-white">
           Renew
         </span>
-        <ArrowRight size={14} className="flex-shrink-0 text-indigo-600" />
+        <ArrowRight size={14} className="flex-shrink-0 text-violet-600" />
       </button>
 
       {modalOpen ? (
