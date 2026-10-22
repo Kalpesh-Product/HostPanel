@@ -1962,7 +1962,7 @@ export function AttendancePage() {
                     <span className="inline-flex items-center gap-1.5 text-[10px] font-pmedium text-slate-500">
                       <span className="h-2.5 w-2.5 bg-sky-400" /> On Leave
                     </span>
-                    <span className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-1.5 text-[10px] font-pmedium text-slate-500">
                       <span className="h-2.5 w-2.5 bg-violet-400" /> Holiday
                     </span>
                   </div>

@@ -101,6 +101,17 @@ const normalizeMapUrl = (rawValue) => {
   return normalized;
 };
 
+// A direct video URL for templates (Camelia) that can play a video in the hero instead of a
+// photo slideshow. No host restriction — just a plausible http(s) link, capped in length.
+const normalizeHeroVideoUrl = (rawValue) => {
+  const raw = String(rawValue || "").trim();
+  if (!raw) return "";
+  const lowered = raw.toLowerCase();
+  if (["n/a", "na", "none", "null", "undefined", "-"].includes(lowered)) return "";
+  if (!/^https?:\/\//i.test(raw)) return "";
+  return raw.slice(0, 2048);
+};
+
 const resolveUsableCompanyName = (...candidates) => {
   const invalid = new Set(["n/a", "na", "none", "undefined", "null", "-", "unknown"]);
   for (const candidate of candidates) {
@@ -303,6 +314,7 @@ const buildPublishedSnapshot = (template) => {
 const serializeWebsiteTemplateForClient = (template) => {
   const payload = template?.toObject ? template.toObject() : { ...template };
   payload.mapUrl = normalizeMapUrl(payload.mapUrl);
+  payload.heroVideoUrl = normalizeHeroVideoUrl(payload.heroVideoUrl);
     payload.companyName =
     resolveUsableCompanyName(payload.companyName, payload.registeredCompanyName) ||
     payload.searchKey ||
@@ -724,6 +736,10 @@ const saveTemplateDraftHandler = async (req, res) => {
       draftData?.mapUrl !== undefined
         ? normalizeMapUrl(draftData.mapUrl)
         : template.mapUrl;
+    template.heroVideoUrl =
+      draftData?.heroVideoUrl !== undefined
+        ? normalizeHeroVideoUrl(draftData.heroVideoUrl)
+        : template.heroVideoUrl;
     template.email =
       draftData?.websiteEmail !== undefined || draftData?.email !== undefined
         ? String(draftData.websiteEmail || draftData.email || "").trim()
@@ -1445,7 +1461,6 @@ const saveTemplateDraftHandler = async (req, res) => {
 
 const createTemplateHandler = async (req, res, next) => {
   try {
-    console.log("REQ BODY VERTICAL:", req.body.vertical);
     console.log("REQ BODY COMPANY:", req.body.companyName);
     const { company } = req.query;
 
@@ -1497,6 +1512,14 @@ const createTemplateHandler = async (req, res, next) => {
     styleConfig = safeParse(styleConfig, {});
     socials = normalizeSocials(safeParse(socials, {}));
 
+    // The website builder doesn't currently send a real vertical on every save (it's
+    // disabled on the frontend), so `vertical` below just defaults to "co-working" for
+    // template-rendering purposes (theme/section selection) — it must never be mistaken for
+    // "the company's business vertical is co-working" when writing back to the company record
+    // further down. `hasVerticalInBody` is the only signal for that.
+    const hasVerticalInBody =
+      Object.prototype.hasOwnProperty.call(req.body, "vertical") ||
+      Object.prototype.hasOwnProperty.call(req.body, "verticalType");
     const vertical = normalizeVertical(
       req.body.vertical ?? req.body.verticalType,
     );
@@ -1504,7 +1527,6 @@ const createTemplateHandler = async (req, res, next) => {
       String(req.body?.productTitle || "").trim() ||
       sectionTitleByVertical[vertical] ||
       "Our Services";
-    console.log("VERTICAL BEING SAVED:", req.body.vertical);
     const themeIdFromConfig = VERTICAL_CONFIG?.[vertical]?.themeId;
     const themeId =
       themeIdFromConfig && THEME_TOKENS?.[themeIdFromConfig]
@@ -1531,6 +1553,7 @@ const createTemplateHandler = async (req, res, next) => {
       testimonialTitle: 120,
       contactTitle: 120,
       mapUrl: 2048,
+      heroVideoUrl: 2048,
       email: 254,
       phone: 30,
       address: 200,
@@ -1568,6 +1591,7 @@ const createTemplateHandler = async (req, res, next) => {
         ],
         ["Contact title", req.body.contactTitle, TEXT_LIMITS.contactTitle],
         ["Map URL", req.body.mapUrl, TEXT_LIMITS.mapUrl],
+        ["Hero video URL", req.body.heroVideoUrl, TEXT_LIMITS.heroVideoUrl],
         ["Email", req.body.websiteEmail, TEXT_LIMITS.email],
         ["Phone", req.body.phone, TEXT_LIMITS.phone],
         ["Address", req.body.address, TEXT_LIMITS.address],
@@ -1744,6 +1768,7 @@ const createTemplateHandler = async (req, res, next) => {
         testimonialTitle: req.body.testimonialTitle,
         contactTitle: req.body.contactTitle,
         mapUrl: normalizeMapUrl(req.body.mapUrl),
+        heroVideoUrl: normalizeHeroVideoUrl(req.body.heroVideoUrl),
         email: req.body.websiteEmail,
         phone: req.body.phone,
         address: req.body.address,
@@ -1842,6 +1867,7 @@ const createTemplateHandler = async (req, res, next) => {
         testimonialTitle: req.body.testimonialTitle,
         contactTitle: req.body.contactTitle,
         mapUrl: normalizeMapUrl(req.body.mapUrl),
+        heroVideoUrl: normalizeHeroVideoUrl(req.body.heroVideoUrl),
         email: req.body.websiteEmail,
         phone: req.body.phone,
         address: req.body.address,
@@ -2518,8 +2544,17 @@ const createTemplateHandler = async (req, res, next) => {
     }
 
     if (source !== "Nomad") {
-      const derivedBusinessType = businessTypeLabelByVertical[vertical] || "Co-Working";
-      const normalizedIndustry = [derivedBusinessType].filter(Boolean).join(", ");
+      // Only touch the company's own vertical/industry when the request actually carried a
+      // real one — otherwise this would silently overwrite the vertical the company chose at
+      // signup with the "co-working" render default every time a website is saved.
+      const updateFields: Record<string, unknown> = { isWebsiteTemplate: true };
+      const updateOps: Record<string, unknown> = { $set: updateFields };
+      if (hasVerticalInBody) {
+        const derivedBusinessType = businessTypeLabelByVertical[vertical] || "Co-Working";
+        updateFields.vertical = vertical;
+        updateFields.industry = [derivedBusinessType].filter(Boolean).join(", ");
+        updateOps.$addToSet = { businessTypes: derivedBusinessType };
+      }
 
       const updateHostCompany = await HostCompany.findOneAndUpdate(
         {
@@ -2528,16 +2563,7 @@ const createTemplateHandler = async (req, res, next) => {
             { companyName: new RegExp(`^${String(req.body.companyName || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
           ],
         },
-        {
-          $set: {
-            isWebsiteTemplate: true,
-            vertical,
-            industry: normalizedIndustry,
-          },
-          $addToSet: {
-            businessTypes: derivedBusinessType,
-          },
-        },
+        updateOps,
       );
 
       if (!updateHostCompany) {
@@ -2861,6 +2887,7 @@ const editTemplateHandler = async (req, res, next) => {
       testimonialTitle: 120,
       contactTitle: 120,
       mapUrl: 2048,
+      heroVideoUrl: 2048,
       email: 254,
       phone: 30,
       address: 200,
@@ -2896,6 +2923,7 @@ const editTemplateHandler = async (req, res, next) => {
         ],
         ["Contact title", req.body.contactTitle, TEXT_LIMITS.contactTitle],
         ["Map URL", req.body.mapUrl, TEXT_LIMITS.mapUrl],
+        ["Hero video URL", req.body.heroVideoUrl, TEXT_LIMITS.heroVideoUrl],
         ["Email", req.body.email, TEXT_LIMITS.email],
         ["Phone", req.body.phone, TEXT_LIMITS.phone],
         ["Address", req.body.address, TEXT_LIMITS.address],
@@ -3103,6 +3131,10 @@ const editTemplateHandler = async (req, res, next) => {
         req.body.mapUrl !== undefined
           ? normalizeMapUrl(req.body.mapUrl)
           : template.mapUrl,
+      heroVideoUrl:
+        req.body.heroVideoUrl !== undefined
+          ? normalizeHeroVideoUrl(req.body.heroVideoUrl)
+          : template.heroVideoUrl,
       email: req.body.email ?? template.email,
       phone: req.body.phone ?? template.phone,
       address: req.body.address ?? template.address,

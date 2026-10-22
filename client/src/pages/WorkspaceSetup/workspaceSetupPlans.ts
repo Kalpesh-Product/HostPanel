@@ -31,6 +31,7 @@ export const PLAN_UI_DATA: PlanCardData[] = [
           "Access Grants",
           "Visitor Management (Standard Visitor)",
           "4 Nomad Listings",
+          "Verified Badge - Free for 3 Months",
           "Built-in Chatbot",
           "Customer Support",
           "Cloud Storage",

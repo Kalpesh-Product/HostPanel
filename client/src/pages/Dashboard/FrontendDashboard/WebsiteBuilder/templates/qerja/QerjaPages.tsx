@@ -1,0 +1,678 @@
+import React, { useState } from "react";
+import { AnimatePresence, motion } from "../motion";
+import type { Service, ServiceItem } from "../serviceAdapter";
+import { groupOpeningHours } from "../templateKit";
+import {
+  getCareersJobMeta,
+  getCareersJobTitle,
+} from "../useWebsiteTemplateData";
+import { ApplyForm, MessageForm, RoleSection } from "../shared/TplForms";
+import { LeadFormPanel } from "../shared/TplLead";
+import { useQerja } from "./QerjaContext";
+import {
+  QEyebrow,
+  QIcon,
+  QPageHero,
+  QPlaceholder,
+  QReveal,
+  QSpaceCard,
+} from "./QerjaUI";
+import { qerjaPrice } from "./qerjaPricing";
+
+const src = (value: any) =>
+  typeof value === "string" ? value : value?.url || "";
+
+export const ServicesIndex: React.FC = () => {
+  const { services, draft, navLabel, goToService, c } = useQerja();
+  return (
+    <>
+      <QPageHero
+        title={draft?.productPageHeading || navLabel("products", "Our Spaces")}
+        eyebrow={c("services.index.eyebrow", "Our spaces")}
+        image={draft?.productPageHeroImage || services[0]?.heroImage}
+      />
+      <section className="qj-page-section">
+        <div className="qj-shell">
+          <div className="qj-section-head">
+            <div>
+              <QEyebrow>
+                {c("services.index.label", "Find your place")}
+              </QEyebrow>
+              <h2>
+                {c(
+                  "services.index.title",
+                  "Office solutions designed around your work",
+                )}
+              </h2>
+            </div>
+            <p>
+              {c(
+                "services.index.body",
+                "From an open desk to a private team office, choose a flexible setup and make it yours.",
+              )}
+            </p>
+          </div>
+          <div className={`qj-service-grid qj-count-${services.length}`}>
+            {services.map((service, index) => (
+              <QReveal key={service.key} delay={index * 0.06}>
+                <button type="button" onClick={() => goToService(service)}>
+                  <div>
+                    {service.cardImage || service.heroImage ? (
+                      <img
+                        src={service.cardImage || service.heroImage}
+                        alt={service.name}
+                      />
+                    ) : (
+                      <QPlaceholder text={service.name} />
+                    )}
+                    <span>0{index + 1}</span>
+                  </div>
+                  <small>{service.profile.labels.nav}</small>
+                  <h3>{service.name}</h3>
+                  <p>{service.description || service.heading}</p>
+                  <b>Explore this space {QIcon.arrow()}</b>
+                </button>
+              </QReveal>
+            ))}
+          </div>
+        </div>
+      </section>
+    </>
+  );
+};
+
+export const ServicePage: React.FC<{ service: Service }> = ({ service }) => {
+  const { openLead, c } = useQerja();
+  return (
+    <>
+      <QPageHero
+        title={service.heading || service.name}
+        eyebrow={service.name}
+        image={service.heroImage || service.cardImage}
+      >
+        <button
+          className="qj-button qj-button-yellow"
+          type="button"
+          onClick={() => openLead(service)}
+        >
+          Book this space {QIcon.arrow()}
+        </button>
+      </QPageHero>
+      <section className="qj-page-section">
+        <div className="qj-shell">
+          <div className="qj-section-head">
+            <div>
+              <QEyebrow>
+                {c("services.options.eyebrow", "Available options")}
+              </QEyebrow>
+              <h2>
+                {c("services.options.title", "Choose a workspace that fits")}
+              </h2>
+            </div>
+            <p>{service.description}</p>
+          </div>
+          {service.items.length ? (
+            <div className={`qj-space-grid qj-count-${service.items.length}`}>
+              {service.items.map((item, index) => (
+                <QReveal key={item.key} delay={index * 0.06}>
+                  <QSpaceCard service={service} item={item} index={index} />
+                </QReveal>
+              ))}
+            </div>
+          ) : (
+            <div className="qj-empty">
+              Spaces are being prepared. Contact us for current availability.
+            </div>
+          )}
+        </div>
+      </section>
+      <section className="qj-book-band">
+        <div className="qj-shell">
+          <div>
+            <QEyebrow light>
+              {c("services.form.eyebrow", "Book a space")}
+            </QEyebrow>
+            <h2>{c("services.form.title", "Tell us how you like to work")}</h2>
+            <p>
+              {c(
+                "services.form.body",
+                "Share your date, team size and preferred setup. We will recommend the best available space.",
+              )}
+            </p>
+          </div>
+          <div className="qj-form-card">
+            <LeadFormPanel service={service} />
+          </div>
+        </div>
+      </section>
+    </>
+  );
+};
+
+export const ItemDetail: React.FC<{ service: Service; item: ServiceItem }> = ({
+  service,
+  item,
+}) => {
+  const { openLead, services } = useQerja();
+  const [selected, setSelected] = useState(0);
+  const images = (
+    item.images?.length
+      ? item.images
+      : [item.image, service.heroImage, service.cardImage].filter(Boolean)
+  ) as string[];
+  const features = Array.isArray(item.features)
+    ? item.features
+    : Array.isArray(item.raw?.inclusions)
+      ? item.raw.inclusions
+      : [];
+  const related = services
+    .flatMap((s) => s.items.map((entry) => ({ service: s, item: entry })))
+    .filter((entry) => entry.item.key !== item.key)
+    .slice(0, 3);
+  const itemIndex = Math.max(
+    0,
+    services
+      .flatMap((s) => s.items)
+      .findIndex((entry) => entry.key === item.key),
+  );
+  return (
+    <>
+      <QPageHero
+        title={item.title}
+        eyebrow={item.category || service.name}
+        image={images[0]}
+      />
+      <section className="qj-page-section">
+        <div className="qj-shell qj-detail">
+          <div>
+            <div className="qj-detail-main">
+              {images[selected] ? (
+                <img src={images[selected]} alt={item.title} />
+              ) : (
+                <QPlaceholder text={item.title} />
+              )}
+            </div>
+            {images.length > 1 ? (
+              <div className="qj-detail-thumbs">
+                {images.map((image, index) => (
+                  <button
+                    type="button"
+                    key={image + index}
+                    aria-current={selected === index}
+                    onClick={() => setSelected(index)}
+                  >
+                    <img src={image} alt="" />
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <aside>
+            <QEyebrow>{service.name}</QEyebrow>
+            <h2>{item.title}</h2>
+            <strong>{qerjaPrice(item, itemIndex)}</strong>
+            <p>{item.description}</p>
+            {features.length ? (
+              <ul>
+                {features.map((line: string) => (
+                  <li key={line}>
+                    {QIcon.check()}
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <button
+              className="qj-button qj-button-yellow"
+              type="button"
+              onClick={() => openLead(service, item)}
+            >
+              Reserve this space {QIcon.arrow()}
+            </button>
+          </aside>
+        </div>
+      </section>
+      {related.length ? (
+        <section className="qj-related">
+          <div className="qj-shell">
+            <QEyebrow>Keep exploring</QEyebrow>
+            <h2>Other spaces you may like</h2>
+            <div className="qj-space-grid">
+              {related.map(({ service: s, item: entry }, index) => (
+                <QSpaceCard
+                  key={entry.key}
+                  service={s}
+                  item={entry}
+                  index={index}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+    </>
+  );
+};
+
+export const QerjaFaq: React.FC<{
+  faqs?: Array<{ question?: string; answer?: string }>;
+}> = ({ faqs }) => {
+  const [open, setOpen] = useState<number | null>(0);
+  const items = (faqs || []).filter((item) => item?.question && item?.answer);
+  if (!items.length) return null;
+  return (
+    <section className="qj-faq">
+      <div className="qj-shell qj-faq-grid">
+        <div>
+          <QEyebrow>Quick questions</QEyebrow>
+          <h2>What our coworking community asks</h2>
+          <p>Everything you need to know before your first workday with us.</p>
+        </div>
+        <div>
+          {items.map((item, index) => {
+            const active = open === index;
+            return (
+              <article key={`${item.question}-${index}`}>
+                <button
+                  type="button"
+                  aria-expanded={active}
+                  onClick={() => setOpen(active ? null : index)}
+                >
+                  <span>{item.question}</span>
+                  <motion.i animate={{ rotate: active ? 45 : 0 }}>+</motion.i>
+                </button>
+                <AnimatePresence initial={false}>
+                  {active ? (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                    >
+                      <p>{item.answer}</p>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+              </article>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export const QerjaAbout: React.FC = () => {
+  const { t, draft, navLabel, c } = useQerja();
+  const photos = (draft?.aboutPageImages || []).map(src).filter(Boolean);
+  const people = t.founders || [];
+  return (
+    <>
+      <QPageHero
+        title={navLabel("about", draft?.aboutTitle || "About Us")}
+        eyebrow={c("about.eyebrow", "About Qerja")}
+        image={photos[0] || t.aboutIntroImage}
+      />
+      <section className="qj-page-section">
+        <div className="qj-shell qj-about-story">
+          <div>
+            <QEyebrow>{c("about.story.eyebrow", "Our story")}</QEyebrow>
+            <h2>{draft?.aboutTitle || "We help businesses feel at home"}</h2>
+          </div>
+          <div>
+            {t.aboutIntroBlocks.map((text: string, index: number) => (
+              <p key={index}>{text}</p>
+            ))}
+          </div>
+        </div>
+        <div className="qj-shell qj-about-images">
+          {[
+            photos[1] || t.galleryItems[1],
+            photos[2] || t.galleryItems[2],
+            t.galleryItems[3],
+          ]
+            .filter(Boolean)
+            .map((image: string, index: number) => (
+              <QReveal key={image} delay={index * 0.07}>
+                <img src={image} alt="Coworking life" />
+              </QReveal>
+            ))}
+        </div>
+      </section>
+      {people.length ? (
+        <section className="qj-team">
+          <div className="qj-shell">
+            <div className="qj-section-head">
+              <div>
+                <QEyebrow>{c("about.team.eyebrow", "Our team")}</QEyebrow>
+                <h2>
+                  {draft?.aboutPageTeamHeading ||
+                    c(
+                      "about.team.title",
+                      "Meet the people behind the workspace",
+                    )}
+                </h2>
+              </div>
+            </div>
+            <div className={`qj-team-grid qj-count-${people.length}`}>
+              {people.map((person: any, index: number) => (
+                <QReveal key={person.name || index} delay={index * 0.06}>
+                  <article>
+                    {person.image ? (
+                      <img src={src(person.image)} alt={person.name} />
+                    ) : (
+                      <QPlaceholder text={person.name} />
+                    )}
+                    <h3>{person.name}</h3>
+                    <p>{person.role}</p>
+                    <span>{person.bio}</span>
+                  </article>
+                </QReveal>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+      <QerjaFaq faqs={draft?.faqs} />
+    </>
+  );
+};
+
+export const QerjaGallery: React.FC = () => {
+  const { t, draft, navLabel } = useQerja();
+  return (
+    <>
+      <QPageHero
+        title={draft?.galleryPageHeading || navLabel("gallery", "Gallery")}
+        eyebrow="Inside Qerja"
+        image={t.galleryItems[0]}
+      />
+      <section className="qj-page-section">
+        <div className="qj-gallery">
+          {t.galleryItems.map((image: string, index: number) => (
+            <QReveal key={image + index} delay={(index % 5) * 0.04}>
+              <button type="button" onClick={() => t.openGalleryViewer(index)}>
+                <img src={image} alt={`Qerja workspace ${index + 1}`} />
+              </button>
+            </QReveal>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+};
+
+export const QerjaTestimonials: React.FC = () => {
+  const { t, draft, navLabel, c } = useQerja();
+  return (
+    <>
+      <QPageHero
+        title={
+          draft?.testimonialsPageHeading ||
+          navLabel("testimonials", "Testimonials")
+        }
+        eyebrow="Member stories"
+      />
+      <section className="qj-page-section">
+        <div className="qj-shell qj-review-grid">
+          {t.testimonials.map((item: any, index: number) => (
+            <QReveal key={item.key || index} delay={index * 0.05}>
+              <article>
+                <span>
+                  {"★".repeat(Math.max(1, Math.round(item.rating || 5)))}
+                </span>
+                <blockquote>
+                  “{item.text || item.review || item.message || item.testimony}”
+                </blockquote>
+                <strong>{item.name || item.author}</strong>
+              </article>
+            </QReveal>
+          ))}
+        </div>
+        {t.showWriteReview ? (
+          <div className="qj-center">
+            <button
+              className="qj-button qj-button-yellow"
+              type="button"
+              onClick={t.openReviewModal}
+            >
+              {c("reviews.write", "Write a review")} {QIcon.arrow()}
+            </button>
+          </div>
+        ) : null}
+      </section>
+    </>
+  );
+};
+
+export const QerjaPartner: React.FC = () => {
+  const { t, draft, c } = useQerja();
+  const lines = String(t.partnerPageContent || "")
+    .split("\n")
+    .filter(Boolean);
+  return (
+    <>
+      <QPageHero
+        title={
+          t.partnerPageHeading || `Partner with ${draft?.companyName || "us"}`
+        }
+        eyebrow="Partnerships"
+        image={t.galleryItems[3]}
+      />
+      <section className="qj-page-section">
+        <div className="qj-shell qj-form-layout">
+          <div>
+            <QEyebrow>{c("partner.eyebrow", "Work together")}</QEyebrow>
+            <h2>
+              {c("partner.title", "Let’s build a better workday together")}
+            </h2>
+            {lines.length ? (
+              lines.map((line: string, index: number) => (
+                <p key={index}>{line}</p>
+              ))
+            ) : (
+              <p>
+                {c(
+                  "partner.body",
+                  "Tell us how your company, community or local business would like to collaborate.",
+                )}
+              </p>
+            )}
+          </div>
+          <div className="qj-form-card">
+            <h2>{t.partnerFormTitle || "Start a conversation"}</h2>
+            <MessageForm
+              inquiryType="Partnership"
+              submitLabel="Send to our team"
+              success="We've received your note and will be in touch soon."
+            />
+          </div>
+        </div>
+      </section>
+    </>
+  );
+};
+
+export const QerjaContact: React.FC = () => {
+  const { t, draft, primary, navLabel } = useQerja();
+  const hours = groupOpeningHours(draft?.openingHours);
+  const showForm = draft?.contactEnableInquiryForm !== false;
+  return (
+    <>
+      <QPageHero
+        title={draft?.contactPageHeading || navLabel("contact", "Contact Us")}
+        eyebrow="Get in touch"
+        image={t.galleryItems[4]}
+      />
+      <section className="qj-page-section">
+        <div className="qj-shell qj-contact">
+          <div>
+            <QEyebrow>Come say hello</QEyebrow>
+            <h2>{draft?.contactTitle || "Find your next workspace"}</h2>
+            <p>
+              {draft?.contactPageIntro ||
+                "Tell us what kind of space you need and our team will help you plan the right visit."}
+            </p>
+            <aside>
+              {t.contactPhone ? (
+                <p>
+                  <small>Phone</small>
+                  <a
+                    href={`tel:${String(t.contactPhone).replace(/[^\d+]/g, "")}`}
+                  >
+                    {t.contactPhone}
+                  </a>
+                </p>
+              ) : null}
+              {t.contactEmail ? (
+                <p>
+                  <small>Email</small>
+                  <a href={`mailto:${t.contactEmail}`}>{t.contactEmail}</a>
+                </p>
+              ) : null}
+              {t.contactAddress ? (
+                <p>
+                  <small>Address</small>
+                  <span>{t.contactAddress}</span>
+                </p>
+              ) : null}
+              {hours.length ? (
+                <div>
+                  {hours.map((row) => (
+                    <p key={row.days}>
+                      <small>{row.days}</small>
+                      <span>{row.hours}</span>
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+            </aside>
+          </div>
+          {showForm ? (
+            <div className="qj-form-card">
+              {primary?.leadEnabled ? (
+                <LeadFormPanel service={primary} />
+              ) : (
+                <MessageForm
+                  inquiryType="General Enquiry"
+                  submitLabel="Send message"
+                  success={
+                    draft?.contactInquirySuccessMessage ||
+                    "Thank you. Your inquiry has been submitted successfully."
+                  }
+                />
+              )}
+            </div>
+          ) : null}
+        </div>
+      </section>
+      {draft?.mapUrl ? (
+        <section className="qj-map">
+          <div className="qj-shell">
+            <iframe title="Map" src={draft.mapUrl} loading="lazy" />
+          </div>
+        </section>
+      ) : null}
+      <QerjaFaq faqs={draft?.faqs} />
+    </>
+  );
+};
+
+export const QerjaCareers: React.FC = () => {
+  const { t, draft } = useQerja();
+  const job = t.careersApplyJob;
+  if (job)
+    return (
+      <>
+        <QPageHero
+          title={
+            t.careersDirectApply
+              ? "General application"
+              : getCareersJobTitle(job)
+          }
+          eyebrow={
+            t.careersDirectApply ? "Join our team" : getCareersJobMeta(job)
+          }
+        />
+        <section className="qj-page-section">
+          <div className="qj-shell qj-career-detail">
+            {!t.careersDirectApply ? (
+              <div>
+                <RoleSection title="About this role" text={job.aboutTheJob} />
+                <RoleSection
+                  title="Key responsibilities"
+                  text={job.keyResponsibilities}
+                  asList
+                />
+                <RoleSection
+                  title="Requirements"
+                  text={job.requirements}
+                  asList
+                />
+                <RoleSection title="Soft skills" text={job.softSkills} asList />
+              </div>
+            ) : null}
+            <div className="qj-form-card">
+              <h2>Apply now</h2>
+              <ApplyForm />
+            </div>
+          </div>
+        </section>
+      </>
+    );
+  const intro = String(draft?.careersPageIntro || "")
+    .split("\n")
+    .filter(Boolean);
+  return (
+    <>
+      <QPageHero
+        title={
+          draft?.careersPageHeading || `Work with ${draft?.companyName || "us"}`
+        }
+        eyebrow="Careers"
+        image={t.galleryItems[4]}
+      />
+      <section className="qj-page-section">
+        <div className="qj-shell qj-jobs">
+          {t.careersJobsLoading ? (
+            <p>Loading open roles…</p>
+          ) : !t.careersJobs.length ? (
+            <div className="qj-empty">
+              <h2>No openings right now</h2>
+              <p>
+                {intro[0] ||
+                  "Send us a general application and tell us how you would like to contribute."}
+              </p>
+              <button
+                type="button"
+                className="qj-button qj-button-yellow"
+                onClick={t.openCareersGeneralApply}
+              >
+                {draft?.careersApplyButtonText || "General application"}{" "}
+                {QIcon.arrow()}
+              </button>
+            </div>
+          ) : (
+            t.careersDepartmentSections.map((dept: any) => (
+              <section key={dept.department}>
+                <QEyebrow>{dept.department}</QEyebrow>
+                {dept.jobs.map((item: any, index: number) => (
+                  <button
+                    type="button"
+                    key={index}
+                    onClick={() => t.openCareersJob(item)}
+                  >
+                    <span>
+                      <b>{getCareersJobTitle(item)}</b>
+                      <small>{getCareersJobMeta(item)}</small>
+                    </span>
+                    {QIcon.arrow()}
+                  </button>
+                ))}
+              </section>
+            ))
+          )}
+        </div>
+      </section>
+    </>
+  );
+};

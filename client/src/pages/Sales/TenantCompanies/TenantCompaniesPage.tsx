@@ -3638,6 +3638,7 @@ export default function TenantCompaniesPage() {
         from: '/department-accesses/sales-department/tenant-companies',
         intent: 'add-tenant-inventory',
         openResourceModal: true,
+        suppressPageTourAutoStart: true,
         preset: 'tenant_inventory',
         resourceCategory: 'open_desk',
         inventoryMode: 'area',

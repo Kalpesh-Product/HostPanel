@@ -1,0 +1,238 @@
+import React, { useState } from "react";
+import { AnimatePresence, motion, useScrolled } from "../motion";
+import { resolveSectionFromSlug } from "../useWebsiteTemplateData";
+import { SOCIAL_ICON } from "../socialIcons";
+import { useQerja } from "./QerjaContext";
+import { QEyebrow, QIcon } from "./QerjaUI";
+
+const Brand: React.FC = () => {
+  const { draft, t } = useQerja();
+  return (
+    <button
+      type="button"
+      className="qj-brand"
+      onClick={() => t.goToSection("home")}
+    >
+      {draft?.companyLogo ? (
+        <img src={draft.companyLogo} alt={draft.companyName || "Logo"} />
+      ) : (
+        <b>
+          {draft?.companyName || "Qerja"}
+          <i />
+        </b>
+      )}
+    </button>
+  );
+};
+export const QerjaHeader: React.FC = () => {
+  const { t } = useQerja();
+  const [open, setOpen] = useState(false);
+  const scrolled = useScrolled(16);
+  const links = ((t.navItems || []) as any[]).map((item) => ({
+    slug: item.slug,
+    label: item.name,
+  }));
+  return (
+    <>
+      <header className={`qj-header ${scrolled ? "is-scrolled" : ""}`}>
+        <div className="qj-shell qj-header-row">
+          <Brand />
+          <nav>
+            {links.map((link) => (
+              <button
+                type="button"
+                key={link.slug}
+                aria-current={
+                  t.currentSection === resolveSectionFromSlug(link.slug)
+                    ? "page"
+                    : undefined
+                }
+                onClick={() => t.goToSection(link.slug)}
+              >
+                {link.label}
+                {resolveSectionFromSlug(link.slug) === "products" ? (
+                  <span className="qj-nav-caret"></span>
+                ) : null}
+              </button>
+            ))}
+          </nav>
+          <div className="qj-header-end">
+            {t.contactPhone ? (
+              <a href={`tel:${String(t.contactPhone).replace(/[^\d+]/g, "")}`}>
+                <span>☎</span>
+                {t.contactPhone}
+              </a>
+            ) : null}
+            <button
+              type="button"
+              className="qj-button qj-button-yellow qj-header-cta"
+              onClick={() => t.goToSection("products")}
+            >
+              Book a Space {QIcon.arrow(15)}
+            </button>
+          </div>
+          <button
+            type="button"
+            className="qj-menu"
+            onClick={() => setOpen(true)}
+            aria-label="Open menu"
+          >
+            {QIcon.menu()}
+          </button>
+        </div>
+      </header>
+      <AnimatePresence>
+        {open ? (
+          <motion.div
+            className="qj-mobile"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <button
+              className="qj-mobile-shade"
+              onClick={() => setOpen(false)}
+              aria-label="Close menu"
+            />
+            <motion.aside
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <div>
+                <Brand />
+                <button type="button" onClick={() => setOpen(false)}>
+                  {QIcon.close()}
+                </button>
+              </div>
+              <nav>
+                {links.map((link, index) => (
+                  <button
+                    type="button"
+                    key={link.slug}
+                    onClick={() => {
+                      t.goToSection(link.slug);
+                      setOpen(false);
+                    }}
+                  >
+                    <span>0{index + 1}</span>
+                    {link.label}
+                    {QIcon.arrow()}
+                  </button>
+                ))}
+              </nav>
+              <button
+                className="qj-button qj-button-yellow"
+                type="button"
+                onClick={() => {
+                  t.goToSection("products");
+                  setOpen(false);
+                }}
+              >
+                Book a Space
+              </button>
+            </motion.aside>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </>
+  );
+};
+export const QerjaFooter: React.FC = () => {
+  const { t, draft, services, c } = useQerja();
+  const socials = Object.entries(t.socialLinks || {})
+    .filter(([, value]) => value)
+    .slice(0, 4);
+  return (
+    <footer className="qj-footer">
+      <section className="qj-footer-cta">
+        <div className="qj-shell">
+          <div>
+            <QEyebrow light>Get started</QEyebrow>
+            <h2>{c("footer.cta", "Ready to find your perfect workspace?")}</h2>
+            <p>
+              {c(
+                "footer.newsletterBody",
+                "Tell us what you need and our team will help you plan the right visit.",
+              )}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="qj-button qj-button-yellow"
+            onClick={() => t.goToSection("contact")}
+          >
+            Contact us {QIcon.arrow()}
+          </button>
+        </div>
+      </section>
+      <div className="qj-shell qj-footer-grid">
+        <div>
+          <Brand />
+          <p>
+            {c(
+              "footer.about",
+              "Well-designed coworking spaces, useful amenities and a welcoming community for better workdays.",
+            )}
+          </p>
+          <div className="qj-socials">
+            {socials.map(([key, url]) => (
+              <a
+                href={String(url)}
+                target="_blank"
+                rel="noreferrer"
+                key={key}
+                aria-label={key}
+              >
+                {SOCIAL_ICON[key]?.(17) || key.slice(0, 1).toUpperCase()}
+              </a>
+            ))}
+          </div>
+        </div>
+        <div>
+          <strong>Company</strong>
+          {((t.navItems || []) as any[]).slice(0, 5).map((item) => (
+            <button
+              type="button"
+              key={item.slug}
+              onClick={() => t.goToSection(item.slug)}
+            >
+              {item.name}
+            </button>
+          ))}
+        </div>
+        <div>
+          <strong>Our spaces</strong>
+          {services.slice(0, 5).map((service) => (
+            <button
+              type="button"
+              key={service.key}
+              onClick={() => t.goToProductPage(service.slug)}
+            >
+              {service.name}
+            </button>
+          ))}
+        </div>
+        <div>
+          <strong>Get in touch</strong>
+          {t.contactAddress ? <span>{t.contactAddress}</span> : null}
+          {t.contactPhone ? (
+            <a href={`tel:${String(t.contactPhone).replace(/[^\d+]/g, "")}`}>
+              {t.contactPhone}
+            </a>
+          ) : null}
+          {t.contactEmail ? (
+            <a href={`mailto:${t.contactEmail}`}>{t.contactEmail}</a>
+          ) : null}
+        </div>
+      </div>
+      <div className="qj-shell qj-footer-bottom">
+        <span>
+          © {new Date().getFullYear()} {draft?.companyName || "Qerja"}
+        </span>
+        <span>Space to focus. Community to grow.</span>
+      </div>
+    </footer>
+  );
+};

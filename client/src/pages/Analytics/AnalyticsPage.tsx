@@ -429,7 +429,16 @@ const AnalyticsPage = () => {
       buildFlatGroup("common-modules", "Common Modules", new Set(["dashboard", "calendar"])),
       buildFlatGroup("extra-common-modules", "Extra Common Modules", new Set()),
       buildFlatGroup("key-apps", "Key Apps", new Set()),
-      buildFlatGroup("founder-core-modules", "Core Modules", new Set(["analytics"])),
+      // Basic doesn't get Unit Management (see workspaceModuleCatalog.ts
+      // BASIC_DEFAULT_IDS) — exclude it here too in case a given workspace's
+      // own enabledModuleIds still carries it from before/around a plan change.
+      buildFlatGroup(
+        "founder-core-modules",
+        "Core Modules",
+        String(plan || "").trim().toLowerCase() === "basic"
+          ? new Set(["analytics", "workspace-management"])
+          : new Set(["analytics"]),
+      ),
     ].filter(Boolean) as { key: string; title: string; modules: AnalyticsModuleEntry[] }[];
 
     const departmentSection: any = sectionById.get("department-accesses");
@@ -455,7 +464,7 @@ const AnalyticsPage = () => {
       }
       return 0;
     });
-  }, [enabledModuleIds, moduleMap?.sections, modules]);
+  }, [enabledModuleIds, moduleMap?.sections, modules, plan]);
   const [expandedModuleSections, setExpandedModuleSections] = useState<Set<string>>(() => new Set());
   const [activeModuleTabs, setActiveModuleTabs] = useState<Record<string, string>>({});
 
@@ -731,7 +740,7 @@ const AnalyticsPage = () => {
                           {group.title}
                         </span>
                         <span className="mt-1 block text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
-                          {group.modules.length} tabs
+                          {group.modules.length} tab{group.modules.length === 1 ? "" : "s"}
                         </span>
                       </span>
                     </span>
@@ -744,30 +753,32 @@ const AnalyticsPage = () => {
 
                   {isOpen ? (
                     <div className="p-4 flex flex-col gap-4">
-                      <div className="flex gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm overflow-x-auto [&::-webkit-scrollbar]:hidden">
-                        {group.modules.map((entry) => {
-                          const isActive = activeModule?.id === entry.id;
-                          return (
-                            <button
-                              type="button"
-                              key={entry.id}
-                              onClick={() =>
-                                setActiveModuleTabs((current) => ({
-                                  ...current,
-                                  [group.key]: entry.id,
-                                }))
-                              }
-                              className={`flex-1 shrink-0 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all text-center whitespace-nowrap flex items-center justify-center gap-1.5 ${
-                                isActive
-                                  ? "bg-[#2563EB] text-white shadow-sm"
-                                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                              }`}
-                            >
-                              {entry.label}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      {group.modules.length > 1 ? (
+                        <div className="flex gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                          {group.modules.map((entry) => {
+                            const isActive = activeModule?.id === entry.id;
+                            return (
+                              <button
+                                type="button"
+                                key={entry.id}
+                                onClick={() =>
+                                  setActiveModuleTabs((current) => ({
+                                    ...current,
+                                    [group.key]: entry.id,
+                                  }))
+                                }
+                                className={`flex-1 shrink-0 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all text-center whitespace-nowrap flex items-center justify-center gap-1.5 ${
+                                  isActive
+                                    ? "bg-[#2563EB] text-white shadow-sm"
+                                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                                }`}
+                              >
+                                {entry.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : null}
 
                       {activeModule ? (
                         <LazyMount key={`module-wise-${activeModule.id}`} minHeight={420}>

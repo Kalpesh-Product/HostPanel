@@ -164,7 +164,7 @@ const EditNomadListing = () => {
   // Pull IDs from state or sessionStorage (works after refresh/back)
   const companyId =
     navState.companyId || sessionStorage.getItem("companyId") || "";
-  const companyType = navState.website.companyType || "";
+  const companyType = navState.website?.companyType || "";
   const businessId =
     navState.website?.businessId || sessionStorage.getItem("businessId") || "";
 

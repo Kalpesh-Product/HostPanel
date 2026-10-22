@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   Building2, Plus, Trash2, X, Users, UserPlus, ArrowLeft,
@@ -258,6 +259,8 @@ function saveUserOwnerAccessSettings(user, accessState) {
 }
 
 export function OrganizationPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { auth } = useAuth();
   const axiosPrivate = useAxiosPrivate();
   const [currentUser, setCurrentUser] = useState(() => auth?.user || getStoredUser());
@@ -864,6 +867,20 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
     });
   }, [teamMembers, searchQuery, statusFilter, deptRoleFilter, departments]);
 
+  useEffect(() => {
+    const searchRecord = location.state?.globalSearchRecord;
+    if (searchRecord?.type !== 'user' || isLoading) return;
+    const recordId = String(searchRecord?.record?.userId || searchRecord?.record?.id || searchRecord?.record?._id || '');
+    const matchingMember = teamMembers.find((member) =>
+      String(member?.userId || member?.id || member?._id || '') === recordId,
+    );
+    setActiveTab('users');
+    setView('list');
+    setSearchQuery(String(location.state?.globalSearchQuery || searchRecord?.record?.name || searchRecord?.record?.email || ''));
+    if (matchingMember) setViewingMember(matchingMember);
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
+  }, [isLoading, location.pathname, location.search, location.state, navigate, teamMembers]);
+
   const filteredTransferredTeamMembers = useMemo(() => {
     const normalizedSearch = searchQuery.toLowerCase().trim();
 
@@ -1466,6 +1483,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
       const savedDepartment = response?.data?.data?.department || {};
       const savedDepartmentId = String(savedDepartment.id || editingDepartmentId).trim();
       await loadOrganization(savedDepartmentId || null);
+      window.dispatchEvent(new Event('organization:updated'));
       setShowDepartmentModal(false);
       setNewDepartmentForm({ departmentId: '', name: '', description: '', moduleIds: [] });
 
@@ -1512,6 +1530,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
         setView('list');
       }
       await loadOrganization();
+      window.dispatchEvent(new Event('organization:updated'));
     } catch (error) {
       console.error('Failed to delete custom department', error);
       toast.error((error as any)?.response?.data?.message || 'Failed to delete custom department.');
@@ -1556,14 +1575,14 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
             title={!canAccessDepartmentsTab ? 'You do not have access to departments.' : ''}
             disabled={!canAccessDepartmentsTab}
             onClick={() => { setActiveTab('departments'); setView('list'); }}
-            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
+            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
               !canAccessDepartmentsTab
-                ? 'text-slate-300 cursor-not-allowed'
+                ? 'text-slate-500 cursor-not-allowed'
                 : activeTab === 'departments'
                   ? 'bg-[#2563EB] text-white shadow-sm'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
             }`}>
-            <Building2 size={16} className="inline mr-1"/> DEPARTMENTS {!canAccessDepartmentsTab ? <Lock size={12} className="inline" /> : null}
+            {!canAccessDepartmentsTab && <Lock size={12} />} DEPARTMENTS
           </button>
         </div>
 

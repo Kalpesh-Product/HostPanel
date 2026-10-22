@@ -47,6 +47,12 @@ function formatVerificationExpiry(value) {
   return date.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
 }
 
+// Shared empty-state action styling — mirrors the CompanyLeads empty state.
+const EMPTY_PRIMARY_ACTION_CLASS =
+  "inline-flex items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-wider text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2";
+const EMPTY_SECONDARY_ACTION_CLASS =
+  "inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[11px] font-pmedium text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-[#2563EB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2";
+
 export default function NomadListingsOverview() {
   const axios = useAxiosPrivate();
   const navigate = useNavigate();
@@ -241,6 +247,7 @@ export default function NomadListingsOverview() {
     remaining,
     isAtLimit,
     isPending,
+    isError,
     limitMessage,
     typeLimit,
     usedTypes,
@@ -342,6 +349,11 @@ export default function NomadListingsOverview() {
       return;
     }
     navigate(`/key-apps/nomad-listings/add`, { state: { companyId } });
+  };
+
+  const clearFilters = () => {
+    setStatusFilter("all");
+    setSearchQuery("");
   };
 
   const handleEdit = (item) => {
@@ -577,7 +589,9 @@ export default function NomadListingsOverview() {
                   >
                     <Plus size={13} strokeWidth={3} /> ADD LISTING
                   </button>
-                  {!isLinkedToExistingCompany && !claimStatus?.linked && (
+                  {!isLinkedToExistingCompany &&
+                    !claimStatus?.linked &&
+                    (claimStatus?.status || !nonDeletedListings.length) && (
                     <button
                       type="button"
                       onClick={() => setShowClaimModal(true)}
@@ -631,9 +645,61 @@ export default function NomadListingsOverview() {
                   <tbody className="divide-y divide-slate-100/60">
                     {filteredListings.length === 0 && pendingRows.length === 0 ? (
                       <tr>
-                        <td colSpan={10} className="px-5 py-16 text-center">
-                          <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-400 mx-auto"><Target size={28} /></div>
-                          <p className="text-slate-400 font-pmedium">No listings found.</p>
+                        <td colSpan={10} className="px-6 py-16 text-center">
+                          {isError ? (
+                            <>
+                              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 text-amber-500 mx-auto"><AlertTriangle size={28} /></div>
+                              <p className="text-[15px] font-pmedium text-slate-900">Couldn&apos;t load your listings</p>
+                              <p className="mx-auto mt-2 max-w-md text-[12px] font-pmedium leading-relaxed text-slate-500">
+                                We couldn&apos;t confirm your listing status just now. Your listings may still exist — try again or open the listings page.
+                              </p>
+                              <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                                <button type="button" onClick={() => refetchListings()} className={EMPTY_PRIMARY_ACTION_CLASS}>
+                                  Try Again
+                                </button>
+                              </div>
+                            </>
+                          ) : listings.length === 0 ? (
+                            <>
+                              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-[#2563EB] mx-auto"><Target size={28} /></div>
+                              <p className="text-[15px] font-pmedium text-slate-900">No listings yet</p>
+                              <p className="mx-auto mt-2 max-w-md text-[12px] font-pmedium leading-relaxed text-slate-500">
+                                Add your co-working or co-living space to appear on Nomads Listings. Already on wono.co? Verify your existing listings to bring them into this account.
+                              </p>
+                              <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={handleAddClick}
+                                  title={isAtLimit ? limitMessage : "Add a new listing"}
+                                  className={EMPTY_PRIMARY_ACTION_CLASS}
+                                >
+                                  <Plus size={14} /> Add Listing
+                                </button>
+                                {!isLinkedToExistingCompany && !claimStatus?.linked && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowClaimModal(true)}
+                                    className={EMPTY_SECONDARY_ACTION_CLASS}
+                                  >
+                                    <Building2 size={14} /> Verify Existing Listings
+                                  </button>
+                                )}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-400 mx-auto"><Target size={28} /></div>
+                              <p className="text-[15px] font-pmedium text-slate-900">No matching listings found</p>
+                              <p className="mx-auto mt-2 max-w-md text-[12px] font-pmedium leading-relaxed text-slate-500">
+                                Try another search term or clear the current status and search filters.
+                              </p>
+                              <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                                <button type="button" onClick={clearFilters} className={EMPTY_PRIMARY_ACTION_CLASS}>
+                                  Clear Filters
+                                </button>
+                              </div>
+                            </>
+                          )}
                         </td>
                       </tr>
                     ) : (

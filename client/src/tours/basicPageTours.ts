@@ -127,7 +127,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
     description: "Manage your co-working and co-living space listings across Nomads Listings. Create listings, track their status, and keep your workspace presence up to date.",
     recordsDescription: "Each listing shows your workspace name, type, city, publication status, and creation date.",
     steps: [
-      { selector: '[data-tour="nomad-summary"]', title: "Listing counts at a glance", description: "These five cards show Total Listings, Active (live on Nomads), Inactive (hidden or paused), Product Types used against your plan, and Listings Left (how many more you can create under your plan limit)." },
+      { selector: '[data-tour="nomad-summary"]', title: "Listing counts at a glance", description: "These five cards show Total Listings, Active (live on Nomads), Inactive (hidden or paused), Product Types (Meetingrooms, Coworking, Cafe, Hostels, Coliving, Workiation) used against your plan, and Listings Left (how many more you can create under your plan limit)." },
       { selector: '[data-tour="nomad-status-filter"]', title: "Filter by status", description: "Switch between All, Active, or Inactive listings. Active listings are live and visible to Nomads visitors. Inactive listings are hidden but preserved." },
       { selector: '[data-tour="nomad-search"]', title: "Search listings", description: "Find a listing by company name, workspace type, or city. Results update as you type." },
       { selector: '[data-tour="nomad-add-listing"]', title: "Add a new listing", description: "Opens the listing form where you enter workspace details — name, type, location, amenities, images, and contact info. If you've reached your plan limit, this button will be disabled." },
@@ -957,7 +957,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
     description: "The administration directory of every onboarded tenant company — contracts, contacts, packages, and renewals in one place.",
     steps: [
       { selector: '[data-tour="admin-tenant-summary"]', title: "Directory totals", description: "Counts of tenants on file split into Total Tenants, Active Contracts, Expiring Soon, and Expired Contracts so renewal work stands out." },
-      { selector: '[data-tour="admin-tenant-tabs"]', title: "Filter by contract state", description: "Switch between All, Active, Expiring Soon, and Expired contracts to focus on records that need attention." },
+      { selector: '[data-tour="admin-tenant-status-filters"]', title: "Filter by contract state", description: "Switch between All, Active, Expiring Soon, and Expired contracts to focus on records that need attention." },
       { selector: '[data-tour="admin-tenant-search"]', title: "Find a company", description: "Search instantly by company name or contact person instead of scrolling the directory." },
       { selector: '[data-tour="admin-tenant-status-select"]', title: "Filter by package", description: "Narrow the directory to tenants contracted on one specific package." },
       { selector: '[data-tour="admin-tenant-table"]', title: "Directory and actions", description: "Each row shows company and contact details, contract period, package and credits, and status. View Details opens the complete profile, Edit Company Record corrects saved information, and Renew Contract extends duration or adds credits.", side: "top" },

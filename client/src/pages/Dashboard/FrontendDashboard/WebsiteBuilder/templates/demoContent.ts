@@ -52,8 +52,8 @@ const IMG = {
     ],
   },
   hostel: {
-    hero: ["photo-1709805619372-40de3f158e83", "photo-1752491027824-e9006cd14046", "photo-1785486250446-b048054c8484"],
-    dorm: ["photo-1555854877-bab0e564b8d5", "photo-1721299417031-de890ff33b26", "photo-1767884162402-683fdd430046"],
+    hero: ["photo-1708688610257-d2e1e72678b5", "photo-1586214601498-4dbcfd0bf2c8", "photo-1575393382552-1b59de5f4f3a"],
+    dorm: ["photo-1555854877-bab0e564b8d5", "photo-1630827807282-6be2a754361d", "photo-1718711621245-9c18514277cc"],
     private: ["photo-1727706572437-4fcda0cbd66f", "photo-1611892440504-42a792e24d32", "photo-1773423391716-04e278b07b1b"],
     twin: ["photo-1635247049915-dff57098ea0f", "photo-1736940924904-0e026dccf4d6"],
     common: ["photo-1764006195843-e6f9a5781500", "photo-1579609702289-ecbad32c2cf6", "photo-1516197067152-381321bc78e1"],
@@ -465,7 +465,7 @@ const coLiving: DemoBusiness = {
     { question: "Can I visit before I decide?", answer: "Yes. Schedule a visit and we'll show you the rooms and the shared spaces." },
     { question: "Is there a deposit?", answer: "One month of rent, fully refundable when you move out." },
   ],
-  inclusions: ["furnished-office", "fast-internet", "housekeeping", "laundry", "air-condition", "secure", "community", "cafe-dining"],
+  inclusions: ["swimming-pool", "fast-internet", "housekeeping", "laundry", "air-condition", "secure", "community", "cafe-dining"],
   partnerHeading: "Partner with Common Ground",
   partnerContent: "We work with employers, relocation services and universities to house people in a new city.\nTell us about your team and we'll put together a plan.",
   address: "18 Koramangala 5th Block, Bengaluru 560095",
@@ -482,7 +482,7 @@ const coLiving: DemoBusiness = {
     heroImage: U(IMG.coliving.single[0], 1600),
     cardImage: U(IMG.coliving.single[1], 900),
     faqs: [],
-    inclusions: ["furnished-office", "fast-internet", "housekeeping", "laundry"],
+    inclusions: ["swimming-pool", "fast-internet", "housekeeping", "laundry"],
   },
   extra: {
     coLivingRooms: on([

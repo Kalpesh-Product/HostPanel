@@ -1428,6 +1428,17 @@ export default function VisitorsManagementPage() {
     return Array.from(mergedById.values());
   }, [liveVisitors, approvedVisitors, pendingVisitors]);
 
+  useEffect(() => {
+    const searchRecord = location.state?.globalSearchRecord;
+    if (searchRecord?.type !== 'visitor' || !searchRecord.record) return;
+    const visitor = normalizeVisitorTrackingEntry(searchRecord.record, workspacePreferences.timezone);
+    setSearchQuery(String(location.state?.globalSearchQuery || visitor.name || visitor.fullName || ''));
+    setViewingVisitor(visitor);
+    const status = normalizeText(visitor.status || visitor.statusKey || visitor.approvalStatus || '');
+    setActiveTab(status.includes('checked out') || status.includes('rejected') || status.includes('cancelled') ? 'history' : 'daily');
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
+  }, [location.pathname, location.search, location.state, navigate, workspacePreferences.timezone]);
+
   const dailyVisitorCollections = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     const matchesSearch = (visitor) => [visitor.name, visitor.company, visitor.phone, visitor.email, visitor.purpose, visitor.host, visitor.badgeNo]
