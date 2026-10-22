@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { statusPillClass } from "../../../lib/status-pill";
 import VerifyBusinessForm from "./VerifyBusinessForm";
+import VerifyBusinessPlanModal from "../../../components/VerifyBusinessPlanModal";
 import { TIER_OPTIONS } from "./verifyBusinessTiers";
 
 type Tab = "listings" | "status" | "history";
@@ -76,19 +77,6 @@ const formatDate = (value?: string | null) => {
 const tierLabel = (value?: string | null) =>
   TIER_OPTIONS.find((t) => t.value === value)?.label || value || "--";
 
-// Same rule the server applies when the payment lands: a renewal / plan
-// change starts when the current plan ends (so no paid days are lost), or
-// today if it has already expired.
-const projectPeriod = (currentExpiry?: string | null, tier?: string) => {
-  const months = TIER_OPTIONS.find((t) => t.value === tier)?.months || 1;
-  const expiry = currentExpiry ? new Date(currentExpiry) : null;
-  const stillActive = Boolean(expiry && expiry.getTime() > Date.now());
-  const start = stillActive ? new Date(expiry as Date) : new Date();
-  const end = new Date(start);
-  end.setMonth(end.getMonth() + months);
-  return { start, end, stillActive };
-};
-
 const VERIFY_DISABLED_REASON =
   "Add and activate a listing — or get your existing wono.co listings approved — to enable verification.";
 
@@ -103,7 +91,6 @@ const VerifyBusiness = () => {
   const [tab, setTab] = useState<Tab>("listings");
   const [formOpen, setFormOpen] = useState(false);
   const [planModalOpen, setPlanModalOpen] = useState(false);
-  const [selectedTier, setSelectedTier] = useState("1m");
 
   const { data: overview, isPending, isError, refetch } = useQuery({
     queryKey: ["verify-business-overview"],
@@ -206,20 +193,18 @@ const VerifyBusiness = () => {
     statusLabel = "Rejected";
   }
 
-  const openPlanModal = (tier?: string) => {
-    // Retired plans (3m / 6m) on older records fall back to the first plan.
-    const preferred = tier || verification?.activeTier || verification?.requestedTier;
-    setSelectedTier(
-      TIER_OPTIONS.some((t) => t.value === preferred) ? preferred : TIER_OPTIONS[0].value,
-    );
-    setPlanModalOpen(true);
-  };
+  const openPlanModal = () => setPlanModalOpen(true);
 
-  // Renewal emails link here with ?action=renew|change — open the plan picker.
+  // Renewal emails, and HostPanel's post-login redirect for an
+  // owner/super_admin whose company's verification has expired, link here
+  // with ?action=renew|change — land on Status and open the plan picker.
   useEffect(() => {
     const action = searchParams.get("action");
     if (!action || !overview) return;
-    if (isPaid && (action === "renew" || action === "change")) openPlanModal();
+    if (isPaid && (action === "renew" || action === "change")) {
+      setTab("status");
+      openPlanModal();
+    }
     setSearchParams({}, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [overview]);
@@ -815,88 +800,11 @@ const VerifyBusiness = () => {
       ) : null}
 
       {planModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
-            <p className="text-[14px] font-pmedium text-slate-950">
-              {isPaid ? "Renew / Change Plan" : "Choose a Plan"}
-            </p>
-            <p className="mt-1 text-[12px] font-pmedium text-slate-500">
-              This covers every active, public listing under {overview?.companyName || "this company"}.
-            </p>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {TIER_OPTIONS.map((tier) => (
-                <button
-                  key={tier.value}
-                  type="button"
-                  onClick={() => setSelectedTier(tier.value)}
-                  className={`rounded-xl border py-3 px-2 text-center transition-colors ${
-                    selectedTier === tier.value
-                      ? "border-[#2563EB] bg-blue-50"
-                      : "border-slate-200"
-                  }`}
-                >
-                  <div className="font-pmedium text-slate-900">${tier.price}</div>
-                  <div className="text-[10px] font-pmedium text-slate-500">{tier.label}</div>
-                </button>
-              ))}
-            </div>
-            {isPaid ? (
-              (() => {
-                const period = projectPeriod(
-                  verification?.verificationExpiresAt,
-                  selectedTier,
-                );
-                return (
-                  <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/60 p-3.5 text-[12px] font-pmedium text-slate-700">
-                    {period.stillActive ? (
-                      <p>
-                        Your current plan is valid till{" "}
-                        <span className="text-slate-900">
-                          {formatDate(verification?.verificationExpiresAt)}
-                        </span>
-                        . This renewal / plan change will start after your
-                        current plan ends, so you won't lose any days.
-                      </p>
-                    ) : (
-                      <p>
-                        Your previous plan has expired, so this plan will start
-                        today.
-                      </p>
-                    )}
-                    <div className="mt-2 flex justify-between gap-3 text-[11px]">
-                      <span>
-                        Starts:{" "}
-                        <span className="text-slate-900">{formatDate(period.start.toISOString())}</span>
-                      </span>
-                      <span>
-                        Valid till:{" "}
-                        <span className="text-emerald-700">{formatDate(period.end.toISOString())}</span>
-                      </span>
-                    </div>
-                  </div>
-                );
-              })()
-            ) : null}
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setPlanModalOpen(false)}
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-[12px] font-pmedium text-slate-600 transition hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={payMutation.isPending}
-                onClick={() => payMutation.mutate(selectedTier)}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 text-[12px] font-pmedium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {payMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {payMutation.isPending ? "Redirecting..." : "Continue to Payment"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <VerifyBusinessPlanModal
+          companyName={overview?.companyName}
+          verification={verification}
+          onClose={() => setPlanModalOpen(false)}
+        />
       ) : null}
     </div>
   );
