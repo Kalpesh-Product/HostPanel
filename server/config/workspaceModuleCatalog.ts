@@ -95,6 +95,8 @@ const MODULE_GROUPS = [
       { id: "cafe-management", label: "Cafe Management", route: "/key-apps/cafe-management", implemented: true, verticals: ["cafe"] },
       { id: "hostel-management", label: "Hostel Management", route: "/key-apps/hostel-management", implemented: true, verticals: ["hostel"] },
       { id: "co-living-management", label: "Co-living Management", route: "/key-apps/co-living-management", implemented: true, verticals: ["co-living"] },
+      { id: "co-working-management", label: "Co-working Management", route: "/key-apps/co-working-management", implemented: true, verticals: ["co-working"] },
+      { id: "meeting-room-management", label: "Meeting Room Management", route: "/key-apps/meeting-room-management", implemented: true, verticals: ["meeting-rooms"] },
     ],
   },
   {

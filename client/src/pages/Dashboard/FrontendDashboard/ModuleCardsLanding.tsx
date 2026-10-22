@@ -30,6 +30,7 @@ import {
   NotebookText,
   Package,
   Receipt,
+  ReceiptText,
   LogOut,
   ScanSearch,
   Settings,
@@ -37,6 +38,8 @@ import {
   ShoppingCart,
   Tag,
   Ticket,
+  UtensilsCrossed,
+  Home,
   X,
   UserCog,
   UserMinus,
@@ -318,6 +321,14 @@ export const ICON_BY_ID: Record<string, ElementType> = {
   "amc-maintenance-scheduler": CalendarClock,
   "tech-website-builder": Globe,
   "it-repair-logs": FileSearch,
+  "co-working-management": BriefcaseBusiness,
+  "meeting-room-management": Users,
+  "cafe-management": UtensilsCrossed,
+  "hostel-management": Bed,
+  "co-living-management": Home,
+  "cafe-orders": ReceiptText,
+  "hostel-booking": Bed,
+  "room-booking": Home,
 };
 
 const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {

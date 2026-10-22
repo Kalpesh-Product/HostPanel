@@ -337,6 +337,44 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/key-apps/co-working-management/resource-pricing",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Co-working Management", path: "/key-apps/co-working-management" },
+      { label: "Resource & Pricing" },
+    ],
+  },
+  {
+    pattern: "/key-apps/co-working-management",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Co-working Management" },
+    ],
+  },
+  {
+    pattern: "/key-apps/meeting-room-management",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Meeting Room Management" },
+    ],
+  },
+  {
+    pattern: "/meetings/meeting-rooms",
+    fromSection: "meeting-room-management",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Meeting Room Management", path: "/key-apps/meeting-room-management" },
+      { label: "Meeting Room Booking" },
+    ],
+  },
+  {
+    pattern: "/meetings/meeting-rooms",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      { label: "Meeting Room Booking" },
+    ],
+  },
+  {
     pattern: "/key-apps/website-builder",
     fromSection: "department-accesses",
     end: false,
@@ -597,6 +635,15 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
   },
   {
     pattern: "/department-accesses/administration-department/bookings",
+    fromSection: "meeting-room-management",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Meeting Room Management", path: "/key-apps/meeting-room-management" },
+      { label: "All Bookings" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/administration-department/bookings",
     crumbs: [
       { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
       { label: "Administration Department", path: "/department-accesses/administration-department" },
@@ -646,6 +693,15 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
   },
   {
     pattern: "/department-accesses/sales-department/tenant-companies",
+    fromSection: "co-working-management",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Co-working Management", path: "/key-apps/co-working-management" },
+      { label: "Tenant Companies" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/sales-department/tenant-companies",
     crumbs: [
       { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
       { label: "Sales Department", path: "/department-accesses/sales-department" },
@@ -663,6 +719,15 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
   },
   {
     pattern: "/department-accesses/sales-department/virtual-offices",
+    fromSection: "co-working-management",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Co-working Management", path: "/key-apps/co-working-management" },
+      { label: "Virtual Offices" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/sales-department/virtual-offices",
     crumbs: [
       { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
       { label: "Sales Department", path: "/department-accesses/sales-department" },
@@ -671,10 +736,37 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
   },
   {
     pattern: "/department-accesses/sales-department/resource-pricing",
+    fromSection: "meeting-room-management",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Meeting Room Management", path: "/key-apps/meeting-room-management" },
+      { label: "Resource & Pricing" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/sales-department/resource-pricing",
     crumbs: [
       { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
       { label: "Sales Department", path: "/department-accesses/sales-department" },
       { label: "Resource & Pricing" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/sales-department/sales-architecture",
+    fromSection: "co-working-management",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Co-working Management", path: "/key-apps/co-working-management" },
+      { label: "Sales Architecture" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/sales-department/sales-architecture",
+    fromSection: "meeting-room-management",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Meeting Room Management", path: "/key-apps/meeting-room-management" },
+      { label: "Sales Architecture" },
     ],
   },
   {

@@ -126,6 +126,8 @@ import CafeManagementPage from "../pages/Sales/CafeManagement/CafeManagementPage
 import CafeOrdersPage from "../pages/Sales/CafeOrders/CafeOrdersPage";
 import RoomStayBookingPage from "../pages/RoomStays/RoomStayBookingPage";
 import RoomManagementPage from "../pages/RoomManagement/RoomManagementPage";
+import CoworkingManagementPage from "../pages/CoworkingManagement/CoworkingManagementPage";
+import MeetingRoomManagementPage from "../pages/MeetingRoomManagement/MeetingRoomManagementPage";
 import LeadsManagementPage from "../pages/Sales/LeadsManagement/LeadsManagementPage";
 import SalesArchitecturePage from "../pages/Sales/SalesArchitecture/SalesArchitecturePage";
 import VirtualOfficesPage from "../pages/Sales/VirtualOffices/VirtualOfficesPage";
@@ -763,6 +765,18 @@ export const routes = createBrowserRouter([
               {
                 path: "key-apps/co-living-management",
                 element: <RoomManagementPage roomType="Room" title="Co-living Management" noun="Room" />,
+              },
+              {
+                path: "key-apps/co-working-management",
+                element: <CoworkingManagementPage />,
+              },
+              {
+                path: "key-apps/co-working-management/resource-pricing",
+                element: <ResourcePricingPage allowedCategories={["open_desk", "cabin_desk", "virtual_office"]} />,
+              },
+              {
+                path: "key-apps/meeting-room-management",
+                element: <MeetingRoomManagementPage />,
               },
               {
                 path: "common-modules/cafe-orders",
