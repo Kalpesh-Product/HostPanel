@@ -613,6 +613,10 @@ export default function PricingPackagesPage() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showPackageExportModal, setShowPackageExportModal] = useState(false);
   const [activeTab, setActiveTab] = useState('resource');
+  const tabOptions: Array<{ key: string; label: string }> = [
+    { key: 'resource', label: 'Resources' },
+    { key: 'tenant', label: 'Tenant Packages' },
+  ];
   const [searchQuery, setSearchQuery] = useState('');
   const [resourceCategoryFilter, setResourceCategoryFilter] = useState('All Categories');
   const [resourceFloorFilter, setResourceFloorFilter] = useState('All Floors');
@@ -743,6 +747,7 @@ export default function PricingPackagesPage() {
       mounted = false;
     };
   }, [axiosPrivate]);
+
 
   // Hours in a bookable day, derived from the workspace booking hours (e.g. 9 AM – 10 PM = 13).
   // Drives the hourly ↔ daily price conversion on resource forms.
@@ -1708,12 +1713,7 @@ export default function PricingPackagesPage() {
 
         {/* 2. MAIN TABS (pill-style matching DESIGN.md) */}
         <div data-tour="resource-pricing-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-          {[
-            { key: 'resource', label: 'Resources' },
-            // Memberships tab disabled — feature not implemented yet.
-            // { key: 'membership', label: 'Memberships' },
-            { key: 'tenant', label: 'Tenant Packages' },
-          ].map((tab) => (
+          {tabOptions.map((tab) => (
             <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}
               className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${activeTab === tab.key ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
             >{tab.label}</button>

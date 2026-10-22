@@ -16,6 +16,9 @@ const MODULE_GROUPS = [
       { id: "meeting-room-system", label: "Meeting Room Booking", route: "/meetings/meeting-rooms", implemented: true },
       { id: "printouts", label: "Printouts", route: "/common-modules/printouts", implemented: true },
       { id: "calendar", label: "Calendar", route: "/calendar", implemented: true },
+      { id: "cafe-orders", label: "Cafe Orders", route: "/common-modules/cafe-orders", implemented: true, verticals: ["cafe"] },
+      { id: "hostel-booking", label: "Hostel Booking", route: "/common-modules/hostel-booking", implemented: true, verticals: ["hostel"] },
+      { id: "room-booking", label: "Room Booking", route: "/common-modules/room-booking", implemented: true, verticals: ["co-living"] },
     ],
   },
   {
@@ -89,6 +92,9 @@ const MODULE_GROUPS = [
       { id: "wono-nomad", label: "Nomad Listings", route: "/company-settings/wono-nomad", implemented: true },
       { id: "website-leads", label: "All Leads", route: "/company-settings/all-leads", implemented: true },
       { id: "visitor-management", label: "Visitor Management", route: "/visitors/visitor-management", implemented: true },
+      { id: "cafe-management", label: "Cafe Management", route: "/key-apps/cafe-management", implemented: true, verticals: ["cafe"] },
+      { id: "hostel-management", label: "Hostel Management", route: "/key-apps/hostel-management", implemented: true, verticals: ["hostel"] },
+      { id: "co-living-management", label: "Co-living Management", route: "/key-apps/co-living-management", implemented: true, verticals: ["co-living"] },
     ],
   },
   {
@@ -388,6 +394,40 @@ const PROFESSIONAL_DEFAULT_IDS = new Set([
   "sales-architecture",
 ]);
 
+const VERTICAL_KEY_BY_BUSINESS_TYPE = {
+  "co-working": "co-working",
+  "co-living": "co-living",
+  hostels: "hostel",
+  hostel: "hostel",
+  workation: "workation",
+  "meeting rooms": "meeting-rooms",
+  cafe: "cafe",
+};
+
+export const getWorkspaceVerticalKeys = (businessTypes = []) => {
+  const keys = new Set();
+  for (const businessType of Array.isArray(businessTypes) ? businessTypes : []) {
+    const key = VERTICAL_KEY_BY_BUSINESS_TYPE[String(businessType || "").trim().toLowerCase()];
+    if (key) keys.add(key);
+  }
+  return Array.from(keys);
+};
+
+const isVisibleForVerticals = (item, verticalKeys = []) =>
+  !Array.isArray(item?.verticals) || item.verticals.some((key) => verticalKeys.includes(key));
+
+export const getVerticalModuleIds = (verticalKeys = []) => {
+  const ids = new Set();
+  for (const section of MODULE_GROUPS) {
+    for (const module of collectLeafModules(section.items || [])) {
+      if (Array.isArray(module.verticals) && isVisibleForVerticals(module, verticalKeys)) {
+        ids.add(module.id);
+      }
+    }
+  }
+  return Array.from(ids);
+};
+
 const canPlanAccess = (plan = "basic", moduleId = "") => {
   const normalizedPlan = normalizePlan(plan);
   if (normalizedPlan === "custom") return PROFESSIONAL_DEFAULT_IDS.has(moduleId);
@@ -409,6 +449,7 @@ export const buildWorkspaceModuleCatalog = ({
   selectedPlan = "basic",
   enabledModuleIds = [],
   customDepartments = [],
+  verticalKeys = [],
 } = {}) => {
   const normalizedPlan = normalizePlan(selectedPlan);
   const workspaceEnabledIds = new Set(
@@ -449,12 +490,15 @@ export const buildWorkspaceModuleCatalog = ({
       };
     });
 
+  const isShown = (node) =>
+    isVisibleForVerticals(node, verticalKeys) || workspaceEnabledIds.has(node.id);
+
   const sections = MODULE_GROUPS.map((section) => {
-    const items = (section.items || []).map((item) => {
+    const items = (section.items || []).filter(isShown).map((item) => {
       if (Array.isArray(item.tabs) && item.tabs.length) {
         return {
           ...item,
-          tabs: item.tabs.map((tab) => ({
+          tabs: item.tabs.filter(isShown).map((tab) => ({
             ...tab,
             accessibleByPlan: canPlanAccess(normalizedPlan, tab.id),
             unlockedInWorkspace: resolveIsUnlocked({
@@ -561,16 +605,18 @@ export const buildWorkspaceModulesStructure = ({
 export const getEffectiveEnabledModuleIds = ({
   selectedPlan = "basic",
   existingEnabledModuleIds = [],
+  verticalKeys = [],
 } = {}) => {
   const normalizedPlan = normalizePlan(selectedPlan);
   const defaultIds = getDefaultEnabledModuleIdsForPlan(normalizedPlan);
   const existingIds = Array.isArray(existingEnabledModuleIds)
     ? existingEnabledModuleIds.map((item) => String(item || "").trim()).filter(Boolean)
     : [];
+  const verticalIds = getVerticalModuleIds(verticalKeys);
 
   if (normalizedPlan === "custom") {
-    return Array.from(new Set([...defaultIds, ...existingIds]));
+    return Array.from(new Set([...defaultIds, ...existingIds, ...verticalIds]));
   }
 
-  return defaultIds;
+  return Array.from(new Set([...defaultIds, ...verticalIds]));
 };

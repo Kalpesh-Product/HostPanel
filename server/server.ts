@@ -43,6 +43,8 @@ import meetingRoomRoutes from "./routes/meetingRoomRoutes.js";
 import ticketRoutes from "./routes/ticketRoutes.js";
 import printoutRoutes from "./routes/printoutRoutes.js";
 import resourceRoutes from "./routes/resourceRoutes.js";
+import cafeRoutes from "./routes/cafeRoutes.js";
+import roomStayRoutes from "./routes/roomStayRoutes.js";
 import plansPricingRoutes from "./routes/plansPricing.routes.js";
 import tenantCompanyRoutes from "./routes/tenant-company.routes.js";
 import virtualOfficeRoutes from "./routes/virtualOffice.routes.js";
@@ -188,6 +190,8 @@ app.use("/api/notifications", verifyJwt, blockWriteIfImpersonating, notification
 app.use("/api/tickets", verifyJwt, blockWriteIfImpersonating, ticketRoutes);
 app.use("/api/printouts", verifyJwt, blockWriteIfImpersonating, printoutRoutes);
 app.use("/api/v1/resources", verifyJwt, blockWriteIfImpersonating, resourceRoutes);
+app.use("/api/v1/cafe", verifyJwt, blockWriteIfImpersonating, cafeRoutes);
+app.use("/api/v1/room-stays", verifyJwt, blockWriteIfImpersonating, roomStayRoutes);
 app.use("/api/v1/pricing-packages", verifyJwt, blockWriteIfImpersonating, plansPricingRoutes);
 app.use("/api/v1/tenant-companies", verifyJwt, blockWriteIfImpersonating, tenantCompanyRoutes);
 app.use("/api/v1/virtual-offices", verifyJwt, blockWriteIfImpersonating, virtualOfficeRoutes);

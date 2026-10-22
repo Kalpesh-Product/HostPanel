@@ -32,6 +32,7 @@ import {
   UserMinus,
   Building2,
   Bed,
+  Home,
   HandCoins,
   Wrench,
   BriefcaseBusiness,
@@ -71,6 +72,8 @@ import {
   Factory,
   UsersRound,
   Search,
+  UtensilsCrossed,
+  ReceiptText,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -110,6 +113,7 @@ interface NavNode {
   defaultOpen?: boolean;
   children?: NavNode[];
   state?: Record<string, unknown>;
+  verticals?: string[];
 }
 
 interface SidebarProps {
@@ -144,6 +148,7 @@ interface WorkspaceSetupState {
 interface WorkspaceAccessMapState {
   selectedPlan?: PlanType;
   enabledModuleIds?: string[];
+  verticalKeys?: string[];
   currentMemberGrantedModules?: string[];
   moduleMap?: {
     sections?: Array<{
@@ -215,6 +220,24 @@ const keyAppsData: NavNode[] = [
   { id: "website-leads", label: "All Leads", icon: Magnet, route: "/key-apps/all-leads", disabled: false },
   { id: "visitor-management", label: "Visitor Management", icon: ContactRound, route: "/visitors/visitor-management", disabled: false },
 ];
+
+const filterNavByVerticals = (
+  nodes: NavNode[],
+  verticalKeys: string[],
+  enabledIds: Set<string>,
+): NavNode[] =>
+  nodes
+    .filter(
+      (node) =>
+        !node.verticals ||
+        enabledIds.has(node.id) ||
+        node.verticals.some((key) => verticalKeys.includes(key)),
+    )
+    .map((node) =>
+      node.children
+        ? { ...node, children: filterNavByVerticals(node.children, verticalKeys, enabledIds) }
+        : node,
+    );
 
 const departmentModules: NavNode[] = [
   {
@@ -351,6 +374,12 @@ export const ROUTE_BY_ID: Record<string, string> = {
   "resource-pricing": "/department-accesses/sales-department/resource-pricing",
   "leads-management": "/department-accesses/sales-department/leads-management",
   "sales-architecture": "/department-accesses/sales-department/sales-architecture",
+  "cafe-management": "/key-apps/cafe-management",
+  "cafe-orders": "/common-modules/cafe-orders",
+  "hostel-booking": "/common-modules/hostel-booking",
+  "room-booking": "/common-modules/room-booking",
+  "hostel-management": "/key-apps/hostel-management",
+  "co-living-management": "/key-apps/co-living-management",
   "tenant-companies-admin": "/department-accesses/administration-department/tenant-companies",
   bookings: "/department-accesses/administration-department/bookings",
   "resource-management": "/department-accesses/administration-department/resource-management",
@@ -449,6 +478,12 @@ const ICON_BY_ID: Record<string, ElementType> = {
   "virtual-office-sales": Building2,
   "resource-pricing": Tag,
   "sales-architecture": ShoppingCart,
+  "cafe-management": UtensilsCrossed,
+  "cafe-orders": ReceiptText,
+  "hostel-booking": Bed,
+  "room-booking": Home,
+  "hostel-management": Bed,
+  "co-living-management": Home,
   "finance-budget": PiggyBank,
   "billing-payments": Receipt,
   accounting: Calculator,
@@ -843,6 +878,7 @@ useEffect(() => {
         if (moduleMapResult.status === "fulfilled") {
           setWorkspaceAccessMap({
             selectedPlan: payload?.selectedPlan || "basic",
+            verticalKeys: Array.isArray(payload?.verticalKeys) ? payload.verticalKeys : [],
             enabledModuleIds: Array.isArray(payload?.enabledModuleIds)
               ? payload.enabledModuleIds
               : [],
@@ -1103,7 +1139,15 @@ useEffect(() => {
 
   const companySettingsItems = sortEnabledFirst(applyEnabledState(companySettingsData));
   const keyAppsItems = sortEnabledFirst(applyEnabledState(keyAppsData));
-  const departmentItems = sortEnabledFirst(applyEnabledState(departmentModules));
+  const departmentItems = sortEnabledFirst(
+    applyEnabledState(
+      filterNavByVerticals(
+        departmentModules,
+        workspaceAccessMap?.verticalKeys || [],
+        new Set(workspaceAccessMap?.enabledModuleIds || []),
+      ),
+    ),
+  );
   const roleAllowedModuleIds = useMemo(() => {
     const sections = Array.isArray(workspaceAccessMap?.moduleMap?.sections)
       ? workspaceAccessMap.moduleMap.sections

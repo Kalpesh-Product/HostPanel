@@ -122,6 +122,10 @@ import AnalyticsPage from "../pages/Analytics/AnalyticsPage";
 import TenantCompaniesPage from "../pages/Sales/TenantCompanies/TenantCompaniesPage";
 import TenantCompanyDetailPage from "../pages/Sales/TenantCompanies/TenantCompanyDetailPage";
 import ResourcePricingPage from "../pages/Sales/ResourcePricing/Resource&Pricing";
+import CafeManagementPage from "../pages/Sales/CafeManagement/CafeManagementPage";
+import CafeOrdersPage from "../pages/Sales/CafeOrders/CafeOrdersPage";
+import RoomStayBookingPage from "../pages/RoomStays/RoomStayBookingPage";
+import RoomManagementPage from "../pages/RoomManagement/RoomManagementPage";
 import LeadsManagementPage from "../pages/Sales/LeadsManagement/LeadsManagementPage";
 import SalesArchitecturePage from "../pages/Sales/SalesArchitecture/SalesArchitecturePage";
 import VirtualOfficesPage from "../pages/Sales/VirtualOffices/VirtualOfficesPage";
@@ -747,6 +751,30 @@ export const routes = createBrowserRouter([
               {
                 path: "common-modules/calendar",
                 element: <CalendarPage />,
+              },
+              {
+                path: "key-apps/cafe-management",
+                element: <CafeManagementPage />,
+              },
+              {
+                path: "key-apps/hostel-management",
+                element: <RoomManagementPage roomType="Dorm" title="Hostel Management" noun="Dorm" />,
+              },
+              {
+                path: "key-apps/co-living-management",
+                element: <RoomManagementPage roomType="Room" title="Co-living Management" noun="Room" />,
+              },
+              {
+                path: "common-modules/cafe-orders",
+                element: <CafeOrdersPage />,
+              },
+              {
+                path: "common-modules/hostel-booking",
+                element: <RoomStayBookingPage roomType="Dorm" title="Hostel Booking" noun="Dorm" />,
+              },
+              {
+                path: "common-modules/room-booking",
+                element: <RoomStayBookingPage roomType="Room" title="Room Booking" noun="Room" />,
               },
               {
                 path: "common-modules/tasks",
