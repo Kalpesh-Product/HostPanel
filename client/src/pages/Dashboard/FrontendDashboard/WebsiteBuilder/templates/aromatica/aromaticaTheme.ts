@@ -37,7 +37,7 @@ export const AROMATICA_CSS = String.raw`
 .aroma-header-inner { height: 100%; display: grid; grid-template-columns: minmax(240px, 1fr) auto minmax(190px, 1fr); align-items: center; gap: 32px; }
 .aroma-logo, .aroma-header nav button, .aroma-header-cta, .aroma-menu-toggle { border: 0; background: none; cursor: pointer; }
 .aroma-logo { justify-self: start; padding: 0; max-width: 310px; }
-.aroma-wordmark { display: flex; align-items： center; gap: 12px; min-width: 0; }
+.aroma-wordmark { display: flex; min-width: 0; align-items: center; gap: 12px; line-height: 1; }
 .aroma-wordmark svg, .aroma-wordmark img { flex: 0 0 auto; width: 42px; height: 42px; object-fit: contain; color: var(--ar-accent); }
 .aroma-wordmark b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15.5px; font-weight: 800; letter-spacing: 0.02em; text-transform: uppercase; }
 .aroma-header nav { display: flex; align-items: center; justify-content: center; gap: 24px; }
@@ -433,7 +433,8 @@ export const AROMATICA_CSS = String.raw`
 .aroma-wordmark svg { color: var(--ar-accent); }
 
 .aroma-cafe-hero { position: relative; min-height: 100svh; overflow: hidden; color: #fff; }
-.aroma-cafe-hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; animation: aromaHeroScale 11s ease-out both; }
+.aroma-cafe-hero-media { position: absolute; inset: 0; width: 100%; height: 100%; }
+.aroma-cafe-hero-media img { width: 100%; height: 100%; object-fit: cover; object-position: center; }
 .aroma-cafe-hero-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(9, 7, 5, 0.72), rgba(9, 7, 5, 0.25) 58%, rgba(9, 7, 5, 0.5)), linear-gradient(0deg, rgba(9, 7, 5, 0.76), transparent 55%); }
 .aroma-cafe-hero-copy { position: relative; z-index: 1; display: flex; min-height: 100svh; padding-top: 205px; padding-bottom: 60px; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .aroma-cafe-hero h1 { max-width: 1080px; font-size: clamp(58px, 7.1vw, 112px); line-height: 0.94; letter-spacing: -0.055em; text-wrap: balance; text-shadow: 0 8px 34px rgba(0, 0, 0, 0.35); }
@@ -662,7 +663,7 @@ export const AROMATICA_CSS = String.raw`
 .aroma-cafe-hero {
   min-height: 100svh;
 }
-.aroma-cafe-hero > img {
+.aroma-cafe-hero-media img {
   object-position: center 48%;
 }
 .aroma-cafe-hero-shade {
@@ -890,6 +891,14 @@ export const AROMATICA_CSS = String.raw`
   overflow: hidden;
 }
 .aroma-video-story > div:first-child img {
+  object-fit: cover;
+}
+.aroma-video-player {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: #050403;
   object-fit: cover;
 }
 .aroma-video-story > button {
