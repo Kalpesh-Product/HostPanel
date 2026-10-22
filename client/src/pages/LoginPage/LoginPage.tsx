@@ -19,6 +19,7 @@ import { setTabRefreshToken } from "../../utils/refreshTokenSession";
 import { setStoredTenantRole } from "../../lib/tenant-session";
 import { useQueryClient } from "@tanstack/react-query";
 import { clearUserSessionData } from "../../utils/clearUserSessionData";
+import { normalizeUserRole } from "../../lib/auth-session";
 
 const SIGN_IN_HEADING = "Login";
 
@@ -225,7 +226,44 @@ const LoginPage = () => {
       const multiWorkspaceAccess =
         Array.isArray(nextUser?.accessibleWorkspaces) &&
         nextUser.accessibleWorkspaces.length > 1;
-      if (shouldGoToCreateWorkspace(response?.data?.user)) {
+
+      // Nomads' expired-verification badge sends an already-registered host
+      // here with ?renewCompanyId=<companyId> — if this exact login is the
+      // owner/super_admin of that same company (matched by id, never by
+      // name, since company names aren't unique), skip the normal landing
+      // and drop them straight onto Verify Business's Renew flow instead.
+      let renewRoute = null;
+      if (
+        !shouldGoToCreateWorkspace(response?.data?.user) &&
+        !tenantRole &&
+        !multiWorkspaceAccess
+      ) {
+        const renewCompanyId = new URLSearchParams(window.location.search).get(
+          "renewCompanyId",
+        );
+        const role = normalizeUserRole(
+          nextUser?.workspaceMembership?.role || nextUser?.role,
+        );
+        const canRenew = ["owner", "founder", "super_admin"].includes(role);
+        if (renewCompanyId && canRenew && accessToken) {
+          try {
+            const overviewResponse = await api.get(
+              "/api/verify-business/overview",
+              { headers: { Authorization: `Bearer ${accessToken}` } },
+            );
+            if (overviewResponse?.data?.companyId === renewCompanyId) {
+              renewRoute = "/key-apps/verify-business?action=renew";
+            }
+          } catch {
+            // If this check fails for any reason, fall through to the
+            // normal dashboard landing below.
+          }
+        }
+      }
+
+      if (renewRoute) {
+        navigate(renewRoute, { replace: true });
+      } else if (shouldGoToCreateWorkspace(response?.data?.user)) {
         navigate("/create-workspace", { replace: true });
       } else if (tenantRole) {
         navigate("/dashboard/tenant", { replace: true });

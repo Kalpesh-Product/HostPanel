@@ -21,6 +21,7 @@ import {
 import type { QuickLinkItem } from "./DashboardShared";
 import WonoListingsCard from "./WonoListingsCard";
 import VerifiedBadgeNotice from "./VerifiedBadgeNotice";
+import PlanDowngradedNotice from "./PlanDowngradedNotice";
 import BonusTrialOfferNotice from "./BonusTrialOfferNotice";
 import { statusBadgeColor, humanRelTime, hasModuleUse, pickCardCols } from "./dashboardUtils";
 import { ICON_BY_ID, DEFAULT_SECTION_ROUTES } from "../ModuleCardsLanding";
@@ -318,6 +319,7 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
         </div>
       )}
 
+      <PlanDowngradedNotice />
       <VerifiedBadgeNotice />
       <BonusTrialOfferNotice />
 
