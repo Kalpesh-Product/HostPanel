@@ -22,7 +22,7 @@ import type { QuickLinkItem } from "./DashboardShared";
 import WonoListingsCard from "./WonoListingsCard";
 import VerifiedBadgeNotice from "./VerifiedBadgeNotice";
 import BonusTrialOfferNotice from "./BonusTrialOfferNotice";
-import FreeTrialOfferNotice from "./FreeTrialOfferNotice";
+// import FreeTrialOfferNotice from "./FreeTrialOfferNotice";
 import { statusBadgeColor, humanRelTime, hasModuleUse, pickCardCols } from "./dashboardUtils";
 import { ICON_BY_ID, DEFAULT_SECTION_ROUTES } from "../ModuleCardsLanding";
 import type { WorkspaceModuleSection } from "../../../../hooks/useDashboardAccess";
@@ -290,7 +290,7 @@ const BasicDashboard = ({ onUpgradeClick, isExpiredDowngrade, downgradedPlanLabe
   return (
     <div className="flex flex-col gap-5">
       <WonoListingsCard />
-      <FreeTrialOfferNotice />
+      {/* <FreeTrialOfferNotice /> */}
 
       {/* Plan strip — compact, opens the upgrade modal */}
       <div
