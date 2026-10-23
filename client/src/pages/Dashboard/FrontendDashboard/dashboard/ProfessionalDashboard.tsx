@@ -26,7 +26,6 @@ import {
 import type { QuickLinkItem } from "./DashboardShared";
 import WonoListingsCard from "./WonoListingsCard";
 import VerifiedBadgeNotice from "./VerifiedBadgeNotice";
-import PlanDowngradedNotice from "./PlanDowngradedNotice";
 import PlanExpiringNotice from "./PlanExpiringNotice";
 import BonusTrialOfferNotice from "./BonusTrialOfferNotice";
 import { statusBadgeColor, humanRelTime, pickCardCols, hasModuleUse } from "./dashboardUtils";
@@ -416,7 +415,6 @@ const ProfessionalDashboard = ({
         </a>
       )}
 
-      <PlanDowngradedNotice />
       <PlanExpiringNotice />
       <VerifiedBadgeNotice />
       <BonusTrialOfferNotice />
