@@ -21,6 +21,33 @@ import {
 const src = (value: any) =>
   typeof value === "string" ? value : value?.url || "";
 
+const googleMapSrc = (address?: string, configuredUrl?: string) => {
+  const value = String(configuredUrl || "").trim();
+  const queryUrl = (query: string) =>
+    `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
+  const fallback = String(address || "").trim();
+  if (!value) return fallback ? queryUrl(fallback) : "";
+
+  try {
+    const url = new URL(value);
+    const isGoogleMap =
+      /(^|\.)google\.[a-z.]+$/i.test(url.hostname) ||
+      url.hostname === "maps.google.com";
+    const isEmbed =
+      url.pathname.includes("/maps/embed") ||
+      url.searchParams.get("output") === "embed";
+    if (isGoogleMap && isEmbed) return value;
+
+    const query =
+      url.searchParams.get("q") ||
+      url.searchParams.get("query") ||
+      fallback;
+    return query ? queryUrl(query) : "";
+  } catch {
+    return queryUrl(fallback || value);
+  }
+};
+
 export const ServicesIndex: React.FC = () => {
   const { services, draft, navLabel, goToService, c } = useWorpace();
   return (
@@ -508,6 +535,7 @@ export const WorpaceContact: React.FC = () => {
   const { t, draft, primary, navLabel, c } = useWorpace();
   const hours = groupOpeningHours(draft?.openingHours);
   const showForm = draft?.contactEnableInquiryForm !== false;
+  const map = googleMapSrc(t.contactAddress, draft?.mapUrl);
   return (
     <>
       <PageHero
@@ -580,9 +608,17 @@ export const WorpaceContact: React.FC = () => {
           </div>
         </div>
       </section>
-      {draft?.mapUrl ? (
+      {map ? (
         <section className="wp-map">
-          <iframe title="Map" src={draft.mapUrl} loading="lazy" />
+          <div className="wp-shell">
+            <iframe
+              title={`${draft?.companyName || "Business"} location on Google Maps`}
+              src={map}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+            />
+          </div>
         </section>
       ) : null}
       <WorpaceFaq faqs={draft?.faqs} />
