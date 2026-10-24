@@ -1,9 +1,23 @@
 import React, { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "../motion";
-import { normalizeSlug, resolveSectionFromSlug, useWebsiteTemplateData } from "../useWebsiteTemplateData";
-import { buildServices, type Service, type ServiceItem } from "../serviceAdapter";
-import { averageRating, buildTemplateVars, openStatus, resolvePrimaryKind, resolvePrimaryService } from "../templateKit";
+import {
+  normalizeSlug,
+  resolveSectionFromSlug,
+  useWebsiteTemplateData,
+} from "../useWebsiteTemplateData";
+import {
+  buildServices,
+  type Service,
+  type ServiceItem,
+} from "../serviceAdapter";
+import {
+  averageRating,
+  buildTemplateVars,
+  openStatus,
+  resolvePrimaryKind,
+  resolvePrimaryService,
+} from "../templateKit";
 import { getServiceProfile } from "../verticalProfiles";
 import { contentCopy, contentImage } from "../templateContent";
 import { TplProvider, type TplCtx } from "../shared/TplContext";
@@ -11,10 +25,21 @@ import { LeadModal } from "../shared/TplLead";
 import { ReviewModal } from "../shared/TplForms";
 import { Lightbox, Toast } from "../shared/TplParts";
 import { COMMONS_CSS } from "./commonsTheme";
-import { CommonsFooter, CommonsHeader, CommonsStickyBar } from "./CommonsChrome";
+import {
+  CommonsFooter,
+  CommonsHeader,
+  CommonsStickyBar,
+} from "./CommonsChrome";
 import { CommonsHome } from "./CommonsHome";
 import { ItemDetail, ServicePage, ServicesIndex } from "./CommonsSpaces";
-import { CommonsAbout, CommonsCareers, CommonsContact, CommonsGallery, CommonsPartner, CommonsTestimonials } from "./CommonsPages";
+import {
+  CommonsAbout,
+  CommonsCareers,
+  CommonsContact,
+  CommonsGallery,
+  CommonsPartner,
+  CommonsTestimonials,
+} from "./CommonsPages";
 
 /**
  * Commons — the co-working template. A big headline over a bento grid, an interactive
@@ -27,15 +52,30 @@ const CommonsTemplate: React.FC = () => {
   const { draft } = t;
   const location = useLocation();
   const navigate = useNavigate();
-  const [leadTarget, setLeadTarget] = useState<{ service: Service; item: ServiceItem | null } | null>(null);
+  const [leadTarget, setLeadTarget] = useState<{
+    service: Service;
+    item: ServiceItem | null;
+  } | null>(null);
 
-  const services = useMemo(() => (draft ? buildServices(draft, t.productPages) : []), [draft, t.productPages]);
-  const primary = useMemo(() => resolvePrimaryService(draft, services), [draft, services]);
+  const services = useMemo(
+    () => (draft ? buildServices(draft, t.productPages) : []),
+    [draft, t.productPages],
+  );
+  const primary = useMemo(
+    () => resolvePrimaryService(draft, services),
+    [draft, services],
+  );
   const kind = resolvePrimaryKind(draft, primary);
   const profile = getServiceProfile(kind);
   const rating = useMemo(() => averageRating(t.testimonials), [t.testimonials]);
-  const status = useMemo(() => openStatus(draft?.openingHours), [draft?.openingHours]);
-  const themeVars = useMemo(() => buildTemplateVars("commons", draft, profile), [draft, profile]);
+  const status = useMemo(
+    () => openStatus(draft?.openingHours),
+    [draft?.openingHours],
+  );
+  const themeVars = useMemo(
+    () => buildTemplateVars("commons", draft, profile),
+    [draft, profile],
+  );
 
   if (!draft) {
     return (
@@ -43,7 +83,9 @@ const CommonsTemplate: React.FC = () => {
         <style>{COMMONS_CSS}</style>
         <div className="tp-wrap py-24">
           <h1 className="tp-h3">Preview</h1>
-          <p className="tp-muted mt-2">No preview data found. Go back to Create Website and click Preview.</p>
+          <p className="tp-muted mt-2">
+            No preview data found. Go back to Create Website and click Preview.
+          </p>
         </div>
       </div>
     );
@@ -51,7 +93,13 @@ const CommonsTemplate: React.FC = () => {
 
   const openLead: TplCtx["openLead"] = (service, item = null, prefill) => {
     t.openLeadModal(
-      { ...(service.page || {}), ...(item?.raw || {}), name: item?.title || service.name, heading: service.heading, slug: service.slug },
+      {
+        ...(service.page || {}),
+        ...(item?.raw || {}),
+        name: item?.title || service.name,
+        heading: service.heading,
+        slug: service.slug,
+      },
       prefill,
     );
     setLeadTarget({ service, item });
@@ -80,7 +128,9 @@ const CommonsTemplate: React.FC = () => {
     },
     goToItem: (service, item) => t.goToProductItem(service.slug, item.slug),
     navLabel: (section, fallback) => {
-      const match = (t.navItems || []).find((item: any) => resolveSectionFromSlug(item.slug) === section);
+      const match = (t.navItems || []).find(
+        (item: any) => resolveSectionFromSlug(item.slug) === section,
+      );
       return String(match?.name || "").trim() || fallback;
     },
     c: (key, fallback) => contentCopy(draft, key, fallback),
@@ -90,8 +140,14 @@ const CommonsTemplate: React.FC = () => {
   const renderProducts = () => {
     const service = services.find((s) => s.slug === t.currentProductSlug);
     if (!service) return <ServicesIndex />;
-    const item = t.currentItemSlug ? service.items.find((i) => i.slug === normalizeSlug(t.currentItemSlug)) : null;
-    return item ? <ItemDetail key={item.key} service={service} item={item} /> : <ServicePage key={service.key} service={service} />;
+    const item = t.currentItemSlug
+      ? service.items.find((i) => i.slug === normalizeSlug(t.currentItemSlug))
+      : null;
+    return item ? (
+      <ItemDetail key={item.key} service={service} item={item} />
+    ) : (
+      <ServicePage key={service.key} service={service} />
+    );
   };
 
   const renderPage = () => {
@@ -120,12 +176,22 @@ const CommonsTemplate: React.FC = () => {
       <div className="cw" style={themeVars}>
         <style>{COMMONS_CSS}</style>
         <CommonsHeader />
-        <motion.main key={location.pathname} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}>
+        <motion.main
+          key={location.pathname}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        >
           {renderPage()}
         </motion.main>
         <CommonsFooter />
         <CommonsStickyBar />
-        <LeadModal open={Boolean(leadTarget)} onClose={closeLead} service={leadTarget?.service || null} item={leadTarget?.item || null} />
+        <LeadModal
+          open={Boolean(leadTarget)}
+          onClose={closeLead}
+          service={leadTarget?.service || null}
+          item={leadTarget?.item || null}
+        />
         <ReviewModal />
         <Lightbox />
         <Toast />

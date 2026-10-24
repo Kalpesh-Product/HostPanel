@@ -164,4 +164,9 @@ ${WAYFARER_CSS}
 }
 `;
 
-export const LODGE_PALETTE = { bg: "#ffffff", text: "#1c1f21", accent: "#7fa388", secondary: "#ddede3" };
+export const LODGE_PALETTE = {
+  bg: "#ffffff",
+  text: "#1c1f21",
+  accent: "#7fa388",
+  secondary: "#ddede3",
+};

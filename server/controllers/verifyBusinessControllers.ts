@@ -188,12 +188,14 @@ export const getVerifyBusinessSummary = async (req, res) => {
       console.error("Failed to fetch verification status:", error.message);
     }
     return res.status(200).json({
+      companyName: company.companyName || "",
       verification: verification
         ? {
             status: verification.status,
             paymentStatus: verification.paymentStatus,
             isFreePeriod: Boolean(verification.isFreePeriod),
             activeTier: verification.activeTier || null,
+            requestedTier: verification.requestedTier || null,
             verificationStartsAt: verification.verificationStartsAt || null,
             verificationExpiresAt: verification.verificationExpiresAt || null,
           }

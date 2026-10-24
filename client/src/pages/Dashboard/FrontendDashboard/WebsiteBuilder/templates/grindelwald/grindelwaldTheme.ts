@@ -171,4 +171,9 @@ ${WAYFARER_CSS}
 `;
 
 // Pale page, deep green bands and neon accents, as on the reference.
-export const GRINDELWALD_PALETTE = { bg: "#f8f8f8", text: "#1b3936", accent: "#75ff69", secondary: "#1b3936" };
+export const GRINDELWALD_PALETTE = {
+  bg: "#f8f8f8",
+  text: "#1b3936",
+  accent: "#75ff69",
+  secondary: "#1b3936",
+};

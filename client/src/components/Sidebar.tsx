@@ -332,7 +332,7 @@ const SECTION_ABBR: Record<string, string> = {
   "add-ons": "ADO",
 };
 
-const ROUTE_BY_ID: Record<string, string> = {
+export const ROUTE_BY_ID: Record<string, string> = {
   dashboard: "/dashboard",
   attendance: "/common-modules/attendance",
   "customer-support": "/common-modules/customer-support",
@@ -904,11 +904,13 @@ useEffect(() => {
       void loadSidebarData();
     };
     // const intervalId = window.setInterval(refresh, 5000);
+    window.addEventListener("organization:updated", refresh);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => {
       active = false;
       // window.clearInterval(intervalId);
+      window.removeEventListener("organization:updated", refresh);
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };

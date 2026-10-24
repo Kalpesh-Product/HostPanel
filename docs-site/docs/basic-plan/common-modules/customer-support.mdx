@@ -1,0 +1,92 @@
+---
+sidebar_position: 2
+title: Customer Support
+description: Raise an issue with the WONO team, track its progress, and review the resolution.
+---
+
+# Customer Support
+
+**Customer Support** lets a Basic-plan host raise an issue with the WONO team, track its
+progress, and review the resolution. Open **Customer Support** under **Common Modules**, or use
+the Dashboard quick action. A **Guide** beside the title opens a walkthrough.
+
+## Understand the page
+
+The top cards show **Total Tickets**, **Open (Raised)**, **Accepted**, **In Progress**, and
+**Closed**. Total includes a locally saved draft.
+
+![Customer Support page with summary cards, tabs, filters, and ticket table](/img/basic-plan/customer-support-overview.png)
+
+The page has two tabs:
+
+- **Issues Raised** — your active and raised tickets.
+- **Issue Resolved** — tickets that have been closed.
+
+On **Issues Raised**, use **All, Draft, Raised, In Progress, Resolved,** or **Closed** to narrow
+the list. Search matches ticket ID, title, requester, or status; it does not search the
+description.
+
+The table shows Ticket ID, Issue Title, Requested At, Resolved By, Status, Accepted By, and
+Action. When there is nothing to show, the empty state reads **No issues found**.
+
+## Raise and submit an issue
+
+1. Stay on **Issues Raised** and select **Raise Issue to WoNo Team**.
+2. Enter a clear **Title** and **Description / Issue**. Both are required — **Submit Ticket** stays
+   unavailable until they contain text. Include the affected feature, what you expected, what
+   happened, and the steps that reproduce it.
+3. Optionally add a **Page URL** and attachments. The form supports PNG, JPG, WEBP, PDF, and CSV
+   files, up to five files and 5 MB per file. You can select files or drag and drop them.
+4. Select **Submit Ticket**, wait for the success message, then find the new ticket in
+   **Issues Raised**. A submitted ticket starts as **Open**; the filter labels that state
+   **Raised**.
+
+![Support issue form showing page URL, attachments, Save Draft, and Submit Ticket](/img/basic-plan/raise-issue-form.gif)
+
+## Review a ticket
+
+Use the row action to open ticket details.
+
+![Support ticket list with submitted ticket rows and actions](/img/basic-plan/ticket-list.png)
+
+The detail panel groups information into:
+
+- **Ticket Information** — ID, unit, requester role, request time, Accepted By, and Resolved By.
+- **Issue Details** — title, description or follow-up, and attachments.
+- **Resolution** — message and any resolution attachment.
+
+![Support ticket detail panel with issue and resolution information](/img/basic-plan/ticket-detail.png)
+
+The **Issues Raised** filters and search help you locate a ticket. **Issue Resolved** provides
+search but no status-filter strip or raise button.
+
+## Edit an open ticket
+
+An **Open** ticket can be edited by its requester before the WONO team accepts it. Open its row
+action, choose edit, update the issue details, and save. Once a ticket progresses, its original
+text may no longer be editable — use the available follow-up path instead.
+
+![Edit support ticket form](/img/basic-plan/edit-ticket.png)
+
+## Save and manage a draft
+
+Choose **Save Draft** when an issue is not ready to submit. A draft can contain incomplete
+fields, but it needs at least a title, description, URL, or attachment to save. Find it with the
+**Draft** filter, then edit or delete it, and submit it once both required fields are complete.
+
+![Saved draft row in Customer Support](/img/basic-plan/saved-draft.gif)
+
+:::note
+A draft is stored only in this browser (text in local storage, attachments in IndexedDB). It is
+not sent to WONO and may not appear on another device or after browser data is cleared.
+:::
+
+## Status and resolution
+
+Tickets progress through **Open**, **In Progress**, **Resolved**, and **Closed** stages. When a
+ticket is **Resolved**, its detail panel offers **Follow Up** and **Close Ticket**:
+
+- **Follow Up** creates a new issue linked to the resolution.
+- **Close Ticket** changes the resolved ticket to **Closed**.
+
+A resolved ticket remains under **Issues Raised**; closed tickets move to **Issue Resolved**.

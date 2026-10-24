@@ -856,7 +856,7 @@ export const UpgradePlanModal = ({
                 Upgrade Plan
               </h2>
               <p className="text-[14px] text-[#63738d] mt-1">
-                Choose the plan you want and send the upgrade request to master panel.
+                Choose the plan that best fits your workspace.
               </p>
             </div>
             <button

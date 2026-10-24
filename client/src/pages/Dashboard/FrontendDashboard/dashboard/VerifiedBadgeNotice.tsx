@@ -4,12 +4,15 @@
  *  - the free 3-month period has about a month (30 days) or less left,
  *  - a paid period is within 5 days of ending,
  *  - the badge has expired.
- * Clicking it opens Verify Business with the renew picker already open.
+ * Opens the renew picker in place (VerifyBusinessPlanModal) instead of
+ * navigating to Verify Business first — only the actual payment step leaves
+ * to Stripe.
  */
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 import { AlertTriangle, ArrowRight, BadgeCheck } from "lucide-react";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
+import VerifyBusinessPlanModal from "../../../../components/VerifyBusinessPlanModal";
 
 const FREE_PERIOD_NOTICE_DAYS = 30;
 const PAID_PERIOD_NOTICE_DAYS = 5;
@@ -22,8 +25,8 @@ const formatDate = (value?: string | null) => {
 };
 
 const VerifiedBadgeNotice = () => {
-  const navigate = useNavigate();
   const axiosPrivate = useAxiosPrivate();
+  const [modalOpen, setModalOpen] = useState(false);
 
   const { data } = useQuery({
     queryKey: ["verify-business-summary"],
@@ -74,29 +77,39 @@ const VerifiedBadgeNotice = () => {
   const iconClass = expired ? "text-rose-600" : "text-amber-600";
 
   return (
-    <div
-      data-tour="dashboard-verified-badge-notice"
-      role="button"
-      tabIndex={0}
-      onClick={() => navigate("/key-apps/verify-business?action=renew")}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") navigate("/key-apps/verify-business?action=renew");
-      }}
-      className={`flex cursor-pointer items-center gap-3 rounded-xl border-2 p-4 transition-colors ${tone}`}
-    >
-      {expired ? (
-        <AlertTriangle size={18} className={`flex-shrink-0 ${iconClass}`} />
-      ) : (
-        <BadgeCheck size={18} className={`flex-shrink-0 ${iconClass}`} />
-      )}
-      <p className="min-w-0 text-content font-pmedium">{message}</p>
-      <span
-        className={`ml-auto flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-white ${pill}`}
+    <>
+      <div
+        data-tour="dashboard-verified-badge-notice"
+        role="button"
+        tabIndex={0}
+        onClick={() => setModalOpen(true)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") setModalOpen(true);
+        }}
+        className={`flex cursor-pointer items-center gap-3 rounded-xl border-2 p-4 transition-colors ${tone}`}
       >
-        Renew
-      </span>
-      <ArrowRight size={14} className={`flex-shrink-0 ${iconClass}`} />
-    </div>
+        {expired ? (
+          <AlertTriangle size={18} className={`flex-shrink-0 ${iconClass}`} />
+        ) : (
+          <BadgeCheck size={18} className={`flex-shrink-0 ${iconClass}`} />
+        )}
+        <p className="min-w-0 text-content font-pmedium">{message}</p>
+        <span
+          className={`ml-auto flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-white ${pill}`}
+        >
+          Renew
+        </span>
+        <ArrowRight size={14} className={`flex-shrink-0 ${iconClass}`} />
+      </div>
+
+      {modalOpen ? (
+        <VerifyBusinessPlanModal
+          companyName={data?.companyName}
+          verification={verification}
+          onClose={() => setModalOpen(false)}
+        />
+      ) : null}
+    </>
   );
 };
 

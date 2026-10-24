@@ -97,6 +97,7 @@ export default function useNomadListingCapacity(companyId: string) {
   const {
     data: listings = [],
     isPending: isListingsPending,
+    isError: isListingsError,
     refetch: refetchListings,
   } = useQuery({
     queryKey: ["nomad-listings", companyId],
@@ -172,6 +173,9 @@ export default function useNomadListingCapacity(companyId: string) {
     remainingTypes,
     canAddNewType,
     isPending: isPlanPending || isListingsPending,
+    // Exposed so pages can tell a failed listings lookup apart from a
+    // genuinely empty account (the 404/no-listings case resolves to []).
+    isError: isListingsError,
     refetchListings,
     limitMessage: getNomadListingLimitMessage(plan, limit),
     enabledLimitMessage: getNomadListingEnabledLimitMessage(plan, limit),

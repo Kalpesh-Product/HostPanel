@@ -1,0 +1,59 @@
+---
+sidebar_position: 1
+title: Organization Management
+description: Manage platform users and organization access.
+---
+
+# Organization Management
+
+Open **Core Modules > Organization Management** to manage platform users and organization access.
+The **Platform Users** tab is enabled; **Departments** is disabled with a
+"You do not have access to departments" explanation on Basic.
+
+## Platform Users view
+
+Summary cards show total, enabled, and disabled platform users plus total departments. Filters
+include **All**, **Invited**, **Registered**, **Pending**, **Joined**, and **Disabled**, with a
+search field and a role filter.
+
+![Organization Management platform users overview](/img/basic-plan/organization-management.gif)
+
+The table includes employee ID, platform user, email, access role, department, status, access, and
+action.
+
+:::note
+The Basic view shows `0 / 1 additional user added`, which aligns with the Basic offer of up to two
+users: the founder plus one additional Super Admin.
+:::
+
+## Add a platform user
+
+The **Add User** dialog lets the founder invite one additional **Super Admin**. It requests full
+name and work email; the role selector is fixed to **Super Admin**, which receives top-level access
+to all departments and platform modules.
+
+1. Select **Add User**.
+2. Enter the member's full name and work email.
+3. Verify the assigned role (fixed to **Super Admin** on Basic).
+4. Select **Send Secure Invite** only after confirming the recipient and access level.
+
+![Add Platform User dialog](/img/basic-plan/add-platform-user.gif)
+
+## Manage invitations
+
+Use the invitation filters to follow the member from **Invited** through registration and joining.
+If an unregistered invitation must be withdrawn, choose the remove action and confirm
+**Remove Invite**. This frees the seat and invalidates the current invitation link.
+
+![Remove invited member confirmation](/img/basic-plan/remove-invite.gif)
+
+## Founder protections
+
+The founder row is marked **Joined** and **Self Protected**. Its details panel shows basic
+information, department scope, and linked workspace. The founder's own role/access controls are
+disabled, protecting the owner from changing their own role in this view.
+
+![Platform user details](/img/basic-plan/platform-user-details.gif)
+
+Unit-level permission views are documented separately in
+[Access Grants](/docs/basic-plan/core-modules/access-grants).

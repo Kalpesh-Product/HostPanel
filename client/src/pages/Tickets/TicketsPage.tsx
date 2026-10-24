@@ -2,13 +2,14 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   Search, Plus, Eye, CheckCircle2, Clock, AlertCircle,
-  Calendar, User, FileText, X, AlertTriangle, Paperclip,
+  Calendar, User, FileText, X, AlertTriangle,
   MessageSquare, Building2, Filter, Reply, CheckSquare, Shield, Wrench, ChevronDown,
-  Download, Maximize2, Loader2, UserPlus, Save, Pencil, Trash2, Lock,
+  Download, Loader2, UserPlus, Save, Pencil, Trash2, Lock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import PageFrame from '../../components/Pages/PageFrame';
 import AttachmentDropzone from '../../components/AttachmentDropzone';
+import { StoredAttachmentList } from '../../components/AttachmentPreview';
 import {
   canAccessAdminDashboard,
   canAccessAdministrationDashboard,
@@ -748,7 +749,6 @@ export function TicketsPage() {
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [viewingTicket, setViewingTicket] = useState(null);
-  const [zoomedAttachment, setZoomedAttachment] = useState(null);
   const [isRepairLogModalOpen, setIsRepairLogModalOpen] = useState(false);
   const [repairLogSourceTicket, setRepairLogSourceTicket] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -2986,7 +2986,7 @@ export function TicketsPage() {
                     </div>
                   </div>
                 </div>
-                <button onClick={() => { setViewingTicket(null); setShowResolvePrompt(false); setZoomedAttachment(null); }} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"><X size={16} /></button>
+                <button onClick={() => { setViewingTicket(null); setShowResolvePrompt(false); }} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"><X size={16} /></button>
               </div>
 
               <div className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1 bg-white">
@@ -3024,45 +3024,10 @@ export function TicketsPage() {
                         <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-2">
                           Attachments ({viewingTicket.attachments.length})
                         </p>
-                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                          {viewingTicket.attachments.map((attachment, index) => {
-                            const lower = String(attachment.name || attachment.url || '').toLowerCase();
-                            const isImage = /\.(png|jpe?g|webp|gif|bmp|svg|avif|heic)$/.test(lower);
-                            if (isImage) {
-                              return (
-                                <button
-                                  key={attachment.id || `${attachment.url}-${index}`}
-                                  type="button"
-                                  onClick={() => setZoomedAttachment(attachment)}
-                                  className="group relative aspect-square overflow-hidden rounded-xl border border-slate-200 bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
-                                  title="Click to zoom"
-                                >
-                                  <img
-                                    src={attachment.url}
-                                    alt={attachment.name || `Attachment ${index + 1}`}
-                                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                    loading="lazy"
-                                  />
-                                  <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/30">
-                                    <Maximize2 size={18} className="text-white opacity-0 transition-opacity group-hover:opacity-100" />
-                                  </span>
-                                </button>
-                              );
-                            }
-                            return (
-                              <a
-                                key={attachment.id || `${attachment.url}-${index}`}
-                                href={attachment.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg px-2.5 py-2 text-[11px] font-pmedium hover:border-[#2563EB] hover:text-[#2563EB] transition-colors max-w-[220px]"
-                              >
-                                <Paperclip size={12} className="shrink-0" />
-                                <span className="truncate">{attachment.name || 'Attachment'}</span>
-                              </a>
-                            );
-                          })}
-                        </div>
+                        <StoredAttachmentList
+                          attachments={viewingTicket.attachments}
+                          thumbnailClassName="h-20 w-20 sm:h-24 sm:w-24"
+                        />
                       </div>
                     )}
                   </div>
@@ -3296,37 +3261,6 @@ export function TicketsPage() {
                 )}
 
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Zoom Attachment Popup */}
-        {zoomedAttachment && (
-          <div
-            className="fixed inset-0 z-[120] bg-[#0F172A]/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-8"
-            onClick={() => setZoomedAttachment(null)}
-          >
-            <button
-              onClick={() => setZoomedAttachment(null)}
-              className="absolute top-4 right-4 w-10 h-10 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full flex items-center justify-center text-white transition-colors z-10"
-              aria-label="Close"
-            >
-              <X size={18} />
-            </button>
-            <div className="max-w-full max-h-full flex flex-col items-center gap-3" onClick={(e) => e.stopPropagation()}>
-              <figure className="max-h-full overflow-auto rounded-2xl border border-white/20 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
-                <img
-                  src={zoomedAttachment.url}
-                  alt={zoomedAttachment.name || 'Attachment'}
-                  className="max-w-full max-h-[80vh] object-contain sm:object-scale-down block cursor-zoom-out"
-                  onClick={() => setZoomedAttachment(null)}
-                />
-                {zoomedAttachment.name ? (
-                  <figcaption className="px-4 py-2.5 border-t border-slate-100 text-[11px] font-pmedium text-slate-500 truncate text-center">
-                    {zoomedAttachment.name}
-                  </figcaption>
-                ) : null}
-              </figure>
             </div>
           </div>
         )}

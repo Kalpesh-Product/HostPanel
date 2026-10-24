@@ -17,9 +17,11 @@ import LodgeTemplate from "./lodge/LodgeTemplate";
 import CaliHostelTemplate from "./caliHostel/CaliHostelTemplate";
 import TastycTemplate from "./tastyc/TastycTemplate";
 import GrandBarTemplate from "./grandbar/GrandBarTemplate";
+import AromaticaTemplate from "./aromatica/AromaticaTemplate";
 import FlowspaceTemplate from "./flowspace/FlowspaceTemplate";
 import WorpaceTemplate from "./worpace/WorpaceTemplate";
 import WorkscapeTemplate from "./workscape/WorkscapeTemplate";
+import BrixspaceTemplate from "./brixspace/BrixspaceTemplate";
 import QerjaTemplate from "./qerja/QerjaTemplate";
 import type { ServiceKind } from "./verticalProfiles";
 
@@ -130,6 +132,21 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       fg: "#f2eee7",
       accent: "#aa8867",
       font: "'Cormorant Garamond', Georgia, serif",
+    },
+    recommendedFor: ["menu"],
+    supportsBooking: true,
+  },
+  aromatica: {
+    id: "aromatica",
+    name: "Aromatica",
+    description:
+      "Bright editorial coffee-roastery design — oversized typography, amber accents, roast storytelling, product-led menus and polished reservations.",
+    component: AromaticaTemplate,
+    swatch: {
+      bg: "#f4f0e8",
+      fg: "#11111b",
+      accent: "#e9a542",
+      font: "'Manrope', sans-serif",
     },
     recommendedFor: ["menu"],
     supportsBooking: true,
@@ -314,6 +331,21 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
     recommendedFor: ["meeting"],
     supportsBooking: true,
   },
+  brixspace: {
+    id: "brixspace",
+    name: "Brixspace",
+    description:
+      "Community-led meeting-space design — cinematic rounded photography, interactive facilities, room discovery, location storytelling and polished booking flows.",
+    component: BrixspaceTemplate,
+    swatch: {
+      bg: "#ffffff",
+      fg: "#101211",
+      accent: "#078b52",
+      font: "'DM Sans', sans-serif",
+    },
+    recommendedFor: ["meeting"],
+    supportsBooking: true,
+  },
   worpace: {
     id: "worpace",
     name: "Worpace",
@@ -392,7 +424,12 @@ export const getRecommendedTemplateIds = (kinds: ServiceKind[]): string[] => {
   const ids: string[] = [];
   kinds.forEach((kind) => {
     Object.values(TEMPLATE_REGISTRY).forEach((template) => {
-      if (!template.hidden && template.recommendedFor?.includes(kind) && !ids.includes(template.id)) ids.push(template.id);
+      if (
+        !template.hidden &&
+        template.recommendedFor?.includes(kind) &&
+        !ids.includes(template.id)
+      )
+        ids.push(template.id);
     });
   });
   return ids;

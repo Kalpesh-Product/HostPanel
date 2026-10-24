@@ -22,6 +22,7 @@ import type { QuickLinkItem } from "./DashboardShared";
 import WonoListingsCard from "./WonoListingsCard";
 import VerifiedBadgeNotice from "./VerifiedBadgeNotice";
 import BonusTrialOfferNotice from "./BonusTrialOfferNotice";
+// import FreeTrialOfferNotice from "./FreeTrialOfferNotice";
 import { statusBadgeColor, humanRelTime, hasModuleUse, pickCardCols } from "./dashboardUtils";
 import { ICON_BY_ID, DEFAULT_SECTION_ROUTES } from "../ModuleCardsLanding";
 import type { WorkspaceModuleSection } from "../../../../hooks/useDashboardAccess";
@@ -30,6 +31,8 @@ import PlanDashboardSkeleton from "./PlanDashboardSkeleton";
 
 interface BasicDashboardProps {
   onUpgradeClick: () => void;
+  isExpiredDowngrade: boolean;
+  downgradedPlanLabel: string;
   /** Org member counts — passed down from useDashboardAccess() so this component
    * doesn't re-fetch /api/organization/overview a second time on the same page load. */
   activeMembers: number;
@@ -113,7 +116,7 @@ const GettingStartedCard = () => {
   );
 };
 
-const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap, grantedModuleIds, enabledModuleIds }: BasicDashboardProps) => {
+const BasicDashboard = ({ onUpgradeClick, isExpiredDowngrade, downgradedPlanLabel, activeMembers, totalMembers, moduleMap, grantedModuleIds, enabledModuleIds }: BasicDashboardProps) => {
   const axiosPrivate = useAxiosPrivate();
   const selectedCompany = useSelector((state: any) => state.company.selectedCompany);
   const { auth } = useAuth();
@@ -287,6 +290,7 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
   return (
     <div className="flex flex-col gap-5">
       <WonoListingsCard />
+      {/* <FreeTrialOfferNotice /> */}
 
       {/* Plan strip — compact, opens the upgrade modal */}
       <div
@@ -295,12 +299,22 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
         onClick={onUpgradeClick}
       >
         <Zap size={18} className="text-accent flex-shrink-0" />
-        <p className="text-content font-pmedium text-blue-800 min-w-0 truncate">
-          You're on the <strong>Basic Plan</strong> — Upgrade to{" "}
-          <strong>Professional Plan</strong> for Meeting Room Bookings, Ticketing, Sales Modules & more.
+        <p className="min-w-0 flex-1 text-content font-pmedium leading-relaxed text-blue-800">
+          {isExpiredDowngrade ? (
+            <>
+              Your <strong>{downgradedPlanLabel} Plan</strong> has expired, so your unit has been
+              downgraded to <strong>Basic</strong>. Your data and setup are safe — upgrade now to regain
+              access to paid modules and keep your team moving.
+            </>
+          ) : (
+            <>
+              You're on the <strong>Basic Plan</strong> — Upgrade to{" "}
+              <strong>Professional Plan</strong> for Meeting Room Bookings, Ticketing, Sales Modules & more.
+            </>
+          )}
         </p>
         <span className="ml-auto flex-shrink-0 px-3 py-1 rounded-full text-[10px] font-pmedium uppercase tracking-widest border bg-accent text-white border-accent whitespace-nowrap">
-          Upgrade ↑
+          {isExpiredDowngrade ? "Upgrade Now" : "Upgrade ↑"}
         </span>
         <ArrowRight size={14} className="text-accent flex-shrink-0" />
       </div>

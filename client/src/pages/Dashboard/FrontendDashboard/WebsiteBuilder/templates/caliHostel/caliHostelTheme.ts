@@ -1,6 +1,16 @@
 import { WAYFARER_CSS } from "../wayfarer/wayfarerTheme";
 
-export const CALI_HOSTEL_PALETTE = { bg: "#f2eadb", text: "#171711", accent: "#e86d43", surface: "#e5d7c1", raised: "#fffaf1", line: "rgba(23,23,17,.18)", muted: "#6f695e", ink: "#10100d", onInk: "#f5efdf" };
+export const CALI_HOSTEL_PALETTE = {
+  bg: "#f2eadb",
+  text: "#171711",
+  accent: "#e86d43",
+  surface: "#e5d7c1",
+  raised: "#fffaf1",
+  line: "rgba(23,23,17,.18)",
+  muted: "#6f695e",
+  ink: "#10100d",
+  onInk: "#f5efdf",
+};
 
 export const CALI_HOSTEL_CSS = `${WAYFARER_CSS}
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap');

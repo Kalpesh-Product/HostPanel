@@ -33,6 +33,7 @@ import {
 } from "./DashboardShared";
 import type { QuickLinkItem, StatCardProps } from "./DashboardShared";
 import VerifiedBadgeNotice from "./VerifiedBadgeNotice";
+import PlanExpiringNotice from "./PlanExpiringNotice";
 import BonusTrialOfferNotice from "./BonusTrialOfferNotice";
 import { statusBadgeColor, humanRelTime, fmtINR, pickCardCols, hasModuleUse, resolveWorkspaceId } from "./dashboardUtils";
 import { getStoredUser } from "../../../../lib/auth-session";
@@ -452,6 +453,7 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
   return (
     <div className="flex flex-col gap-5">
 
+      <PlanExpiringNotice />
       <VerifiedBadgeNotice />
       <BonusTrialOfferNotice />
 
