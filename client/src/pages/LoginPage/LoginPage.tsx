@@ -21,7 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { clearUserSessionData } from "../../utils/clearUserSessionData";
 import { normalizeUserRole } from "../../lib/auth-session";
 
-const SIGN_IN_HEADING = "Host Login";
+const SIGN_IN_HEADING = "Login";
 
 const LoginPage = () => {
   const { auth, setAuth } = useAuth();
