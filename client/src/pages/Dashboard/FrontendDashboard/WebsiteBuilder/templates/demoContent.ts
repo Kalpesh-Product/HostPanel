@@ -403,7 +403,7 @@ const hostel: DemoBusiness = {
     heroHeading: "Rooms and dorms",
     heroSubHeading: "Pick a bed or a private room, book in a minute and we'll confirm availability.",
     homeCardHeading: "Stay with us",
-    homeCardSubText: "Dorms from ₹599 a night.",
+    homeCardSubText: "Shared dorms and private rooms.",
     heroImage: U(IMG.hostel.dorm[0], 1600),
     cardImage: U(IMG.hostel.dorm[1], 900),
     faqs: [],
