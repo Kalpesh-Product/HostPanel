@@ -37,13 +37,22 @@ ${WAYFARER_CSS}
 .ld-link::after { content: ""; position: absolute; left: 0; bottom: -4px; height: 1px; width: 0; background: currentColor; transition: width .3s ease; }
 .ld-link:hover::after { width: 100%; }
 
-.ld-header { background: var(--t-bg); }
-.ld-navlink { position: relative; font-size: 15px; font-weight: 500; letter-spacing: -.01em; padding: 6px 0; background: none; border: 0; color: var(--t-text); cursor: pointer; }
-.ld-navlink::after { content: ""; position: absolute; left: 0; bottom: 0; height: 1px; width: 0; background: currentColor; transition: width .3s ease; }
+.ld-header { background: var(--t-bg); border-bottom: 1px solid color-mix(in srgb, var(--t-text) 10%, transparent); }
+.ld-header-logo { position: relative; }
+.ld-header-logo::before, .ld-header-logo::after { content: ""; position: absolute; top: 50%; width: 1px; height: 26px; transform: translateY(-50%); background: color-mix(in srgb, var(--t-text) 14%, transparent); display: none; }
+.ld-header-logo::before { right: calc(100% + 28px); }
+.ld-header-logo::after { left: calc(100% + 28px); }
+@media (min-width: 1024px) { .ld-header-logo::before, .ld-header-logo::after { display: block; } }
+.ld-navlink { position: relative; font-size: 12.5px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; padding: 6px 0; background: none; border: 0; color: color-mix(in srgb, var(--t-text) 75%, transparent); cursor: pointer; transition: color .25s ease; }
+.ld-navlink::after { content: ""; position: absolute; left: 0; bottom: -2px; height: 1px; width: 0; background: var(--t-accent); transition: width .3s ease; }
+.ld-navlink:hover { color: var(--t-text); }
 .ld-navlink:hover::after, .ld-navlink[aria-current="page"]::after { width: 100%; }
+.ld-navlink[aria-current="page"] { color: var(--t-text); }
 .ld-mobile-link { font-size: 22px; font-weight: 500; padding: 10px 0; background: none; border: 0; color: var(--t-text); text-align: left; }
 .ld-iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--t-text) 25%, transparent); background: none; color: var(--t-text); cursor: pointer; transition: border-color .3s ease; }
 .ld-iconbtn:hover { border-color: var(--t-text); }
+
+.ld-hero-label .ld-label { border-color: rgba(255,255,255,.55); color: #fff; }
 
 /* hero: full-bleed photo with a left shade and a slider arrow on the right */
 .ld-hero { position: relative; overflow: hidden; min-height: 520px; height: min(calc(100svh - 80px), 760px); background: var(--t-text); color: #fff; }
@@ -128,7 +137,9 @@ ${WAYFARER_CSS}
   .ld :where(.grid) { grid-template-columns: minmax(0, 1fr); }
   .ld :where(.grid) > * { min-width: 0; }
   .ld .tp-wrap { padding-left: 16px; padding-right: 16px; }
-  .ld-h1 { font-size: 44px; }
+  .ld-header.sticky { height: 64px; }
+  .ld-header.sticky .h-full { height: 64px; }
+  .ld-h1 { font-size: 38px; line-height: 1.14; }
   .ld-h2-lg { font-size: 34px; }
   .ld-h2 { font-size: 30px; }
   .ld-card-media { aspect-ratio: 4 / 3.4; }

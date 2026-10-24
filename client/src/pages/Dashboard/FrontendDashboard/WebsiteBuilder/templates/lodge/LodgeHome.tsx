@@ -48,12 +48,15 @@ const Hero: React.FC<{ images: string[] }> = ({ images }) => {
           animate={{ opacity: 1 }}
           transition={{ duration: 1.8, ease: "easeInOut" }}
         >
-          <h1 className="ld-h1 text-white">{title}</h1>
-          <p className="mt-6 max-w-[420px] text-[17px] leading-7">
+          <span className="ld-hero-label">
+            <Label>{c("home.hero.eyebrow", "Welcome")}</Label>
+          </span>
+          <h1 className="ld-h1 mt-3 sm:mt-5 text-white">{title}</h1>
+          <p className="mt-4 sm:mt-6 max-w-[420px] text-[17px] leading-7">
             {draft?.subTitle ||
               "Comfortable rooms, a friendly community and everything you need close by."}
           </p>
-          <div className="mt-9 flex flex-wrap items-center gap-7">
+          <div className="mt-6 sm:mt-9 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-7">
             <button
               type="button"
               className="ld-btn ld-btn-light"

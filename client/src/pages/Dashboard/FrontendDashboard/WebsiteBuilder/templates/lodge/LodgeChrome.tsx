@@ -51,7 +51,7 @@ export const LodgeHeader: React.FC = () => {
           type="button"
           onClick={() => t.goToSection("home")}
           aria-label="Go to home"
-          className="flex min-w-0 items-center justify-self-start gap-3 text-left lg:justify-self-center"
+          className="ld-header-logo flex min-w-0 items-center justify-self-start gap-3 text-left lg:justify-self-center"
         >
           {draft?.companyLogo ? (
             <img

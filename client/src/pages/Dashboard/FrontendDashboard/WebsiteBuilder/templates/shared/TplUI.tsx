@@ -30,7 +30,7 @@ export const Icon = {
   mail: (s = 16) => svg(<><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-10 6L2 7" /></>, s),
   search: (s = 16) => svg(<><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></>, s),
   close: (s = 18) => svg(<path d="M18 6 6 18M6 6l12 12" />, s),
-  menu: (s = 20) => svg(<path d="M4 7h16M4 12h16M4 17h10" />, s),
+  menu: (s = 20) => svg(<path d="M4 7h16M4 12h16M4 17h16" />, s),
   chevron: (s = 14) => svg(<path d="m6 9 6 6 6-6" />, s),
   users: (s = 16) => svg(<><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8" /></>, s),
   star: (s = 16) => (

@@ -1,5 +1,5 @@
 export const AROMATICA_CSS = String.raw`
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700;800&display=swap");
 
 .aroma {
   --ar-bg: var(--tpl-bg, #f5f0e6);
@@ -1263,6 +1263,441 @@ export const AROMATICA_CSS = String.raw`
   .aroma-related-grid.count-1,
   .aroma-related-grid.count-2 { grid-template-columns: 1fr; }
   .aroma-related-image { height: 360px; }
+}
+
+/* 2026 premium roastery pass: image-led composition, expressive type and mobile recomposition. */
+.aroma {
+  --ar-bg: var(--tpl-bg, #f1eadf);
+  --ar-paper: #f7f1e7;
+  --ar-text: var(--tpl-text, #1a1712);
+  --ar-accent: var(--tpl-accent, #d99a39);
+  --ar-coral: var(--tpl-primary, #bd5b36);
+  font-family: "Manrope", sans-serif;
+}
+.aroma h1,
+.aroma h2,
+.aroma h3,
+.aroma-menu-name,
+.aroma-menu-line strong,
+.aroma-review-slide blockquote,
+.aroma-numbers strong {
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 500;
+}
+.aroma-header { position: absolute; inset: 0 0 auto; background: transparent; color: #fff; }
+.aroma-header[data-scrolled="true"] { position: fixed; background: rgba(24, 20, 15, .92); color: #fff; backdrop-filter: blur(18px); }
+.aroma-header-inner { width: min(calc(100% - 80px), 1480px); }
+.aroma-wordmark b { font-family: "Fraunces", Georgia, serif; font-size: 25px; font-weight: 500; letter-spacing: -.025em; text-transform: none; }
+.aroma-header nav button { font-size: 10px; letter-spacing: .13em; text-transform: uppercase; }
+.aroma-cafe-hero-shade {
+  background:
+    linear-gradient(90deg, rgba(19,16,12,.88) 0%, rgba(19,16,12,.66) 42%, rgba(19,16,12,.08) 74%),
+    linear-gradient(0deg, rgba(19,16,12,.62), transparent 55%);
+}
+.aroma-cafe-hero-copy { width: min(calc(100% - 140px), 1380px); padding: 165px 0 94px; align-items: flex-start; justify-content: center; text-align: left; }
+.aroma-cafe-hero .aroma-kicker { margin-bottom: 24px; color: #f2bd61; }
+.aroma-cafe-hero h1 { max-width: 850px; font-size: clamp(66px, 7.4vw, 116px); font-weight: 500; line-height: .88; letter-spacing: -.055em; }
+.aroma-hero-intro-copy { max-width: 570px; margin-top: 30px; color: rgba(255,255,255,.7); font-size: 14px; line-height: 1.75; }
+.aroma-hero-actions { display: flex; align-items: center; gap: 24px; margin-top: 38px; }
+.aroma-hero-actions .aroma-primary { padding: 18px 26px; background: var(--ar-accent); color: #1a1712; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.aroma-hero-secondary { display: inline-flex; align-items: center; gap: 14px; padding: 14px 0; border: 0; border-bottom: 1px solid rgba(255,255,255,.62); background: transparent; color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+.aroma-hero-controls { position: absolute; z-index: 3; right: max(40px, calc((100vw - 1380px)/2)); bottom: 38px; display: flex; align-items: center; gap: 8px; color: #fff; }
+.aroma-hero-controls span { margin-right: 12px; color: rgba(255,255,255,.62); font-size: 9px; letter-spacing: .14em; }
+.aroma-hero-controls button { display: grid; width: 44px; height: 44px; place-items: center; border: 1px solid rgba(255,255,255,.35); background: rgba(20,17,13,.22); color: #fff; cursor: pointer; transition: background .25s ease, border-color .25s ease; }
+.aroma-hero-controls button:hover { border-color: var(--ar-accent); background: var(--ar-accent); color: #17120d; }
+.aroma-hero-scroll { left: 50%; right: auto; transform: translateX(-50%); }
+.aroma-dark-story { min-height: 0; padding: 145px 0; }
+.aroma-dark-story-grid { grid-template-columns: .78fr .72fr 1.1fr; gap: clamp(38px,5vw,86px); align-items: center; }
+.aroma-dark-story h2 { font-size: clamp(54px,5.4vw,86px); font-weight: 500; line-height: .96; }
+.aroma-dark-story-copy { padding-top: 78px; }
+.aroma-story-image { position: relative; height: 610px; overflow: hidden; }
+.aroma-story-image img { width: 100%; height: 100%; object-fit: cover; transition: transform .9s cubic-bezier(.22,1,.36,1); }
+.aroma-story-image:hover img { transform: scale(1.04); }
+.aroma-story-image span { position: absolute; right: 0; bottom: 0; padding: 15px 18px; background: var(--ar-accent); color: #17120d; font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.aroma-review-stage { padding: 100px 0 110px; background: #17130f; }
+.aroma-review-slide { max-width: 1080px; }
+.aroma-review-slide blockquote { font-size: clamp(28px,3vw,46px); font-weight: 400; line-height: 1.35; }
+.aroma-try-section { padding: 155px 0; background: var(--ar-paper); color: var(--ar-text); }
+.aroma-try-grid { grid-template-columns: 1.2fr .8fr; align-items: center; }
+.aroma-try-collage { min-height: 720px; }
+.aroma-try-collage img:first-child { top: 0; width: 62%; height: 78%; }
+.aroma-try-collage img:last-child { width: 48%; height: 58%; border: 12px solid var(--ar-paper); }
+.aroma-try-copy h2,.aroma-specials h2,.aroma-enjoy h2,.aroma-final-cta h2 { font-family: "Fraunces",Georgia,serif; font-weight: 500; line-height: .98; }
+.aroma-specials { background: #1b1712; }
+.aroma-menu-lines { gap: 54px 86px; }
+.aroma-menu-line button { transition: color .25s ease; }
+.aroma-menu-line button:hover { color: var(--ar-accent); }
+.aroma-menu-name,.aroma-menu-line strong { font-size: 24px; font-weight: 500; }
+.aroma-video-story { height: min(82vh,820px); min-height: 640px; }
+.aroma-video-story::after { content: "Aromatica / daily ritual"; position: absolute; z-index: 2; left: 30px; bottom: 28px; color: rgba(255,255,255,.72); font-size: 9px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; pointer-events: none; }
+.aroma-enjoy { background: #15110d; }
+.aroma-enjoy-grid { grid-template-columns: 1.05fr .95fr; gap: 9vw; }
+.aroma-enjoy-photo { height: 610px; }
+.aroma-enjoy-photo img { filter: saturate(.88) contrast(1.04); }
+.aroma-numbers strong { font-weight: 500; }
+.aroma-final-cta { position: relative; overflow: hidden; background: var(--ar-accent); color: #17120d; }
+.aroma-final-cta::before { content: "A"; position: absolute; left: 50%; top: 50%; color: rgba(255,255,255,.18); font: 500 min(42vw,520px)/.7 "Fraunces",Georgia,serif; transform: translate(-50%,-50%); }
+.aroma-final-cta>div { position: relative; z-index: 1; }
+.aroma-final-cta .aroma-primary { background: #17120d; color: #fff; }
+@media (max-width: 760px) {
+  .aroma-shell { width: calc(100% - 36px); }
+  .aroma-header-inner { width: calc(100% - 28px); }
+  .aroma-wordmark b { max-width: 160px; font-size: 19px; line-height: 1; }
+  .aroma-cafe-hero-copy { width: calc(100% - 36px); min-height: 100svh; padding: 118px 0 108px; justify-content: flex-end; }
+  .aroma-cafe-hero-shade { background: linear-gradient(0deg,rgba(19,16,12,.96) 0%,rgba(19,16,12,.58) 57%,rgba(19,16,12,.1) 100%); }
+  .aroma-cafe-hero-media img { object-position: 62% center; }
+  .aroma-cafe-hero h1 { max-width: 100%; font-size: clamp(52px,15.5vw,68px); line-height: .9; }
+  .aroma-hero-intro-copy { margin-top: 22px; font-size: 12px; line-height: 1.65; }
+  .aroma-hero-actions { width: 100%; gap: 18px; margin-top: 28px; }
+  .aroma-hero-actions .aroma-primary { padding: 16px 18px; }
+  .aroma-hero-secondary { font-size: 9px; }
+  .aroma-hero-scroll { display: flex; bottom: 18px; left: 50%; transform: translateX(-50%); }
+  .aroma-dark-story { padding: 82px 0 0; }
+  .aroma-dark-story-grid { grid-template-columns: 1fr; gap: 34px; }
+  .aroma-dark-story-copy { padding-top: 0; }
+  .aroma-story-image { width: calc(100% + 36px); height: 440px; margin-left: -18px; margin-top: 18px; }
+  .aroma-review-stage { padding: 76px 0 92px; }
+  .aroma-review-photo,.aroma-review-portrait { width: 76px; height: 76px; margin-bottom: 26px; }
+  .aroma-review-slide blockquote { font-size: 25px; }
+  .aroma-try-section { padding: 88px 0; }
+  .aroma-try-grid { display: flex; flex-direction: column; gap: 54px; }
+  .aroma-try-collage { width: 100%; min-height: 450px; }
+  .aroma-try-collage img:first-child { width: 72%; height: 78%; }
+  .aroma-try-collage img:last-child { width: 54%; height: 54%; border-width: 8px; }
+  .aroma-menu-lines { gap: 38px; }
+  .aroma-menu-name,.aroma-menu-line strong { font-size: 19px; }
+  .aroma-video-story { height: 500px; min-height: 500px; }
+  .aroma-video-story>button { width: 88px; height: 88px; }
+  .aroma-enjoy { padding: 88px 0; }
+  .aroma-enjoy-grid { display: flex; flex-direction: column; gap: 48px; }
+  .aroma-enjoy-photo { width: calc(100% + 36px); height: 430px; margin-left: -18px; }
+  .aroma-enjoy-copy { width: 100%; }
+  .aroma-numbers { padding: 48px 0; }
+  .aroma-numbers strong { font-size: 58px; }
+  .aroma-final-cta { padding: 92px 20px; }
+}
+
+/* Page-level refinement: clearer navigation, editorial About and a less boxed menu. */
+.aroma-header { height: 104px; padding-top: 18px; }
+.aroma-header-inner {
+  height: 74px;
+  width: min(calc(100% - 48px), 1480px);
+  padding: 0 14px 0 20px;
+  grid-template-columns: minmax(250px,.8fr) minmax(520px,1.45fr) auto;
+  gap: 22px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(18,15,11,.48);
+  box-shadow: 0 18px 60px rgba(0,0,0,.12);
+  backdrop-filter: blur(14px);
+}
+.aroma-header[data-scrolled="true"] { height: 86px; padding-top: 8px; background: transparent; box-shadow: none; }
+.aroma-header[data-scrolled="true"] .aroma-header-inner { background: rgba(18,15,11,.94); box-shadow: 0 18px 50px rgba(0,0,0,.22); }
+.aroma-wordmark svg,.aroma-wordmark img { width: 38px; height: 38px; }
+.aroma-wordmark b { max-width: 235px; font-size: 20px; line-height: 1; }
+.aroma-header nav { justify-content: center; gap: clamp(13px,1.35vw,24px); }
+.aroma-header nav button {
+  padding: 27px 0 24px;
+  font-family: "Fraunces",Georgia,serif;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -.01em;
+  text-transform: none;
+}
+.aroma-header nav button::after { bottom: 16px; height: 2px; }
+.aroma-header>.aroma-shell>.aroma-header-cta { min-width: 158px; height: 46px; border: 0; background: var(--ar-accent); color: #18130e; font-family: "Manrope",sans-serif; font-size: 9px; }
+.aroma-header>.aroma-shell>.aroma-header-cta:hover { background: #f1bd64; color: #18130e; }
+.aroma-mobile-menu nav button { font-family: "Fraunces",Georgia,serif; font-weight: 500; letter-spacing: -.025em; }
+
+.aroma-about-story { padding: 0; background: #0d0b08; }
+.aroma-about-editorial { display: grid; grid-template-columns: 1.08fr .92fr; min-height: 820px; align-items: center; gap: clamp(60px,8vw,130px); }
+.aroma-about-visual { position: relative; height: 690px; overflow: hidden; }
+.aroma-about-visual img { width: 100%; height: 100%; object-fit: cover; transition: transform .9s cubic-bezier(.22,1,.36,1); }
+.aroma-about-visual:hover img { transform: scale(1.035); }
+.aroma-about-visual>span { position: absolute; right: 0; bottom: 0; padding: 17px 20px; background: var(--ar-accent); color: #17120d; font-size: 9px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+.aroma-about-copy { max-width: 580px; padding: 90px 0; }
+.aroma-about-copy h2 { margin: 24px 0 34px; font-family: "Fraunces",Georgia,serif; font-size: clamp(54px,5.2vw,82px); font-weight: 500; line-height: .96; letter-spacing: -.045em; }
+.aroma-about-copy>p:not(.aroma-kicker) { margin-top: 20px; color: rgba(247,240,228,.62); font-size: 14px; line-height: 1.85; }
+.aroma-about-copy .aroma-facts { margin-top: 46px; border-color: rgba(255,255,255,.14); }
+.aroma-about-copy .aroma-facts span { border-color: rgba(255,255,255,.14); font-family: "Manrope",sans-serif; }
+.aroma-about-copy .aroma-facts b { font-family: "Fraunces",Georgia,serif; font-weight: 500; }
+.aroma-faq> .aroma-shell { display: grid; grid-template-columns: .72fr 1.28fr; column-gap: 8vw; }
+.aroma-faq>.aroma-shell>.aroma-kicker,.aroma-faq>.aroma-shell>h2 { grid-column: 1; }
+.aroma-faq>.aroma-shell>h2 { font-family: "Fraunces",Georgia,serif; font-weight: 500; }
+.aroma-faq>.aroma-shell>*:last-child { grid-column: 2; grid-row: 1/span 3; }
+
+.aroma-menu-overview { grid-template-columns: .9fr 1.1fr; margin-bottom: 150px; padding-bottom: 0; border-bottom: 0; align-items: end; }
+.aroma-menu-overview-copy h2 { max-width: 650px; margin-top: 22px; font-size: clamp(58px,6vw,96px); line-height: .92; }
+.aroma-menu-overview>p { max-width: 560px; justify-self: end; padding-bottom: 8px; }
+.aroma-menu-category-rail { grid-column: 1/-1; display: flex; margin-top: 54px; overflow-x: auto; border-block: 1px solid rgba(255,255,255,.14); scrollbar-width: none; }
+.aroma-menu-category-rail::-webkit-scrollbar { display: none; }
+.aroma-menu-category-rail span { display: grid; min-width: min(330px,34vw); padding: 30px 34px 28px 0; grid-template-columns: 34px 1fr; align-items: baseline; border-right: 1px solid rgba(255,255,255,.14); }
+.aroma-menu-category-rail span+span { padding-left: 34px; }
+.aroma-menu-category-rail b { color: var(--ar-accent); font-size: 9px; }
+.aroma-menu-category-rail strong { font-family: "Manrope",sans-serif; font-size: 17px; font-weight: 600; }
+.aroma-menu-category-rail small { grid-column: 2; margin-top: 8px; color: rgba(247,240,228,.4); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; }
+.aroma-menu-group-head h2 { font-family: "Fraunces",Georgia,serif; font-weight: 500; }
+.aroma-product-copy h3,.aroma-related-copy b,.aroma-menu-name,.aroma-menu-line strong { font-family: "Manrope",sans-serif; font-weight: 650; }
+
+/* Menu page: image-led opening and cardless, easy-to-scan menu chapters. */
+.aroma-menu-hero {
+  position: relative;
+  min-height: min(900px,100svh);
+  overflow: hidden;
+  background: #17120d;
+  color: #fff;
+}
+.aroma-menu-hero-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.aroma-menu-hero-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg,rgba(17,13,9,.92) 0%,rgba(17,13,9,.7) 44%,rgba(17,13,9,.15) 78%),
+    linear-gradient(0deg,rgba(17,13,9,.72),transparent 50%);
+}
+.aroma-menu-hero-inner { position: relative; z-index: 1; display: flex; min-height: min(900px,100svh); padding-top: 148px; padding-bottom: 78px; align-items: center; }
+.aroma-menu-hero-copy { width: min(760px,66%); }
+.aroma-menu-hero-copy h1 { max-width: 760px; margin: 24px 0 28px; font-size: clamp(72px,8vw,126px); line-height: .86; letter-spacing: -.06em; }
+.aroma-menu-hero-copy>p:not(.aroma-kicker) { max-width: 570px; color: rgba(255,255,255,.72); font-size: 15px; line-height: 1.75; }
+.aroma-menu-hero-meta { display: flex; width: min(500px,100%); margin-top: 48px; border-block: 1px solid rgba(255,255,255,.2); }
+.aroma-menu-hero-meta span { display: grid; padding: 22px 34px 22px 0; grid-template-columns: auto 1fr; align-items: center; gap: 12px; }
+.aroma-menu-hero-meta span+span { margin-left: 34px; padding-left: 34px; border-left: 1px solid rgba(255,255,255,.2); }
+.aroma-menu-hero-meta b { color: var(--ar-accent); font-family: "Fraunces",Georgia,serif; font-size: 30px; font-weight: 500; }
+.aroma-menu-hero-meta small { color: rgba(255,255,255,.56); font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.aroma-menu-hero-caption { position: absolute; right: 0; bottom: 78px; color: rgba(255,255,255,.58); font-size: 9px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; writing-mode: vertical-rl; }
+
+.aroma-menu-page { padding: 145px 0 120px; background: #f2ece2; color: #19140f; }
+.aroma-menu-overview { margin-bottom: 122px; }
+.aroma-menu-overview-copy h2 { color: #19140f; }
+.aroma-menu-overview>p { color: rgba(25,20,15,.64); font-size: 15px; line-height: 1.8; }
+.aroma-menu-category-rail { border-color: rgba(25,20,15,.18); }
+.aroma-menu-category-rail.count-1,.aroma-menu-category-rail.count-2,.aroma-menu-category-rail.count-3 { display: grid; grid-template-columns: repeat(var(--ar-menu-count,3),minmax(0,1fr)); overflow: visible; }
+.aroma-menu-category-rail.count-1 { --ar-menu-count: 1; max-width: 420px; margin-inline: auto; }
+.aroma-menu-category-rail.count-2 { --ar-menu-count: 2; max-width: 760px; margin-inline: auto; }
+.aroma-menu-category-rail.count-3 { --ar-menu-count: 3; width: min(100%,1050px); margin-inline: auto; }
+.aroma-menu-category-rail a {
+  display: grid;
+  min-width: min(330px,34vw);
+  padding: 30px 34px 28px 0;
+  grid-template-columns: 34px 1fr;
+  align-items: baseline;
+  border-right: 1px solid rgba(25,20,15,.18);
+  color: inherit;
+  text-decoration: none;
+  transition: color .25s ease,background .25s ease;
+}
+.aroma-menu-category-rail.count-1 a,.aroma-menu-category-rail.count-2 a,.aroma-menu-category-rail.count-3 a { min-width: 0; padding: 30px 32px; }
+.aroma-menu-category-rail.count-1 a:first-child,.aroma-menu-category-rail.count-2 a:first-child,.aroma-menu-category-rail.count-3 a:first-child { border-left: 1px solid rgba(25,20,15,.18); }
+.aroma-menu-category-rail a+a { padding-left: 34px; }
+.aroma-menu-category-rail a:hover { color: #9a571e; }
+.aroma-menu-category-rail b { color: #a8681d; }
+.aroma-menu-category-rail strong { font-family: "Fraunces",Georgia,serif; font-size: 20px; font-weight: 500; }
+.aroma-menu-category-rail small { color: rgba(25,20,15,.45); }
+.aroma-menu-group {
+  display: grid;
+  margin-bottom: 128px;
+  grid-template-columns: minmax(245px,.62fr) minmax(0,1.38fr);
+  align-items: start;
+  gap: clamp(54px,8vw,130px);
+  scroll-margin-top: 118px;
+}
+.aroma-menu-group-head { position: sticky; top: 118px; display: block; margin: 0; padding: 4px 0 0; }
+.aroma-menu-group-head>span { display: block; margin-bottom: 68px; color: #a8681d; font-size: 11px; letter-spacing: .1em; }
+.aroma-menu-group-head h2 { margin: 16px 0 24px; color: #19140f; font-size: clamp(46px,4.2vw,66px); line-height: .94; letter-spacing: -.045em; }
+.aroma-menu-group-head>small { display: block; max-width: 210px; padding: 22px 0 0; border-top: 1px solid rgba(25,20,15,.18); color: rgba(25,20,15,.45); line-height: 1.7; }
+.aroma-menu-list,.aroma-menu-list.count-1,.aroma-menu-list.count-2 { display: grid; grid-template-columns: 1fr; gap: 0; }
+.aroma-product-wrap { border-top: 1px solid rgba(25,20,15,.2); }
+.aroma-product-wrap:last-child { border-bottom: 1px solid rgba(25,20,15,.2); }
+.aroma-product-card { display: grid; min-height: 228px; padding: 26px 0; grid-template-columns: 190px minmax(0,1fr); gap: 32px; }
+.aroma-product-photo { height: 176px; aspect-ratio: auto; }
+.aroma-product-photo img { transition: transform .65s cubic-bezier(.22,1,.36,1); }
+.aroma-product-card:hover .aroma-product-photo img { transform: scale(1.055); }
+.aroma-product-photo>span { top: 10px; right: 10px; background: #f2ece2; color: #19140f; }
+.aroma-product-copy { min-height: 176px; padding: 2px 0 0; }
+.aroma-product-copy .aroma-kicker { color: #a8681d; }
+.aroma-product-copy h3 { margin: 10px 0 12px; color: #19140f; font-family: "Fraunces",Georgia,serif; font-size: clamp(28px,2.5vw,38px); font-weight: 500; line-height: 1.05; letter-spacing: -.025em; }
+.aroma-product-copy>p:not(.aroma-kicker) { max-width: 570px; color: rgba(25,20,15,.58); line-height: 1.65; }
+.aroma-product-copy>div { padding-top: 20px; border: 0; }
+.aroma-product-copy>div>strong { color: #19140f; font-size: 14px; }
+.aroma-product-copy .aroma-product-reserve { color: rgba(25,20,15,.68); }
+.aroma-product-actions>button:last-child { border-color: rgba(25,20,15,.25); color: #19140f; }
+.aroma-menu-cta {
+  display: flex;
+  max-width: 920px;
+  margin: 10px auto 0;
+  padding: 88px 72px;
+  align-items: center;
+  flex-direction: column;
+  gap: 0;
+  background: #1a1510;
+  color: #fff;
+  text-align: center;
+}
+.aroma-menu-cta .aroma-kicker { color: var(--ar-accent); }
+.aroma-menu-cta h2 { max-width: 720px; margin: 22px auto 20px; font-size: clamp(48px,5.4vw,76px); line-height: .95; }
+.aroma-menu-cta>p:not(.aroma-kicker) { max-width: 520px; color: rgba(255,255,255,.62); font-size: 14px; line-height: 1.75; }
+.aroma-menu-cta .aroma-primary { margin-top: 34px; }
+
+/* One consistent orange action language across pages and forms. */
+.aroma .aroma-primary,
+.aroma .aroma-header-cta,
+.aroma .aroma-hero-secondary,
+.aroma .aroma-message-panel .tp-btn-primary,
+.aroma .aroma-modal-form .tp-btn-primary {
+  display: inline-flex;
+  min-height: 48px;
+  padding: 0 24px;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  border: 0;
+  border-radius: 0;
+  background: var(--ar-accent);
+  color: #18130e;
+  font-family: "Manrope",sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background .25s ease,color .25s ease,transform .25s ease;
+}
+.aroma .aroma-primary:hover,
+.aroma .aroma-header-cta:hover,
+.aroma .aroma-hero-secondary:hover,
+.aroma .aroma-message-panel .tp-btn-primary:hover,
+.aroma .aroma-modal-form .tp-btn-primary:hover { background: #f1bd64; color: #18130e; transform: translateY(-2px); }
+.aroma .aroma-primary svg,
+.aroma .aroma-header-cta svg,
+.aroma .aroma-hero-secondary svg,
+.aroma .aroma-message-panel .tp-btn-primary svg,
+.aroma .aroma-modal-form .tp-btn-primary svg { display: block; flex: 0 0 auto; align-self: center; transform: none; }
+.aroma .aroma-header>.aroma-shell>.aroma-header-cta { min-height: 48px; padding: 0 24px; background: var(--ar-accent); color: #18130e; font-size: 10px; }
+
+.aroma-general-application {
+  display: flex;
+  width: min(880px,100%);
+  margin: 96px auto 0;
+  padding: 86px 48px;
+  align-items: center;
+  flex-direction: column;
+  border-top: 1px solid rgba(255,255,255,.18);
+  border-bottom: 1px solid rgba(255,255,255,.18);
+  text-align: center;
+}
+.aroma-general-application .aroma-kicker { color: var(--ar-accent); }
+.aroma-general-application h2 { max-width: 700px; margin: 20px auto; font-size: clamp(48px,5vw,72px); line-height: .96; }
+.aroma-general-application>p:not(.aroma-kicker) { max-width: 590px; color: rgba(247,240,228,.6); font-size: 14px; line-height: 1.8; }
+.aroma-general-application .aroma-primary { margin-top: 32px; }
+
+.aroma-back-to-top {
+  position: fixed;
+  z-index: 38;
+  right: 24px;
+  bottom: 24px;
+  display: grid;
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  background: var(--ar-accent);
+  color: #18130e;
+  box-shadow: 0 14px 34px rgba(0,0,0,.2);
+  cursor: pointer;
+  transition: background .25s ease,transform .25s ease;
+}
+.aroma-back-to-top svg { display: block; transform: rotate(-90deg); }
+.aroma-back-to-top:hover { background: #f1bd64; transform: translateY(-3px); }
+
+.aroma-testimonials-page { padding: 130px 0 145px; background: #f2ece2; color: #19140f; }
+.aroma-reviews-page-head { display: flex; align-items: end; justify-content: space-between; gap: 32px; padding-bottom: 44px; border-bottom: 1px solid rgba(25,20,15,.18); }
+.aroma-reviews-page-head h2 { margin-top: 18px; font-size: clamp(52px,6vw,86px); line-height: .94; }
+.aroma-reviews-page-head>span { padding-bottom: 8px; color: rgba(25,20,15,.48); font-size: 10px; font-weight: 700; letter-spacing: .14em; }
+.aroma-reviews-carousel { display: grid; min-height: 470px; grid-template-columns: 64px minmax(0,1fr) 64px; align-items: center; gap: clamp(20px,4vw,58px); }
+.aroma-reviews-carousel-stage { min-width: 0; overflow: hidden; }
+.aroma-reviews-carousel-stage article { max-width: 980px; margin: auto; padding: 76px 0 62px; text-align: center; }
+.aroma-reviews-quote { display: block; height: 58px; color: #a8681d; font: 88px/1 "Fraunces",Georgia,serif; }
+.aroma-reviews-carousel blockquote { margin: 22px auto 36px; font-family: "Fraunces",Georgia,serif; font-size: clamp(34px,4.2vw,62px); font-weight: 400; line-height: 1.18; letter-spacing: -.035em; }
+.aroma-reviews-carousel footer b,.aroma-reviews-carousel footer small { display: block; }
+.aroma-reviews-carousel footer b { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
+.aroma-reviews-carousel footer small { margin-top: 7px; color: rgba(25,20,15,.48); font-size: 11px; }
+.aroma-reviews-carousel-arrow { display: grid; width: 58px; height: 58px; padding: 0; place-items: center; border: 1px solid rgba(25,20,15,.25); border-radius: 50%; background: transparent; color: #19140f; cursor: pointer; transition: background .25s ease,color .25s ease,border-color .25s ease; }
+.aroma-reviews-carousel-arrow.is-previous svg { transform: rotate(180deg); }
+.aroma-reviews-carousel-arrow:hover:not(:disabled) { border-color: #19140f; background: #19140f; color: #fff; }
+.aroma-reviews-carousel-arrow:disabled { opacity: .25; cursor: default; }
+.aroma-reviews-page-footer { display: flex; min-height: 54px; align-items: center; justify-content: space-between; gap: 24px; padding-top: 30px; border-top: 1px solid rgba(25,20,15,.18); }
+.aroma-reviews-dots { display: flex; align-items: center; gap: 10px; }
+.aroma-reviews-dots button { width: 28px; height: 2px; padding: 0; border: 0; background: rgba(25,20,15,.22); cursor: pointer; transition: width .25s ease,background .25s ease; }
+.aroma-reviews-dots button.is-active { width: 52px; background: #a8681d; }
+
+@media(max-width:1180px) {
+  .aroma-header { padding-top: 12px; }
+  .aroma-header-inner { width: calc(100% - 28px); grid-template-columns: 1fr auto; }
+}
+@media(max-width:760px) {
+  .aroma-header { height: 82px; padding-top: 10px; }
+  .aroma-header-inner { height: 62px; padding: 0 10px 0 14px; }
+  .aroma-header[data-scrolled="true"] { height: 74px; padding-top: 6px; }
+  .aroma-wordmark svg,.aroma-wordmark img { width: 34px; height: 34px; }
+  .aroma-wordmark b { max-width: 205px; font-size: 17px; white-space: normal; }
+  .aroma-menu-toggle { width: 42px; height: 42px; }
+  .aroma-about-editorial { width: 100%; min-height: 0; grid-template-columns: 1fr; gap: 0; }
+  .aroma-about-visual { height: 520px; }
+  .aroma-about-copy { width: calc(100% - 36px); margin: auto; padding: 76px 0 90px; }
+  .aroma-about-copy h2 { font-size: 48px; }
+  .aroma-about-copy .aroma-facts { grid-template-columns: repeat(3,1fr); }
+  .aroma-about-copy .aroma-facts span { padding: 22px 8px; }
+  .aroma-about-copy .aroma-facts b { font-size: 26px; }
+  .aroma-faq>.aroma-shell { display: block; }
+  .aroma-menu-overview { grid-template-columns: 1fr; margin-bottom: 92px; gap: 24px; }
+  .aroma-menu-overview-copy h2 { font-size: 54px; }
+  .aroma-menu-overview>p { justify-self: start; }
+  .aroma-menu-category-rail { width: calc(100% + 18px); margin-top: 32px; }
+  .aroma-menu-category-rail.count-1,.aroma-menu-category-rail.count-2,.aroma-menu-category-rail.count-3 { display: flex; width: calc(100% + 18px); margin-inline: 0; overflow-x: auto; }
+  .aroma-menu-category-rail a { min-width: 245px; padding: 24px 24px 22px 0; }
+  .aroma-menu-category-rail.count-1 a,.aroma-menu-category-rail.count-2 a,.aroma-menu-category-rail.count-3 a { min-width: min(245px,75vw); padding: 24px; }
+  .aroma-menu-category-rail a+a { padding-left: 24px; }
+  .aroma-menu-hero { min-height: 760px; }
+  .aroma-menu-hero-inner { min-height: 760px; padding-top: 120px; padding-bottom: 58px; align-items: flex-end; }
+  .aroma-menu-hero-copy { width: 100%; }
+  .aroma-menu-hero-copy h1 { margin: 18px 0 22px; font-size: clamp(56px,16vw,76px); }
+  .aroma-menu-hero-copy>p:not(.aroma-kicker) { font-size: 13px; }
+  .aroma-menu-hero-shade { background: linear-gradient(0deg,rgba(17,13,9,.96) 0%,rgba(17,13,9,.64) 60%,rgba(17,13,9,.12) 100%); }
+  .aroma-menu-hero-meta { margin-top: 32px; }
+  .aroma-menu-hero-meta span { padding: 18px 16px 18px 0; gap: 8px; }
+  .aroma-menu-hero-meta span+span { margin-left: 16px; padding-left: 16px; }
+  .aroma-menu-hero-meta b { font-size: 24px; }
+  .aroma-menu-hero-caption { display: none; }
+  .aroma-menu-page { padding: 86px 0 82px; }
+  .aroma-menu-group { display: block; margin-bottom: 88px; }
+  .aroma-menu-group-head { position: static; margin-bottom: 34px; padding: 0; }
+  .aroma-menu-group-head>span { margin-bottom: 30px; }
+  .aroma-menu-group-head h2 { font-size: 48px; }
+  .aroma-menu-group-head>small { max-width: none; }
+  .aroma-product-card { min-height: 0; padding: 22px 0; grid-template-columns: 108px minmax(0,1fr); gap: 18px; }
+  .aroma-product-photo { height: 118px; }
+  .aroma-product-copy { min-height: 118px; padding: 0; }
+  .aroma-product-copy h3 { margin: 7px 0 9px; font-size: 24px; }
+  .aroma-product-copy>p:not(.aroma-kicker) { display: -webkit-box; overflow: hidden; font-size: 11px; line-height: 1.55; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .aroma-product-copy>div { padding-top: 12px; }
+  .aroma-product-copy .aroma-product-reserve { display: none; }
+  .aroma-menu-cta { padding: 68px 22px; }
+  .aroma-menu-cta h2 { font-size: 48px; }
+  .aroma-menu-cta .aroma-primary,.aroma-general-application .aroma-primary { width: 100%; }
+  .aroma-general-application { margin-top: 68px; padding: 68px 0; }
+  .aroma-general-application h2 { font-size: 46px; }
+  .aroma-back-to-top { right: 14px; bottom: 14px; width: 46px; height: 46px; }
+  .aroma-testimonials-page { padding: 82px 0 90px; }
+  .aroma-reviews-page-head { align-items: flex-start; flex-direction: column; padding-bottom: 30px; }
+  .aroma-reviews-page-head h2 { font-size: 50px; }
+  .aroma-reviews-carousel { min-height: 440px; grid-template-columns: 44px minmax(0,1fr) 44px; gap: 8px; }
+  .aroma-reviews-carousel-stage article { padding: 58px 0 48px; }
+  .aroma-reviews-carousel blockquote { font-size: 29px; line-height: 1.28; }
+  .aroma-reviews-carousel-arrow { width: 42px; height: 42px; }
+  .aroma-reviews-page-footer { align-items: stretch; flex-direction: column; }
+  .aroma-reviews-dots { justify-content: center; }
+  .aroma-reviews-page-footer .aroma-primary { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
