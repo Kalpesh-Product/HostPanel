@@ -1634,9 +1634,10 @@ export const defaultKindForTemplate = (themeVariant: string): ServiceKind =>
 // Pexels "Video of a House Interior" (free to use, no attribution needed); 2K file, 21 seconds.
 const CAMELIA_DEMO_VIDEO =
   "https://videos.pexels.com/video-files/7578546/7578546-uhd_2560_1440_30fps.mp4";
-// Pexels "A Bartender Making A Cocktail Drink" (free to use, no attribution needed); HD, portrait.
+// Pexels "Mixologist Preparing Cocktail at Trendy Bar"; full-HD landscape footage
+// keeps the demo hero cinematic instead of forcing a portrait crop on desktop.
 const GRAND_BAR_DEMO_VIDEO =
-  "https://videos.pexels.com/video-files/7608984/7608984-hd_720_1280_25fps.mp4";
+  "https://videos.pexels.com/video-files/33462637/14237457_1920_1080_24fps.mp4";
 // Pexels "Barista Crafting Latte Art in Coffee Shop"; used only by the Aromatica demo preview.
 const AROMATICA_DEMO_VIDEO =
   "https://www.pexels.com/download/video/30090157/";

@@ -57,6 +57,7 @@ export const ServicesIndex: React.FC = () => {
 };
 
 export const ServicePage: React.FC<{ service: Service }> = ({ service }) => {
+  const { services, goToService } = useGrandBar();
   const categories = useMemo(
     () =>
       Array.from(
@@ -68,6 +69,9 @@ export const ServicePage: React.FC<{ service: Service }> = ({ service }) => {
   const shown = category
     ? service.items.filter((item) => item.category === category)
     : service.items;
+  const suggestedMenus = services
+    .filter((entry) => entry.key !== service.key)
+    .slice(0, 3);
   return (
     <>
       <GbPageHero
@@ -112,6 +116,34 @@ export const ServicePage: React.FC<{ service: Service }> = ({ service }) => {
           {!shown.length ? (
             <p className="gb-empty">The menu is being prepared.</p>
           ) : null}
+          {suggestedMenus.length ? (
+            <div className="gb-menu-suggestions">
+              <div className="gb-suggestion-heading">
+                <p className="gb-kicker">Continue the evening</p>
+                <h2>Something to pair with your selection</h2>
+              </div>
+              <div className="gb-suggestion-grid">
+                {suggestedMenus.map((suggestion, index) => (
+                  <GbReveal key={suggestion.key} delay={index * 0.06}>
+                    <button
+                      type="button"
+                      onClick={() => goToService(suggestion)}
+                    >
+                      <div>
+                        <GbImage
+                          src={suggestion.cardImage || suggestion.heroImage}
+                          alt={suggestion.name}
+                        />
+                      </div>
+                      <span>Explore another menu</span>
+                      <h3>{suggestion.name}</h3>
+                      <b>{GbIcon.arrow(18)}</b>
+                    </button>
+                  </GbReveal>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       </section>
     </>
@@ -126,18 +158,23 @@ export const ItemDetail: React.FC<{ service: Service; item: ServiceItem }> = ({
   const images = item.images?.length
     ? item.images
     : [item.image, service.heroImage, ...t.galleryItems].filter(Boolean);
+  const relatedItems = service.items
+    .filter((entry) => entry.key !== item.key)
+    .slice(0, 3);
   const [active, setActive] = useState(0);
   return (
     <>
-      <GbPageHero
-        eyebrow={service.name}
-        title={item.title}
-        body={item.description}
-        image={images[0]}
-      />
-      <section className="gb-page-section">
-        <div className="gb-frame gb-item-detail">
-          <div className="gb-item-gallery">
+      <section className="gb-page-section gb-item-page-section">
+        <div className="gb-frame gb-item-detail-shell">
+          <button
+            type="button"
+            className="gb-text-link gb-item-back"
+            onClick={() => goToService(service)}
+          >
+            ← Back to {service.name}
+          </button>
+          <div className="gb-item-detail">
+            <div className="gb-item-gallery">
             <AnimatePresence mode="wait">
               <motion.div
                 className="gb-item-main"
@@ -163,15 +200,8 @@ export const ItemDetail: React.FC<{ service: Service; item: ServiceItem }> = ({
                 ))}
               </div>
             ) : null}
-          </div>
-          <GbReveal className="gb-item-copy">
-            <button
-              type="button"
-              className="gb-text-link"
-              onClick={() => goToService(service)}
-            >
-              ← Back to {service.name}
-            </button>
+            </div>
+            <GbReveal className="gb-item-copy">
             <p className="gb-kicker">{item.category || "House signature"}</p>
             <h2>{item.title}</h2>
             {item.price ? (
@@ -196,8 +226,27 @@ export const ItemDetail: React.FC<{ service: Service; item: ServiceItem }> = ({
                 Reserve this experience
               </button>
             ) : null}
-          </GbReveal>
+            </GbReveal>
+          </div>
         </div>
+        {relatedItems.length ? (
+          <div className="gb-frame gb-related-items">
+            <div className="gb-suggestion-heading">
+              <p className="gb-kicker">You may also enjoy</p>
+              <h2>More from {service.name}</h2>
+            </div>
+            <div className="gb-menu-grid">
+              {relatedItems.map((relatedItem, index) => (
+                <GbMenuCard
+                  key={relatedItem.key}
+                  service={service}
+                  item={relatedItem}
+                  index={index}
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
       </section>
     </>
   );
@@ -532,10 +581,10 @@ export const GrandBarContact: React.FC = () => {
             </div>
           ) : null}
         </div>
-        <div className="gb-contact-map">
+        <div className="gb-frame gb-contact-map">
           <iframe
             title="Location map"
-            src={draft?.mapUrl || mapSrc(t.contactAddress)}
+            src={mapSrc(t.contactAddress, draft?.mapUrl)}
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
           />
