@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { buildDemoPreviewDraft } from "./demoPreviewData";
 import { resolveTemplate } from "./templateRegistry";
 import TemplateIntroLoader from "./shared/TemplateIntroLoader";
+import TemplateBackToTop from "./shared/TemplateBackToTop";
 
 const LIVE_PREVIEW_DRAFT_STORAGE_KEY = "website_builder_live_preview_draft";
 
@@ -116,6 +117,7 @@ const WebsiteTemplateRenderer: React.FC = () => {
         themeVariant={resolvedTemplate.id}
         companyName={metadata.title}
       />
+      <TemplateBackToTop themeVariant={resolvedTemplate.id} />
       <TemplateComponent />
     </>
   );
