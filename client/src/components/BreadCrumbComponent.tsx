@@ -345,6 +345,36 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/key-apps/hostel-management/resource-pricing",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Hostel Management", path: "/key-apps/hostel-management" },
+      { label: "Resource & Pricing" },
+    ],
+  },
+  {
+    pattern: "/key-apps/hostel-management/dashboard",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Hostel Management" },
+    ],
+  },
+  {
+    pattern: "/key-apps/co-living-management/resource-pricing",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Co-living Management", path: "/key-apps/co-living-management" },
+      { label: "Resource & Pricing" },
+    ],
+  },
+  {
+    pattern: "/key-apps/co-living-management/dashboard",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Co-living Management" },
+    ],
+  },
+  {
     pattern: "/key-apps/co-working-management",
     crumbs: [
       { label: SECTION_LABELS.keyApps, path: "/key-apps" },

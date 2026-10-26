@@ -11,10 +11,13 @@ import {
     getResourceCapacityOptions,
     normalizeResourceType,
     normalizeResourceWing,
+    resourceCategories,
     resourceStatuses,
     resourceTypes,
     hasResourcePricingAndCredits,
+    nightlyPricedCategories,
     MAX_DESK_SEATS,
+    MAX_ROOM_OCCUPANCY,
 } from "./resourceSyncService.js";
 import {
     createSeatsForResource,
@@ -61,7 +64,7 @@ function validateCreateInput(input: any) {
         errors.push("Name must be at least 3 characters");
     if (input.name && input.name.length > 120) errors.push("Name must be at most 120 characters");
     if (input.type && !resourceTypes.includes(input.type)) errors.push(`Type must be one of: ${resourceTypes.join(", ")}`);
-    if (input.resourceCategory && !["open_desk", "cabin_desk", "meeting_room", "conference_room", "virtual_office"].includes(input.resourceCategory))
+    if (input.resourceCategory && !resourceCategories.includes(input.resourceCategory))
         errors.push("Invalid resource category");
     if (input.inventoryMode && !["area", "single"].includes(input.inventoryMode))
         errors.push("Inventory mode must be 'area' or 'single'");
@@ -76,6 +79,8 @@ function validateCreateInput(input: any) {
         errors.push("Price per hour must be a non-negative number");
     if (input.pricePerDay != null && (isNaN(Number(input.pricePerDay)) || Number(input.pricePerDay) < 0))
         errors.push("Price per day must be a non-negative number");
+    if (input.pricePerNight != null && (isNaN(Number(input.pricePerNight)) || Number(input.pricePerNight) < 0))
+        errors.push("Price per night must be a non-negative number");
     if (input.credits != null && (isNaN(Number(input.credits)) || Number(input.credits) < 0))
         errors.push("Credits must be a non-negative number");
     if (input.description && input.description.length > 500) errors.push("Description must be at most 500 characters");
@@ -91,7 +96,7 @@ function validateUpdateInput(input: any) {
         errors.push("Name must be at least 3 characters");
     if (input.name && input.name.length > 120) errors.push("Name must be at most 120 characters");
     if (input.type && !resourceTypes.includes(input.type)) errors.push(`Type must be one of: ${resourceTypes.join(", ")}`);
-    if (input.resourceCategory && !["open_desk", "cabin_desk", "meeting_room", "conference_room", "virtual_office"].includes(input.resourceCategory))
+    if (input.resourceCategory && !resourceCategories.includes(input.resourceCategory))
         errors.push("Invalid resource category");
     if (input.inventoryMode && !["area", "single"].includes(input.inventoryMode))
         errors.push("Inventory mode must be 'area' or 'single'");
@@ -105,6 +110,8 @@ function validateUpdateInput(input: any) {
         errors.push("Price per hour must be a non-negative number");
     if (input.pricePerDay != null && (isNaN(Number(input.pricePerDay)) || Number(input.pricePerDay) < 0))
         errors.push("Price per day must be a non-negative number");
+    if (input.pricePerNight != null && (isNaN(Number(input.pricePerNight)) || Number(input.pricePerNight) < 0))
+        errors.push("Price per night must be a non-negative number");
     if (input.credits != null && (isNaN(Number(input.credits)) || Number(input.credits) < 0))
         errors.push("Credits must be a non-negative number");
     if (input.description && input.description.length > 500) errors.push("Description must be at most 500 characters");
@@ -152,8 +159,14 @@ function validateResourceCapacity(resourceCategory: string, inventoryMode: strin
         throw error;
     }
 
-    if ((normalizedCategory === "open_desk" || normalizedCategory === "cabin_desk") && normalizedCapacity > MAX_DESK_SEATS) {
-        const error: any = new Error(`Seats must be ${MAX_DESK_SEATS} or fewer.`);
+    if ((normalizedCategory === "open_desk" || normalizedCategory === "cabin_desk" || normalizedCategory === "dorm") && normalizedCapacity > MAX_DESK_SEATS) {
+        const error: any = new Error(normalizedCategory === "dorm" ? `Beds must be ${MAX_DESK_SEATS} or fewer.` : `Seats must be ${MAX_DESK_SEATS} or fewer.`);
+        error.statusCode = 400;
+        throw error;
+    }
+
+    if (normalizedCategory === "room" && normalizedCapacity > MAX_ROOM_OCCUPANCY) {
+        const error: any = new Error(`Occupancy must be ${MAX_ROOM_OCCUPANCY} or fewer.`);
         error.statusCode = 400;
         throw error;
     }
@@ -171,10 +184,12 @@ function resolveResourcePricePerDay(pricePerHour = 0, pricePerDay = 0, spanHours
     return 0;
 }
 
-function formatPricingSummary(pricePerHour = 0, pricePerDay = 0, fallback = "") {
+function formatPricingSummary(pricePerHour = 0, pricePerDay = 0, fallback = "", pricePerNight = 0) {
+    const night = Number(pricePerNight || 0);
+    const formatter = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
+    if (night > 0) return `₹${formatter.format(night)}/night`;
     const hour = Number(pricePerHour || 0);
     const day = resolveResourcePricePerDay(hour, pricePerDay);
-    const formatter = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
     const parts: string[] = [];
     if (hour > 0) parts.push(`₹${formatter.format(hour)}/hour`);
     if (day > 0) parts.push(`₹${formatter.format(day)}/day`);
@@ -185,9 +200,10 @@ function resolveResourceStatusForActivation({
     requestedStatus = "Active",
     pricePerHour = 0,
     pricePerDay = 0,
+    pricePerNight = 0,
     credits = 0,
 }: any = {}) {
-    if (!hasResourcePricingAndCredits({ pricePerHour, pricePerDay, credits })) return "Disabled";
+    if (!hasResourcePricingAndCredits({ pricePerHour, pricePerDay, pricePerNight, credits })) return "Disabled";
     return requestedStatus || "Active";
 }
 
@@ -342,18 +358,22 @@ export async function createResourceForOwner(workspaceId: string, ownerId: strin
             throw error;
         }
     }
-    const pricePerHour = typeof input.pricePerHour === "number" ? input.pricePerHour : 0;
+    const isNightlyCategory = nightlyPricedCategories.has(resourceCategory);
+    const pricePerHour = isNightlyCategory ? 0 : (typeof input.pricePerHour === "number" ? input.pricePerHour : 0);
     const bookingSpanHours = await getWorkspaceBookingSpanHours(workspaceId);
-    const pricePerDay = resolveResourcePricePerDay(
+    const pricePerDay = isNightlyCategory ? 0 : resolveResourcePricePerDay(
         pricePerHour,
         typeof input.pricePerDay === "number" ? input.pricePerDay : 0,
         bookingSpanHours,
     );
+    const pricePerNight = isNightlyCategory ? Number(input.pricePerNight || 0) : 0;
     const credits = Number(input.credits || 0);
+    const amenities = Array.isArray(input.amenities) ? input.amenities.map((entry: unknown) => String(entry).trim()).filter(Boolean) : [];
     const status = resolveResourceStatusForActivation({
         requestedStatus: input.status || "Active",
         pricePerHour,
         pricePerDay,
+        pricePerNight,
         credits,
     });
 
@@ -372,10 +392,12 @@ export async function createResourceForOwner(workspaceId: string, ownerId: strin
         capacity,
         pricePerHour,
         pricePerDay,
-        pricing: formatPricingSummary(pricePerHour, pricePerDay, input.pricing || ""),
-        pricingUpdatedAt: hasResourcePricingAndCredits({ pricePerHour, pricePerDay, credits }) ? new Date() : null,
+        pricePerNight,
+        pricing: formatPricingSummary(pricePerHour, pricePerDay, input.pricing || "", pricePerNight),
+        pricingUpdatedAt: hasResourcePricingAndCredits({ pricePerHour, pricePerDay, pricePerNight, credits }) ? new Date() : null,
         credits,
         description: input.description || "",
+        amenities,
         status,
         isActive: status === "Active",
         currentlyBooked: false,
@@ -441,8 +463,12 @@ export async function updateResourceForOwner(workspaceId: string, ownerId: strin
             await getWorkspaceBookingSpanHours(workspaceId),
         );
     }
+    if (typeof input.pricePerNight === "number") resource!.pricePerNight = input.pricePerNight;
     if (typeof input.credits === "number") resource!.credits = input.credits;
     if (typeof input.description === "string") resource!.description = input.description;
+    if (Array.isArray(input.amenities)) {
+        resource!.amenities = input.amenities.map((entry: unknown) => String(entry).trim()).filter(Boolean);
+    }
     if (typeof input.status === "string") {
         resource!.status = input.status as any;
         resource!.isActive = input.status !== "Disabled";
@@ -451,6 +477,7 @@ export async function updateResourceForOwner(workspaceId: string, ownerId: strin
     if (
         typeof input.pricePerHour === "number" ||
         typeof input.pricePerDay === "number" ||
+        typeof input.pricePerNight === "number" ||
         typeof input.pricing === "string" ||
         typeof input.credits === "number"
     ) {
@@ -458,6 +485,7 @@ export async function updateResourceForOwner(workspaceId: string, ownerId: strin
             input.pricePerHour ?? resource!.pricePerHour,
             input.pricePerDay ?? resource!.pricePerDay,
             input.pricing ?? resource!.pricing,
+            input.pricePerNight ?? resource!.pricePerNight,
         );
         resource!.pricingUpdatedAt = new Date();
     }
@@ -466,6 +494,7 @@ export async function updateResourceForOwner(workspaceId: string, ownerId: strin
         requestedStatus: resource!.status,
         pricePerHour: resource!.pricePerHour,
         pricePerDay: resource!.pricePerDay,
+        pricePerNight: resource!.pricePerNight,
         credits: resource!.credits,
     });
     resource!.status = resolvedStatus as any;

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
-import { GuestRoom } from "../models/GuestRoom.js";
+import { Resource } from "../models/Resource.js";
 import { RoomStaySettings } from "../models/RoomStaySettings.js";
 import {
     ROOM_STAY_OPEN_STATUSES,
@@ -51,6 +51,11 @@ const parseObjectId = (value: unknown, message: string) => {
 };
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
+
+// Rooms/Dorms live in the shared Resource collection (resourceCategory
+// "room"/"dorm"), the same inventory used by Resource & Pricing for every
+// other category — there is no separate GuestRoom collection any more.
+const roomResourceCategory = (type: string) => (type === "Room" ? "room" : "dorm");
 
 const parseDate = (value: unknown) => {
     const date = new Date(String(value || ""));
@@ -121,115 +126,10 @@ export async function listGuestRooms(req: AuthenticatedRequest, res: Response, n
     try {
         const workspaceId = getWorkspaceObjectId(req);
         const type = String(req.query.type || "").trim();
-        const filter: Record<string, unknown> = { workspaceId };
-        if (type === "Room" || type === "Dorm") filter.type = type;
-        const rooms = await GuestRoom.find(filter).sort({ sortOrder: 1, name: 1 }).lean();
+        const filter: Record<string, unknown> = { workspaceId, resourceCategory: { $in: ["room", "dorm"] } };
+        if (type === "Room" || type === "Dorm") filter.resourceCategory = roomResourceCategory(type);
+        const rooms = await Resource.find(filter).sort({ sortOrder: 1, name: 1 }).lean();
         res.status(200).json({ success: true, message: "Rooms loaded successfully.", data: rooms });
-    } catch (error) {
-        next(error);
-    }
-}
-
-export async function createGuestRoom(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    try {
-        const workspaceId = getWorkspaceObjectId(req);
-        const { name, type, capacity, pricePerNight, location, floor, wing, status, description, amenities } = req.body || {};
-        if (!String(name || "").trim()) throw badRequest("Room name is required.");
-        if (!["Room", "Dorm"].includes(String(type))) throw badRequest("Choose a valid room type.");
-        const numericCapacity = Number(capacity || 1);
-        if (!Number.isInteger(numericCapacity) || numericCapacity < 1) throw badRequest("Capacity must be at least 1.");
-        const numericPrice = Number(pricePerNight);
-        if (!Number.isFinite(numericPrice) || numericPrice < 0) throw badRequest("Enter a valid nightly rate.");
-        if (status !== undefined && !["Active", "Under Maintenance", "Disabled"].includes(String(status))) {
-            throw badRequest("Choose a valid status.");
-        }
-
-        const room = await GuestRoom.create({
-            workspaceId,
-            name: String(name).trim(),
-            type,
-            capacity: type === "Room" ? 1 : numericCapacity,
-            pricePerNight: roundMoney(numericPrice),
-            location: String(location || "").trim(),
-            floor: String(floor || "").trim(),
-            wing: String(wing || "").trim(),
-            status: status || "Active",
-            description: String(description || "").trim(),
-            amenities: Array.isArray(amenities) ? amenities.map((entry: unknown) => String(entry).trim()).filter(Boolean) : [],
-            createdBy: getOptionalUserObjectId(req),
-        });
-
-        res.status(201).json({ success: true, message: "Room added successfully.", data: room });
-    } catch (error: any) {
-        if (error?.code === 11000) return next(conflict("A room with this name already exists."));
-        next(error);
-    }
-}
-
-export async function updateGuestRoom(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    try {
-        const workspaceId = getWorkspaceObjectId(req);
-        const roomId = parseObjectId(req.params.roomId, "Invalid room.");
-        const { name, capacity, pricePerNight, location, floor, wing, description, amenities, isActive, status } = req.body || {};
-
-        const updates: Record<string, unknown> = {};
-        if (name !== undefined) {
-            if (!String(name).trim()) throw badRequest("Room name is required.");
-            updates.name = String(name).trim();
-        }
-        if (capacity !== undefined) {
-            const numericCapacity = Number(capacity);
-            if (!Number.isInteger(numericCapacity) || numericCapacity < 1) throw badRequest("Capacity must be at least 1.");
-            updates.capacity = numericCapacity;
-        }
-        if (pricePerNight !== undefined) {
-            const numericPrice = Number(pricePerNight);
-            if (!Number.isFinite(numericPrice) || numericPrice < 0) throw badRequest("Enter a valid nightly rate.");
-            updates.pricePerNight = roundMoney(numericPrice);
-        }
-        if (location !== undefined) updates.location = String(location).trim();
-        if (floor !== undefined) updates.floor = String(floor).trim();
-        if (wing !== undefined) updates.wing = String(wing).trim();
-        if (description !== undefined) updates.description = String(description).trim();
-        if (amenities !== undefined) {
-            updates.amenities = Array.isArray(amenities) ? amenities.map((entry: unknown) => String(entry).trim()).filter(Boolean) : [];
-        }
-        if (isActive !== undefined) updates.isActive = Boolean(isActive);
-        if (status !== undefined) {
-            if (!["Active", "Under Maintenance", "Disabled"].includes(String(status))) throw badRequest("Choose a valid status.");
-            updates.status = status;
-        }
-
-        const room = await GuestRoom.findOneAndUpdate(
-            { _id: roomId, workspaceId },
-            { $set: updates },
-            { new: true, runValidators: true }
-        ).lean();
-        if (!room) throw notFound("Room not found.");
-
-        res.status(200).json({ success: true, message: "Room updated successfully.", data: room });
-    } catch (error: any) {
-        if (error?.code === 11000) return next(conflict("A room with this name already exists."));
-        next(error);
-    }
-}
-
-export async function deleteGuestRoom(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    try {
-        const workspaceId = getWorkspaceObjectId(req);
-        const roomId = parseObjectId(req.params.roomId, "Invalid room.");
-
-        const hasOpenBooking = await RoomStayBooking.exists({
-            workspaceId,
-            roomId,
-            status: { $in: ROOM_STAY_OPEN_STATUSES },
-        });
-        if (hasOpenBooking) throw conflict("This room has active bookings. Resolve them before removing the room.");
-
-        const deleted = await GuestRoom.findOneAndDelete({ _id: roomId, workspaceId }).lean();
-        if (!deleted) throw notFound("Room not found.");
-
-        res.status(200).json({ success: true, message: "Room removed successfully.", data: { _id: roomId } });
     } catch (error) {
         next(error);
     }
@@ -244,7 +144,7 @@ export async function getRoomAvailability(req: AuthenticatedRequest, res: Respon
         if (!["Room", "Dorm"].includes(type)) throw badRequest("Choose a valid room type.");
         if (!checkIn || !checkOut || checkOut <= checkIn) throw badRequest("Enter a valid check-in/check-out range.");
 
-        const rooms = await GuestRoom.find({ workspaceId, type, isActive: true, status: "Active" })
+        const rooms = await Resource.find({ workspaceId, resourceCategory: roomResourceCategory(type), isActive: true, status: "Active" })
             .sort({ sortOrder: 1, name: 1 })
             .lean();
 
@@ -354,7 +254,7 @@ export async function createRoomBooking(req: AuthenticatedRequest, res: Response
             throw badRequest("Enter a valid amount paid.");
         }
 
-        const room = await GuestRoom.findOne({ _id: roomId, workspaceId }).lean();
+        const room = await Resource.findOne({ _id: roomId, workspaceId, resourceCategory: { $in: ["room", "dorm"] } }).lean();
         if (!room) throw notFound("Room not found.");
         if (!room.isActive || room.status !== "Active") throw conflict("This room is not available for booking.");
 
@@ -519,7 +419,7 @@ export async function getRoomStayAnalytics(req: AuthenticatedRequest, res: Respo
         const now = new Date();
         const since = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 
-        const rooms = await GuestRoom.find({ workspaceId, type, isActive: true, status: "Active" }).select("capacity").lean();
+        const rooms = await Resource.find({ workspaceId, resourceCategory: roomResourceCategory(type), isActive: true, status: "Active" }).select("capacity").lean();
         const bedsPerDay = type === "Room" ? rooms.length : rooms.reduce((sum, room) => sum + (room.capacity || 0), 0);
         const availableRoomNights = bedsPerDay * days;
 

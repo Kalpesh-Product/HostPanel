@@ -126,6 +126,7 @@ import CafeManagementPage from "../pages/Sales/CafeManagement/CafeManagementPage
 import CafeOrdersPage from "../pages/Sales/CafeOrders/CafeOrdersPage";
 import RoomStayBookingPage from "../pages/RoomStays/RoomStayBookingPage";
 import RoomManagementPage from "../pages/RoomManagement/RoomManagementPage";
+import RoomManagementLandingPage from "../pages/RoomManagement/RoomManagementLandingPage";
 import CoworkingManagementPage from "../pages/CoworkingManagement/CoworkingManagementPage";
 import MeetingRoomManagementPage from "../pages/MeetingRoomManagement/MeetingRoomManagementPage";
 import LeadsManagementPage from "../pages/Sales/LeadsManagement/LeadsManagementPage";
@@ -760,11 +761,43 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "key-apps/hostel-management",
+                element: (
+                  <RoomManagementLandingPage
+                    title="Hostel Management"
+                    noun="Dorm"
+                    description="Manage dorm inventory, hostel bookings, nightly pricing, and stay operations."
+                    managementRoute="/key-apps/hostel-management/dashboard"
+                    resourcePricingRoute="/key-apps/hostel-management/resource-pricing"
+                  />
+                ),
+              },
+              {
+                path: "key-apps/hostel-management/dashboard",
                 element: <RoomManagementPage roomType="Dorm" title="Hostel Management" noun="Dorm" />,
               },
               {
+                path: "key-apps/hostel-management/resource-pricing",
+                element: <ResourcePricingPage allowedCategories={["dorm"]} />,
+              },
+              {
                 path: "key-apps/co-living-management",
+                element: (
+                  <RoomManagementLandingPage
+                    title="Co-living Management"
+                    noun="Room"
+                    description="Manage room inventory, resident bookings, nightly pricing, and co-living operations."
+                    managementRoute="/key-apps/co-living-management/dashboard"
+                    resourcePricingRoute="/key-apps/co-living-management/resource-pricing"
+                  />
+                ),
+              },
+              {
+                path: "key-apps/co-living-management/dashboard",
                 element: <RoomManagementPage roomType="Room" title="Co-living Management" noun="Room" />,
+              },
+              {
+                path: "key-apps/co-living-management/resource-pricing",
+                element: <ResourcePricingPage allowedCategories={["room"]} />,
               },
               {
                 path: "key-apps/co-working-management",

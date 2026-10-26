@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { createResource, getResources, updateResource } from '../../../services/resources';
 import { createPricingPackage, deletePricingPackage, getPricingPackages, updatePricingPackage } from '../../../services/pricing-packages';
 import { toast } from 'sonner';
-import { AlertTriangle, Building2,View, CheckCircle2, ChevronDown, Clock, Edit2, Eye, FileText, LayoutGrid, Loader2, Monitor, Plus, Search, Save, Tag, Trash, UploadCloud, Users, X, XCircle } from 'lucide-react';
+import { AlertTriangle, Bed, Building2,View, CheckCircle2, ChevronDown, Clock, Edit2, Eye, FileText, House, LayoutGrid, Loader2, Monitor, Plus, Search, Save, Tag, Trash, UploadCloud, Users, X, XCircle } from 'lucide-react';
 import BulkUploadModal from '../../../components/BulkUploadModal';
 import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
 import useDashboardAccess from '../../../hooks/useDashboardAccess';
@@ -28,6 +28,8 @@ const resourceCategoryOptions = [
   { value: 'meeting_room', label: 'Meeting Room' },
   { value: 'conference_room', label: 'Conference Room' },
   { value: 'virtual_office', label: 'Virtual Office' },
+  { value: 'room', label: 'Room' },
+  { value: 'dorm', label: 'Dorm' },
 ];
 const inventoryModeOptions = [
   { value: 'area', label: 'Area Block' },
@@ -36,11 +38,22 @@ const inventoryModeOptions = [
 const TENANT_PACKAGE_MIN_DURATION_MONTHS = 3;
 const TENANT_PACKAGE_MONTH_DAYS = 30;
 const ADD_NEW_OPTION = '__add_new__';
+// Room/Dorm are priced per night, not hourly/daily like every other
+// category — they get their own single price field in the form instead.
+const isNightlyCategory = (category = '') => category === 'room' || category === 'dorm';
+const ROOM_DORM_AMENITY_OPTIONS = [
+  'WiFi', 'Air Conditioning', 'Attached Bathroom', 'Hot Water', 'TV', 'Breakfast Included',
+  'Locker', 'Power Backup', 'Laundry', 'Housekeeping', 'Parking', 'Elevator Access',
+];
 
 const areaCapacityOptions = {
   virtual_office: [1, 2, 3, 4, 5],
 };
 const MAX_DESK_SEATS = 499;
+// A Room's capacity is its max guest occupancy (how many people it sleeps),
+// not a bed count to book individually — still a realistic cap, unlike the
+// desk/dorm seat counts above. Mirrors MAX_ROOM_OCCUPANCY in resourceSyncService.ts.
+const MAX_ROOM_OCCUPANCY = 20;
 
 function formatCurrency(value = 0, currency = 'INR') {
   return formatWorkspaceCurrency(Number(value || 0), currency, { maximumFractionDigits: 2 });
@@ -298,6 +311,8 @@ function normalizeResource(resource = {}) {
     capacity: Number(resource.capacity || 1),
     pricePerHour: Number(resource.pricePerHour || 0),
     pricePerDay: Number(resource.pricePerDay || 0),
+    pricePerNight: Number(resource.pricePerNight || 0),
+    amenities: Array.isArray(resource.amenities) ? resource.amenities : [],
     credits: Number(resource.credits ?? 1),
     pricing: resource.pricing || '',
     pricingUpdatedAt: resource.pricingUpdatedAt || null,
@@ -319,6 +334,8 @@ function deriveResourceTypeFromCategory(category = '') {
   if (category === 'cabin_desk') return 'Cabin Desk';
   if (category === 'conference_room') return 'Conference Room';
   if (category === 'virtual_office') return 'Virtual Office';
+  if (category === 'dorm') return 'Dorm';
+  if (category === 'room') return 'Room';
   return 'Meeting Room';
 }
 
@@ -614,16 +631,32 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
     () => (allowedCategories ? resourceCategoryOptions.filter((option) => allowedCategories.includes(option.value)) : resourceCategoryOptions),
     [allowedCategories],
   );
+  const isHostelScope = allowedCategories?.length === 1 && allowedCategories[0] === 'dorm';
+  const isCoLivingScope = allowedCategories?.length === 1 && allowedCategories[0] === 'room';
+  const isNightlyScope = isHostelScope || isCoLivingScope;
+  const pageDescription = isHostelScope
+    ? 'Manage hostel dorms, nightly pricing, amenities, and availability.'
+    : isCoLivingScope
+      ? 'Manage co-living rooms, nightly pricing, amenities, and availability.'
+      : 'Manage resources, pricing, credits, and tenant packages.';
+  const resourceSummaryLabel = isHostelScope ? 'Total Dorms' : isCoLivingScope ? 'Total Rooms' : 'Total Resources';
+  const ResourceSummaryIcon = isHostelScope ? Bed : isCoLivingScope ? House : Monitor;
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingReport, setIsExportingReport] = useState('');
   const [showExportModal, setShowExportModal] = useState(false);
   const [showPackageExportModal, setShowPackageExportModal] = useState(false);
   const [activeTab, setActiveTab] = useState('resource');
-  const tabOptions: Array<{ key: string; label: string }> = [
-    { key: 'resource', label: 'Resources' },
-    { key: 'tenant', label: 'Tenant Packages' },
-  ];
+  // Tenant Packages (desk/virtual-office memberships) don't apply to nightly
+  // room/dorm inventory — hidden only when every allowed category is nightly
+  // (Hostel/Co-living); Co-working, Meeting Room, and the unscoped page keep it.
+  const showTenantPackagesTab = !allowedCategories || allowedCategories.some((category) => !isNightlyCategory(category));
+  const tabOptions: Array<{ key: string; label: string }> = showTenantPackagesTab
+    ? [
+        { key: 'resource', label: 'Resources' },
+        { key: 'tenant', label: 'Tenant Packages' },
+      ]
+    : [{ key: 'resource', label: 'Resources' }];
   const [searchQuery, setSearchQuery] = useState('');
   const [resourceCategoryFilter, setResourceCategoryFilter] = useState('All Categories');
   const [resourceFloorFilter, setResourceFloorFilter] = useState('All Floors');
@@ -636,10 +669,10 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
   const [modalKind, setModalKind] = useState('package');
   const [modalMode, setModalMode] = useState('add');
   const [selectedItem, setSelectedItem] = useState(null);
-  const [resourceForm, setResourceForm] = useState({ name: '', type: '', resourceCategory: '', inventoryMode: '', location: '', floor: '', wing: '', capacity: '1', description: '', pricePerHour: '', pricePerDay: '', credits: '', status: 'Active' });
+  const [resourceForm, setResourceForm] = useState({ name: '', type: '', resourceCategory: '', inventoryMode: '', location: '', floor: '', wing: '', capacity: '1', description: '', pricePerHour: '', pricePerDay: '', pricePerNight: '', amenities: [] as string[], credits: '', status: 'Active' });
   const [addResourceForm, setAddResourceForm] = useState({
-    name: '', type: '', resourceCategory: '', inventoryMode: '', location: '', floor: '', wing: '', capacity: '1',
-    pricePerHour: '', pricePerDay: '', credits: '', status: '', description: '',
+    name: '', type: '', resourceCategory: allowedCategories && allowedCategories.length === 1 ? allowedCategories[0] : '', inventoryMode: '', location: '', floor: '', wing: '', capacity: '1',
+    pricePerHour: '', pricePerDay: '', pricePerNight: '', amenities: [] as string[], credits: '', status: '', description: '',
   });
   const [isAddResourceNameAutoGenerated, setIsAddResourceNameAutoGenerated] = useState(true);
   const [packageForm, setPackageForm] = useState({
@@ -816,6 +849,10 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
 
   const membershipPackages = useMemo(() => packages.filter((entry) => entry.category === 'Membership'), [packages]);
   const tenantPackages = useMemo(() => packages.filter((entry) => entry.category === 'Tenant'), [packages]);
+  const scopedResources = useMemo(
+    () => (!allowedCategories ? resources : resources.filter((resource) => allowedCategories.includes(resource.resourceCategory))),
+    [allowedCategories, resources],
+  );
 
   // Summary cards change per tab (same pattern as the Meeting Rooms page)
   const summaryCards = useMemo(() => {
@@ -832,26 +869,26 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
 
     // resource tab (default)
     return [
-      { key: 'res-total', icon: Monitor, label: 'Total Resources', value: resources.length, cardClass: baseCardClass, iconClass: 'bg-blue-50 text-blue-600' },
-      { key: 'res-active', icon: CheckCircle2, label: 'Active', value: resources.filter((item) => item.status === 'Active').length, cardClass: `${baseCardClass} border-l-4 border-l-emerald-500`, iconClass: 'bg-emerald-50 text-emerald-600' },
-      { key: 'res-maintenance', icon: AlertTriangle, label: 'Under Maintenance', value: resources.filter((item) => item.status === 'Under Maintenance').length, cardClass: `${baseCardClass} border-l-4 border-l-amber-500`, iconClass: 'bg-amber-50 text-amber-600' },
-      { key: 'res-disabled', icon: XCircle, label: 'Disabled', value: resources.filter((item) => item.status === 'Disabled').length, cardClass: `${baseCardClass} border-l-4 border-l-red-500`, iconClass: 'bg-red-50 text-red-600' },
+      { key: 'res-total', icon: ResourceSummaryIcon, label: resourceSummaryLabel, value: scopedResources.length, cardClass: baseCardClass, iconClass: 'bg-blue-50 text-blue-600' },
+      { key: 'res-active', icon: CheckCircle2, label: 'Active', value: scopedResources.filter((item) => item.status === 'Active').length, cardClass: `${baseCardClass} border-l-4 border-l-emerald-500`, iconClass: 'bg-emerald-50 text-emerald-600' },
+      { key: 'res-maintenance', icon: AlertTriangle, label: 'Under Maintenance', value: scopedResources.filter((item) => item.status === 'Under Maintenance').length, cardClass: `${baseCardClass} border-l-4 border-l-amber-500`, iconClass: 'bg-amber-50 text-amber-600' },
+      { key: 'res-disabled', icon: XCircle, label: 'Disabled', value: scopedResources.filter((item) => item.status === 'Disabled').length, cardClass: `${baseCardClass} border-l-4 border-l-red-500`, iconClass: 'bg-red-50 text-red-600' },
     ];
-  }, [activeTab, resources, tenantPackages]);
+  }, [activeTab, ResourceSummaryIcon, resourceSummaryLabel, scopedResources, tenantPackages]);
   const activePackages = activeTab === 'membership' ? membershipPackages : tenantPackages;
   const isViewingPackage = modalKind === 'package' && modalMode === 'view';
   const isViewingResource = modalKind === 'resource' && modalMode === 'view';
   const availableResourceLocations = useMemo(() => {
-    return Array.from(new Set(resources.map((item) => String(item.location || '').trim()).filter(Boolean)));
-  }, [resources]);
+    return Array.from(new Set(scopedResources.map((item) => String(item.location || '').trim()).filter(Boolean)));
+  }, [scopedResources]);
   const availableResourceFloors = useMemo(() => {
-    const floors = Array.from(new Set(resources.map((item) => String(item.floor || '').trim()).filter(Boolean)));
+    const floors = Array.from(new Set(scopedResources.map((item) => String(item.floor || '').trim()).filter(Boolean)));
     return floors.length > 0 ? floors : [];
-  }, [resources]);
+  }, [scopedResources]);
   const availableResourceWings = useMemo(() => {
-    const wings = Array.from(new Set(resources.map((item) => String(item.wing || '').trim().toUpperCase()).filter(Boolean)));
+    const wings = Array.from(new Set(scopedResources.map((item) => String(item.wing || '').trim().toUpperCase()).filter(Boolean)));
     return wings.sort();
-  }, [resources]);
+  }, [scopedResources]);
   const filteredResources = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return resources
@@ -1024,9 +1061,10 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
     setLocationMode('select');
     setFloorMode('select');
     setWingMode('select');
+    const lockedCategory = allowedCategories && allowedCategories.length === 1 ? allowedCategories[0] : '';
     setAddResourceForm({
-      name: '', type: '', resourceCategory: '', inventoryMode: '', location: '', floor: '', wing: '', capacity: '1',
-      pricePerHour: '', pricePerDay: '', credits: '', status: '', description: '',
+      name: '', type: lockedCategory ? deriveResourceTypeFromCategory(lockedCategory) : '', resourceCategory: lockedCategory, inventoryMode: '', location: '', floor: '', wing: '', capacity: '1',
+      pricePerHour: '', pricePerDay: '', pricePerNight: '', amenities: [] as string[], credits: '', status: '', description: '',
     });
     setIsAddResourceNameAutoGenerated(true);
     setIsModalOpen(true);
@@ -1119,6 +1157,9 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
     const rawType = resolveBulkCellValue(row, BULK_COLUMN_ALIASES.type);
     const resourceCategory = normalizeBulkCategory(rawCategory, rawType);
     if (!resourceCategory) return { payload: null, error: 'Missing or invalid resource category.' };
+    if (allowedCategories && !allowedCategories.includes(resourceCategory)) {
+      return { payload: null, error: `This page only accepts ${scopedCategoryOptions.map((option) => option.label).join(' or ')} resources.` };
+    }
     const capacityValue = normalizeBulkCapacity(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.capacity));
     if (!capacityValue) return { payload: null, error: 'Missing or invalid capacity.' };
     const inventoryMode = normalizeBulkInventoryMode(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.inventoryMode), resourceCategory, capacityValue);
@@ -1138,7 +1179,7 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
     return {
       payload: {
         name,
-        type: resourceCategory === 'open_desk' ? 'Open Desk' : resourceCategory === 'cabin_desk' ? 'Cabin Desk' : resourceCategory === 'conference_room' ? 'Conference Room' : resourceCategory === 'virtual_office' ? 'Virtual Office' : 'Meeting Room',
+        type: deriveResourceTypeFromCategory(resourceCategory),
         resourceCategory,
         inventoryMode: resourceCategory === 'virtual_office' ? 'single' : inventoryMode,
         location,
@@ -1211,7 +1252,7 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
     const templateRow = Object.fromEntries(BULK_TEMPLATE_HEADERS.map((h) => [h, '']));
     const worksheet = XLSX.utils.json_to_sheet([templateRow]);
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Resources');
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(resourceCategoryOptions.map((opt) => ({ Category: opt.value, Label: opt.label }))), 'Allowed Categories');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(scopedCategoryOptions.map((opt) => ({ Category: opt.value, Label: opt.label }))), 'Allowed Categories');
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(inventoryModeOptions.map((opt) => ({ InventoryMode: opt.value, Label: opt.label }))), 'Allowed Inventory Modes');
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(resourceStatusOptions.map((s) => ({ 'Allowed Status': s }))), 'Allowed Status');
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet([
@@ -1249,8 +1290,8 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
     setFloorMode('select');
     setWingMode('select');
     setAddResourceForm({
-      name: '', type: '', resourceCategory: '', inventoryMode: '', location: '', floor: '', wing: '', capacity: '1',
-      pricePerHour: '', pricePerDay: '', credits: '', status: '', description: '',
+      name: '', type: '', resourceCategory: allowedCategories && allowedCategories.length === 1 ? allowedCategories[0] : '', inventoryMode: '', location: '', floor: '', wing: '', capacity: '1',
+      pricePerHour: '', pricePerDay: '', pricePerNight: '', amenities: [] as string[], credits: '', status: '', description: '',
     });
   };
 
@@ -1270,6 +1311,8 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
       description: resource.description || '',
       pricePerHour: String(resource.pricePerHour || ''),
       pricePerDay: String(resource.pricePerDay || ''),
+      pricePerNight: String(resource.pricePerNight || ''),
+      amenities: Array.isArray(resource.amenities) ? resource.amenities : [],
       credits: String(resource.credits ?? 1),
       status: resource.status || 'Active',
     });
@@ -1295,6 +1338,8 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
       description: resource.description || '',
       pricePerHour: String(resource.pricePerHour || ''),
       pricePerDay: String(resource.pricePerDay || ''),
+      pricePerNight: String(resource.pricePerNight || ''),
+      amenities: Array.isArray(resource.amenities) ? resource.amenities : [],
       credits: String(resource.credits ?? 1),
       status: resource.status || 'Active',
     });
@@ -1401,10 +1446,12 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
             floor: addResourceForm.floor.trim() || '',
             wing: addResourceForm.wing.trim(),
             capacity: Number(addResourceForm.capacity || 1),
-            pricePerHour: Number(addResourceForm.pricePerHour || 0),
-            pricePerDay: Number(addResourceForm.pricePerDay || 0),
-            credits: Number(addResourceForm.credits || 1),
+            pricePerHour: isNightlyCategory(category) ? 0 : Number(addResourceForm.pricePerHour || 0),
+            pricePerDay: isNightlyCategory(category) ? 0 : Number(addResourceForm.pricePerDay || 0),
+            pricePerNight: isNightlyCategory(category) ? Number(addResourceForm.pricePerNight || 0) : 0,
+            credits: isNightlyCategory(category) ? 0 : Number(addResourceForm.credits || 1),
             description: addResourceForm.description.trim(),
+            amenities: addResourceForm.amenities,
             status: addResourceForm.status,
             workingHours: bookingSpanHours,
           };
@@ -1428,9 +1475,11 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
             wing: resourceForm.wing.trim(),
             capacity: Number(resourceForm.capacity || 1),
             description: resourceForm.description.trim(),
-            pricePerHour: Number(resourceForm.pricePerHour || 0),
-            pricePerDay: Number(resourceForm.pricePerDay || 0),
-            credits: Number(resourceForm.credits || 1),
+            pricePerHour: isNightlyCategory(editCategory) ? 0 : Number(resourceForm.pricePerHour || 0),
+            pricePerDay: isNightlyCategory(editCategory) ? 0 : Number(resourceForm.pricePerDay || 0),
+            pricePerNight: isNightlyCategory(editCategory) ? Number(resourceForm.pricePerNight || 0) : 0,
+            amenities: resourceForm.amenities,
+            credits: isNightlyCategory(editCategory) ? 0 : Number(resourceForm.credits || 1),
             status: resourceForm.status,
             workingHours: bookingSpanHours,
           });
@@ -1694,7 +1743,7 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
             <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
               Resource &amp; Pricing
             </h2>
-            <p className="text-xs font-pmedium text-slate-500 mt-1">Manage resources, pricing, credits, and tenant packages.</p>
+            <p className="text-xs font-pmedium text-slate-500 mt-1">{pageDescription}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             
@@ -1720,16 +1769,18 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
         </div>
 
         {/* 2. MAIN TABS (pill-style matching DESIGN.md) */}
-        <div data-tour="resource-pricing-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-          {tabOptions.map((tab) => (
-            <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}
-              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${activeTab === tab.key ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
-            >{tab.label}</button>
-          ))}
-        </div>
+        {tabOptions.length > 1 ? (
+          <div data-tour="resource-pricing-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            {tabOptions.map((tab) => (
+              <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${activeTab === tab.key ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+              >{tab.label}</button>
+            ))}
+          </div>
+        ) : null}
 
         {/* 3. SUMMARY CARDS (4-card grid, changes per tab — matches Meeting Rooms page) */}
-        <div data-tour="resource-pricing-summary" className="mb-3 mt-8 grid grid-cols-2 gap-3 md:grid-cols-4 shrink-0">
+        <div data-tour="resource-pricing-summary" className={`mb-3 grid grid-cols-2 gap-3 md:grid-cols-4 shrink-0 ${tabOptions.length > 1 ? 'mt-8' : 'mt-3'}`}>
           {summaryCards.map((card) => {
             const Icon = card.icon;
             const labelToneClass = card.cardClass.includes('border-l')
@@ -1781,9 +1832,11 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
               </div>
               {activeTab === 'resource' ? (
                 <>
-                  <button data-tour="resource-pricing-hours-btn" onClick={openHoursModal} className="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-slate-50 active:scale-95 transition-all whitespace-nowrap" title="Set the booking timings used across meeting room, walk-in and tenant bookings">
-                    <Clock size={13} strokeWidth={2.5} /> {bookingHours.is24Hours ? 'Open 24 hours' : `${formatTime12h(bookingHours.start)} – ${formatTime12h(bookingHours.end)}`}
-                  </button>
+                  {!isNightlyScope ? (
+                    <button data-tour="resource-pricing-hours-btn" onClick={openHoursModal} className="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-slate-50 active:scale-95 transition-all whitespace-nowrap" title="Set the booking timings used across meeting room, walk-in and tenant bookings">
+                      <Clock size={13} strokeWidth={2.5} /> {bookingHours.is24Hours ? 'Open 24 hours' : `${formatTime12h(bookingHours.start)} – ${formatTime12h(bookingHours.end)}`}
+                    </button>
+                  ) : null}
                   <button data-tour="resource-pricing-add-resource-btn" onClick={openAddResourceModal} className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap">
                     <Plus size={13} strokeWidth={3} /> ADD RESOURCE
                   </button>
@@ -1890,8 +1943,8 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
                     <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{item.wing || '--'}</td>
                     <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{item.capacity} Pax</td>
                     <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{item.pricePerHour > 0 ? `${formatCurrency(item.pricePerHour)}${isPerPersonPricingCategory(item.resourceCategory) ? ' / person' : ''}` : item.pricing || '--'}</td>
-                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{item.pricePerDay > 0 ? `${formatCurrency(item.pricePerDay)}${isPerPersonPricingCategory(item.resourceCategory) ? ' / person' : ''}` : item.pricing || '--'}</td>
-                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-900 text-center">{getResourceCreditValue(item)}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{isNightlyCategory(item.resourceCategory) ? '--' : item.pricePerDay > 0 ? `${formatCurrency(item.pricePerDay)}${isPerPersonPricingCategory(item.resourceCategory) ? ' / person' : ''}` : item.pricing || '--'}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-900 text-center">{isNightlyCategory(item.resourceCategory) ? '--' : getResourceCreditValue(item)}</td>
                     <td className="px-3.5 py-2 text-center">{statusBadge(item.status)}</td>
                     <td className="px-3.5 py-2">
                       <div className="flex items-center justify-center gap-1.5">
@@ -2017,7 +2070,7 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
             'Conditional: inventoryMode is required for open desks.',
             'Optional: wing, description, pricePerHour, pricePerDay, credits, status.',
             'Cabin desks are area blocks only — single cabin rows will be rejected.',
-            `Categories: ${resourceCategoryOptions.map((option) => option.label).join(', ')}.`,
+            `Categories: ${scopedCategoryOptions.map((option) => option.label).join(', ')}.`,
             `Inventory modes: ${inventoryModeOptions.map((option) => option.value).join(', ')}.`,
             `Status: ${resourceStatusOptions.join(', ')}.`,
             'Capacity: open desk 1-10, cabin desk 4/6/8/10, single desk 1, virtual office 1.',
@@ -2202,6 +2255,14 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
                         )}
                       </div>
 
+                      {scopedCategoryOptions.length === 1 ? (
+                        // Only one category is ever valid here (e.g. Hostel Management only
+                        // ever adds Dorms) — skip the picker and just confirm what's being added.
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Adding</label>
+                          <div className="w-full px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-700">{scopedCategoryOptions[0].label}</div>
+                        </div>
+                      ) : (
                       <div className="space-y-1">
                         <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Category *</label>
                         <select required className="w-full cursor-pointer px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={addResourceForm.resourceCategory} onChange={(e) => {
@@ -2214,7 +2275,7 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
                               resourceCategory: nextCategory,
                               type: deriveResourceTypeFromCategory(nextCategory),
                               inventoryMode: nextInventoryMode,
-                              capacity: normalizeCapacityForSelection(nextCategory, nextInventoryMode, nextCategory === 'virtual_office' ? '1' : prev.capacity),
+                              capacity: normalizeCapacityForSelection(nextCategory, nextInventoryMode, nextCategory === 'virtual_office' || nextCategory === 'room' ? '1' : prev.capacity),
                               name: shouldAutoName ? getNextResourceName(getResourceCategoryLabel(nextCategory), resources) : prev.name,
                             };
                           });
@@ -2224,6 +2285,7 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
                           {scopedCategoryOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                         </select>
                       </div>
+                      )}
 
 
                       {addResourceForm.resourceCategory === 'open_desk' ? (
@@ -2294,7 +2356,7 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
                       </div>
                       <div className="space-y-1.5">
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
-                        {isDeskCategory(addResourceForm.resourceCategory) ? 'Seats *' : 'Capacity *'}
+                        {addResourceForm.resourceCategory === 'dorm' ? 'Beds *' : addResourceForm.resourceCategory === 'room' ? 'Occupancy (Guests) *' : isDeskCategory(addResourceForm.resourceCategory) ? 'Seats *' : 'Capacity *'}
                       </label>
                       {(() => {
                         const capacityOptions = getCapacityOptions(addResourceForm.resourceCategory, addResourceForm.inventoryMode);
@@ -2315,7 +2377,7 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
                             ) : null}
                           </div>
                         ) : (
-                          <input required type="number" min="1" max={isDeskCategory(addResourceForm.resourceCategory) ? MAX_DESK_SEATS : undefined} placeholder={isDeskCategory(addResourceForm.resourceCategory) ? `Enter seats (max ${MAX_DESK_SEATS})` : 'Enter capacity'} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500" value={addResourceForm.capacity} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, capacity: e.target.value }))} />
+                          <input required type="number" min="1" max={addResourceForm.resourceCategory === 'dorm' ? MAX_DESK_SEATS : addResourceForm.resourceCategory === 'room' ? MAX_ROOM_OCCUPANCY : isDeskCategory(addResourceForm.resourceCategory) ? MAX_DESK_SEATS : undefined} placeholder={addResourceForm.resourceCategory === 'dorm' ? `Enter beds (max ${MAX_DESK_SEATS})` : addResourceForm.resourceCategory === 'room' ? `Enter max guests (max ${MAX_ROOM_OCCUPANCY})` : isDeskCategory(addResourceForm.resourceCategory) ? `Enter seats (max ${MAX_DESK_SEATS})` : 'Enter capacity'} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500" value={addResourceForm.capacity} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, capacity: e.target.value }))} />
                         );
                       })()}
                     </div>
@@ -2324,11 +2386,34 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
                     
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Description / Amenities</label>
-                      <textarea rows={2} placeholder="Add a short description or list of amenities..." className="w-full resize-none px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500" value={addResourceForm.description} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, description: e.target.value }))} />
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">{isNightlyCategory(addResourceForm.resourceCategory) ? 'Description' : 'Description / Amenities'}</label>
+                      <textarea rows={2} placeholder={isNightlyCategory(addResourceForm.resourceCategory) ? 'Add a short description (optional)...' : 'Add a short description or list of amenities...'} className="w-full resize-none px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500" value={addResourceForm.description} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, description: e.target.value }))} />
                     </div>
                     </div>
 
+                    {isNightlyCategory(addResourceForm.resourceCategory) ? (
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                        <FormSectionHeader icon={CheckCircle2} label="Amenities / Inclusions" />
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                          {ROOM_DORM_AMENITY_OPTIONS.map((amenity) => (
+                            <label key={amenity} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-[11px] font-pmedium text-slate-700 cursor-pointer hover:border-blue-200">
+                              <input type="checkbox" checked={addResourceForm.amenities.includes(amenity)} onChange={() => setAddResourceForm((prev) => ({ ...prev, amenities: prev.amenities.includes(amenity) ? prev.amenities.filter((a) => a !== amenity) : [...prev.amenities, amenity] }))} />
+                              {amenity}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {isNightlyCategory(addResourceForm.resourceCategory) ? (
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                        <FormSectionHeader icon={Tag} label="Pricing (set by Sales)" />
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price Per Night ({currencySymbol}) *</label>
+                          <input type="number" min="0" step="0.01" required placeholder="e.g. 1500" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500" value={addResourceForm.pricePerNight} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, pricePerNight: e.target.value }))} />
+                        </div>
+                      </div>
+                    ) : (
                     <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                       <FormSectionHeader icon={Tag} label="Pricing & Credits (set by Sales)" />
                       <div className="flex items-center justify-between gap-2 rounded-xl bg-blue-50/60 border border-blue-100 px-3 py-2">
@@ -2372,6 +2457,7 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
                         </div>
                       </div>
                     </div>
+                    )}
 
                     <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                       <FormSectionHeader icon={CheckCircle2} label="Status & Availability" />
@@ -2525,7 +2611,7 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
 
                     <div className="space-y-2">
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
-                        {isDeskCategory(resourceForm.resourceCategory) ? 'Seats *' : 'Capacity *'}
+                        {resourceForm.resourceCategory === 'dorm' ? 'Beds *' : resourceForm.resourceCategory === 'room' ? 'Occupancy (Guests) *' : isDeskCategory(resourceForm.resourceCategory) ? 'Seats *' : 'Capacity *'}
                       </label>
                       {(() => {
                         const capacityOptions = getCapacityOptions(resourceForm.resourceCategory, resourceForm.inventoryMode);
@@ -2546,17 +2632,40 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
                             ) : null}
                           </div>
                         ) : (
-                          <input required disabled={isViewingResource} type="number" min="1" max={isDeskCategory(resourceForm.resourceCategory) ? MAX_DESK_SEATS : undefined} placeholder={isDeskCategory(resourceForm.resourceCategory) ? `Enter seats (max ${MAX_DESK_SEATS})` : 'Enter capacity'} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.capacity} onChange={(e) => setResourceForm((prev) => ({ ...prev, capacity: e.target.value }))} />
+                          <input required disabled={isViewingResource} type="number" min="1" max={resourceForm.resourceCategory === 'dorm' ? MAX_DESK_SEATS : resourceForm.resourceCategory === 'room' ? MAX_ROOM_OCCUPANCY : isDeskCategory(resourceForm.resourceCategory) ? MAX_DESK_SEATS : undefined} placeholder={resourceForm.resourceCategory === 'dorm' ? `Enter beds (max ${MAX_DESK_SEATS})` : resourceForm.resourceCategory === 'room' ? `Enter max guests (max ${MAX_ROOM_OCCUPANCY})` : isDeskCategory(resourceForm.resourceCategory) ? `Enter seats (max ${MAX_DESK_SEATS})` : 'Enter capacity'} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.capacity} onChange={(e) => setResourceForm((prev) => ({ ...prev, capacity: e.target.value }))} />
                         );
                       })()}
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Description / Amenities</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">{isNightlyCategory(resourceForm.resourceCategory) ? 'Description' : 'Description / Amenities'}</label>
                       <textarea disabled={isViewingResource} rows={3} className="w-full resize-none px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.description} onChange={(e) => setResourceForm((prev) => ({ ...prev, description: e.target.value }))} />
                     </div>
                     </div>
 
+                    {isNightlyCategory(resourceForm.resourceCategory) ? (
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                        <FormSectionHeader icon={CheckCircle2} label="Amenities / Inclusions" />
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                          {ROOM_DORM_AMENITY_OPTIONS.map((amenity) => (
+                            <label key={amenity} className={`flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-[11px] font-pmedium text-slate-700 ${isViewingResource ? '' : 'cursor-pointer hover:border-blue-200'}`}>
+                              <input type="checkbox" disabled={isViewingResource} checked={resourceForm.amenities.includes(amenity)} onChange={() => setResourceForm((prev) => ({ ...prev, amenities: prev.amenities.includes(amenity) ? prev.amenities.filter((a) => a !== amenity) : [...prev.amenities, amenity] }))} />
+                              {amenity}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {isNightlyCategory(resourceForm.resourceCategory) ? (
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                        <FormSectionHeader icon={Tag} label="Pricing (set by Sales)" />
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Price Per Night ({currencySymbol})</label>
+                          <input type="number" min="0" step="0.01" disabled={isViewingResource} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerNight} onChange={(e) => setResourceForm((prev) => ({ ...prev, pricePerNight: e.target.value }))} />
+                        </div>
+                      </div>
+                    ) : (
                     <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                       <FormSectionHeader icon={Tag} label="Pricing & Credits (set by Sales)" />
                       <div className="flex items-center justify-between gap-2 rounded-xl bg-blue-50/60 border border-blue-100 px-3 py-2">
@@ -2598,6 +2707,7 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
                         </div>
                       </div>
                     </div>
+                    )}
 
                     <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                       <FormSectionHeader icon={CheckCircle2} label="Status & Availability" />
@@ -2613,7 +2723,9 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
                       <FormSectionHeader icon={View} label="Preview" />
                       {/* <p className="text-[11px] font-pmedium uppercase tracking-widest text-slate-400">Preview</p> */}
                       <p className="mt-1 text-sm font-pmedium text-slate-800">
-                        {resourceForm.pricePerHour ? `${formatCurrency(resourceForm.pricePerHour)} per hour${isPerPersonPricingCategory(resourceForm.resourceCategory) ? ' per person' : ''}` : 'Hourly rate not set'} &bull; {resourceForm.pricePerDay ? `${formatCurrency(resourceForm.pricePerDay)} per day${isPerPersonPricingCategory(resourceForm.resourceCategory) ? ' per person' : ''}` : 'Daily rate not set'}
+                        {isNightlyCategory(resourceForm.resourceCategory)
+                          ? (resourceForm.pricePerNight ? `${formatCurrency(resourceForm.pricePerNight)} per night` : 'Nightly rate not set')
+                          : <>{resourceForm.pricePerHour ? `${formatCurrency(resourceForm.pricePerHour)} per hour${isPerPersonPricingCategory(resourceForm.resourceCategory) ? ' per person' : ''}` : 'Hourly rate not set'} &bull; {resourceForm.pricePerDay ? `${formatCurrency(resourceForm.pricePerDay)} per day${isPerPersonPricingCategory(resourceForm.resourceCategory) ? ' per person' : ''}` : 'Daily rate not set'}</>}
                       </p>
                       <p className="mt-1 text-[11px] font-pmedium uppercase tracking-widest text-slate-400">
                         {getResourceCreditSummary({

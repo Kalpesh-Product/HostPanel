@@ -41,7 +41,7 @@ const roomStayBookingSchema = new Schema<IRoomStayBooking>(
             index: true,
         },
         bookingNumber: { type: Number, required: true, index: true },
-        roomId: { type: Schema.Types.ObjectId, ref: "GuestRoom", required: true, index: true },
+        roomId: { type: Schema.Types.ObjectId, ref: "Resource", required: true, index: true },
         roomType: { type: String, required: true, enum: ["Room", "Dorm"] },
         bedNumber: { type: Number, default: null },
         guestName: { type: String, required: true, trim: true, maxlength: 160 },

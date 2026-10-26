@@ -21,7 +21,6 @@ import useWorkspacePreferences from "../../hooks/useWorkspacePreferences";
 import { formatWorkspaceCurrency } from "../../lib/workspaceLocalization";
 import { formatTime12h } from "../../utils/time";
 import TimePicker12h from "../../components/ui/TimePicker12h";
-import GuestRoomsPanel from "../Sales/ResourcePricing/GuestRoomsPanel";
 import RoomReservationsPanel from "../RoomStays/RoomReservationsPanel";
 import {
   getRoomBookings,
@@ -33,7 +32,7 @@ import {
   type RoomStayStatus,
 } from "../../services/roomStays";
 
-type Tab = "reservations" | "inventory" | "history" | "reports" | "settings";
+type Tab = "reservations" | "history" | "reports" | "settings";
 
 const baseCardClass =
   "bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md";
@@ -81,7 +80,7 @@ export default function RoomManagementPage({ roomType, title, noun }: { roomType
   const formatCurrency = (value = 0) =>
     formatWorkspaceCurrency(Number(value || 0), workspacePreferences.currency, { maximumFractionDigits: 2 });
 
-  const [tab, setTab] = useState<Tab>("inventory");
+  const [tab, setTab] = useState<Tab>("reservations");
 
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
@@ -97,7 +96,6 @@ export default function RoomManagementPage({ roomType, title, noun }: { roomType
           {(
             [
               { key: "reservations", label: "Reservations" },
-              { key: "inventory", label: `${noun}s` },
               { key: "history", label: "Booking History" },
               { key: "reports", label: "Reports" },
               { key: "settings", label: "Settings" },
@@ -117,7 +115,6 @@ export default function RoomManagementPage({ roomType, title, noun }: { roomType
         </div>
 
         {tab === "reservations" && <RoomReservationsPanel roomType={roomType} noun={noun} formatCurrency={formatCurrency} />}
-        {tab === "inventory" && <GuestRoomsPanel type={roomType} />}
         {tab === "history" && <BookingHistoryPanel roomType={roomType} noun={noun} formatCurrency={formatCurrency} />}
         {tab === "reports" && <ReportsPanel roomType={roomType} formatCurrency={formatCurrency} />}
         {tab === "settings" && <SettingsPanel />}

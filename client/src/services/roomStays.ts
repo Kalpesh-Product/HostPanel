@@ -53,27 +53,11 @@ export type RoomStayBooking = {
   createdAt: string;
 };
 
+// Inventory itself (add/edit/delete a Room/Dorm) is managed through the
+// shared Resource & Pricing endpoints (services/resources.ts) now — this stays
+// read-only, used by the room picker when creating a reservation/booking.
 export const getGuestRooms = async (type?: GuestRoomType) =>
   axiosPrivate.get("/api/v1/room-stays/rooms", { params: type ? { type } : {} });
-
-export const createGuestRoom = async (payload: {
-  name: string;
-  type: GuestRoomType;
-  capacity: number;
-  pricePerNight: number;
-  location?: string;
-  floor?: string;
-  wing?: string;
-  status?: GuestRoom["status"];
-  description?: string;
-  amenities?: string[];
-}) => axiosPrivate.post("/api/v1/room-stays/rooms", payload);
-
-export const updateGuestRoom = async (roomId: string, payload: Partial<GuestRoom>) =>
-  axiosPrivate.patch(`/api/v1/room-stays/rooms/${roomId}`, payload);
-
-export const deleteGuestRoom = async (roomId: string) =>
-  axiosPrivate.delete(`/api/v1/room-stays/rooms/${roomId}`);
 
 export const getRoomAvailability = async (type: GuestRoomType, checkIn: string, checkOut: string) =>
   axiosPrivate.get("/api/v1/room-stays/availability", { params: { type, checkIn, checkOut } });
