@@ -33,6 +33,15 @@ const TEMPLATE_KIND: Record<string, ServiceKind> = {
   huddle: "meeting",
 };
 
+const OPENSTREETMAP_TEMPLATE_IDS = new Set([
+  "default",
+  "minimal-swiss",
+  "fresh-studio",
+  "warm-organic",
+  "emerald-studio",
+  "figma-make",
+]);
+
 const photo = (id: string, width = 1200) =>
   `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${width}&q=78`;
 const photoValue = (id: string, width = 1000) => ({ url: photo(id, width) });
@@ -1763,10 +1772,9 @@ export const buildDemoPreviewDraft = (
     email: `hello@${handle}.com`,
     phone: "+91 98765 43210",
     address: primary.address,
-    mapUrl:
-      themeVariant === "qerja" || themeVariant === "cali-hostel"
-        ? `https://www.google.com/maps?q=${encodeURIComponent(primary.address)}&output=embed`
-        : "https://www.openstreetmap.org/export/embed.html?bbox=77.58%2C12.96%2C77.65%2C12.99&layer=mapnik",
+    mapUrl: OPENSTREETMAP_TEMPLATE_IDS.has(themeVariant)
+      ? "https://www.openstreetmap.org/export/embed.html?bbox=77.58%2C12.96%2C77.65%2C12.99&layer=mapnik"
+      : `https://www.google.com/maps?q=${encodeURIComponent(primary.address)}&output=embed`,
     contactPersonName: primary.contactPersonName,
     contactPersonRole: primary.contactPersonRole,
     contactPersonEmail: `${primary.contactPersonName.split(" ")[0].toLowerCase()}@${handle}.com`,
