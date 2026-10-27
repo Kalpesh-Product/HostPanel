@@ -382,6 +382,17 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/key-apps/meeting-room-management/resource-pricing",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      {
+        label: "Meeting Room Management",
+        path: "/key-apps/meeting-room-management",
+      },
+      { label: "Resource & Pricing" },
+    ],
+  },
+  {
     pattern: "/key-apps/meeting-room-management",
     crumbs: [
       { label: SECTION_LABELS.keyApps, path: "/key-apps" },

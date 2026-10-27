@@ -310,7 +310,7 @@ export default function VirtualOfficesPage() {
                       onClick={openCreateModal}
                       className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
                     >
-                      <Plus size={13} strokeWidth={3} /> ADD COMPANY
+                      <Plus size={13} strokeWidth={3} /> ONBOARD COMPANY
                     </button>
                   </div>
                 </div>

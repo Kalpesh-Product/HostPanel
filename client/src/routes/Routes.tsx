@@ -812,6 +812,10 @@ export const routes = createBrowserRouter([
                 element: <MeetingRoomManagementPage />,
               },
               {
+                path: "key-apps/meeting-room-management/resource-pricing",
+                element: <ResourcePricingPage allowedCategories={["meeting_room", "conference_room"]} />,
+              },
+              {
                 path: "common-modules/cafe-orders",
                 element: <CafeOrdersPage />,
               },
