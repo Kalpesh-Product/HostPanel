@@ -281,10 +281,21 @@ const departmentModules: NavNode[] = [
     icon: BriefcaseBusiness,
     defaultOpen: false,
     children: [
+      // Order: Leads Management, then Resource & Pricing (common to every
+      // vertical), then whichever vertical-specific management module(s) the
+      // workspace actually has, then Virtual Offices (co-working only — it's
+      // not a universal module), and Sales Architecture last. Tenant
+      // Companies is deliberately not a top-level link here any more — it's
+      // reached from each vertical management page's own Tenant Companies
+      // card instead, to keep this list short.
       { id: "leads-management", label: "Leads Management", icon: Magnet, route: "/department-accesses/sales-department/leads-management", disabled: false },
-      { id: "tenant-companies-sales", label: "Tenant Companies", icon: Store, route: "/department-accesses/sales-department/tenant-companies", disabled: false },
-      { id: "virtual-office-sales", label: "Virtual Offices", icon: Building2, route: "/department-accesses/sales-department/virtual-offices", disabled: false },
       { id: "resource-pricing", label: "Resource & Pricing", icon: Tag, route: "/department-accesses/sales-department/resource-pricing", disabled: false },
+      { id: "cafe-management", label: "Cafe Management", icon: UtensilsCrossed, route: "/key-apps/cafe-management", disabled: false, verticals: ["cafe"] },
+      { id: "hostel-management", label: "Hostel Management", icon: Bed, route: "/key-apps/hostel-management", disabled: false, verticals: ["hostel"] },
+      { id: "co-living-management", label: "Co-living Management", icon: Home, route: "/key-apps/co-living-management", disabled: false, verticals: ["co-living"] },
+      { id: "co-working-management", label: "Co-working Management", icon: BriefcaseBusiness, route: "/key-apps/co-working-management", disabled: false, verticals: ["co-working"] },
+      { id: "meeting-room-management", label: "Meeting Room Management", icon: Users, route: "/key-apps/meeting-room-management", disabled: false, verticals: ["meeting-rooms"] },
+      { id: "virtual-office-sales", label: "Virtual Offices", icon: Building2, route: "/department-accesses/sales-department/virtual-offices", disabled: false, verticals: ["co-working"] },
       { id: "sales-architecture", label: "Sales Architecture", icon: ShoppingCart, route: "/department-accesses/sales-department/sales-architecture", disabled: false },
     ],
   },

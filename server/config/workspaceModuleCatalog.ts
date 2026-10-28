@@ -92,11 +92,6 @@ const MODULE_GROUPS = [
       { id: "wono-nomad", label: "Nomad Listings", route: "/company-settings/wono-nomad", implemented: true },
       { id: "website-leads", label: "All Leads", route: "/company-settings/all-leads", implemented: true },
       { id: "visitor-management", label: "Visitor Management", route: "/visitors/visitor-management", implemented: true },
-      { id: "cafe-management", label: "Cafe Management", route: "/key-apps/cafe-management", implemented: true, verticals: ["cafe"] },
-      { id: "hostel-management", label: "Hostel Management", route: "/key-apps/hostel-management", implemented: true, verticals: ["hostel"] },
-      { id: "co-living-management", label: "Co-living Management", route: "/key-apps/co-living-management", implemented: true, verticals: ["co-living"] },
-      { id: "co-working-management", label: "Co-working Management", route: "/key-apps/co-working-management", implemented: true, verticals: ["co-working"] },
-      { id: "meeting-room-management", label: "Meeting Room Management", route: "/key-apps/meeting-room-management", implemented: true, verticals: ["meeting-rooms"] },
     ],
   },
   {
@@ -152,6 +147,11 @@ const MODULE_GROUPS = [
           { id: "virtual-office-sales", label: "Virtual Offices", route: "/sales-crm/virtual-offices", implemented: true },
           { id: "resource-pricing", label: "Resource & Pricing", route: "/sales-crm/resource-pricing", implemented: true },
           { id: "sales-architecture", label: "Sales Architecture", route: "/sales-crm/sales-architecture", implemented: true },
+          { id: "cafe-management", label: "Cafe Management", route: "/key-apps/cafe-management", implemented: true, verticals: ["cafe"] },
+          { id: "hostel-management", label: "Hostel Management", route: "/key-apps/hostel-management", implemented: true, verticals: ["hostel"] },
+          { id: "co-living-management", label: "Co-living Management", route: "/key-apps/co-living-management", implemented: true, verticals: ["co-living"] },
+          { id: "co-working-management", label: "Co-working Management", route: "/key-apps/co-working-management", implemented: true, verticals: ["co-working"] },
+          { id: "meeting-room-management", label: "Meeting Room Management", route: "/key-apps/meeting-room-management", implemented: true, verticals: ["meeting-rooms"] },
         ],
       },
       {
@@ -616,9 +616,20 @@ export const getEffectiveEnabledModuleIds = ({
     : [];
   const verticalIds = getVerticalModuleIds(verticalKeys);
 
+  // Vertical modules (Cafe Management, Cafe Orders, etc.) are a Professional+
+  // perk — a Basic workspace only gets a fresh grant here if it's Professional
+  // or Custom. A Basic workspace that already had one enabled (granted before
+  // this rule existed, or via a manual MasterPanel override) keeps it: we only
+  // gate NEW grants, never claw back what's already in existingIds, so this
+  // never silently strips access from an existing workspace.
+  const grantedVerticalIds =
+    normalizedPlan === "basic"
+      ? verticalIds.filter((id) => existingIds.includes(id))
+      : verticalIds;
+
   if (normalizedPlan === "custom") {
-    return Array.from(new Set([...defaultIds, ...existingIds, ...verticalIds]));
+    return Array.from(new Set([...defaultIds, ...existingIds, ...grantedVerticalIds]));
   }
 
-  return Array.from(new Set([...defaultIds, ...verticalIds]));
+  return Array.from(new Set([...defaultIds, ...grantedVerticalIds]));
 };
