@@ -123,10 +123,13 @@ import TenantCompaniesPage from "../pages/Sales/TenantCompanies/TenantCompaniesP
 import TenantCompanyDetailPage from "../pages/Sales/TenantCompanies/TenantCompanyDetailPage";
 import ResourcePricingPage from "../pages/Sales/ResourcePricing/Resource&Pricing";
 import CafeManagementPage from "../pages/Sales/CafeManagement/CafeManagementPage";
+import CafeManagementDashboard from "../pages/Sales/CafeManagement/CafeManagementDashboard";
 import CafeOrdersPage from "../pages/Sales/CafeOrders/CafeOrdersPage";
 import RoomStayBookingPage from "../pages/RoomStays/RoomStayBookingPage";
 import RoomManagementPage from "../pages/RoomManagement/RoomManagementPage";
-import RoomManagementLandingPage from "../pages/RoomManagement/RoomManagementLandingPage";
+import RoomStayManagementDashboard from "../pages/RoomManagement/RoomStayManagementDashboard";
+import hostelBannerImage from "../assets/hostel-banner.jpg";
+import coLivingBannerImage from "../assets/co-living-banner.jpg";
 import CoworkingManagementPage from "../pages/CoworkingManagement/CoworkingManagementPage";
 import MeetingRoomManagementPage from "../pages/MeetingRoomManagement/MeetingRoomManagementPage";
 import LeadsManagementPage from "../pages/Sales/LeadsManagement/LeadsManagementPage";
@@ -757,16 +760,24 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "key-apps/cafe-management",
+                element: <CafeManagementDashboard />,
+              },
+              {
+                path: "key-apps/cafe-management/dashboard",
                 element: <CafeManagementPage />,
               },
               {
                 path: "key-apps/hostel-management",
                 element: (
-                  <RoomManagementLandingPage
+                  <RoomStayManagementDashboard
+                    roomType="Dorm"
                     title="Hostel Management"
                     noun="Dorm"
-                    description="Manage dorm inventory, hostel bookings, nightly pricing, and stay operations."
+                    bannerImage={hostelBannerImage}
+                    description="Live bed availability, guest movement, occupancy, collections, and revenue across every dorm."
+                    tags={["Dorms", "Beds", "Guests", "Revenue"]}
                     managementRoute="/key-apps/hostel-management/dashboard"
+                    bookingRoute="/common-modules/hostel-booking"
                     resourcePricingRoute="/key-apps/hostel-management/resource-pricing"
                   />
                 ),
@@ -782,11 +793,15 @@ export const routes = createBrowserRouter([
               {
                 path: "key-apps/co-living-management",
                 element: (
-                  <RoomManagementLandingPage
+                  <RoomStayManagementDashboard
+                    roomType="Room"
                     title="Co-living Management"
                     noun="Room"
-                    description="Manage room inventory, resident bookings, nightly pricing, and co-living operations."
+                    bannerImage={coLivingBannerImage}
+                    description="Live room availability, resident movement, occupancy, collections, and revenue across every co-living room."
+                    tags={["Rooms", "Keys", "Residents", "Revenue"]}
                     managementRoute="/key-apps/co-living-management/dashboard"
+                    bookingRoute="/common-modules/room-booking"
                     resourcePricingRoute="/key-apps/co-living-management/resource-pricing"
                   />
                 ),

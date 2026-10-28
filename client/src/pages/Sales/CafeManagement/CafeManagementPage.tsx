@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import * as XLSX from "xlsx";
+import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Armchair,
@@ -58,6 +59,7 @@ import {
 } from "../../../services/cafe";
 
 type Tab = "reservations" | "orders" | "tables" | "menu" | "history" | "reports" | "settings";
+const TAB_KEYS: Tab[] = ["reservations", "orders", "tables", "menu", "history", "reports", "settings"];
 type TableFilter = "All" | "Free" | "Occupied" | "Inactive";
 type MenuFilter = "All" | "Available" | "Unavailable";
 
@@ -114,7 +116,13 @@ export default function CafeManagementPage() {
   const formatCurrency = (value = 0) =>
     formatWorkspaceCurrency(Number(value || 0), workspacePreferences.currency, { maximumFractionDigits: 2 });
 
-  const [tab, setTab] = useState<Tab>("orders");
+  // Quick-action cards on the management dashboard preselect a tab by passing
+  // { tab } through router state; every other entry point falls back to orders.
+  const location = useLocation();
+  const requestedTab = (location.state as { tab?: string } | null)?.tab;
+  const [tab, setTab] = useState<Tab>(
+    requestedTab && TAB_KEYS.includes(requestedTab as Tab) ? (requestedTab as Tab) : "orders",
+  );
   const { confirm } = useAppConfirm();
   const [tableFilter, setTableFilter] = useState<TableFilter>("All");
   const [menuFilter, setMenuFilter] = useState<MenuFilter>("All");
