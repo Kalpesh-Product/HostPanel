@@ -4,9 +4,9 @@ import {
   FileDown, FileSpreadsheet, LayoutGrid, Map as MapIcon, Monitor, PieChart, Download,
     Presentation, Search, Users, X, Building, CreditCard,
   CalendarClock, Clock, AlertCircle, Briefcase, Wrench, Eye, XCircle,
-  DoorOpen, MoveRight, RotateCcw, Filter, Lock, Loader2
+  DoorOpen, MoveRight, RotateCcw, Filter, Lock, Loader2, Armchair, BedDouble, House
 } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import { useFreshCurrentUser } from "../../../hooks/useFreshCurrentUser";
 import useDashboardAccess from "../../../hooks/useDashboardAccess";
@@ -29,6 +29,7 @@ import { getWorkspacePlan, isDepartmentAllowedForPlan } from "../../../utils/wor
 import { SalesArchitectureSkeleton } from "../../../components/ui/SalesPageSkeletons";
 import useWorkspacePreferences from "../../../hooks/useWorkspacePreferences";
 import { formatWorkspaceCurrency } from "../../../lib/workspaceLocalization";
+import { getCafeTables } from "../../../services/cafe";
 
 // sessionStorage only — see client/src/lib/auth-session.ts for why localStorage
 // (shared across tabs) must not be used as a fallback for the cached user.
@@ -48,6 +49,61 @@ const deskCats = new Set(["open_desk", "cabin_desk"]);
 // they get their own category, separate from bookingOnlyCats.
 const bookingOnlyCats = new Set(["meeting_room", "conference_room"]);
 const voCats = new Set(["virtual_office"]);
+const stayCats = new Set(["dorm", "room"]);
+const verticalInventoryCats = new Set(["cafe_table", "dorm", "room"]);
+
+const ARCHITECTURE_CONTEXTS = {
+  all: {
+    title: "Sales Architecture",
+    description: "Visual workspace map across every enabled vertical, with space allocation and inventory visibility.",
+    categories: null,
+    inventoryHeading: "Vertical Inventory",
+    showOperationalTabs: true,
+  },
+  coworking: {
+    title: "Coworking Architecture",
+    description: "Visual coworking map with desks, cabins, virtual offices, tenant seating, and department allocations.",
+    categories: new Set(["open_desk", "cabin_desk", "virtual_office"]),
+    inventoryHeading: "Coworking Spaces",
+    showOperationalTabs: true,
+  },
+  "meeting-room": {
+    title: "Meeting Room Architecture",
+    description: "Visual meeting-room map with meeting and conference room capacity, location, and availability.",
+    categories: new Set(["meeting_room", "conference_room"]),
+    inventoryHeading: "Meeting & Conference Rooms",
+    showOperationalTabs: false,
+  },
+  cafe: {
+    title: "Cafe Architecture",
+    description: "Visual cafe floor map with table capacity, live order occupancy, and active table availability.",
+    categories: new Set(["cafe_table"]),
+    inventoryHeading: "Cafe Tables",
+    showOperationalTabs: false,
+  },
+  hostel: {
+    title: "Hostel Architecture",
+    description: "Visual hostel inventory map with dorm capacity, bed totals, location, and maintenance status.",
+    categories: new Set(["dorm"]),
+    inventoryHeading: "Dorms & Beds",
+    showOperationalTabs: false,
+  },
+  coliving: {
+    title: "Co-living Architecture",
+    description: "Visual co-living inventory map with room capacity, key totals, location, and maintenance status.",
+    categories: new Set(["room"]),
+    inventoryHeading: "Rooms & Keys",
+    showOperationalTabs: false,
+  },
+} as const;
+
+const FROM_SECTION_CONTEXT = {
+  "co-working-management": "coworking",
+  "meeting-room-management": "meeting-room",
+  "cafe-management": "cafe",
+  "dorm-management": "hostel",
+  "room-management": "coliving",
+} as const;
 const isDepartmentAssignableResource = (resource = {}) =>
   deskCats.has(String(resource.resourceCategory || "").trim().toLowerCase());
 
@@ -116,9 +172,15 @@ const kindLabel = (r = {}) =>
   r.resourceCategory === "cabin_desk" ? "Cabin Desk" :
   r.resourceCategory === "meeting_room" ? "Meeting Room" :
   r.resourceCategory === "conference_room" ? "Conference Room" :
-  r.resourceCategory === "virtual_office" ? "Virtual Office" : (r.type || "Space");
+  r.resourceCategory === "virtual_office" ? "Virtual Office" :
+  r.resourceCategory === "cafe_table" ? "Cafe Table" :
+  r.resourceCategory === "dorm" ? "Dorm" :
+  r.resourceCategory === "room" ? "Co-living Room" : (r.type || "Space");
 
 const iconFor = (r = {}) =>
+  r.resourceCategory === "cafe_table" ? <Armchair size={18} /> :
+  r.resourceCategory === "dorm" ? <BedDouble size={18} /> :
+  r.resourceCategory === "room" ? <House size={18} /> :
   r.resourceCategory === "meeting_room" ? <Users size={18} /> :
   r.resourceCategory === "conference_room" ? <Presentation size={18} /> :
   r.resourceCategory === "virtual_office" ? <DoorOpen size={18} /> :
@@ -139,6 +201,8 @@ const toneFor = (r = {}, isPackageLocked = false) => {
   if (r.assignmentType === "department") return ["bg-amber-50 border-amber-200 text-amber-700", "bg-amber-50 border-amber-300", r.assignedDepartmentName || "Department", "text-amber-600"];
   if (r.assignmentType === "seatsFull") return ["bg-indigo-50 border-indigo-200 text-indigo-700", "bg-indigo-50 border-indigo-300", "Fully Assigned", "text-indigo-600"];
   if (r.assignmentType === "seatsPartial") return ["bg-amber-50 border-amber-200 text-amber-700", "bg-amber-50 border-amber-300", "Partially Assigned", "text-amber-600"];
+  if (r.resourceCategory === "cafe_table" && r.assignmentLabel) return ["bg-amber-50 border-amber-200 text-amber-700", "bg-amber-50 border-amber-300", "Occupied", "text-amber-600"];
+  if (stayCats.has(r.resourceCategory)) return ["bg-emerald-50 border-emerald-200 text-emerald-700", "bg-green-50 border-green-300", "Stay Inventory", "text-emerald-600"];
   if (bookingOnlyCats.has(r.resourceCategory)) return ["bg-fuchsia-50 border-fuchsia-200 text-fuchsia-700", "bg-fuchsia-50 border-fuchsia-200", "Booking", "text-fuchsia-600"];
   return ["bg-emerald-50 border-emerald-200 text-emerald-700", "bg-green-50 border-green-300", "Available", "text-emerald-600"];
 };
@@ -202,6 +266,28 @@ function normalizeResource(r = {}) {
     assignedDepartmentName: r.assignedDepartmentName || "",
     assignmentLabel, assignmentType,
   };
+}
+
+function normalizeCafeTable(table = {}) {
+  const openOrder = table.openOrder || null;
+  return normalizeResource({
+    ...table,
+    recordId: table._id || table.id || table.name,
+    id: table._id || table.id || table.name,
+    resourceCode: table.name || table._id,
+    name: table.name || "Cafe Table",
+    type: "Cafe Table",
+    resourceCategory: "cafe_table",
+    capacity: Number(table.seats || 1),
+    buildingName: "Cafe",
+    floor: "Dining Area",
+    wing: "",
+    locationLabel: "Dining Area",
+    status: table.isActive === false ? "Disabled" : "Active",
+    assignmentLabel: openOrder ? `Order #${openOrder.orderNumber}` : "",
+    assignmentType: openOrder ? "booking" : "",
+    openOrder,
+  });
 }
 
 function buildExportRows({ building = "", floor = "", wing = "All", resources = [], searchQuery = "" }) {
@@ -304,6 +390,7 @@ const MAIN_TABS = [
 
 export default function SalesArchitecturePage() {
     const [searchParams] = useSearchParams();
+    const location = useLocation();
     const navigate = useNavigate();
     const currentUser = useFreshCurrentUser();
     const { plan } = useDashboardAccess();
@@ -312,6 +399,11 @@ export default function SalesArchitecturePage() {
     const workspacePreferences = useWorkspacePreferences();
     const money = (value = 0) =>
       formatWorkspaceCurrency(Number(value || 0), workspacePreferences.currency, { maximumFractionDigits: 0 });
+
+  const fromSection = String((location.state as Record<string, unknown> | null)?.fromSection || "");
+  const requestedContext = searchParams.get("vertical") || FROM_SECTION_CONTEXT[fromSection] || "all";
+  const contextKey = Object.prototype.hasOwnProperty.call(ARCHITECTURE_CONTEXTS, requestedContext) ? requestedContext : "all";
+  const architectureContext = ARCHITECTURE_CONTEXTS[contextKey];
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -384,13 +476,18 @@ export default function SalesArchitecturePage() {
     let alive = true;
     (async () => {
       try {
-        const [rRes, tRes, oRes, voRes, seatRes] = await Promise.allSettled([
-          getResources(), getTenantCompanies(), getOrganizationOverview(axiosPrivate), getVirtualOffices({ page: 1, limit: 200 }), getResourceSeatAssignments(),
+        const [rRes, tRes, oRes, voRes, seatRes, cafeTablesRes] = await Promise.allSettled([
+          getResources(), getTenantCompanies(), getOrganizationOverview(axiosPrivate), getVirtualOffices({ page: 1, limit: 200 }), getResourceSeatAssignments(), getCafeTables(),
         ]);
         if (!alive) return;
 
         const rawResources = rRes.status === "fulfilled" ? (rRes.value?.data?.data?.resources || rRes.value?.data?.resources || []) : [];
-        const nextResources = Array.isArray(rawResources) ? rawResources.map(normalizeResource) : [];
+        const cafePayload = cafeTablesRes.status === "fulfilled" ? (cafeTablesRes.value?.data?.data ?? cafeTablesRes.value?.data ?? []) : [];
+        const cafeTables = Array.isArray(cafePayload) ? cafePayload.map(normalizeCafeTable) : [];
+        const nextResources = [
+          ...(Array.isArray(rawResources) ? rawResources.map(normalizeResource) : []),
+          ...cafeTables,
+        ];
 
         const seatGroups = seatRes.status === "fulfilled" ? (seatRes.value?.data?.data || {}) : {};
         setSeatAssignmentGroups({ tenant: seatGroups.tenant || [], department: seatGroups.department || [] });
@@ -454,11 +551,16 @@ export default function SalesArchitecturePage() {
     return () => { alive = false; };
   }, [axiosPrivate]);
 
+  const scopedResources = useMemo(() => {
+    if (!architectureContext.categories) return resources;
+    return resources.filter((resource) => architectureContext.categories.has(resource.resourceCategory));
+  }, [architectureContext, resources]);
+
   const availableBuildings = useMemo(() => {
-    const list = Array.from(new Set(resources.map((r) => buildingLabelFor(r)).filter(Boolean)))
+    const list = Array.from(new Set(scopedResources.map((r) => buildingLabelFor(r)).filter(Boolean)))
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     return list;
-  }, [resources]);
+  }, [scopedResources]);
 
   useEffect(() => {
     if (selectedBuilding !== "All" && !availableBuildings.includes(selectedBuilding)) {
@@ -470,9 +572,9 @@ export default function SalesArchitecturePage() {
 
   const buildingResources = useMemo(() =>
     selectedBuilding === "All"
-      ? resources
-      : resources.filter((r) => buildingLabelFor(r) === selectedBuilding),
-    [resources, selectedBuilding]
+      ? scopedResources
+      : scopedResources.filter((r) => buildingLabelFor(r) === selectedBuilding),
+    [scopedResources, selectedBuilding]
   );
 
   const availableFloors = useMemo(() => {
@@ -540,6 +642,7 @@ export default function SalesArchitecturePage() {
   const bookingOnly = useMemo(() => filtered.filter((r) => bookingOnlyCats.has(r.resourceCategory)), [filtered]);
   const voFiltered = useMemo(() => filtered.filter((r) => voCats.has(r.resourceCategory)), [filtered]);
   const desks = useMemo(() => filtered.filter((r) => deskCats.has(r.resourceCategory)), [filtered]);
+  const verticalInventory = useMemo(() => filtered.filter((r) => verticalInventoryCats.has(r.resourceCategory)), [filtered]);
   const wingGroups = useMemo(() => {
     const groupKeys = Array.from(new Set(desks.map((r) => String(r.wing || '').trim().toUpperCase() || 'Unassigned'))).sort();
     const g: Record<string, any[]> = {};
@@ -696,6 +799,39 @@ export default function SalesArchitecturePage() {
       maintenance: floorStats.maintenance,
     };
   }, [deskOverviewStats, bookingOnly, voFiltered, floorStats.maintenance]);
+
+  const verticalSummaryCards = useMemo(() => {
+    const active = filtered.filter((r) => r.status === "Active");
+    const maintenance = filtered.filter((r) => r.status === "Under Maintenance").length;
+    const available = active.filter((r) => !r.assignmentLabel).length;
+    const capacity = filtered.reduce((sum, r) => sum + Math.max(1, Number(r.capacity || 1)), 0);
+    const occupied = filtered.filter((r) => Boolean(r.assignmentLabel)).length;
+    if (contextKey === "meeting-room") return [
+      { icon: Presentation, label: "Total Rooms", value: filtered.length, iconClass: "bg-fuchsia-50 text-fuchsia-600" },
+      { icon: CalendarClock, label: "Available Rooms", value: active.length, iconClass: "bg-emerald-50 text-emerald-600" },
+      { icon: Users, label: "Total Capacity", value: capacity, iconClass: "bg-blue-50 text-blue-600" },
+      { icon: Wrench, label: "Maintenance", value: maintenance, iconClass: "bg-slate-100 text-slate-600" },
+    ];
+    if (contextKey === "cafe") return [
+      { icon: Armchair, label: "Total Tables", value: filtered.length, iconClass: "bg-blue-50 text-blue-600" },
+      { icon: CheckCircle2, label: "Available Tables", value: available, iconClass: "bg-emerald-50 text-emerald-600" },
+      { icon: Clock, label: "Occupied Tables", value: occupied, iconClass: "bg-amber-50 text-amber-600" },
+      { icon: Users, label: "Total Seats", value: capacity, iconClass: "bg-indigo-50 text-indigo-600" },
+    ];
+    if (contextKey === "hostel") return [
+      { icon: BedDouble, label: "Total Dorms", value: filtered.length, iconClass: "bg-blue-50 text-blue-600" },
+      { icon: CheckCircle2, label: "Active Dorms", value: active.length, iconClass: "bg-emerald-50 text-emerald-600" },
+      { icon: Users, label: "Total Beds", value: capacity, iconClass: "bg-indigo-50 text-indigo-600" },
+      { icon: Wrench, label: "Maintenance", value: maintenance, iconClass: "bg-slate-100 text-slate-600" },
+    ];
+    if (contextKey === "coliving") return [
+      { icon: House, label: "Total Rooms", value: filtered.length, iconClass: "bg-blue-50 text-blue-600" },
+      { icon: CheckCircle2, label: "Active Rooms", value: active.length, iconClass: "bg-emerald-50 text-emerald-600" },
+      { icon: CreditCard, label: "Total Keys", value: capacity, iconClass: "bg-indigo-50 text-indigo-600" },
+      { icon: Wrench, label: "Maintenance", value: maintenance, iconClass: "bg-slate-100 text-slate-600" },
+    ];
+    return null;
+  }, [contextKey, filtered]);
 
   const tabAssignedGroups = useMemo(() => buildResourceAreaGroups(desks.filter((r) => r.assignmentLabel)), [desks]);
   const tabAvailableGroups = useMemo(() => buildResourceAreaGroups(desks.filter((r) => !r.assignmentLabel && r.status === "Active")), [desks]);
@@ -1155,10 +1291,10 @@ export default function SalesArchitecturePage() {
         </div>
       )}
 
-      {renderFilterBar(true)}
+      {renderFilterBar(architectureContext.showOperationalTabs)}
 
       <div data-tour="sa-arch-summary-cards" className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-4 gap-2 mb-3 shrink-0">
-        {[
+        {(verticalSummaryCards || [
           { icon: Monitor, label: "Total Desks", value: topSpaceStats.totalDesks, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-slate-500', iconClass: 'bg-slate-50 text-slate-600' },
           { icon: DoorOpen, label: "Available Desks", value: topSpaceStats.availableDesks, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600' },
           { icon: Presentation, label: "Meeting & Conference", value: topSpaceStats.totalBooking, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-fuchsia-500', iconClass: 'bg-fuchsia-50 text-fuchsia-600' },
@@ -1168,8 +1304,8 @@ export default function SalesArchitecturePage() {
           { icon: Building2, label: "Tenant Assigned Desks", value: topSpaceStats.tenantAssignedDesks, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-indigo-500', iconClass: 'bg-indigo-50 text-indigo-600' },
           { icon: Briefcase, label: "Dept Assigned Desks", value: topSpaceStats.deptAssignedDesks, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-amber-500', iconClass: 'bg-amber-50 text-amber-600' },
           { icon: Wrench, label: "Maintenance", value: topSpaceStats.maintenance, cardClass: 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-slate-500', iconClass: 'bg-slate-100 text-slate-600' },
-        ].map(({ icon: Icon, label, value, cardClass, iconClass }) => (
-          <div key={label} className={cardClass}>
+        ]).map(({ icon: Icon, label, value, cardClass, iconClass }) => (
+          <div key={label} className={cardClass || 'bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center gap-1.5 transition-all hover:shadow-md border-l-4 border-l-blue-500'}>
             <div className="min-w-0">
               <p className={`text-[8px] leading-tight font-pmedium ${statTextClassFor(iconClass)} uppercase tracking-wide mb-1`}>{label}</p>
               <p className={`text-[13px] font-pmedium ${statTextClassFor(iconClass)}`}>{value}</p>
@@ -1181,7 +1317,7 @@ export default function SalesArchitecturePage() {
 
       <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
         <div className="p-3 sm:p-4 lg:p-1 border-b border-slate-100/60 flex flex-col gap-3 bg-slate-50/50">
-          <div data-tour="sa-arch-view-toggle" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden w-full">
+          {architectureContext.showOperationalTabs && <div data-tour="sa-arch-view-toggle" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden w-full">
             {[
               { key: "map", label: "Floor Map" },
               { key: "dashboard", label: "Dashboard" },
@@ -1192,11 +1328,11 @@ export default function SalesArchitecturePage() {
                 {tab.label}
               </button>
             ))}
-          </div>
+          </div>}
           <div className="flex items-center gap-2 w-full flex-wrap sm:flex-nowrap">
             <div data-tour="sa-arch-search" className="relative flex-1 min-w-[180px]">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-              <input type="text" placeholder="Search space, tenant..."
+              <input type="text" placeholder={`Search ${architectureContext.inventoryHeading.toLowerCase()}...`}
                 className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500"
                 value={query} onChange={(e) => setQuery(e.target.value)} />
             </div>
@@ -1241,6 +1377,18 @@ export default function SalesArchitecturePage() {
                     {voFiltered.map((r) => {
                       const id = String(r.recordId || r.id);
                       return <SpaceCard key={id} resource={r} selected={false} disabled packageLocked={false} onToggle={() => {}} />;
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {verticalInventory.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-2">{architectureContext.inventoryHeading}</p>
+                  <div className="grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-3">
+                    {verticalInventory.map((r) => {
+                      const id = String(r.recordId || r.id);
+                      return <SpaceCard key={id} resource={r} selected={false} packageLocked={false} onToggle={() => {}} />;
                     })}
                   </div>
                 </div>
@@ -2176,10 +2324,10 @@ export default function SalesArchitecturePage() {
           <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                Sales Architecture
+                {architectureContext.title}
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
-                Visual workspace map with tenant and department seating. Assign and manage space allocations.
+                {architectureContext.description}
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -2190,7 +2338,7 @@ export default function SalesArchitecturePage() {
           </div>
 
           <div data-tour="sa-tabs" data-active-tab={activeTab} className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-            {MAIN_TABS.map((tab) => (
+            {MAIN_TABS.filter((tab) => architectureContext.showOperationalTabs || tab.key === "architecture").map((tab) => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key)}
                 className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${activeTab === tab.key ? "bg-[#2563EB] text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"}`}
               >{tab.label}</button>
@@ -2716,12 +2864,12 @@ export default function SalesArchitecturePage() {
       <ExportReportModal
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
-        title="Export Sales Architecture"
+        title={`Export ${architectureContext.title}`}
         subtitle="Select format and date range to export."
         department="Sales"
         category="Other"
         sourceRef="sales-architecture"
-        reportTitle={`Sales Architecture - ${selectedBuilding}`}
+        reportTitle={`${architectureContext.title} - ${selectedBuilding}`}
         defaultDataWindow="Custom"
         onExport={handleExport}
       />
