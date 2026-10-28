@@ -110,6 +110,7 @@ import NomadsLeads from "../pages/Dashboard/FrontendDashboard/NomadsLeads";
 import AllLeads from "../pages/Dashboard/FrontendDashboard/AllLeads";
 import WonoNomad from "../pages/Dashboard/FrontendDashboard/WonoNomad";
 import ModuleCardsLanding from "../pages/Dashboard/FrontendDashboard/ModuleCardsLanding";
+import DepartmentDashboardRoute from "../pages/Dashboard/DepartmentDashboardRoute";
 import AddModulesPage from "../pages/Dashboard/FrontendDashboard/AddModulesPage";
 import CreateWorkspacePage from "../pages/WorkspaceSetup/CreateWorkspacePage";
 import SetupModulesPage from "../pages/WorkspaceSetup/SetupModulesPage";
@@ -122,6 +123,7 @@ import AnalyticsPage from "../pages/Analytics/AnalyticsPage";
 import TenantCompaniesPage from "../pages/Sales/TenantCompanies/TenantCompaniesPage";
 import TenantCompanyDetailPage from "../pages/Sales/TenantCompanies/TenantCompanyDetailPage";
 import ResourcePricingPage from "../pages/Sales/ResourcePricing/Resource&Pricing";
+import ResourcePricingDashboard from "../pages/Sales/ResourcePricing/ResourcePricingDashboard";
 import CafeManagementPage from "../pages/Sales/CafeManagement/CafeManagementPage";
 import CafeManagementDashboard from "../pages/Sales/CafeManagement/CafeManagementDashboard";
 import CafeOrdersPage from "../pages/Sales/CafeOrders/CafeOrdersPage";
@@ -133,8 +135,10 @@ import coLivingBannerImage from "../assets/co-living-banner.jpg";
 import CoworkingManagementPage from "../pages/CoworkingManagement/CoworkingManagementPage";
 import MeetingRoomManagementPage from "../pages/MeetingRoomManagement/MeetingRoomManagementPage";
 import LeadsManagementPage from "../pages/Sales/LeadsManagement/LeadsManagementPage";
+import LeadsManagementDashboard from "../pages/Sales/LeadsManagement/LeadsManagementDashboard";
 import SalesArchitecturePage from "../pages/Sales/SalesArchitecture/SalesArchitecturePage";
 import VirtualOfficesPage from "../pages/Sales/VirtualOffices/VirtualOfficesPage";
+import VirtualOfficesDashboard from "../pages/Sales/VirtualOffices/VirtualOfficesDashboard";
 import VirtualOfficeDetailPage from "../pages/Sales/VirtualOffices/VirtualOfficeDetailPage";
 import AdministrationTenantCompaniesPage from "../pages/Administration/TenantCompanies/TenantCompaniesPage";
 import AdministrationTenantCompanyDetailPage from "../pages/Administration/TenantCompanies/TenantCompanyDetailPage";
@@ -926,7 +930,7 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/:departmentId",
-                element: <ModuleCardsLanding section="department-accesses" />,
+                element: <DepartmentDashboardRoute />,
               },
               {
                 path: "module-sections/:sectionId/:departmentId",
@@ -1365,6 +1369,10 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/sales-department/virtual-offices",
+                element: <VirtualOfficesDashboard />,
+              },
+              {
+                path: "department-accesses/sales-department/virtual-offices/list",
                 element: <VirtualOfficesPage />,
               },
               {
@@ -1373,10 +1381,18 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/sales-department/resource-pricing",
+                element: <ResourcePricingDashboard />,
+              },
+              {
+                path: "department-accesses/sales-department/resource-pricing/list",
                 element: <ResourcePricingPage />,
               },
               {
                 path: "department-accesses/sales-department/leads-management",
+                element: <LeadsManagementDashboard />,
+              },
+              {
+                path: "department-accesses/sales-department/leads-management/list",
                 element: <LeadsManagementPage />,
               },
               {

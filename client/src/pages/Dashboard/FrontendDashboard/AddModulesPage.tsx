@@ -128,7 +128,7 @@ const ADD_ON_TOP_LEVEL_ORDER = [
 const DEPARTMENT_ORDER = [
   "HR Department",
   "Administration Department",
-  "Sales Department",
+  "Sales Dashboard",
   "Finance Department",
   "Maintenance Department",
   "Tech Department",
@@ -179,7 +179,7 @@ const DEFAULT_SECTION_ROUTES: Record<string, string> = {
 const DEPARTMENT_LABELS: Record<string, string> = {
   "hr-department": "HR Department",
   "administration-department": "Administration Department",
-  "sales-department": "Sales Department",
+  "sales-department": "Sales Dashboard",
   "finance-department": "Finance Department",
   "maintenance-department": "Maintenance Department",
   "tech-department": "Tech Department",

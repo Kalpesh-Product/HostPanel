@@ -125,7 +125,7 @@ const ADD_ON_GROUP_ORDER = [
 const ADD_ON_DEPARTMENT_ORDER = [
   "HR Department",
   "Administration Department",
-  "Sales Department",
+  "Sales Dashboard",
   "Finance Department",
   "Maintenance Department",
   "Tech Department",
@@ -397,7 +397,7 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
     items: [
       { id: "hr-department", label: "HR Department", tabs: [] },
       { id: "administration-department", label: "Administration Department", tabs: [] },
-      { id: "sales-department", label: "Sales Department", tabs: [] },
+      { id: "sales-department", label: "Sales Dashboard", tabs: [] },
       { id: "finance-department", label: "Finance Department", tabs: [] },
       { id: "maintenance-department", label: "Maintenance Department", tabs: [] },
       {
@@ -555,7 +555,7 @@ const normalizeModuleToken = (value = "") =>
 const DEPARTMENT_LABELS: Record<string, string> = {
   "hr-department": "HR Department",
   "administration-department": "Administration Department",
-  "sales-department": "Sales Department",
+  "sales-department": "Sales Dashboard",
   "finance-department": "Finance Department",
   "maintenance-department": "Maintenance Department",
   "tech-department": "Tech Department",

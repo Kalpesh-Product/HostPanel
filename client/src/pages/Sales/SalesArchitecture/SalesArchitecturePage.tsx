@@ -268,7 +268,7 @@ function normalizeResource(r = {}) {
   };
 }
 
-function normalizeCafeTable(table = {}) {
+function normalizeCafeTable(table: any = {}) {
   const openOrder = table.openOrder || null;
   return normalizeResource({
     ...table,
@@ -290,9 +290,9 @@ function normalizeCafeTable(table = {}) {
   });
 }
 
-function buildExportRows({ building = "", floor = "", wing = "All", resources = [], searchQuery = "" }) {
+function buildExportRows({ scopeTitle = "Sales Architecture", building = "", floor = "", wing = "All", resources = [], searchQuery = "" }) {
   const rows = [
-    { label: "Scope", value: "Sales Architecture" },
+    { label: "Scope", value: scopeTitle },
     { label: "Building", value: building || "All" },
     { label: "Floor", value: floor || "All" },
     { label: "Wing", value: wing || "All" },
@@ -401,9 +401,16 @@ export default function SalesArchitecturePage() {
       formatWorkspaceCurrency(Number(value || 0), workspacePreferences.currency, { maximumFractionDigits: 0 });
 
   const fromSection = String((location.state as Record<string, unknown> | null)?.fromSection || "");
-  const requestedContext = searchParams.get("vertical") || FROM_SECTION_CONTEXT[fromSection] || "all";
-  const contextKey = Object.prototype.hasOwnProperty.call(ARCHITECTURE_CONTEXTS, requestedContext) ? requestedContext : "all";
-  const architectureContext = ARCHITECTURE_CONTEXTS[contextKey];
+  const sectionContext = FROM_SECTION_CONTEXT[fromSection as keyof typeof FROM_SECTION_CONTEXT];
+  const requestedContext = searchParams.get("vertical") || sectionContext || "all";
+  const contextKey = (Object.prototype.hasOwnProperty.call(ARCHITECTURE_CONTEXTS, requestedContext) ? requestedContext : "all") as keyof typeof ARCHITECTURE_CONTEXTS;
+  const architectureContext = ARCHITECTURE_CONTEXTS[contextKey] as {
+    title: string;
+    description: string;
+    categories: ReadonlySet<string> | null;
+    inventoryHeading: string;
+    showOperationalTabs: boolean;
+  };
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -1087,15 +1094,15 @@ export default function SalesArchitecturePage() {
     setIsExporting(f);
     try {
       const response = await createReport({
-        title: `Sales Architecture - ${selectedBuilding}`,
+        title: `${architectureContext.title} - ${selectedBuilding}`,
         department: "Sales", category: "Other", dataWindow,
         reportMonth,
         period: period || `${selectedBuilding} Floor ${selectedFloor}`,
         generatedBy: currentUserName,
         format: f,
-        description: `Architecture report for ${selectedBuilding} Floor ${selectedFloor} ${selectedWing !== "All" ? `Wing ${selectedWing}` : ""}.`,
+        description: `${architectureContext.title} report for ${selectedBuilding} Floor ${selectedFloor} ${selectedWing !== "All" ? `Wing ${selectedWing}` : ""}.`,
         sourceType: "department-roster", sourceRef: `sales-architecture`,
-        reportRows: buildExportRows({ building: selectedBuilding, floor: selectedFloor, wing: selectedWing, resources: filtered, searchQuery: query }),
+        reportRows: buildExportRows({ scopeTitle: architectureContext.title, building: selectedBuilding, floor: selectedFloor, wing: selectedWing, resources: filtered, searchQuery: query }),
         monthlyData: [],
       });
       await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });

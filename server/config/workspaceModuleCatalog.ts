@@ -13,7 +13,7 @@ const MODULE_GROUPS = [
       { id: "tasks", label: "Tasks", route: "/extra-common-modules/tasks", implemented: true },
       { id: "tickets", label: "Tickets", route: "/tickets", implemented: true },
       { id: "leave-requests", label: "Leave Requests", implemented: false },
-      { id: "meeting-room-system", label: "Meeting Room Booking", route: "/meetings/meeting-rooms", implemented: true },
+      { id: "meeting-room-system", label: "Meeting Room Booking", route: "/meetings/meeting-rooms", implemented: true, verticals: ["meeting-rooms", "co-working"] },
       { id: "printouts", label: "Printouts", route: "/common-modules/printouts", implemented: true },
       { id: "calendar", label: "Calendar", route: "/calendar", implemented: true },
       { id: "cafe-orders", label: "Cafe Orders", route: "/common-modules/cafe-orders", implemented: true, verticals: ["cafe"] },
@@ -128,8 +128,12 @@ const MODULE_GROUPS = [
         label: "Administration Department",
         isGroup: true,
         tabs: [
-          { id: "tenant-companies-admin", label: "Tenant Companies", implemented: false },
-          { id: "bookings", label: "Bookings", implemented: false },
+          // Not every vertical leases space or takes room/desk bookings
+          // (hostel/co-living/cafe don't) — Co-working keeps real tenant
+          // companies but has no "Bookings" use (that's meeting-room-style
+          // hourly booking, which desks/cabins don't do).
+          { id: "tenant-companies-admin", label: "Tenant Companies", implemented: false, verticals: ["co-working", "meeting-rooms", "workation"] },
+          { id: "bookings", label: "Bookings", implemented: false, verticals: ["meeting-rooms", "workation"] },
           { id: "visitors-management", label: "Visitors Management", route: "/visitors/visitor-management", implemented: true },
           { id: "resource-management", label: "Resource Management", implemented: false },
           { id: "house-keeping", label: "House Keeping", implemented: false },
@@ -142,16 +146,21 @@ const MODULE_GROUPS = [
         label: "Sales Department",
         isGroup: true,
         tabs: [
+          // Tenant Companies is deliberately not here — reached from each
+          // vertical management page's own Tenant Companies card instead.
+          // Order: Leads Management, then whichever vertical management
+          // module(s) this workspace has, then Resource & Pricing (common to
+          // every vertical), then Virtual Offices (co-working only), then
+          // Sales Architecture last.
           { id: "leads-management", label: "Leads Management", route: "/sales-crm/leads-management", implemented: true },
-          { id: "tenant-companies-sales", label: "Tenant Companies", route: "/sales-crm/tenant-companies", implemented: true },
-          { id: "virtual-office-sales", label: "Virtual Offices", route: "/sales-crm/virtual-offices", implemented: true },
-          { id: "resource-pricing", label: "Resource & Pricing", route: "/sales-crm/resource-pricing", implemented: true },
-          { id: "sales-architecture", label: "Sales Architecture", route: "/sales-crm/sales-architecture", implemented: true },
           { id: "cafe-management", label: "Cafe Management", route: "/key-apps/cafe-management", implemented: true, verticals: ["cafe"] },
           { id: "hostel-management", label: "Hostel Management", route: "/key-apps/hostel-management", implemented: true, verticals: ["hostel"] },
           { id: "co-living-management", label: "Co-living Management", route: "/key-apps/co-living-management", implemented: true, verticals: ["co-living"] },
           { id: "co-working-management", label: "Co-working Management", route: "/key-apps/co-working-management", implemented: true, verticals: ["co-working"] },
           { id: "meeting-room-management", label: "Meeting Room Management", route: "/key-apps/meeting-room-management", implemented: true, verticals: ["meeting-rooms"] },
+          { id: "resource-pricing", label: "Resource & Pricing", route: "/sales-crm/resource-pricing", implemented: true },
+          { id: "virtual-office-sales", label: "Virtual Offices", route: "/sales-crm/virtual-offices", implemented: true, verticals: ["co-working"] },
+          { id: "sales-architecture", label: "Sales Architecture", route: "/sales-crm/sales-architecture", implemented: true },
         ],
       },
       {

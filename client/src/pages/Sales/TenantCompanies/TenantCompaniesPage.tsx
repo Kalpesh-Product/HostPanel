@@ -3633,7 +3633,7 @@ export default function TenantCompaniesPage() {
 
   const goToAddTenantResource = () => {
     setShowResourcePrerequisite(false);
-    navigate('/department-accesses/sales-department/resource-pricing', {
+    navigate('/department-accesses/sales-department/resource-pricing/list', {
       state: {
         from: '/department-accesses/sales-department/tenant-companies',
         intent: 'add-tenant-inventory',
@@ -3887,7 +3887,7 @@ export default function TenantCompaniesPage() {
                 </div>
                 <div>
                   <p className="text-[12px] font-pmedium text-amber-950">Add an open desk or cabin desk before onboarding a tenant company.</p>
-                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-amber-700">Sales Department &rarr; Resource &amp; Pricing</p>
+                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-amber-700">Sales Dashboard &rarr; Resource &amp; Pricing</p>
                 </div>
               </div>
               <button type="button" onClick={goToAddTenantResource} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2 text-[10px] font-pmedium uppercase tracking-wider text-amber-800 shadow-sm ring-1 ring-amber-200 transition-all hover:bg-amber-100">

@@ -98,6 +98,7 @@ import {
 import { normalizeLegacyRoute } from "../utils/legacyRouteMap";
 import { resolveDepartmentIcon } from "../utils/departmentIcons";
 import CustomPlanModuleSelectionModal from "./CustomPlanModuleSelectionModal";
+import { SALES_DASHBOARD_MODULES } from "../pages/Sales/salesDashboardModules";
 
 type PlanType = "basic" | "professional" | "custom";
 
@@ -129,6 +130,7 @@ interface NavItemProps {
   hasChildren?: boolean;
   isOpen?: boolean;
   onClick?: () => void;
+  onToggleChildren?: () => void;
   isRed?: boolean;
   isActive?: boolean;
   disabled?: boolean;
@@ -239,11 +241,19 @@ const filterNavByVerticals = (
         : node,
     );
 
+const toDepartmentDashboardLabel = (value: string) => {
+  const label = String(value || "").trim();
+  if (!label) return "Department Dashboard";
+  if (/dashboard$/i.test(label)) return label;
+  return `${label.replace(/\s+department$/i, "")} Dashboard`;
+};
+
 const departmentModules: NavNode[] = [
   {
     id: "hr-department",
-    label: "HR Department",
+    label: "HR Dashboard",
     icon: Users,
+    route: "/department-accesses/hr-department",
     defaultOpen: false,
     children: [
       { id: "employee-management", label: "Company Management", icon: UserSquare, route: "/department-accesses/hr-department/company-management", disabled: false },
@@ -257,8 +267,9 @@ const departmentModules: NavNode[] = [
   },
   {
     id: "administration-department",
-    label: "Administration Department",
+    label: "Administration Dashboard",
     icon: Building2,
+    route: "/department-accesses/administration-department",
     defaultOpen: false,
     children: [
       { id: "tenant-companies-admin", label: "Tenant Companies", icon: Store, route: "/department-accesses/administration-department/tenant-companies", disabled: false },
@@ -277,32 +288,17 @@ const departmentModules: NavNode[] = [
   },
   {
     id: "sales-department",
-    label: "Sales Department",
+    label: "Sales Dashboard",
     icon: BriefcaseBusiness,
+    route: "/department-accesses/sales-department",
     defaultOpen: false,
-    children: [
-      // Order: Leads Management, then Resource & Pricing (common to every
-      // vertical), then whichever vertical-specific management module(s) the
-      // workspace actually has, then Virtual Offices (co-working only — it's
-      // not a universal module), and Sales Architecture last. Tenant
-      // Companies is deliberately not a top-level link here any more — it's
-      // reached from each vertical management page's own Tenant Companies
-      // card instead, to keep this list short.
-      { id: "leads-management", label: "Leads Management", icon: Magnet, route: "/department-accesses/sales-department/leads-management", disabled: false },
-      { id: "resource-pricing", label: "Resource & Pricing", icon: Tag, route: "/department-accesses/sales-department/resource-pricing", disabled: false },
-      { id: "cafe-management", label: "Cafe Management", icon: UtensilsCrossed, route: "/key-apps/cafe-management", disabled: false, verticals: ["cafe"] },
-      { id: "hostel-management", label: "Hostel Management", icon: Bed, route: "/key-apps/hostel-management", disabled: false, verticals: ["hostel"] },
-      { id: "co-living-management", label: "Co-living Management", icon: Home, route: "/key-apps/co-living-management", disabled: false, verticals: ["co-living"] },
-      { id: "co-working-management", label: "Co-working Management", icon: BriefcaseBusiness, route: "/key-apps/co-working-management", disabled: false, verticals: ["co-working"] },
-      { id: "meeting-room-management", label: "Meeting Room Management", icon: Users, route: "/key-apps/meeting-room-management", disabled: false, verticals: ["meeting-rooms"] },
-      { id: "virtual-office-sales", label: "Virtual Offices", icon: Building2, route: "/department-accesses/sales-department/virtual-offices", disabled: false, verticals: ["co-working"] },
-      { id: "sales-architecture", label: "Sales Architecture", icon: ShoppingCart, route: "/department-accesses/sales-department/sales-architecture", disabled: false },
-    ],
+    children: SALES_DASHBOARD_MODULES.map((module) => ({ ...module, disabled: false })),
   },
   {
     id: "finance-department",
-    label: "Finance Department",
+    label: "Finance Dashboard",
     icon: WalletCards,
+    route: "/department-accesses/finance-department",
     defaultOpen: false,
     children: [
       { id: "Expenses-budget", label: "Expenses & Budget", icon: PiggyBank, route: "/department-accesses/finance-department/expenses-budget", disabled: false },
@@ -312,8 +308,9 @@ const departmentModules: NavNode[] = [
   },
   {
     id: "maintenance-department",
-    label: "Maintenance Department",
+    label: "Maintenance Dashboard",
     icon: Wrench,
+    route: "/department-accesses/maintenance-department",
     defaultOpen: false,
     children: [
       { id: "maintenance-repair-logs", label: "Maintenance Repair Logs", icon: ClipboardList, route: "/department-accesses/maintenance-department/repair-logs" },
@@ -322,8 +319,9 @@ const departmentModules: NavNode[] = [
   },
   {
     id: "tech-department",
-    label: "Tech Department",
+    label: "Tech Dashboard",
     icon: Laptop,
+    route: "/department-accesses/tech-department",
     defaultOpen: false,
     children: [
       { id: "tech-website-builder", label: "Website Builder", icon: Code2, route: "/key-apps/website-builder" },
@@ -333,8 +331,9 @@ const departmentModules: NavNode[] = [
   },
   {
     id: "it-department",
-    label: "IT Department",
+    label: "IT Dashboard",
     icon: Server,
+    route: "/department-accesses/it-department",
     defaultOpen: false,
     children: [
       { id: "it-repair-logs", label: "IT Repair Logs", icon: FileSearch, route: "/department-accesses/it-department/repair-logs" },
@@ -569,6 +568,7 @@ const NavItem = ({
   hasChildren,
   isOpen,
   onClick,
+  onToggleChildren,
   isRed,
   isActive,
   disabled,
@@ -593,41 +593,80 @@ const NavItem = ({
 
   return (
     <>
-      <button
-        type="button"
-        title={!tooltip && disabled ? disabledTitle : undefined}
-        aria-label={collapsed ? label : undefined}
-        aria-describedby={tooltipPosition ? tooltipId : undefined}
-        className={`group relative flex w-full items-center rounded-md text-left transition-all hover:bg-white ${
-          collapsed ? "h-10 justify-center gap-0 p-0" : "gap-2 px-3 py-2.5"
-        } ${isActive ? "bg-white text-black shadow-sm" : "text-black/80"} ${
-          isRed ? "text-red-500 hover:text-red-600" : ""
-        } ${locked ? "opacity-75 cursor-not-allowed" : unavailable ? "cursor-default" : "cursor-pointer"}`}
-        style={collapsed ? undefined : { paddingLeft: `${depth * 1.25 + 0.75}rem` }}
-        onClick={onClick}
-        onMouseEnter={(event) => showTooltip(event.currentTarget)}
-        onMouseLeave={() => setTooltipPosition(null)}
-        onFocus={(event) => showTooltip(event.currentTarget)}
-        onBlur={() => setTooltipPosition(null)}
-      >
-        {Icon && (
-          <Icon
-            size={18}
-            className={`shrink-0 ${isRed ? "text-red-500" : isActive ? "text-accent" : "text-black/80"}`}
-          />
-        )}
-        {!collapsed && (
-          <span className={`truncate font-['Poppins'] text-xs font-medium ${isActive ? "font-semibold" : ""}`}>
-            {label}
-          </span>
-        )}
-        {!collapsed && hasChildren && (
-          isOpen
-            ? <ChevronUp size={16} className="ml-auto shrink-0 text-black/50" />
-            : <ChevronDown size={16} className="ml-auto shrink-0 text-black/50" />
-        )}
-        {!collapsed && locked && !hasChildren && <Lock size={12} className="ml-auto shrink-0 text-black/40" />}
-      </button>
+      {!collapsed && hasChildren && onToggleChildren ? (
+        <div
+          className={`group relative flex w-full items-center rounded-md text-left transition-all hover:bg-white ${
+            isActive ? "bg-white text-black shadow-sm" : "text-black/80"
+          } ${locked ? "opacity-75" : ""}`}
+        >
+          <button
+            type="button"
+            title={disabled ? disabledTitle : undefined}
+            className="flex min-w-0 flex-1 items-center gap-2 py-2.5 pr-1 text-left"
+            style={{ paddingLeft: `${depth * 1.25 + 0.75}rem` }}
+            onClick={onClick}
+          >
+            {Icon ? (
+              <Icon
+                size={18}
+                className={`shrink-0 ${isActive ? "text-accent" : "text-black/80"}`}
+              />
+            ) : null}
+            <span
+              className={`truncate font-['Poppins'] text-xs font-medium ${
+                isActive ? "font-semibold" : ""
+              }`}
+            >
+              {label}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={onToggleChildren}
+            aria-label={isOpen ? `Collapse ${label} modules` : `Expand ${label} modules`}
+            aria-expanded={Boolean(isOpen)}
+            className="mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded text-black/55 transition hover:bg-black/5 hover:text-black"
+          >
+            {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          title={!tooltip && disabled ? disabledTitle : undefined}
+          aria-label={collapsed ? label : undefined}
+          aria-describedby={tooltipPosition ? tooltipId : undefined}
+          className={`group relative flex w-full items-center rounded-md text-left transition-all hover:bg-white ${
+            collapsed ? "h-10 justify-center gap-0 p-0" : "gap-2 px-3 py-2.5"
+          } ${isActive ? "bg-white text-black shadow-sm" : "text-black/80"} ${
+            isRed ? "text-red-500 hover:text-red-600" : ""
+          } ${locked ? "opacity-75 cursor-not-allowed" : unavailable ? "cursor-default" : "cursor-pointer"}`}
+          style={collapsed ? undefined : { paddingLeft: `${depth * 1.25 + 0.75}rem` }}
+          onClick={onClick}
+          onMouseEnter={(event) => showTooltip(event.currentTarget)}
+          onMouseLeave={() => setTooltipPosition(null)}
+          onFocus={(event) => showTooltip(event.currentTarget)}
+          onBlur={() => setTooltipPosition(null)}
+        >
+          {Icon && (
+            <Icon
+              size={18}
+              className={`shrink-0 ${isRed ? "text-red-500" : isActive ? "text-accent" : "text-black/80"}`}
+            />
+          )}
+          {!collapsed && (
+            <span className={`truncate font-['Poppins'] text-xs font-medium ${isActive ? "font-semibold" : ""}`}>
+              {label}
+            </span>
+          )}
+          {!collapsed && hasChildren && (
+            isOpen
+              ? <ChevronUp size={16} className="ml-auto shrink-0 text-black/50" />
+              : <ChevronDown size={16} className="ml-auto shrink-0 text-black/50" />
+          )}
+          {!collapsed && locked && !hasChildren && <Lock size={12} className="ml-auto shrink-0 text-black/40" />}
+        </button>
+      )}
 
       {tooltip && tooltipPosition
         ? createPortal(
@@ -665,6 +704,8 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey
   const hasChildren = Boolean(item.children?.length);
   const isGroupOpen = forceOpen || isOpen;
   const opensCollapsedDepartmentLanding = collapsed && hasChildren && sectionKey === "department-accesses";
+  const usesDepartmentDashboardNavigation =
+    hasChildren && sectionKey === "department-accesses" && Boolean(item.route);
   const isActive = (() => {
     if (!item.route) return false;
     if (item.id === "website-builder") {
@@ -688,6 +729,10 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey
 
   const handleClick = () => {
     if (hasChildren) {
+      if (usesDepartmentDashboardNavigation && item.route) {
+        onNavigate(item, sectionKey);
+        return;
+      }
       if (opensCollapsedDepartmentLanding) {
         onNavigate(
           {
@@ -720,6 +765,11 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey
         hasChildren={hasChildren}
         isOpen={isGroupOpen}
         onClick={handleClick}
+        onToggleChildren={
+          usesDepartmentDashboardNavigation && !collapsed
+            ? () => setIsOpen((current) => !current)
+            : undefined
+        }
         isRed={item.isRed}
         isActive={isActive}
         disabled={item.disabled || !item.route}
@@ -1382,8 +1432,9 @@ useEffect(() => {
       })
       .map((department) => ({
         id: "custom-department-" + (department.id || normalizeModuleToken(department.name)),
-        label: department.name,
+        label: toDepartmentDashboardLabel(department.name),
         icon: resolveDepartmentIcon(department.name),
+        route: `/department-accesses/custom-department-${department.id || normalizeModuleToken(department.name)}`,
         defaultOpen: false,
         children: department.moduleIds.map((moduleId) => {
           const navigation = moduleNavigation.get(moduleId);
@@ -1483,11 +1534,18 @@ useEffect(() => {
           });
         return {
           id: itemId,
-          label: String(item?.label || itemId),
+          label:
+            sectionKey === "department-accesses"
+              ? toDepartmentDashboardLabel(String(item?.label || itemId))
+              : String(item?.label || itemId),
           icon: ICON_BY_ID[itemId] ||
             (sectionKey === "department-accesses"
               ? resolveDepartmentIcon(String(item?.label || itemId))
               : Boxes),
+          route:
+            sectionKey === "department-accesses"
+              ? `/department-accesses/${itemId}`
+              : itemRoute,
           defaultOpen: false,
           children,
         };
@@ -1710,7 +1768,21 @@ useEffect(() => {
                       return { ...s, items: [...s.items, ...keyAppsItems.filter(k => k.route && !s.items.some(ex => ex.id === k.id))] };
                     }
                     if (s.key === "department-accesses") {
-                      return { ...s, items: [...s.items, ...departmentItems.filter(d => d.route || (d.children?.length && !s.items.some(ex => ex.id === d.id)))] };
+                      return {
+                        ...s,
+                        items: [
+                          ...s.items,
+                          ...departmentItems.filter(
+                            (department) =>
+                              !s.items.some(
+                                (existing) => existing.id === department.id,
+                              ) &&
+                              Boolean(
+                                department.route || department.children?.length,
+                              ),
+                          ),
+                        ],
+                      };
                     }
                     return s;
                   });

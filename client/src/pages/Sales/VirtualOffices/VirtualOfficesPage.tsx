@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Building2, Search, Plus, Eye, Pencil, RefreshCw, ShieldCheck, AlertTriangle,
   Users, Wallet, Receipt, CheckCircle2, Clock, CreditCard, UploadCloud,
@@ -61,7 +61,9 @@ export default function VirtualOfficesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [records, setRecords] = useState([]);
   const [summary, setSummary] = useState({ total: 0, active: 0, overdue: 0, pending: 0 });
-  const [activeTab, setActiveTab] = useState("companies");
+  const location = useLocation();
+  const requestedTab = location.state?.tab;
+  const [activeTab, setActiveTab] = useState(requestedTab === "collections" ? "collections" : "companies");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Status");

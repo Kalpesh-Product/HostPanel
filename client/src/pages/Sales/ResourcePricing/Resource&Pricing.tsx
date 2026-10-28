@@ -646,7 +646,8 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
   const [isExportingReport, setIsExportingReport] = useState('');
   const [showExportModal, setShowExportModal] = useState(false);
   const [showPackageExportModal, setShowPackageExportModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('resource');
+  const requestedTab = (location.state as { tab?: string } | null)?.tab;
+  const [activeTab, setActiveTab] = useState(requestedTab === 'tenant' ? 'tenant' : 'resource');
   // Tenant Packages (desk/virtual-office memberships) don't apply to nightly
   // room/dorm inventory — hidden only when every allowed category is nightly
   // (Hostel/Co-living); Co-working, Meeting Room, and the unscoped page keep it.
@@ -1942,8 +1943,8 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
                     <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{item.floor || '--'}</td>
                     <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{item.wing || '--'}</td>
                     <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{item.capacity} Pax</td>
-                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{item.pricePerHour > 0 ? `${formatCurrency(item.pricePerHour)}${isPerPersonPricingCategory(item.resourceCategory) ? ' / person' : ''}` : item.pricing || '--'}</td>
-                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{isNightlyCategory(item.resourceCategory) ? '--' : item.pricePerDay > 0 ? `${formatCurrency(item.pricePerDay)}${isPerPersonPricingCategory(item.resourceCategory) ? ' / person' : ''}` : item.pricing || '--'}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{item.pricePerHour > 0 ? `${formatCurrency(item.pricePerHour)}${isPerPersonPricingCategory(item.resourceCategory) ? '' : ''}` : item.pricing || '--'}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700">{isNightlyCategory(item.resourceCategory) ? '--' : item.pricePerDay > 0 ? `${formatCurrency(item.pricePerDay)}${isPerPersonPricingCategory(item.resourceCategory) ? '' : ''}` : item.pricing || '--'}</td>
                     <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-900 text-center">{isNightlyCategory(item.resourceCategory) ? '--' : getResourceCreditValue(item)}</td>
                     <td className="px-3.5 py-2 text-center">{statusBadge(item.status)}</td>
                     <td className="px-3.5 py-2">

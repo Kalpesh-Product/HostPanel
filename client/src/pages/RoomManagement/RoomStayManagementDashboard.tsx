@@ -22,7 +22,7 @@ import {
   Wallet,
 } from "lucide-react";
 import PageFrame from "../../components/Pages/PageFrame";
-import Card from "../../components/Card";
+import DashboardModuleCard from "../../components/DashboardModuleCard";
 import DonutChart from "../../components/graphs/DonutChart";
 import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
 import { getResources } from "../../services/resources";
@@ -1034,29 +1034,37 @@ export default function RoomStayManagementDashboard({
             </button>
           </div>
           <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-            <Card
+            <DashboardModuleCard
               icon={<CalendarCheck />}
               title={`${noun} Reservations`}
               route={managementRoute}
               state={{ fromSection: `${category}-management` }}
+              description={`Manage ${nounLower} reservations and arrivals`}
+              color="#2563EB"
             />
-            <Card
+            <DashboardModuleCard
               icon={<Ticket />}
               title={`${noun} Booking`}
               route={bookingRoute}
               state={{ fromSection: `${category}-management` }}
+              description={`Create and review ${nounLower} bookings`}
+              color="#4F46E5"
             />
-            <Card
+            <DashboardModuleCard
               icon={<Tag />}
               title="Resource & Pricing"
               route={resourcePricingRoute}
               state={{ fromSection: `${category}-management` }}
+              description={`${noun} inventory, nightly pricing, and packages`}
+              color="#7C3AED"
             />
-            <Card
+            <DashboardModuleCard
               icon={<ShoppingCart />}
-              title="Sales Architecture"
-              route="/department-accesses/sales-department/sales-architecture"
+              title={`${roomType === "Dorm" ? "Hostel" : "Co-living"} Architecture`}
+              route={`/department-accesses/sales-department/sales-architecture?vertical=${roomType === "Dorm" ? "hostel" : "coliving"}`}
               state={{ fromSection: `${category}-management` }}
+              description={`${roomType === "Dorm" ? "Hostel" : "Co-living"} resource and space structure`}
+              color="#F59E0B"
             />
           </div>
         </div>

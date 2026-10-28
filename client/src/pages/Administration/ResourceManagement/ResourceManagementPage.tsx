@@ -1186,12 +1186,12 @@ function ResourceManagementPageInner() {
                         </p>
                         <p className="mt-1 text-[12px] font-semibold text-slate-700">
                           {resource.pricePerHour && resource.pricePerHour > 0
-                            ? `${wsMoney(resource.pricePerHour)} / hr${isPerPersonPricingCategory(resource.resourceCategory) ? ' / person' : ''}`
+                            ? `${wsMoney(resource.pricePerHour)} / hr${isPerPersonPricingCategory(resource.resourceCategory) ? '' : ''}`
                             : resource.pricing || 'Pricing pending'}
                         </p>
                         <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
                           {resource.pricePerDay && resource.pricePerDay > 0
-                            ? `${wsMoney(resource.pricePerDay)} / day${isPerPersonPricingCategory(resource.resourceCategory) ? ' / person' : ''}`
+                            ? `${wsMoney(resource.pricePerDay)} / day${isPerPersonPricingCategory(resource.resourceCategory) ? '' : ''}`
                             : 'Daily rate not set'}
                         </p>
                       </div>
@@ -1268,12 +1268,12 @@ function ResourceManagementPageInner() {
                           <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700 whitespace-nowrap">{resource.capacity} Pax</td>
                           <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700 whitespace-nowrap">
                             {resource.pricePerHour && resource.pricePerHour > 0
-                              ? `${wsMoney(resource.pricePerHour)}${isPerPersonPricingCategory(resource.resourceCategory) ? ' / person' : ''}`
+                              ? `${wsMoney(resource.pricePerHour)}${isPerPersonPricingCategory(resource.resourceCategory) ? '' : ''}`
                               : resource.pricing || '--'}
                           </td>
                           <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-700 whitespace-nowrap">
                             {resource.pricePerDay && resource.pricePerDay > 0
-                              ? `${wsMoney(resource.pricePerDay)}${isPerPersonPricingCategory(resource.resourceCategory) ? ' / person' : ''}`
+                              ? `${wsMoney(resource.pricePerDay)}${isPerPersonPricingCategory(resource.resourceCategory) ? '' : ''}`
                               : '--'}
                           </td>
                           <td className="px-3.5 py-2 text-[12px] font-pmedium text-slate-900 text-center">{getCreditValue(resource)}</td>
@@ -1784,7 +1784,7 @@ function ResourceManagementPageInner() {
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <div className="space-y-1">
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
-                        {isPerPersonPricingCategory(viewingResource.resourceCategory) ? 'Hourly / Person' : 'Hourly'}
+                        {isPerPersonPricingCategory(viewingResource.resourceCategory) ? 'Hourly' : 'Hourly'}
                       </label>
                       <input
                         type="text"
@@ -1796,7 +1796,7 @@ function ResourceManagementPageInner() {
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
-                        {isPerPersonPricingCategory(viewingResource.resourceCategory) ? 'Daily / Person' : 'Daily'}
+                        {isPerPersonPricingCategory(viewingResource.resourceCategory) ? 'Daily' : 'Daily'}
                       </label>
                       <input
                         type="text"

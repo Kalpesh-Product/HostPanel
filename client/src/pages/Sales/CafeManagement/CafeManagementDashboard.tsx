@@ -20,7 +20,7 @@ import {
   XCircle,
 } from "lucide-react";
 import PageFrame from "../../../components/Pages/PageFrame";
-import Card from "../../../components/Card";
+import DashboardModuleCard from "../../../components/DashboardModuleCard";
 import DonutChart from "../../../components/graphs/DonutChart";
 import cafeBannerImage from "../../../assets/cafe-banner.jpg";
 import {
@@ -252,7 +252,7 @@ const ALL_TABLES = "All tables";
 const managementRoute = "/key-apps/cafe-management/dashboard";
 const ordersRoute = "/common-modules/cafe-orders";
 const salesArchitectureRoute =
-  "/department-accesses/sales-department/sales-architecture";
+  "/department-accesses/sales-department/sales-architecture?vertical=cafe";
 
 export default function CafeManagementDashboard() {
   const [tables, setTables] = useState<CafeTable[]>([]);
@@ -824,29 +824,37 @@ export default function CafeManagementDashboard() {
             </button>
           </div>
           <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-            <Card
+            <DashboardModuleCard
               icon={<Receipt />}
               title="Cafe Orders"
               route={ordersRoute}
               state={{ fromSection: "cafe-management" }}
+              description="Live orders, billing, and settlement"
+              color="#EA580C"
             />
-            <Card
+            <DashboardModuleCard
               icon={<CalendarCheck />}
               title="Reservations"
               route={managementRoute}
               state={{ fromSection: "cafe-management", tab: "reservations" }}
+              description="Table reservations and guest arrivals"
+              color="#2563EB"
             />
-            <Card
+            <DashboardModuleCard
               icon={<Armchair />}
               title="Tables & Menu"
               route={managementRoute}
               state={{ fromSection: "cafe-management", tab: "tables" }}
+              description="Table layout, menu, and availability"
+              color="#0D9488"
             />
-            <Card
+            <DashboardModuleCard
               icon={<ShoppingCart />}
-              title="Sales Architecture"
+              title="Cafe Architecture"
               route={salesArchitectureRoute}
               state={{ fromSection: "cafe-management" }}
+              description="Cafe resources and service structure"
+              color="#F59E0B"
             />
           </div>
         </div>

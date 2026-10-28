@@ -18,7 +18,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import PageFrame from "../../components/Pages/PageFrame";
-import Card from "../../components/Card";
+import DashboardModuleCard from "../../components/DashboardModuleCard";
 import coworkingBannerImage from "../../assets/coworking-banner.jpg";
 import DonutChart from "../../components/graphs/DonutChart";
 import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
@@ -773,28 +773,36 @@ export default function CoworkingManagementPage() {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-            <Card
+            <DashboardModuleCard
               icon={<Tag />}
               title="Resource & Pricing"
               route="/key-apps/co-working-management/resource-pricing"
+              description="Desk inventory, packages, and rates"
+              color="#7C3AED"
             />
-            <Card
+            <DashboardModuleCard
               icon={<Store />}
               title="Tenant Companies"
               route="/department-accesses/sales-department/tenant-companies"
               state={{ fromSection: "co-working-management" }}
+              description="Tenant accounts, agreements, and billing"
+              color="#0891B2"
             />
-            <Card
+            <DashboardModuleCard
               icon={<Building2 />}
               title="Virtual Offices"
               route="/department-accesses/sales-department/virtual-offices"
               state={{ fromSection: "co-working-management" }}
+              description="Virtual-office clients and assignments"
+              color="#0F766E"
             />
-            <Card
+            <DashboardModuleCard
               icon={<ShoppingCart />}
-              title="Sales Architecture"
-              route="/department-accesses/sales-department/sales-architecture"
+              title="Coworking Architecture"
+              route="/department-accesses/sales-department/sales-architecture?vertical=coworking"
               state={{ fromSection: "co-working-management" }}
+              description="Coworking resource and space structure"
+              color="#F59E0B"
             />
           </div>
         </div>

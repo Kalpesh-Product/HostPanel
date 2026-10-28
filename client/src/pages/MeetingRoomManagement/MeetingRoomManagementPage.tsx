@@ -19,7 +19,7 @@ import {
   XCircle,
 } from "lucide-react";
 import PageFrame from "../../components/Pages/PageFrame";
-import Card from "../../components/Card";
+import DashboardModuleCard from "../../components/DashboardModuleCard";
 import meetingRoomBannerImage from "../../assets/meeting-room-banner.jpg";
 import DonutChart from "../../components/graphs/DonutChart";
 import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
@@ -1011,29 +1011,37 @@ export default function MeetingRoomManagementPage() {
             </button>
           </div>
           <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-            <Card
+            <DashboardModuleCard
               icon={<CalendarCheck />}
               title="Meeting Room Booking"
               route="/meetings/meeting-rooms"
               state={{ fromSection: "meeting-room-management" }}
+              description="Create and manage room bookings"
+              color="#2563EB"
             />
-            <Card
+            <DashboardModuleCard
               icon={<Ticket />}
               title="All Bookings"
               route="/department-accesses/administration-department/bookings"
               state={{ fromSection: "meeting-room-management" }}
+              description="Review complete booking activity"
+              color="#4F46E5"
             />
-            <Card
+            <DashboardModuleCard
               icon={<Tag />}
               title="Resource & Pricing"
               route="/key-apps/meeting-room-management/resource-pricing"
               state={{ fromSection: "meeting-room-management" }}
+              description="Rooms, availability, packages, and rates"
+              color="#7C3AED"
             />
-            <Card
+            <DashboardModuleCard
               icon={<ShoppingCart />}
-              title="Sales Architecture"
-              route="/department-accesses/sales-department/sales-architecture"
+              title="Meeting Room Architecture"
+              route="/department-accesses/sales-department/sales-architecture?vertical=meeting-room"
               state={{ fromSection: "meeting-room-management" }}
+              description="Meeting-room resource and space structure"
+              color="#F59E0B"
             />
           </div>
         </div>
