@@ -6,31 +6,43 @@
  * Upgrade nudge → opens the upgrade modal (Professional only).
  */
 import { useMemo } from "react";
+import type { ElementType, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import WidgetSection from "../../../../components/WidgetSection";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import useAuth from "../../../../hooks/useAuth";
 import {
-  Globe, Users, Eye, UserPlus, FileText, Zap, ArrowRight, LayoutGrid,
+  Globe,
+  Users,
+  Eye,
+  UserPlus,
+  FileText,
+  ArrowRight,
+  LayoutGrid,
+  Activity,
+  Sparkles,
+  Check,
 } from "lucide-react";
-import {
-  StatCard, QuickLink, SectionCard, RecentItem, DonutWidget, BarWidget,
-} from "./DashboardShared";
+import { RecentItem } from "./DashboardShared";
 import type { QuickLinkItem } from "./DashboardShared";
+import DonutChart from "../../../../components/graphs/DonutChart";
+import BarGraph from "../../../../components/graphs/BarGraph";
 import WonoListingsCard from "./WonoListingsCard";
 import VerifiedBadgeNotice from "./VerifiedBadgeNotice";
-import PlanDowngradedNotice from "./PlanDowngradedNotice";
 import BonusTrialOfferNotice from "./BonusTrialOfferNotice";
-import { statusBadgeColor, humanRelTime, hasModuleUse, pickCardCols } from "./dashboardUtils";
+import FreeTrialOfferNotice from "./FreeTrialOfferNotice";
+import { statusBadgeColor, humanRelTime, hasModuleUse } from "./dashboardUtils";
 import { ICON_BY_ID, DEFAULT_SECTION_ROUTES } from "../ModuleCardsLanding";
+import { isSameCompanyWebsite } from "../WebsiteBuilder/WebsiteBuilderReviews.helpers";
 import type { WorkspaceModuleSection } from "../../../../hooks/useDashboardAccess";
 import dayjs from "dayjs";
 import PlanDashboardSkeleton from "./PlanDashboardSkeleton";
 
 interface BasicDashboardProps {
   onUpgradeClick: () => void;
+  isExpiredDowngrade: boolean;
+  downgradedPlanLabel: string;
   /** Org member counts — passed down from useDashboardAccess() so this component
    * doesn't re-fetch /api/organization/overview a second time on the same page load. */
   activeMembers: number;
@@ -51,18 +63,55 @@ const BASIC_ROUTE_BY_ID: Record<string, string> = {
   "visitor-management": "/visitors/visitor-management",
 };
 
-const BASIC_MODULE_COPY: Record<string, { description: string; color: string }> = {
-  "customer-support": { description: "Raise issues to the WoNo team", color: "#ef4444" },
-  "visitor-management": { description: "Log & track visitors", color: "#80bf01" },
-  "tech-website-builder": { description: "Build & publish your site", color: "#7c3aed" },
-  "website-leads": { description: "Follow up on every enquiry", color: "#1E3D73" },
-  "website-review": { description: "See what visitors are saying", color: "#059669" },
-  "organization-management": { description: "Members, roles & departments", color: "#0891b2" },
-  "access-grants": { description: "Control who can access what", color: "#f59e0b" },
+const BASIC_MODULE_COPY: Record<
+  string,
+  { description: string; color: string }
+> = {
+  "customer-support": {
+    description: "Raise issues to the WoNo team",
+    color: "#ef4444",
+  },
+  "visitor-management": {
+    description: "Log & track visitors",
+    color: "#80bf01",
+  },
+  "tech-website-builder": {
+    description: "Build & publish your site",
+    color: "#7c3aed",
+  },
+  "website-leads": {
+    description: "Follow up on every enquiry",
+    color: "#1E3D73",
+  },
+  "website-review": {
+    description: "See what visitors are saying",
+    color: "#059669",
+  },
+  "organization-management": {
+    description: "Members, roles & departments",
+    color: "#0891b2",
+  },
+  "access-grants": {
+    description: "Control who can access what",
+    color: "#f59e0b",
+  },
 };
 
 // FY month labels Apr–Mar
-const FY_MONTHS = ["Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
+const FY_MONTHS = [
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+  "Jan",
+  "Feb",
+  "Mar",
+];
 
 const fyMonthIndex = (date: Date) => (date.getMonth() + 9) % 12;
 
@@ -74,66 +123,367 @@ const LEAD_STAGES = [
   { key: "Rejected", label: "Rejected", color: "#ef4444" },
 ] as const;
 
-// Shown instead of the leads/visitors rows until the workspace has real
-// activity — four empty "No data yet" panels teach a first-time user
-// nothing, one ordered checklist does.
-const GETTING_STARTED_STEPS = [
-  { icon: Globe, label: "Build & publish your website", description: "Pick a template and go live in minutes.", route: "/key-apps/website-builder", color: "#7c3aed" },
-  { icon: FileText, label: "Share your website link", description: "Every enquiry that comes in becomes a lead here automatically.", route: "/key-apps/website-builder/leads", color: "#1E3D73" },
-  { icon: Eye, label: "Log your first visitor", description: "Track walk-ins and guests as they check in.", route: "/visitors/visitor-management", color: "#80bf01" },
-];
+const WorkspaceProgress = ({
+  totalMembers,
+  leadCount,
+  visitorCount,
+  isWebsitePublished,
+  showWebsite,
+  showLeads,
+  showVisitors,
+  showOrg,
+}: {
+  totalMembers: number;
+  leadCount: number;
+  visitorCount: number;
+  isWebsitePublished: boolean;
+  showWebsite: boolean;
+  showLeads: boolean;
+  showVisitors: boolean;
+  showOrg: boolean;
+}) => {
+  const navigate = useNavigate();
+  const steps = [
+    {
+      icon: Globe,
+      label: "Build your unit website",
+      description: "Set up and publish the website for your unit.",
+      route: "/key-apps/website-builder",
+      complete: isWebsitePublished,
+      visible: showWebsite,
+    },
+    {
+      icon: FileText,
+      label: "Capture your first lead",
+      description:
+        "Publish your website, share it, and receive the first enquiry.",
+      route: "/key-apps/website-builder/leads",
+      complete: leadCount > 0,
+      visible: showLeads,
+    },
+    {
+      icon: Eye,
+      label: "Log your first visitor",
+      description: "Start tracking arrivals and front-desk activity.",
+      route: "/visitors/visitor-management",
+      complete: visitorCount > 0,
+      visible: showVisitors,
+    },
+    {
+      icon: Users,
+      label: "Invite a team member",
+      description: "Bring your team into the unit with the right access.",
+      route: "/core-modules/organization-management",
+      complete: totalMembers > 1,
+      visible: showOrg,
+    },
+  ].filter((step) => step.visible);
 
-const GettingStartedCard = () => {
+  const completedCount = steps.filter((step) => step.complete).length;
+  if (steps.length === 0 || completedCount === steps.length) return null;
+  const progress = Math.round((completedCount / steps.length) * 100);
+
+  return (
+    <section className="overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-white via-white to-blue-50/80 p-5 shadow-[0_12px_34px_rgba(30,61,115,0.08)] sm:p-6">
+      <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="inline-flex items-center gap-1.5 text-[10px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
+            <Sparkles size={12} /> Unit progress
+          </p>
+          <h3 className="mt-1 text-lg font-pmedium text-[#1E3D73]">
+            Finish the essentials
+          </h3>
+          <p className="mt-1 text-xs font-pmedium text-slate-500">
+            Complete the first actions that make this dashboard useful.
+          </p>
+        </div>
+        <div className="min-w-[170px]">
+          <div className="mb-1.5 flex items-center justify-between text-[10px] font-pmedium uppercase tracking-widest">
+            <span className="text-slate-400">Setup</span>
+            <span className="text-[#2563EB]">{progress}%</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-blue-100">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[#1E3D73] to-[#2563EB] transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {steps.map((step) => {
+          const StepIcon = step.icon;
+          return (
+            <button
+              type="button"
+              key={step.route}
+              className={`group flex items-start gap-3 rounded-2xl border p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:shadow-lg ${
+                step.complete
+                  ? "border-emerald-100 bg-emerald-50/60"
+                  : "border-slate-100 bg-white shadow-sm hover:border-blue-200"
+              }`}
+              onClick={() => navigate(step.route)}
+            >
+              <div
+                className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${step.complete ? "bg-emerald-500 text-white" : "bg-blue-50 text-[#2563EB]"}`}
+              >
+                {step.complete ? <Check size={16} /> : <StepIcon size={16} />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-content font-pmedium text-slate-900">
+                  {step.label}
+                </p>
+                <p className="mt-1 text-small leading-relaxed text-slate-500">
+                  {step.description}
+                </p>
+              </div>
+              <ArrowRight
+                size={13}
+                className="mt-1 flex-shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#2563EB]"
+              />
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+};
+
+type BasicMetricProps = {
+  icon: ElementType;
+  label: string;
+  value: string | number;
+  sub: string;
+  route: string;
+};
+
+const BasicMetric = ({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  route,
+}: BasicMetricProps) => {
   const navigate = useNavigate();
   return (
-    <div className="border-default rounded-xl overflow-hidden">
-      <div className="p-4 border-b-2 border-borderGray uppercase">
-        <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">Getting Started</span>
+    <button
+      type="button"
+      onClick={() => navigate(route)}
+      className="group flex min-w-0 items-center gap-4 rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg"
+    >
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#2563EB] transition group-hover:bg-[#2563EB] group-hover:text-white">
+        <Icon size={19} />
       </div>
-      <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {GETTING_STARTED_STEPS.map((step, i) => (
-          <div
-            key={step.route}
-            className="flex items-start gap-3 p-3 rounded-xl border border-borderGray bg-white hover:border-primary hover:shadow-md cursor-pointer transition-all duration-200"
-            onClick={() => navigate(step.route)}
-          >
-            <div
-              className="flex items-center justify-center h-7 w-7 rounded-full text-white text-content font-pmedium flex-shrink-0"
-              style={{ backgroundColor: step.color }}
-            >
-              {i + 1}
-            </div>
-            <div className="min-w-0">
-              <p className="text-content font-pmedium text-gray-900">{step.label}</p>
-              <p className="text-small text-gray-500 mt-0.5">{step.description}</p>
-            </div>
-          </div>
-        ))}
+      <div className="min-w-0 flex-1">
+        <p className="text-[9px] font-pmedium uppercase tracking-[0.18em] text-slate-400">
+          {label}
+        </p>
+        <div className="mt-1 flex items-end gap-2">
+          <span className="text-2xl font-pmedium leading-none text-[#1E3D73]">
+            {value}
+          </span>
+          <span className="truncate pb-0.5 text-[10px] font-pmedium text-slate-500">
+            {sub}
+          </span>
+        </div>
       </div>
+      <ArrowRight
+        size={13}
+        className="shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#2563EB]"
+      />
+    </button>
+  );
+};
+
+const BasicQuickAction = ({
+  icon: Icon,
+  label,
+  description,
+  route,
+}: QuickLinkItem) => {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(route)}
+      className="group flex min-w-0 items-center gap-3 rounded-2xl border border-blue-100 bg-white p-3.5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
+    >
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB] transition group-hover:bg-[#2563EB] group-hover:text-white">
+        <Icon size={17} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[12px] font-pmedium text-[#1E3D73]">
+          {label}
+        </p>
+        <p className="mt-0.5 truncate text-[10px] text-slate-500">
+          {description}
+        </p>
+      </div>
+      <ArrowRight
+        size={13}
+        className="shrink-0 text-blue-300 transition group-hover:translate-x-0.5 group-hover:text-[#2563EB]"
+      />
+    </button>
+  );
+};
+
+const BasicActivityPanel = ({
+  eyebrow,
+  title,
+  action,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) => (
+  <section className="flex h-full flex-col overflow-hidden rounded-[1.75rem] border border-slate-100 bg-white shadow-[0_10px_30px_rgba(30,61,115,0.07)]">
+    <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+      <div>
+        <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
+          {eyebrow}
+        </p>
+        <h3 className="mt-1 text-[15px] font-pmedium text-[#1E3D73]">
+          {title}
+        </h3>
+      </div>
+      {action}
+    </div>
+    <div className="flex flex-1 flex-col p-5">{children}</div>
+  </section>
+);
+
+const BasicEmptyState = ({
+  icon: Icon,
+  title,
+  description,
+  actionLabel,
+  route,
+}: {
+  icon: ElementType;
+  title: string;
+  description: string;
+  actionLabel: string;
+  route: string;
+}) => {
+  const navigate = useNavigate();
+  return (
+    <div className="flex min-h-52 flex-1 flex-col items-center justify-center px-4 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-[#2563EB]">
+        <Icon size={20} />
+      </div>
+      <p className="mt-3 text-sm font-pmedium text-[#1E3D73]">{title}</p>
+      <p className="mt-1 max-w-xs text-[11px] font-pmedium leading-relaxed text-slate-500">
+        {description}
+      </p>
+      <button
+        type="button"
+        onClick={() => navigate(route)}
+        className="group mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#2563EB] px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest text-white transition hover:bg-[#1E3D73]"
+      >
+        {actionLabel}
+        <ArrowRight
+          size={12}
+          className="transition group-hover:translate-x-0.5"
+        />
+      </button>
     </div>
   );
 };
 
-const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap, grantedModuleIds, enabledModuleIds }: BasicDashboardProps) => {
+const BasicDashboard = ({
+  onUpgradeClick,
+  isExpiredDowngrade,
+  downgradedPlanLabel,
+  activeMembers,
+  totalMembers,
+  moduleMap,
+  grantedModuleIds,
+  enabledModuleIds,
+}: BasicDashboardProps) => {
   const axiosPrivate = useAxiosPrivate();
-  const selectedCompany = useSelector((state: any) => state.company.selectedCompany);
+  const navigate = useNavigate();
+  const selectedCompany = useSelector(
+    (state: any) => state.company.selectedCompany,
+  );
   const { auth } = useAuth();
 
-  const workspaceId = selectedCompany?.workspaceId || auth?.user?.primaryWorkspace || auth?.user?.workspaceMembership?.workspace || auth?.user?.workspaceId || "";
+  const workspaceId =
+    selectedCompany?.workspaceId ||
+    auth?.user?.primaryWorkspace ||
+    auth?.user?.workspaceMembership?.workspace ||
+    auth?.user?.workspaceId ||
+    "";
   const companyId = selectedCompany?.companyId || auth?.user?.companyId || "";
+  const companyName =
+    selectedCompany?.companyName || auth?.user?.companyName || "";
 
   // A card only renders when its module is both included in the plan/
   // workspace (enabled axis) AND granted to the current member (access axis).
-  const canUse = (id: string) => hasModuleUse(grantedModuleIds, enabledModuleIds, id);
+  const canUse = (id: string) =>
+    hasModuleUse(grantedModuleIds, enabledModuleIds, id);
+  const showWebsite = canUse("tech-website-builder");
   const showVisitors = canUse("visitors-management");
   const showLeads = canUse("website-leads");
   const showOrg = canUse("organization-management");
+
+  // ── Published website state — uses the same source and identity matching as
+  // Website Leads. The subscription fallback covers older published sites.
+  const { data: isWebsitePublished = false, isLoading: websiteLoading } =
+    useQuery({
+      queryKey: [
+        "dashboard-website-published",
+        companyId,
+        workspaceId,
+        companyName,
+      ],
+      enabled: showWebsite && !!(companyId || workspaceId || companyName),
+      queryFn: async () => {
+        const response = await axiosPrivate.get("/api/editor/get-websites", {
+          params: { companyId, workspaceId, businessName: companyName },
+        });
+        const websites = Array.isArray(response?.data) ? response.data : [];
+        const website = websites.find((item: any) =>
+          isSameCompanyWebsite(item, companyId, workspaceId, companyName),
+        );
+        if (website) {
+          return Boolean(
+            website?.isPublished === true ||
+            String(
+              website?.deployedUrl || website?.publishedProjectUrl || "",
+            ).trim(),
+          );
+        }
+
+        const subscriptionId = companyId || workspaceId;
+        if (!subscriptionId) return false;
+        try {
+          const subscriptionResponse = await axiosPrivate.get(
+            `/api/subscription/${subscriptionId}`,
+            {
+              params: { companyId, workspaceId },
+            },
+          );
+          const subscription = subscriptionResponse?.data || {};
+          return Boolean(
+            String(subscription?.publishedProjectId || "").trim() ||
+            String(subscription?.publishedProjectUrl || "").trim(),
+          );
+        } catch {
+          return false;
+        }
+      },
+      staleTime: 60 * 1000,
+    });
 
   // ── Visitors (same endpoint as the Visitor Management terminal) ──────────────
   const { data: visitorsRaw = [], isLoading: visitorsLoading } = useQuery({
     queryKey: ["dashboard-visitors-basic"],
     queryFn: async () => {
-      const res = await axiosPrivate.get("/api/v1/visitors", { params: { limit: 100 } });
+      const res = await axiosPrivate.get("/api/v1/visitors", {
+        params: { limit: 100 },
+      });
       const visitors = res?.data?.data?.visitors ?? [];
       return Array.isArray(visitors) ? visitors : [];
     },
@@ -152,6 +502,10 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
       return Array.isArray(res?.data) ? res.data : [];
     },
     staleTime: 5 * 60 * 1000,
+    // Public website enquiries can arrive while the dashboard is already open.
+    // Keep the first-lead milestone current without requiring a manual refresh.
+    refetchInterval: 30 * 1000,
+    refetchOnWindowFocus: true,
   });
 
   // ── Derived: visitor stats ─────────────────────────────────────────────────
@@ -193,7 +547,9 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
 
   // ── Derived: lead stats (lead.status: Pending / Contacted / Closed / Rejected) ──
   const leadStats = useMemo(() => {
-    const newLeads = leadsRaw.filter((l: any) => (l.status || "Pending") === "Pending").length;
+    const newLeads = leadsRaw.filter(
+      (l: any) => (l.status || "Pending") === "Pending",
+    ).length;
     return { total: leadsRaw.length, newLeads };
   }, [leadsRaw]);
 
@@ -218,26 +574,29 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
     [activeMembers, totalMembers],
   );
 
-  // Nothing logged yet in either feed — show a getting-started checklist
-  // instead of four empty "No data yet" panels.
-  const isNewWorkspace = leadStats.total === 0 && visitorStats.totalCount === 0;
-
   // ── Recent leads ───────────────────────────────────────────────────────────
   const recentLeads = useMemo(
-    () => [...leadsRaw]
-      .sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-      .slice(0, 5),
+    () =>
+      [...leadsRaw]
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.createdAt || 0).getTime() -
+            new Date(a.createdAt || 0).getTime(),
+        )
+        .slice(0, 5),
     [leadsRaw],
   );
 
   // ── Recent visitors ────────────────────────────────────────────────────────
   const recentVisitors = useMemo(
-    () => [...visitorsRaw]
-      .sort((a: any, b: any) =>
-        new Date(b.checkInAt || b.createdAt || 0).getTime() -
-        new Date(a.checkInAt || a.createdAt || 0).getTime()
-      )
-      .slice(0, 5),
+    () =>
+      [...visitorsRaw]
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.checkInAt || b.createdAt || 0).getTime() -
+            new Date(a.checkInAt || a.createdAt || 0).getTime(),
+        )
+        .slice(0, 5),
     [visitorsRaw],
   );
 
@@ -279,140 +638,265 @@ const BasicDashboard = ({ onUpgradeClick, activeMembers, totalMembers, moduleMap
     return links;
   }, [moduleMap, grantedModuleIds]);
 
-  if ((showVisitors && visitorsLoading) || (showLeads && leadsLoading)) {
+  if (
+    (showWebsite && websiteLoading) ||
+    (showVisitors && visitorsLoading) ||
+    (showLeads && leadsLoading)
+  ) {
     return <PlanDashboardSkeleton plan="basic" />;
   }
 
-  const overviewCardCount = [showVisitors, showLeads, showOrg].filter(Boolean).length;
+  const hasOverviewMetrics = showVisitors || showLeads || showOrg;
 
   return (
     <div className="flex flex-col gap-5">
+      <FreeTrialOfferNotice
+        onUpgradeClick={onUpgradeClick}
+        isExpiredDowngrade={isExpiredDowngrade}
+        downgradedPlanLabel={downgradedPlanLabel}
+      />
       <WonoListingsCard />
 
-      {/* Plan strip — compact, opens the upgrade modal */}
-      <div
-        data-tour="dashboard-plan"
-        className="flex items-center gap-3 p-4 rounded-xl border-2 border-accent/30 bg-blue-50 cursor-pointer hover:bg-blue-100 transition-colors"
-        onClick={onUpgradeClick}
-      >
-        <Zap size={18} className="text-accent flex-shrink-0" />
-        <p className="text-content font-pmedium text-blue-800 min-w-0 truncate">
-          You're on the <strong>Basic Plan</strong> — Upgrade to{" "}
-          <strong>Professional Plan</strong> for Meeting Room Bookings, Ticketing, Sales Modules & more.
-        </p>
-        <span className="ml-auto flex-shrink-0 px-3 py-1 rounded-full text-[10px] font-pmedium uppercase tracking-widest border bg-accent text-white border-accent whitespace-nowrap">
-          Upgrade ↑
-        </span>
-        <ArrowRight size={14} className="text-accent flex-shrink-0" />
-      </div>
-
-      <PlanDowngradedNotice />
       <VerifiedBadgeNotice />
-      <BonusTrialOfferNotice />
+      <BonusTrialOfferNotice suppressed={isExpiredDowngrade} />
 
-      {overviewCardCount > 0 && (
-      <div data-tour="dashboard-overview">
-        <WidgetSection layout={pickCardCols(overviewCardCount)} title="Overview" border normalCase>
-          {showVisitors && <StatCard icon={Eye} label="Visitors Today" value={visitorStats.todayCount} sub={`${visitorStats.checkedIn} currently on-site`} color="#80bf01" route="/visitors/visitor-management" />}
-          {showLeads && <StatCard icon={UserPlus} label="Website Leads" value={leadStats.total} sub={`${leadStats.newLeads} awaiting follow-up`} color="#1E3D73" route="/key-apps/website-builder/leads" />}
-          {showOrg && <StatCard icon={Users} label="Active Members" value={orgStats.activeMembers} sub={`${orgStats.totalMembers} total members`} color="#0891b2" route="/core-modules/organization-management" />}
-        </WidgetSection>
+      <div data-tour="dashboard-getting-started">
+        <WorkspaceProgress
+          totalMembers={totalMembers}
+          leadCount={leadStats.total}
+          visitorCount={visitorStats.totalCount}
+          isWebsitePublished={isWebsitePublished}
+          showWebsite={showWebsite}
+          showLeads={showLeads}
+          showVisitors={showVisitors}
+          showOrg={showOrg}
+        />
       </div>
+
+      {hasOverviewMetrics && (
+        <section
+          data-tour="dashboard-overview"
+          className="rounded-[1.75rem] border border-blue-100 bg-[#F8FAFD] p-5 shadow-[0_12px_34px_rgba(30,61,115,0.06)] sm:p-6"
+        >
+          <div className="mb-5 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#1E3D73] text-white shadow-sm">
+              <Activity size={18} />
+            </div>
+            <div>
+              <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
+                Live unit
+              </p>
+              <h3 className="mt-0.5 text-lg font-pmedium text-[#1E3D73]">
+                Unit Pulse
+              </h3>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            {showVisitors && (
+              <BasicMetric
+                icon={Eye}
+                label="Visitors Today"
+                value={visitorStats.todayCount}
+                sub={`${visitorStats.checkedIn} on-site`}
+                route="/visitors/visitor-management"
+              />
+            )}
+            {showLeads && (
+              <BasicMetric
+                icon={UserPlus}
+                label="Website Leads"
+                value={leadStats.total}
+                sub={`${leadStats.newLeads} need follow-up`}
+                route="/key-apps/website-builder/leads"
+              />
+            )}
+            {showOrg && (
+              <BasicMetric
+                icon={Users}
+                label="Active Members"
+                value={orgStats.activeMembers}
+                sub={`${orgStats.totalMembers} total`}
+                route="/core-modules/organization-management"
+              />
+            )}
+          </div>
+        </section>
       )}
 
       {quickLinks.length > 0 && (
-      <div data-tour="dashboard-quick-links">
-        <WidgetSection layout={pickCardCols(quickLinks.length)} title="Quick Actions" border normalCase>
-          {quickLinks.map((ql, i) => <QuickLink key={i} {...ql} />)}
-        </WidgetSection>
-      </div>
+        <section
+          data-tour="dashboard-quick-links"
+          className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white p-5 shadow-[0_12px_34px_rgba(37,99,235,0.08)] sm:p-6"
+        >
+          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/70" />
+          <div className="relative mb-5">
+            <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
+              Jump back in
+            </p>
+            <h3 className="mt-1 text-lg font-pmedium text-[#1E3D73]">
+              Quick Actions
+            </h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Open the tools included in your unit.
+            </p>
+          </div>
+          <div className="relative grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {quickLinks.map((ql) => (
+              <BasicQuickAction key={ql.route} {...ql} />
+            ))}
+          </div>
+        </section>
       )}
 
-      {isNewWorkspace ? (
-        /* First run — one checklist beats four empty "No data yet" panels */
-        <div data-tour="dashboard-getting-started">
-          <GettingStartedCard />
-        </div>
-      ) : (
-        <>
-          {/* Leads — recent enquiries + stage breakdown */}
-          {showLeads && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Operational activity stays visible; empty states provide the next action. */}
+      <>
+        {/* Leads — recent enquiries + stage breakdown */}
+        {showLeads && (
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <div data-tour="dashboard-recent-leads">
-              <SectionCard title="Recent Leads" linkLabel="View all" linkRoute="/key-apps/website-builder/leads">
-              {recentLeads.length > 0 ? (
-                recentLeads.map((l: any, i: number) => (
-                  <RecentItem
-                    key={l._id || i}
-                    title={l.name || l.fullName || "Lead"}
-                    sub={l.email || l.phone || "—"}
-                    badge={(l.status || "Pending") === "Pending" ? "New" : l.status}
-                    badgeColor={statusBadgeColor(l.status === "Contacted" || l.status === "Closed" ? "active" : "pending")}
-                    time={humanRelTime(l.createdAt)}
+              <BasicActivityPanel
+                eyebrow="Lead activity"
+                title="Recent Leads"
+                action={
+                  <button
+                    type="button"
+                    onClick={() => navigate("/key-apps/website-builder/leads")}
+                    className="group inline-flex items-center gap-1 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB]"
+                  >
+                    View all{" "}
+                    <ArrowRight
+                      size={12}
+                      className="transition group-hover:translate-x-0.5"
+                    />
+                  </button>
+                }
+              >
+                {recentLeads.length > 0 ? (
+                  recentLeads.map((l: any, i: number) => (
+                    <RecentItem
+                      key={l._id || i}
+                      title={l.name || l.fullName || "Lead"}
+                      sub={l.email || l.phone || "—"}
+                      badge={
+                        (l.status || "Pending") === "Pending" ? "New" : l.status
+                      }
+                      badgeColor={statusBadgeColor(
+                        l.status === "Contacted" || l.status === "Closed"
+                          ? "active"
+                          : "pending",
+                      )}
+                      time={humanRelTime(l.createdAt)}
+                    />
+                  ))
+                ) : (
+                  <BasicEmptyState
+                    icon={Globe}
+                    title="Your first lead starts with your website"
+                    description="Publish a template, share the link, and new enquiries will appear here automatically."
+                    actionLabel="Open Website Builder"
+                    route="/key-apps/website-builder"
                   />
-                ))
-              ) : (
-                <div className="min-h-48 flex items-center justify-center">
-                  <p className="text-content text-gray-400 text-center">No leads yet — publish your website to start receiving leads.</p>
-                </div>
-              )}
-              </SectionCard>
+                )}
+              </BasicActivityPanel>
             </div>
 
             <div data-tour="dashboard-lead-status">
-              <DonutWidget
-                title="Lead Status"
-                series={leadDonut.series}
-                labels={leadDonut.labels}
-                colors={leadDonut.colors}
-                centerLabel="Leads"
-                emptyText="No leads yet"
-              />
+              <BasicActivityPanel eyebrow="Pipeline" title="Lead Status">
+                <div className="flex min-h-48 flex-1 items-center justify-center">
+                  {leadDonut.series.some((value) => value > 0) ? (
+                    <DonutChart
+                      centerLabel="Leads"
+                      labels={leadDonut.labels}
+                      colors={leadDonut.colors}
+                      series={leadDonut.series}
+                      tooltipValue={leadDonut.series.map(String)}
+                    />
+                  ) : (
+                    <p className="text-content text-slate-400">No leads yet</p>
+                  )}
+                </div>
+              </BasicActivityPanel>
             </div>
           </div>
-          )}
+        )}
 
-          {/* Visitors — recent activity + monthly trend (FY) */}
-          {showVisitors && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Visitors — recent activity + monthly trend (FY) */}
+        {showVisitors && (
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <div data-tour="dashboard-recent-visitors">
-              <SectionCard title="Recent Visitors" linkLabel="View all" linkRoute="/visitors/visitor-management">
-              {recentVisitors.length > 0 ? (
-                recentVisitors.map((v: any, i: number) => {
-                  const status = String(v.status || "").toLowerCase();
-                  return (
-                    <RecentItem
-                      key={v.id || i}
-                      title={v.fullName || v.visitorCode || "Visitor"}
-                      sub={v.purpose || v.visitorType || "—"}
-                      badge={status === "checked_in" ? "Checked In" : status === "checked_out" ? "Checked Out" : status === "pending" ? "Pending" : "Logged"}
-                      badgeColor={statusBadgeColor(status === "checked_in" ? "active" : status === "pending" ? "pending" : "completed")}
-                      time={humanRelTime(v.checkInAt || v.createdAt)}
+              <BasicActivityPanel
+                eyebrow="Front desk"
+                title="Recent Visitors"
+                action={
+                  <button
+                    type="button"
+                    onClick={() => navigate("/visitors/visitor-management")}
+                    className="group inline-flex items-center gap-1 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB]"
+                  >
+                    View all{" "}
+                    <ArrowRight
+                      size={12}
+                      className="transition group-hover:translate-x-0.5"
                     />
-                  );
-                })
-              ) : (
-                <div className="min-h-48 flex items-center justify-center">
-                  <p className="text-content text-gray-400 text-center">No visitors logged yet.</p>
-                </div>
-              )}
-              </SectionCard>
+                  </button>
+                }
+              >
+                {recentVisitors.length > 0 ? (
+                  recentVisitors.map((v: any, i: number) => {
+                    const status = String(v.status || "").toLowerCase();
+                    return (
+                      <RecentItem
+                        key={v.id || i}
+                        title={v.fullName || v.visitorCode || "Visitor"}
+                        sub={v.purpose || v.visitorType || "—"}
+                        badge={
+                          status === "checked_in"
+                            ? "Checked In"
+                            : status === "checked_out"
+                              ? "Checked Out"
+                              : status === "pending"
+                                ? "Pending"
+                                : "Logged"
+                        }
+                        badgeColor={statusBadgeColor(
+                          status === "checked_in"
+                            ? "active"
+                            : status === "pending"
+                              ? "pending"
+                              : "completed",
+                        )}
+                        time={humanRelTime(v.checkInAt || v.createdAt)}
+                      />
+                    );
+                  })
+                ) : (
+                  <BasicEmptyState
+                    icon={Eye}
+                    title="No visitors logged yet"
+                    description="Create the first visitor entry to start tracking front-desk activity."
+                    actionLabel="Log a Visitor"
+                    route="/visitors/visitor-management"
+                  />
+                )}
+              </BasicActivityPanel>
             </div>
 
             <div data-tour="dashboard-visitor-trend">
-              <BarWidget
-                title="Monthly Visitor Trend (FY)"
-                chartId="basic-monthly-visitors"
-                series={visitorsByMonth}
-                options={visitorBarOptions}
-                height={260}
-              />
+              <BasicActivityPanel
+                eyebrow="Fiscal year"
+                title="Monthly Visitor Trend"
+              >
+                <BarGraph
+                  chartId="basic-monthly-visitors"
+                  data={visitorsByMonth}
+                  options={visitorBarOptions}
+                  height={260}
+                />
+              </BasicActivityPanel>
             </div>
           </div>
-          )}
-        </>
-      )}
-
+        )}
+      </>
     </div>
   );
 };

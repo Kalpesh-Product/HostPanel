@@ -3,6 +3,7 @@
  * Picks the correct plan-tier dashboard and wires up the upgrade-plan modal.
  */
 import { useEffect, useMemo, useState } from "react";
+import { LayoutDashboard } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import PageFrame from "../../../components/Pages/PageFrame";
@@ -96,6 +97,13 @@ const CompanySettingsDashboard = () => {
     return Math.max(0, Math.ceil(diffMs / (24 * 60 * 60 * 1000)));
   })();
 
+  const downgradedPlanLabel =
+    String(planSummary?.purchasedPlan || "").toLowerCase() === "custom"
+      ? "Custom"
+      : String(planSummary?.purchasedPlan || "").toLowerCase() === "professional"
+        ? "Professional"
+        : "Paid";
+
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(timer);
@@ -152,6 +160,7 @@ const CompanySettingsDashboard = () => {
 
   // Only founder/super_admin see the plan-tier dashboard and the upgrade nudge.
   const isFounderOrSuperAdmin = access.roleBand === "owner" || access.roleBand === "super_admin";
+  const isBasicDashboardHome = !isCompanySettings && isFounderOrSuperAdmin && access.plan === "basic";
   const customDepartments = useMemo(
     () =>
       access.departments.filter(
@@ -180,7 +189,32 @@ const CompanySettingsDashboard = () => {
   return (
     <div className="p-4 flex flex-col gap-5">
 
-      {/* Greeting banner */}
+      {/* Basic gets a distinct dashboard masthead; other plans/routes keep the shared header. */}
+      {isBasicDashboardHome ? (
+        <section className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white p-5 shadow-[0_12px_34px_rgba(37,99,235,0.08)] sm:p-6">
+          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/70" />
+          <div className="pointer-events-none absolute -bottom-24 right-40 h-56 w-56 rounded-full bg-blue-50/70" />
+          <div className="relative">
+            <div className="flex min-w-0 items-start gap-4">
+              <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#2563EB] ring-1 ring-blue-100 sm:flex">
+                <LayoutDashboard size={21} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-[9px] font-pmedium uppercase tracking-[0.22em] text-[#2563EB]">Unit dashboard</p>
+                  <span className="rounded-full border border-blue-100 bg-white px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm">
+                    Basic Plan
+                  </span>
+                </div>
+                <h2 className="mt-2 text-xl font-pmedium text-[#1E3D73] sm:text-2xl">{greeting} 👋</h2>
+                <p className="mt-1 text-xs font-pmedium text-slate-500 sm:text-sm">
+                  {todayLabel}<WorkspaceClock timezone={workspacePreferences.timezone} location={workspacePreferences.location} />
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : (
       <PageFrame>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex flex-col gap-1">
@@ -204,6 +238,7 @@ const CompanySettingsDashboard = () => {
           </div>
         </div>
       </PageFrame>
+      )}
 
       {/* Founder/Super Admin: plan-tier dashboard. Everyone else: their own granted modules. */}
       {isFounderOrSuperAdmin ? (
@@ -211,6 +246,8 @@ const CompanySettingsDashboard = () => {
           {access.plan === "basic" && (
             <BasicDashboard
               onUpgradeClick={() => setShowUpgradeModal(true)}
+              isExpiredDowngrade={planSummary?.planStatus === "expired_downgraded"}
+              downgradedPlanLabel={downgradedPlanLabel}
               activeMembers={access.metrics.activeMembers}
               totalMembers={access.metrics.totalMembers}
               moduleMap={access.moduleMap}

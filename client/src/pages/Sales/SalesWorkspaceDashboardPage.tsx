@@ -20,7 +20,7 @@ import PageFrame from "../../components/Pages/PageFrame";
 import DashboardModuleCard from "../../components/DashboardModuleCard";
 import DonutChart from "../../components/graphs/DonutChart";
 import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
-import salesBannerImage from "../../assets/sales-dashboard-banner.png";
+import salesBannerImage from "../../assets/sales-dashboard-banner.webp";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
 import { getCafeTables } from "../../services/cafe";
 import { getPricingPackages } from "../../services/pricing-packages";
@@ -847,7 +847,7 @@ export default function SalesWorkspaceDashboardPage() {
         ) : null}
 
         {isLoading || access.isLoading ? (
-          <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 8 }, (_, key) => (
               <div
                 key={key}
@@ -856,7 +856,7 @@ export default function SalesWorkspaceDashboardPage() {
             ))}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <StatTile
               icon={<Magnet size={20} />}
               label="Total leads"
@@ -1221,14 +1221,14 @@ export default function SalesWorkspaceDashboardPage() {
                 bodyClassName=""
               >
                 {recentLeads.length ? (
-                  <div className="max-h-[430px] overflow-auto">
-                    <table className="w-full min-w-[820px] border-collapse text-left">
+                  <div className="min-h-[240px] max-h-[360px] overflow-y-auto overflow-x-hidden">
+                    <table className="w-full table-fixed border-collapse text-left">
                       <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] font-pmedium uppercase tracking-[0.06em] text-slate-500">
                         <tr>
-                          <th className="px-5 py-3">Lead</th>
-                          <th className="px-4 py-3">Contact</th>
-                          <th className="px-4 py-3">Created</th>
-                          <th className="px-5 py-3">Status</th>
+                          <th className="w-[28%] px-5 py-3">Lead</th>
+                          <th className="w-[32%] px-4 py-3">Contact</th>
+                          <th className="w-[20%] px-4 py-3">Created</th>
+                          <th className="w-[20%] px-5 py-3">Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -1241,16 +1241,16 @@ export default function SalesWorkspaceDashboardPage() {
                             }
                             className="text-[11px] font-pmedium text-slate-600 transition hover:bg-blue-50/30"
                           >
-                            <td className="px-5 py-3 text-slate-900">
+                            <td className="truncate px-5 py-3 text-slate-900">
                               {leadName(lead)}
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="truncate px-4 py-3">
                               {lead.email || lead.phone || "Not recorded"}
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="truncate px-4 py-3">
                               {dateLabel(lead.createdAt)}
                             </td>
-                            <td className="px-5 py-3">
+                            <td className="truncate px-5 py-3">
                               <span
                                 className={`rounded-md px-2 py-1 text-[9px] font-pmedium ${statusTone(lead.status)}`}
                               >
@@ -1276,15 +1276,15 @@ export default function SalesWorkspaceDashboardPage() {
                 bodyClassName=""
               >
                 {attentionTenants.length ? (
-                  <div className="max-h-[430px] overflow-auto">
-                    <table className="w-full min-w-[820px] border-collapse text-left">
+                  <div className="min-h-[240px] max-h-[360px] overflow-y-auto overflow-x-hidden">
+                    <table className="w-full table-fixed border-collapse text-left">
                       <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] font-pmedium uppercase tracking-[0.06em] text-slate-500">
                         <tr>
-                          <th className="px-5 py-3">Tenant company</th>
-                          <th className="px-4 py-3">Company code</th>
-                          <th className="px-4 py-3">Sector</th>
-                          <th className="px-4 py-3">Created</th>
-                          <th className="px-5 py-3">Status</th>
+                          <th className="w-[28%] px-5 py-3">Tenant company</th>
+                          <th className="w-[17%] px-4 py-3">Company code</th>
+                          <th className="w-[18%] px-4 py-3">Sector</th>
+                          <th className="w-[17%] px-4 py-3">Created</th>
+                          <th className="w-[20%] px-5 py-3">Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -1298,19 +1298,19 @@ export default function SalesWorkspaceDashboardPage() {
                             }
                             className="text-[11px] font-pmedium text-slate-600 transition hover:bg-blue-50/30"
                           >
-                            <td className="px-5 py-3 text-slate-900">
+                            <td className="truncate px-5 py-3 text-slate-900">
                               {tenantName(tenant)}
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="truncate px-4 py-3">
                               {tenant.companyCode || "Not recorded"}
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="truncate px-4 py-3">
                               {tenant.sector || "Not recorded"}
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="truncate px-4 py-3">
                               {dateLabel(tenant.createdAt)}
                             </td>
-                            <td className="px-5 py-3">
+                            <td className="truncate px-5 py-3">
                               <span
                                 className={`rounded-md px-2 py-1 text-[9px] font-pmedium ${statusTone(tenant.status)}`}
                               >

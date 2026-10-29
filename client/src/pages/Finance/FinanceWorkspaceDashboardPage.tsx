@@ -21,7 +21,7 @@ import DashboardModuleCard from "../../components/DashboardModuleCard";
 import DonutChart from "../../components/graphs/DonutChart";
 import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
 import PageFrame from "../../components/Pages/PageFrame";
-import financeBannerImage from "../../assets/finance-dashboard-banner.png";
+import financeBannerImage from "../../assets/finance-dashboard-banner.webp";
 import { DEFAULT_FISCAL_YEAR } from "../../features/finance/utils/fiscalYear";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
 import {
@@ -556,7 +556,7 @@ export default function FinanceWorkspaceDashboardPage() {
           </div>
         ) : null}
         {loading || access.isLoading ? (
-          <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 8 }, (_, key) => (
               <div
                 key={key}
@@ -565,7 +565,7 @@ export default function FinanceWorkspaceDashboardPage() {
             ))}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Stat
               icon={<PiggyBank size={20} />}
               label="Projected budget"

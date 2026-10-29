@@ -93,7 +93,7 @@ const WonoListingsCard = () => {
           href="https://wono.co"
           target="_blank"
           rel="noopener noreferrer"
-          className="font-bold text-accent underline underline-offset-2 hover:opacity-80"
+          className="font-bold text-[#2563EB] underline underline-offset-2 hover:opacity-80"
         >
           wono.co
         </a>{" "}
@@ -128,7 +128,7 @@ const WonoListingsCard = () => {
           href="https://wono.co"
           target="_blank"
           rel="noopener noreferrer"
-          className="font-bold text-accent underline underline-offset-2 hover:opacity-80"
+          className="font-bold text-[#2563EB] underline underline-offset-2 hover:opacity-80"
         >
           wono.co
         </a>{" "}
@@ -144,51 +144,62 @@ const WonoListingsCard = () => {
   return (
     <div
       data-tour="dashboard-wono-listings"
-      className={`flex flex-col gap-3 rounded-xl border-2 border-accent/40 bg-gradient-to-r from-blue-50 via-white to-blue-50 shadow-sm md:flex-row md:items-center ${
-        hasListings ? "p-3" : "p-4"
-      }`}
+      className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white p-5 shadow-[0_12px_34px_rgba(37,99,235,0.08)] sm:p-6"
     >
-      <div className="flex min-w-0 items-center gap-3">
-        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-accent text-white">
-          <Globe size={18} />
-        </span>
-        <p className="text-content font-pmedium text-slate-700">{message}</p>
-      </div>
-      <div className="flex flex-shrink-0 flex-wrap items-center gap-2 md:ml-auto">
-        {hasListings && isAtLimit ? (
-          <span
-            title="Upgrade your plan to get more listings on wono.co"
-            className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-full border border-slate-300 bg-slate-100 px-3.5 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-500 whitespace-nowrap"
-          >
-            Plan limit reached
+      <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/70" />
+      <button
+        type="button"
+        onClick={dismissBanner}
+        title="Dismiss"
+        aria-label="Dismiss listings banner"
+        className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full text-blue-300 transition hover:bg-white hover:text-[#2563EB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
+      >
+        <X size={15} strokeWidth={2.5} />
+      </button>
+
+      <div className="relative flex flex-col gap-5 pr-8 md:flex-row md:items-center">
+        <div className="flex min-w-0 flex-1 items-start gap-4">
+          <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#2563EB] ring-1 ring-blue-100">
+            <Globe size={21} />
           </span>
-        ) : (
-          <button
-            type="button"
-            onClick={() => navigate(LISTINGS_ROUTE)}
-            className="inline-flex items-center gap-1.5 rounded-full border border-accent bg-accent px-3.5 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-white whitespace-nowrap hover:opacity-90"
-          >
-            <Plus size={12} strokeWidth={3} /> Add Listings
-          </button>
-        )}
-        {!alreadyLinked && showVerifyCta && (
-          <button
-            type="button"
-            onClick={() => navigate(LISTINGS_ROUTE, { state: { openVerify: true } })}
-            className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-white px-3.5 py-1.5 text-[10px] font-pmedium uppercase tracking-widest text-accent whitespace-nowrap hover:bg-blue-50"
-          >
-            <Building2 size={12} strokeWidth={3} /> {verifyLabel}
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={dismissBanner}
-          title="Dismiss"
-          aria-label="Dismiss listings banner"
-          className="flex-shrink-0 p-1.5 text-accent/50 hover:text-accent hover:bg-blue-100 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-        >
-          <X size={16} strokeWidth={2.5} />
-        </button>
+          <div className="min-w-0">
+            <div className="mb-1.5 flex flex-wrap items-center gap-2">
+              <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">Wono listings</p>
+              <span className="rounded-full border border-blue-100 bg-white px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm">
+                {!hasListings ? "Get discovered" : liveCount === 0 ? "Under review" : isAtLimit ? "Plan limit" : "Live"}
+              </span>
+            </div>
+            <p className="text-sm font-pmedium leading-relaxed text-[#1E3D73] sm:text-base">{message}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-shrink-0 flex-wrap items-center gap-2 md:justify-end">
+          {hasListings && isAtLimit ? (
+            <span
+              title="Upgrade your plan to get more listings on wono.co"
+              className="inline-flex cursor-not-allowed items-center gap-1.5 whitespace-nowrap rounded-full border border-slate-200 bg-slate-100 px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-500"
+            >
+              Plan limit reached
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => navigate(LISTINGS_ROUTE)}
+              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[#2563EB] px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700"
+            >
+              <Plus size={12} strokeWidth={3} /> Add Listings
+            </button>
+          )}
+          {!alreadyLinked && showVerifyCta && (
+            <button
+              type="button"
+              onClick={() => navigate(LISTINGS_ROUTE, { state: { openVerify: true } })}
+              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-blue-200 bg-white px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] transition hover:bg-blue-50"
+            >
+              <Building2 size={12} strokeWidth={3} /> {verifyLabel}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

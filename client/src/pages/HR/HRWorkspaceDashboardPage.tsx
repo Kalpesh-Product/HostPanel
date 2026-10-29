@@ -22,7 +22,7 @@ import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
 import PageFrame from "../../components/Pages/PageFrame";
 import { DepartmentVisitorsCard } from "../Dashboard/FrontendDashboard/dashboard/DepartmentVisitorsCard";
 import { TeamLiveStatusCard } from "../Dashboard/FrontendDashboard/dashboard/TeamLiveStatusCard";
-import hrBannerImage from "../../assets/hr-dashboard-banner.png";
+import hrBannerImage from "../../assets/hr-dashboard-banner.webp";
 import { DEFAULT_FISCAL_YEAR } from "../../features/finance/utils/fiscalYear";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
 import {
@@ -834,7 +834,7 @@ export default function HRWorkspaceDashboardPage() {
           </div>
         ) : null}
         {isLoading || access.isLoading ? (
-          <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 8 }, (_, key) => (
               <div
                 key={key}
@@ -843,7 +843,7 @@ export default function HRWorkspaceDashboardPage() {
             ))}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <StatTile
               icon={<Users size={20} />}
               label="Total employees"

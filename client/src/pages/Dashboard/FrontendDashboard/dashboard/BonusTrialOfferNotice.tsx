@@ -17,7 +17,11 @@ import { Gift, ArrowRight } from "lucide-react";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import StartTrialConfirmModal from "../../../../components/StartTrialConfirmModal";
 
-const BonusTrialOfferNotice = () => {
+const BonusTrialOfferNotice = ({
+  suppressed = false,
+}: {
+  suppressed?: boolean;
+}) => {
   const axiosPrivate = useAxiosPrivate();
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
@@ -32,7 +36,7 @@ const BonusTrialOfferNotice = () => {
     refetchOnWindowFocus: true,
   });
 
-  if (!offer?.active || offer?.claimedAt) return null;
+  if (suppressed || !offer?.active || offer?.claimedAt) return null;
 
   const days = offer.durationDays;
 
@@ -43,7 +47,9 @@ const BonusTrialOfferNotice = () => {
       toast.success("Bonus trial claimed!");
       window.location.reload();
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to claim the bonus trial");
+      toast.error(
+        error?.response?.data?.message || "Failed to claim the bonus trial",
+      );
       setIsClaiming(false);
     }
   };
@@ -62,7 +68,13 @@ const BonusTrialOfferNotice = () => {
       >
         <Gift size={18} className="flex-shrink-0 text-violet-600" />
         <p className="min-w-0 text-content font-pmedium text-violet-800">
-          You've been offered <strong>{days ? `${days} extra day${days === 1 ? "" : "s"}` : "an extra trial window"}</strong> of the Professional plan — claim it before it's gone.
+          You've been offered{" "}
+          <strong>
+            {days
+              ? `${days} extra day${days === 1 ? "" : "s"}`
+              : "an extra trial window"}
+          </strong>{" "}
+          of the Professional plan — claim it before it's gone.
         </p>
         <span className="ml-auto flex-shrink-0 whitespace-nowrap rounded-full border bg-violet-600 border-violet-600 px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-white">
           Claim

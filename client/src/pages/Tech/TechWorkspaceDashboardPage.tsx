@@ -19,7 +19,7 @@ import DashboardModuleCard from "../../components/DashboardModuleCard";
 import DonutChart from "../../components/graphs/DonutChart";
 import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
 import PageFrame from "../../components/Pages/PageFrame";
-import techBannerImage from "../../assets/tech-dashboard-banner.png";
+import techBannerImage from "../../assets/tech-dashboard-banner.webp";
 import { DEFAULT_FISCAL_YEAR } from "../../features/finance/utils/fiscalYear";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
 import { getDepartmentFinanceData } from "../../services/finance";
@@ -552,7 +552,7 @@ export default function TechWorkspaceDashboardPage() {
           </div>
         ) : null}
         {loading || access.isLoading ? (
-          <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 8 }, (_, key) => (
               <div
                 key={key}
@@ -561,7 +561,7 @@ export default function TechWorkspaceDashboardPage() {
             ))}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Stat
               icon={<NotebookText size={20} />}
               label="Website leads"
@@ -700,7 +700,9 @@ export default function TechWorkspaceDashboardPage() {
         <section className="mb-6">
           <div className="mb-3 flex items-end justify-between gap-3">
             <div>
-              <h2 className="text-sm font-pmedium text-slate-900">Manage tech operations</h2>
+              <h2 className="text-sm font-pmedium text-slate-900">
+                Manage tech operations
+              </h2>
               <p className="mt-1 text-[10px] text-slate-500">
                 Open the same enabled modules available in the Tech Dashboard
                 dropdown.

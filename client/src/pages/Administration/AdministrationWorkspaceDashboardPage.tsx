@@ -21,7 +21,7 @@ import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
 import PageFrame from "../../components/Pages/PageFrame";
 import { DepartmentVisitorsCard } from "../Dashboard/FrontendDashboard/dashboard/DepartmentVisitorsCard";
 import { TeamLiveStatusCard } from "../Dashboard/FrontendDashboard/dashboard/TeamLiveStatusCard";
-import administrationBannerImage from "../../assets/administration-dashboard-banner.png";
+import administrationBannerImage from "../../assets/administration-dashboard-banner.webp";
 import { DEFAULT_FISCAL_YEAR } from "../../features/finance/utils/fiscalYear";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
 import { getStoredUser } from "../../lib/auth-session";
@@ -795,7 +795,7 @@ export default function AdministrationWorkspaceDashboardPage() {
           </div>
         ) : null}
         {isLoading || access.isLoading ? (
-          <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 8 }, (_, key) => (
               <div
                 key={key}
@@ -804,7 +804,7 @@ export default function AdministrationWorkspaceDashboardPage() {
             ))}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <StatTile
               icon={<Building2 size={20} />}
               label="Tenant companies"
