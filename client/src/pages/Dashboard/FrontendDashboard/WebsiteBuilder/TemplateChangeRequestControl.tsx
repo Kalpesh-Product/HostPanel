@@ -7,6 +7,7 @@ import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import TemplatePickerGrid, { type TemplateAvailability } from "./TemplatePickerGrid";
 import { buildDemoPreviewDraft } from "./templates/demoPreviewData";
 import { DEFAULT_TEMPLATE_ID, TEMPLATE_REGISTRY } from "./templates/templateRegistry";
+import { KIND_LABEL, kindFromVertical } from "./templates/verticalProfiles";
 
 const LIVE_PREVIEW_DRAFT_STORAGE_KEY = "website_builder_live_preview_draft";
 
@@ -24,6 +25,7 @@ type ChangeSummary = {
   websiteId: string;
   plan: "basic" | "professional" | "custom";
   currentTemplateId: string;
+  vertical?: string;
   quota: {
     period: "monthly" | "lifetime";
     limit: number;
@@ -118,6 +120,16 @@ const TemplateChangeRequestControl = ({
   const latestRequest = summary?.history?.[0] || null;
   const currentTemplateId = summary?.currentTemplateId || DEFAULT_TEMPLATE_ID;
   const quotaReached = Boolean(summary && summary.quota.remaining <= 0);
+  // The current template's own vertical is a more reliable signal than the company's stored
+  // vertical field, which companies that saved a website before the Co-Working-overwrite fix
+  // may still have stuck on the wrong value. kindFromVertical() defaults to "workspace" for
+  // ANY unrecognized input, so only trust it for a value we actually recognize — otherwise an
+  // empty/stale field would falsely claim "workspace" instead of showing no recommendation.
+  const KNOWN_VERTICALS = ["cafe", "hostel", "co-living", "workation", "meeting-rooms", "co-working"];
+  const normalizedVertical = String(summary?.vertical || "").trim().toLowerCase();
+  const recommendedKind =
+    TEMPLATE_REGISTRY[currentTemplateId]?.recommendedFor?.[0] ||
+    (KNOWN_VERTICALS.includes(normalizedVertical) ? kindFromVertical(normalizedVertical) : null);
 
   useEffect(() => {
     if (!open) return;
@@ -274,10 +286,17 @@ const TemplateChangeRequestControl = ({
                   Your plan’s template-change limit has been reached. You can still preview available templates.
                 </div>
               ) : null}
+              {recommendedKind ? (
+                <p className="text-xs text-slate-500">
+                  Showing templates for your <span className="font-semibold text-slate-700">{KIND_LABEL[recommendedKind]}</span> business —
+                  recommended ones are marked below.
+                </p>
+              ) : null}
               <TemplatePickerGrid
                 selectedId={selectedId}
                 currentId={currentTemplateId}
                 availability={summary?.templates || []}
+                recommendedKind={recommendedKind}
                 onSelect={setSelectedId}
                 onPreview={handlePreview}
               />

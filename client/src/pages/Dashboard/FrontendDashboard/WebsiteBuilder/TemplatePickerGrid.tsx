@@ -1,5 +1,6 @@
 import React from "react";
 import { DEFAULT_TEMPLATE_ID, TEMPLATE_REGISTRY } from "./templates/templateRegistry";
+import { KIND_LABEL, type ServiceKind } from "./templates/verticalProfiles";
 
 export type TemplateAvailability = {
   templateId: string;
@@ -14,6 +15,7 @@ type TemplatePickerGridProps = {
   selectedId: string;
   currentId?: string;
   availability?: TemplateAvailability[];
+  recommendedKind?: ServiceKind | null;
   onSelect: (templateId: string) => void;
   onPreview: (templateId: string) => void;
 };
@@ -22,6 +24,7 @@ const TemplatePickerGrid = ({
   selectedId,
   currentId = "",
   availability,
+  recommendedKind,
   onSelect,
   onPreview,
 }: TemplatePickerGridProps) => {
@@ -40,9 +43,11 @@ const TemplatePickerGrid = ({
       const getRank = (templateId: string) => {
         if (templateId === (currentId || DEFAULT_TEMPLATE_ID)) return 0;
         const rule = availabilityMap.get(templateId);
-        if (rule?.enabled === false) return 3;
-        if (rule?.allowedForPlan === false) return 2;
-        return 1;
+        if (rule?.enabled === false) return 4;
+        if (rule?.allowedForPlan === false) return 3;
+        const template = TEMPLATE_REGISTRY[templateId];
+        if (recommendedKind && template?.recommendedFor?.includes(recommendedKind)) return 1;
+        return 2;
       };
 
       return getRank(left.template.id) - getRank(right.template.id) || left.originalIndex - right.originalIndex;
@@ -56,6 +61,7 @@ const TemplatePickerGrid = ({
           const rule = availabilityMap.get(template.id);
           const isCurrent = template.id === (currentId || DEFAULT_TEMPLATE_ID);
           const isSelected = selectedId === template.id;
+          const isRecommended = Boolean(recommendedKind && template.recommendedFor?.includes(recommendedKind));
           const isPlanLocked = rule?.allowedForPlan === false;
           const isComingSoon = rule?.enabled === false;
           const isDisabled = isCurrent || isComingSoon || isPlanLocked;
@@ -139,6 +145,11 @@ const TemplatePickerGrid = ({
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-100" aria-label="Current template" />
                   ) : null}
                 </div>
+                {isRecommended && !isCurrent ? (
+                  <span className="w-fit rounded-full bg-emerald-600 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-wide text-white shadow-sm">
+                    Recommended for your {KIND_LABEL[recommendedKind as ServiceKind]}
+                  </span>
+                ) : null}
                 <span className="text-xs leading-5 text-slate-500">{template.description}</span>
                 {isComingSoon ? (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-amber-800">

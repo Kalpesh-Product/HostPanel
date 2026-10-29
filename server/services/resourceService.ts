@@ -323,25 +323,6 @@ export async function createResourceForOwner(workspaceId: string, ownerId: strin
     const capacity = validateResourceCapacity(resourceCategory, inventoryMode, input.capacity);
     const floor = normalizeResourceFloor(input.floor);
     const wing = normalizeResourceWing(input.wing);
-
-    // Desk inventory is meant to be one Resource block per floor+wing+category
-    // — tenant onboarding assigns seats out of that single block. Block a
-    // second block for the same location instead of splitting the inventory.
-    if (isSeatTrackedCategory(resourceCategory)) {
-        const duplicateBlock = await Resource.findOne({
-            workspaceId: new mongoose.Types.ObjectId(workspaceId),
-            floor,
-            wing,
-            resourceCategory,
-        }).lean().exec();
-        if (duplicateBlock) {
-            const label = resourceCategory === "cabin_desk" ? "cabin desk" : "open desk";
-            const location = `Floor ${floor}${wing ? ` Wing ${wing}` : ""}`;
-            const error: any = new Error(`An ${label} block already exists on ${location} — edit its capacity instead of creating a new one.`);
-            error.statusCode = 409;
-            throw error;
-        }
-    }
     const pricePerHour = typeof input.pricePerHour === "number" ? input.pricePerHour : 0;
     const bookingSpanHours = await getWorkspaceBookingSpanHours(workspaceId);
     const pricePerDay = resolveResourcePricePerDay(
