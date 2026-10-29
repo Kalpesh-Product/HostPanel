@@ -13,23 +13,35 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import WidgetSection from "../../../../components/WidgetSection";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import {
-  Building2, CalendarCheck, Ticket, Eye, UserPlus,
+  Building2,
+  CalendarCheck,
+  Ticket,
+  Eye,
+  UserPlus,
   Globe,
-  LayoutGrid, Calendar, AlertCircle, ArrowRight, Zap, Clock,
+  LayoutGrid,
+  Calendar,
+  AlertCircle,
+  ArrowRight,
+  Zap,
+  Activity,
 } from "lucide-react";
 import {
-  StatCard, QuickLink, SectionCard, RecentItem, DonutWidget, BarWidget,
+  MetricTile,
+  QuickActionTile,
+  ActivityPanel,
+  RecentItem,
+  EmptyState,
 } from "./DashboardShared";
 import type { QuickLinkItem } from "./DashboardShared";
+import DonutChart from "../../../../components/graphs/DonutChart";
+import BarGraph from "../../../../components/graphs/BarGraph";
 import WonoListingsCard from "./WonoListingsCard";
 import VerifiedBadgeNotice from "./VerifiedBadgeNotice";
-import PlanDowngradedNotice from "./PlanDowngradedNotice";
-import PlanExpiringNotice from "./PlanExpiringNotice";
 import BonusTrialOfferNotice from "./BonusTrialOfferNotice";
-import { statusBadgeColor, humanRelTime, pickCardCols, hasModuleUse } from "./dashboardUtils";
+import { statusBadgeColor, humanRelTime, hasModuleUse } from "./dashboardUtils";
 import { getStoredUser } from "../../../../lib/auth-session";
 import { getTenantCompanies } from "../../../../services/tenant-companies";
 import { getMeetingRoomBookings } from "../../../../services/meeting-room-bookings";
@@ -51,40 +63,89 @@ interface ProfessionalDashboardProps {
 // Shown instead of the four activity rows until the workspace has real data
 // in any of tenants, bookings, tickets, or visitors.
 const GETTING_STARTED_STEPS = [
-  { icon: Building2, label: "Add your first tenant", description: "Onboard a tenant company and its agreement.", route: "/department-accesses/sales-department/tenant-companies", color: "#1E3D73" },
-  { icon: CalendarCheck, label: "Book a meeting room", description: "Reserve a room and see it here.", route: "/common-modules/meeting-room-booking", color: "#2563EB" },
-  { icon: Ticket, label: "Raise a support ticket", description: "Track issues through to resolution.", route: "/common-modules/customer-support", color: "#ef4444" },
-  { icon: Eye, label: "Log your first visitor", description: "Track walk-ins and guests as they check in.", route: "/visitors/visitor-management", color: "#80bf01" },
+  {
+    icon: Building2,
+    label: "Add your first tenant",
+    description: "Onboard a tenant company and its agreement.",
+    route: "/department-accesses/sales-department/tenant-companies",
+    color: "#1E3D73",
+  },
+  {
+    icon: CalendarCheck,
+    label: "Book a meeting room",
+    description: "Reserve a room and see it here.",
+    route: "/common-modules/meeting-room-booking",
+    color: "#2563EB",
+  },
+  {
+    icon: Ticket,
+    label: "Raise a support ticket",
+    description: "Track issues through to resolution.",
+    route: "/common-modules/customer-support",
+    color: "#ef4444",
+  },
+  {
+    icon: Eye,
+    label: "Log your first visitor",
+    description: "Track walk-ins and guests as they check in.",
+    route: "/visitors/visitor-management",
+    color: "#80bf01",
+  },
 ];
 
-const GettingStartedCard = () => {
+const GettingStartedCard = ({
+  steps,
+}: {
+  steps: typeof GETTING_STARTED_STEPS;
+}) => {
   const navigate = useNavigate();
   return (
-    <div className="border-default rounded-xl overflow-hidden">
-      <div className="p-4 border-b-2 border-borderGray uppercase">
-        <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">Getting Started</span>
-      </div>
-      <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {GETTING_STARTED_STEPS.map((step, i) => (
-          <div
+    <ActivityPanel eyebrow="First steps" title="Getting Started">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {steps.map((step) => (
+          <button
+            type="button"
             key={step.route}
-            className="flex items-start gap-3 p-3 rounded-xl border border-borderGray bg-white hover:border-primary hover:shadow-md cursor-pointer transition-all duration-200"
             onClick={() => navigate(step.route)}
+            className="group flex items-start gap-3 rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg"
           >
-            <div
-              className="flex items-center justify-center h-7 w-7 rounded-full text-white text-content font-pmedium flex-shrink-0"
-              style={{ backgroundColor: step.color }}
-            >
-              {i + 1}
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB] transition group-hover:bg-[#2563EB] group-hover:text-white">
+              <step.icon size={16} />
             </div>
-            <div className="min-w-0">
-              <p className="text-content font-pmedium text-gray-900">{step.label}</p>
-              <p className="text-small text-gray-500 mt-0.5">{step.description}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-content font-pmedium text-slate-900">
+                {step.label}
+              </p>
+              <p className="mt-1 text-small leading-relaxed text-slate-500">
+                {step.description}
+              </p>
             </div>
-          </div>
+            <ArrowRight
+              size={13}
+              className="mt-1 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#2563EB]"
+            />
+          </button>
         ))}
       </div>
-    </div>
+    </ActivityPanel>
+  );
+};
+
+// Small "View all" link used in several ActivityPanel headers below.
+const ViewAllLink = ({ route }: { route: string }) => {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(route)}
+      className="group inline-flex items-center gap-1 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB]"
+    >
+      View all{" "}
+      <ArrowRight
+        size={12}
+        className="transition group-hover:translate-x-0.5"
+      />
+    </button>
   );
 };
 
@@ -100,9 +161,13 @@ const ProfessionalDashboard = ({
 
   // A card only renders when its module is both included in the plan/
   // workspace (enabled axis) AND granted to the current member (access axis).
-  const canUse = (id: string) => hasModuleUse(grantedModuleIds, enabledModuleIds, id);
+  const canUse = (id: string) =>
+    hasModuleUse(grantedModuleIds, enabledModuleIds, id);
   const canUseAny = (ids: string[]) => ids.some(canUse);
-  const showTenants = canUseAny(["tenant-companies-admin", "tenant-companies-sales"]);
+  const showTenants = canUseAny([
+    "tenant-companies-admin",
+    "tenant-companies-sales",
+  ]);
   const showBookings = canUse("meeting-room-system");
   const showTickets = canUse("tickets");
   const showVisitors = canUseAny(["visitors-management", "visitor-management"]);
@@ -114,11 +179,11 @@ const ProfessionalDashboard = ({
   const storedUser = getStoredUser();
   const dashboardWorkspaceId = String(
     storedUser?.workspaceMembership?.workspaceId ||
-    storedUser?.workspaceMembership?.workspace ||
-    storedUser?.primaryWorkspace ||
-    storedUser?.workspace?.id ||
-    storedUser?.workspaceId ||
-    "",
+      storedUser?.workspaceMembership?.workspace ||
+      storedUser?.primaryWorkspace ||
+      storedUser?.workspace?.id ||
+      storedUser?.workspaceId ||
+      "",
   );
 
   const { data: tenantsRaw = [], isLoading: tenantsLoading } = useQuery({
@@ -126,7 +191,11 @@ const ProfessionalDashboard = ({
     queryFn: async () => {
       const res = await getTenantCompanies();
       // listTenantCompanies responds with { tenants: [...] } at the top level.
-      const d = res?.data?.tenants ?? res?.data?.data?.tenants ?? res?.data?.data ?? res?.data;
+      const d =
+        res?.data?.tenants ??
+        res?.data?.data?.tenants ??
+        res?.data?.data ??
+        res?.data;
       return Array.isArray(d) ? d : [];
     },
     staleTime: 5 * 60 * 1000,
@@ -160,7 +229,9 @@ const ProfessionalDashboard = ({
     queryKey: ["dashboard-visitors-full"],
     queryFn: async () => {
       // Real endpoint is /api/v1/visitors → { data: { visitors: [...] } }.
-      const res = await axiosPrivate.get("/api/v1/visitors", { params: { limit: 200 } });
+      const res = await axiosPrivate.get("/api/v1/visitors", {
+        params: { limit: 200 },
+      });
       const d = res?.data?.data?.visitors ?? res?.data?.visitors;
       return Array.isArray(d) ? d : [];
     },
@@ -174,43 +245,69 @@ const ProfessionalDashboard = ({
     // Server derives tenant status from contract end: Active / Expiring Soon /
     // Expired / Pending Space Assignment.
     const statusOf = (t: any) => String(t.status || "").toLowerCase();
-    const active = tenantsRaw.filter((t: any) => statusOf(t) === "active").length;
-    const expiringSoon = tenantsRaw.filter((t: any) => statusOf(t).includes("expiring")).length;
-    const pending = tenantsRaw.filter((t: any) => statusOf(t).includes("pending") || statusOf(t) === "expired").length;
+    const active = tenantsRaw.filter(
+      (t: any) => statusOf(t) === "active",
+    ).length;
+    const expiringSoon = tenantsRaw.filter((t: any) =>
+      statusOf(t).includes("expiring"),
+    ).length;
+    const pending = tenantsRaw.filter(
+      (t: any) => statusOf(t).includes("pending") || statusOf(t) === "expired",
+    ).length;
     return { total: tenantsRaw.length, active, expiringSoon, pending };
   }, [tenantsRaw]);
 
   const bookingStats = useMemo(() => {
     const today = dayjs().format("YYYY-MM-DD");
     const now = Date.now();
-    const todayBookings = bookingsRaw.filter((b: any) => String(b.date || b.startDate || b.createdAt || "").startsWith(today));
+    const todayBookings = bookingsRaw.filter((b: any) =>
+      String(b.date || b.startDate || b.createdAt || "").startsWith(today),
+    );
     const statusOf = (b: any) => String(b.status || "").toLowerCase();
-    const cancelled = bookingsRaw.filter((b: any) => statusOf(b) === "cancelled").length;
+    const cancelled = bookingsRaw.filter(
+      (b: any) => statusOf(b) === "cancelled",
+    ).length;
     // A confirmed booking whose end time has passed counts as completed.
     const isCompleted = (b: any) =>
       statusOf(b) === "completed" ||
       (statusOf(b) !== "cancelled" && b.end && new Date(b.end).getTime() < now);
     const completed = bookingsRaw.filter(isCompleted).length;
-    const confirmed = bookingsRaw.filter((b: any) => statusOf(b) === "confirmed" && !isCompleted(b)).length;
-    return { total: bookingsRaw.length, todayCount: todayBookings.length, confirmed, cancelled, completed };
+    const confirmed = bookingsRaw.filter(
+      (b: any) => statusOf(b) === "confirmed" && !isCompleted(b),
+    ).length;
+    return {
+      total: bookingsRaw.length,
+      todayCount: todayBookings.length,
+      confirmed,
+      cancelled,
+      completed,
+    };
   }, [bookingsRaw]);
 
   const ticketStats = useMemo(() => {
-    const open = ticketsRaw.filter((t: any) => ["open", "Open"].includes(t.status)).length;
-    const resolved = ticketsRaw.filter((t: any) => ["resolved", "Resolved", "closed", "Closed"].includes(t.status)).length;
-    const inProgress = ticketsRaw.filter((t: any) => ["in_progress", "In Progress"].includes(t.status)).length;
+    const open = ticketsRaw.filter((t: any) =>
+      ["open", "Open"].includes(t.status),
+    ).length;
+    const resolved = ticketsRaw.filter((t: any) =>
+      ["resolved", "Resolved", "closed", "Closed"].includes(t.status),
+    ).length;
+    const inProgress = ticketsRaw.filter((t: any) =>
+      ["in_progress", "In Progress"].includes(t.status),
+    ).length;
     return { total: ticketsRaw.length, open, resolved, inProgress };
   }, [ticketsRaw]);
 
   const visitorStats = useMemo(() => {
     const todayStr = dayjs().format("YYYY-MM-DD");
     const todayCount = visitorsRaw.filter((v: any) =>
-      String(v.checkInAt || v.createdAt || "").startsWith(todayStr)
+      String(v.checkInAt || v.createdAt || "").startsWith(todayStr),
     ).length;
     // Visitor status is stored as checked_in / checked_out; a live visitor has
     // a check-in without a check-out.
-    const checkedIn = visitorsRaw.filter((v: any) =>
-      String(v.status || "").toLowerCase() === "checked_in" || (v.checkInAt && !v.checkOutAt)
+    const checkedIn = visitorsRaw.filter(
+      (v: any) =>
+        String(v.status || "").toLowerCase() === "checked_in" ||
+        (v.checkInAt && !v.checkOutAt),
     ).length;
     return { todayCount, checkedIn };
   }, [visitorsRaw]);
@@ -258,7 +355,12 @@ const ProfessionalDashboard = ({
       if (!isNaN(joinedAt.getTime())) joined[(joinedAt.getMonth() + 9) % 12]++;
 
       const renewedAt = new Date(
-        tenant.renewedAt || tenant.renewalDate || tenant.contractStartAt || tenant.contractStart || tenant.agreementDetails?.startDate || ""
+        tenant.renewedAt ||
+          tenant.renewalDate ||
+          tenant.contractStartAt ||
+          tenant.contractStart ||
+          tenant.agreementDetails?.startDate ||
+          "",
       );
       // Contract renewal resets contractStart, while the original createdAt remains unchanged.
       if (
@@ -279,7 +381,22 @@ const ProfessionalDashboard = ({
   const bookingBarOptions = {
     chart: { toolbar: { show: false }, fontFamily: "Poppins-Regular" },
     colors: ["#1E3D73"],
-    xaxis: { categories: ["Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"] },
+    xaxis: {
+      categories: [
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+        "Jan",
+        "Feb",
+        "Mar",
+      ],
+    },
     plotOptions: { bar: { borderRadius: 4, columnWidth: "55%" } },
     dataLabels: { enabled: false },
     grid: { borderColor: "#f0f0f0" },
@@ -303,7 +420,11 @@ const ProfessionalDashboard = ({
     colors: ["#1E3D73", "#80bf01", "#f59e0b"],
   };
   const bookingDonut = {
-    series: [bookingStats.confirmed, bookingStats.completed, bookingStats.cancelled],
+    series: [
+      bookingStats.confirmed,
+      bookingStats.completed,
+      bookingStats.cancelled,
+    ],
     labels: ["Confirmed", "Completed", "Cancelled"],
     colors: ["#1E3D73", "#22c55e", "#ef4444"],
   };
@@ -314,22 +435,55 @@ const ProfessionalDashboard = ({
   };
 
   // Recent items
-  const recentBookings = useMemo(() =>
-    [...bookingsRaw].sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 5),
-    [bookingsRaw]);
-  const recentTickets = useMemo(() =>
-    [...ticketsRaw].sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 5),
-    [ticketsRaw]);
-  const recentTenants = useMemo(() =>
-    [...tenantsRaw].sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 6),
-    [tenantsRaw]);
-  const recentVisitors = useMemo(() =>
-    [...visitorsRaw].sort((a: any, b: any) => new Date(b.checkInAt || b.createdAt || 0).getTime() - new Date(a.checkInAt || a.createdAt || 0).getTime()).slice(0, 5),
-    [visitorsRaw]);
+  const recentBookings = useMemo(
+    () =>
+      [...bookingsRaw]
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.createdAt || 0).getTime() -
+            new Date(a.createdAt || 0).getTime(),
+        )
+        .slice(0, 5),
+    [bookingsRaw],
+  );
+  const recentTickets = useMemo(
+    () =>
+      [...ticketsRaw]
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.createdAt || 0).getTime() -
+            new Date(a.createdAt || 0).getTime(),
+        )
+        .slice(0, 5),
+    [ticketsRaw],
+  );
+  const recentTenants = useMemo(
+    () =>
+      [...tenantsRaw]
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.createdAt || 0).getTime() -
+            new Date(a.createdAt || 0).getTime(),
+        )
+        .slice(0, 6),
+    [tenantsRaw],
+  );
+  const recentVisitors = useMemo(
+    () =>
+      [...visitorsRaw]
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.checkInAt || b.createdAt || 0).getTime() -
+            new Date(a.checkInAt || a.createdAt || 0).getTime(),
+        )
+        .slice(0, 5),
+    [visitorsRaw],
+  );
 
   // Visitor types come from the VisitorLog enum: standard / department / tenant.
   const visitorDonut = useMemo(() => {
-    const typeOf = (v: any) => String(v.visitorType || "standard").toLowerCase();
+    const typeOf = (v: any) =>
+      String(v.visitorType || "standard").toLowerCase();
     return {
       series: [
         visitorsRaw.filter((v: any) => typeOf(v) === "standard").length,
@@ -342,211 +496,551 @@ const ProfessionalDashboard = ({
   }, [visitorsRaw]);
 
   const prettifyVisitorStatus = (status: string) =>
-    String(status || "Pending").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    String(status || "Pending")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
 
   // Quick links — the Professional-tier essentials. Nomad listings is a
   // niche side feature, not core to what this plan unlocks, so it's left
   // off the dashboard (still reachable from the sidebar).
   const quickLinks: QuickLinkItem[] = [
-    ...(showTenants ? [{ icon: Building2, label: "Tenant Companies", description: "Manage tenants & agreements", route: "/department-accesses/sales-department/tenant-companies", color: "#1E3D73" }] : []),
-    ...(showBookings ? [{ icon: CalendarCheck, label: "Meeting Rooms", description: "View & manage bookings", route: "/common-modules/meeting-room-booking", color: "#2563EB" }] : []),
-    ...(showTickets ? [{ icon: Ticket, label: "Customer Support", description: "Handle open tickets", route: "/common-modules/customer-support", color: "#ef4444" }] : []),
-    ...(showVisitors ? [{ icon: UserPlus, label: "Visitor Management", description: "Check-in / check-out", route: "/visitors/visitor-management", color: "#80bf01" }] : []),
-    ...(showWebsite ? [{ icon: Globe, label: "Website Builder", description: "Build & manage your site", route: "/key-apps/website-builder", color: "#7c3aed" }] : []),
-    ...(showOrg ? [{ icon: LayoutGrid, label: "Organization", description: "Departments & members", route: "/core-modules/organization-management", color: "#0891b2" }] : []),
-    ...(showCalendar ? [{ icon: Calendar, label: "Calendar", description: "View events & schedules", route: "/common-modules/calendar", color: "#059669" }] : []),
+    ...(showTenants
+      ? [
+          {
+            icon: Building2,
+            label: "Tenant Companies",
+            description: "Manage tenants & agreements",
+            route: "/department-accesses/sales-department/tenant-companies",
+            color: "#1E3D73",
+          },
+        ]
+      : []),
+    ...(showBookings
+      ? [
+          {
+            icon: CalendarCheck,
+            label: "Meeting Rooms",
+            description: "View & manage bookings",
+            route: "/common-modules/meeting-room-booking",
+            color: "#2563EB",
+          },
+        ]
+      : []),
+    ...(showTickets
+      ? [
+          {
+            icon: Ticket,
+            label: "Customer Support",
+            description: "Handle open tickets",
+            route: "/common-modules/customer-support",
+            color: "#ef4444",
+          },
+        ]
+      : []),
+    ...(showVisitors
+      ? [
+          {
+            icon: UserPlus,
+            label: "Visitor Management",
+            description: "Check-in / check-out",
+            route: "/visitors/visitor-management",
+            color: "#80bf01",
+          },
+        ]
+      : []),
+    ...(showWebsite
+      ? [
+          {
+            icon: Globe,
+            label: "Website Builder",
+            description: "Build & manage your site",
+            route: "/key-apps/website-builder",
+            color: "#7c3aed",
+          },
+        ]
+      : []),
+    ...(showOrg
+      ? [
+          {
+            icon: LayoutGrid,
+            label: "Organization",
+            description: "Departments & members",
+            route: "/core-modules/organization-management",
+            color: "#0891b2",
+          },
+        ]
+      : []),
+    ...(showCalendar
+      ? [
+          {
+            icon: Calendar,
+            label: "Calendar",
+            description: "View events & schedules",
+            route: "/common-modules/calendar",
+            color: "#059669",
+          },
+        ]
+      : []),
   ];
+
+  const gettingStartedSteps = GETTING_STARTED_STEPS.filter((step) => {
+    if (step.route.includes("tenant-companies")) return showTenants;
+    if (step.route.includes("meeting-room-booking")) return showBookings;
+    if (step.route.includes("customer-support")) return showTickets;
+    if (step.route.includes("visitor-management")) return showVisitors;
+    return false;
+  });
 
   // Nothing logged yet anywhere — show a getting-started checklist instead
   // of four empty "no data" rows.
   const isNewWorkspace =
-    tenantsRaw.length === 0 && bookingsRaw.length === 0 &&
-    ticketsRaw.length === 0 && visitorsRaw.length === 0;
+    tenantsRaw.length === 0 &&
+    bookingsRaw.length === 0 &&
+    ticketsRaw.length === 0 &&
+    visitorsRaw.length === 0;
 
-  if ((showTenants && tenantsLoading) || (showBookings && bookingsLoading) || (showTickets && ticketsLoading) || (showVisitors && visitorsLoading)) {
+  if (
+    (showTenants && tenantsLoading) ||
+    (showBookings && bookingsLoading) ||
+    (showTickets && ticketsLoading) ||
+    (showVisitors && visitorsLoading)
+  ) {
     return <PlanDashboardSkeleton plan="professional" />;
   }
 
-  const overviewCardCount = [showTenants, showBookings, showTickets, showVisitors].filter(Boolean).length;
+  const overviewCardCount = [
+    showTenants,
+    showBookings,
+    showTickets,
+    showVisitors,
+  ].filter(Boolean).length;
+  const trendCardCount = [showBookings, showTickets, showTenants].filter(
+    Boolean,
+  ).length;
+  const trendGridClass =
+    trendCardCount <= 1
+      ? "grid-cols-1"
+      : trendCardCount === 2
+        ? "grid-cols-1 lg:grid-cols-2"
+        : "grid-cols-1 lg:grid-cols-2 xl:grid-cols-3";
+  const showCustomUpgradeNudge = trialDaysLeft == null && !isTrialExpiringSoon;
 
   return (
     <div className="flex flex-col gap-5">
-      <WonoListingsCard />
-
       {/* Upgrade nudge — opens modal for Custom plan */}
-      <div
-        data-tour="professional-plan"
-        className="flex items-center gap-3 p-4 rounded-xl border-2 border-accent/30 bg-blue-50 cursor-pointer hover:bg-blue-100 transition-colors"
-        onClick={onUpgradeClick}
-      >
-        <Zap size={18} className="text-accent flex-shrink-0" />
-        <p className="text-content font-pmedium text-blue-800 min-w-0 truncate">
-          You're on the <strong>Professional Plan</strong> — Upgrade to{" "}
-          <strong>Custom Plan</strong> for Finance, HR, AI tools, Maintenance, IT & More.
-        </p>
-        <span className="ml-auto flex-shrink-0 px-3 py-1 rounded-full text-[10px] font-pmedium uppercase tracking-widest border bg-accent text-white border-accent whitespace-nowrap">
-          Upgrade ↑
-        </span>
-        <ArrowRight size={14} className="text-accent flex-shrink-0" />
-      </div>
-
-      {trialDaysLeft != null && (
-        <a
-          href="/profile/plan-billing"
-          data-tour="professional-trial"
-          className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-colors ${
-            isTrialExpiringSoon
-              ? "border-amber-400/40 bg-amber-50 hover:bg-amber-100"
-              : "border-accent/30 bg-blue-50 hover:bg-blue-100"
-          }`}
+      {showCustomUpgradeNudge && (
+        <button
+          type="button"
+          data-tour="professional-plan"
+          className="flex w-full flex-wrap items-center gap-3 rounded-xl border-2 border-accent/30 bg-blue-50 p-4 text-left transition-colors hover:bg-blue-100 sm:flex-nowrap"
+          onClick={onUpgradeClick}
         >
-          <Clock size={18} className={isTrialExpiringSoon ? "text-amber-600 flex-shrink-0" : "text-accent flex-shrink-0"} />
-          <p className={`text-content font-pmedium min-w-0 truncate ${isTrialExpiringSoon ? "text-amber-800" : "text-blue-800"}`}>
-            {trialDaysLeft} day{trialDaysLeft === 1 ? "" : "s"} left in your free trial — renew to keep the{" "}
-            <strong>Professional Plan</strong>.
+          <Zap size={18} className="flex-shrink-0 text-accent" />
+          <p className="min-w-0 flex-1 text-content font-pmedium text-blue-800">
+            You're on the <strong>Professional Plan</strong> — upgrade to the{" "}
+            <strong>Custom Plan</strong> for Finance, HR, AI tools, Maintenance,
+            IT and more.
           </p>
-          <span
-            className={`ml-auto flex-shrink-0 px-3 py-1 rounded-full text-[10px] font-pmedium uppercase tracking-widest border whitespace-nowrap ${
-              isTrialExpiringSoon ? "bg-amber-500 text-white border-amber-500" : "bg-accent text-white border-accent"
-            }`}
-          >
-            Renew Now
+          <span className="ml-7 flex-shrink-0 whitespace-nowrap rounded-full border border-accent bg-accent px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-white sm:ml-auto">
+            Upgrade
           </span>
-          <ArrowRight size={14} className={isTrialExpiringSoon ? "text-amber-600 flex-shrink-0" : "text-accent flex-shrink-0"} />
-        </a>
+          <ArrowRight size={14} className="flex-shrink-0 text-accent" />
+        </button>
       )}
 
-      <PlanDowngradedNotice />
-      <PlanExpiringNotice />
+      <WonoListingsCard />
       <VerifiedBadgeNotice />
       <BonusTrialOfferNotice />
 
       {overviewCardCount > 0 && (
-      <div data-tour="professional-overview">
-        <WidgetSection layout={pickCardCols(overviewCardCount)} title="Overview" border normalCase>
-          {showTenants && <StatCard icon={Building2} label="Total Tenants" value={tenantStats.total} sub={`${tenantStats.active} active`} color="#1E3D73" route="/department-accesses/sales-department/tenant-companies" />}
-          {showBookings && <StatCard icon={CalendarCheck} label="Bookings Today" value={bookingStats.todayCount} sub={`${bookingStats.confirmed} confirmed overall`} color="#2563EB" route="/common-modules/meeting-room-booking" />}
-          {showTickets && <StatCard icon={Ticket} label="Open Tickets" value={ticketStats.open} sub={`${ticketStats.inProgress} in progress`} color="#ef4444" route="/common-modules/customer-support" />}
-          {showVisitors && <StatCard icon={Eye} label="Visitors Today" value={visitorStats.todayCount} sub={`${visitorStats.checkedIn} checked in`} color="#80bf01" route="/visitors/visitor-management" />}
-        </WidgetSection>
-      </div>
+        <section
+          data-tour="professional-overview"
+          className="rounded-[1.75rem] border border-blue-100 bg-[#F8FAFD] p-5 shadow-[0_12px_34px_rgba(30,61,115,0.06)] sm:p-6"
+        >
+          <div className="mb-5 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#1E3D73] text-white shadow-sm">
+              <Activity size={18} />
+            </div>
+            <div>
+              <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
+                Live unit
+              </p>
+              <h3 className="mt-0.5 text-lg font-pmedium text-[#1E3D73]">
+                Unit Pulse
+              </h3>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {showTenants && (
+              <MetricTile
+                icon={Building2}
+                label="Total Tenants"
+                value={tenantStats.total}
+                sub={`${tenantStats.active} active`}
+                color="#1E3D73"
+                route="/department-accesses/sales-department/tenant-companies"
+              />
+            )}
+            {showBookings && (
+              <MetricTile
+                icon={CalendarCheck}
+                label="Bookings Today"
+                value={bookingStats.todayCount}
+                sub={`${bookingStats.confirmed} confirmed overall`}
+                color="#2563EB"
+                route="/common-modules/meeting-room-booking"
+              />
+            )}
+            {showTickets && (
+              <MetricTile
+                icon={Ticket}
+                label="Open Tickets"
+                value={ticketStats.open}
+                sub={`${ticketStats.inProgress} in progress`}
+                color="#ef4444"
+                route="/common-modules/customer-support"
+              />
+            )}
+            {showVisitors && (
+              <MetricTile
+                icon={Eye}
+                label="Visitors Today"
+                value={visitorStats.todayCount}
+                sub={`${visitorStats.checkedIn} checked in`}
+                color="#80bf01"
+                route="/visitors/visitor-management"
+              />
+            )}
+          </div>
+        </section>
       )}
 
       {/* Quick links */}
-      <div data-tour="professional-quick-links">
-        <WidgetSection layout={4} title="Quick Links" border normalCase>
-          {quickLinks.map((ql, i) => <QuickLink key={i} {...ql} />)}
-        </WidgetSection>
-      </div>
+      {quickLinks.length > 0 && (
+        <section
+          data-tour="professional-quick-links"
+          className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white p-5 shadow-[0_12px_34px_rgba(37,99,235,0.08)] sm:p-6"
+        >
+          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/70" />
+          <div className="relative mb-5">
+            <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
+              Jump back in
+            </p>
+            <h3 className="mt-1 text-lg font-pmedium text-[#1E3D73]">
+              Quick Actions
+            </h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Open the tools included in your unit.
+            </p>
+          </div>
+          <div className="relative grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {quickLinks.map((ql) => (
+              <QuickActionTile key={ql.route} {...ql} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {isNewWorkspace ? (
         /* First run — one checklist beats four empty activity rows */
         <div data-tour="professional-getting-started">
-          <GettingStartedCard />
+          <GettingStartedCard steps={gettingStartedSteps} />
         </div>
       ) : (
         <>
           {/* Recent visitors and visitor type */}
           {showVisitors && (
-          <div data-tour="professional-visitors" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <SectionCard title="Recent Visitors" linkLabel="View all" linkRoute="/visitors/visitor-management">
-              {recentVisitors.length > 0 ? recentVisitors.map((v: any, i: number) => (
-                <RecentItem
-                  key={i}
-                  title={v.fullName || v.firstName || "Visitor"}
-                  sub={v.purpose || v.company || "Visit"}
-                  badge={prettifyVisitorStatus(v.status)}
-                  badgeColor={statusBadgeColor(v.status || "")}
-                  time={humanRelTime(v.checkInAt || v.createdAt)}
-                />
-              )) : <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No recent visitors</p></div>}
-            </SectionCard>
-            <DonutWidget title="Visitor Type" series={visitorDonut.series} labels={visitorDonut.labels} colors={visitorDonut.colors} centerLabel="Visitors" />
-          </div>
+            <div
+              data-tour="professional-visitors"
+              className="grid grid-cols-1 lg:grid-cols-2 gap-5"
+            >
+              <ActivityPanel
+                eyebrow="Front desk"
+                title="Recent Visitors"
+                action={<ViewAllLink route="/visitors/visitor-management" />}
+              >
+                {recentVisitors.length > 0 ? (
+                  recentVisitors.map((v: any, i: number) => (
+                    <RecentItem
+                      key={i}
+                      title={v.fullName || v.firstName || "Visitor"}
+                      sub={v.purpose || v.company || "Visit"}
+                      badge={prettifyVisitorStatus(v.status)}
+                      badgeColor={statusBadgeColor(v.status || "")}
+                      time={humanRelTime(v.checkInAt || v.createdAt)}
+                    />
+                  ))
+                ) : (
+                  <EmptyState
+                    icon={Eye}
+                    title="No visitors logged yet"
+                    description="Visitor check-ins will show up here as your front desk logs them."
+                    actionLabel="Log a Visitor"
+                    route="/visitors/visitor-management"
+                  />
+                )}
+              </ActivityPanel>
+              <ActivityPanel eyebrow="Breakdown" title="Visitor Type">
+                <div className="flex min-h-48 flex-1 items-center justify-center">
+                  {visitorDonut.series.some((v) => v > 0) ? (
+                    <DonutChart
+                      centerLabel="Visitors"
+                      labels={visitorDonut.labels}
+                      colors={visitorDonut.colors}
+                      series={visitorDonut.series}
+                      tooltipValue={visitorDonut.series.map(String)}
+                    />
+                  ) : (
+                    <p className="text-content text-slate-400">No data yet</p>
+                  )}
+                </div>
+              </ActivityPanel>
+            </div>
           )}
 
           {/* Recent bookings and booking status */}
           {showBookings && (
-          <div data-tour="professional-bookings" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <SectionCard title="Recent Bookings" linkLabel="View all" linkRoute="/common-modules/meeting-room-booking">
-              {recentBookings.length > 0 ? recentBookings.map((b: any, i: number) => (
-                <RecentItem key={i} title={b.bookedByName || b.clientName || "Guest"} sub={b.roomName || b.resourceName || "Meeting Room"} badge={b.status || "Pending"} badgeColor={statusBadgeColor(b.status || "")} time={humanRelTime(b.createdAt)} />
-              )) : <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No recent bookings</p></div>}
-            </SectionCard>
-            <DonutWidget title="Booking Status" series={bookingDonut.series} labels={bookingDonut.labels} colors={bookingDonut.colors} centerLabel="Bookings" />
-          </div>
+            <div
+              data-tour="professional-bookings"
+              className="grid grid-cols-1 lg:grid-cols-2 gap-5"
+            >
+              <ActivityPanel
+                eyebrow="Meeting rooms"
+                title="Recent Bookings"
+                action={
+                  <ViewAllLink route="/common-modules/meeting-room-booking" />
+                }
+              >
+                {recentBookings.length > 0 ? (
+                  recentBookings.map((b: any, i: number) => (
+                    <RecentItem
+                      key={i}
+                      title={b.bookedByName || b.clientName || "Guest"}
+                      sub={b.roomName || b.resourceName || "Meeting Room"}
+                      badge={b.status || "Pending"}
+                      badgeColor={statusBadgeColor(b.status || "")}
+                      time={humanRelTime(b.createdAt)}
+                    />
+                  ))
+                ) : (
+                  <EmptyState
+                    icon={CalendarCheck}
+                    title="No bookings yet"
+                    description="Reserve a meeting room to see it here."
+                    actionLabel="Book a Room"
+                    route="/common-modules/meeting-room-booking"
+                  />
+                )}
+              </ActivityPanel>
+              <ActivityPanel eyebrow="Breakdown" title="Booking Status">
+                <div className="flex min-h-48 flex-1 items-center justify-center">
+                  {bookingDonut.series.some((v) => v > 0) ? (
+                    <DonutChart
+                      centerLabel="Bookings"
+                      labels={bookingDonut.labels}
+                      colors={bookingDonut.colors}
+                      series={bookingDonut.series}
+                      tooltipValue={bookingDonut.series.map(String)}
+                    />
+                  ) : (
+                    <p className="text-content text-slate-400">No data yet</p>
+                  )}
+                </div>
+              </ActivityPanel>
+            </div>
           )}
 
           {/* Recent tickets and ticket status */}
           {showTickets && (
-          <div data-tour="professional-tickets" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <SectionCard title="Recent Tickets" linkLabel="View all" linkRoute="/common-modules/customer-support">
-              {recentTickets.length > 0 ? recentTickets.map((t: any, i: number) => (
-                <RecentItem key={i} title={t.title || t.subject || `Ticket #${i + 1}`} sub={t.category || t.issueType || "Support"} badge={t.status || "Open"} badgeColor={statusBadgeColor(t.status || "")} time={humanRelTime(t.createdAt)} />
-              )) : <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No recent tickets</p></div>}
-            </SectionCard>
-            <DonutWidget title="Ticket Status" series={ticketDonut.series} labels={ticketDonut.labels} colors={ticketDonut.colors} centerLabel="Tickets" />
-          </div>
+            <div
+              data-tour="professional-tickets"
+              className="grid grid-cols-1 lg:grid-cols-2 gap-5"
+            >
+              <ActivityPanel
+                eyebrow="Support"
+                title="Recent Tickets"
+                action={
+                  <ViewAllLink route="/common-modules/customer-support" />
+                }
+              >
+                {recentTickets.length > 0 ? (
+                  recentTickets.map((t: any, i: number) => (
+                    <RecentItem
+                      key={i}
+                      title={t.title || t.subject || `Ticket #${i + 1}`}
+                      sub={t.category || t.issueType || "Support"}
+                      badge={t.status || "Open"}
+                      badgeColor={statusBadgeColor(t.status || "")}
+                      time={humanRelTime(t.createdAt)}
+                    />
+                  ))
+                ) : (
+                  <EmptyState
+                    icon={Ticket}
+                    title="No tickets yet"
+                    description="Support tickets will appear here as they're raised."
+                    actionLabel="Raise a Ticket"
+                    route="/common-modules/customer-support"
+                  />
+                )}
+              </ActivityPanel>
+              <ActivityPanel eyebrow="Breakdown" title="Ticket Status">
+                <div className="flex min-h-48 flex-1 items-center justify-center">
+                  {ticketDonut.series.some((v) => v > 0) ? (
+                    <DonutChart
+                      centerLabel="Tickets"
+                      labels={ticketDonut.labels}
+                      colors={ticketDonut.colors}
+                      series={ticketDonut.series}
+                      tooltipValue={ticketDonut.series.map(String)}
+                    />
+                  ) : (
+                    <p className="text-content text-slate-400">No data yet</p>
+                  )}
+                </div>
+              </ActivityPanel>
+            </div>
           )}
 
           {/* Recent tenants and tenant status */}
           {showTenants && (
-          <div data-tour="professional-tenants" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <SectionCard title="Recent Tenants" linkLabel="View all" linkRoute="/department-accesses/sales-department/tenant-companies">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {recentTenants.length > 0 ? recentTenants.map((t: any, i: number) => (
-                  <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-200">
-                    <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white font-pbold text-content flex-shrink-0">
-                      {(t.companyName || t.name || "T").charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-content font-pmedium text-gray-900 truncate">{t.companyName || t.name || "Tenant"}</p>
-                      <p className="text-small text-gray-500 truncate">{t.companyCode || t.sector || "—"}</p>
-                    </div>
-                    <span className={`ml-auto flex-shrink-0 px-2 py-0.5 rounded-md text-[9px] font-black uppercase border ${statusBadgeColor(t.status || "")}`}>
-                      {t.status || "—"}
-                    </span>
+            <div
+              data-tour="professional-tenants"
+              className="grid grid-cols-1 lg:grid-cols-2 gap-5"
+            >
+              <ActivityPanel
+                eyebrow="Sales"
+                title="Recent Tenants"
+                action={
+                  <ViewAllLink route="/department-accesses/sales-department/tenant-companies" />
+                }
+              >
+                {recentTenants.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {recentTenants.map((t: any, i: number) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100"
+                      >
+                        <div className="w-9 h-9 rounded-full bg-[#1E3D73] flex items-center justify-center text-white font-pbold text-content flex-shrink-0">
+                          {(t.companyName || t.name || "T")
+                            .charAt(0)
+                            .toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-content font-pmedium text-gray-900 truncate">
+                            {t.companyName || t.name || "Tenant"}
+                          </p>
+                          <p className="text-small text-gray-500 truncate">
+                            {t.companyCode || t.sector || "—"}
+                          </p>
+                        </div>
+                        <span
+                          className={`ml-auto flex-shrink-0 px-2 py-0.5 rounded-md text-[9px] font-black uppercase border ${statusBadgeColor(t.status || "")}`}
+                        >
+                          {t.status || "—"}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                )) : <div className="col-span-2 min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No tenant data</p></div>}
-              </div>
-            </SectionCard>
-            <DonutWidget title="Tenant Status" series={tenantDonut.series} labels={tenantDonut.labels} colors={tenantDonut.colors} centerLabel="Tenants" />
-          </div>
+                ) : (
+                  <EmptyState
+                    icon={Building2}
+                    title="No tenants yet"
+                    description="Onboard your first tenant company to see it here."
+                    actionLabel="Add a Tenant"
+                    route="/department-accesses/sales-department/tenant-companies"
+                  />
+                )}
+              </ActivityPanel>
+              <ActivityPanel eyebrow="Breakdown" title="Tenant Status">
+                <div className="flex min-h-48 flex-1 items-center justify-center">
+                  {tenantDonut.series.some((v) => v > 0) ? (
+                    <DonutChart
+                      centerLabel="Tenants"
+                      labels={tenantDonut.labels}
+                      colors={tenantDonut.colors}
+                      series={tenantDonut.series}
+                      tooltipValue={tenantDonut.series.map(String)}
+                    />
+                  ) : (
+                    <p className="text-content text-slate-400">No data yet</p>
+                  )}
+                </div>
+              </ActivityPanel>
+            </div>
           )}
 
           {/* Expiry alert */}
           {showTenants && tenantStats.expiringSoon > 0 && (
-            <div data-tour="professional-expiry-alert" className="flex items-center gap-3 p-4 rounded-xl border-2 border-amber-300 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors" onClick={() => navigate("/department-accesses/sales-department/tenant-companies")}>
+            <div
+              data-tour="professional-expiry-alert"
+              className="flex items-center gap-3 p-4 rounded-xl border-2 border-amber-300 bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors"
+              onClick={() =>
+                navigate(
+                  "/department-accesses/sales-department/tenant-companies",
+                )
+              }
+            >
               <AlertCircle size={20} className="text-amber-600 flex-shrink-0" />
               <div>
-                <p className="text-content font-pmedium text-amber-800">{tenantStats.expiringSoon} tenant agreement{tenantStats.expiringSoon > 1 ? "s" : ""} expiring within 30 days</p>
-                <p className="text-small text-amber-600">Review and renew before they lapse.</p>
+                <p className="text-content font-pmedium text-amber-800">
+                  {tenantStats.expiringSoon} tenant agreement
+                  {tenantStats.expiringSoon > 1 ? "s" : ""} expiring within 30
+                  days
+                </p>
+                <p className="text-small text-amber-600">
+                  Review and renew before they lapse.
+                </p>
               </div>
-              <ArrowRight size={14} className="ml-auto text-amber-600 flex-shrink-0" />
+              <ArrowRight
+                size={14}
+                className="ml-auto text-amber-600 flex-shrink-0"
+              />
             </div>
           )}
 
           {/* Monthly operational trends — side by side instead of stacked full-width */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className={`grid gap-5 ${trendGridClass}`}>
             {showBookings && (
-            <div data-tour="professional-booking-trend">
-              <BarWidget title="Monthly Bookings (FY)" chartId="pro-monthly-bookings" series={bookingsByMonth} options={bookingBarOptions} height={220} />
-            </div>
+              <div data-tour="professional-booking-trend">
+                <ActivityPanel eyebrow="Fiscal year" title="Monthly Bookings">
+                  <BarGraph
+                    chartId="pro-monthly-bookings"
+                    data={bookingsByMonth}
+                    options={bookingBarOptions}
+                    height={220}
+                  />
+                </ActivityPanel>
+              </div>
             )}
             {showTickets && (
-            <div data-tour="professional-ticket-trend">
-              <BarWidget title="Monthly Tickets (FY)" chartId="pro-monthly-tickets" series={ticketsByMonth} options={ticketBarOptions} height={220} />
-            </div>
+              <div data-tour="professional-ticket-trend">
+                <ActivityPanel eyebrow="Fiscal year" title="Monthly Tickets">
+                  <BarGraph
+                    chartId="pro-monthly-tickets"
+                    data={ticketsByMonth}
+                    options={ticketBarOptions}
+                    height={220}
+                  />
+                </ActivityPanel>
+              </div>
             )}
             {showTenants && (
-            <div data-tour="professional-tenant-trend">
-              <BarWidget title="Monthly Tenants (FY)" chartId="pro-monthly-tenants" series={tenantsByMonth} options={tenantBarOptions} height={220} />
-            </div>
+              <div data-tour="professional-tenant-trend">
+                <ActivityPanel eyebrow="Fiscal year" title="Monthly Tenants">
+                  <BarGraph
+                    chartId="pro-monthly-tenants"
+                    data={tenantsByMonth}
+                    options={tenantBarOptions}
+                    height={220}
+                  />
+                </ActivityPanel>
+              </div>
             )}
           </div>
         </>
       )}
-
     </div>
   );
 };
