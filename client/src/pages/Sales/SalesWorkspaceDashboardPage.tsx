@@ -20,7 +20,7 @@ import PageFrame from "../../components/Pages/PageFrame";
 import DashboardModuleCard from "../../components/DashboardModuleCard";
 import DonutChart from "../../components/graphs/DonutChart";
 import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
-import salesBannerImage from "../../assets/coworking-banner.jpg";
+import salesBannerImage from "../../assets/sales-dashboard-banner.png";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
 import { getCafeTables } from "../../services/cafe";
 import { getPricingPackages } from "../../services/pricing-packages";
@@ -39,6 +39,8 @@ import {
   SALES_DASHBOARD_MODULES,
   type SalesDashboardModule,
 } from "./salesDashboardModules";
+import { DepartmentVisitorsCard } from "../Dashboard/FrontendDashboard/dashboard/DepartmentVisitorsCard";
+import { TeamLiveStatusCard } from "../Dashboard/FrontendDashboard/dashboard/TeamLiveStatusCard";
 
 type LeadRecord = {
   id?: string;
@@ -175,8 +177,7 @@ function ChartCard({
   action?: ReactNode;
   bodyClassName?: string;
   children: ReactNode;
-}) 
-{
+}) {
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
       <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
@@ -294,7 +295,11 @@ const statusTone = (status?: string) => {
   const value = normalize(status);
   if (value.includes("convert") || value.includes("won") || value === "active")
     return "bg-emerald-50 text-emerald-700";
-  if (value.includes("lost") || value.includes("reject") || value.includes("closed"))
+  if (
+    value.includes("lost") ||
+    value.includes("reject") ||
+    value.includes("closed")
+  )
     return "bg-rose-50 text-rose-700";
   if (value.includes("contact") || value.includes("progress"))
     return "bg-blue-50 text-blue-700";
@@ -344,9 +349,7 @@ export default function SalesWorkspaceDashboardPage() {
 
       setData({
         leads:
-          leads.status === "fulfilled"
-            ? listFrom(leads.value, ["leads"])
-            : [],
+          leads.status === "fulfilled" ? listFrom(leads.value, ["leads"]) : [],
         tenants:
           tenants.status === "fulfilled"
             ? listFrom(tenants.value, ["tenants"])
@@ -463,7 +466,11 @@ export default function SalesWorkspaceDashboardPage() {
     const amountOf = (entry: FinanceRecord) =>
       numeric(entry.amount ?? entry.totalAmount ?? entry.paidAmount);
     const dateOf = (entry: FinanceRecord) =>
-      entry.postedAt || entry.revenueDate || entry.paidAt || entry.date || entry.createdAt;
+      entry.postedAt ||
+      entry.revenueDate ||
+      entry.paidAt ||
+      entry.date ||
+      entry.createdAt;
     const sourceOf = (entry: FinanceRecord) => {
       const source = normalize(entry.source || entry.type || entry.category);
       if (source.includes("virtual")) return "Virtual office";
@@ -475,7 +482,8 @@ export default function SalesWorkspaceDashboardPage() {
     };
 
     const now = new Date();
-    const fiscalStartYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+    const fiscalStartYear =
+      now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
     const fiscalStart = new Date(fiscalStartYear, 3, 1);
     const fiscalMonthsElapsed =
       (now.getFullYear() - fiscalStartYear) * 12 + now.getMonth() - 3 + 1;
@@ -559,10 +567,13 @@ export default function SalesWorkspaceDashboardPage() {
         0,
       );
 
-    const rentCycles = data.rentRecords.length + data.virtualOfficeRentRecords.length;
+    const rentCycles =
+      data.rentRecords.length + data.virtualOfficeRentRecords.length;
     const paidCycles =
-      data.rentRecords.length - openTenantRent.length +
-      data.virtualOfficeRentRecords.length - openVirtualRent.length;
+      data.rentRecords.length -
+      openTenantRent.length +
+      data.virtualOfficeRentRecords.length -
+      openVirtualRent.length;
     const collectionRate = rentCycles
       ? Math.round((paidCycles / rentCycles) * 100)
       : 0;
@@ -609,7 +620,8 @@ export default function SalesWorkspaceDashboardPage() {
   const leadSources = useMemo(() => {
     const map = new Map<string, number>();
     data.leads.forEach((lead) => {
-      const raw = lead.leadSource || lead.source || lead.category || "Unspecified";
+      const raw =
+        lead.leadSource || lead.source || lead.category || "Unspecified";
       const label = readableLabel(raw);
       map.set(label, (map.get(label) || 0) + 1);
     });
@@ -845,16 +857,73 @@ export default function SalesWorkspaceDashboardPage() {
           </div>
         ) : (
           <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatTile icon={<Magnet size={20} />} label="Total leads" value={data.leads.length} sub={`${stats.newLeads} awaiting first action`} />
-            <StatTile icon={<Target size={20} />} label="Lead conversion" value={`${stats.conversionRate}%`} sub={`${stats.convertedLeads} leads converted`} status={stats.convertedLeads ? "success" : "default"} />
-            <StatTile icon={<Building2 size={20} />} label="Active tenants" value={stats.activeTenants} sub={`${data.tenants.length} total tenant companies`} />
-            <StatTile icon={<PackageCheck size={20} />} label="Active pricing" value={stats.activePackages} sub={`${data.packages.length} total pricing packages`} />
-            <StatTile icon={<Layers3 size={20} />} label="Vertical inventory" value={stats.portfolioRecords} sub="Resources and cafe tables mapped" />
-            <StatTile icon={<CheckCircle2 size={20} />} label="Active resources" value={stats.activeResources} sub={`${data.resources.length} resources in the sales portfolio`} status="success" />
-            <StatTile icon={<CircleGauge size={20} />} label="Virtual offices" value={data.virtualOffices.length} sub="Saved virtual-office records" />
-            <StatTile icon={<Users size={20} />} label="Tenant attention" value={Math.max(0, data.tenants.length - stats.activeTenants)} sub="Tenant records not currently active" status={data.tenants.length - stats.activeTenants > 0 ? "attention" : "success"} />
+            <StatTile
+              icon={<Magnet size={20} />}
+              label="Total leads"
+              value={data.leads.length}
+              sub={`${stats.newLeads} awaiting first action`}
+            />
+            <StatTile
+              icon={<Target size={20} />}
+              label="Lead conversion"
+              value={`${stats.conversionRate}%`}
+              sub={`${stats.convertedLeads} leads converted`}
+              status={stats.convertedLeads ? "success" : "default"}
+            />
+            <StatTile
+              icon={<Building2 size={20} />}
+              label="Active tenants"
+              value={stats.activeTenants}
+              sub={`${data.tenants.length} total tenant companies`}
+            />
+            <StatTile
+              icon={<PackageCheck size={20} />}
+              label="Active pricing"
+              value={stats.activePackages}
+              sub={`${data.packages.length} total pricing packages`}
+            />
+            <StatTile
+              icon={<Layers3 size={20} />}
+              label="Vertical inventory"
+              value={stats.portfolioRecords}
+              sub="Resources and cafe tables mapped"
+            />
+            <StatTile
+              icon={<CheckCircle2 size={20} />}
+              label="Active resources"
+              value={stats.activeResources}
+              sub={`${data.resources.length} resources in the sales portfolio`}
+              status="success"
+            />
+            <StatTile
+              icon={<CircleGauge size={20} />}
+              label="Virtual offices"
+              value={data.virtualOffices.length}
+              sub="Saved virtual-office records"
+            />
+            <StatTile
+              icon={<Users size={20} />}
+              label="Tenant attention"
+              value={Math.max(0, data.tenants.length - stats.activeTenants)}
+              sub="Tenant records not currently active"
+              status={
+                data.tenants.length - stats.activeTenants > 0
+                  ? "attention"
+                  : "success"
+              }
+            />
           </div>
         )}
+
+        {!isLoading ? (
+          <section className="mb-6 grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <TeamLiveStatusCard
+              department="sales"
+              viewAllRoute="/common-modules/attendance"
+            />
+            <DepartmentVisitorsCard department="sales" title="Sales Visitors" />
+          </section>
+        ) : null}
 
         {!isLoading && !access.isLoading ? (
           <div className="mb-6">
@@ -950,9 +1019,12 @@ export default function SalesWorkspaceDashboardPage() {
         <div className="mb-6">
           <div className="mb-3 flex items-end justify-between gap-3">
             <div>
-              <p className="text-sm font-pmedium text-slate-900">Manage sales operations</p>
+              <p className="text-sm font-pmedium text-slate-900">
+                Manage sales operations
+              </p>
               <p className="mt-1 text-[10px] font-pmedium text-slate-500">
-                Open the same enabled modules available in the Sales Dashboard dropdown.
+                Open the same enabled modules available in the Sales Dashboard
+                dropdown.
                 {/* {lastUpdated ? ` Last refreshed ${lastUpdated.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}.` : ""} */}
               </p>
             </div>
@@ -1018,13 +1090,32 @@ export default function SalesWorkspaceDashboardPage() {
             </div>
 
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-              <ChartCard title="Monthly Lead Trend" subtitle="Website leads created during the last 12 calendar months.">
-                <GroupedBarGraph options={chartOptions} series={[{ name: "Website leads", data: monthlyLeads }]} />
+              <ChartCard
+                title="Monthly Lead Trend"
+                subtitle="Website leads created during the last 12 calendar months."
+              >
+                <GroupedBarGraph
+                  options={chartOptions}
+                  series={[{ name: "Website leads", data: monthlyLeads }]}
+                />
               </ChartCard>
-              <ChartCard title="Lead Pipeline" subtitle="Current lead distribution by sales stage.">
+              <ChartCard
+                title="Lead Pipeline"
+                subtitle="Current lead distribution by sales stage."
+              >
                 {leadStatus.length ? (
-                  <DonutChart centerLabel="Leads" labels={leadStatus.map(([label]) => label)} series={leadStatus.map(([, value]) => value)} colors={DONUT_PALETTE.slice(0, leadStatus.length)} tooltipValue={leadStatus.map(([, value]) => `${value} leads`)} />
-                ) : <Empty>No lead pipeline data is available yet.</Empty>}
+                  <DonutChart
+                    centerLabel="Leads"
+                    labels={leadStatus.map(([label]) => label)}
+                    series={leadStatus.map(([, value]) => value)}
+                    colors={DONUT_PALETTE.slice(0, leadStatus.length)}
+                    tooltipValue={leadStatus.map(
+                      ([, value]) => `${value} leads`,
+                    )}
+                  />
+                ) : (
+                  <Empty>No lead pipeline data is available yet.</Empty>
+                )}
               </ChartCard>
             </div>
 
@@ -1070,22 +1161,51 @@ export default function SalesWorkspaceDashboardPage() {
             </div>
 
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
-              <ChartCard title="Inventory by Vertical" subtitle="Saved resources and cafe tables grouped by operating vertical.">
+              <ChartCard
+                title="Inventory by Vertical"
+                subtitle="Saved resources and cafe tables grouped by operating vertical."
+              >
                 {resourcePortfolio.length ? (
-                  <DonutChart centerLabel="Records" labels={resourcePortfolio.map((item) => item.label)} series={resourcePortfolio.map((item) => item.value)} colors={DONUT_PALETTE.slice(0, resourcePortfolio.length)} tooltipValue={resourcePortfolio.map((item) => `${item.value} records`)} wrapLabels />
-                ) : <Empty>No vertical inventory is available yet.</Empty>}
+                  <DonutChart
+                    centerLabel="Records"
+                    labels={resourcePortfolio.map((item) => item.label)}
+                    series={resourcePortfolio.map((item) => item.value)}
+                    colors={DONUT_PALETTE.slice(0, resourcePortfolio.length)}
+                    tooltipValue={resourcePortfolio.map(
+                      (item) => `${item.value} records`,
+                    )}
+                    wrapLabels
+                  />
+                ) : (
+                  <Empty>No vertical inventory is available yet.</Empty>
+                )}
               </ChartCard>
               <ChartCard title="Module Snapshot">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {enabledModules.map((module, index) => {
                     const Icon = module.icon;
                     return (
-                      <div key={module.id} className="flex items-center justify-between rounded-2xl border border-slate-100 px-4 py-3">
+                      <div
+                        key={module.id}
+                        className="flex items-center justify-between rounded-2xl border border-slate-100 px-4 py-3"
+                      >
                         <div className="flex min-w-0 items-center gap-3">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white" style={{ backgroundColor: DONUT_PALETTE[index % DONUT_PALETTE.length] }}><Icon size={14} /></span>
-                          <span className="truncate text-[11px] font-pmedium text-slate-600">{module.label}</span>
+                          <span
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white"
+                            style={{
+                              backgroundColor:
+                                DONUT_PALETTE[index % DONUT_PALETTE.length],
+                            }}
+                          >
+                            <Icon size={14} />
+                          </span>
+                          <span className="truncate text-[11px] font-pmedium text-slate-600">
+                            {module.label}
+                          </span>
                         </div>
-                        <span className="ml-3 text-[13px] font-pmedium text-slate-900">{moduleMetric(module)}</span>
+                        <span className="ml-3 text-[13px] font-pmedium text-slate-900">
+                          {moduleMetric(module)}
+                        </span>
                       </div>
                     );
                   })}
@@ -1094,38 +1214,119 @@ export default function SalesWorkspaceDashboardPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-4">
-              <ChartCard title="Recent Leads" subtitle="The latest sales enquiries with contact and pipeline status." action={<RecordCountChip count={data.leads.length} />} bodyClassName="">
+              <ChartCard
+                title="Recent Leads"
+                subtitle="The latest sales enquiries with contact and pipeline status."
+                action={<RecordCountChip count={data.leads.length} />}
+                bodyClassName=""
+              >
                 {recentLeads.length ? (
                   <div className="max-h-[430px] overflow-auto">
                     <table className="w-full min-w-[820px] border-collapse text-left">
-                      <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] font-pmedium uppercase tracking-[0.06em] text-slate-500"><tr><th className="px-5 py-3">Lead</th><th className="px-4 py-3">Contact</th><th className="px-4 py-3">Created</th><th className="px-5 py-3">Status</th></tr></thead>
+                      <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] font-pmedium uppercase tracking-[0.06em] text-slate-500">
+                        <tr>
+                          <th className="px-5 py-3">Lead</th>
+                          <th className="px-4 py-3">Contact</th>
+                          <th className="px-4 py-3">Created</th>
+                          <th className="px-5 py-3">Status</th>
+                        </tr>
+                      </thead>
                       <tbody className="divide-y divide-slate-100">
                         {recentLeads.map((lead, index) => (
-                          <tr key={lead.id || lead._id || `${leadName(lead)}-${index}`} className="text-[11px] font-pmedium text-slate-600 transition hover:bg-blue-50/30">
-                            <td className="px-5 py-3 text-slate-900">{leadName(lead)}</td><td className="px-4 py-3">{lead.email || lead.phone || "Not recorded"}</td><td className="px-4 py-3">{dateLabel(lead.createdAt)}</td><td className="px-5 py-3"><span className={`rounded-md px-2 py-1 text-[9px] font-pmedium ${statusTone(lead.status)}`}>{readableLabel(lead.status)}</span></td>
+                          <tr
+                            key={
+                              lead.id ||
+                              lead._id ||
+                              `${leadName(lead)}-${index}`
+                            }
+                            className="text-[11px] font-pmedium text-slate-600 transition hover:bg-blue-50/30"
+                          >
+                            <td className="px-5 py-3 text-slate-900">
+                              {leadName(lead)}
+                            </td>
+                            <td className="px-4 py-3">
+                              {lead.email || lead.phone || "Not recorded"}
+                            </td>
+                            <td className="px-4 py-3">
+                              {dateLabel(lead.createdAt)}
+                            </td>
+                            <td className="px-5 py-3">
+                              <span
+                                className={`rounded-md px-2 py-1 text-[9px] font-pmedium ${statusTone(lead.status)}`}
+                              >
+                                {readableLabel(lead.status)}
+                              </span>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                ) : <div className="px-5 py-12 text-center text-[11px] font-pmedium text-slate-500">No sales leads are available yet.</div>}
+                ) : (
+                  <div className="px-5 py-12 text-center text-[11px] font-pmedium text-slate-500">
+                    No sales leads are available yet.
+                  </div>
+                )}
               </ChartCard>
 
-              <ChartCard title="Tenants Needing Attention" subtitle="Tenant companies not currently marked active." action={<RecordCountChip count={attentionTenants.length} />} bodyClassName="">
+              <ChartCard
+                title="Tenants Needing Attention"
+                subtitle="Tenant companies not currently marked active."
+                action={<RecordCountChip count={attentionTenants.length} />}
+                bodyClassName=""
+              >
                 {attentionTenants.length ? (
                   <div className="max-h-[430px] overflow-auto">
                     <table className="w-full min-w-[820px] border-collapse text-left">
-                      <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] font-pmedium uppercase tracking-[0.06em] text-slate-500"><tr><th className="px-5 py-3">Tenant company</th><th className="px-4 py-3">Company code</th><th className="px-4 py-3">Sector</th><th className="px-4 py-3">Created</th><th className="px-5 py-3">Status</th></tr></thead>
+                      <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] font-pmedium uppercase tracking-[0.06em] text-slate-500">
+                        <tr>
+                          <th className="px-5 py-3">Tenant company</th>
+                          <th className="px-4 py-3">Company code</th>
+                          <th className="px-4 py-3">Sector</th>
+                          <th className="px-4 py-3">Created</th>
+                          <th className="px-5 py-3">Status</th>
+                        </tr>
+                      </thead>
                       <tbody className="divide-y divide-slate-100">
                         {attentionTenants.map((tenant, index) => (
-                          <tr key={tenant.recordId || tenant.id || tenant._id || `${tenantName(tenant)}-${index}`} className="text-[11px] font-pmedium text-slate-600 transition hover:bg-blue-50/30">
-                            <td className="px-5 py-3 text-slate-900">{tenantName(tenant)}</td><td className="px-4 py-3">{tenant.companyCode || "Not recorded"}</td><td className="px-4 py-3">{tenant.sector || "Not recorded"}</td><td className="px-4 py-3">{dateLabel(tenant.createdAt)}</td><td className="px-5 py-3"><span className={`rounded-md px-2 py-1 text-[9px] font-pmedium ${statusTone(tenant.status)}`}>{readableLabel(tenant.status)}</span></td>
+                          <tr
+                            key={
+                              tenant.recordId ||
+                              tenant.id ||
+                              tenant._id ||
+                              `${tenantName(tenant)}-${index}`
+                            }
+                            className="text-[11px] font-pmedium text-slate-600 transition hover:bg-blue-50/30"
+                          >
+                            <td className="px-5 py-3 text-slate-900">
+                              {tenantName(tenant)}
+                            </td>
+                            <td className="px-4 py-3">
+                              {tenant.companyCode || "Not recorded"}
+                            </td>
+                            <td className="px-4 py-3">
+                              {tenant.sector || "Not recorded"}
+                            </td>
+                            <td className="px-4 py-3">
+                              {dateLabel(tenant.createdAt)}
+                            </td>
+                            <td className="px-5 py-3">
+                              <span
+                                className={`rounded-md px-2 py-1 text-[9px] font-pmedium ${statusTone(tenant.status)}`}
+                              >
+                                {readableLabel(tenant.status)}
+                              </span>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                ) : <div className="px-5 py-12 text-center text-[11px] font-pmedium text-slate-500">No tenant companies currently need attention.</div>}
+                ) : (
+                  <div className="px-5 py-12 text-center text-[11px] font-pmedium text-slate-500">
+                    No tenant companies currently need attention.
+                  </div>
+                )}
               </ChartCard>
             </div>
           </>

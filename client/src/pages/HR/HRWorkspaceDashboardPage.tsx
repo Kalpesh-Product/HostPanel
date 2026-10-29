@@ -22,7 +22,7 @@ import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
 import PageFrame from "../../components/Pages/PageFrame";
 import { DepartmentVisitorsCard } from "../Dashboard/FrontendDashboard/dashboard/DepartmentVisitorsCard";
 import { TeamLiveStatusCard } from "../Dashboard/FrontendDashboard/dashboard/TeamLiveStatusCard";
-import hrBannerImage from "../../assets/coworking-banner.jpg";
+import hrBannerImage from "../../assets/hr-dashboard-banner.png";
 import { DEFAULT_FISCAL_YEAR } from "../../features/finance/utils/fiscalYear";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
 import {
@@ -910,7 +910,9 @@ export default function HRWorkspaceDashboardPage() {
         {!isLoading ? (
           <section className="mb-6">
             <div className="mb-3">
-              <h2 className="text-sm text-slate-900">HR operations overview</h2>
+              <h2 className="text-sm font-pmedium text-slate-900">
+                HR operations overview
+              </h2>
               <p className="mt-1 text-[10px] text-slate-500">
                 Workforce activity, employee requests, payroll, and approved
                 budget position.
@@ -971,7 +973,9 @@ export default function HRWorkspaceDashboardPage() {
         <section className="mb-6">
           <div className="mb-3 flex items-end justify-between gap-3">
             <div>
-              <h2 className="text-sm text-slate-900">Manage HR operations</h2>
+              <h2 className="text-sm font-pmedium text-slate-900">
+                Manage HR operations
+              </h2>
               <p className="mt-1 text-[10px] text-slate-500">
                 Open the same enabled modules available in the HR Dashboard
                 dropdown.
