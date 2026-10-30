@@ -1,4 +1,10 @@
-import { createBrowserRouter, Navigate, Outlet, useLocation, useParams } from "react-router-dom";
+import {
+  createBrowserRouter,
+  Navigate,
+  Outlet,
+  useLocation,
+  useParams,
+} from "react-router-dom";
 import { getStoredUser } from "../lib/auth-session";
 import MainLayout from "../layouts/MainLayout";
 import AuthLayout from "../layouts/AuthLayout";
@@ -119,6 +125,7 @@ import OrganizationPage from "../pages/Organization/OrganizationPage";
 import UnitSettingsPage from "../pages/UnitSettings/UnitSettingsPage";
 import UnitManagementPage from "../pages/UnitSettings/UnitManagementPage";
 import CustomerSupportPage from "../pages/CustomerSupport/CustomerSupportPage";
+import CustomerSupportDashboard from "../pages/CustomerSupport/CustomerSupportDashboard";
 import AnalyticsPage from "../pages/Analytics/AnalyticsPage";
 import TenantCompaniesPage from "../pages/Sales/TenantCompanies/TenantCompaniesPage";
 import TenantCompanyDetailPage from "../pages/Sales/TenantCompanies/TenantCompanyDetailPage";
@@ -215,18 +222,27 @@ import Unauthorized from "../pages/Unauthorized";
 import NotFoundPage from "../pages/NotFoundPage";
 
 // Placeholder for DepartmentWiseBulkUpload (does not exist yet)
-const DepartmentWiseBulkUpload = () => <div>DepartmentWiseBulkUpload - Coming Soon</div>;
+const DepartmentWiseBulkUpload = () => (
+  <div>DepartmentWiseBulkUpload - Coming Soon</div>
+);
 
 function FinanceRoute() {
   const user = getStoredUser();
-  const role = String(user?.workspaceMembership?.role || user?.role || '').trim().toLowerCase();
-  const isFounderOrSuperAdmin = role === 'owner' || role === 'super_admin' || role === 'super-admin' || role === 'founder';
+  const role = String(user?.workspaceMembership?.role || user?.role || "")
+    .trim()
+    .toLowerCase();
+  const isFounderOrSuperAdmin =
+    role === "owner" ||
+    role === "super_admin" ||
+    role === "super-admin" ||
+    role === "founder";
   return isFounderOrSuperAdmin ? <FinancePage /> : <DepartmentFinancePageV2 />;
 }
 
 function VerticalPickerRoute() {
   const location = useLocation();
-  const workspaceId = new URLSearchParams(location.search).get("workspaceId") || "";
+  const workspaceId =
+    new URLSearchParams(location.search).get("workspaceId") || "";
   return <VerticalPicker workspaceId={workspaceId} />;
 }
 
@@ -234,7 +250,9 @@ function VerticalPickerRoute() {
 // from the old route (e.g. "/key-apps/nomad-listings/:listingId").
 function ParamRedirect({ to }: { to: string }) {
   const params = useParams();
-  const resolved = to.replace(/:([A-Za-z0-9_]+)/g, (_match, key) => encodeURIComponent(params[key] ?? ""));
+  const resolved = to.replace(/:([A-Za-z0-9_]+)/g, (_match, key) =>
+    encodeURIComponent(params[key] ?? ""),
+  );
   return <Navigate to={resolved} replace />;
 }
 
@@ -263,7 +281,12 @@ function ModuleSectionRedirect() {
   const { sectionId, departmentId } = useParams();
   const prefix = sectionId ? MOVED_SECTION_URL_PREFIX[sectionId] : undefined;
   if (prefix) {
-    return <Navigate to={departmentId ? `${prefix}/${departmentId}` : prefix} replace />;
+    return (
+      <Navigate
+        to={departmentId ? `${prefix}/${departmentId}` : prefix}
+        replace
+      />
+    );
   }
   return <ModuleCardsLanding />;
 }
@@ -301,14 +324,14 @@ export const routes = createBrowserRouter([
     path: "/register/:token/verify",
     element: <RegisterOtpVerification />,
   },
-          {
-            path: "/register/verify",
-            element: <RegisterOtpVerification />,
-          },
-          {
-            path: "/select-workspace",
-            element: <FounderWorkspaceSelectionPage />,
-          },
+  {
+    path: "/register/verify",
+    element: <RegisterOtpVerification />,
+  },
+  {
+    path: "/select-workspace",
+    element: <FounderWorkspaceSelectionPage />,
+  },
   {
     // Public — Stripe redirects a first-time payer here before they have an account.
     path: "/payment-success",
@@ -386,7 +409,10 @@ export const routes = createBrowserRouter([
                     path: "website-builder",
                     element: <FrontendLayout />,
                     children: [
-                      { index: true, element: <WebsiteBuilderTypeActions type="dynamic" /> },
+                      {
+                        index: true,
+                        element: <WebsiteBuilderTypeActions type="dynamic" />,
+                      },
                       { path: "select-theme", element: <ThemeGrid /> },
                       { path: "view-theme", element: <ViewTheme /> },
                       { path: "leads", element: <CompanyLeads /> },
@@ -396,12 +422,27 @@ export const routes = createBrowserRouter([
                         path: "edit-website/:website",
                         element: <EditWebsite />,
                       }, // with param
-                      { path: "dynamic", element: <WebsiteBuilderTypeActions type="dynamic" /> },
-                      { path: "dynamic/select-template", element: <SelectWebsiteTemplate /> },
-                      { path: "dynamic/create-website", element: <CreateWebsite /> },
+                      {
+                        path: "dynamic",
+                        element: <WebsiteBuilderTypeActions type="dynamic" />,
+                      },
+                      {
+                        path: "dynamic/select-template",
+                        element: <SelectWebsiteTemplate />,
+                      },
+                      {
+                        path: "dynamic/create-website",
+                        element: <CreateWebsite />,
+                      },
                       { path: "dynamic/leads", element: <CompanyLeads /> },
-                      { path: "dynamic/reviews", element: <WebsiteBuilderReviews /> },
-                      { path: "dynamic/careers", element: <WebsiteBuilderCareers /> },
+                      {
+                        path: "dynamic/reviews",
+                        element: <WebsiteBuilderReviews />,
+                      },
+                      {
+                        path: "dynamic/careers",
+                        element: <WebsiteBuilderCareers />,
+                      },
                       // Dynamic-only mode:
                       // { path: "static", element: <WebsiteBuilderTypeActions type="static" /> },
                       // { path: "static/select-vertical", element: <VerticalPickerRoute /> },
@@ -479,13 +520,28 @@ export const routes = createBrowserRouter([
                     path: "tenant",
                     children: [
                       { index: true, element: <TenantDashboardPage /> },
-                      { path: "meeting-room-booking", element: <TenantMeetingRoomBookingPage /> },
+                      {
+                        path: "meeting-room-booking",
+                        element: <TenantMeetingRoomBookingPage />,
+                      },
                       { path: "printouts", element: <TenantPrintoutsPage /> },
-                      { path: "booking-history", element: <TenantBookingHistoryPage /> },
-                      { path: "buy-credits", element: <TenantBuyCreditsPage /> },
-                      { path: "rent-payments", element: <TenantRentPaymentsPage /> },
+                      {
+                        path: "booking-history",
+                        element: <TenantBookingHistoryPage />,
+                      },
+                      {
+                        path: "buy-credits",
+                        element: <TenantBuyCreditsPage />,
+                      },
+                      {
+                        path: "rent-payments",
+                        element: <TenantRentPaymentsPage />,
+                      },
                       { path: "tickets", element: <TenantTicketsPage /> },
-                      { path: "profile", element: <Navigate to="/profile/my-profile" replace /> },
+                      {
+                        path: "profile",
+                        element: <Navigate to="/profile/my-profile" replace />,
+                      },
                     ],
                   },
                 ],
@@ -517,7 +573,9 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "company-settings/nomad-listings/:listingId",
-                element: <ParamRedirect to="/key-apps/nomad-listings/:listingId" />,
+                element: (
+                  <ParamRedirect to="/key-apps/nomad-listings/:listingId" />
+                ),
               },
               {
                 path: "company-settings/reviews",
@@ -533,7 +591,9 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "company-settings/website-builder/*",
-                element: <ParamWildcardRedirect to="/key-apps/website-builder" />,
+                element: (
+                  <ParamWildcardRedirect to="/key-apps/website-builder" />
+                ),
               },
               {
                 path: "company-settings/website-builder",
@@ -541,7 +601,12 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "company-settings/organization-management",
-                element: <Navigate to="/core-modules/organization-management" replace />,
+                element: (
+                  <Navigate
+                    to="/core-modules/organization-management"
+                    replace
+                  />
+                ),
               },
               {
                 path: "company-settings/access-grants",
@@ -549,11 +614,15 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "company-settings/workspace-settings",
-                element: <Navigate to="/core-modules/workspace-settings" replace />,
+                element: (
+                  <Navigate to="/core-modules/workspace-settings" replace />
+                ),
               },
               {
                 path: "company-settings/workspace-management",
-                element: <Navigate to="/core-modules/workspace-management" replace />,
+                element: (
+                  <Navigate to="/core-modules/workspace-management" replace />
+                ),
               },
               {
                 path: "company-settings/analytics",
@@ -561,7 +630,9 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "company-settings/customer-support",
-                element: <Navigate to="/common-modules/customer-support" replace />,
+                element: (
+                  <Navigate to="/common-modules/customer-support" replace />
+                ),
               },
               {
                 path: "company-settings",
@@ -617,7 +688,10 @@ export const routes = createBrowserRouter([
                 path: "key-apps/website-builder",
                 element: <FrontendLayout />,
                 children: [
-                  { index: true, element: <WebsiteBuilderTypeActions type="dynamic" /> },
+                  {
+                    index: true,
+                    element: <WebsiteBuilderTypeActions type="dynamic" />,
+                  },
                   { path: "select-theme", element: <ThemeGrid /> },
                   { path: "view-theme", element: <ViewTheme /> },
                   { path: "leads", element: <CompanyLeads /> },
@@ -627,12 +701,27 @@ export const routes = createBrowserRouter([
                     path: "edit-website/:website",
                     element: <EditWebsite />,
                   }, // with param
-                  { path: "dynamic", element: <WebsiteBuilderTypeActions type="dynamic" /> },
-                  { path: "dynamic/select-template", element: <SelectWebsiteTemplate /> },
-                  { path: "dynamic/create-website", element: <CreateWebsite /> },
+                  {
+                    path: "dynamic",
+                    element: <WebsiteBuilderTypeActions type="dynamic" />,
+                  },
+                  {
+                    path: "dynamic/select-template",
+                    element: <SelectWebsiteTemplate />,
+                  },
+                  {
+                    path: "dynamic/create-website",
+                    element: <CreateWebsite />,
+                  },
                   { path: "dynamic/leads", element: <CompanyLeads /> },
-                  { path: "dynamic/reviews", element: <WebsiteBuilderReviews /> },
-                  { path: "dynamic/careers", element: <WebsiteBuilderCareers /> },
+                  {
+                    path: "dynamic/reviews",
+                    element: <WebsiteBuilderReviews />,
+                  },
+                  {
+                    path: "dynamic/careers",
+                    element: <WebsiteBuilderCareers />,
+                  },
                   // Dynamic-only mode:
                   // { path: "static", element: <WebsiteBuilderTypeActions type="static" /> },
                   // { path: "static/select-vertical", element: <VerticalPickerRoute /> },
@@ -736,6 +825,10 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "common-modules/customer-support",
+                element: <CustomerSupportDashboard />,
+              },
+              {
+                path: "common-modules/customer-support/list",
                 element: <CustomerSupportPage />,
               },
               {
@@ -788,7 +881,13 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "key-apps/hostel-management/dashboard",
-                element: <RoomManagementPage roomType="Dorm" title="Hostel Management" noun="Dorm" />,
+                element: (
+                  <RoomManagementPage
+                    roomType="Dorm"
+                    title="Hostel Management"
+                    noun="Dorm"
+                  />
+                ),
               },
               {
                 path: "key-apps/hostel-management/resource-pricing",
@@ -812,7 +911,13 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "key-apps/co-living-management/dashboard",
-                element: <RoomManagementPage roomType="Room" title="Co-living Management" noun="Room" />,
+                element: (
+                  <RoomManagementPage
+                    roomType="Room"
+                    title="Co-living Management"
+                    noun="Room"
+                  />
+                ),
               },
               {
                 path: "key-apps/co-living-management/resource-pricing",
@@ -824,7 +929,15 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "key-apps/co-working-management/resource-pricing",
-                element: <ResourcePricingPage allowedCategories={["open_desk", "cabin_desk", "virtual_office"]} />,
+                element: (
+                  <ResourcePricingPage
+                    allowedCategories={[
+                      "open_desk",
+                      "cabin_desk",
+                      "virtual_office",
+                    ]}
+                  />
+                ),
               },
               {
                 path: "key-apps/meeting-room-management",
@@ -832,7 +945,11 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "key-apps/meeting-room-management/resource-pricing",
-                element: <ResourcePricingPage allowedCategories={["meeting_room", "conference_room"]} />,
+                element: (
+                  <ResourcePricingPage
+                    allowedCategories={["meeting_room", "conference_room"]}
+                  />
+                ),
               },
               {
                 path: "common-modules/cafe-orders",
@@ -840,11 +957,23 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "common-modules/hostel-booking",
-                element: <RoomStayBookingPage roomType="Dorm" title="Hostel Booking" noun="Dorm" />,
+                element: (
+                  <RoomStayBookingPage
+                    roomType="Dorm"
+                    title="Hostel Booking"
+                    noun="Dorm"
+                  />
+                ),
               },
               {
                 path: "common-modules/room-booking",
-                element: <RoomStayBookingPage roomType="Room" title="Room Booking" noun="Room" />,
+                element: (
+                  <RoomStayBookingPage
+                    roomType="Room"
+                    title="Room Booking"
+                    noun="Room"
+                  />
+                ),
               },
               {
                 path: "common-modules/tasks",
@@ -860,7 +989,9 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "leave-requests",
-                element: <Navigate to="/common-modules/leave-requests" replace />,
+                element: (
+                  <Navigate to="/common-modules/leave-requests" replace />
+                ),
               },
               {
                 path: "tickets",
@@ -872,7 +1003,9 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "meetings/meeting-rooms",
-                element: <Navigate to="/common-modules/meeting-room-booking" replace />,
+                element: (
+                  <Navigate to="/common-modules/meeting-room-booking" replace />
+                ),
               },
 
               // Extra Common Modules
@@ -983,11 +1116,19 @@ export const routes = createBrowserRouter([
                   },
                   {
                     path: "company-profile",
-                    element: <CompanyProfileAccessGuard><CompanyProfile /></CompanyProfileAccessGuard>,
+                    element: (
+                      <CompanyProfileAccessGuard>
+                        <CompanyProfile />
+                      </CompanyProfileAccessGuard>
+                    ),
                   },
                   {
                     path: "plan-billing",
-                    element: <CompanyProfileAccessGuard><PlanBillingTab /></CompanyProfileAccessGuard>,
+                    element: (
+                      <CompanyProfileAccessGuard>
+                        <PlanBillingTab />
+                      </CompanyProfileAccessGuard>
+                    ),
                   },
                   {
                     // Stripe's payment-link redirect target (see
@@ -1015,7 +1156,9 @@ export const routes = createBrowserRouter([
                   },
                   {
                     path: "exit-request",
-                    element: <Navigate to="/profile/resignation-request" replace />,
+                    element: (
+                      <Navigate to="/profile/resignation-request" replace />
+                    ),
                   },
                   // {
                   //   path: "permissions",
@@ -1055,7 +1198,7 @@ export const routes = createBrowserRouter([
                   //     },
                   //   ],
                   // },
-              // {
+                  // {
                   //   path: "my-assets",
                   //   element: <MyAssets />,
                   // },
@@ -1401,7 +1544,9 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "sales-crm/*",
-                element: <ParamWildcardRedirect to="/department-accesses/sales-department" />,
+                element: (
+                  <ParamWildcardRedirect to="/department-accesses/sales-department" />
+                ),
               },
 
               // Department Access — Administration
@@ -1431,7 +1576,9 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "administration/*",
-                element: <ParamWildcardRedirect to="/department-accesses/administration-department" />,
+                element: (
+                  <ParamWildcardRedirect to="/department-accesses/administration-department" />
+                ),
               },
 
               // Department Access — Maintenance
@@ -1445,7 +1592,9 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "maintenance/*",
-                element: <ParamWildcardRedirect to="/department-accesses/maintenance-department" />,
+                element: (
+                  <ParamWildcardRedirect to="/department-accesses/maintenance-department" />
+                ),
               },
 
               // Department Access — IT
@@ -1459,7 +1608,9 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "it/*",
-                element: <ParamWildcardRedirect to="/department-accesses/it-department" />,
+                element: (
+                  <ParamWildcardRedirect to="/department-accesses/it-department" />
+                ),
               },
 
               // Department Access — HR
@@ -1497,11 +1648,18 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/hr-department/exit-management",
-                element: <Navigate to="/department-accesses/hr-department/resignation-management" replace />,
+                element: (
+                  <Navigate
+                    to="/department-accesses/hr-department/resignation-management"
+                    replace
+                  />
+                ),
               },
               {
                 path: "hr/*",
-                element: <ParamWildcardRedirect to="/department-accesses/hr-department" />,
+                element: (
+                  <ParamWildcardRedirect to="/department-accesses/hr-department" />
+                ),
               },
 
               // Department Access — Finance
@@ -1527,7 +1685,9 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "finance/*",
-                element: <ParamWildcardRedirect to="/department-accesses/finance-department" />,
+                element: (
+                  <ParamWildcardRedirect to="/department-accesses/finance-department" />
+                ),
               },
             ],
           },
@@ -1548,4 +1708,3 @@ export const routes = createBrowserRouter([
     element: <NotFoundPage />,
   },
 ]);
-
