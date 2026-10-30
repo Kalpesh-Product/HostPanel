@@ -6,6 +6,7 @@ import WorkspaceMember from "../models/WorkspaceMember.js";
 import WebsiteTemplate from "../models/website/WebsiteTemplate.js";
 import WebsiteTemplateChangeRequest from "../models/WebsiteTemplateChangeRequest.js";
 import WebsiteTemplateSettings from "../models/WebsiteTemplateSettings.js";
+import HostCompany from "../models/Company.js";
 import { resolveWorkspacePlan } from "./subscriptionHelpers.js";
 
 const DEFAULT_TEMPLATE_SETTINGS = {
@@ -374,7 +375,7 @@ export const getTemplateChangeSummary = async (req, res, next) => {
         companyId: resolvedCompanyId,
       }),
     ]);
-    const [quota, activeRequest, history] = await Promise.all([
+    const [quota, activeRequest, history, company] = await Promise.all([
       getQuota({ websiteId: website._id, plan, settings }),
       WebsiteTemplateChangeRequest.findOne({
         websiteId: website._id,
@@ -388,6 +389,10 @@ export const getTemplateChangeSummary = async (req, res, next) => {
         .limit(20)
         .lean()
         .exec(),
+      HostCompany.findOne({ companyId: resolvedCompanyId })
+        .select("vertical verticalType")
+        .lean()
+        .exec(),
     ]);
 
     return res.status(200).json({
@@ -396,6 +401,7 @@ export const getTemplateChangeSummary = async (req, res, next) => {
       workspaceId: resolvedWorkspaceId,
       plan,
       currentTemplateId: normalizeTemplateId(website.themeVariant) || "default",
+      vertical: company?.vertical || company?.verticalType || "",
       quota,
       templates: settings.templates.map((template: any) => ({
         ...template,
