@@ -3,8 +3,8 @@
  * Picks the correct plan-tier dashboard and wires up the upgrade-plan modal.
  */
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowRight, X } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { CalendarClock, LayoutDashboard } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import PageFrame from "../../../components/Pages/PageFrame";
 import useAuth from "../../../hooks/useAuth";
@@ -84,12 +84,11 @@ const CompanySettingsDashboard = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const access = useDashboardAccess();
-  const isFounderOrSuperAdmin = access.roleBand === "owner" || access.roleBand === "super_admin";
   const workspacePreferences = useWorkspacePreferences();
   const axiosPrivate = useAxiosPrivate();
   const [now, setNow] = useState(new Date());
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [showDowngradeModal, setShowDowngradeModal] = useState(false);
+  const [showRenewModal, setShowRenewModal] = useState(false);
 
   // Drives the free-trial day-count callout below the greeting banner's plan
   // badge — this dashboard is where founders actually land, so the trial
@@ -106,54 +105,27 @@ const CompanySettingsDashboard = () => {
     const diffMs = new Date(planSummary.trialEndAt).getTime() - Date.now();
     return Math.max(0, Math.ceil(diffMs / (24 * 60 * 60 * 1000)));
   })();
+  const professionalPlanDaysLeft = (() => {
+    if (access.plan !== "professional") return null;
+    if (trialDaysLeft != null) return trialDaysLeft;
+    if (!planSummary?.planExpiryDate) return null;
+
+    const expiryTime = new Date(planSummary.planExpiryDate).getTime();
+    if (Number.isNaN(expiryTime)) return null;
+
+    return Math.max(
+      0,
+      Math.ceil((expiryTime - Date.now()) / (24 * 60 * 60 * 1000)),
+    );
+  })();
 
   const downgradedPlanLabel =
     String(planSummary?.purchasedPlan || "").toLowerCase() === "custom"
       ? "Custom"
-      : String(planSummary?.purchasedPlan || "").toLowerCase() === "professional"
+      : String(planSummary?.purchasedPlan || "").toLowerCase() ===
+          "professional"
         ? "Professional"
         : "Paid";
-
-  const downgradeAcknowledgementKey = useMemo(() => {
-    if (planSummary?.planStatus !== "expired_downgraded") return "";
-    const user = (auth?.user || {}) as { _id?: string; id?: string; email?: string };
-    const userId = String(user._id || user.id || user.email || "").trim().toLowerCase();
-    if (!userId) return "";
-    const companyId = String(planSummary?.companyId || "workspace");
-    const expiryDate = String(planSummary?.planExpiryDate || "expired").slice(0, 10);
-    return `hostpanel_plan_downgrade_acknowledged:${companyId}:${userId}:${expiryDate}`;
-  }, [auth?.user, planSummary?.companyId, planSummary?.planExpiryDate, planSummary?.planStatus]);
-
-  useEffect(() => {
-    if (!isFounderOrSuperAdmin) return;
-    if (planSummary?.planStatus !== "expired_downgraded") return;
-    if (!downgradeAcknowledgementKey) return;
-    try {
-      if (localStorage.getItem(downgradeAcknowledgementKey) === "1") return;
-    } catch {
-      // If storage is unavailable, still show the important downgrade notice.
-    }
-    setShowDowngradeModal(true);
-  }, [downgradeAcknowledgementKey, isFounderOrSuperAdmin, planSummary?.planStatus]);
-
-  const acknowledgeDowngradeModal = () => {
-    try {
-      if (downgradeAcknowledgementKey) {
-        localStorage.setItem(downgradeAcknowledgementKey, "1");
-      }
-    } catch {
-      // Closing still works when browser storage is unavailable.
-    }
-    setShowDowngradeModal(false);
-  };
-
-  const openUpgradeModal = () => {
-    setShowUpgradeModal(true);
-  };
-
-  const closeUpgradeModal = () => {
-    setShowUpgradeModal(false);
-  };
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60_000);
@@ -214,6 +186,12 @@ const CompanySettingsDashboard = () => {
   const pageTitle = isCompanySettings ? "Company Settings" : "Dashboard";
 
   // Only founder/super_admin see the plan-tier dashboard and the upgrade nudge.
+  const isFounderOrSuperAdmin =
+    access.roleBand === "owner" || access.roleBand === "super_admin";
+  const isStandardPlanDashboardHome =
+    !isCompanySettings &&
+    isFounderOrSuperAdmin &&
+    (access.plan === "basic" || access.plan === "professional");
   const customDepartments = useMemo(
     () =>
       access.departments.filter(
@@ -248,39 +226,121 @@ const CompanySettingsDashboard = () => {
 
   return (
     <div className="p-4 flex flex-col gap-5">
+      {/* Basic and Professional share the same plan-dashboard masthead system. */}
+      {isStandardPlanDashboardHome ? (
+        <section className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white p-5 shadow-[0_12px_34px_rgba(37,99,235,0.08)] sm:p-6">
+          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/70" />
+          <div className="pointer-events-none absolute -bottom-24 right-40 h-56 w-56 rounded-full bg-blue-50/70" />
+          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-4">
+              <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#2563EB] ring-1 ring-blue-100 sm:flex">
+                <LayoutDashboard size={21} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-[9px] font-pmedium uppercase tracking-[0.22em] text-[#2563EB]">
+                    {access.plan === "professional"
+                      ? "Professional Unit dashboard"
+                      : "Basic Unit dashboard"}
+                  </p>
+                  <span className="rounded-full border border-blue-100 bg-white px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm">
+                    {access.plan === "professional"
+                      ? "Professional Plan"
+                      : "Basic Plan"}
+                  </span>
+                </div>
+                <h2 className="mt-2 text-xl font-pmedium text-[#1E3D73] sm:text-2xl">
+                  {greeting} 👋
+                </h2>
+                <p className="mt-1 text-xs font-pmedium text-slate-500 sm:text-sm">
+                  {todayLabel}
+                  <WorkspaceClock
+                    timezone={workspacePreferences.timezone}
+                    location={workspacePreferences.location}
+                  />
+                </p>
+              </div>
+            </div>
 
-      {/* Greeting banner */}
-      <PageFrame>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h2 className="inline-flex items-center text-title font-pmedium text-primary uppercase">
-                {pageTitle}
-              </h2>
-              {isFounderOrSuperAdmin && (
+            {professionalPlanDaysLeft != null && (
+              <div className="flex w-fit shrink-0 items-center gap-3 rounded-2xl border border-blue-100 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-sm">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB]">
+                  <CalendarClock size={18} />
+                </div>
+                <div>
+                  <p className="text-2xl font-pmedium leading-none text-[#1E3D73]">
+                    {professionalPlanDaysLeft}
+                  </p>
+                  <p className="mt-1 text-[9px] font-pmedium uppercase tracking-[0.16em] text-slate-500">
+                    {planSummary?.isTrialing
+                      ? "Trial days left"
+                      : "Plan days left"}
+                  </p>
+                </div>
                 <button
                   type="button"
-                  onClick={canUpgrade ? () => openUpgradeModal() : undefined}
-                  className={canUpgrade ? "cursor-pointer" : "cursor-default"}
-                  title={canUpgrade ? "Click to upgrade your plan" : undefined}
+                  onClick={() => {
+                    if (planSummary?.isTrialing) {
+                      navigate("/profile/plan-billing");
+                      return;
+                    }
+                    setShowRenewModal(true);
+                  }}
+                  className="ml-1 rounded-full bg-[#2563EB] px-3.5 py-2 text-[9px] font-pmedium uppercase tracking-widest text-white transition-colors hover:bg-[#1E3D73]"
                 >
-                  <PlanBadge plan={access.plan} clickable={canUpgrade} />
+                  Renew
                 </button>
-              )}
-            </div>
-            <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
-            <p className="text-content font-pmedium text-gray-700">{todayLabel}<WorkspaceClock timezone={workspacePreferences.timezone} location={workspacePreferences.location} /></p>
+              </div>
+            )}
           </div>
-        </div>
-      </PageFrame>
+        </section>
+      ) : (
+        <PageFrame>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h2 className="inline-flex items-center text-title font-pmedium text-primary uppercase">
+                  {pageTitle}
+                </h2>
+                {isFounderOrSuperAdmin && (
+                  <button
+                    type="button"
+                    onClick={
+                      canUpgrade ? () => setShowUpgradeModal(true) : undefined
+                    }
+                    className={canUpgrade ? "cursor-pointer" : "cursor-default"}
+                    title={
+                      canUpgrade ? "Click to upgrade your plan" : undefined
+                    }
+                  >
+                    <PlanBadge plan={access.plan} clickable={canUpgrade} />
+                  </button>
+                )}
+              </div>
+              <p className="text-subtitle font-pmedium text-gray-700">
+                {greeting} 👋
+              </p>
+              <p className="text-content font-pmedium text-gray-700">
+                {todayLabel}
+                <WorkspaceClock
+                  timezone={workspacePreferences.timezone}
+                  location={workspacePreferences.location}
+                />
+              </p>
+            </div>
+          </div>
+        </PageFrame>
+      )}
 
       {/* Founder/Super Admin: plan-tier dashboard. Everyone else: their own granted modules. */}
       {isFounderOrSuperAdmin ? (
         <>
           {access.plan === "basic" && (
             <BasicDashboard
-              onUpgradeClick={() => openUpgradeModal()}
-              isExpiredDowngrade={planSummary?.planStatus === "expired_downgraded"}
+              onUpgradeClick={() => setShowUpgradeModal(true)}
+              isExpiredDowngrade={
+                planSummary?.planStatus === "expired_downgraded"
+              }
               downgradedPlanLabel={downgradedPlanLabel}
               activeMembers={access.metrics.activeMembers}
               totalMembers={access.metrics.totalMembers}
@@ -291,7 +351,7 @@ const CompanySettingsDashboard = () => {
           )}
           {access.plan === "professional" && (
             <ProfessionalDashboard
-              onUpgradeClick={() => openUpgradeModal()}
+              onUpgradeClick={() => setShowUpgradeModal(true)}
               enabledModuleIds={access.enabledModuleIds}
               grantedModuleIds={access.grantedModuleIds}
               trialDaysLeft={trialDaysLeft}
@@ -322,84 +382,19 @@ const CompanySettingsDashboard = () => {
       {showUpgradeModal && canUpgrade && (
         <UpgradePlanModal
           currentPlan={access.plan}
-          onClose={closeUpgradeModal}
+          onClose={() => setShowUpgradeModal(false)}
         />
       )}
 
-      {isFounderOrSuperAdmin && showDowngradeModal && planSummary?.planStatus === "expired_downgraded" && (
-        <div className="fixed inset-0 z-[1350] flex items-center justify-center bg-[#0f172a]/45 px-4 py-6 backdrop-blur-[2px]">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="plan-downgraded-title"
-            className="w-full max-w-lg overflow-hidden rounded-[2rem] border border-blue-200 bg-white shadow-[0_24px_90px_rgba(15,23,42,0.32)]"
-          >
-            <div className="bg-gradient-to-br from-[#1E3D73] via-[#2563EB] to-[#60A5FA] px-6 py-5 text-white">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 ring-1 ring-white/30">
-                    <AlertTriangle size={23} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-pmedium uppercase tracking-[0.2em] text-white/80">
-                      Plan update
-                    </p>
-                    <h2 id="plan-downgraded-title" className="mt-1 text-xl font-pmedium">
-                      Your {downgradedPlanLabel} Plan expired
-                    </h2>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={acknowledgeDowngradeModal}
-                  aria-label="Close plan expiry notice"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
-                >
-                  <X size={17} />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6">
-              <div className="rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4 text-center">
-                <p className="text-[10px] font-pmedium uppercase tracking-[0.18em] text-[#2563EB]">
-                  Your unit is now on
-                </p>
-                <p className="mt-1 text-2xl font-pmedium text-slate-900">Basic Plan</p>
-                <p className="mt-2 text-sm font-pmedium text-slate-600">
-                  Paid modules are paused. Your data and setup are safe.
-                </p>
-              </div>
-
-              <p className="mt-4 text-center text-sm font-pmedium text-slate-700">
-                Upgrade now to regain paid-module access and keep your team moving.
-              </p>
-
-              <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-center">
-                <button
-                  type="button"
-                  onClick={acknowledgeDowngradeModal}
-                  className="rounded-full border border-slate-200 px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-slate-600 transition hover:bg-slate-50"
-                >
-                  Continue on Basic
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    acknowledgeDowngradeModal();
-                    openUpgradeModal();
-                  }}
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#2563EB] px-4 py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700"
-                >
-                  Upgrade Now
-                  <ArrowRight size={14} />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {showRenewModal && (
+        <PlanRenewModal
+          planId={String(planSummary?.selectedPlan || "professional")}
+          planLabel="Professional Plan"
+          companyId={planSummary?.companyId}
+          planExpiryDate={planSummary?.planExpiryDate}
+          onClose={() => setShowRenewModal(false)}
+        />
       )}
-
     </div>
   );
 };

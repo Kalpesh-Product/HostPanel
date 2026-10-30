@@ -40,7 +40,6 @@ import DonutChart from "../../../../components/graphs/DonutChart";
 import BarGraph from "../../../../components/graphs/BarGraph";
 import WonoListingsCard from "./WonoListingsCard";
 import VerifiedBadgeNotice from "./VerifiedBadgeNotice";
-import PlanExpiringNotice from "./PlanExpiringNotice";
 import BonusTrialOfferNotice from "./BonusTrialOfferNotice";
 import { statusBadgeColor, humanRelTime, hasModuleUse } from "./dashboardUtils";
 import { getStoredUser } from "../../../../lib/auth-session";
@@ -649,7 +648,7 @@ const ProfessionalDashboard = ({
         </button>
       )}
 
-      <PlanExpiringNotice />
+      <WonoListingsCard />
       <VerifiedBadgeNotice />
       <BonusTrialOfferNotice />
 

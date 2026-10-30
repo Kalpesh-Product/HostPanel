@@ -31,8 +31,8 @@ import BarGraph from "../../../../components/graphs/BarGraph";
 import WonoListingsCard from "./WonoListingsCard";
 import VerifiedBadgeNotice from "./VerifiedBadgeNotice";
 import BonusTrialOfferNotice from "./BonusTrialOfferNotice";
-// import FreeTrialOfferNotice from "./FreeTrialOfferNotice";
-import { statusBadgeColor, humanRelTime, hasModuleUse, pickCardCols } from "./dashboardUtils";
+import FreeTrialOfferNotice from "./FreeTrialOfferNotice";
+import { statusBadgeColor, humanRelTime, hasModuleUse } from "./dashboardUtils";
 import { ICON_BY_ID, DEFAULT_SECTION_ROUTES } from "../ModuleCardsLanding";
 import { isSameCompanyWebsite } from "../WebsiteBuilder/WebsiteBuilderReviews.helpers";
 import type { WorkspaceModuleSection } from "../../../../hooks/useDashboardAccess";
@@ -392,7 +392,16 @@ const BasicEmptyState = ({
   );
 };
 
-const BasicDashboard = ({ onUpgradeClick, isExpiredDowngrade, downgradedPlanLabel, activeMembers, totalMembers, moduleMap, grantedModuleIds, enabledModuleIds }: BasicDashboardProps) => {
+const BasicDashboard = ({
+  onUpgradeClick,
+  isExpiredDowngrade,
+  downgradedPlanLabel,
+  activeMembers,
+  totalMembers,
+  moduleMap,
+  grantedModuleIds,
+  enabledModuleIds,
+}: BasicDashboardProps) => {
   const axiosPrivate = useAxiosPrivate();
   const navigate = useNavigate();
   const selectedCompany = useSelector(
@@ -647,34 +656,6 @@ const BasicDashboard = ({ onUpgradeClick, isExpiredDowngrade, downgradedPlanLabe
         downgradedPlanLabel={downgradedPlanLabel}
       />
       <WonoListingsCard />
-      {/* <FreeTrialOfferNotice /> */}
-
-      {/* Plan strip — compact, opens the upgrade modal */}
-      <div
-        data-tour="dashboard-plan"
-        className="flex items-center gap-3 p-4 rounded-xl border-2 border-accent/30 bg-blue-50 cursor-pointer hover:bg-blue-100 transition-colors"
-        onClick={onUpgradeClick}
-      >
-        <Zap size={18} className="text-accent flex-shrink-0" />
-        <p className="min-w-0 flex-1 text-content font-pmedium leading-relaxed text-blue-800">
-          {isExpiredDowngrade ? (
-            <>
-              Your <strong>{downgradedPlanLabel} Plan</strong> has expired, so your unit has been
-              downgraded to <strong>Basic</strong>. Your data and setup are safe — upgrade now to regain
-              access to paid modules and keep your team moving.
-            </>
-          ) : (
-            <>
-              You're on the <strong>Basic Plan</strong> — Upgrade to{" "}
-              <strong>Professional Plan</strong> for Meeting Room Bookings, Ticketing, Sales Modules & more.
-            </>
-          )}
-        </p>
-        <span className="ml-auto flex-shrink-0 px-3 py-1 rounded-full text-[10px] font-pmedium uppercase tracking-widest border bg-accent text-white border-accent whitespace-nowrap">
-          {isExpiredDowngrade ? "Upgrade Now" : "Upgrade ↑"}
-        </span>
-        <ArrowRight size={14} className="text-accent flex-shrink-0" />
-      </div>
 
       <VerifiedBadgeNotice />
       <BonusTrialOfferNotice suppressed={isExpiredDowngrade} />
