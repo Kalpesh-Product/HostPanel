@@ -51,7 +51,7 @@ export const LodgeHeader: React.FC = () => {
           type="button"
           onClick={() => t.goToSection("home")}
           aria-label="Go to home"
-          className="flex min-w-0 items-center justify-self-start gap-3 text-left lg:justify-self-center"
+          className="ld-header-logo flex min-w-0 items-center justify-self-start gap-3 text-left lg:justify-self-center"
         >
           {draft?.companyLogo ? (
             <img
@@ -119,12 +119,13 @@ export const LodgeHeader: React.FC = () => {
       </div>
       {t.mobileMenuOpen ? (
         <div className="ld-header absolute inset-x-0 top-full border-t border-black/10 px-6 pb-8 pt-4 lg:hidden">
-          <nav className="flex flex-col gap-1">
+          <nav className="flex flex-col gap-1" aria-label="Mobile navigation">
             {links.map((item) => (
               <button
                 key={item.slug}
                 type="button"
                 className="ld-mobile-link"
+                aria-current={isActive(item) ? "page" : undefined}
                 onClick={() => go(item)}
               >
                 {item.name}

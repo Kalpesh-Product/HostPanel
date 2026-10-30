@@ -59,10 +59,10 @@ const StartTrialConfirmModal = ({
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-[18px] font-bold text-[#111b33]">
+            <h3 className="text-[18px] font-pmedium text-[#111b33]">
               {title || `Start your ${days ? `${days}-day ` : ""}free trial?`}
             </h3>
-            <p className="mt-1 text-[13px] text-[#63738d]">
+            <p className="mt-1 text-[13px] font-pmedium text-[#63738d]">
               {subtitle || "Try the Professional plan free — no payment needed to begin."}
             </p>
           </div>
@@ -80,7 +80,7 @@ const StartTrialConfirmModal = ({
         {endsOn && (
           <div className="mb-4 flex items-start gap-3 rounded-xl border border-[#c8d6f2] bg-[#eef4ff] p-3.5">
             <CalendarCheck size={18} className="mt-0.5 shrink-0 text-[#2d67f0]" />
-            <div className="text-[13px] text-[#35507d]">
+            <div className="text-[13px] font-pmedium text-[#35507d]">
               <p>
                 If you start now, your trial begins <b className="text-[#111b33]">today</b> (
                 {formatLongDate(startsOn)}) and ends on{" "}
@@ -90,7 +90,7 @@ const StartTrialConfirmModal = ({
           </div>
         )}
 
-        <ul className="mb-5 space-y-2 text-[13px] text-[#4f627d]">
+        <ul className="mb-5 space-y-2 text-[13px] font-pmedium   text-[#4f627d]">
           {(bullets || DEFAULT_BULLETS).map((line) => (
             <li key={line} className="flex items-start gap-2">
               <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-[#23c35c]" />
@@ -99,12 +99,12 @@ const StartTrialConfirmModal = ({
           ))}
         </ul>
 
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <div className="flex flex-col-reverse  gap-2 sm:flex-row sm:justify-center">
           <button
             type="button"
             onClick={onLater}
             disabled={isStarting}
-            className="h-10 rounded-xl border border-[#d0d8e5] px-5 text-[13px] font-medium text-[#5b6b83] hover:bg-slate-50 disabled:opacity-50"
+            className="h-10 rounded-xl border border-[#d0d8e5] px-5 text-[13px] font-pmedium text-[#5b6b83] hover:bg-slate-50 disabled:opacity-50"
           >
             Maybe later
           </button>
@@ -112,7 +112,7 @@ const StartTrialConfirmModal = ({
             type="button"
             onClick={onConfirm}
             disabled={isStarting}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#2d67f0] px-6 text-[13px] font-medium text-white hover:bg-[#2558d5] disabled:opacity-60"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#2d67f0] px-6 text-[13px] font-pmedium text-white hover:bg-[#2558d5] disabled:opacity-60"
           >
             {isStarting ? <Loader2 size={14} className="animate-spin" /> : null}
             {isStarting ? confirmingLabel || "Starting..." : confirmLabel || "Start now"}

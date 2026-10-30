@@ -398,7 +398,7 @@ const LoginPage = () => {
                 href="https://wono.co"
                 className="block px-10 py-2 uppercase bg-white text-black mx-auto w-max rounded-full"
               >
-                Login
+                Host Login
               </a>
             </div>
             <hr className="w-[75%]" />

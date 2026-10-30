@@ -859,38 +859,23 @@ export const UpgradePlanModal = ({
           isSubmitting={isUpgradeSubmitting}
         />
       ) : (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="upgrade-plan-title"
-          className="w-full max-w-5xl max-h-[92vh] overflow-y-auto rounded-[2rem] border border-blue-100 bg-white shadow-[0_24px_90px_rgba(15,23,42,0.32)]"
-        >
-          <div className="relative overflow-hidden border-b border-blue-100 bg-gradient-to-br from-blue-50/90 via-white to-white px-5 py-5 sm:px-7 sm:py-6">
-            <div className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full bg-blue-100/70" />
-            <div className="relative flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <p className="text-[9px] font-pmedium uppercase tracking-[0.22em] text-[#2563EB]">Plan options</p>
-                  <span className="rounded-full border border-blue-100 bg-white px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm">
-                    Current: {currentPlan}
-                  </span>
-                </div>
-                <h2 id="upgrade-plan-title" className="text-xl font-pmedium text-[#1E3D73] sm:text-2xl">
-                  Choose how your unit grows
-                </h2>
-                <p className="mt-1 max-w-xl text-xs font-pmedium leading-relaxed text-slate-500 sm:text-sm">
-                  Compare ready-to-use Professional tools with a plan tailored around your operations.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Close plan options"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-blue-100 bg-white text-slate-500 shadow-sm transition hover:bg-blue-50 hover:text-[#2563EB]"
-              >
-                <X size={16} />
-              </button>
+        <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[linear-gradient(180deg,#ffffff_0%,#f7faff_100%)] border border-[#dbe5f2] shadow-[0_20px_80px_rgba(15,23,42,0.28)] p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <h2 className="font-['Poppins'] text-[22px] sm:text-[26px] md:text-[30px] font-bold text-[#111b33] uppercase mb-2 tracking-normal">
+                Upgrade Plan
+              </h2>
+              <p className="text-[14px] text-[#63738d] mt-1">
+                Choose the plan that best fits your workspace.
+              </p>
             </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-9 w-9 rounded-full border border-[#d7dfeb] text-[#5c6d84] inline-flex items-center justify-center"
+            >
+              <X size={16} />
+            </button>
           </div>
 
           <div className="p-5 sm:p-7">

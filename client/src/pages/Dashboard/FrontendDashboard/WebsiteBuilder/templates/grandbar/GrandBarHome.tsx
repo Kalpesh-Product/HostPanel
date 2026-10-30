@@ -77,6 +77,29 @@ export const GrandBarHome: React.FC = () => {
   return (
     <>
       <section className="gb-hero">
+        <motion.div
+          className="gb-hero-image"
+          initial={{ opacity: 0, scale: 1.08 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {heroVideo ? (
+            <video
+              className="gb-hero-video"
+              src={heroVideo}
+              poster={heroPoster}
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              aria-label="Cocktail bar atmosphere"
+            />
+          ) : (
+            <GbImage src={heroPoster} alt="Cocktail bar atmosphere" />
+          )}
+          <div className="gb-hero-shade" />
+        </motion.div>
         <div className="gb-frame gb-hero-grid">
           <motion.div
             className="gb-hero-copy"
@@ -89,6 +112,22 @@ export const GrandBarHome: React.FC = () => {
               },
             }}
           >
+            <motion.p
+              className="gb-kicker gb-hero-kicker"
+              variants={{
+                hidden: { opacity: 0, y: 16 },
+                visible: {
+                  opacity: 1,
+                  y: 0,
+                  transition: { duration: 0.62, ease: [0.22, 1, 0.36, 1] },
+                },
+              }}
+            >
+              {c(
+                "home.hero.eyebrow",
+                draft?.companyName || "Cocktails · Kitchen · After dark",
+              )}
+            </motion.p>
             <motion.h1
               variants={{
                 hidden: { opacity: 0, y: 42 },
@@ -118,6 +157,37 @@ export const GrandBarHome: React.FC = () => {
               )}
             </motion.p>
             <motion.div
+              className="gb-hero-actions"
+              variants={{
+                hidden: { opacity: 0, y: 20 },
+                visible: {
+                  opacity: 1,
+                  y: 0,
+                  transition: { duration: 0.72, ease: [0.22, 1, 0.36, 1] },
+                },
+              }}
+            >
+              <button
+                type="button"
+                className="gb-outline-button gb-hero-primary"
+                onClick={() =>
+                  primary?.leadEnabled
+                    ? openLead(primary)
+                    : t.goToSection("contact")
+                }
+              >
+                {c("home.hero.primaryButton", "Reserve a table")}
+              </button>
+              <button
+                type="button"
+                className="gb-hero-menu-link"
+                onClick={() => t.goToSection("products")}
+              >
+                {c("home.hero.secondaryButton", "Explore our menus")}
+                {GbIcon.arrow(18)}
+              </button>
+            </motion.div>
+            <motion.div
               className="gb-hero-meta"
               variants={{
                 hidden: { opacity: 0, y: 20 },
@@ -141,38 +211,12 @@ export const GrandBarHome: React.FC = () => {
               </div>
             </motion.div>
           </motion.div>
-          <motion.div
-            className="gb-hero-image"
-            initial={{ clipPath: "inset(0 0 100% 0 round 999px 999px 0 0)" }}
-            animate={{ clipPath: "inset(0 0 0% 0 round 999px 999px 0 0)" }}
-            transition={{ duration: 1.18, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {heroVideo ? (
-              <video
-                className="gb-hero-video"
-                src={heroVideo}
-                poster={heroPoster}
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="metadata"
-                aria-label="Cocktail bar atmosphere"
-              />
-            ) : (
-              <GbImage src={heroPoster} alt="Cocktail bar atmosphere" />
-            )}
-            <span>{c("home.hero.script", "Flow with the tides")}</span>
-          </motion.div>
         </div>
       </section>
 
       <section className="gb-paradise">
         <div className="gb-frame">
           <GbReveal className="gb-paradise-title">
-            <span className="gb-round-icon" aria-hidden="true">
-              {GbIcon.glass(30)}
-            </span>
             <h2>{c("home.story.title", "Unwind in purple paradise")}</h2>
           </GbReveal>
           <div className="gb-paradise-grid">
@@ -209,20 +253,6 @@ export const GrandBarHome: React.FC = () => {
               transition={{ duration: 0.95, ease: [0.22, 1, 0.36, 1] }}
             >
               <GbImage src={storyMain} alt="Cocktail lounge guest" />
-            </motion.div>
-            <motion.div
-              className="gb-paradise-orb"
-              initial={{ opacity: 0, y: 46, rotate: 4 }}
-              whileInView={{ opacity: 1, y: 0, rotate: 0 }}
-              whileHover={{ y: -10, rotate: -2 }}
-              viewport={{ once: true, amount: 0.25 }}
-              transition={{
-                duration: 0.88,
-                delay: 0.14,
-                ease: [0.22, 1, 0.36, 1],
-              }}
-            >
-              <GbImage src={storyOrb} alt="Signature cocktails" />
             </motion.div>
           </div>
         </div>
@@ -318,48 +348,59 @@ export const GrandBarHome: React.FC = () => {
 
       <section className="gb-find">
         <div className="gb-frame gb-find-grid">
+          <GbReveal className="gb-find-copy">
+            <div>
+              <p className="gb-kicker">
+                {c("home.location.eyebrow", "Visit the bar")}
+              </p>
+              <h2>{c("home.location.title", "Where to find us")}</h2>
+            </div>
+            <div className="gb-find-details">
+              <p className="gb-find-address">
+                {GbIcon.map(20)}
+                <span>{t.contactAddress}</span>
+              </p>
+              <div className="gb-find-hours">
+                {hours.slice(0, 3).map((row) => (
+                  <p key={row.days}>
+                    <span>{row.days}</span>
+                    <b>{row.hours}</b>
+                  </p>
+                ))}
+              </div>
+              <a
+                className="gb-outline-button"
+                href={
+                  "https://www.google.com/maps/search/?api=1&query=" +
+                  encodeURIComponent(t.contactAddress || "")
+                }
+                target="_blank"
+                rel="noreferrer"
+              >
+                {c("home.location.button", "Get directions")}
+              </a>
+            </div>
+          </GbReveal>
           <motion.div
             className="gb-find-map"
             initial={{
               opacity: 0,
-              clipPath: "inset(12% 0 0 0 round 999px 999px 0 0)",
+              clipPath: "inset(12% 0 0 0 round 2px)",
             }}
             whileInView={{
               opacity: 1,
-              clipPath: "inset(0% 0 0 0 round 999px 999px 0 0)",
+              clipPath: "inset(0% 0 0 0 round 2px)",
             }}
             viewport={{ once: true, amount: 0.18 }}
             transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
           >
             <iframe
               title="Location map"
-              src={draft?.mapUrl || mapSrc(t.contactAddress)}
+              src={mapSrc(t.contactAddress, draft?.mapUrl)}
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
             />
-            <span>{c("home.location.script", "A blend above the rest")}</span>
           </motion.div>
-          <GbReveal className="gb-find-copy">
-            <h2>{c("home.location.title", "Where to find us")}</h2>
-            <div className="gb-round-icon">{GbIcon.glass(24)}</div>
-            <p>{t.contactAddress}</p>
-            {hours.slice(0, 3).map((row) => (
-              <p key={row.days}>
-                {row.days}: {row.hours}
-              </p>
-            ))}
-            <a
-              className="gb-outline-button"
-              href={
-                "https://www.google.com/maps/search/?api=1&query=" +
-                encodeURIComponent(t.contactAddress || "")
-              }
-              target="_blank"
-              rel="noreferrer"
-            >
-              {c("home.location.button", "Get direction")}
-            </a>
-          </GbReveal>
         </div>
       </section>
 
