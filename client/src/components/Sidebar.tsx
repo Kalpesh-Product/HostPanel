@@ -220,7 +220,7 @@ const keyAppsData: NavNode[] = [
   { id: "website-builder", label: "Website Builder", icon: Globe, route: "/key-apps/website-builder", disabled: false },
   { id: "wono-nomad", label: "Nomad Listings", icon: ShieldCheck, route: "/key-apps/wono-nomad", disabled: false },
   { id: "website-leads", label: "All Leads", icon: Magnet, route: "/key-apps/all-leads", disabled: false },
-  { id: "visitor-management", label: "Visitor Management", icon: ContactRound, route: "/visitors/visitor-management", disabled: false },
+  { id: "visitor-management", label: "Visitor Management", icon: ContactRound, route: "/visitors/dashboard", disabled: false },
 ];
 
 const filterNavByVerticals = (
@@ -278,7 +278,7 @@ const departmentModules: NavNode[] = [
         id: "visitors-management",
         label: "Visitors Management",
         icon: ContactRound,
-        route: "/visitors/visitor-management",
+        route: "/visitors/dashboard",
         disabled: false,
       },
       { id: "resource-management", label: "Resource Management", icon: HandCoins, route: "/department-accesses/administration-department/resource-management", disabled: false },
@@ -377,8 +377,8 @@ export const ROUTE_BY_ID: Record<string, string> = {
   "access-grants": "/core-modules/access-grants",
   "unit-settings": "/core-modules/workspace-settings",
   "unit-management": "/core-modules/workspace-management",
-  "visitor-management": "/visitors/visitor-management",
-  "visitors-management": "/visitors/visitor-management",
+  "visitor-management": "/visitors/dashboard",
+  "visitors-management": "/visitors/dashboard",
   "tenant-companies-sales": "/department-accesses/sales-department/tenant-companies",
   "virtual-office-sales": "/department-accesses/sales-department/virtual-offices",
   "resource-pricing": "/department-accesses/sales-department/resource-pricing",
@@ -433,6 +433,13 @@ export const ROUTE_BY_ID: Record<string, string> = {
   "it-system-access": "/department-accesses/it-department/system-access",
   "maintenance-repair-logs": "/department-accesses/maintenance-department/repair-logs",
   "amc-maintenance-scheduler": "/department-accesses/maintenance-department/amc-scheduler",
+};
+
+const resolveModuleRoute = (moduleId: string, configuredRoute?: string) => {
+  if (moduleId === "visitor-management" || moduleId === "visitors-management") {
+    return "/visitors/dashboard";
+  }
+  return configuredRoute || ROUTE_BY_ID[moduleId];
 };
 
 const ICON_BY_ID: Record<string, ElementType> = {
@@ -1406,7 +1413,7 @@ useEffect(() => {
         if (itemId) {
           moduleNavigation.set(itemId, {
             label: String(item?.label || itemId),
-            route: item?.route || ROUTE_BY_ID[itemId],
+            route: resolveModuleRoute(itemId, item?.route),
             icon: ICON_BY_ID[itemId] || Boxes,
           });
         }
@@ -1415,7 +1422,7 @@ useEffect(() => {
           if (!tabId) return;
           moduleNavigation.set(tabId, {
             label: String(tab?.label || tabId),
-            route: tab?.route || ROUTE_BY_ID[tabId],
+            route: resolveModuleRoute(tabId, tab?.route),
             icon: ICON_BY_ID[tabId] || Boxes,
           });
         });
@@ -1495,7 +1502,7 @@ useEffect(() => {
     const sectionKey = String(section?.sectionId || section?.sectionLabel || "section");
     const mappedItems: NavNode[] = (section?.items || []).map((item): NavNode | null => {
       const itemId = String(item?.id || "").trim();
-      const itemRoute = item?.route || ROUTE_BY_ID[itemId];
+      const itemRoute = resolveModuleRoute(itemId, item?.route);
       const hasTabs = Array.isArray(item?.tabs) && item.tabs.length > 0;
 
       // Administration Department is now a Professional+ default (see
@@ -1514,7 +1521,7 @@ useEffect(() => {
           })
           .map((tab) => {
             const tabId = String(tab?.id || "").trim();
-            const tabRoute = tab?.route || ROUTE_BY_ID[tabId];
+            const tabRoute = resolveModuleRoute(tabId, tab?.route);
             const workspaceUnlocked = workspaceEnabledCanonicalIds.has(tabId);
             const roleUnlocked = roleAllowedModuleIds.has(tabId);
             const unlocked = workspaceUnlocked && roleUnlocked;

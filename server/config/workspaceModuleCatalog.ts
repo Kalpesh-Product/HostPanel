@@ -67,7 +67,7 @@ const MODULE_GROUPS = [
       { id: "exit-management", label: "Resignation Management", implemented: true },
       { id: "tenant-companies-admin", label: "Tenant Companies", implemented: false },
       { id: "bookings", label: "Bookings", implemented: false },
-      { id: "visitors-management", label: "Visitors Management", route: "/visitors/visitor-management", implemented: true },
+      { id: "visitors-management", label: "Visitors Management", route: "/visitors/dashboard", implemented: true },
       { id: "resource-management", label: "Resource Management", implemented: false },
       { id: "house-keeping", label: "House Keeping", implemented: false },
       { id: "leads-management", label: "Leads Management", route: "/sales-crm/leads-management", implemented: true },
@@ -91,7 +91,7 @@ const MODULE_GROUPS = [
       { id: "website-builder", label: "Website Builder", route: "/company-settings/website-builder", implemented: true },
       { id: "wono-nomad", label: "Nomad Listings", route: "/company-settings/wono-nomad", implemented: true },
       { id: "website-leads", label: "All Leads", route: "/company-settings/all-leads", implemented: true },
-      { id: "visitor-management", label: "Visitor Management", route: "/visitors/visitor-management", implemented: true },
+      { id: "visitor-management", label: "Visitor Management", route: "/visitors/dashboard", implemented: true },
     ],
   },
   {
@@ -134,7 +134,7 @@ const MODULE_GROUPS = [
           // hourly booking, which desks/cabins don't do).
           { id: "tenant-companies-admin", label: "Tenant Companies", implemented: false, verticals: ["co-working", "meeting-rooms", "workation"] },
           { id: "bookings", label: "Bookings", implemented: false, verticals: ["meeting-rooms", "workation"] },
-          { id: "visitors-management", label: "Visitors Management", route: "/visitors/visitor-management", implemented: true },
+          { id: "visitors-management", label: "Visitors Management", route: "/visitors/dashboard", implemented: true },
           { id: "resource-management", label: "Resource Management", implemented: false },
           { id: "house-keeping", label: "House Keeping", implemented: false },
           { id: "printout-management", label: "Printout Management", route: "/department-accesses/administration-department/printouts", implemented: true },

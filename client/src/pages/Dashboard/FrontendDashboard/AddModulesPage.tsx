@@ -157,7 +157,7 @@ const DEFAULT_SECTION_ROUTES: Record<string, string> = {
   "exit-management": "/department-accesses/hr-department/resignation-management",
   "tenant-companies-admin": "/department-accesses/administration-department/tenant-companies",
   bookings: "/department-accesses/administration-department/bookings",
-  "visitors-management": "/visitors/visitor-management",
+  "visitors-management": "/visitors/dashboard",
   "resource-management": "/department-accesses/administration-department/resource-management",
   "house-keeping": "/department-accesses/administration-department/house-keeping",
   "leads-management": "/department-accesses/sales-department/leads-management",

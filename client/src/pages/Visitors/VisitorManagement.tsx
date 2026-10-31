@@ -1074,6 +1074,7 @@ export default function VisitorsManagementPage() {
     [auth?.user?.permissions?.permissions],
   );
   const [currentMemberGrantedModules, setCurrentMemberGrantedModules] = useState([]);
+  const [hasLoadedCurrentMemberGrants, setHasLoadedCurrentMemberGrants] = useState(false);
   const memberGrantedModules = useMemo(() => {
     const fromWorkspaceMembership = Array.isArray(auth?.user?.workspaceMembership?.grantedModules)
       ? auth.user.workspaceMembership.grantedModules
@@ -1125,6 +1126,8 @@ export default function VisitorsManagementPage() {
       } catch {
         if (!active) return;
         setCurrentMemberGrantedModules([]);
+      } finally {
+        if (active) setHasLoadedCurrentMemberGrants(true);
       }
     };
 
@@ -1227,7 +1230,14 @@ export default function VisitorsManagementPage() {
     },
     [hasGrant],
   );
-  const [activeTab, setActiveTab] = useState('daily');
+  const [activeTab, setActiveTab] = useState(() => {
+    const requestedTab = String(
+      new URLSearchParams(location.search).get('tab') || location.state?.tab || 'daily',
+    );
+    return ['daily', 'history', 'bookings', 'clients'].includes(requestedTab)
+      ? requestedTab
+      : 'daily';
+  });
   const [showExportModal, setShowExportModal] = useState(false);
   const [dailyStatusTab, setDailyStatusTab] = useState('all');
   const [bookingStatusTab, setBookingStatusTab] = useState('upcoming');
@@ -1283,6 +1293,15 @@ export default function VisitorsManagementPage() {
     visitorAccess.standardTypes.standard ||
     visitorAccess.standardTypes.department ||
     visitorAccess.standardTypes.tenant;
+
+  useEffect(() => {
+    const requestedTab = String(
+      new URLSearchParams(location.search).get('tab') || location.state?.tab || '',
+    );
+    if (['daily', 'history', 'bookings', 'clients'].includes(requestedTab)) {
+      setActiveTab(requestedTab);
+    }
+  }, [location.search, location.state?.tab]);
 
   useEffect(() => {
     if (!isFrontdeskPage) return;
@@ -2956,10 +2975,11 @@ export default function VisitorsManagementPage() {
   }, [activeFormSubmitAttempted, activeFormValidationErrors, isLoggingVisitor, visitorMode]);
 
   useEffect(() => {
+    if (!hasLoadedCurrentMemberGrants) return;
     if (lockedTopTabs.has(activeTab)) {
       setActiveTab('daily');
     }
-  }, [activeTab, lockedTopTabs]);
+  }, [activeTab, hasLoadedCurrentMemberGrants, lockedTopTabs]);
 
   useEffect(() => {
     if (lockedVisitorModes.has(visitorMode)) {

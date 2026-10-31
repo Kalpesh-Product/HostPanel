@@ -207,7 +207,7 @@ import TasksDepartmentLayout from "../pages/Tasks/DepartmentTasks/TasksDepartmen
 import TasksViewDepartment from "../pages/Tasks/DepartmentTasks/TasksViewDepartment";
 import VisitorLayout from "../pages/Visitors/VisitorLayout";
 import VisitorManagement from "../pages/Visitors/VisitorManagement";
-import VisitorDashboard from "../pages/Visitors/VisitorDashboard";
+import VisitorsWorkspaceDashboard from "../pages/Visitors/VisitorsWorkspaceDashboard";
 import AddVisitor from "../pages/Visitors/Forms/AddVisitor";
 import AddClient from "../pages/Visitors/Forms/AddClient";
 import ManageVisitorLayout from "../pages/Visitors/ManageVisitorLayout";
@@ -1442,7 +1442,7 @@ export const routes = createBrowserRouter([
                   },
                   {
                     path: "dashboard",
-                    element: <VisitorDashboard />,
+                    element: <VisitorsWorkspaceDashboard />,
                   },
                   {
                     path: "add-visitor", // Page with form to Add a new Visitor

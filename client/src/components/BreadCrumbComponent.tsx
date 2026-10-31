@@ -248,6 +248,13 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/visitors/dashboard",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Visitor Management Dashboard" },
+    ],
+  },
+  {
     pattern: "/visitors/visitor-management",
     fromSection: "department-accesses",
     crumbs: [

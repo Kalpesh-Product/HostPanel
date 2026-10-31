@@ -233,7 +233,7 @@ export const DEFAULT_SECTION_ROUTES: Record<string, string> = {
   "exit-management": "/department-accesses/hr-department/resignation-management",
   "tenant-companies-admin": "/department-accesses/administration-department/tenant-companies",
   bookings: "/department-accesses/administration-department/bookings",
-  "visitors-management": "/visitors/visitor-management",
+  "visitors-management": "/visitors/dashboard",
   "resource-management": "/department-accesses/administration-department/resource-management",
   "house-keeping": "/department-accesses/administration-department/house-keeping",
   "printout-management": "/department-accesses/administration-department/printouts",
@@ -364,7 +364,7 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
       { id: "website-builder", label: "Website Builder", route: "/key-apps/website-builder", implemented: true, unlockedInWorkspace: true },
       { id: "wono-nomad", label: "Nomad Listings", route: "/key-apps/wono-nomad", implemented: true, unlockedInWorkspace: true },
       { id: "website-leads", label: "All Leads", route: "/key-apps/all-leads", implemented: true, unlockedInWorkspace: true },
-      { id: "visitor-management", label: "Visitor Management", route: "/visitors/visitor-management", implemented: true, unlockedInWorkspace: true },
+      { id: "visitor-management", label: "Visitor Management", route: "/visitors/dashboard", implemented: true, unlockedInWorkspace: true },
     ],
   },
   "profile": {
