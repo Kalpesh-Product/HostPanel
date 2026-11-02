@@ -3366,7 +3366,7 @@ export function MeetingRoomsPage() {
     setShowExternalBookingDialog(false);
     setShowNewExternalBookingDialog(false);
     setShowTenantBookingDialog(false);
-    navigate('/department-accesses/sales-department/resource-pricing', {
+    navigate('/department-accesses/sales-department/resource-pricing/list', {
       state: {
         from: '/meeting-rooms',
         intent: preset === 'tenant_inventory' ? 'add-tenant-inventory' : 'add-meeting-resource',
@@ -4762,7 +4762,7 @@ export function MeetingRoomsPage() {
                   </div>
                   <div>
                     <p className="text-[12px] font-pmedium text-amber-950">Add a meeting or conference room before accepting bookings.</p>
-                    <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-amber-700">Sales Department ? Resource & Pricing</p>
+                    <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-amber-700">Sales Dashboard ? Resource & Pricing</p>
                   </div>
                 </div>
                 <button
@@ -5734,7 +5734,7 @@ export function MeetingRoomsPage() {
                   </div>
                   <p className="mt-5 text-base font-pmedium text-slate-950">No meeting resources are available yet</p>
                   <p className="mt-2 max-w-md text-[12px] font-pmedium leading-relaxed text-slate-500">
-                    Add an active Meeting Room or Conference Room before creating a booking. You can manage these resources under Sales Department ? Resource & Pricing.
+                    Add an active Meeting Room or Conference Room before creating a booking. You can manage these resources under Sales Dashboard ? Resource & Pricing.
                   </p>
                   <button
                     type="button"

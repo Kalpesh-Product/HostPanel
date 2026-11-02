@@ -6,7 +6,7 @@ import {
   Briefcase, DollarSign, Home, Clock, Tag, Download,
   FileText, Users, XCircle, History,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useFreshCurrentUser } from "../../../hooks/useFreshCurrentUser";
 import useDashboardAccess from "../../../hooks/useDashboardAccess";
@@ -110,6 +110,8 @@ function visitorToLead(visitor) {
     priority: visitor.budgetRange?.includes("5L+") || visitor.budgetRange?.includes("3L") ? "High" : visitor.budgetRange ? "Medium" : "Low",
     dateAdded,
     lastContact,
+    contactedOn: visitor.followUpDate ? formatDateLabel(visitor.followUpDate) : "",
+    convertedOn: visitor.convertedAt ? formatDateLabel(visitor.convertedAt) : "",
     checkInAt: visitor.checkInAt || null,
     checkOutAt: visitor.checkOutAt || null,
     qualification: {
@@ -126,6 +128,12 @@ function visitorToLead(visitor) {
         date: formatDateLabel(visitor.checkInAt || visitor.createdAt),
         note: `Visitor checked in at frontdesk for a workspace tour. ${visitor.tourNotes ? `Notes: ${visitor.tourNotes}` : ""}`.trim(),
       },
+      ...(visitor.followUpDate
+        ? [{ type: "Contacted", date: formatDateLabel(visitor.followUpDate), note: "Lead marked Contacted by Sales." }]
+        : []),
+      ...(visitor.convertedAt
+        ? [{ type: "Converted", date: formatDateLabel(visitor.convertedAt), note: "Lead marked Converted by Sales." }]
+        : []),
     ],
   };
 }
@@ -163,7 +171,9 @@ export default function LeadsManagementPage() {
   const [selectedLeadId, setSelectedLeadId] = useState(null);
   const [isExportingReport, setIsExportingReport] = useState("");
   const [showExportModal, setShowExportModal] = useState(false);
-  const [mainTab, setMainTab] = useState("website-leads");
+  const location = useLocation();
+  const requestedTab = (location.state as { tab?: string } | null)?.tab;
+  const [mainTab, setMainTab] = useState(requestedTab === "unit-tour" ? "unit-tour" : "website-leads");
   const [websiteLeads, setWebsiteLeads] = useState([]);
   const [websiteLeadStages, setWebsiteLeadStages] = useState({});
   const [selectedWebsiteLeadId, setSelectedWebsiteLeadId] = useState(null);
@@ -336,7 +346,7 @@ export default function LeadsManagementPage() {
 
   const qualificationEntries = useMemo(
     () => Object.entries(selectedLead?.qualification || {}).filter(([, v]) => Boolean(String(v || "").trim())).map(([label, value]) => ({
-      label: { pocName: "POC Name", pocDesignation: "POC Designation", pocPhone: "POC Phone", pocEmail: "POC Email", preferredContactMethod: "Preferred Contact", followUpDate: "Follow-up Date" }[label] || label.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()),
+      label: { pocName: "POC Name", pocDesignation: "POC Designation", pocPhone: "POC Phone", pocEmail: "POC Email", preferredContactMethod: "Preferred Contact", followUpDate: "Contacted On" }[label] || label.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()),
       value,
     })),
     [selectedLead],
@@ -349,7 +359,15 @@ export default function LeadsManagementPage() {
     pendingStageIds.current.add(leadId);
     setSavingStages((current) => ({ ...current, [leadId]: true }));
     try {
-      await updateUnitTourLeadStatus(leadId, nextStage);
+      const result = await updateUnitTourLeadStatus(leadId, nextStage);
+      // The PATCH response carries the freshly stamped followUpDate/convertedAt —
+      // re-derive the full lead from it so the Activity Timeline and the
+      // Contacted on/Converted on labels update immediately instead of staying
+      // frozen at whatever they were when the list first loaded.
+      if (result?.visitor) {
+        const updatedLead = visitorToLead(result.visitor);
+        setLeads((current) => current.map((item) => (item.id === leadId ? updatedLead : item)));
+      }
       setLeadStages((current) => ({ ...current, [leadId]: nextStage }));
       toast.success("Lead status updated");
     } catch (updateError) {
@@ -720,6 +738,12 @@ export default function LeadsManagementPage() {
                     <span className={statusPillClass(selectedLead.priority)}>{selectedLead.priority} Priority</span>
                     <span className="text-[10px] font-pmedium text-slate-500 truncate">{selectedLead.company || "Individual"} {selectedLead.visitorCode || selectedLead.id}</span>
                   </div>
+                  {(selectedLead.contactedOn || selectedLead.convertedOn) && (
+                    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                      {selectedLead.contactedOn ? <span className="text-[10px] font-pmedium text-slate-500">Contacted on {selectedLead.contactedOn}</span> : null}
+                      {selectedLead.convertedOn ? <span className="text-[10px] font-pmedium text-emerald-600">Converted on {selectedLead.convertedOn}</span> : null}
+                    </div>
+                  )}
                 </div>
               </div>
               <button type="button" onClick={() => setSelectedLeadId(null)} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"><X size={16} /></button>

@@ -8,14 +8,24 @@ export const resourceCategories = [
     "meeting_room",
     "conference_room",
     "virtual_office",
+    "room",
+    "dorm",
 ];
-export const resourceTypes = ["Open Desk", "Meeting Room", "Conference Room", "Cabin Desk", "Virtual Office"];
+export const resourceTypes = ["Open Desk", "Meeting Room", "Conference Room", "Cabin Desk", "Virtual Office", "Room", "Dorm"];
+// Room/Dorm are priced per night, not per hour/day like every other category —
+// they never set pricePerHour/pricePerDay, so the existing hourly->daily
+// derivation naturally stays a no-op for them (both inputs are 0).
+export const nightlyPricedCategories = new Set(["room", "dorm"]);
 export const resourceStatuses = ["Active", "Under Maintenance", "Disabled"];
 export const areaCapacityCatalog: Record<string, number[]> = {
     virtual_office: [1, 2, 3, 4, 5],
 };
 // Open desk (area) and cabin desk seats are entered manually, capped at MAX_DESK_SEATS.
 export const MAX_DESK_SEATS = 499;
+// A Room's capacity is its max guest occupancy (how many people it sleeps),
+// not a bed count to book individually — still a realistic cap, unlike the
+// desk/dorm seat counts above.
+export const MAX_ROOM_OCCUPANCY = 20;
 const DEFAULT_BOOKING_SPAN_HOURS = 13;
 
 export function normalizeResourceFloor(value = "") {
@@ -48,7 +58,10 @@ export function getResourceCapacityOptions(category = "", inventoryMode = "area"
     const resourceCategory = normalizeResourceCategory(category);
     if (resourceCategory === "virtual_office") return areaCapacityCatalog[resourceCategory] || [1];
     if (resourceCategory === "open_desk" && inventoryMode === "single") return [1];
-    // Open desk (area) and cabin desk have no fixed catalog — seats are entered manually.
+    // Open desk (area), cabin desk, Dorm (bed count) and Room (max guest
+    // occupancy — a Room is still booked as a single unit, but can sleep more
+    // than one person) have no fixed catalog — entered manually, capped by
+    // validateResourceCapacity.
     return [];
 }
 
@@ -67,6 +80,11 @@ export function normalizeResourceCategory(value = "", fallbackName = "") {
     if (normalized.includes("conference") || normalized.includes("board")) return "conference_room";
     if (normalized.includes("meeting")) return "meeting_room";
     if (normalized.includes("virtual")) return "virtual_office";
+    // Checked after conference/meeting above, so "meeting_room"/"conference_room"
+    // already returned by this point — a bare "room" here only ever means the
+    // new Room category (hostel/co-living), never a false match on those.
+    if (normalized.includes("dorm")) return "dorm";
+    if (normalized.includes("room")) return "room";
     return "meeting_room";
 }
 
@@ -76,6 +94,8 @@ export function normalizeResourceType(value = "", fallbackName = "") {
     if (category === "cabin_desk") return "Cabin Desk";
     if (category === "conference_room") return "Conference Room";
     if (category === "virtual_office") return "Virtual Office";
+    if (category === "dorm") return "Dorm";
+    if (category === "room") return "Room";
     return "Meeting Room";
 }
 
@@ -92,7 +112,8 @@ export function normalizeResourceStatus(resource: any = {}) {
 export function hasResourcePricingAndCredits(resource: any = {}) {
     const hourly = Number(resource?.pricePerHour || 0);
     const daily = Number(resource?.pricePerDay || 0);
-    return hourly > 0 || daily > 0;
+    const nightly = Number(resource?.pricePerNight || 0);
+    return hourly > 0 || daily > 0 || nightly > 0;
 }
 
 // The stored daily price is authoritative — resourceService keeps it in sync
@@ -134,10 +155,13 @@ function buildResourceCode(resourceNumber: number) {
     return `RES-${String(resourceNumber).padStart(4, "0")}`;
 }
 
-function formatPricingSummary(pricePerHour = 0, pricePerDay = 0, fallback = "") {
+function formatPricingSummary(pricePerHour = 0, pricePerDay = 0, fallback = "", pricePerNight = 0) {
+    const night = Number(pricePerNight || 0);
+    const formatter = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
+    // Room/Dorm are nightly-only — never mixed with the hourly/daily summary.
+    if (night > 0) return `₹${formatter.format(night)}/night`;
     const hour = Number(pricePerHour || 0);
     const day = resolveResourcePricePerDay(hour, pricePerDay);
-    const formatter = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
     const parts: string[] = [];
     if (hour > 0) parts.push(`₹${formatter.format(hour)}/hour`);
     if (day > 0) parts.push(`₹${formatter.format(day)}/day`);
@@ -206,12 +230,14 @@ export function formatResource(roomDoc: any, seatSummary?: { total: number; assi
         capacity: Number(room.capacity || 1),
         seatLabels: buildSeatLabels(resourceCategory, room.capacity, type),
         seatSummary: resolvedSeatSummary,
-        pricing: formatPricingSummary(room.pricePerHour, room.pricePerDay, room.pricing || ""),
+        pricing: formatPricingSummary(room.pricePerHour, room.pricePerDay, room.pricing || "", room.pricePerNight),
         pricePerHour: Number(room.pricePerHour || 0),
         pricePerDay: resolveResourcePricePerDay(room.pricePerHour, room.pricePerDay),
+        pricePerNight: Number(room.pricePerNight || 0),
         pricingUpdatedAt: room.pricingUpdatedAt || null,
         credits: Number(room.credits || 0),
         description: room.description || "",
+        amenities: Array.isArray(room.amenities) ? room.amenities : [],
         status,
         currentlyBooked: Boolean(room.currentlyBooked),
         sortOrder: Number(room.sortOrder || 0),

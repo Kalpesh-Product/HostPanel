@@ -111,7 +111,11 @@ const visitorLogSchema = new mongoose.Schema(
     preferredSpace: { type: String, default: "", trim: true },
     budgetRange: { type: String, default: "", trim: true },
     moveInTimeline: { type: String, default: "", trim: true },
+    // Stamped automatically when leadStatus moves to "Contacted" — the date
+    // Sales actually followed up, not a frontdesk-set reminder.
     followUpDate: { type: String, default: "", trim: true },
+    // Stamped automatically when leadStatus moves to "Converted".
+    convertedAt: { type: String, default: "", trim: true },
     tourNotes: { type: String, default: "", trim: true },
     hostUser: {
       type: mongoose.Schema.Types.ObjectId,

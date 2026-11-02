@@ -11,6 +11,7 @@ import {
   buildWorkspaceModuleCatalog,
   buildWorkspaceModulesStructure,
   getEffectiveEnabledModuleIds,
+  getWorkspaceVerticalKeys,
 } from "../config/workspaceModuleCatalog.js";
 import { ensureEmployeeProfileForMember } from "../services/core/hr.service.js";
 import { sendMail } from "../config/mailer.js";
@@ -563,9 +564,11 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       ...(Array.isArray(enabledModuleIds) ? enabledModuleIds : []),
       ...(effectivePlan === "custom" ? planLifecycleFields.customPlanModuleIds || [] : []),
     ]);
+    const verticalKeys = getWorkspaceVerticalKeys(normalizedBusinessTypes);
     const finalEnabledModuleIds = getEffectiveEnabledModuleIds({
       selectedPlan: effectivePlan,
       existingEnabledModuleIds: normalizedRequestedEnabledIds,
+      verticalKeys,
     });
     const finalWorkspaceModules = buildWorkspaceModulesStructure({
       selectedPlan: effectivePlan,
@@ -1699,6 +1702,7 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
     }
 
     const selectedPlan = String(workspace.selectedPlan || "basic").trim().toLowerCase();
+    const verticalKeys = getWorkspaceVerticalKeys(workspace.businessTypes);
     const enabledModuleIds = Array.isArray(workspace.enabledModuleIds)
       ? workspace.enabledModuleIds
       : [];
@@ -1712,6 +1716,7 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
     const catalog = buildWorkspaceModuleCatalog({
       selectedPlan,
       enabledModuleIds,
+      verticalKeys,
     });
     const currentUserId = String(
       req.user?.id || req.user?._id || req.user || "",
@@ -1782,6 +1787,7 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
         workspaceName: workspace.workspaceName || "",
         selectedPlan,
         enabledModuleIds,
+        verticalKeys,
         modules,
         moduleMap: catalog,
         currentMemberGrantedModules: effectiveGrantedModules,

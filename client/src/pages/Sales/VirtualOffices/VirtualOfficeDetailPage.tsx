@@ -100,13 +100,13 @@ export default function VirtualOfficeDetailPage() {
     try {
       await deleteVirtualOffice(record._id || record.recordId);
       toast.success("Virtual office record deleted.");
-      navigate("/department-accesses/sales-department/virtual-offices", { replace: true });
+      navigate("/department-accesses/sales-department/virtual-offices/list", { replace: true });
     } catch (error) {
       toast.error(error.message || "Failed to delete record.");
     }
   };
 
-  const handleGoBack = () => navigate("/department-accesses/sales-department/virtual-offices");
+  const handleGoBack = () => navigate("/department-accesses/sales-department/virtual-offices/list");
 
   if (isLoading) {
     return (

@@ -184,6 +184,7 @@ const formatVisitor = (visitor: any) => ({
   budgetRange: visitor?.budgetRange || "",
   moveInTimeline: visitor?.moveInTimeline || "",
   followUpDate: visitor?.followUpDate || "",
+  convertedAt: visitor?.convertedAt || "",
   tourNotes: visitor?.tourNotes || "",
   checkInAt: visitor?.checkInAt || null,
   checkedInByUserId: toId(visitor?.checkedInByUser),
@@ -894,9 +895,18 @@ export const updateVisitorLeadStatus = async (req, res, next) => {
     if (!/^[a-f0-9]{24}$/i.test(String(req.params.visitorId || ""))) {
       return res.status(400).json({ message: "Invalid visitor ID." });
     }
+    // followUpDate/convertedAt record when Sales actually contacted or
+    // converted the lead — stamped automatically on the matching status
+    // change instead of being collected at frontdesk check-in.
+    const update: Record<string, any> = { leadStatus };
+    if (leadStatus === "Contacted") {
+      update.followUpDate = new Date().toISOString().slice(0, 10);
+    } else if (leadStatus === "Converted") {
+      update.convertedAt = new Date().toISOString().slice(0, 10);
+    }
     const visitor = await VisitorLog.findOneAndUpdate(
       { _id: req.params.visitorId, workspace: workspace._id, purpose: /tour|workspace|enquiry/i },
-      { $set: { leadStatus } },
+      { $set: update },
       { new: true, runValidators: true },
     );
     if (!visitor) return res.status(404).json({ message: "Unit tour lead not found." });

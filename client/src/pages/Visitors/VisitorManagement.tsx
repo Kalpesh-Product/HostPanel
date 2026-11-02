@@ -121,7 +121,6 @@ function getDefaultVisitorForm() {
     pocPhone: '',
     pocEmail: '',
     preferredContactMethod: '',
-    followUpDate: '',
     tourNotes: '',
     standardVisitorType: 'standard',
     standardVisitorMode: 'new',
@@ -1075,6 +1074,7 @@ export default function VisitorsManagementPage() {
     [auth?.user?.permissions?.permissions],
   );
   const [currentMemberGrantedModules, setCurrentMemberGrantedModules] = useState([]);
+  const [hasLoadedCurrentMemberGrants, setHasLoadedCurrentMemberGrants] = useState(false);
   const memberGrantedModules = useMemo(() => {
     const fromWorkspaceMembership = Array.isArray(auth?.user?.workspaceMembership?.grantedModules)
       ? auth.user.workspaceMembership.grantedModules
@@ -1126,6 +1126,8 @@ export default function VisitorsManagementPage() {
       } catch {
         if (!active) return;
         setCurrentMemberGrantedModules([]);
+      } finally {
+        if (active) setHasLoadedCurrentMemberGrants(true);
       }
     };
 
@@ -1228,7 +1230,14 @@ export default function VisitorsManagementPage() {
     },
     [hasGrant],
   );
-  const [activeTab, setActiveTab] = useState('daily');
+  const [activeTab, setActiveTab] = useState(() => {
+    const requestedTab = String(
+      new URLSearchParams(location.search).get('tab') || location.state?.tab || 'daily',
+    );
+    return ['daily', 'history', 'bookings', 'clients'].includes(requestedTab)
+      ? requestedTab
+      : 'daily';
+  });
   const [showExportModal, setShowExportModal] = useState(false);
   const [dailyStatusTab, setDailyStatusTab] = useState('all');
   const [bookingStatusTab, setBookingStatusTab] = useState('upcoming');
@@ -1293,6 +1302,15 @@ export default function VisitorsManagementPage() {
 
   // Runs once per arrival at the page (not on every URL tweak below), so it
   // never fights the leadId cleanup in the next effect or a manual tab click.
+  useEffect(() => {
+    const requestedTab = String(
+      new URLSearchParams(location.search).get('tab') || location.state?.tab || '',
+    );
+    if (['daily', 'history', 'bookings', 'clients'].includes(requestedTab)) {
+      setActiveTab(requestedTab);
+    }
+  }, [location.search, location.state?.tab]);
+
   useEffect(() => {
     if (!isFrontdeskPage) return;
     const params = new URLSearchParams(location.search);
@@ -2452,7 +2470,7 @@ export default function VisitorsManagementPage() {
   }, [walkInRoomOptions, form.resourceName]);
 
   const goToResourcePricing = () => {
-    navigate('/department-accesses/sales-department/resource-pricing', {
+    navigate('/department-accesses/sales-department/resource-pricing/list', {
       state: {
         from: '/app/visitors/visitor-management',
         intent: 'add-meeting-resource',
@@ -3019,10 +3037,11 @@ export default function VisitorsManagementPage() {
   }, [activeFormSubmitAttempted, activeFormValidationErrors, isLoggingVisitor, visitorMode]);
 
   useEffect(() => {
+    if (!hasLoadedCurrentMemberGrants) return;
     if (lockedTopTabs.has(activeTab)) {
       setActiveTab('daily');
     }
-  }, [activeTab, lockedTopTabs]);
+  }, [activeTab, hasLoadedCurrentMemberGrants, lockedTopTabs]);
 
   useEffect(() => {
     if (lockedVisitorModes.has(visitorMode)) {
@@ -3554,7 +3573,6 @@ export default function VisitorsManagementPage() {
           pocPhone: form.pocPhone,
           pocEmail: form.pocEmail,
           preferredContactMethod: form.preferredContactMethod,
-          followUpDate: form.followUpDate,
           tourNotes: form.tourNotes,
           status: 'checked_in',
           purpose: 'Workspace Tour',
@@ -3580,7 +3598,6 @@ export default function VisitorsManagementPage() {
             pocPhone: form.pocPhone,
             pocEmail: form.pocEmail,
             preferredContactMethod: form.preferredContactMethod,
-            followUpDate: form.followUpDate,
             industry: form.industry,
             teamSize: form.teamSize,
             seatCount: form.seatCount,
@@ -4985,7 +5002,7 @@ export default function VisitorsManagementPage() {
                 </div>
                 <p className="mt-5 text-base font-pmedium text-slate-950">No meeting resources are available yet</p>
                 <p className="mt-2 max-w-md text-[12px] font-pmedium leading-relaxed text-slate-500">
-                  Add an active Meeting Room or Conference Room before opening Walk-in Booking. You can manage these resources under Sales Department &rarr; Resource & Pricing.
+                  Add an active Meeting Room or Conference Room before opening Walk-in Booking. You can manage these resources under Sales Dashboard &rarr; Resource & Pricing.
                 </p>
                 <button
                   type="button"
@@ -5825,7 +5842,7 @@ export default function VisitorsManagementPage() {
                       <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                         <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
                           <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><CalendarDays size={16} /></span>
-                          <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Follow-up</span>
+                          <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Preferred Contact</span>
                         </h4>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <div className="flex flex-col gap-1">
@@ -5839,11 +5856,6 @@ export default function VisitorsManagementPage() {
                               <option value="In-person">In-person</option>
                             </select>
                             {visibleTourErrors.preferredContactMethod ? <span className="text-[10px] font-medium text-red-500">{visibleTourErrors.preferredContactMethod}</span> : null}
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Follow-up Date</label>
-                            <input type="date" value={form.followUpDate} onChange={(e) => setForm({ ...form, followUpDate: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                           </div>
                         </div>
                         <div className="flex flex-col gap-1">
@@ -5873,7 +5885,7 @@ export default function VisitorsManagementPage() {
                             </div>
                             <div>
                               <p className="text-xs font-pmedium text-amber-900">No meeting resources available for walk-in booking</p>
-                              <p className="mt-0.5 text-[11px] font-pmedium text-amber-700">Add an active Meeting Room or Conference Room under Sales Department &rarr; Resource &amp; Pricing.</p>
+                              <p className="mt-0.5 text-[11px] font-pmedium text-amber-700">Add an active Meeting Room or Conference Room under Sales Dashboard &rarr; Resource &amp; Pricing.</p>
                             </div>
                           </div>
                           <button

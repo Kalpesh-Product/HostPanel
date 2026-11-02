@@ -209,7 +209,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="page-content"] table', title: "Lead records", description: "The table shows contact details, requirements, stage, source, and timeline. Select View details to inspect the complete lead." },
       { selector: 'button[aria-label^="View details for"]', title: "Lead details and conversion", description: "Review the lead before updating it. Suitable visitor leads can be converted; website leads can be closed after follow-up is complete." },
     ],
-    matches: exact("/department-accesses/sales-department/leads-management"),
+    matches: exact("/department-accesses/sales-department/leads-management/list"),
   },
   {
     id: "professional-tenant-company-detail",
@@ -272,7 +272,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="vod-space-details"]', tabPage: "space-allocation", title: "Assigned space breakdown", description: "The assigned floor and the individual desks given to this company, alongside any location labels carried from its package." },
       { selector: '[data-tour="vod-space-seats"]', tabPage: "space-allocation", title: "Assigned seats by area", description: "When individual seats are assigned within the space, they're listed here by area." },
     ],
-    matches: (path) => /^\/department-accesses\/sales-department\/virtual-offices\/[^/]+$/.test(path),
+    matches: (path) => /^\/department-accesses\/sales-department\/virtual-offices\/(?!list$)[^/]+$/.test(path),
   },
   {
     id: "professional-virtual-offices",
@@ -294,7 +294,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="vo-record-payment-btn"]', tabPage: "collections", title: "Record a payment", description: "Opens the payment form for any company — month, amount, period, payment method, transaction ID, status, and notes." },
       { selector: '[data-tour="vo-collections-table"]', tabPage: "collections", title: "Payment records", description: "Each row shows monthly rent, how many payments are on file, and current rent status. View rent details opens the full payment history and Record payment logs a new one.", side: "top" },
     ],
-    matches: exact("/department-accesses/sales-department/virtual-offices"),
+    matches: exact("/department-accesses/sales-department/virtual-offices/list"),
   },
   {
     id: "professional-resource-pricing",
@@ -319,7 +319,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="resource-pricing-export-btns"]', tabPage: "tenant", title: "Export packages", description: "Download the current filtered package list as a PDF report or Excel file saved to Reports." },
       { selector: '[data-tour="resource-pricing-table"]', tabPage: "tenant", title: "Package list and actions", description: "Each row shows coverage by floor and wing with open, cabin, and total seats, monthly credits that expire monthly, duration, and contract value. Recommended, Custom, and Locked badges explain each package's state. Use the eye action to review details and the pencil to edit; locked packages cannot be edited or deleted while assigned to a tenant.", side: "top" },
     ],
-    matches: exact("/department-accesses/sales-department/resource-pricing"),
+    matches: exact("/department-accesses/sales-department/resource-pricing/list"),
   },
   {
     id: "professional-frontdesk-action",

@@ -32,6 +32,7 @@ import {
   UserMinus,
   Building2,
   Bed,
+  Home,
   HandCoins,
   Wrench,
   BriefcaseBusiness,
@@ -71,6 +72,8 @@ import {
   Factory,
   UsersRound,
   Search,
+  UtensilsCrossed,
+  ReceiptText,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -95,6 +98,7 @@ import {
 import { normalizeLegacyRoute } from "../utils/legacyRouteMap";
 import { resolveDepartmentIcon } from "../utils/departmentIcons";
 import CustomPlanModuleSelectionModal from "./CustomPlanModuleSelectionModal";
+import { SALES_DASHBOARD_MODULES } from "../pages/Sales/salesDashboardModules";
 
 type PlanType = "basic" | "professional" | "custom";
 
@@ -110,6 +114,7 @@ interface NavNode {
   defaultOpen?: boolean;
   children?: NavNode[];
   state?: Record<string, unknown>;
+  verticals?: string[];
 }
 
 interface SidebarProps {
@@ -125,6 +130,7 @@ interface NavItemProps {
   hasChildren?: boolean;
   isOpen?: boolean;
   onClick?: () => void;
+  onToggleChildren?: () => void;
   isRed?: boolean;
   isActive?: boolean;
   disabled?: boolean;
@@ -144,6 +150,7 @@ interface WorkspaceSetupState {
 interface WorkspaceAccessMapState {
   selectedPlan?: PlanType;
   enabledModuleIds?: string[];
+  verticalKeys?: string[];
   currentMemberGrantedModules?: string[];
   moduleMap?: {
     sections?: Array<{
@@ -213,14 +220,40 @@ const keyAppsData: NavNode[] = [
   { id: "website-builder", label: "Website Builder", icon: Globe, route: "/key-apps/website-builder", disabled: false },
   { id: "wono-nomad", label: "Nomad Listings", icon: ShieldCheck, route: "/key-apps/wono-nomad", disabled: false },
   { id: "website-leads", label: "All Leads", icon: Magnet, route: "/key-apps/all-leads", disabled: false },
-  { id: "visitor-management", label: "Visitor Management", icon: ContactRound, route: "/visitors/visitor-management", disabled: false },
+  { id: "visitor-management", label: "Visitor Management", icon: ContactRound, route: "/visitors/dashboard", disabled: false },
 ];
+
+const filterNavByVerticals = (
+  nodes: NavNode[],
+  verticalKeys: string[],
+  enabledIds: Set<string>,
+): NavNode[] =>
+  nodes
+    .filter(
+      (node) =>
+        !node.verticals ||
+        enabledIds.has(node.id) ||
+        node.verticals.some((key) => verticalKeys.includes(key)),
+    )
+    .map((node) =>
+      node.children
+        ? { ...node, children: filterNavByVerticals(node.children, verticalKeys, enabledIds) }
+        : node,
+    );
+
+const toDepartmentDashboardLabel = (value: string) => {
+  const label = String(value || "").trim();
+  if (!label) return "Department Dashboard";
+  if (/dashboard$/i.test(label)) return label;
+  return `${label.replace(/\s+department$/i, "")} Dashboard`;
+};
 
 const departmentModules: NavNode[] = [
   {
     id: "hr-department",
-    label: "HR Department",
+    label: "HR Dashboard",
     icon: Users,
+    route: "/department-accesses/hr-department",
     defaultOpen: false,
     children: [
       { id: "employee-management", label: "Company Management", icon: UserSquare, route: "/department-accesses/hr-department/company-management", disabled: false },
@@ -234,8 +267,9 @@ const departmentModules: NavNode[] = [
   },
   {
     id: "administration-department",
-    label: "Administration Department",
+    label: "Administration Dashboard",
     icon: Building2,
+    route: "/department-accesses/administration-department",
     defaultOpen: false,
     children: [
       { id: "tenant-companies-admin", label: "Tenant Companies", icon: Store, route: "/department-accesses/administration-department/tenant-companies", disabled: false },
@@ -244,7 +278,7 @@ const departmentModules: NavNode[] = [
         id: "visitors-management",
         label: "Visitors Management",
         icon: ContactRound,
-        route: "/visitors/visitor-management",
+        route: "/visitors/dashboard",
         disabled: false,
       },
       { id: "resource-management", label: "Resource Management", icon: HandCoins, route: "/department-accesses/administration-department/resource-management", disabled: false },
@@ -254,21 +288,17 @@ const departmentModules: NavNode[] = [
   },
   {
     id: "sales-department",
-    label: "Sales Department",
+    label: "Sales Dashboard",
     icon: BriefcaseBusiness,
+    route: "/department-accesses/sales-department",
     defaultOpen: false,
-    children: [
-      { id: "leads-management", label: "Leads Management", icon: Magnet, route: "/department-accesses/sales-department/leads-management", disabled: false },
-      { id: "tenant-companies-sales", label: "Tenant Companies", icon: Store, route: "/department-accesses/sales-department/tenant-companies", disabled: false },
-      { id: "virtual-office-sales", label: "Virtual Offices", icon: Building2, route: "/department-accesses/sales-department/virtual-offices", disabled: false },
-      { id: "resource-pricing", label: "Resource & Pricing", icon: Tag, route: "/department-accesses/sales-department/resource-pricing", disabled: false },
-      { id: "sales-architecture", label: "Sales Architecture", icon: ShoppingCart, route: "/department-accesses/sales-department/sales-architecture", disabled: false },
-    ],
+    children: SALES_DASHBOARD_MODULES.map((module) => ({ ...module, disabled: false })),
   },
   {
     id: "finance-department",
-    label: "Finance Department",
+    label: "Finance Dashboard",
     icon: WalletCards,
+    route: "/department-accesses/finance-department",
     defaultOpen: false,
     children: [
       { id: "Expenses-budget", label: "Expenses & Budget", icon: PiggyBank, route: "/department-accesses/finance-department/expenses-budget", disabled: false },
@@ -278,8 +308,9 @@ const departmentModules: NavNode[] = [
   },
   {
     id: "maintenance-department",
-    label: "Maintenance Department",
+    label: "Maintenance Dashboard",
     icon: Wrench,
+    route: "/department-accesses/maintenance-department",
     defaultOpen: false,
     children: [
       { id: "maintenance-repair-logs", label: "Maintenance Repair Logs", icon: ClipboardList, route: "/department-accesses/maintenance-department/repair-logs" },
@@ -288,8 +319,9 @@ const departmentModules: NavNode[] = [
   },
   {
     id: "tech-department",
-    label: "Tech Department",
+    label: "Tech Dashboard",
     icon: Laptop,
+    route: "/department-accesses/tech-department",
     defaultOpen: false,
     children: [
       { id: "tech-website-builder", label: "Website Builder", icon: Code2, route: "/key-apps/website-builder" },
@@ -299,8 +331,9 @@ const departmentModules: NavNode[] = [
   },
   {
     id: "it-department",
-    label: "IT Department",
+    label: "IT Dashboard",
     icon: Server,
+    route: "/department-accesses/it-department",
     defaultOpen: false,
     children: [
       { id: "it-repair-logs", label: "IT Repair Logs", icon: FileSearch, route: "/department-accesses/it-department/repair-logs" },
@@ -344,13 +377,21 @@ export const ROUTE_BY_ID: Record<string, string> = {
   "access-grants": "/core-modules/access-grants",
   "unit-settings": "/core-modules/workspace-settings",
   "unit-management": "/core-modules/workspace-management",
-  "visitor-management": "/visitors/visitor-management",
-  "visitors-management": "/visitors/visitor-management",
+  "visitor-management": "/visitors/dashboard",
+  "visitors-management": "/visitors/dashboard",
   "tenant-companies-sales": "/department-accesses/sales-department/tenant-companies",
   "virtual-office-sales": "/department-accesses/sales-department/virtual-offices",
   "resource-pricing": "/department-accesses/sales-department/resource-pricing",
   "leads-management": "/department-accesses/sales-department/leads-management",
   "sales-architecture": "/department-accesses/sales-department/sales-architecture",
+  "cafe-management": "/key-apps/cafe-management",
+  "cafe-orders": "/common-modules/cafe-orders",
+  "hostel-booking": "/common-modules/hostel-booking",
+  "room-booking": "/common-modules/room-booking",
+  "hostel-management": "/key-apps/hostel-management",
+  "co-living-management": "/key-apps/co-living-management",
+  "co-working-management": "/key-apps/co-working-management",
+  "meeting-room-management": "/key-apps/meeting-room-management",
   "tenant-companies-admin": "/department-accesses/administration-department/tenant-companies",
   bookings: "/department-accesses/administration-department/bookings",
   "resource-management": "/department-accesses/administration-department/resource-management",
@@ -392,6 +433,13 @@ export const ROUTE_BY_ID: Record<string, string> = {
   "it-system-access": "/department-accesses/it-department/system-access",
   "maintenance-repair-logs": "/department-accesses/maintenance-department/repair-logs",
   "amc-maintenance-scheduler": "/department-accesses/maintenance-department/amc-scheduler",
+};
+
+const resolveModuleRoute = (moduleId: string, configuredRoute?: string) => {
+  if (moduleId === "visitor-management" || moduleId === "visitors-management") {
+    return "/visitors/dashboard";
+  }
+  return configuredRoute || ROUTE_BY_ID[moduleId];
 };
 
 const ICON_BY_ID: Record<string, ElementType> = {
@@ -449,6 +497,14 @@ const ICON_BY_ID: Record<string, ElementType> = {
   "virtual-office-sales": Building2,
   "resource-pricing": Tag,
   "sales-architecture": ShoppingCart,
+  "cafe-management": UtensilsCrossed,
+  "cafe-orders": ReceiptText,
+  "hostel-booking": Bed,
+  "room-booking": Home,
+  "hostel-management": Bed,
+  "co-living-management": Home,
+  "co-working-management": BriefcaseBusiness,
+  "meeting-room-management": Users,
   "finance-budget": PiggyBank,
   "billing-payments": Receipt,
   accounting: Calculator,
@@ -519,6 +575,7 @@ const NavItem = ({
   hasChildren,
   isOpen,
   onClick,
+  onToggleChildren,
   isRed,
   isActive,
   disabled,
@@ -543,41 +600,80 @@ const NavItem = ({
 
   return (
     <>
-      <button
-        type="button"
-        title={!tooltip && disabled ? disabledTitle : undefined}
-        aria-label={collapsed ? label : undefined}
-        aria-describedby={tooltipPosition ? tooltipId : undefined}
-        className={`group relative flex w-full items-center rounded-md text-left transition-all hover:bg-white ${
-          collapsed ? "h-10 justify-center gap-0 p-0" : "gap-2 px-3 py-2.5"
-        } ${isActive ? "bg-white text-black shadow-sm" : "text-black/80"} ${
-          isRed ? "text-red-500 hover:text-red-600" : ""
-        } ${locked ? "opacity-75 cursor-not-allowed" : unavailable ? "cursor-default" : "cursor-pointer"}`}
-        style={collapsed ? undefined : { paddingLeft: `${depth * 1.25 + 0.75}rem` }}
-        onClick={onClick}
-        onMouseEnter={(event) => showTooltip(event.currentTarget)}
-        onMouseLeave={() => setTooltipPosition(null)}
-        onFocus={(event) => showTooltip(event.currentTarget)}
-        onBlur={() => setTooltipPosition(null)}
-      >
-        {Icon && (
-          <Icon
-            size={18}
-            className={`shrink-0 ${isRed ? "text-red-500" : isActive ? "text-accent" : "text-black/80"}`}
-          />
-        )}
-        {!collapsed && (
-          <span className={`truncate font-['Poppins'] text-xs font-medium ${isActive ? "font-semibold" : ""}`}>
-            {label}
-          </span>
-        )}
-        {!collapsed && hasChildren && (
-          isOpen
-            ? <ChevronUp size={16} className="ml-auto shrink-0 text-black/50" />
-            : <ChevronDown size={16} className="ml-auto shrink-0 text-black/50" />
-        )}
-        {!collapsed && locked && !hasChildren && <Lock size={12} className="ml-auto shrink-0 text-black/40" />}
-      </button>
+      {!collapsed && hasChildren && onToggleChildren ? (
+        <div
+          className={`group relative flex w-full items-center rounded-md text-left transition-all hover:bg-white ${
+            isActive ? "bg-white text-black shadow-sm" : "text-black/80"
+          } ${locked ? "opacity-75" : ""}`}
+        >
+          <button
+            type="button"
+            title={disabled ? disabledTitle : undefined}
+            className="flex min-w-0 flex-1 items-center gap-2 py-2.5 pr-1 text-left"
+            style={{ paddingLeft: `${depth * 1.25 + 0.75}rem` }}
+            onClick={onClick}
+          >
+            {Icon ? (
+              <Icon
+                size={18}
+                className={`shrink-0 ${isActive ? "text-accent" : "text-black/80"}`}
+              />
+            ) : null}
+            <span
+              className={`truncate font-['Poppins'] text-xs font-medium ${
+                isActive ? "font-semibold" : ""
+              }`}
+            >
+              {label}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={onToggleChildren}
+            aria-label={isOpen ? `Collapse ${label} modules` : `Expand ${label} modules`}
+            aria-expanded={Boolean(isOpen)}
+            className="mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded text-black/55 transition hover:bg-black/5 hover:text-black"
+          >
+            {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          title={!tooltip && disabled ? disabledTitle : undefined}
+          aria-label={collapsed ? label : undefined}
+          aria-describedby={tooltipPosition ? tooltipId : undefined}
+          className={`group relative flex w-full items-center rounded-md text-left transition-all hover:bg-white ${
+            collapsed ? "h-10 justify-center gap-0 p-0" : "gap-2 px-3 py-2.5"
+          } ${isActive ? "bg-white text-black shadow-sm" : "text-black/80"} ${
+            isRed ? "text-red-500 hover:text-red-600" : ""
+          } ${locked ? "opacity-75 cursor-not-allowed" : unavailable ? "cursor-default" : "cursor-pointer"}`}
+          style={collapsed ? undefined : { paddingLeft: `${depth * 1.25 + 0.75}rem` }}
+          onClick={onClick}
+          onMouseEnter={(event) => showTooltip(event.currentTarget)}
+          onMouseLeave={() => setTooltipPosition(null)}
+          onFocus={(event) => showTooltip(event.currentTarget)}
+          onBlur={() => setTooltipPosition(null)}
+        >
+          {Icon && (
+            <Icon
+              size={18}
+              className={`shrink-0 ${isRed ? "text-red-500" : isActive ? "text-accent" : "text-black/80"}`}
+            />
+          )}
+          {!collapsed && (
+            <span className={`truncate font-['Poppins'] text-xs font-medium ${isActive ? "font-semibold" : ""}`}>
+              {label}
+            </span>
+          )}
+          {!collapsed && hasChildren && (
+            isOpen
+              ? <ChevronUp size={16} className="ml-auto shrink-0 text-black/50" />
+              : <ChevronDown size={16} className="ml-auto shrink-0 text-black/50" />
+          )}
+          {!collapsed && locked && !hasChildren && <Lock size={12} className="ml-auto shrink-0 text-black/40" />}
+        </button>
+      )}
 
       {tooltip && tooltipPosition
         ? createPortal(
@@ -615,6 +711,8 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey
   const hasChildren = Boolean(item.children?.length);
   const isGroupOpen = forceOpen || isOpen;
   const opensCollapsedDepartmentLanding = collapsed && hasChildren && sectionKey === "department-accesses";
+  const usesDepartmentDashboardNavigation =
+    hasChildren && sectionKey === "department-accesses" && Boolean(item.route);
   const isActive = (() => {
     if (!item.route) return false;
     if (item.id === "website-builder") {
@@ -638,6 +736,10 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey
 
   const handleClick = () => {
     if (hasChildren) {
+      if (usesDepartmentDashboardNavigation && item.route) {
+        onNavigate(item, sectionKey);
+        return;
+      }
       if (opensCollapsedDepartmentLanding) {
         onNavigate(
           {
@@ -670,6 +772,11 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey
         hasChildren={hasChildren}
         isOpen={isGroupOpen}
         onClick={handleClick}
+        onToggleChildren={
+          usesDepartmentDashboardNavigation && !collapsed
+            ? () => setIsOpen((current) => !current)
+            : undefined
+        }
         isRed={item.isRed}
         isActive={isActive}
         disabled={item.disabled || !item.route}
@@ -843,6 +950,7 @@ useEffect(() => {
         if (moduleMapResult.status === "fulfilled") {
           setWorkspaceAccessMap({
             selectedPlan: payload?.selectedPlan || "basic",
+            verticalKeys: Array.isArray(payload?.verticalKeys) ? payload.verticalKeys : [],
             enabledModuleIds: Array.isArray(payload?.enabledModuleIds)
               ? payload.enabledModuleIds
               : [],
@@ -1103,7 +1211,15 @@ useEffect(() => {
 
   const companySettingsItems = sortEnabledFirst(applyEnabledState(companySettingsData));
   const keyAppsItems = sortEnabledFirst(applyEnabledState(keyAppsData));
-  const departmentItems = sortEnabledFirst(applyEnabledState(departmentModules));
+  const departmentItems = sortEnabledFirst(
+    applyEnabledState(
+      filterNavByVerticals(
+        departmentModules,
+        workspaceAccessMap?.verticalKeys || [],
+        new Set(workspaceAccessMap?.enabledModuleIds || []),
+      ),
+    ),
+  );
   const roleAllowedModuleIds = useMemo(() => {
     const sections = Array.isArray(workspaceAccessMap?.moduleMap?.sections)
       ? workspaceAccessMap.moduleMap.sections
@@ -1297,7 +1413,7 @@ useEffect(() => {
         if (itemId) {
           moduleNavigation.set(itemId, {
             label: String(item?.label || itemId),
-            route: item?.route || ROUTE_BY_ID[itemId],
+            route: resolveModuleRoute(itemId, item?.route),
             icon: ICON_BY_ID[itemId] || Boxes,
           });
         }
@@ -1306,7 +1422,7 @@ useEffect(() => {
           if (!tabId) return;
           moduleNavigation.set(tabId, {
             label: String(tab?.label || tabId),
-            route: tab?.route || ROUTE_BY_ID[tabId],
+            route: resolveModuleRoute(tabId, tab?.route),
             icon: ICON_BY_ID[tabId] || Boxes,
           });
         });
@@ -1323,8 +1439,9 @@ useEffect(() => {
       })
       .map((department) => ({
         id: "custom-department-" + (department.id || normalizeModuleToken(department.name)),
-        label: department.name,
+        label: toDepartmentDashboardLabel(department.name),
         icon: resolveDepartmentIcon(department.name),
+        route: `/department-accesses/custom-department-${department.id || normalizeModuleToken(department.name)}`,
         defaultOpen: false,
         children: department.moduleIds.map((moduleId) => {
           const navigation = moduleNavigation.get(moduleId);
@@ -1385,7 +1502,7 @@ useEffect(() => {
     const sectionKey = String(section?.sectionId || section?.sectionLabel || "section");
     const mappedItems: NavNode[] = (section?.items || []).map((item): NavNode | null => {
       const itemId = String(item?.id || "").trim();
-      const itemRoute = item?.route || ROUTE_BY_ID[itemId];
+      const itemRoute = resolveModuleRoute(itemId, item?.route);
       const hasTabs = Array.isArray(item?.tabs) && item.tabs.length > 0;
 
       // Administration Department is now a Professional+ default (see
@@ -1404,7 +1521,7 @@ useEffect(() => {
           })
           .map((tab) => {
             const tabId = String(tab?.id || "").trim();
-            const tabRoute = tab?.route || ROUTE_BY_ID[tabId];
+            const tabRoute = resolveModuleRoute(tabId, tab?.route);
             const workspaceUnlocked = workspaceEnabledCanonicalIds.has(tabId);
             const roleUnlocked = roleAllowedModuleIds.has(tabId);
             const unlocked = workspaceUnlocked && roleUnlocked;
@@ -1424,11 +1541,18 @@ useEffect(() => {
           });
         return {
           id: itemId,
-          label: String(item?.label || itemId),
+          label:
+            sectionKey === "department-accesses"
+              ? toDepartmentDashboardLabel(String(item?.label || itemId))
+              : String(item?.label || itemId),
           icon: ICON_BY_ID[itemId] ||
             (sectionKey === "department-accesses"
               ? resolveDepartmentIcon(String(item?.label || itemId))
               : Boxes),
+          route:
+            sectionKey === "department-accesses"
+              ? `/department-accesses/${itemId}`
+              : itemRoute,
           defaultOpen: false,
           children,
         };
@@ -1651,7 +1775,21 @@ useEffect(() => {
                       return { ...s, items: [...s.items, ...keyAppsItems.filter(k => k.route && !s.items.some(ex => ex.id === k.id))] };
                     }
                     if (s.key === "department-accesses") {
-                      return { ...s, items: [...s.items, ...departmentItems.filter(d => d.route || (d.children?.length && !s.items.some(ex => ex.id === d.id)))] };
+                      return {
+                        ...s,
+                        items: [
+                          ...s.items,
+                          ...departmentItems.filter(
+                            (department) =>
+                              !s.items.some(
+                                (existing) => existing.id === department.id,
+                              ) &&
+                              Boolean(
+                                department.route || department.children?.length,
+                              ),
+                          ),
+                        ],
+                      };
                     }
                     return s;
                   });

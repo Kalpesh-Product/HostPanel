@@ -6,7 +6,7 @@ export interface IResource extends Document {
     resourceNumber: number;
     resourceCode: string;
     name: string;
-    type: "Open Desk" | "Meeting Room" | "Conference Room" | "Cabin Desk" | "Virtual Office";
+    type: "Open Desk" | "Meeting Room" | "Conference Room" | "Cabin Desk" | "Virtual Office" | "Room" | "Dorm";
     resourceCategory: string;
     inventoryMode: string;
     assignedTenantCompanyId?: mongoose.Types.ObjectId | null;
@@ -23,9 +23,11 @@ export interface IResource extends Document {
     pricing: string;
     pricePerHour: number;
     pricePerDay: number;
+    pricePerNight: number;
     pricingUpdatedAt: Date | null;
     credits: number;
     description: string;
+    amenities: string[];
     status: "Active" | "Under Maintenance" | "Disabled";
     isActive: boolean;
     sortOrder: number;
@@ -86,7 +88,7 @@ const resourceSchema = new Schema<IResource>(
             type: String,
             required: true,
             trim: true,
-            enum: ["Open Desk", "Meeting Room", "Conference Room", "Cabin Desk", "Virtual Office"],
+            enum: ["Open Desk", "Meeting Room", "Conference Room", "Cabin Desk", "Virtual Office", "Room", "Dorm"],
             index: true,
         },
         resourceCategory: {
@@ -185,6 +187,11 @@ const resourceSchema = new Schema<IResource>(
             default: 0,
             min: 0,
         },
+        pricePerNight: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
         pricingUpdatedAt: {
             type: Date,
             default: null,
@@ -199,6 +206,10 @@ const resourceSchema = new Schema<IResource>(
             default: "",
             trim: true,
             maxlength: 500,
+        },
+        amenities: {
+            type: [String],
+            default: [],
         },
         status: {
             type: String,

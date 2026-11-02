@@ -7,9 +7,9 @@
  */
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, Users } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, Radio, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { SectionCard } from "./DashboardShared";
+import { Link } from "react-router-dom";
 import { useFreshCurrentUser } from "@/hooks/useFreshCurrentUser";
 import { getTeamAttendance } from "@/services/attendance";
 
@@ -48,7 +48,9 @@ interface RosterEntry {
 }
 
 function normalizeText(value: unknown): string {
-  return String(value || "").trim().toLowerCase();
+  return String(value || "")
+    .trim()
+    .toLowerCase();
 }
 
 function toDepartmentName(value: unknown): string {
@@ -64,7 +66,11 @@ function departmentMatches(value = "", departmentKeys: string[] = []): boolean {
   if (!normalizedValue) return false;
   return departmentKeys.some((department) => {
     const normalizedDepartment = normalizeText(department);
-    return normalizedDepartment && (normalizedValue.includes(normalizedDepartment) || normalizedDepartment.includes(normalizedValue));
+    return (
+      normalizedDepartment &&
+      (normalizedValue.includes(normalizedDepartment) ||
+        normalizedDepartment.includes(normalizedValue))
+    );
   });
 }
 
@@ -89,37 +95,79 @@ function formatTimeOnly(value: unknown): string {
   if (Number.isNaN(parsed.getTime())) {
     return text;
   }
-  return parsed.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return parsed.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function getAttendanceStatusLabel(row: AttendanceRecord = {}): string {
-  const normalized = normalizeText(row?.displayStatus || row?.status || row?.leaveMode || row?.mode || "");
+  const normalized = normalizeText(
+    row?.displayStatus || row?.status || row?.leaveMode || row?.mode || "",
+  );
   if (normalized.includes("present late")) return "Present Late";
   if (normalized === "late") return "Present Late";
   if (normalized === "half-day" || normalized === "half_day") return "Half Day";
-  if (normalized.includes("on_leave") || normalized.includes("on leave") || normalized.includes("leave")) return "On Leave";
-  if (normalized === "on_break" || normalized.includes("break")) return "On Break";
-  if (normalized.includes("checked in") || normalized.includes("present")) return "Present";
+  if (
+    normalized.includes("on_leave") ||
+    normalized.includes("on leave") ||
+    normalized.includes("leave")
+  )
+    return "On Leave";
+  if (normalized === "on_break" || normalized.includes("break"))
+    return "On Break";
+  if (normalized.includes("checked in") || normalized.includes("present"))
+    return "Present";
   if (normalized.includes("absent")) return "Absent";
   if (row?.checkInAt || row?.checkIn) return "Present";
   return "Absent";
 }
 
-function getAttendanceStatusUI(status = ""): { dot: string; text: string; icon: LucideIcon | null; label: string } {
+function getAttendanceStatusUI(status = ""): {
+  dot: string;
+  text: string;
+  icon: LucideIcon | null;
+  label: string;
+} {
   const normalized = normalizeText(status);
   if (normalized.includes("present late") || normalized === "late") {
-    return { dot: "bg-amber-500 shadow-amber-500/50", text: "text-amber-600", icon: CheckCircle2, label: "Present Late" };
+    return {
+      dot: "bg-amber-500 shadow-amber-500/50",
+      text: "text-amber-600",
+      icon: CheckCircle2,
+      label: "Present Late",
+    };
   }
   if (normalized.includes("present") || normalized.includes("checked in")) {
-    return { dot: "bg-emerald-500 shadow-emerald-500/50", text: "text-emerald-600", icon: CheckCircle2, label: "Present" };
+    return {
+      dot: "bg-emerald-500 shadow-emerald-500/50",
+      text: "text-emerald-600",
+      icon: CheckCircle2,
+      label: "Present",
+    };
   }
   if (normalized.includes("break")) {
-    return { dot: "bg-blue-500 shadow-blue-500/50", text: "text-blue-600", icon: Users, label: "On Break" };
+    return {
+      dot: "bg-blue-500 shadow-blue-500/50",
+      text: "text-blue-600",
+      icon: Users,
+      label: "On Break",
+    };
   }
   if (normalized.includes("leave")) {
-    return { dot: "bg-slate-400 shadow-slate-400/50", text: "text-slate-500", icon: null, label: "On Leave" };
+    return {
+      dot: "bg-slate-400 shadow-slate-400/50",
+      text: "text-slate-500",
+      icon: null,
+      label: "On Leave",
+    };
   }
-  return { dot: "bg-slate-400 shadow-slate-400/50", text: "text-slate-500", icon: null, label: "Absent" };
+  return {
+    dot: "bg-slate-400 shadow-slate-400/50",
+    text: "text-slate-500",
+    icon: null,
+    label: "Absent",
+  };
 }
 
 interface TeamLiveStatusCardProps {
@@ -128,21 +176,33 @@ interface TeamLiveStatusCardProps {
   viewAllRoute?: string;
 }
 
-export const TeamLiveStatusCard = ({ department, viewAllRoute = "/common-modules/attendance" }: TeamLiveStatusCardProps) => {
+export const TeamLiveStatusCard = ({
+  department,
+  viewAllRoute = "/common-modules/attendance",
+}: TeamLiveStatusCardProps) => {
   const currentUser = useFreshCurrentUser();
 
   const currentUserDepartments = useMemo(() => {
     if (!department) return [];
     const rawDepartments = [
       currentUser?.workspaceMembership?.department,
-      ...(Array.isArray(currentUser?.workspaceMembership?.departments) ? currentUser.workspaceMembership.departments.map(toDepartmentName) : []),
+      ...(Array.isArray(currentUser?.workspaceMembership?.departments)
+        ? currentUser.workspaceMembership.departments.map(toDepartmentName)
+        : []),
       currentUser?.department,
-      ...(Array.isArray(currentUser?.departments) ? currentUser.departments.map(toDepartmentName) : []),
+      ...(Array.isArray(currentUser?.departments)
+        ? currentUser.departments.map(toDepartmentName)
+        : []),
       currentUser?.workspace?.department,
     ];
 
-    const normalizedDepartments = rawDepartments.map((value) => normalizeText(value)).filter(Boolean);
-    const uniqueDepartments = normalizedDepartments.length > 0 ? Array.from(new Set(normalizedDepartments)) : [department];
+    const normalizedDepartments = rawDepartments
+      .map((value) => normalizeText(value))
+      .filter(Boolean);
+    const uniqueDepartments =
+      normalizedDepartments.length > 0
+        ? Array.from(new Set(normalizedDepartments))
+        : [department];
 
     if (!uniqueDepartments.includes(department)) {
       uniqueDepartments.push(department);
@@ -154,7 +214,9 @@ export const TeamLiveStatusCard = ({ department, viewAllRoute = "/common-modules
   const { data: teamAttendance = [], isLoading } = useQuery({
     queryKey: ["dashboard-team-live-status", department],
     queryFn: async () => {
-      const response = await getTeamAttendance({ date: new Date().toISOString().slice(0, 10) });
+      const response = await getTeamAttendance({
+        date: new Date().toISOString().slice(0, 10),
+      });
       const records = (response as { records?: unknown })?.records;
       return Array.isArray(records) ? (records as AttendanceRecord[]) : [];
     },
@@ -180,53 +242,127 @@ export const TeamLiveStatusCard = ({ department, viewAllRoute = "/common-modules
           row?.employeeRole,
           ...(Array.isArray(row?.departments) ? row.departments : []),
         ];
-        return rowDepartmentValues.some((value) => departmentMatches(value, currentUserDepartments));
+        return rowDepartmentValues.some((value) =>
+          departmentMatches(value, currentUserDepartments),
+        );
       })
       .map((row, index) => ({
-        id: row?.userId || row?.employeeId || row?.id || `${row?.name || "staff"}-${index}`,
+        id:
+          row?.userId ||
+          row?.employeeId ||
+          row?.id ||
+          `${row?.name || "staff"}-${index}`,
         name: row?.name || row?.employeeName || "Team Member",
         role: row?.role || row?.employeeRole || row?.department || "Employee",
         status: getAttendanceStatusLabel(row),
         avatar: initialsFor(row?.name || row?.employeeName || row?.role || "T"),
-        checkInLabel: formatTimeOnly(row?.checkInAt || row?.checkIn || row?.clockIn || row?.startedAt || null),
-        checkOutLabel: formatTimeOnly(row?.checkOutAt || row?.checkOut || row?.clockOut || row?.endedAt || null),
+        checkInLabel: formatTimeOnly(
+          row?.checkInAt ||
+            row?.checkIn ||
+            row?.clockIn ||
+            row?.startedAt ||
+            null,
+        ),
+        checkOutLabel: formatTimeOnly(
+          row?.checkOutAt ||
+            row?.checkOut ||
+            row?.clockOut ||
+            row?.endedAt ||
+            null,
+        ),
       }))
-      .sort((left, right) => (statusOrder[left.status] ?? 99) - (statusOrder[right.status] ?? 99))
+      .sort(
+        (left, right) =>
+          (statusOrder[left.status] ?? 99) - (statusOrder[right.status] ?? 99),
+      )
       .slice(0, 4);
   }, [currentUserDepartments, teamAttendance, department]);
 
+  const presentCount = liveTeamRoster.filter((staff) =>
+    normalizeText(staff.status).includes("present"),
+  ).length;
+
   return (
-    <SectionCard title="Team Live Status" linkLabel="View all" linkRoute={viewAllRoute}>
-      <div className="space-y-3">
+    <section className="flex h-full min-h-[360px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-5 py-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+            <Radio size={17} />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">
+              Team Live Status
+            </h2>
+            <p className="mt-1 text-[10px] text-slate-500">
+              Today&apos;s department attendance and punch activity.
+            </p>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-[0.06em] text-emerald-700">
+            {presentCount}/{liveTeamRoster.length} present
+          </span>
+          <Link
+            to={viewAllRoute}
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+            title="View attendance"
+          >
+            <ArrowUpRight size={14} />
+          </Link>
+        </div>
+      </div>
+      <div className="max-h-[320px] flex-1 space-y-2.5 overflow-y-auto p-4">
         {isLoading ? (
-          <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">Loading team status...</p></div>
-        ) : liveTeamRoster.length > 0 ? liveTeamRoster.map((staff) => {
-          const statusUI = getAttendanceStatusUI(staff.status);
-          return (
-            <div key={staff.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-200">
-              <div className="relative shrink-0">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-white font-pbold text-content">
-                  {staff.avatar}
+          <div className="flex min-h-48 items-center justify-center">
+            <p className="text-[11px] text-slate-400">Loading team status...</p>
+          </div>
+        ) : liveTeamRoster.length > 0 ? (
+          liveTeamRoster.map((staff) => {
+            const statusUI = getAttendanceStatusUI(staff.status);
+            return (
+              <div
+                key={staff.id}
+                className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50/70 px-3.5 py-3 transition hover:border-blue-100 hover:bg-blue-50/40"
+              >
+                <div className="relative shrink-0">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1E3D73] text-[11px] font-pbold text-white">
+                    {staff.avatar}
+                  </div>
+                  <span
+                    className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white ${statusUI.dot}`}
+                  />
                 </div>
-                <span className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white ${statusUI.dot}`} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-content font-pmedium text-gray-900 truncate">{staff.name}</p>
-                  <span className={`flex-shrink-0 text-[9px] font-black uppercase tracking-widest ${statusUI.text}`}>{statusUI.label}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="truncate text-[11px] font-pmedium text-slate-900">
+                      {staff.name}
+                    </p>
+                    <span
+                      className={`flex-shrink-0 rounded-md bg-white px-2 py-1 text-[9px] font-pmedium uppercase tracking-[0.06em] ${statusUI.text}`}
+                    >
+                      {statusUI.label}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 truncate text-[10px] text-slate-500">
+                    {staff.role}
+                  </p>
+                  <p className="mt-1 text-[9px] text-slate-400">
+                    In {staff.checkInLabel}{" "}
+                    {staff.checkOutLabel !== "--"
+                      ? `• Out ${staff.checkOutLabel}`
+                      : ""}
+                  </p>
                 </div>
-                <p className="text-small text-gray-500 truncate">{staff.role}</p>
-                <p className="text-small text-gray-500">
-                  In {staff.checkInLabel} {staff.checkOutLabel !== "--" ? `• Out ${staff.checkOutLabel}` : ""}
-                </p>
               </div>
-            </div>
-          );
-        }) : (
-          <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No roster data yet</p></div>
+            );
+          })
+        ) : (
+          <div className="flex min-h-48 items-center justify-center">
+            <p className="text-[11px] text-slate-400">No roster data yet</p>
+          </div>
         )}
       </div>
-    </SectionCard>
+    </section>
   );
 };
 

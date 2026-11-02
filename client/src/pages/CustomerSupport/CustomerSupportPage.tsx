@@ -1,6 +1,22 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2, UserCheck, Eye, FileText, Plus, Pencil, Trash2, Paperclip } from "lucide-react";
+import {
+  Upload,
+  X,
+  Search,
+  AlertCircle,
+  AlertTriangle,
+  Clock,
+  CheckCircle2,
+  UserCheck,
+  Eye,
+  FileText,
+  Plus,
+  Pencil,
+  Trash2,
+  Paperclip,
+} from "lucide-react";
 import { toast } from "sonner";
+import { useLocation } from "react-router-dom";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
 import { canExportReports } from "../../utils/workspacePlanAccess";
@@ -8,13 +24,18 @@ import PageFrame from "../../components/Pages/PageFrame";
 import ThreeDotMenu from "../../components/ThreeDotMenu";
 import { statusPillClass } from "../../lib/status-pill";
 import { createReport } from "../../services/reports";
-import ExportReportModal, { type ExportParams } from "@/components/ExportReportModal";
+import ExportReportModal, {
+  type ExportParams,
+} from "@/components/ExportReportModal";
 import ReportExportButton from "@/components/ReportExportButton";
-import { isDateInExportPeriod } from '@/utils/export-period';
+import { isDateInExportPeriod } from "@/utils/export-period";
 import { downloadReportFile } from "../../utils/report-download";
 import { CustomerSupportSkeleton } from "../../components/ui/Skeleton";
 import { getStoredUser } from "../../lib/auth-session";
-import { LocalAttachmentList, StoredAttachmentList } from "../../components/AttachmentPreview";
+import {
+  LocalAttachmentList,
+  StoredAttachmentList,
+} from "../../components/AttachmentPreview";
 
 type TicketStatus =
   | "Open"
@@ -120,7 +141,10 @@ const writeSupportDraftAttachment = async (draftKey: string, files: File[]) => {
   const database = await openSupportDraftDatabase();
   try {
     await new Promise<void>((resolve, reject) => {
-      const transaction = database.transaction(SUPPORT_DRAFT_DB_STORE, "readwrite");
+      const transaction = database.transaction(
+        SUPPORT_DRAFT_DB_STORE,
+        "readwrite",
+      );
       const store = transaction.objectStore(SUPPORT_DRAFT_DB_STORE);
       if (files && files.length) store.put(files, draftKey);
       else store.delete(draftKey);
@@ -153,14 +177,19 @@ const formatDate = (value?: string | null) => {
 
 export default function CustomerSupportPage() {
   const axios = useAxiosPrivate();
+  const location = useLocation();
   const { plan } = useDashboardAccess();
   const showReportExports = canExportReports(plan);
-  const [activeTab, setActiveTab] = useState<"raised" | "resolved">("raised");
+  const [activeTab, setActiveTab] = useState<"raised" | "resolved">(() =>
+    location.state?.tab === "resolved" ? "resolved" : "raised",
+  );
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(
+    null,
+  );
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editPageUrl, setEditPageUrl] = useState("");
@@ -187,59 +216,88 @@ export default function CustomerSupportPage() {
   const [showExportModal, setShowExportModal] = useState(false);
   const draftStorageKey = useMemo(getSupportDraftKey, []);
 
-  const draftTicket = useMemo<SupportTicket | null>(() => savedDraft ? ({
-    id: "local-support-ticket-draft",
-    ticketId: "DRAFT",
-    title: String(savedDraft.title || "").trim() || "Untitled support issue",
-    description: String(savedDraft.description || ""),
-    status: "Draft",
-    requestedAt: savedDraft.savedAt || new Date().toISOString(),
-    requestedByName: "You",
-    requestedByEmail: "",
-    acceptedByName: "",
-    acceptedByEmail: "",
-    resolvedByName: "",
-    resolvedByEmail: "",
-    role: "",
-    department: null,
-    workspaceName: "",
-    pageUrl: String(savedDraft.pageUrl || ""),
-    image: { id: "", url: "" },
-    images: [],
-    resolutionMessage: "",
-    resolutionAttachment: { id: "", url: "" },
-    resolvedAt: null,
-    closedByUserAt: null,
-  }) : null, [savedDraft]);
+  const draftTicket = useMemo<SupportTicket | null>(
+    () =>
+      savedDraft
+        ? {
+            id: "local-support-ticket-draft",
+            ticketId: "DRAFT",
+            title:
+              String(savedDraft.title || "").trim() || "Untitled support issue",
+            description: String(savedDraft.description || ""),
+            status: "Draft",
+            requestedAt: savedDraft.savedAt || new Date().toISOString(),
+            requestedByName: "You",
+            requestedByEmail: "",
+            acceptedByName: "",
+            acceptedByEmail: "",
+            resolvedByName: "",
+            resolvedByEmail: "",
+            role: "",
+            department: null,
+            workspaceName: "",
+            pageUrl: String(savedDraft.pageUrl || ""),
+            image: { id: "", url: "" },
+            images: [],
+            resolutionMessage: "",
+            resolutionAttachment: { id: "", url: "" },
+            resolvedAt: null,
+            closedByUserAt: null,
+          }
+        : null,
+    [savedDraft],
+  );
 
   const currentList = useMemo(
-    () => activeTab === "raised"
-      ? (draftTicket ? [draftTicket, ...supportData.raised] : supportData.raised)
-      : supportData.history,
+    () =>
+      activeTab === "raised"
+        ? draftTicket
+          ? [draftTicket, ...supportData.raised]
+          : supportData.raised
+        : supportData.history,
     [activeTab, draftTicket, supportData],
   );
 
   const allTickets = useMemo(
-    () => [...(draftTicket ? [draftTicket] : []), ...supportData.raised, ...supportData.history],
+    () => [
+      ...(draftTicket ? [draftTicket] : []),
+      ...supportData.raised,
+      ...supportData.history,
+    ],
     [draftTicket, supportData],
   );
-  const openCount = useMemo(() => allTickets.filter(t => t.status === "Open").length, [allTickets]);
-  const acceptedCount = useMemo(() => allTickets.filter(t => t.status === "Accepted").length, [allTickets]);
-  const inProgressCount = useMemo(() => allTickets.filter(t => t.status === "In Progress").length, [allTickets]);
-  const resolvedCount = useMemo(() => allTickets.filter(t => t.status === "Resolved" || t.status === "Closed").length, [allTickets]);
+  const openCount = useMemo(
+    () => allTickets.filter((t) => t.status === "Open").length,
+    [allTickets],
+  );
+  const acceptedCount = useMemo(
+    () => allTickets.filter((t) => t.status === "Accepted").length,
+    [allTickets],
+  );
+  const inProgressCount = useMemo(
+    () => allTickets.filter((t) => t.status === "In Progress").length,
+    [allTickets],
+  );
+  const resolvedCount = useMemo(
+    () =>
+      allTickets.filter((t) => t.status === "Resolved" || t.status === "Closed")
+        .length,
+    [allTickets],
+  );
 
   const filteredList = useMemo(() => {
     let list = currentList;
     if (activeTab === "raised" && statusFilter !== "All") {
-      list = list.filter(t => t.status === statusFilter);
+      list = list.filter((t) => t.status === statusFilter);
     }
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
-      list = list.filter(t =>
-        t.ticketId?.toLowerCase().includes(q) ||
-        t.title?.toLowerCase().includes(q) ||
-        t.requestedByName?.toLowerCase().includes(q) ||
-        t.status?.toLowerCase().includes(q)
+      list = list.filter(
+        (t) =>
+          t.ticketId?.toLowerCase().includes(q) ||
+          t.title?.toLowerCase().includes(q) ||
+          t.requestedByName?.toLowerCase().includes(q) ||
+          t.status?.toLowerCase().includes(q),
       );
     }
     return list;
@@ -270,7 +328,9 @@ export default function CustomerSupportPage() {
   useEffect(() => {
     try {
       const rawDraft = localStorage.getItem(draftStorageKey);
-      setSavedDraft(rawDraft ? JSON.parse(rawDraft) as SupportTicketDraft : null);
+      setSavedDraft(
+        rawDraft ? (JSON.parse(rawDraft) as SupportTicketDraft) : null,
+      );
     } catch {
       setSavedDraft(null);
     }
@@ -308,7 +368,12 @@ export default function CustomerSupportPage() {
   };
 
   const saveDraft = async () => {
-    if (!title.trim() && !description.trim() && !pageUrl.trim() && !imageFiles.length) {
+    if (
+      !title.trim() &&
+      !description.trim() &&
+      !pageUrl.trim() &&
+      !imageFiles.length
+    ) {
       toast.error("Add ticket details before saving a draft.");
       return;
     }
@@ -340,12 +405,15 @@ export default function CustomerSupportPage() {
     } catch {
       // The ticket is already submitted; draft cleanup is best effort only.
     }
-    void writeSupportDraftAttachment(draftStorageKey, []).catch(() => undefined);
+    void writeSupportDraftAttachment(draftStorageKey, []).catch(
+      () => undefined,
+    );
   };
 
   const removeDraft = async () => {
     try {
-    if (!window.confirm("Remove this ticket draft? This cannot be undone.")) return;
+      if (!window.confirm("Remove this ticket draft? This cannot be undone."))
+        return;
 
       setIsRemovingDraft(true);
       await writeSupportDraftAttachment(draftStorageKey, []);
@@ -360,7 +428,13 @@ export default function CustomerSupportPage() {
     }
   };
 
-  const ALLOWED_ATTACHMENT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/csv'];
+  const ALLOWED_ATTACHMENT_TYPES = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "application/pdf",
+    "text/csv",
+  ];
   const MAX_ATTACHMENTS = 5;
   const MAX_ATTACHMENT_SIZE_MB = 5;
 
@@ -451,9 +525,12 @@ export default function CustomerSupportPage() {
 
     try {
       setIsSubmitting(true);
-      await axios.post(`${SUPPORT_TICKETS_API}/${selectedTicket.id}/follow-up`, {
-        description: followUpDescription.trim(),
-      });
+      await axios.post(
+        `${SUPPORT_TICKETS_API}/${selectedTicket.id}/follow-up`,
+        {
+          description: followUpDescription.trim(),
+        },
+      );
       toast.success("Follow-up issue raised successfully.");
       setIsFollowUpModalOpen(false);
       setIsDetailsModalOpen(false);
@@ -492,16 +569,22 @@ export default function CustomerSupportPage() {
       formData.append("pageUrl", editPageUrl.trim());
       editImageFiles.forEach((file) => formData.append("images", file));
 
-      await axios.patch(`${SUPPORT_TICKETS_API}/${selectedTicket.id}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      await axios.patch(
+        `${SUPPORT_TICKETS_API}/${selectedTicket.id}`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        },
+      );
       toast.success("Support ticket updated.");
       setIsEditModalOpen(false);
       setIsDetailsModalOpen(false);
       setSelectedTicket(null);
       await loadTickets();
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to update support ticket.");
+      toast.error(
+        error?.response?.data?.message || "Failed to update support ticket.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -542,33 +625,73 @@ export default function CustomerSupportPage() {
     setEditAttachmentError("");
   };
 
-  const handleExportIssues = async ({ format, dataWindow, period, reportMonth, dateFrom, dateTo }: ExportParams) => {
+  const handleExportIssues = async ({
+    format,
+    dataWindow,
+    period,
+    reportMonth,
+    dateFrom,
+    dateTo,
+  }: ExportParams) => {
     const reportFormat = format === "Excel" ? "Excel" : "PDF";
     const exportableList = filteredList
-      .filter(ticket => ticket.status !== "Draft")
-      .filter(ticket => isDateInExportPeriod(ticket.requestedAt || ticket.createdAt || ticket.updatedAt, { dateFrom, dateTo }));
-    if (!exportableList.length) { toast.error("There are no submitted issues to export."); return; }
+      .filter((ticket) => ticket.status !== "Draft")
+      .filter((ticket) =>
+        isDateInExportPeriod(
+          ticket.requestedAt || ticket.createdAt || ticket.updatedAt,
+          { dateFrom, dateTo },
+        ),
+      );
+    if (!exportableList.length) {
+      toast.error("There are no submitted issues to export.");
+      return;
+    }
     setIsExportingReport(reportFormat);
     try {
       const response = await createReport({
-        title: activeTab === "resolved" ? "Customer Support Issue History" : "Customer Support Issues Raised",
-        department: "Customer Support", category: "Other", dataWindow,
+        title:
+          activeTab === "resolved"
+            ? "Customer Support Issue History"
+            : "Customer Support Issues Raised",
+        department: "Customer Support",
+        category: "Other",
+        dataWindow,
         reportMonth,
-        period: period || (activeTab === "resolved" ? "Issue History" : "Issues Raised"),
-        generatedBy: "Customer Support", format: reportFormat,
+        period:
+          period ||
+          (activeTab === "resolved" ? "Issue History" : "Issues Raised"),
+        generatedBy: "Customer Support",
+        format: reportFormat,
         description: `Customer support ${activeTab === "resolved" ? "issue history" : "raised issues"} export.`,
-        sourceType: "custom", sourceRef: activeTab === "resolved" ? "customer-support-history" : "customer-support-raised",
+        sourceType: "custom",
+        sourceRef:
+          activeTab === "resolved"
+            ? "customer-support-history"
+            : "customer-support-raised",
         reportRows: exportableList.slice(0, 100).map((ticket, index) => ({
           label: `${index + 1}. ${ticket.ticketId || "Ticket"} - ${ticket.title || "Support issue"}`,
-          value: [ticket.status, formatDate(ticket.requestedAt), ticket.requestedByName || "Unknown requester", ticket.acceptedByName || "Not accepted", ticket.resolvedByName || "Not resolved"].join(" | "),
+          value: [
+            ticket.status,
+            formatDate(ticket.requestedAt),
+            ticket.requestedByName || "Unknown requester",
+            ticket.acceptedByName || "Not accepted",
+            ticket.resolvedByName || "Not resolved",
+          ].join(" | "),
         })),
         monthlyData: [],
       });
-      await downloadReportFile(response?.data?.download?.url, { openInNewTab: false });
+      await downloadReportFile(response?.data?.download?.url, {
+        openInNewTab: false,
+      });
       toast.success(`${reportFormat} support report saved to Reports.`);
       window.dispatchEvent(new Event("reports:refresh"));
-    } catch (error: any) { toast.error(error?.response?.data?.message || "Failed to export support issues."); }
-    finally { setIsExportingReport(""); }
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.message || "Failed to export support issues.",
+      );
+    } finally {
+      setIsExportingReport("");
+    }
   };
 
   if (isLoading) {
@@ -585,7 +708,6 @@ export default function CustomerSupportPage() {
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
         <div className="flex flex-col gap-4">
-
           {/* 1. HEADER */}
           <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
@@ -593,13 +715,18 @@ export default function CustomerSupportPage() {
                 Customer Support
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
-                Raise issues to the WoNo Team — every ticket is sent to the WoNo Team for reference and resolution.
+                Raise issues to the WoNo Team — every ticket is sent to the WoNo
+                Team for reference and resolution.
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
               {showReportExports && (
                 <>
-                  <ReportExportButton onClick={() => setShowExportModal(true)} isExporting={Boolean(isExportingReport)} aria-label="Export support issues" />
+                  <ReportExportButton
+                    onClick={() => setShowExportModal(true)}
+                    isExporting={Boolean(isExportingReport)}
+                    aria-label="Export support issues"
+                  />
                 </>
               )}
             </div>
@@ -609,38 +736,68 @@ export default function CustomerSupportPage() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 shrink-0">
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
               <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Tickets</p>
-                <p className="text-[15px] font-pmedium text-slate-900">{allTickets.length}</p>
+                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">
+                  Total Tickets
+                </p>
+                <p className="text-[15px] font-pmedium text-slate-900">
+                  {allTickets.length}
+                </p>
               </div>
-              <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><AlertCircle size={16} /></div>
+              <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0">
+                <AlertCircle size={16} />
+              </div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Open (Raised)</p>
-                <p className="text-[15px] font-pmedium text-slate-900">{openCount}</p>
+                <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">
+                  Open (Raised)
+                </p>
+                <p className="text-[15px] font-pmedium text-slate-900">
+                  {openCount}
+                </p>
               </div>
-              <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><AlertTriangle size={16} /></div>
+              <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0">
+                <AlertTriangle size={16} />
+              </div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-violet-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-violet-600 uppercase tracking-widest mb-1">Accepted</p>
-                <p className="text-[15px] font-pmedium text-slate-900">{acceptedCount}</p>
+                <p className="text-[10px] font-pmedium text-violet-600 uppercase tracking-widest mb-1">
+                  Accepted
+                </p>
+                <p className="text-[15px] font-pmedium text-slate-900">
+                  {acceptedCount}
+                </p>
               </div>
-              <div className="p-2 rounded-2xl bg-violet-50 text-violet-600 shrink-0"><UserCheck size={16} /></div>
+              <div className="p-2 rounded-2xl bg-violet-50 text-violet-600 shrink-0">
+                <UserCheck size={16} />
+              </div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">In Progress</p>
-                <p className="text-[15px] font-pmedium text-slate-900">{inProgressCount}</p>
+                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">
+                  In Progress
+                </p>
+                <p className="text-[15px] font-pmedium text-slate-900">
+                  {inProgressCount}
+                </p>
               </div>
-              <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><Clock size={16} /></div>
+              <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0">
+                <Clock size={16} />
+              </div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Closed</p>
-                <p className="text-[15px] font-pmedium text-slate-900">{resolvedCount}</p>
+                <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">
+                  Closed
+                </p>
+                <p className="text-[15px] font-pmedium text-slate-900">
+                  {resolvedCount}
+                </p>
               </div>
-              <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><CheckCircle2 size={16} /></div>
+              <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0">
+                <CheckCircle2 size={16} />
+              </div>
             </div>
           </div>
 
@@ -676,22 +833,33 @@ export default function CustomerSupportPage() {
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
               {activeTab === "raised" ? (
                 <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-                  {['All', 'Draft', 'Open', 'In Progress', 'Resolved', 'Closed'].map((status) => (
+                  {[
+                    "All",
+                    "Draft",
+                    "Open",
+                    "In Progress",
+                    "Resolved",
+                    "Closed",
+                  ].map((status) => (
                     <button
                       key={status}
                       onClick={() => setStatusFilter(status)}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${statusFilter === status
-                        ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
-                        : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
+                        statusFilter === status
+                          ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
+                          : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
                       }`}
                     >
-                      {status === 'Open' ? 'Raised' : status}
+                      {status === "Open" ? "Raised" : status}
                     </button>
                   ))}
                 </div>
               ) : (
                 <div className="relative w-full xl:w-96 shrink-0 ml-auto">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <Search
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                    size={15}
+                  />
                   <input
                     type="text"
                     placeholder="Search tickets..."
@@ -704,7 +872,10 @@ export default function CustomerSupportPage() {
               {activeTab === "raised" ? (
                 <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
                   <div className="relative flex-1 min-w-[180px]">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                    <Search
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                      size={15}
+                    />
                     <input
                       type="text"
                       placeholder="Search tickets..."
@@ -724,86 +895,143 @@ export default function CustomerSupportPage() {
               ) : null}
             </div>
             <div className="overflow-x-auto flex-1">
-                <table className="w-full text-left border-collapse">
-                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <tr>
+                    <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">
+                      Ticket ID
+                    </th>
+                    <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">
+                      Issue Title
+                    </th>
+                    <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">
+                      Requested At
+                    </th>
+                    <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">
+                      Resolved By
+                    </th>
+                    <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">
+                      Status
+                    </th>
+                    <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">
+                      Accepted By
+                    </th>
+                    <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredList.length === 0 ? (
                     <tr>
-                      <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">Ticket ID</th>
-                      <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">Issue Title</th>
-                      <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">Requested At</th>
-                      <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">Resolved By</th>
-                      <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">Status</th>
-                      <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">Accepted By</th>
-                      <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">Action</th>
+                      <td
+                        colSpan={7}
+                        className="text-center py-20 text-slate-400 font-pmedium"
+                      >
+                        No issues found.
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {filteredList.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="text-center py-20 text-slate-400 font-pmedium">No issues found.</td>
+                  ) : (
+                    filteredList.map((ticket) => (
+                      <tr
+                        key={ticket.id}
+                        className="hover:bg-slate-50/50 transition-colors group"
+                      >
+                        <td className="px-5 py-4 align-top whitespace-nowrap">
+                          <div className="font-pmedium text-slate-600 inline-flex items-center gap-1 whitespace-nowrap">
+                            {ticket.ticketId || "N/A"}
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 align-top">
+                          <div className="font-pmedium text-[#0F172A] text-[13px] truncate max-w-[200px]">
+                            {ticket.title}
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 align-top text-xs font-pmedium text-slate-600 whitespace-nowrap">
+                          {formatDate(ticket.requestedAt)}
+                        </td>
+                        <td className="px-5 py-4 align-top text-xs font-pmedium text-slate-600 whitespace-nowrap">
+                          {ticket.resolvedByName || "-"}
+                        </td>
+                        <td className="px-5 py-4 align-top text-center">
+                          <span className={statusPillClass(ticket.status)}>
+                            {ticket.status}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 align-top text-xs font-pmedium text-slate-600 whitespace-nowrap">
+                          {ticket.acceptedByName || "-"}
+                        </td>
+                        <td className="px-5 py-4 align-top text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1">
+                            {ticket.status === "Draft" ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={openCreateModal}
+                                  title="Edit draft"
+                                  aria-label="Edit ticket draft"
+                                  className="p-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                                >
+                                  <Pencil
+                                    size={15}
+                                    strokeWidth={2.5}
+                                    aria-hidden="true"
+                                  />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void removeDraft()}
+                                  disabled={isRemovingDraft}
+                                  title="Remove draft"
+                                  aria-label="Remove ticket draft"
+                                  className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  <Trash2
+                                    size={15}
+                                    strokeWidth={2.5}
+                                    aria-hidden="true"
+                                  />
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedTicket(ticket);
+                                    setIsDetailsModalOpen(true);
+                                  }}
+                                  title="View details"
+                                  aria-label={`View details for ${ticket.ticketId || ticket.title}`}
+                                  className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                                >
+                                  <Eye
+                                    size={15}
+                                    strokeWidth={2.5}
+                                    aria-hidden="true"
+                                  />
+                                </button>
+                                {ticket.status === "Open" && (
+                                  <ThreeDotMenu
+                                    rowId={ticket.id}
+                                    menuItems={[
+                                      {
+                                        label: "Edit Ticket",
+                                        onClick: () => openEditModal(ticket),
+                                      },
+                                    ]}
+                                  />
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </td>
                       </tr>
-                    ) : (
-                      filteredList.map((ticket) => (
-                        <tr key={ticket.id} className="hover:bg-slate-50/50 transition-colors group">
-                          <td className="px-5 py-4 align-top whitespace-nowrap">
-                            <div className="font-pmedium text-slate-600 inline-flex items-center gap-1 whitespace-nowrap">{ticket.ticketId || "N/A"}</div>
-                          </td>
-                          <td className="px-5 py-4 align-top">
-                            <div className="font-pmedium text-[#0F172A] text-[13px] truncate max-w-[200px]">{ticket.title}</div>
-                          </td>
-                          <td className="px-5 py-4 align-top text-xs font-pmedium text-slate-600 whitespace-nowrap">{formatDate(ticket.requestedAt)}</td>
-                          <td className="px-5 py-4 align-top text-xs font-pmedium text-slate-600 whitespace-nowrap">{ticket.resolvedByName || "-"}</td>
-                          <td className="px-5 py-4 align-top text-center">
-                            <span className={statusPillClass(ticket.status)}>{ticket.status}</span>
-                          </td>
-                          <td className="px-5 py-4 align-top text-xs font-pmedium text-slate-600 whitespace-nowrap">{ticket.acceptedByName || "-"}</td>
-                          <td className="px-5 py-4 align-top text-center whitespace-nowrap">
-                            <div className="flex items-center justify-center gap-1">
-                              {ticket.status === "Draft" ? (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={openCreateModal}
-                                    title="Edit draft"
-                                    aria-label="Edit ticket draft"
-                                    className="p-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
-                                  >
-                                    <Pencil size={15} strokeWidth={2.5} aria-hidden="true" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => void removeDraft()}
-                                    disabled={isRemovingDraft}
-                                    title="Remove draft"
-                                    aria-label="Remove ticket draft"
-                                    className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 disabled:cursor-not-allowed disabled:opacity-50"
-                                  >
-                                    <Trash2 size={15} strokeWidth={2.5} aria-hidden="true" />
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => { setSelectedTicket(ticket); setIsDetailsModalOpen(true); }}
-                                    title="View details"
-                                    aria-label={`View details for ${ticket.ticketId || ticket.title}`}
-                                    className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
-                                  >
-                                    <Eye size={15} strokeWidth={2.5} aria-hidden="true" />
-                                  </button>
-                                  {ticket.status === "Open" && (
-                                    <ThreeDotMenu rowId={ticket.id} menuItems={[{ label: "Edit Ticket", onClick: () => openEditModal(ticket) }]} />
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </PageFrame>
@@ -811,12 +1039,16 @@ export default function CustomerSupportPage() {
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-lg h-[92vh] sm:h-auto sm:max-h-[95vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300">
-          <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0"></div>
+            <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0"></div>
 
             <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
               <div>
-                <h2 className="text-lg sm:text-xl font-pmedium text-primary tracking-tight whitespace-nowrap">Raise a Support Issue to WoNo Team</h2>
-                <p className="text-[8px] sm:text-[9px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">This ticket will be sent to the WoNo Team for resolution.</p>
+                <h2 className="text-lg sm:text-xl font-pmedium text-primary tracking-tight whitespace-nowrap">
+                  Raise a Support Issue to WoNo Team
+                </h2>
+                <p className="text-[8px] sm:text-[9px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">
+                  This ticket will be sent to the WoNo Team for resolution.
+                </p>
               </div>
               <button
                 type="button"
@@ -827,15 +1059,26 @@ export default function CustomerSupportPage() {
               </button>
             </div>
 
-            <form onSubmit={submitTicket} className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 bg-slate-50/30">
-
+            <form
+              onSubmit={submitTicket}
+              className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 bg-slate-50/30"
+            >
               <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                 <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
-                  <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><AlertCircle size={16} /></span>
-                  <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Issue Details</span>
+                  <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0">
+                    <AlertCircle size={16} />
+                  </span>
+                  <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">
+                    Issue Details
+                  </span>
                 </h4>
                 <div className="flex flex-col gap-1">
-                  <label htmlFor="issue-title" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Title <span className="text-red-400">*</span></label>
+                  <label
+                    htmlFor="issue-title"
+                    className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest"
+                  >
+                    Title <span className="text-red-400">*</span>
+                  </label>
                   <input
                     id="issue-title"
                     type="text"
@@ -847,7 +1090,12 @@ export default function CustomerSupportPage() {
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label htmlFor="issue-description" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Description / Issue <span className="text-red-400">*</span></label>
+                  <label
+                    htmlFor="issue-description"
+                    className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest"
+                  >
+                    Description / Issue <span className="text-red-400">*</span>
+                  </label>
                   <textarea
                     id="issue-description"
                     value={description}
@@ -862,11 +1110,20 @@ export default function CustomerSupportPage() {
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                 <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
-                  <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Upload size={16} /></span>
-                  <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Attachments</span>
+                  <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0">
+                    <Upload size={16} />
+                  </span>
+                  <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">
+                    Attachments
+                  </span>
                 </h4>
                 <div className="flex flex-col gap-1">
-                  <label htmlFor="issue-page-url" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Page URL</label>
+                  <label
+                    htmlFor="issue-page-url"
+                    className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest"
+                  >
+                    Page URL
+                  </label>
                   <input
                     id="issue-page-url"
                     type="text"
@@ -875,10 +1132,15 @@ export default function CustomerSupportPage() {
                     placeholder="e.g. /extra-common-modules/assets"
                     className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-500"
                   />
-                  <p className="text-[10px] font-medium text-slate-400">Paste the page you were on when the issue happened, so our team can see exactly what you saw.</p>
+                  <p className="text-[10px] font-medium text-slate-400">
+                    Paste the page you were on when the issue happened, so our
+                    team can see exactly what you saw.
+                  </p>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Attachments</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
+                    Attachments
+                  </label>
                   {imageFiles.length < MAX_ATTACHMENTS && (
                     <>
                       <input
@@ -897,23 +1159,36 @@ export default function CustomerSupportPage() {
                         onDragOver={(event) => event.preventDefault()}
                         onDrop={(event) => {
                           event.preventDefault();
-                          handleAttachmentFilesSelected(event.dataTransfer.files);
+                          handleAttachmentFilesSelected(
+                            event.dataTransfer.files,
+                          );
                         }}
                         className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-white hover:bg-slate-50 hover:border-[#2563EB] transition-colors cursor-pointer group"
                       >
                         <div className="w-12 h-12 bg-blue-50 rounded-full shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                           <Paperclip className="text-[#2563EB]" size={20} />
                         </div>
-                        <p className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A]">Upload screenshot or document</p>
-                        <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1">PNG, JPG, WEBP, PDF or CSV up to {MAX_ATTACHMENT_SIZE_MB}MB, max {MAX_ATTACHMENTS} files</p>
+                        <p className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A]">
+                          Upload screenshot or document
+                        </p>
+                        <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1">
+                          PNG, JPG, WEBP, PDF or CSV up to{" "}
+                          {MAX_ATTACHMENT_SIZE_MB}MB, max {MAX_ATTACHMENTS}{" "}
+                          files
+                        </p>
                       </label>
                     </>
                   )}
                   {attachmentError ? (
-                    <p className="text-[10px] sm:text-[11px] text-red-500 font-pmedium">{attachmentError}</p>
+                    <p className="text-[10px] sm:text-[11px] text-red-500 font-pmedium">
+                      {attachmentError}
+                    </p>
                   ) : null}
                   {imageFiles.length > 0 && (
-                    <LocalAttachmentList files={imageFiles} onRemove={removeAttachmentFile} />
+                    <LocalAttachmentList
+                      files={imageFiles}
+                      onRemove={removeAttachmentFile}
+                    />
                   )}
                 </div>
               </div>
@@ -930,7 +1205,12 @@ export default function CustomerSupportPage() {
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting || isSavingDraft || !title.trim() || !description.trim()}
+                disabled={
+                  isSubmitting ||
+                  isSavingDraft ||
+                  !title.trim() ||
+                  !description.trim()
+                }
                 onClick={(e) => submitTicket(e)}
                 className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
@@ -954,16 +1234,25 @@ export default function CustomerSupportPage() {
                   <AlertCircle size={18} />
                 </div>
                 <div className="min-w-0">
-                  <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">{selectedTicket.title || "Ticket Details"}</h2>
+                  <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-slate-800 truncate">
+                    {selectedTicket.title || "Ticket Details"}
+                  </h2>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <span className={statusPillClass(selectedTicket.status)}>{selectedTicket.status}</span>
-                    <span className="text-[10px] font-pmedium text-slate-500">{selectedTicket.ticketId || "-"}</span>
+                    <span className={statusPillClass(selectedTicket.status)}>
+                      {selectedTicket.status}
+                    </span>
+                    <span className="text-[10px] font-pmedium text-slate-500">
+                      {selectedTicket.ticketId || "-"}
+                    </span>
                   </div>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => { setIsDetailsModalOpen(false); setSelectedTicket(null); }}
+                onClick={() => {
+                  setIsDetailsModalOpen(false);
+                  setSelectedTicket(null);
+                }}
                 className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"
               >
                 <X size={16} />
@@ -978,28 +1267,52 @@ export default function CustomerSupportPage() {
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
                   <div>
-                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Ticket ID</p>
-                    <p className="text-[12px] font-pmedium text-slate-900">{selectedTicket.ticketId || "—"}</p>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">
+                      Ticket ID
+                    </p>
+                    <p className="text-[12px] font-pmedium text-slate-900">
+                      {selectedTicket.ticketId || "—"}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Unit</p>
-                    <p className="text-[12px] font-pmedium text-slate-900">{selectedTicket.workspaceName || "—"}</p>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">
+                      Unit
+                    </p>
+                    <p className="text-[12px] font-pmedium text-slate-900">
+                      {selectedTicket.workspaceName || "—"}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Role</p>
-                    <p className="text-[12px] font-pmedium text-slate-900">{capitalizeFirst(selectedTicket.role)}</p>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">
+                      Role
+                    </p>
+                    <p className="text-[12px] font-pmedium text-slate-900">
+                      {capitalizeFirst(selectedTicket.role)}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Requested At</p>
-                    <p className="text-[12px] font-pmedium text-slate-900">{formatDate(selectedTicket.requestedAt)}</p>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">
+                      Requested At
+                    </p>
+                    <p className="text-[12px] font-pmedium text-slate-900">
+                      {formatDate(selectedTicket.requestedAt)}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Accepted By</p>
-                    <p className="text-[12px] font-pmedium text-slate-900">{selectedTicket.acceptedByName || "—"}</p>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">
+                      Accepted By
+                    </p>
+                    <p className="text-[12px] font-pmedium text-slate-900">
+                      {selectedTicket.acceptedByName || "—"}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Resolved By</p>
-                    <p className="text-[12px] font-pmedium text-slate-900">{selectedTicket.resolvedByName || "—"}</p>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">
+                      Resolved By
+                    </p>
+                    <p className="text-[12px] font-pmedium text-slate-900">
+                      {selectedTicket.resolvedByName || "—"}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1010,21 +1323,38 @@ export default function CustomerSupportPage() {
                 </h3>
                 <div className="grid grid-cols-1 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
                   <div>
-                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Issue Title</p>
-                    <p className="text-[12px] font-pmedium text-slate-900">{selectedTicket.title || "—"}</p>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">
+                      Issue Title
+                    </p>
+                    <p className="text-[12px] font-pmedium text-slate-900">
+                      {selectedTicket.title || "—"}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Issue Description / Follow Up</p>
-                    <p className="text-[12px] font-pmedium text-slate-900 whitespace-pre-wrap max-h-24 overflow-y-auto">{selectedTicket.description || "—"}</p>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">
+                      Issue Description / Follow Up
+                    </p>
+                    <p className="text-[12px] font-pmedium text-slate-900 whitespace-pre-wrap max-h-24 overflow-y-auto">
+                      {selectedTicket.description || "—"}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Issue Attachment{((selectedTicket.images?.length || 0) > 1) ? "s" : ""}</p>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">
+                      Issue Attachment
+                      {(selectedTicket.images?.length || 0) > 1 ? "s" : ""}
+                    </p>
                     <StoredAttachmentList
                       attachments={
-                        selectedTicket.images && selectedTicket.images.length > 0
+                        selectedTicket.images &&
+                        selectedTicket.images.length > 0
                           ? selectedTicket.images
                           : selectedTicket.image?.url
-                            ? [{ ...selectedTicket.image, name: "Uploaded Image" }]
+                            ? [
+                                {
+                                  ...selectedTicket.image,
+                                  name: "Uploaded Image",
+                                },
+                              ]
                             : []
                       }
                       emptyText="No attachment"
@@ -1039,15 +1369,26 @@ export default function CustomerSupportPage() {
                 </h3>
                 <div className="grid grid-cols-1 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
                   <div>
-                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Resolution Message</p>
-                    <p className="text-[12px] font-pmedium text-slate-900 whitespace-pre-wrap max-h-24 overflow-y-auto">{selectedTicket.resolutionMessage || "—"}</p>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">
+                      Resolution Message
+                    </p>
+                    <p className="text-[12px] font-pmedium text-slate-900 whitespace-pre-wrap max-h-24 overflow-y-auto">
+                      {selectedTicket.resolutionMessage || "—"}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">Resolution Attachment</p>
+                    <p className="text-[9px] text-slate-500 uppercase font-pmedium tracking-widest mb-1">
+                      Resolution Attachment
+                    </p>
                     <StoredAttachmentList
                       attachments={
                         selectedTicket.resolutionAttachment?.url
-                          ? [{ ...selectedTicket.resolutionAttachment, name: "Resolution File" }]
+                          ? [
+                              {
+                                ...selectedTicket.resolutionAttachment,
+                                name: "Resolution File",
+                              },
+                            ]
                           : []
                       }
                       emptyText="No resolution attachment"
@@ -1063,7 +1404,9 @@ export default function CustomerSupportPage() {
                 <>
                   <button
                     type="button"
-                    onClick={() => { setIsFollowUpModalOpen(true); }}
+                    onClick={() => {
+                      setIsFollowUpModalOpen(true);
+                    }}
                     disabled={isSubmitting}
                     className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[12px] hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50"
                   >
@@ -1081,7 +1424,10 @@ export default function CustomerSupportPage() {
               ) : (
                 <button
                   type="button"
-                  onClick={() => { setIsDetailsModalOpen(false); setSelectedTicket(null); }}
+                  onClick={() => {
+                    setIsDetailsModalOpen(false);
+                    setSelectedTicket(null);
+                  }}
                   className="w-full py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 transition-all"
                 >
                   Close
@@ -1095,37 +1441,62 @@ export default function CustomerSupportPage() {
       {isFollowUpModalOpen && selectedTicket && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-lg h-[92vh] sm:h-auto sm:max-h-[95vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300">
-          <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0"></div>
+            <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0"></div>
 
             <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
               <div>
-                <h2 className="text-xl sm:text-2xl font-pmedium text-primary tracking-tight">Follow Up Issue</h2>
-                <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">{selectedTicket.ticketId || "-"}</p>
+                <h2 className="text-xl sm:text-2xl font-pmedium text-primary tracking-tight">
+                  Follow Up Issue
+                </h2>
+                <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">
+                  {selectedTicket.ticketId || "-"}
+                </p>
               </div>
               <button
                 type="button"
-                onClick={() => { setIsFollowUpModalOpen(false); setFollowUpDescription(""); }}
+                onClick={() => {
+                  setIsFollowUpModalOpen(false);
+                  setFollowUpDescription("");
+                }}
                 className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm"
               >
                 <X size={18} strokeWidth={2.5} />
               </button>
             </div>
 
-            <form onSubmit={submitFollowUp} className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 bg-slate-50/30">
+            <form
+              onSubmit={submitFollowUp}
+              className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 bg-slate-50/30"
+            >
               <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                 <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
-                  <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><AlertCircle size={16} /></span>
-                  <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Follow Up</span>
+                  <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0">
+                    <AlertCircle size={16} />
+                  </span>
+                  <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">
+                    Follow Up
+                  </span>
                 </h4>
                 <p className="text-[12px] font-semibold text-slate-500">
-                  Follow-up for ticket <span className="text-[#0F172A] font-bold">{selectedTicket.ticketId || "-"}</span>.
+                  Follow-up for ticket{" "}
+                  <span className="text-[#0F172A] font-bold">
+                    {selectedTicket.ticketId || "-"}
+                  </span>
+                  .
                 </p>
                 <div className="flex flex-col gap-1">
-                  <label htmlFor="followup-description" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Follow Up Message</label>
+                  <label
+                    htmlFor="followup-description"
+                    className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest"
+                  >
+                    Follow Up Message
+                  </label>
                   <textarea
                     id="followup-description"
                     value={followUpDescription}
-                    onChange={(event) => setFollowUpDescription(event.target.value)}
+                    onChange={(event) =>
+                      setFollowUpDescription(event.target.value)
+                    }
                     rows={4}
                     placeholder="Explain what is still pending or unresolved."
                     className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-500"
@@ -1151,31 +1522,49 @@ export default function CustomerSupportPage() {
       {isEditModalOpen && selectedTicket && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-lg h-[92vh] sm:h-auto sm:max-h-[95vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300">
-          <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0"></div>
+            <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0"></div>
 
             <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
               <div>
-                <h2 className="text-xl sm:text-2xl font-pmedium text-primary tracking-tight">Edit Support Issue</h2>
-                <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">{selectedTicket.ticketId || "-"}</p>
+                <h2 className="text-xl sm:text-2xl font-pmedium text-primary tracking-tight">
+                  Edit Support Issue
+                </h2>
+                <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">
+                  {selectedTicket.ticketId || "-"}
+                </p>
               </div>
               <button
                 type="button"
-                onClick={() => { setIsEditModalOpen(false); setSelectedTicket(null); }}
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setSelectedTicket(null);
+                }}
                 className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm"
               >
                 <X size={18} strokeWidth={2.5} />
               </button>
             </div>
 
-            <form onSubmit={submitEditTicket} className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 bg-slate-50/30">
-
+            <form
+              onSubmit={submitEditTicket}
+              className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 bg-slate-50/30"
+            >
               <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                 <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
-                  <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><AlertCircle size={16} /></span>
-                  <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Issue Details</span>
+                  <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0">
+                    <AlertCircle size={16} />
+                  </span>
+                  <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">
+                    Issue Details
+                  </span>
                 </h4>
                 <div className="flex flex-col gap-1">
-                  <label htmlFor="edit-issue-title" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Title <span className="text-red-400">*</span></label>
+                  <label
+                    htmlFor="edit-issue-title"
+                    className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest"
+                  >
+                    Title <span className="text-red-400">*</span>
+                  </label>
                   <input
                     id="edit-issue-title"
                     type="text"
@@ -1187,7 +1576,12 @@ export default function CustomerSupportPage() {
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label htmlFor="edit-issue-description" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Description / Issue <span className="text-red-400">*</span></label>
+                  <label
+                    htmlFor="edit-issue-description"
+                    className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest"
+                  >
+                    Description / Issue <span className="text-red-400">*</span>
+                  </label>
                   <textarea
                     id="edit-issue-description"
                     value={editDescription}
@@ -1202,11 +1596,20 @@ export default function CustomerSupportPage() {
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
                 <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
-                  <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Upload size={16} /></span>
-                  <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Attachments</span>
+                  <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0">
+                    <Upload size={16} />
+                  </span>
+                  <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">
+                    Attachments
+                  </span>
                 </h4>
                 <div className="flex flex-col gap-1">
-                  <label htmlFor="edit-issue-page-url" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Page URL</label>
+                  <label
+                    htmlFor="edit-issue-page-url"
+                    className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest"
+                  >
+                    Page URL
+                  </label>
                   <input
                     id="edit-issue-page-url"
                     type="text"
@@ -1217,7 +1620,9 @@ export default function CustomerSupportPage() {
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Attachments</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
+                    Attachments
+                  </label>
                   {editImageFiles.length < MAX_ATTACHMENTS && (
                     <>
                       <input
@@ -1236,23 +1641,36 @@ export default function CustomerSupportPage() {
                         onDragOver={(event) => event.preventDefault()}
                         onDrop={(event) => {
                           event.preventDefault();
-                          handleEditAttachmentFilesSelected(event.dataTransfer.files);
+                          handleEditAttachmentFilesSelected(
+                            event.dataTransfer.files,
+                          );
                         }}
                         className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-white hover:bg-slate-50 hover:border-[#2563EB] transition-colors cursor-pointer group"
                       >
                         <div className="w-12 h-12 bg-blue-50 rounded-full shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                           <Paperclip className="text-[#2563EB]" size={20} />
                         </div>
-                        <p className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A]">Upload screenshot or document</p>
-                        <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1">PNG, JPG, WEBP, PDF or CSV up to {MAX_ATTACHMENT_SIZE_MB}MB, max {MAX_ATTACHMENTS} files</p>
+                        <p className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A]">
+                          Upload screenshot or document
+                        </p>
+                        <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1">
+                          PNG, JPG, WEBP, PDF or CSV up to{" "}
+                          {MAX_ATTACHMENT_SIZE_MB}MB, max {MAX_ATTACHMENTS}{" "}
+                          files
+                        </p>
                       </label>
                     </>
                   )}
                   {editAttachmentError ? (
-                    <p className="text-[10px] sm:text-[11px] text-red-500 font-pmedium">{editAttachmentError}</p>
+                    <p className="text-[10px] sm:text-[11px] text-red-500 font-pmedium">
+                      {editAttachmentError}
+                    </p>
                   ) : null}
                   {editImageFiles.length > 0 && (
-                    <LocalAttachmentList files={editImageFiles} onRemove={removeEditAttachmentFile} />
+                    <LocalAttachmentList
+                      files={editImageFiles}
+                      onRemove={removeEditAttachmentFile}
+                    />
                   )}
                 </div>
               </div>
@@ -1261,14 +1679,19 @@ export default function CustomerSupportPage() {
             <div className="p-3 sm:p-4 bg-white border-t border-slate-100 shrink-0 flex gap-3">
               <button
                 type="button"
-                onClick={() => { setIsEditModalOpen(false); setSelectedTicket(null); }}
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setSelectedTicket(null);
+                }}
                 className="flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting || !editTitle.trim() || !editDescription.trim()}
+                disabled={
+                  isSubmitting || !editTitle.trim() || !editDescription.trim()
+                }
                 onClick={(e) => submitEditTicket(e)}
                 className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
@@ -1286,8 +1709,16 @@ export default function CustomerSupportPage() {
         subtitle="Select format and date range to export."
         department="Customer Support"
         category="Other"
-        sourceRef={activeTab === "resolved" ? "customer-support-history" : "customer-support-raised"}
-        reportTitle={activeTab === "resolved" ? "Customer Support Issue History" : "Customer Support Issues Raised"}
+        sourceRef={
+          activeTab === "resolved"
+            ? "customer-support-history"
+            : "customer-support-raised"
+        }
+        reportTitle={
+          activeTab === "resolved"
+            ? "Customer Support Issue History"
+            : "Customer Support Issues Raised"
+        }
         defaultDataWindow="Custom"
         onExport={handleExportIssues}
       />

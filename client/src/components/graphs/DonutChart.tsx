@@ -3,6 +3,23 @@ import React from "react";
 import ReactApexChart from "react-apexcharts";
 import useResponsiveChart from "../../hooks/useResponsiveChart";
 
+// Explicit props type — without it, the untyped destructuring infers every
+// prop above as REQUIRED at call sites (e.g. handleClick, width), forcing
+// callers to pass no-ops. Optional here, like the component actually treats
+// them.
+type DonutChartProps = {
+  centerLabel?: string;
+  labels?: string[];
+  colors?: string[];
+  series?: number[];
+  tooltipValue?: string[];
+  handleClick?: () => void;
+  onSliceClick?: (index: number) => void;
+  width?: number | string;
+  isMonetary?: boolean;
+  wrapLabels?: boolean;
+};
+
 const DonutChart = ({
   centerLabel,
   labels,
@@ -14,7 +31,7 @@ const DonutChart = ({
   width,
   isMonetary = false,
   wrapLabels = false,
-}) => {
+}: DonutChartProps) => {
   const chartData = {
     series: series,
     labels: labels,

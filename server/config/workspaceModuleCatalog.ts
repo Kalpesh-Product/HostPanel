@@ -13,9 +13,12 @@ const MODULE_GROUPS = [
       { id: "tasks", label: "Tasks", route: "/extra-common-modules/tasks", implemented: true },
       { id: "tickets", label: "Tickets", route: "/tickets", implemented: true },
       { id: "leave-requests", label: "Leave Requests", implemented: false },
-      { id: "meeting-room-system", label: "Meeting Room Booking", route: "/meetings/meeting-rooms", implemented: true },
+      { id: "meeting-room-system", label: "Meeting Room Booking", route: "/meetings/meeting-rooms", implemented: true, verticals: ["meeting-rooms", "co-working"] },
       { id: "printouts", label: "Printouts", route: "/common-modules/printouts", implemented: true },
       { id: "calendar", label: "Calendar", route: "/calendar", implemented: true },
+      { id: "cafe-orders", label: "Cafe Orders", route: "/common-modules/cafe-orders", implemented: true, verticals: ["cafe"] },
+      { id: "hostel-booking", label: "Hostel Booking", route: "/common-modules/hostel-booking", implemented: true, verticals: ["hostel"] },
+      { id: "room-booking", label: "Room Booking", route: "/common-modules/room-booking", implemented: true, verticals: ["co-living"] },
     ],
   },
   {
@@ -64,7 +67,7 @@ const MODULE_GROUPS = [
       { id: "exit-management", label: "Resignation Management", implemented: true },
       { id: "tenant-companies-admin", label: "Tenant Companies", implemented: false },
       { id: "bookings", label: "Bookings", implemented: false },
-      { id: "visitors-management", label: "Visitors Management", route: "/visitors/visitor-management", implemented: true },
+      { id: "visitors-management", label: "Visitors Management", route: "/visitors/dashboard", implemented: true },
       { id: "resource-management", label: "Resource Management", implemented: false },
       { id: "house-keeping", label: "House Keeping", implemented: false },
       { id: "leads-management", label: "Leads Management", route: "/sales-crm/leads-management", implemented: true },
@@ -88,7 +91,7 @@ const MODULE_GROUPS = [
       { id: "website-builder", label: "Website Builder", route: "/company-settings/website-builder", implemented: true },
       { id: "wono-nomad", label: "Nomad Listings", route: "/company-settings/wono-nomad", implemented: true },
       { id: "website-leads", label: "All Leads", route: "/company-settings/all-leads", implemented: true },
-      { id: "visitor-management", label: "Visitor Management", route: "/visitors/visitor-management", implemented: true },
+      { id: "visitor-management", label: "Visitor Management", route: "/visitors/dashboard", implemented: true },
     ],
   },
   {
@@ -125,9 +128,13 @@ const MODULE_GROUPS = [
         label: "Administration Department",
         isGroup: true,
         tabs: [
-          { id: "tenant-companies-admin", label: "Tenant Companies", implemented: false },
-          { id: "bookings", label: "Bookings", implemented: false },
-          { id: "visitors-management", label: "Visitors Management", route: "/visitors/visitor-management", implemented: true },
+          // Not every vertical leases space or takes room/desk bookings
+          // (hostel/co-living/cafe don't) — Co-working keeps real tenant
+          // companies but has no "Bookings" use (that's meeting-room-style
+          // hourly booking, which desks/cabins don't do).
+          { id: "tenant-companies-admin", label: "Tenant Companies", implemented: false, verticals: ["co-working", "meeting-rooms", "workation"] },
+          { id: "bookings", label: "Bookings", implemented: false, verticals: ["meeting-rooms", "workation"] },
+          { id: "visitors-management", label: "Visitors Management", route: "/visitors/dashboard", implemented: true },
           { id: "resource-management", label: "Resource Management", implemented: false },
           { id: "house-keeping", label: "House Keeping", implemented: false },
           { id: "printout-management", label: "Printout Management", route: "/department-accesses/administration-department/printouts", implemented: true },
@@ -139,10 +146,20 @@ const MODULE_GROUPS = [
         label: "Sales Department",
         isGroup: true,
         tabs: [
+          // Tenant Companies is deliberately not here — reached from each
+          // vertical management page's own Tenant Companies card instead.
+          // Order: Leads Management, then whichever vertical management
+          // module(s) this workspace has, then Resource & Pricing (common to
+          // every vertical), then Virtual Offices (co-working only), then
+          // Sales Architecture last.
           { id: "leads-management", label: "Leads Management", route: "/sales-crm/leads-management", implemented: true },
-          { id: "tenant-companies-sales", label: "Tenant Companies", route: "/sales-crm/tenant-companies", implemented: true },
-          { id: "virtual-office-sales", label: "Virtual Offices", route: "/sales-crm/virtual-offices", implemented: true },
+          { id: "cafe-management", label: "Cafe Management", route: "/key-apps/cafe-management", implemented: true, verticals: ["cafe"] },
+          { id: "hostel-management", label: "Hostel Management", route: "/key-apps/hostel-management", implemented: true, verticals: ["hostel"] },
+          { id: "co-living-management", label: "Co-living Management", route: "/key-apps/co-living-management", implemented: true, verticals: ["co-living"] },
+          { id: "co-working-management", label: "Co-working Management", route: "/key-apps/co-working-management", implemented: true, verticals: ["co-working"] },
+          { id: "meeting-room-management", label: "Meeting Room Management", route: "/key-apps/meeting-room-management", implemented: true, verticals: ["meeting-rooms"] },
           { id: "resource-pricing", label: "Resource & Pricing", route: "/sales-crm/resource-pricing", implemented: true },
+          { id: "virtual-office-sales", label: "Virtual Offices", route: "/sales-crm/virtual-offices", implemented: true, verticals: ["co-working"] },
           { id: "sales-architecture", label: "Sales Architecture", route: "/sales-crm/sales-architecture", implemented: true },
         ],
       },
@@ -388,6 +405,40 @@ const PROFESSIONAL_DEFAULT_IDS = new Set([
   "sales-architecture",
 ]);
 
+const VERTICAL_KEY_BY_BUSINESS_TYPE = {
+  "co-working": "co-working",
+  "co-living": "co-living",
+  hostels: "hostel",
+  hostel: "hostel",
+  workation: "workation",
+  "meeting rooms": "meeting-rooms",
+  cafe: "cafe",
+};
+
+export const getWorkspaceVerticalKeys = (businessTypes = []) => {
+  const keys = new Set();
+  for (const businessType of Array.isArray(businessTypes) ? businessTypes : []) {
+    const key = VERTICAL_KEY_BY_BUSINESS_TYPE[String(businessType || "").trim().toLowerCase()];
+    if (key) keys.add(key);
+  }
+  return Array.from(keys);
+};
+
+const isVisibleForVerticals = (item, verticalKeys = []) =>
+  !Array.isArray(item?.verticals) || item.verticals.some((key) => verticalKeys.includes(key));
+
+export const getVerticalModuleIds = (verticalKeys = []) => {
+  const ids = new Set();
+  for (const section of MODULE_GROUPS) {
+    for (const module of collectLeafModules(section.items || [])) {
+      if (Array.isArray(module.verticals) && isVisibleForVerticals(module, verticalKeys)) {
+        ids.add(module.id);
+      }
+    }
+  }
+  return Array.from(ids);
+};
+
 const canPlanAccess = (plan = "basic", moduleId = "") => {
   const normalizedPlan = normalizePlan(plan);
   if (normalizedPlan === "custom") return PROFESSIONAL_DEFAULT_IDS.has(moduleId);
@@ -409,6 +460,7 @@ export const buildWorkspaceModuleCatalog = ({
   selectedPlan = "basic",
   enabledModuleIds = [],
   customDepartments = [],
+  verticalKeys = [],
 } = {}) => {
   const normalizedPlan = normalizePlan(selectedPlan);
   const workspaceEnabledIds = new Set(
@@ -449,12 +501,15 @@ export const buildWorkspaceModuleCatalog = ({
       };
     });
 
+  const isShown = (node) =>
+    isVisibleForVerticals(node, verticalKeys) || workspaceEnabledIds.has(node.id);
+
   const sections = MODULE_GROUPS.map((section) => {
-    const items = (section.items || []).map((item) => {
+    const items = (section.items || []).filter(isShown).map((item) => {
       if (Array.isArray(item.tabs) && item.tabs.length) {
         return {
           ...item,
-          tabs: item.tabs.map((tab) => ({
+          tabs: item.tabs.filter(isShown).map((tab) => ({
             ...tab,
             accessibleByPlan: canPlanAccess(normalizedPlan, tab.id),
             unlockedInWorkspace: resolveIsUnlocked({
@@ -561,16 +616,29 @@ export const buildWorkspaceModulesStructure = ({
 export const getEffectiveEnabledModuleIds = ({
   selectedPlan = "basic",
   existingEnabledModuleIds = [],
+  verticalKeys = [],
 } = {}) => {
   const normalizedPlan = normalizePlan(selectedPlan);
   const defaultIds = getDefaultEnabledModuleIdsForPlan(normalizedPlan);
   const existingIds = Array.isArray(existingEnabledModuleIds)
     ? existingEnabledModuleIds.map((item) => String(item || "").trim()).filter(Boolean)
     : [];
+  const verticalIds = getVerticalModuleIds(verticalKeys);
+
+  // Vertical modules (Cafe Management, Cafe Orders, etc.) are a Professional+
+  // perk — a Basic workspace only gets a fresh grant here if it's Professional
+  // or Custom. A Basic workspace that already had one enabled (granted before
+  // this rule existed, or via a manual MasterPanel override) keeps it: we only
+  // gate NEW grants, never claw back what's already in existingIds, so this
+  // never silently strips access from an existing workspace.
+  const grantedVerticalIds =
+    normalizedPlan === "basic"
+      ? verticalIds.filter((id) => existingIds.includes(id))
+      : verticalIds;
 
   if (normalizedPlan === "custom") {
-    return Array.from(new Set([...defaultIds, ...existingIds]));
+    return Array.from(new Set([...defaultIds, ...existingIds, ...grantedVerticalIds]));
   }
 
-  return defaultIds;
+  return Array.from(new Set([...defaultIds, ...grantedVerticalIds]));
 };
