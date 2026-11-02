@@ -12,11 +12,11 @@ const FEATURE_EMOJI = ["✨", "🔥", "🔑"];
 
 const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
-/** A full-bleed photo slider. Photos cross-fade (1s) and the arrow or a dot moves to the next one. */
+/** A full-bleed photo slider. Photos cross-fade automatically without visual controls. */
 const SLIDE_MS = 5500;
 
 const Hero: React.FC<{ images: string[] }> = ({ images }) => {
-  const { t, draft, primary, openLead, c, goToService } = useTpl();
+  const { t, draft, primary, openLead, c, goToService, rating } = useTpl();
   const [index, setIndex] = useState(0);
   const count = images.length;
   const next = () => setIndex((current) => (current + 1) % Math.max(count, 1));
@@ -41,30 +41,27 @@ const Hero: React.FC<{ images: string[] }> = ({ images }) => {
       ))}
       {!count ? <div className="absolute inset-0 bg-[var(--t-ink)]" /> : null}
       <div className="ld-hero-shade" />
-      <div className="tp-wrap relative z-[2] flex h-full flex-col justify-center">
+      <div className="tp-wrap ld-hero-inner relative z-[2] flex h-full flex-col justify-end">
         <motion.div
           className="ld-hero-copy"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1.8, ease: "easeInOut" }}
         >
-          <h1 className="ld-h1 text-white">{title}</h1>
-          <p className="mt-6 max-w-[420px] text-[17px] leading-7">
+          <div className="ld-hero-kicker">
+            <span className="ld-hero-kicker-line" aria-hidden="true" />
+            {c("home.hero.eyebrow", "A stay worth slowing down for")}
+          </div>
+          <h1 className="ld-h1 mt-4 text-white">{title}</h1>
+          <p className="ld-hero-sub mt-5 max-w-[540px] text-[17px] leading-7">
             {draft?.subTitle ||
-              "Comfortable rooms, a friendly community and everything you need close by."}
+              "Comfortable rooms, thoughtful details and everything you need for an easy stay."}
           </p>
-          <div className="mt-9 flex flex-wrap items-center gap-7">
-            <button
-              type="button"
-              className="ld-btn ld-btn-light"
-              onClick={() => t.goToSection("about")}
-            >
-              {c("home.hero.secondaryCta", "Learn more")}
-            </button>
+          <div className="ld-hero-actions mt-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-5">
             {primary?.leadEnabled ? (
               <button
                 type="button"
-                className="ld-link text-white"
+                className="ld-btn ld-btn-hero"
                 onClick={() => openLead(primary)}
               >
                 {draft?.CTAButtonText || "Book Now"}{" "}
@@ -73,31 +70,44 @@ const Hero: React.FC<{ images: string[] }> = ({ images }) => {
             ) : primary ? (
               <button
                 type="button"
-                className="ld-link text-white"
+                className="ld-btn ld-btn-hero"
                 onClick={() => goToService(primary)}
               >
                 Explore {primary.profile.labels.items}{" "}
                 <span aria-hidden="true">{Icon.arrow(16)}</span>
               </button>
             ) : null}
+            <button
+              type="button"
+              className="ld-link ld-hero-link text-white"
+              onClick={() => t.goToSection("about")}
+            >
+              {c("home.hero.secondaryCta", "Discover our story")}{" "}
+              <span aria-hidden="true">{Icon.arrow(16)}</span>
+            </button>
           </div>
         </motion.div>
-      </div>
-      {count > 1 ? (
-        <>
-          <div className="ld-hero-dots">
-            {images.map((_, n) => (
-              <button
-                key={n}
-                type="button"
-                aria-label={`Photo ${n + 1}`}
-                className={n === index ? "is-on" : ""}
-                onClick={() => setIndex(n)}
-              />
-            ))}
+        <div className="ld-hero-meta" aria-label="Stay highlights">
+          <div>
+            <span className="ld-hero-meta-value">
+              {rating.count ? rating.avg.toFixed(1) : "5.0"}
+            </span>
+            <span className="ld-hero-meta-label">Guest rating</span>
           </div>
-        </>
-      ) : null}
+          <div>
+            <span className="ld-hero-meta-value">
+              {primary?.items.length || "—"}
+            </span>
+            <span className="ld-hero-meta-label">
+              {primary?.profile.labels.items || "Places to stay"}
+            </span>
+          </div>
+          <div className="ld-hero-meta-note">
+            <span className="ld-hero-meta-dot" aria-hidden="true" />
+            Direct, personal booking
+          </div>
+        </div>
+      </div>
     </section>
   );
 };

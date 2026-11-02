@@ -26,6 +26,7 @@ import { AromaticaBooking } from "./AromaticaBooking";
 import { AromaticaFooter, AromaticaHeader } from "./AromaticaChrome";
 import { AromaticaProvider, type AromaticaCtx } from "./AromaticaContext";
 import { AromaticaHome } from "./AromaticaHome";
+import { AromaArrow } from "./AromaticaUI";
 import {
   AromaticaAbout,
   AromaticaCareers,
@@ -61,6 +62,7 @@ const AromaticaTemplate: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const [leadTarget, setLeadTarget] = useState<{
     service: Service;
     item: ServiceItem | null;
@@ -76,6 +78,12 @@ const AromaticaTemplate: React.FC = () => {
       document.body.style.overflow = "";
     };
   }, [leadTarget]);
+  useEffect(() => {
+    const handleScroll = () => setShowBackToTop(window.scrollY > 620);
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
   useEffect(() => {
     if (!draft?.companyName && !draft?.companyLogo) return;
     const oldTitle = document.title;
@@ -145,8 +153,11 @@ const AromaticaTemplate: React.FC = () => {
       const params = new URLSearchParams(opts?.search || {});
       if (opts?.category) params.set("cat", opts.category);
       const query = params.toString();
+      const previewPrefix = location.pathname.startsWith("/website-preview")
+        ? "/website-preview"
+        : "";
       navigate(
-        `/website-preview/page/products/${service.slug}${query ? `?${query}` : ""}`,
+        `${previewPrefix}/page/products/${service.slug}${query ? `?${query}` : ""}`,
       );
     },
     goToItem: (service, item) => t.goToProductItem(service.slug, item.slug),
@@ -227,6 +238,22 @@ const AromaticaTemplate: React.FC = () => {
         <ReviewModal />
         <Lightbox />
         <Toast />
+        <AnimatePresence>
+          {showBackToTop ? (
+            <motion.button
+              type="button"
+              className="aroma-back-to-top"
+              aria-label="Back to top"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 16 }}
+              transition={{ duration: 0.25 }}
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            >
+              <AromaArrow />
+            </motion.button>
+          ) : null}
+        </AnimatePresence>
       </div>
     </AromaticaProvider>
   );

@@ -12,6 +12,7 @@ const Brand: React.FC = () => {
       type="button"
       className="wp-brand"
       onClick={() => t.goToSection("home")}
+      aria-label="Go to home"
     >
       {draft?.companyLogo ? (
         <img src={draft.companyLogo} alt={draft.companyName || "Logo"} />
@@ -43,18 +44,23 @@ export const WorpaceHeader: React.FC = () => {
     t.currentSection === resolveSectionFromSlug(slug);
   return (
     <>
-      <header className={`wp-header ${scrolled ? "wp-header-scrolled" : ""}`}>
+      <header
+        className={`wp-header ${t.currentSection === "home" ? "wp-header-home" : ""} ${scrolled ? "wp-header-scrolled" : ""}`}
+      >
         <div className="wp-shell wp-header-inner">
           <Brand />
           <nav>
-            {links.map((link) => (
+            {links.map((link, index) => (
               <button
                 key={link.slug}
                 type="button"
                 onClick={() => t.goToSection(link.slug)}
                 aria-current={isActive(link.slug) ? "page" : undefined}
               >
-                {link.label}
+                <span aria-hidden="true">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <b>{link.label}</b>
               </button>
             ))}
           </nav>
@@ -70,6 +76,7 @@ export const WorpaceHeader: React.FC = () => {
             className="wp-menu"
             onClick={() => setOpen(true)}
             aria-label="Open menu"
+            aria-expanded={open}
           >
             {Icon.menu()}
           </button>
@@ -106,6 +113,7 @@ export const WorpaceHeader: React.FC = () => {
                   <button
                     key={link.slug}
                     type="button"
+                    aria-current={isActive(link.slug) ? "page" : undefined}
                     onClick={() => {
                       t.goToSection(link.slug);
                       setOpen(false);

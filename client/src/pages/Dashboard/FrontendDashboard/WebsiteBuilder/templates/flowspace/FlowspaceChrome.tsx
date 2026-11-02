@@ -76,6 +76,7 @@ export const FlowspaceHeader: React.FC = () => {
           className="fs-menu"
           onClick={() => setOpen(true)}
           aria-label="Open menu"
+          aria-expanded={open}
         >
           {Icon.menu()}
         </button>
@@ -110,6 +111,9 @@ export const FlowspaceHeader: React.FC = () => {
                   <button
                     key={item.section}
                     type="button"
+                    aria-current={
+                      t.currentSection === item.section ? "page" : undefined
+                    }
                     onClick={() => {
                       t.goToSection(item.section);
                       setOpen(false);
