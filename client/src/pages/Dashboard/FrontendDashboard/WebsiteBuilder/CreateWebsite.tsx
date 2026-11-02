@@ -4531,6 +4531,7 @@ const CreateWebsite = () => {
                                 <RoomsSection
                                   control={control}
                                   register={register}
+                                  setValue={setValue}
                                   fieldName="meetingRooms"
                                   sectionTitle="Meeting Rooms"
                                   itemLabel="Room"
@@ -6104,6 +6105,7 @@ const CreateWebsite = () => {
               <RoomsSection
                 control={control}
                 register={register}
+                setValue={setValue}
                 fieldName="meetingRooms"
                 sectionTitle="Meeting Rooms"
                 itemLabel="Room"

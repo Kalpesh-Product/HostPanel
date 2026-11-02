@@ -2586,6 +2586,8 @@ const ClassicTemplate = () => {
         vertical: draft?.vertical || "",
         productType:
           selectedLeadProduct?.name || selectedLeadProduct?.heading || "",
+        price: selectedLeadProduct?.price || selectedLeadProduct?.cost || "",
+        priceUnit: selectedLeadProduct?.priceUnit || "",
         roomType:
           selectedLeadProduct?.name || selectedLeadProduct?.heading || "",
         packageName:

@@ -889,6 +889,8 @@ export const useWebsiteTemplateData = () => {
         searchKey: draft?.searchKey || "",
         vertical: draft?.vertical || "",
         productType: selectedLeadProduct?.name || selectedLeadProduct?.heading || "",
+        price: selectedLeadProduct?.price || selectedLeadProduct?.cost || "",
+        priceUnit: selectedLeadProduct?.priceUnit || "",
         roomType: selectedLeadProduct?.name || selectedLeadProduct?.heading || "",
         packageName: selectedLeadProduct?.name || selectedLeadProduct?.heading || "",
         dormType: selectedLeadProduct?.name || selectedLeadProduct?.heading || "",

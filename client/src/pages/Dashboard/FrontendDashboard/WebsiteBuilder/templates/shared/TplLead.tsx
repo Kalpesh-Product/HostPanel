@@ -123,7 +123,15 @@ export const LeadFormPanel: React.FC<{
   const overrides: Record<string, string> = {
     inquiryType: def.inquiryType,
     productType: service.name,
-    ...(item ? { roomType: item.title, packageName: item.title, dormType: item.title } : {}),
+    ...(item
+      ? {
+          roomType: item.title,
+          packageName: item.title,
+          dormType: item.title,
+          price: item.price,
+          priceUnit: item.priceUnit,
+        }
+      : {}),
   };
 
   return (

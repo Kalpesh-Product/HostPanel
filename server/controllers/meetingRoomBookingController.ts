@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
+import crypto from "crypto";
 import { MeetingRoomBooking } from "../models/MeetingRoomBooking.js";
 import { Resource } from "../models/Resource.js";
 import HostUser from "../models/HostUser.js";
@@ -624,7 +625,7 @@ const findOverlap = (roomId: any, start: Date, end: Date, excludeId?: string, se
 const isDuplicateBookingCodeError = (error: any) =>
     Number(error?.code) === 11000 && Boolean(error?.keyPattern?.bookingCode || error?.keyValue?.bookingCode);
 
-async function createBookingWithUniqueCode(payload: Record<string, any>) {
+export async function createBookingWithUniqueCode(payload: Record<string, any>) {
     const maxAttempts = 5;
 
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
@@ -1622,7 +1623,7 @@ export const createExternalClient = async (req: Request, res: Response) => {
 // their booking is rescheduled or cancelled by the front desk. Never throws:
 // email delivery failures must not block the underlying reschedule/cancel.
 // ─────────────────────────────────────────────────────────────────────────────
-const sendExternalLifecycleEmail = async (
+export const sendExternalLifecycleEmail = async (
     booking: any,
     kind: "rescheduled" | "cancelled",
     extra: { previousStart?: Date | null; previousEnd?: Date | null; previousTotal?: number; cancelReason?: string; refundType?: string } = {},
@@ -1774,6 +1775,18 @@ export const sendExternalBookingConfirmation = async (req: AuthenticatedRequest,
         const clientName = booking.bookedForName || booking.bookedByName || "Guest";
         const pricingBlock = emailPricingBlock(booking);
         const paidNow = isBookingPaid(booking);
+        const bookingSyncSecret = String(process.env.BOOKING_SYNC_SECRET || "").trim();
+        const accessPayload = Buffer.from(JSON.stringify({
+            bookingId: String(booking._id),
+            email: String(recipientEmail).trim().toLowerCase(),
+            expiresAt: Date.now() + 365 * 24 * 60 * 60 * 1000,
+        })).toString("base64url");
+        const accessToken = bookingSyncSecret
+            ? `${accessPayload}.${crypto.createHmac("sha256", bookingSyncSecret).update(accessPayload).digest("base64url")}`
+            : "";
+        const manageBookingUrl = accessToken
+            ? `https://wono.co/signup?email=${encodeURIComponent(recipientEmail)}&name=${encodeURIComponent(clientName)}&booking=${encodeURIComponent(accessToken)}`
+            : "";
 
         const subject = `Meeting Room Booking Confirmation — ${roomName} on ${startDate ? emailDateParts(startDate).day : ""}`;
 
@@ -1820,6 +1833,8 @@ export const sendExternalBookingConfirmation = async (req: AuthenticatedRequest,
           </table>
 
           ${pricingBlock}
+
+          ${manageBookingUrl ? `<p style="margin:0 0 24px;text-align:center;"><a href="${manageBookingUrl}" style="display:inline-block;background:#2563EB;color:#ffffff;text-decoration:none;border-radius:10px;padding:12px 20px;font-size:13px;font-weight:600;font-family:${EMAIL_FONT};">View booking on WONO</a></p>` : ""}
 
           ${!paidNow ? `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #fde68a;border-radius:12px;background:#fffbeb;margin-bottom:24px;"><tr><td style="padding:14px 18px;font-size:12px;font-weight:500;color:#b45309;font-family:${EMAIL_FONT};">Payment is pending. Please pay the amount due at the front desk when you arrive to confirm your entry.</td></tr></table>` : ""}
 

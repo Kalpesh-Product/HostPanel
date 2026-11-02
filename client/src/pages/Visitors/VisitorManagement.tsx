@@ -1258,6 +1258,12 @@ export default function VisitorsManagementPage() {
   const [extendingBooking, setExtendingBooking] = useState(null);
 
   const [visitorMode, setVisitorMode] = useState('standard');
+  // Website Booking: a paid+accepted website lead, opened here via
+  // ?leadId=... from the lead's "Create Booking" action. Prefetched read-only
+  // — payment is already settled on the lead, so this tab never collects it.
+  const [websiteBookingLead, setWebsiteBookingLead] = useState(null);
+  const [websiteBookingLoadError, setWebsiteBookingLoadError] = useState('');
+  const [isLoadingWebsiteBooking, setIsLoadingWebsiteBooking] = useState(false);
   const lockedTopTabs = useMemo(
     () =>
       new Set(
@@ -1285,11 +1291,19 @@ export default function VisitorsManagementPage() {
     visitorAccess.standardTypes.department ||
     visitorAccess.standardTypes.tenant;
 
+  // Runs once per arrival at the page (not on every URL tweak below), so it
+  // never fights the leadId cleanup in the next effect or a manual tab click.
   useEffect(() => {
     if (!isFrontdeskPage) return;
-    setVisitorMode('standard');
+    const params = new URLSearchParams(location.search);
+    const leadIdFromUrl = params.get('leadId');
+    // A lead with an already-finalized booking skips straight to Verify
+    // Booking (checking in against the real MeetingRoomBooking code) instead
+    // of Website Booking (which creates that booking in the first place).
+    const bookingCodeFromUrl = params.get('bookingCode');
+    setVisitorMode(bookingCodeFromUrl ? 'verify_booking' : leadIdFromUrl ? 'website_booking' : 'standard');
     setWalkInStep(1);
-    setForm(getDefaultVisitorForm());
+    setForm({ ...getDefaultVisitorForm(), bookingId: bookingCodeFromUrl || '' });
     setLastSelectedExistingVisitor(null);
     setStandardVisitorTouched({});
     setStandardVisitorSubmitAttempted(false);
@@ -1300,7 +1314,55 @@ export default function VisitorsManagementPage() {
     setVerifiedBooking(null);
     setBookingConfirmation(null);
     setShowBookingConfirmationPopup(false);
+    setWebsiteBookingLead(null);
+    setWebsiteBookingLoadError('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFrontdeskPage]);
+
+  const websiteBookingLeadIdParam = isFrontdeskPage
+    ? new URLSearchParams(location.search).get('leadId')
+    : null;
+
+  useEffect(() => {
+    if (!websiteBookingLeadIdParam) return;
+    let cancelled = false;
+    setIsLoadingWebsiteBooking(true);
+    setWebsiteBookingLoadError('');
+    axiosPrivate
+      .get('/api/leads/booking-prefill', { params: { leadId: websiteBookingLeadIdParam } })
+      .then((res) => {
+        if (cancelled) return;
+        setWebsiteBookingLead(res.data);
+        // Prefilled but editable — front desk can correct these before
+        // confirming (e.g. a mistyped phone number on the website form).
+        setForm((prev) => ({
+          ...prev,
+          name: res.data?.fullName || '',
+          phone: res.data?.phone || '',
+          email: res.data?.email || '',
+          company: res.data?.companyName || '',
+          attendees: res.data?.attendees ? String(res.data.attendees) : prev.attendees,
+          purpose: res.data?.purpose || 'Meeting',
+        }));
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setWebsiteBookingLoadError(
+            error?.response?.data?.message || 'Could not load this booking.',
+          );
+        }
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setIsLoadingWebsiteBooking(false);
+        // Strip leadId from the address bar now it's consumed — otherwise it
+        // lingers in the breadcrumb as a raw id and re-triggers this fetch on
+        // refresh/back. visitorMode isn't watched by the reset effect above,
+        // so this doesn't bounce the tab back to Standard Visitor.
+        navigate(location.pathname, { replace: true });
+      });
+    return () => { cancelled = true; };
+  }, [websiteBookingLeadIdParam, axiosPrivate, navigate, location.pathname]);
 
   const [walkInStep, setWalkInStep] = useState(1);
   const [availabilityStatus, setAvailabilityStatus] = useState('idle');
@@ -2839,7 +2901,7 @@ export default function VisitorsManagementPage() {
     workspacePreferences.timezone,
   ]);
 
-  const isCompactMode = visitorMode === 'standard' || visitorMode === 'walkin_booking' || visitorMode === 'verify_booking' || visitorMode === 'tour';
+  const isCompactMode = visitorMode === 'standard' || visitorMode === 'walkin_booking' || visitorMode === 'verify_booking' || visitorMode === 'tour' || visitorMode === 'website_booking';
   const isStandardVisitorType = form.standardVisitorType === 'standard';
   const isDepartmentVisitorType = form.standardVisitorType === 'department';
   const isTenantVisitorType = form.standardVisitorType === 'tenant';
@@ -3759,6 +3821,52 @@ export default function VisitorsManagementPage() {
       setLiveVisitors([finalRecord, ...liveVisitors]);
       toast.success(needsPayment ? `Payment collected and entry confirmed for ${verifiedBooking.bookedBy}.` : `Entry confirmed for ${verifiedBooking.bookedBy}.`);
     }
+    else if (visitorMode === 'website_booking' && websiteBookingLead) {
+      // Already paid at Accept time — nothing to collect here. Lock the real
+      // MeetingRoomBooking in (idempotent — finalize-booking returns the
+      // existing one if this lead was already finalized). This is a BOOKING,
+      // not a walk-in visitor check-in, so it ends in the same "Booking
+      // Confirmed" popup Walk-in Booking uses — not the visitor badge.
+      setIsSubmittingVisitor(true);
+      try {
+        let bookingCode = websiteBookingLead.bookingCode;
+        let confirmationEmailSent = Boolean(bookingCode);
+        if (!bookingCode) {
+          const finalizeResponse = await axiosPrivate.post('/api/leads/finalize-booking', {
+            leadId: websiteBookingLead.leadId,
+          });
+          const createdBooking = finalizeResponse?.data?.booking || null;
+          bookingCode = createdBooking?.bookingCode || '';
+          const createdBookingId = String(createdBooking?._id || createdBooking?.id || '').trim();
+          if (createdBookingId) {
+            try {
+              await sendExternalBookingConfirmationEmail(createdBookingId);
+              confirmationEmailSent = true;
+            } catch (emailError) {
+              console.warn('Website booking created, but its confirmation email could not be sent.', emailError);
+            }
+          }
+        }
+        setBookingConfirmation({
+          bookingId: bookingCode || websiteBookingLead.leadId,
+          email: form.email.trim() || websiteBookingLead.email,
+          paymentMode: websiteBookingLead.paymentMode || 'Online (Stripe)',
+          totalAmount: websiteBookingLead.amount,
+          roomName: websiteBookingLead.resourceName || 'Meeting Room',
+          transactionId: websiteBookingLead.transactionId || '',
+          emailSent: confirmationEmailSent,
+        });
+        setShowBookingConfirmationPopup(true);
+        toast.success(`Booking confirmed for ${form.name.trim() || websiteBookingLead.fullName}.`);
+      } catch (error) {
+        toast.error(error?.response?.data?.message || error.message || 'Unable to confirm this booking.');
+        setIsSubmittingVisitor(false);
+        return;
+      }
+      setIsSubmittingVisitor(false);
+      setForm(getDefaultVisitorForm());
+      return;
+    }
 
     setIsLoggingVisitor(false);
     setShowBadge(finalRecord);
@@ -4212,6 +4320,13 @@ export default function VisitorsManagementPage() {
               >{!visitorAccess.modes.walkin_booking ? <Lock size={14} /> : <CalendarDays size={14} />}Walk-in Booking</button>
               <button
                 type="button"
+                disabled={!visitorAccess.modes.walkin_booking}
+                title={!visitorAccess.modes.walkin_booking ? 'You do not have permission for Walk-in Booking.' : undefined}
+                onClick={() => { setVisitorMode('website_booking'); setWebsiteBookingLead(null); setWebsiteBookingLoadError(''); }}
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visitorMode === 'website_booking' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'} ${!visitorAccess.modes.walkin_booking ? 'cursor-not-allowed opacity-60' : ''}`}
+              >{!visitorAccess.modes.walkin_booking ? <Lock size={14} /> : <Globe size={14} />}Website Booking</button>
+              <button
+                type="button"
                 disabled={!visitorAccess.modes.verify_booking}
                 title={!visitorAccess.modes.verify_booking ? 'You do not have permission for Verify Booking ID.' : undefined}
                 onClick={() => { setVisitorMode('verify_booking'); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); }}
@@ -4219,7 +4334,9 @@ export default function VisitorsManagementPage() {
               >{!visitorAccess.modes.verify_booking ? <Lock size={14} /> : <ShieldCheck size={14} />}Verify Booking</button>
             </div>
 
-            {/* stat cards — 4 per active tab (tenant-company style) */}
+            {/* stat cards — 4 per active tab (tenant-company style). Skipped
+                for Website Booking: a single-lead flow, not a list to summarize. */}
+            {visitorMode !== 'website_booking' && (
             <div data-tour="frontdesk-stats" className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
               {(frontdeskStatCards[visitorMode] || frontdeskStatCards.standard).map((card) => {
                 const Icon = card.icon;
@@ -4238,6 +4355,7 @@ export default function VisitorsManagementPage() {
                 );
               })}
             </div>
+            )}
           </div>
         )}
 
@@ -6499,6 +6617,139 @@ export default function VisitorsManagementPage() {
                     </div>
                   )}
 
+                  {visitorMode === 'website_booking' && (
+                    <div data-tour="frontdesk-form-website-booking" className="space-y-2.5 animate-in fade-in h-full flex flex-col bg-gray-50 rounded-lg border border-gray-200 p-2.5 text-[10px]">
+                      <h3 className="text-xs font-pmedium text-blue-600 uppercase tracking-widest border-b border-blue-200 pb-2 mb-2 flex items-center gap-2"><Globe size={16} /> Website Booking</h3>
+                      <p className="text-[11px] font-pmedium text-slate-500 -mt-1">Opened from an accepted, paid website lead — already paid, just confirm to check the visitor in.</p>
+
+                      {isLoadingWebsiteBooking && (
+                        <div className="flex-1 flex items-center justify-center text-slate-400 text-[11px]">Loading booking…</div>
+                      )}
+
+                      {!isLoadingWebsiteBooking && websiteBookingLoadError && (
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-[11px] font-pmedium text-red-700">{websiteBookingLoadError}</div>
+                      )}
+
+                      {!isLoadingWebsiteBooking && !websiteBookingLoadError && !websiteBookingLead && (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center gap-2 text-slate-400 p-6">
+                          <Globe size={28} className="text-slate-300" />
+                          <p className="text-[11px] font-pmedium text-slate-500">No lead selected yet.</p>
+                          <p className="text-[10px] font-pmedium text-slate-400 max-w-[22rem]">Open this from an accepted, paid website lead's "Create Booking" action in Website Leads — it'll load here automatically.</p>
+                        </div>
+                      )}
+
+                      {!isLoadingWebsiteBooking && websiteBookingLead && (
+                        <div className="flex-1 space-y-4 animate-in slide-in-from-bottom-2 overflow-y-auto">
+                          {/* CLIENT INFORMATION — prefilled from the lead, editable (e.g. a typo
+                              the visitor made). Same section styling as Walk-in Booking. */}
+                          <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                            <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                              <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><UserPlus size={16} /></span>
+                              <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Client Information</span>
+                              <span className="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-pmedium uppercase tracking-wider border bg-emerald-50 text-emerald-700 border-emerald-200">
+                                <CheckCircle2 size={12} /> Paid
+                              </span>
+                            </h4>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Name</label>
+                                <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Phone</label>
+                                <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Email</label>
+                                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Company</label>
+                                <input type="text" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })}
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="Optional" />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* LOCATION & CAPACITY — locked to the room/booking the lead actually
+                              paid for, so these stay disabled unlike Walk-in's pickers. */}
+                          <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                            <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                              <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><LayoutGrid size={16} /></span>
+                              <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Location &amp; Capacity</span>
+                            </h4>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Space Type</label>
+                                <input type="text" disabled value={websiteBookingLead.spaceType || 'Meeting Room'}
+                                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-500 outline-none disabled:cursor-not-allowed" />
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Specific Room</label>
+                                <input type="text" disabled value={websiteBookingLead.resourceName || 'Meeting Room'}
+                                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-500 outline-none disabled:cursor-not-allowed" />
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Attendees</label>
+                                <input type="number" min="1" value={form.attendees} onChange={(e) => setForm({ ...form, attendees: e.target.value })}
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* SCHEDULE & AVAILABILITY — date/time locked to the real paid slot;
+                              "availability" here is the payment confirmation, not a free-time check. */}
+                          <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                            <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                              <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><FileText size={16} /></span>
+                              <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Schedule &amp; Availability</span>
+                            </h4>
+
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Booking Note / Purpose</label>
+                              <input type="text" value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })}
+                                className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Booking Date</label>
+                                <input type="date" disabled
+                                  value={websiteBookingLead.startDate ? websiteBookingLead.startDate.slice(0, 10) : ''}
+                                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-500 outline-none disabled:cursor-not-allowed" />
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Booking Code</label>
+                                <input type="text" disabled value={websiteBookingLead.bookingCode || 'Not finalized yet'}
+                                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-500 outline-none disabled:cursor-not-allowed" />
+                              </div>
+                            </div>
+
+                            <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4 sm:flex sm:items-start sm:justify-between sm:gap-6">
+                              <div className="min-w-0">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Payment</label>
+                                <p className="mt-1 text-[12px] font-semibold text-emerald-700">
+                                  Already received — {formatCurrency(websiteBookingLead.amount)} via {websiteBookingLead.paymentMode || 'Online (Stripe)'} — not editable here.
+                                </p>
+                              </div>
+                              <div className="mt-3 shrink-0 border-t border-emerald-100 pt-3 text-left sm:mt-0 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0 sm:text-right">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Time</label>
+                                <p className="mt-1 whitespace-nowrap text-[12px] font-pmedium text-emerald-800">
+                                  {websiteBookingLead.startDate ? new Date(websiteBookingLead.startDate).toTimeString().slice(0, 5) : '--:--'}
+                                  {' – '}
+                                  {websiteBookingLead.endDate ? new Date(websiteBookingLead.endDate).toTimeString().slice(0, 5) : '--:--'}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                 </div>
               </div>
 
@@ -6533,6 +6784,11 @@ export default function VisitorsManagementPage() {
                     <CheckCircle2 size={18} /> {verifiedBooking && !verifiedBooking.isPaid ? 'COLLECT PAYMENT & CONFIRM ENTRY' : 'CONFIRM ENTRY'}
                   </button>
                 )}
+                {visitorMode === 'website_booking' && (
+                  <button disabled={!websiteBookingLead || isSubmittingVisitor || !visitorAccess.modes.walkin_booking || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.walkin_booking ? 'You do not have access to this tab.' : undefined} onClick={handleProcessAction} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-3 bg-green-600 text-white shadow-md shadow-green-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-green-700 transition-all flex items-center justify-center gap-1.5">
+                    <CheckCircle2 size={18} /> {isSubmittingVisitor ? 'CONFIRMING...' : 'CONFIRM ENTRY'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -6548,8 +6804,12 @@ export default function VisitorsManagementPage() {
                   </div>
                   <div>
                     <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-600">Booking Confirmed</p>
-                    <h3 className="mt-0.5 text-lg font-pmedium text-emerald-950">Walk-in booking saved</h3>
-                    <p className="mt-0.5 text-[12px] font-pmedium text-emerald-900/70">A confirmation email with this booking ID has been sent to the visitor.</p>
+                    <h3 className="mt-0.5 text-lg font-pmedium text-emerald-950">{visitorMode === 'website_booking' ? 'Website booking confirmed' : 'Walk-in booking saved'}</h3>
+                    <p className="mt-0.5 text-[12px] font-pmedium text-emerald-900/70">
+                      {bookingConfirmation.emailSent === false
+                        ? 'The booking was created, but its confirmation email could not be sent.'
+                        : 'A confirmation email with this booking ID has been sent to the visitor.'}
+                    </p>
                   </div>
                 </div>
                 <button
