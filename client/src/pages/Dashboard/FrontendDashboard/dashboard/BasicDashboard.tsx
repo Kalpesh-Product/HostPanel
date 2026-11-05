@@ -225,7 +225,7 @@ const WorkspaceProgress = ({
               onClick={() => navigate(step.route)}
             >
               <div
-                className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${step.complete ? "bg-emerald-500 text-white" : "bg-blue-50 text-[#2563EB]"}`}
+                className={`flex h-9 w-9 flex-shrink-0 items-center justify-center font-pmedium rounded-xl ${step.complete ? "bg-emerald-500 text-white" : "bg-blue-50 text-[#2563EB]"}`}
               >
                 {step.complete ? <Check size={16} /> : <StepIcon size={16} />}
               </div>
@@ -233,13 +233,13 @@ const WorkspaceProgress = ({
                 <p className="text-content font-pmedium text-slate-900">
                   {step.label}
                 </p>
-                <p className="mt-1 text-small leading-relaxed text-slate-500">
+                <p className="mt-1 text-small font-pmedium leading-relaxed text-slate-500">
                   {step.description}
                 </p>
               </div>
               <ArrowRight
                 size={13}
-                className="mt-1 flex-shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#2563EB]"
+                className="mt-1 flex-shrink-0 text-slate-300 transition font-pmedium group-hover:translate-x-0.5 group-hover:text-[#2563EB]"
               />
             </button>
           );
@@ -271,7 +271,7 @@ const BasicMetric = ({
       onClick={() => navigate(route)}
       className="group flex min-w-0 items-center gap-4 rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg"
     >
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#2563EB] transition group-hover:bg-[#2563EB] group-hover:text-white">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#2563EB] font-pmedium transition group-hover:bg-[#2563EB] group-hover:text-white">
         <Icon size={19} />
       </div>
       <div className="min-w-0 flex-1">
@@ -308,14 +308,14 @@ const BasicQuickAction = ({
       onClick={() => navigate(route)}
       className="group flex min-w-0 items-center gap-3 rounded-2xl border border-blue-100 bg-white p-3.5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
     >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB] transition group-hover:bg-[#2563EB] group-hover:text-white">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB] font-pmedium transition group-hover:bg-[#2563EB] group-hover:text-white">
         <Icon size={17} />
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[12px] font-pmedium text-[#1E3D73]">
           {label}
         </p>
-        <p className="mt-0.5 truncate text-[10px] text-slate-500">
+        <p className="mt-0.5 truncate text-[10px] font-pmedium text-slate-500">
           {description}
         </p>
       </div>
@@ -736,7 +736,7 @@ const BasicDashboard = ({
             <h3 className="mt-1 text-lg font-pmedium text-[#1E3D73]">
               Quick Actions
             </h3>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs font-pmedium text-slate-500">
               Open the tools included in your unit.
             </p>
           </div>
@@ -812,7 +812,7 @@ const BasicDashboard = ({
                       tooltipValue={leadDonut.series.map(String)}
                     />
                   ) : (
-                    <p className="text-content text-slate-400">No leads yet</p>
+                    <p className="text-content font-pmedium text-slate-400">No leads yet</p>
                   )}
                 </div>
               </BasicActivityPanel>

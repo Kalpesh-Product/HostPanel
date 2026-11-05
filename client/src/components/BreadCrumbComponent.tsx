@@ -101,6 +101,14 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/dashboard/website-builder/dynamic",
+    crumbs: [
+      { label: "Dashboard", path: "/dashboard" },
+      { label: "Website Builder", path: "/dashboard/website-builder" },
+      { label: "Create / Edit Website" },
+    ],
+  },
+  {
     pattern: "/dashboard/website-builder/dynamic/reviews",
     crumbs: [
       { label: "Dashboard", path: "/dashboard" },
@@ -156,6 +164,16 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     crumbs: [
       { label: SECTION_LABELS.common, path: "/common-modules" },
       { label: "Customer Support" },
+    ],
+  },
+  {
+    // Label is refined to "Issues Raised" / "Resolved Issues" below based on
+    // the `tab` navigation state the dashboard's module cards pass in.
+    pattern: "/common-modules/customer-support/list",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      { label: "Customer Support", path: "/common-modules/customer-support" },
+      { label: "Issues Raised" },
     ],
   },
   {
@@ -251,7 +269,7 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     pattern: "/visitors/dashboard",
     crumbs: [
       { label: SECTION_LABELS.keyApps, path: "/key-apps" },
-      { label: "Visitor Management Dashboard" },
+      { label: "Visitor Management" },
     ],
   },
   {
@@ -264,10 +282,23 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    // Label is refined to the active tab (Daily Visitors / Visitor History /
+    // Bookings / Clients) below, based on the dashboard's module-card routes
+    // (?tab=...), mirroring how Nomad Listings' module cards each resolve to
+    // their own crumb under the "Nomad Listings" dashboard parent.
     pattern: "/visitors/visitor-management",
     crumbs: [
       { label: SECTION_LABELS.keyApps, path: "/key-apps" },
-      { label: "Visitor Management" },
+      { label: "Visitor Management", path: "/visitors/dashboard" },
+      { label: "Daily Visitors" },
+    ],
+  },
+  {
+    pattern: "/visitors/visitor-management/frontdesk-action",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Visitor Management", path: "/visitors/dashboard" },
+      { label: "Frontdesk Action" },
     ],
   },
   {
@@ -341,6 +372,14 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     crumbs: [
       { label: SECTION_LABELS.keyApps, path: "/key-apps" },
       { label: "All Leads" },
+    ],
+  },
+  {
+    pattern: "/key-apps/all-leads/list",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "All Leads", path: "/key-apps/all-leads" },
+      { label: "Leads" },
     ],
   },
   {
@@ -480,6 +519,14 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     crumbs: [
       { label: SECTION_LABELS.keyApps, path: "/key-apps" },
       { label: "Website Leads" },
+    ],
+  },
+  {
+    pattern: "/key-apps/website-builder/dynamic",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Website Builder", path: "/key-apps/website-builder" },
+      { label: "Create / Edit Website" },
     ],
   },
   {
@@ -1214,6 +1261,19 @@ const BreadCrumbComponent = () => {
     ));
   }
 
+  // CustomerSupportDashboard's two module cards both land on the same list
+  // route and tell it which tab to open via navigation state — mirror that
+  // choice in the last crumb instead of always showing "Issues Raised".
+  if (
+    location.pathname === "/common-modules/customer-support/list" &&
+    routeState.tab === "resolved" &&
+    breadcrumbs.length > 0
+  ) {
+    breadcrumbs = breadcrumbs.map((crumb, index) => (
+      index === breadcrumbs.length - 1 ? { ...crumb, label: "Resolved Issues" } : crumb
+    ));
+  }
+
   if (
     routeState.fromSection === "department-accesses" &&
     dynamicDepartmentLabel &&
@@ -1235,6 +1295,25 @@ const BreadCrumbComponent = () => {
       },
       ...(location.pathname === departmentPath ? [] : [{ label: breadcrumbs[breadcrumbs.length - 1].label }]),
     ];
+  }
+
+  // VisitorsWorkspaceDashboard's module cards all resolve to the same route
+  // with a different ?tab= query param — label the last crumb to match
+  // whichever tab is actually open instead of a generic "Daily Visitors".
+  const isVisitorManagementListPath =
+    location.pathname === "/visitors/visitor-management";
+  if (isVisitorManagementListPath && breadcrumbs.length > 0) {
+    const visitorTab = searchParams.get("tab");
+    const visitorTabLabels: Record<string, string> = {
+      daily: "Daily Visitors",
+      history: "Visitor History",
+      bookings: "Bookings",
+      clients: "Clients",
+    };
+    const label = visitorTabLabels[String(visitorTab || "daily")] || "Daily Visitors";
+    breadcrumbs = breadcrumbs.map((crumb, index) => (
+      index === breadcrumbs.length - 1 ? { ...crumb, label } : crumb
+    ));
   }
 
   // Modules opened from the Add-Ons page keep Add-Ons as their back link
@@ -1274,6 +1353,9 @@ const BreadCrumbComponent = () => {
   const modeParam = searchParams.get("mode");
   queryParamEntries.forEach(([key, value], index) => {
     if (key === "mode") return;
+    // Already represented as the last crumb's label above — skip so it
+    // isn't duplicated as a trailing raw chip (e.g. "daily").
+    if (key === "tab" && isVisitorManagementListPath) return;
     breadcrumbsToRender.push(
       <Typography key={`param-${index}-${key}`} color="text.primary">
         {value}

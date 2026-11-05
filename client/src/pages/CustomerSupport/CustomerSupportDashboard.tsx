@@ -302,8 +302,8 @@ export default function CustomerSupportDashboard() {
                   "linear-gradient(to right, black 0%, black 76%, transparent 100%)",
               }}
             />
-            <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center gap-2.5 px-6 py-6 sm:w-[58%]">
-              <h1 className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[22px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[28px]">
+            <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center gap-2.5 px-6 py-6 sm:w-[70%]">
+              <h1 className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[30px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[38px]">
                 <span className="text-primary">Customer Support</span>
                 <span className="text-accent">Dashboard</span>
               </h1>

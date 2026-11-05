@@ -91,6 +91,7 @@ import Websites from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/Websit
 import WebsitesLayout from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/WebsitesLayout";
 import InActiveWebsites from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/InActiveWebsites";
 import WebsiteBuilderTypeActions from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/WebsiteBuilderTypeActions";
+import WebsiteBuilderDashboard from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/WebsiteBuilderDashboard";
 import WebsiteBuilderReviews from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/WebsiteBuilderReviews";
 import WebsiteBuilderCareers from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/WebsiteBuilderCareers";
 import VerticalPicker from "../components/VerticalPicker";
@@ -114,6 +115,7 @@ import FounderWorkspaceSelectionPage from "../pages/LoginPage/FounderWorkspaceSe
 import CompanyReviews from "../pages/Dashboard/FrontendDashboard/CompanyReviews";
 import NomadsLeads from "../pages/Dashboard/FrontendDashboard/NomadsLeads";
 import AllLeads from "../pages/Dashboard/FrontendDashboard/AllLeads";
+import AllLeadsDashboard from "../pages/Dashboard/FrontendDashboard/AllLeadsDashboard";
 import WonoNomad from "../pages/Dashboard/FrontendDashboard/WonoNomad";
 import ModuleCardsLanding from "../pages/Dashboard/FrontendDashboard/ModuleCardsLanding";
 import DepartmentDashboardRoute from "../pages/Dashboard/DepartmentDashboardRoute";
@@ -411,7 +413,7 @@ export const routes = createBrowserRouter([
                     children: [
                       {
                         index: true,
-                        element: <WebsiteBuilderTypeActions type="dynamic" />,
+                        element: <WebsiteBuilderDashboard />,
                       },
                       { path: "select-theme", element: <ThemeGrid /> },
                       { path: "view-theme", element: <ViewTheme /> },
@@ -658,6 +660,10 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "key-apps/all-leads",
+                element: <AllLeadsDashboard />,
+              },
+              {
+                path: "key-apps/all-leads/list",
                 element: <AllLeads />,
               },
               {
@@ -690,7 +696,7 @@ export const routes = createBrowserRouter([
                 children: [
                   {
                     index: true,
-                    element: <WebsiteBuilderTypeActions type="dynamic" />,
+                    element: <WebsiteBuilderDashboard />,
                   },
                   { path: "select-theme", element: <ThemeGrid /> },
                   { path: "view-theme", element: <ViewTheme /> },

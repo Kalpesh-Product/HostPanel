@@ -4192,7 +4192,7 @@ export default function VisitorsManagementPage() {
                 {/* <div className="w-10 h-10 rounded-xl bg-[#0F172A] text-white flex items-center justify-center shadow-sm"><UserPlus size={18} /></div> */}
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-title font-pmedium text-primary uppercase gap-1.5">Frontdesk Action</h2>
+                    <h2 className="flex items-center gap-1.5 text-title font-pmedium text-primary uppercase">Frontdesk Action</h2>
                     {/* <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-pmedium uppercase tracking-widest"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Open</span> */}
                   </div>
                   <p className="text-xs font-pmedium text-slate-500 mt-1">Front Desk Unit</p>

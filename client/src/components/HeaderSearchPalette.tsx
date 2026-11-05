@@ -410,7 +410,7 @@ const HeaderSearchPalette = ({ compact = false }: { compact?: boolean }) => {
               results.push({
                 title: lead.fullName || "Lead",
                 description: [lead.companyName, lead.email || lead.mobileNumber, lead.source].filter(Boolean).join(" · "),
-                route: `/key-apps/all-leads?globalSearch=${encodeURIComponent(debouncedSearch)}&recordId=${encodeURIComponent(id)}`,
+                route: `/key-apps/all-leads/list?globalSearch=${encodeURIComponent(debouncedSearch)}&recordId=${encodeURIComponent(id)}`,
                 moduleId: "website-leads",
                 section: "Leads",
                 searchText: "",

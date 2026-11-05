@@ -1671,13 +1671,13 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
                 )}
               </div>
             </div>
-            {activeTab === "jobs" && (
+            {/* {activeTab === "jobs" && (
               <div className="px-5 pb-4 text-[10px] font-medium text-slate-500 flex flex-wrap gap-4 border-b border-slate-100/60 bg-slate-50/30">
                 <span>Bulk upload uses the recruitment job template and keeps one job opening per row.</span>
                 <span>Required fields: title, department, employmentType, vacancyTotal, isActive.</span>
                 <span>jobCode is auto-generated if left blank, and designation will fall back to title.</span>
               </div>
-            )}
+            )} */}
 
             {/* Candidates table */}
             {activeTab === "candidates" && (

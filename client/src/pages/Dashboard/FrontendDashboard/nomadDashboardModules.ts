@@ -17,7 +17,7 @@ export type NomadDashboardModule = {
 
 export const NOMAD_DASHBOARD_MODULES: NomadDashboardModule[] = [
   { id: "nomad-listings", label: "Listings", icon: MdOutlineTravelExplore as ElementType, route: "/key-apps/nomad-listings", description: "Co-working and co-living space listings", color: "#2563EB" },
-  { id: "nomad-reviews", label: "Reviews", icon: MdOutlineRateReview as ElementType, route: "/key-apps/reviews", description: "Guest reviews of your listed spaces", color: "#7C3AED" },
+  { id: "nomad-reviews", label: "Reviews", icon: MdOutlineRateReview as ElementType, route: "/key-apps/reviews", description: "Guest reviews of your listed spaces", color: "#7C3AED"  },
   { id: "nomads-leads", label: "Nomads Leads", icon: ContactRound, route: "/key-apps/nomads-leads", description: "Enquiries received from your Nomads listings", color: "#0F766E" },
   { id: "nomad-verify-business", label: "Verify Business", icon: BadgeCheck, route: "/key-apps/verify-business", description: "Verified badge for your live listings", color: "#F59E0B" },
 ];
