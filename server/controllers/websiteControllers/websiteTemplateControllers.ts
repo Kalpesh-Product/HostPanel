@@ -3068,7 +3068,7 @@ const editTemplateHandler = async (req, res, next) => {
     // uploaded by this handler at all. Rebuild each item's images from: the
     // saved refs the client still has, images the draft autosave already
     // uploaded for that slot, and files that arrived with this request.
-    const mergeItemImages = async (bodyItems, existingItems, filePrefix, folder) => {
+    const mergeItemImages = async (bodyItems, existingItems, filePrefix, folder, kind) => {
       if (!Array.isArray(bodyItems)) return existingItems;
       const merged = [];
       for (let i = 0; i < bodyItems.length; i++) {
@@ -3091,22 +3091,29 @@ const editTemplateHandler = async (req, res, next) => {
           : [];
         merged.push({
           ...item,
+          // Same enum-safe normalization the draft-save path already applies
+          // (e.g. an unset "Booking type" select submits "" — not a valid
+          // enum value, would otherwise fail WebsiteTemplate validation on
+          // save) — this publish path was spreading the raw body item
+          // instead, so it never got it.
+          ...(kind ? sanitizeItemExtras(kind, item) : {}),
           images: [...refs, ...uploadedEarlier, ...uploadedNow].slice(0, 10),
         });
       }
       return merged;
     };
     const baseFolderForItems = `hosts/template/${template.searchKey}`;
-    const mergedRooms = await mergeItemImages(rooms, template.rooms, "roomImages", `${baseFolderForItems}/rooms`);
+    const mergedRooms = await mergeItemImages(rooms, template.rooms, "roomImages", `${baseFolderForItems}/rooms`, "room");
     const mergedMeetingRooms = await mergeItemImages(
       Array.isArray(meetingRooms) ? meetingRooms : rooms,
       template.meetingRooms,
       "meetingRoomImages",
       `${baseFolderForItems}/meetingRooms`,
+      "meeting",
     );
-    const mergedCoLivingRooms = await mergeItemImages(coLivingRooms, template.coLivingRooms, "coLivingRoomImages", `${baseFolderForItems}/coLivingRooms`);
-    const mergedPackages = await mergeItemImages(packages, template.packages, "packageImages", `${baseFolderForItems}/packages`);
-    const mergedDorms = await mergeItemImages(dorms, template.dorms, "dormImages", `${baseFolderForItems}/dorms`);
+    const mergedCoLivingRooms = await mergeItemImages(coLivingRooms, template.coLivingRooms, "coLivingRoomImages", `${baseFolderForItems}/coLivingRooms`, "coLiving");
+    const mergedPackages = await mergeItemImages(packages, template.packages, "packageImages", `${baseFolderForItems}/packages`, "package");
+    const mergedDorms = await mergeItemImages(dorms, template.dorms, "dormImages", `${baseFolderForItems}/dorms`, "dorm");
 
     Object.assign(template, {
       workspaceId: req.body?.workspaceId ?? template.workspaceId ?? null,

@@ -48,6 +48,7 @@ const KIND_EXTRAS = {
   }),
   coLiving: (item) => {
     const extras = {
+      stayType: oneOf(item?.stayType, ["short_stay", "monthly"]) || "short_stay",
       occupancy: oneOf(item?.occupancy, ["single", "double", "triple"]),
       furnished: bool(item?.furnished),
       ac: bool(item?.ac),

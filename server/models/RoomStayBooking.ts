@@ -7,16 +7,21 @@ export const ROOM_STAY_OPEN_STATUSES: RoomStayStatus[] = ["Booked", "Checked-in"
 export interface IRoomStayBooking extends Document {
     workspaceId: mongoose.Types.ObjectId;
     bookingNumber: number;
+    bookingCode?: string;
     roomId: mongoose.Types.ObjectId;
     roomType: "Room" | "Dorm";
     bedNumber?: number | null;
+    bedNumbers: number[];
     guestName: string;
+    guestEmail: string;
     guestPhone: string;
+    attendees: number;
     checkIn: Date;
     checkOut: Date;
     nights: number;
     ratePerNight: number;
     total: number;
+    currency: string;
     status: RoomStayStatus;
     notes: string;
     cancelReason: string;
@@ -41,16 +46,23 @@ const roomStayBookingSchema = new Schema<IRoomStayBooking>(
             index: true,
         },
         bookingNumber: { type: Number, required: true, index: true },
+        // New bookings always receive a code. Keep this optional so legacy stay
+        // records can still be updated (check-in, checkout, cancellation).
+        bookingCode: { type: String, trim: true, unique: true, sparse: true },
         roomId: { type: Schema.Types.ObjectId, ref: "Resource", required: true, index: true },
         roomType: { type: String, required: true, enum: ["Room", "Dorm"] },
         bedNumber: { type: Number, default: null },
+        bedNumbers: { type: [Number], default: [] },
         guestName: { type: String, required: true, trim: true, maxlength: 160 },
+        guestEmail: { type: String, trim: true, lowercase: true, default: "", maxlength: 160, index: true },
         guestPhone: { type: String, trim: true, default: "", maxlength: 40 },
+        attendees: { type: Number, required: true, min: 1, default: 1 },
         checkIn: { type: Date, required: true },
         checkOut: { type: Date, required: true },
         nights: { type: Number, required: true, min: 1 },
         ratePerNight: { type: Number, required: true, min: 0 },
         total: { type: Number, required: true, min: 0 },
+        currency: { type: String, trim: true, uppercase: true, default: "INR", maxlength: 3 },
         status: { type: String, enum: ROOM_STAY_STATUSES, default: "Booked", index: true },
         notes: { type: String, trim: true, default: "", maxlength: 500 },
         cancelReason: { type: String, trim: true, default: "", maxlength: 500 },

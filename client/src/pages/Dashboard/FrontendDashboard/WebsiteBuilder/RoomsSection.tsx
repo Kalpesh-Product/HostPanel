@@ -9,11 +9,15 @@ import { getResources } from "../../../../services/resources";
 
 const KIND_BY_FIELD = { meetingRooms: "meeting", coLivingRooms: "coLiving" };
 
-// Meeting-room bookings get finalized against a real Resource record by
+// Website-lead bookings get finalized against a real Resource record by
 // matching its name — a free-typed Title here that doesn't match any
 // Resource silently fails finalization later. Letting the host pick an
-// existing resource keeps the two in sync.
-const BOOKABLE_RESOURCE_TYPES = ["Meeting Room", "Conference Room"];
+// existing resource keeps the two in sync. Meeting rooms book hourly
+// (pricePerHour); co-living books nightly (pricePerNight).
+const BOOKABLE_RESOURCE_TYPES_BY_FIELD = {
+  meetingRooms: { types: ["Meeting Room", "Conference Room"], priceField: "pricePerHour" },
+  coLivingRooms: { types: ["Room"], priceField: "pricePerNight" },
+};
 
 const RoomsSection = ({
   control,
@@ -30,14 +34,14 @@ const RoomsSection = ({
     name: fieldName,
   });
 
-  const isMeetingRooms = fieldName === "meetingRooms";
+  const bookableConfig = BOOKABLE_RESOURCE_TYPES_BY_FIELD[fieldName];
   const { data: bookableResources = [] } = useQuery({
-    queryKey: ["bookableResources", "meetingRooms"],
-    enabled: isMeetingRooms,
+    queryKey: ["bookableResources", fieldName],
+    enabled: Boolean(bookableConfig),
     queryFn: async () => {
       const res = await getResources();
       const resources = res?.data?.data?.resources || [];
-      return resources.filter((r) => BOOKABLE_RESOURCE_TYPES.includes(r.type));
+      return resources.filter((r) => bookableConfig.types.includes(r.type));
     },
   });
 
@@ -45,8 +49,9 @@ const RoomsSection = ({
     const resource = bookableResources.find((r) => String(r.recordId) === recordId);
     if (!resource) return;
     setValue?.(`${fieldName}.${index}.title`, resource.name, { shouldDirty: true });
-    if (resource.pricePerHour) {
-      setValue?.(`${fieldName}.${index}.price`, String(resource.pricePerHour), { shouldDirty: true });
+    const price = resource[bookableConfig.priceField];
+    if (price) {
+      setValue?.(`${fieldName}.${index}.price`, String(price), { shouldDirty: true });
     }
   };
 
@@ -71,7 +76,7 @@ const RoomsSection = ({
                 </button>
               </div>
             </div>
-            {isMeetingRooms && bookableResources.length > 0 && (
+            {bookableConfig && bookableResources.length > 0 && (
               <div className="mb-3">
                 <label className="block text-xs font-pmedium text-gray-500 mb-1">
                   Use an existing resource (recommended)

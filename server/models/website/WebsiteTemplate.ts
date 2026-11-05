@@ -398,6 +398,7 @@ const templateSchema = new mongoose.Schema(
           deposit: { type: String, default: "" },
           availableFrom: { type: String, default: "" }, // YYYY-MM-DD
           minStayMonths: { type: Number },
+          stayType: { type: String, enum: ["short_stay", "monthly"], default: "short_stay" },
           title: { type: String },
           description: { type: String },
           enabled: { type: Boolean, default: true },

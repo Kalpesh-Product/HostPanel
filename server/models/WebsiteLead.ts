@@ -51,9 +51,15 @@ const websiteLeadSchema = new mongoose.Schema(
     paymentTransactionId: { type: String, trim: true, default: "" },
     bookingId: { type: mongoose.Schema.Types.ObjectId, ref: "MeetingRoomBooking", default: null },
     bookingCode: { type: String, trim: true, default: "" },
+    stayHoldId: { type: String, trim: true, default: "", index: true },
+    stayHoldExpiresAt: { type: Date, default: null },
     comment: { type: String, trim: true, default: "" },
     upstreamSynced: { type: Boolean, default: false },
     upstreamError: { type: String, default: "" },
+    // Host-initiated "pay me out" request for this booking's net amount
+    // (base, excluding WONO's platform/Stripe fees) — see HostInvoiceRequest.
+    invoiceSentToWono: { type: Boolean, default: false },
+    invoiceSentAt: { type: Date, default: null },
     isEscalated: { type: Boolean, default: false, index: true },
     escalatedWorkspaceId: { type: String, trim: true, default: "", index: true },
     escalatedHostCompanyId: { type: String, trim: true, default: "", index: true },

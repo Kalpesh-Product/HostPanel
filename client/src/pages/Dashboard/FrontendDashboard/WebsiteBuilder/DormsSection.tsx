@@ -1,15 +1,43 @@
 // @ts-nocheck
 import { Controller, useFieldArray } from "react-hook-form";
+import { useQuery } from "@tanstack/react-query";
 import UploadMultipleFilesInput from "../../../../components/UploadMultipleFilesInput";
 import EnabledSwitch from "../../../../components/ui/EnabledSwitch";
 import WebsiteFormField from "../../../../components/WebsiteFormField";
 import ItemExtraFields, { OfferingDescription } from "./ItemExtraFields";
+import { getResources } from "../../../../services/resources";
 
-const DormsSection = ({ control, register }) => {
+// Website-lead bookings get finalized against a real Resource record by
+// matching its name — a free-typed Title here that doesn't match any
+// Resource silently fails finalization later. Letting the host pick an
+// existing Dorm resource keeps the two in sync (same pattern as
+// RoomsSection's meeting-room/co-living picker).
+const DormsSection = ({ control, register, setValue }) => {
   const { fields, append, remove } = useFieldArray({
     control,
     name: "dorms",
   });
+
+  const { data: bookableResources = [] } = useQuery({
+    queryKey: ["bookableResources", "dorms"],
+    queryFn: async () => {
+      const res = await getResources();
+      const resources = res?.data?.data?.resources || [];
+      return resources.filter((r) => r.type === "Dorm");
+    },
+  });
+
+  const applyResource = (index, recordId) => {
+    const resource = bookableResources.find((r) => String(r.recordId) === recordId);
+    if (!resource) return;
+    setValue?.(`dorms.${index}.title`, resource.name, { shouldDirty: true });
+    if (resource.pricePerNight) {
+      setValue?.(`dorms.${index}.price`, String(resource.pricePerNight), { shouldDirty: true });
+    }
+    if (resource.capacity) {
+      setValue?.(`dorms.${index}.capacity`, resource.capacity, { shouldDirty: true });
+    }
+  };
 
   return (
     <div className="col-span-2">
@@ -32,6 +60,26 @@ const DormsSection = ({ control, register }) => {
                 </button>
               </div>
             </div>
+            {bookableResources.length > 0 && (
+              <div className="mb-3">
+                <label className="block text-xs font-pmedium text-gray-500 mb-1">
+                  Use an existing resource (recommended)
+                </label>
+                <select
+                  defaultValue=""
+                  onChange={(e) => { if (e.target.value) applyResource(index, e.target.value); }}
+                  className="w-full rounded-lg border border-borderGray px-3 py-2 text-sm"
+                >
+                  <option value="">Select a resource to autofill name, capacity &amp; price…</option>
+                  {bookableResources.map((r) => (
+                    <option key={r.recordId} value={r.recordId}>{r.name} ({r.type})</option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Picking one keeps this listing in sync with the bookable resource, so the booking can be finalized after payment.
+                </p>
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <WebsiteFormField
                 label="Title"

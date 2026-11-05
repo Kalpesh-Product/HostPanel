@@ -7,6 +7,7 @@ import {
     getRoomStayCheckTimes,
     listGuestRooms,
     listRoomBookings,
+    sendRoomStayConfirmation,
     updateRoomBookingStatus,
     updateRoomStayCheckTimes,
 } from "../controllers/roomStayController.js";
@@ -23,6 +24,7 @@ router.get("/check-times", getRoomStayCheckTimes);
 router.put("/check-times", updateRoomStayCheckTimes);
 router.get("/bookings", listRoomBookings);
 router.post("/bookings", createRoomBooking);
+router.post("/bookings/:bookingId/send-confirmation", sendRoomStayConfirmation);
 router.patch("/bookings/:bookingId/status", updateRoomBookingStatus);
 router.patch("/bookings/:bookingId/extend", extendRoomBooking);
 

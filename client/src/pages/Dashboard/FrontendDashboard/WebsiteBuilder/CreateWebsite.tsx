@@ -4546,6 +4546,7 @@ const CreateWebsite = () => {
                                   <RoomsSection
                                     control={control}
                                     register={register}
+                                    setValue={setValue}
                                     fieldName="coLivingRooms"
                                     sectionTitle="Co-Living Spaces"
                                     itemLabel="Space"
@@ -4564,7 +4565,7 @@ const CreateWebsite = () => {
                             if (isHostelPage) {
                               return (
                                 <>
-                                  <DormsSection control={control} register={register} />
+                                  <DormsSection control={control} register={register} setValue={setValue} />
                                   <ServiceSettingsPanel control={control} kind="hostel" />
                                 </>
                               );
@@ -6097,7 +6098,7 @@ const CreateWebsite = () => {
             )}
             {selectedVertical === "hostel" && (
               <>
-                <DormsSection control={control} register={register} />
+                <DormsSection control={control} register={register} setValue={setValue} />
                 <ServiceSettingsPanel control={control} kind="hostel" />
               </>
             )}

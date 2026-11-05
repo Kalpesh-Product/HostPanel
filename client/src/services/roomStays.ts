@@ -33,8 +33,11 @@ export type RoomStayBooking = {
   roomId: string;
   roomType: GuestRoomType;
   bedNumber: number | null;
+  bedNumbers: number[];
   guestName: string;
+  guestEmail: string;
   guestPhone: string;
+  attendees: number;
   checkIn: string;
   checkOut: string;
   nights: number;
@@ -87,6 +90,9 @@ export const updateRoomBookingStatus = async (bookingId: string, status: RoomSta
 
 export const extendRoomBooking = async (bookingId: string, checkOut: string) =>
   axiosPrivate.patch(`/api/v1/room-stays/bookings/${bookingId}/extend`, { checkOut });
+
+export const sendRoomStayConfirmationEmail = async (bookingId: string) =>
+  axiosPrivate.post(`/api/v1/room-stays/bookings/${bookingId}/send-confirmation`);
 
 export const getRoomStayCheckTimes = async () => axiosPrivate.get("/api/v1/room-stays/check-times");
 

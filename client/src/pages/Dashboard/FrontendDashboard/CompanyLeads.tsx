@@ -158,6 +158,25 @@ export default function CompanyLeads({ leadScope = "website" }) {
   const planCappedLeads = Number.isFinite(leadLimit) ? leads.slice(0, leadLimit) : leads;
   const lockedLeadsCount = Number.isFinite(leadLimit) ? Math.max(leads.length - leadLimit, 0) : 0;
 
+  const { data: hostInvoices = [] } = useQuery({
+    queryKey: ["hostInvoices", workspaceId],
+    enabled: !!workspaceId,
+    queryFn: async () => {
+      const res = await axiosPrivate.get("/api/leads/invoices", { params: { workspaceId } });
+      return res.data?.invoices || [];
+    },
+  });
+  // "Received from WONO" can sit at 0 for a long time — WONO pays by bank
+  // transfer, nothing flips an invoice's status to "Paid" automatically.
+  // Staff mark it Paid manually in Master Panel.
+  const invoicedToWonoTotal = hostInvoices
+    .filter((i) => i.status === "Requested")
+    .reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+  const receivedFromWonoTotal = hostInvoices
+    .filter((i) => i.status === "Paid")
+    .reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+  const hostInvoicesCurrency = hostInvoices[0]?.currency || "USD";
+
   const requestMoreLeadsMutation = useMutation({
     mutationFn: async () => {
       const res = await axiosPrivate.post("/api/leads/request-more-leads", { workspaceId });
@@ -229,25 +248,30 @@ export default function CompanyLeads({ leadScope = "website" }) {
     },
   });
 
-  // Accept always opens the amount modal first — prefilled with the
-  // auto-calculated price when one could be resolved (e.g. meeting rooms),
-  // left blank otherwise (e.g. co-working/co-living, priced monthly). The
-  // host can edit it either way; whatever is in the field is what gets sent.
+  // A lead with no matched Meeting Room / Room / Dorm resource (e.g.
+  // co-working) isn't a payable booking — the backend accepts it directly,
+  // no amount/payment link, so skip the amount modal entirely for those and
+  // just accept. Otherwise open the modal, prefilled with the
+  // auto-calculated price when one could be resolved. The host can edit it
+  // either way; whatever is in the field is what gets sent.
   const acceptLead = async (leadId) => {
+    let preview = null;
+    try {
+      preview = await previewPaymentMutation.mutateAsync(leadId);
+    } catch {
+      // Preview failed — fall back to the manual-amount modal so the host
+      // can still enter a price by hand.
+    }
+    if (preview && !preview.resourceId) {
+      updateLeadMutation.mutate({ leadId, hostPanelStatus: "Accepted" });
+      return;
+    }
     setManualAmountPrompt({ leadId });
-    setManualAmountValue("");
-    setManualCurrencyValue("USD");
+    setManualAmountValue(Number(preview?.base) > 0 ? String(preview.base) : "");
+    setManualCurrencyValue(preview?.currency || "USD");
     setDiscountType("amount");
     setDiscountValue("");
-    setAvailabilityInfo(null);
-    try {
-      const preview = await previewPaymentMutation.mutateAsync(leadId);
-      if (Number(preview?.base) > 0) setManualAmountValue(String(preview.base));
-      if (preview?.currency) setManualCurrencyValue(preview.currency);
-      if (preview?.availability) setAvailabilityInfo(preview.availability);
-    } catch {
-      // leave blank — host enters the amount manually
-    }
+    setAvailabilityInfo(preview?.availability || null);
   };
 
   const manualFeePreview = useMemo(() => {
@@ -313,6 +337,20 @@ export default function CompanyLeads({ leadScope = "website" }) {
     },
   });
 
+  const sendInvoiceToWonoMutation = useMutation({
+    mutationFn: async (leadId) => {
+      const res = await axiosPrivate.post("/api/leads/send-invoice-to-wono", { leadId, workspaceId });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || "Invoice sent to WONO");
+      queryClient.invalidateQueries({ queryKey: ["leadCompany"] });
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to send invoice");
+    },
+  });
+
   const leadStats = useMemo(() => {
     const total = leads.length;
     const pending = leads.filter((l) => (l.hostPanelStatus || "Pending") === "Pending").length;
@@ -331,8 +369,10 @@ export default function CompanyLeads({ leadScope = "website" }) {
         value: Number.isFinite(leadLimit) ? `${Math.max(leadLimit - total, 0)} / ${leadLimit}` : "Unlimited",
         icon: Target,
       },
+      { label: "Invoiced to WONO", value: formatMoney(invoicedToWonoTotal, hostInvoicesCurrency), icon: FileText },
+      { label: "Received from WONO", value: formatMoney(receivedFromWonoTotal, hostInvoicesCurrency), icon: Wallet },
     ];
-  }, [leads, pageTitle, leadLimit]);
+  }, [leads, pageTitle, leadLimit, invoicedToWonoTotal, receivedFromWonoTotal, hostInvoicesCurrency]);
 
   const visibleLeads = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -420,7 +460,7 @@ export default function CompanyLeads({ leadScope = "website" }) {
           </div>
 
           {/* STAT CARDS */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-1 shrink-0">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-1 shrink-0">
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
               <div className="min-w-0">
                 <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">Pending</p>
@@ -435,19 +475,26 @@ export default function CompanyLeads({ leadScope = "website" }) {
               </div>
               <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><CheckCircle2 size={16} /></div>
             </div>
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
-              <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Payments Received</p>
-                <p className="text-[15px] font-pmedium text-slate-900">{leadStats[2]?.value ?? 0}</p>
-              </div>
-              <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><Wallet size={16} /></div>
-            </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-violet-500">
               <div className="min-w-0">
                 <p className="text-[10px] font-pmedium text-violet-600 uppercase tracking-widest mb-1">Leads Remaining</p>
                 <p className="text-[15px] font-pmedium text-slate-900">{leadStats[3]?.value ?? "-"}</p>
               </div>
               <div className="p-2 rounded-2xl bg-violet-50 text-violet-600 shrink-0"><Target size={16} /></div>
+            </div>
+            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-orange-500">
+              <div className="min-w-0">
+                <p className="text-[10px] font-pmedium text-orange-600 uppercase tracking-widest mb-1">Invoiced to WONO</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{leadStats[4]?.value ?? 0}</p>
+              </div>
+              <div className="p-2 rounded-2xl bg-orange-50 text-orange-600 shrink-0"><FileText size={16} /></div>
+            </div>
+            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-teal-500">
+              <div className="min-w-0">
+                <p className="text-[10px] font-pmedium text-teal-600 uppercase tracking-widest mb-1">Received from WONO</p>
+                <p className="text-[15px] font-pmedium text-slate-900">{leadStats[5]?.value ?? 0}</p>
+              </div>
+              <div className="p-2 rounded-2xl bg-teal-50 text-teal-600 shrink-0"><Wallet size={16} /></div>
             </div>
           </div>
 
@@ -557,6 +604,7 @@ export default function CompanyLeads({ leadScope = "website" }) {
                       <th className="px-5 py-4">Status</th>
                       <th className="px-5 py-4">Payment Status</th>
                       <th className="px-5 py-4">Received Date</th>
+                      <th className="px-5 py-4">Send Invoice to WONO</th>
                       <th className="px-5 py-4 text-center">Action</th>
                     </tr>
                   </thead>
@@ -595,6 +643,28 @@ export default function CompanyLeads({ leadScope = "website" }) {
                           </td>
                           <td className="px-5 py-4">
                             <p className="text-[12px] font-pmedium text-slate-700">{formatDateLabel(lead.recievedDate || lead.receivedDate || lead.createdAt)}</p>
+                          </td>
+                          <td className="px-5 py-4">
+                            {(() => {
+                              const isWebsiteLeadRow = lead._leadType ? lead._leadType === "Website" : !isNomadsLeads;
+                              if (!isWebsiteLeadRow) return <span className="text-[11px] text-slate-400">—</span>;
+                              if (lead.invoiceSentToWono) {
+                                return (
+                                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider text-emerald-700">
+                                    <CheckCircle2 size={12} /> Invoice Sent
+                                  </span>
+                                );
+                              }
+                              const isPaid = (lead.paymentStatus || "Pending") === "Paid";
+                              return (
+                                <button type="button"
+                                  onClick={() => sendInvoiceToWonoMutation.mutate(lead._id)}
+                                  disabled={!isPaid || sendInvoiceToWonoMutation.isPending}
+                                  title={isPaid ? "Request payout from WONO for this booking." : "Only available once payment is completed."}
+                                  className="rounded-full border border-amber-200 bg-white px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider text-amber-700 hover:bg-amber-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                >Send Invoice to WONO</button>
+                              );
+                            })()}
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-center gap-1.5">
@@ -656,7 +726,7 @@ export default function CompanyLeads({ leadScope = "website" }) {
                         ? "Calculating price…"
                         : Number(manualAmountValue) > 0
                           ? "Pre-filled from the listed price — change it if needed."
-                          : "Couldn't auto-calculate this price (e.g. co-working/co-living isn't priced by the hour). Enter the amount."}
+                          : "Couldn't auto-calculate this price (e.g. co-working isn't priced by the hour or night). Enter the amount."}
                     </p>
 
                     {availabilityInfo?.checked && (

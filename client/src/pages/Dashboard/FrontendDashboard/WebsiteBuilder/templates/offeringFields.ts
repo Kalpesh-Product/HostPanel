@@ -114,6 +114,15 @@ const KIND_FIELDS: Record<OfferingKind, OfferingFieldDef[]> = {
   ],
   coLiving: [
     {
+      key: "stayType",
+      label: "Booking type",
+      type: "select",
+      options: [
+        { value: "short_stay", label: "Short stay (price per night)" },
+        { value: "monthly", label: "Monthly / long-term enquiry" },
+      ],
+    },
+    {
       key: "occupancy",
       label: "Occupancy",
       type: "select",

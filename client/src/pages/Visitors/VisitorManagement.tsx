@@ -27,6 +27,11 @@ import {
   sendExternalBookingConfirmationEmail,
   updateMeetingRoomBooking,
 } from '../../services/meeting-room-bookings';
+import {
+  getRoomBookings,
+  sendRoomStayConfirmationEmail,
+  updateRoomBookingStatus,
+} from '../../services/roomStays';
 import { toast } from 'sonner';
 import { createReport } from '../../services/reports';
 import { downloadReportFile } from '../../utils/report-download';
@@ -875,6 +880,8 @@ function normalizeVerifiedBooking(booking) {
     attendees: Number(booking.attendees || 0),
     source: booking.bookingSource || 'Frontdesk',
     bookingType: booking.bookingType || 'External',
+    bookingKind: booking.bookingKind || 'meeting-room',
+    canCheckInToday: booking.canCheckInToday !== false,
   };
 }
 
@@ -1389,6 +1396,7 @@ export default function VisitorsManagementPage() {
   const [hasLoadedVisitorOverview, setHasLoadedVisitorOverview] = useState(false);
   const [visitorOverviewError, setVisitorOverviewError] = useState('');
   const [isSubmittingVisitor, setIsSubmittingVisitor] = useState(false);
+  const [isSendingInvoiceToWono, setIsSendingInvoiceToWono] = useState(false);
   const [bookingConfirmation, setBookingConfirmation] = useState(null);
   const [showBookingConfirmationPopup, setShowBookingConfirmationPopup] = useState(false);
   const [visitorHostGroups, setVisitorHostGroups] = useState([]);
@@ -3110,7 +3118,7 @@ export default function VisitorsManagementPage() {
     }
   }, [deskSeatOptions, form.attendees, form.seatNumber, isDeskAreaSeatBooking, selectedWalkInRoom]);
 
-  const handleVerifySearch = () => {
+  const handleVerifySearch = async () => {
     const normalizedId = String(form.bookingId || '').trim().toUpperCase();
     // Match every identifier a visitor might quote — the confirmation email
     // carries bookingCode (MRB-...), while internal views may show the record id.
@@ -3132,6 +3140,43 @@ export default function VisitorsManagementPage() {
 
     setVerifiedBooking(null);
     setBookingConfirmation(null);
+    if (normalizedId.startsWith('RS-')) {
+      try {
+        const response = await getRoomBookings({ scope: 'open' });
+        const stays = response?.data?.data || [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const stay = stays.find(matchesEnteredId);
+        if (stay) {
+          const checkInDay = new Date(stay.checkIn);
+          const checkOutDay = new Date(stay.checkOut);
+          checkInDay.setHours(0, 0, 0, 0);
+          checkOutDay.setHours(0, 0, 0, 0);
+          const paid = Number(stay.amountPaid || 0) >= Number(stay.total || 0);
+          setVerifiedBooking(normalizeVerifiedBooking({
+            ...stay,
+            bookingKind: 'room-stay',
+            roomName: stay.roomName || (stay.roomType === 'Dorm' ? 'Hostel Dorm' : 'Co-living Room'),
+            date: stay.checkIn,
+            endDate: stay.checkOut,
+            time: `${new Date(stay.checkIn).toLocaleDateString()} - ${new Date(stay.checkOut).toLocaleDateString()}`,
+            clientName: stay.guestName,
+            clientPhone: stay.guestPhone,
+            clientEmail: stay.guestEmail,
+            totalAmount: stay.total,
+            paymentStatus: paid ? 'Paid' : 'Pending Payment',
+            paymentMode: stay.paymentMethod,
+            canCheckInToday: checkInDay <= today && today < checkOutDay,
+          }));
+          setBookingConfirmation(null);
+          return;
+        }
+      } catch (error) {
+        toast.error(error.message || 'Unable to verify this stay booking.');
+        return;
+      }
+    }
+
     alert('Booking ID not found for today.');
   };
 
@@ -3304,6 +3349,26 @@ export default function VisitorsManagementPage() {
     });
     setWalkInTouched({});
     setWalkInSubmitAttempted(false);
+  };
+
+  // Host requests payout from WONO for this finalized, paid booking — a
+  // separate backend-only step for now (no Master Panel UI reads it yet).
+  // Idempotent server-side, but guard the click here too so a slow network
+  // doesn't let the host fire it twice.
+  const handleSendInvoiceToWono = async () => {
+    if (!websiteBookingLead || isSendingInvoiceToWono) return;
+    setIsSendingInvoiceToWono(true);
+    try {
+      const res = await axiosPrivate.post('/api/leads/send-invoice-to-wono', {
+        leadId: websiteBookingLead.leadId,
+      });
+      setWebsiteBookingLead((prev) => (prev ? { ...prev, invoiceSentToWono: true } : prev));
+      toast.success(res?.data?.message || 'Invoice sent to WONO.');
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error.message || 'Unable to send invoice to WONO.');
+    } finally {
+      setIsSendingInvoiceToWono(false);
+    }
   };
 
   const handleProcessAction = async () => {
@@ -3809,18 +3874,24 @@ export default function VisitorsManagementPage() {
       return;
     }
     else if (visitorMode === 'verify_booking' && verifiedBooking) {
+      if (verifiedBooking.bookingKind === 'room-stay' && !verifiedBooking.canCheckInToday) {
+        toast.error('This stay cannot be checked in today. Please check the booking dates.');
+        return;
+      }
       const needsPayment = !verifiedBooking.isPaid;
       if (needsPayment && !form.paymentMode) {
         toast.error('Select how the visitor is paying before confirming entry.');
         return;
       }
       try {
-        const response = await updateMeetingRoomBooking(verifiedBooking.recordId || verifiedBooking.id, {
-          status: 'in progress',
-          // Unpaid booking → the front desk is collecting payment now, so
-          // record it as Paid with the chosen mode. Paid bookings pass through.
-          ...(needsPayment ? { paymentStatus: 'Paid', paymentMode: form.paymentMode } : {}),
-        });
+        const response = verifiedBooking.bookingKind === 'room-stay'
+          ? await updateRoomBookingStatus(verifiedBooking.recordId || verifiedBooking.id, 'Checked-in')
+          : await updateMeetingRoomBooking(verifiedBooking.recordId || verifiedBooking.id, {
+              status: 'in progress',
+              // Unpaid booking → the front desk is collecting payment now, so
+              // record it as Paid with the chosen mode. Paid bookings pass through.
+              ...(needsPayment ? { paymentStatus: 'Paid', paymentMode: form.paymentMode } : {}),
+            });
         const updatedBooking = response?.data?.booking || response?.booking || null;
         if (updatedBooking) {
           syncDailyBookingState(updatedBooking);
@@ -3857,7 +3928,11 @@ export default function VisitorsManagementPage() {
           const createdBookingId = String(createdBooking?._id || createdBooking?.id || '').trim();
           if (createdBookingId) {
             try {
-              await sendExternalBookingConfirmationEmail(createdBookingId);
+              if (createdBooking?.roomType === 'Room' || createdBooking?.roomType === 'Dorm') {
+                await sendRoomStayConfirmationEmail(createdBookingId);
+              } else {
+                await sendExternalBookingConfirmationEmail(createdBookingId);
+              }
               confirmationEmailSent = true;
             } catch (emailError) {
               console.warn('Website booking created, but its confirmation email could not be sent.', emailError);
@@ -6726,36 +6801,49 @@ export default function VisitorsManagementPage() {
                                 className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                             </div>
 
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                              <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Booking Date</label>
-                                <input type="date" disabled
-                                  value={websiteBookingLead.startDate ? websiteBookingLead.startDate.slice(0, 10) : ''}
-                                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-500 outline-none disabled:cursor-not-allowed" />
-                              </div>
-                              <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Booking Code</label>
-                                <input type="text" disabled value={websiteBookingLead.bookingCode || 'Not finalized yet'}
-                                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-500 outline-none disabled:cursor-not-allowed" />
-                              </div>
-                            </div>
+                            {(() => {
+                              const isStayBooking = ['Room', 'Dorm'].includes(websiteBookingLead.spaceType || '');
+                              return (
+                                <>
+                                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                    <div className="flex flex-col gap-1">
+                                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">{isStayBooking ? 'Check-In Date' : 'Booking Date'}</label>
+                                      <input type="date" disabled
+                                        value={websiteBookingLead.startDate ? websiteBookingLead.startDate.slice(0, 10) : ''}
+                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-500 outline-none disabled:cursor-not-allowed" />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Booking Code</label>
+                                      <input type="text" disabled value={websiteBookingLead.bookingCode || 'Not finalized yet'}
+                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-slate-500 outline-none disabled:cursor-not-allowed" />
+                                    </div>
+                                  </div>
 
-                            <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4 sm:flex sm:items-start sm:justify-between sm:gap-6">
-                              <div className="min-w-0">
-                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Payment</label>
-                                <p className="mt-1 text-[12px] font-semibold text-emerald-700">
-                                  Already received — {formatCurrency(websiteBookingLead.amount)} via {websiteBookingLead.paymentMode || 'Online (Stripe)'} — not editable here.
-                                </p>
-                              </div>
-                              <div className="mt-3 shrink-0 border-t border-emerald-100 pt-3 text-left sm:mt-0 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0 sm:text-right">
-                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Time</label>
-                                <p className="mt-1 whitespace-nowrap text-[12px] font-pmedium text-emerald-800">
-                                  {websiteBookingLead.startDate ? new Date(websiteBookingLead.startDate).toTimeString().slice(0, 5) : '--:--'}
-                                  {' – '}
-                                  {websiteBookingLead.endDate ? new Date(websiteBookingLead.endDate).toTimeString().slice(0, 5) : '--:--'}
-                                </p>
-                              </div>
-                            </div>
+                                  <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4 sm:flex sm:items-start sm:justify-between sm:gap-6">
+                                    <div className="min-w-0">
+                                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Payment</label>
+                                      <p className="mt-1 text-[12px] font-semibold text-emerald-700">
+                                        Already received — {formatCurrency(websiteBookingLead.amount)} via {websiteBookingLead.paymentMode || 'Online (Stripe)'} — not editable here.
+                                      </p>
+                                    </div>
+                                    <div className="mt-3 shrink-0 border-t border-emerald-100 pt-3 text-left sm:mt-0 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0 sm:text-right">
+                                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">{isStayBooking ? 'Check-Out Date' : 'Time'}</label>
+                                      <p className="mt-1 whitespace-nowrap text-[12px] font-pmedium text-emerald-800">
+                                        {isStayBooking
+                                          ? (websiteBookingLead.endDate ? websiteBookingLead.endDate.slice(0, 10) : '--')
+                                          : (
+                                            <>
+                                              {websiteBookingLead.startDate ? new Date(websiteBookingLead.startDate).toTimeString().slice(0, 5) : '--:--'}
+                                              {' – '}
+                                              {websiteBookingLead.endDate ? new Date(websiteBookingLead.endDate).toTimeString().slice(0, 5) : '--:--'}
+                                            </>
+                                          )}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </>
+                              );
+                            })()}
                           </div>
                         </div>
                       )}
@@ -6797,9 +6885,15 @@ export default function VisitorsManagementPage() {
                   </button>
                 )}
                 {visitorMode === 'website_booking' && (
-                  <button disabled={!websiteBookingLead || isSubmittingVisitor || !visitorAccess.modes.walkin_booking || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.walkin_booking ? 'You do not have access to this tab.' : undefined} onClick={handleProcessAction} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-3 bg-green-600 text-white shadow-md shadow-green-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-green-700 transition-all flex items-center justify-center gap-1.5">
-                    <CheckCircle2 size={18} /> {isSubmittingVisitor ? 'CONFIRMING...' : 'CONFIRM ENTRY'}
-                  </button>
+                  <>
+
+                    <button disabled={!websiteBookingLead || isSubmittingVisitor || !visitorAccess.modes.walkin_booking || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.walkin_booking ? 'You do not have access to this tab.' : undefined} onClick={handleProcessAction} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-3 bg-green-600 text-white shadow-md shadow-green-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-green-700 transition-all flex items-center justify-center gap-1.5">
+                      <CheckCircle2 size={18} /> {isSubmittingVisitor ? 'CONFIRMING...' : 'CONFIRM ENTRY'}
+                    </button>
+                                        <button disabled={!websiteBookingLead || isSendingInvoiceToWono || websiteBookingLead?.invoiceSentToWono || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : websiteBookingLead?.invoiceSentToWono ? 'Already sent.' : 'Request payout from WONO for this booking.'} onClick={handleSendInvoiceToWono} className="rounded-2xl font-pmedium text-[10px] uppercase tracking-wider flex-1 py-3 bg-white border border-amber-300 text-amber-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-amber-50 transition-all flex items-center justify-center gap-1.5">
+                      <Wallet size={18} /> {isSendingInvoiceToWono ? 'SENDING...' : websiteBookingLead?.invoiceSentToWono ? 'INVOICE SENT' : 'SEND INVOICE TO WONO'}
+                    </button>
+                  </>
                 )}
               </div>
             </div>

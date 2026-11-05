@@ -8,10 +8,21 @@ import WebsiteLead from "../models/WebsiteLead.js";
 import HostUser from "../models/HostUser.js";
 import { Resource } from "../models/Resource.js";
 import { MeetingRoomBooking } from "../models/MeetingRoomBooking.js";
+import { RoomStayBooking, ROOM_STAY_OPEN_STATUSES } from "../models/RoomStayBooking.js";
 import {
   createBookingWithUniqueCode,
   sendExternalLifecycleEmail,
 } from "./meetingRoomBookingController.js";
+import {
+  allocateDormBeds,
+  createRoomStayAtomically,
+  createRoomStayPaymentHold,
+  releaseRoomStayPaymentHold,
+} from "./roomStayController.js";
+import { RoomStayNightAllocation } from "../models/RoomStayNightAllocation.js";
+import { HostInvoiceRequest } from "../models/HostInvoiceRequest.js";
+import { buildHostInvoicePdfBuffer } from "../utils/hostInvoicePdfGenerator.js";
+import { uploadFileToS3 } from "../config/s3config.js";
 import WorkspaceSubscription from "../models/WorkspaceSubscription.js";
 import { sendMail } from "../config/mailer.js";
 import {
@@ -148,6 +159,140 @@ const resolveLeadSchedule = (meta, bodyStart, bodyEnd) => {
   return { startDate, endDate };
 };
 
+// True for co-living/hostel leads — these book by night (checkIn/checkOut
+// dates), not by hour slot like meeting rooms. `room` (from
+// resolveRoomForLead) is the reliable signal — its `type` is the real
+// Resource category ("Room"/"Dorm"), independent of lead.vertical/
+// productType, which the website-builder/Nomads lead pipeline doesn't
+// consistently populate. lead.vertical/productType/dormType are only a
+// fallback for when no room could be matched yet.
+const isStayVertical = (lead, room) => {
+  if (room?.type === "Room" || room?.type === "Dorm") return true;
+  if (room) return false;
+  const vertical = sanitizeValue(lead?.vertical).toLowerCase();
+  const productType = sanitizeValue(lead?.productType).toLowerCase();
+  const meta = readLeadMeta(lead);
+  if (sanitizeValue(meta.dormType)) return true;
+  return ["co-living", "coliving", "hostel"].some(
+    (needle) => vertical.includes(needle) || productType.includes(needle),
+  );
+};
+
+const isNonBookingInquiry = (lead) => {
+  const meta = readLeadMeta(lead);
+  const inquiry = sanitizeValue(meta?.inquiryType || lead?.inquiryType).toLowerCase();
+  return inquiry.includes("tour") || inquiry.includes("visit") || sanitizeValue(meta?.stayType).toLowerCase() === "monthly";
+};
+
+// Co-living/hostel version of resolveLeadSchedule — whole-day checkIn/
+// checkOut (no hour-of-day component), falling back to the lead's
+// stayDuration string (e.g. "6 nights") to derive checkOut when only
+// checkIn was given.
+const resolveStaySchedule = (meta, bodyCheckIn, bodyCheckOut) => {
+  const parseDateOnly = (raw) => {
+    const value = sanitizeValue(raw);
+    if (!value) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+  };
+
+  const checkIn = bodyCheckIn
+    ? parseDateOnly(bodyCheckIn)
+    : parseDateOnly(meta.startDate || meta.checkIn || meta.bookingDate || meta.preferredDate);
+  let checkOut = bodyCheckOut
+    ? parseDateOnly(bodyCheckOut)
+    : parseDateOnly(meta.endDate || meta.checkOut);
+  if (checkIn && !checkOut) {
+    const nightsFromDuration = parseInt(String(meta.stayDuration || "").match(/\d+/)?.[0] || "1", 10);
+    checkOut = new Date(checkIn);
+    checkOut.setDate(checkOut.getDate() + Math.max(1, nightsFromDuration));
+  }
+  if (!checkIn || !checkOut || checkOut <= checkIn) {
+    return { checkIn: null, checkOut: null, nights: 0 };
+  }
+  const nights = Math.max(1, Math.round((checkOut - checkIn) / (24 * 60 * 60 * 1000)));
+  return { checkIn, checkOut, nights };
+};
+
+// Shared by previewLeadPayment and the Accept flow's pre-payment guard —
+// branches on vertical: meeting rooms check MeetingRoomBooking by hour
+// overlap, co-living/hostel check RoomStayBooking by night overlap.
+const checkLeadAvailability = async (lead, meta) => {
+  const room = await resolveRoomForLead(lead);
+  if (!room) return { checked: false, available: true, conflictBookingCode: "" };
+
+  if (isStayVertical(lead, room)) {
+    const { checkIn, checkOut } = resolveStaySchedule(meta, null, null);
+    if (!checkIn || !checkOut) return { checked: false, available: true, conflictBookingCode: "" };
+    const conflicts = await RoomStayBooking.find({
+      roomId: room._id,
+      status: { $in: ROOM_STAY_OPEN_STATUSES },
+      checkIn: { $lt: checkOut },
+      checkOut: { $gt: checkIn },
+    })
+      .select("bookingCode bedNumber bedNumbers")
+      .lean()
+      .exec();
+    const dateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    const activeHolds = await RoomStayNightAllocation.find({
+      roomId: room._id,
+      dateKey: { $gte: dateKey(checkIn), $lt: dateKey(checkOut) },
+      expiresAt: { $gt: new Date() },
+      ...(lead?._id ? { leadId: { $ne: lead._id } } : {}),
+    }).select("bedNumber").lean().exec();
+    if (room.type === "Dorm") {
+      const requestedBeds = Math.max(1, Math.trunc(Number(parseMoney(meta.attendees ?? meta.noOfPeople ?? lead.noOfPeople ?? 1))) || 1);
+      const availableBeds = allocateDormBeds(
+        room.capacity || 1,
+        [...conflicts, ...activeHolds.map((entry) => ({ bedNumber: entry.bedNumber }))],
+        requestedBeds,
+      );
+      return {
+        checked: true,
+        available: availableBeds.length === requestedBeds,
+        conflictBookingCode: availableBeds.length === requestedBeds ? "" : conflicts[0]?.bookingCode || "",
+      };
+    }
+    // Private Room (co-living) — not split into beds like a Dorm, but the
+    // host-set "Occupancy (Guests)" capacity still caps how many people can
+    // stay in it at once. A date-free room is still unavailable if the
+    // party is larger than it sleeps.
+    const requestedGuests = Math.max(1, Math.trunc(Number(parseMoney(meta.attendees ?? meta.noOfPeople ?? lead.noOfPeople ?? 1))) || 1);
+    const roomCapacity = Math.max(1, Number(room.capacity) || 1);
+    if (requestedGuests > roomCapacity) {
+      return {
+        checked: true,
+        available: false,
+        conflictBookingCode: "",
+        reason: "capacity_exceeded",
+        message: `This room sleeps up to ${roomCapacity} guest${roomCapacity === 1 ? "" : "s"} — ${requestedGuests} requested.`,
+      };
+    }
+    return {
+      checked: true,
+      available: conflicts.length === 0 && activeHolds.length === 0,
+      conflictBookingCode: conflicts[0]?.bookingCode || "",
+      reason: conflicts.length === 0 && activeHolds.length === 0 ? null : "date_conflict",
+    };
+  }
+
+  const { startDate, endDate } = resolveLeadSchedule(meta, null, null);
+  if (!startDate || !endDate || endDate <= startDate) {
+    return { checked: false, available: true, conflictBookingCode: "" };
+  }
+  const conflict = await MeetingRoomBooking.findOne({
+    roomId: room._id,
+    status: { $nin: ["cancelled"] },
+    start: { $lt: endDate },
+    end: { $gt: startDate },
+  })
+    .select("bookingCode")
+    .lean()
+    .exec();
+  return { checked: true, available: !conflict, conflictBookingCode: conflict?.bookingCode || "" };
+};
+
 // Open gaps of at least `durationMs` on the same calendar day as `dayDate`,
 // within the workspace's business hours, for the given room.
 const findAvailableSlotsOnDay = async (roomId, workspaceId, dayDate, durationMs) => {
@@ -251,10 +396,18 @@ export const finalizeLeadBooking = async (req, res) => {
       });
     }
 
+    const meta = readLeadMeta(lead);
+    const room = sanitizeValue(roomId)
+      ? await Resource.findById(sanitizeValue(roomId)).select("name pricePerHour pricePerNight type capacity").lean().exec()
+      : await resolveRoomForLead(lead);
+    const isStay = isStayVertical(lead, room);
+
     // Already finalized: return the existing booking instead of creating a
     // duplicate (the modal action is idempotent).
     if (lead.bookingId) {
-      const existing = await MeetingRoomBooking.findById(lead.bookingId).lean().exec();
+      const existing = isStay
+        ? await RoomStayBooking.findById(lead.bookingId).lean().exec()
+        : await MeetingRoomBooking.findById(lead.bookingId).lean().exec();
       if (existing) {
         return res.status(200).json({
           message: "Booking already finalized",
@@ -264,13 +417,115 @@ export const finalizeLeadBooking = async (req, res) => {
       }
     }
 
-    const meta = readLeadMeta(lead);
-    const room = sanitizeValue(roomId)
-      ? await Resource.findById(sanitizeValue(roomId)).select("name pricePerHour").lean().exec()
-      : await resolveRoomForLead(lead);
     if (!room) {
       return res.status(400).json({
-        message: "No meeting room resource matched this lead — add the room resource first or pass roomId",
+        message: isStay
+          ? "No room/dorm resource matched this lead — add the resource first or pass roomId"
+          : "No meeting room resource matched this lead — add the room resource first or pass roomId",
+      });
+    }
+
+    // MeetingRoomBooking/RoomStayBooking.workspaceId are ObjectId refs; the
+    // lead stores it as a string, so make the mismatch a clean 400 instead
+    // of a CastError.
+    if (!/^[a-f\d]{24}$/i.test(String(lead.workspaceId || ""))) {
+      return res.status(400).json({
+        message: "Lead has no valid workspace reference to attach a booking to",
+      });
+    }
+    const baseAmount = Number(lead.paymentBaseAmount) || 0;
+
+    if (isStay) {
+      const { checkIn, checkOut, nights } = resolveStaySchedule(meta, bodyStart, bodyEnd);
+      if (!checkIn || !checkOut) {
+        return res.status(400).json({
+          message: "Could not resolve the check-in/check-out dates for this lead — pass start and end",
+        });
+      }
+      const attendeeCount = Math.max(
+        1,
+        Math.trunc(Number(parseMoney(bodyAttendees ?? meta.attendees ?? meta.noOfPeople ?? 1))) || 1,
+      );
+
+      let bedNumber = null;
+      let bedNumbers = [];
+      if (room.type === "Dorm") {
+        if (lead.stayHoldId) {
+          const held = await RoomStayNightAllocation.find({
+            holdId: lead.stayHoldId,
+            expiresAt: { $gt: new Date() },
+          }).select("bedNumber").lean().exec();
+          bedNumbers = [...new Set(held.map((entry) => Number(entry.bedNumber)))].filter((bed) => bed > 0);
+        } else {
+          const taken = await RoomStayBooking.find({
+            roomId: room._id,
+            status: { $in: ROOM_STAY_OPEN_STATUSES },
+            checkIn: { $lt: checkOut },
+            checkOut: { $gt: checkIn },
+          })
+            .select("bedNumber bedNumbers")
+            .lean()
+            .exec();
+          bedNumbers = allocateDormBeds(room.capacity || 1, taken, attendeeCount);
+        }
+        bedNumber = bedNumbers[0] ?? null;
+        if (bedNumbers.length !== attendeeCount) {
+          return res.status(409).json({ message: `${room.name} does not have ${attendeeCount} beds available for that date range` });
+        }
+      } else {
+        const conflict = await RoomStayBooking.findOne({
+          roomId: room._id,
+          bedNumber: null,
+          status: { $in: ROOM_STAY_OPEN_STATUSES },
+          checkIn: { $lt: checkOut },
+          checkOut: { $gt: checkIn },
+        })
+          .select("bookingCode")
+          .lean()
+          .exec();
+        if (conflict) {
+          return res.status(409).json({
+            message: `${room.name} is already booked (${conflict.bookingCode || ""}) for that date range`,
+          });
+        }
+      }
+
+      const booking = await createRoomStayAtomically({
+        holdId: sanitizeValue(lead.stayHoldId) || undefined,
+        workspaceId: lead.workspaceId,
+        roomId: room._id,
+        roomType: room.type || "Room",
+        bedNumber,
+        bedNumbers,
+        guestName: lead.fullName || "Website lead",
+        guestEmail: sanitizeValue(lead.email),
+        guestPhone: sanitizeValue(lead.mobileNumber),
+        attendees: attendeeCount,
+        checkIn,
+        checkOut,
+        nights: nights || 1,
+        // Dorms are priced per bed; baseAmount already includes the bed
+        // count (computeLeadPayment), so divide it back out for a true
+        // per-bed-per-night rate — not nights * beds lumped together.
+        ratePerNight: round2(baseAmount / ((nights || 1) * (room.type === "Dorm" ? Math.max(1, attendeeCount) : 1))),
+        total: baseAmount,
+        currency: lead.paymentCurrency || "INR",
+        paymentMethod: "Online (Stripe)",
+        amountPaid: baseAmount,
+        status: "Booked",
+        createdBy: sanitizeValue(req.user) ? req.user : null,
+      });
+
+      lead.bookingId = booking._id;
+      lead.bookingCode = booking.bookingCode;
+      lead.stayHoldId = "";
+      lead.stayHoldExpiresAt = null;
+      await lead.save();
+
+      return res.status(201).json({
+        message: `${room.type === "Dorm" ? "Bed" : "Room"} booked — confirmation code ${booking.bookingCode}`,
+        booking: booking.toObject(),
+        lead: { _id: String(lead._id), ...lead.toObject() },
       });
     }
 
@@ -302,20 +557,11 @@ export const finalizeLeadBooking = async (req, res) => {
     );
     const purpose = (sanitizeValue(meta.inquiryType) || "Meeting").slice(0, 1000);
 
-    // MeetingRoomBooking.workspaceId is an ObjectId ref; the lead stores it as
-    // a string, so make the mismatch a clean 400 instead of a CastError.
-    if (!/^[a-f\d]{24}$/i.test(String(lead.workspaceId || ""))) {
-      return res.status(400).json({
-        message: "Lead has no valid workspace reference to attach a booking to",
-      });
-    }
-
     // bookingNumber/bookingCode are allocated globally (the model's
     // bookingCode index is unique across workspaces, not per-workspace) —
     // reuse the same retry-on-collision allocator the regular booking
     // flow uses instead of computing one locally, which caused an E11000
     // once another workspace had already taken that number.
-    const baseAmount = Number(lead.paymentBaseAmount) || 0;
     const booking = await createBookingWithUniqueCode({
       workspaceId: lead.workspaceId,
       roomId: room._id,
@@ -394,7 +640,13 @@ export const previewLeadBookingPrefill = async (req, res, next) => {
 
     const meta = readLeadMeta(lead);
     const room = await resolveRoomForLead(lead);
-    const { startDate, endDate } = resolveLeadSchedule(meta, null, null);
+    const isStay = isStayVertical(lead, room);
+    const { startDate, endDate } = isStay
+      ? (() => {
+          const stay = resolveStaySchedule(meta, null, null);
+          return { startDate: stay.checkIn, endDate: stay.checkOut };
+        })()
+      : resolveLeadSchedule(meta, null, null);
     const attendeeCount = Math.max(
       1,
       Math.trunc(Number(parseMoney(meta.attendees ?? meta.noOfPeople ?? lead.noOfPeople ?? 1))) || 1,
@@ -406,13 +658,13 @@ export const previewLeadBookingPrefill = async (req, res, next) => {
       phone: lead.mobileNumber || "",
       email: lead.email || "",
       companyName: lead.companyName || "",
-      purpose: sanitizeValue(meta.inquiryType) || "Meeting",
+      purpose: sanitizeValue(meta.inquiryType) || (isStay ? "Stay" : "Meeting"),
       notes: lead.message || "",
       attendees: attendeeCount,
       resourceId: room?._id ? String(room._id) : "",
       resourceName:
-        room?.name || sanitizeValue(meta.roomType || meta.room || meta.roomName || meta.packageName) || "",
-      spaceType: "Meeting Room",
+        room?.name || sanitizeValue(meta.roomType || meta.dormType || meta.room || meta.roomName || meta.packageName) || "",
+      spaceType: room?.type || (isStay ? "Room" : "Meeting Room"),
       startDate: startDate ? startDate.toISOString() : null,
       endDate: endDate ? endDate.toISOString() : null,
       // Already settled via Stripe at Accept time — frontdesk should not
@@ -425,6 +677,7 @@ export const previewLeadBookingPrefill = async (req, res, next) => {
       currency: lead.paymentCurrency || "USD",
       transactionId: lead.paymentTransactionId || "",
       bookingCode: lead.bookingCode || "",
+      invoiceSentToWono: Boolean(lead.invoiceSentToWono),
     });
   } catch (error) {
     next(error);
@@ -487,6 +740,29 @@ const resolveWorkspaceIdFromCompany = async (companyId) => {
     .lean()
     .exec();
   return sanitizeValue(workspaceByCompanyId?._id);
+};
+
+// GET /api/leads/invoices — this workspace's own "Send Invoice to WONO"
+// requests, for the stat cards (sum of Requested = invoiced, sum of Paid =
+// received). "Paid" only ever flips when staff mark it so in Master Panel —
+// WONO pays out by bank transfer, no automatic signal — so this can sit at
+// $0 received for a long time; that's expected, not a bug.
+export const getHostInvoices = async (req, res, next) => {
+  try {
+    const hostWorkspaceId = sanitizeValue(
+      req.query?.workspaceId || req.workspaceMembership?.workspace,
+    );
+    if (!hostWorkspaceId) {
+      return res.status(400).json({ message: "A HostPanel workspace is required" });
+    }
+    const invoices = await HostInvoiceRequest.find({ workspaceId: hostWorkspaceId })
+      .sort({ requestedAt: -1 })
+      .lean()
+      .exec();
+    return res.status(200).json({ invoices });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // GET /api/leads/plan-limit — how many website leads this workspace's plan
@@ -632,6 +908,7 @@ export const getLeads = async (req, res, next) => {
       paymentTransactionId: lead.paymentTransactionId || "",
       bookingId: lead.bookingId ? String(lead.bookingId) : "",
       bookingCode: lead.bookingCode || "",
+      invoiceSentToWono: Boolean(lead.invoiceSentToWono),
       comment: lead.comment || "",
       recievedDate: lead.createdAt,
       companyName: lead.companyName || "",
@@ -758,6 +1035,7 @@ export const getLeads = async (req, res, next) => {
             paymentTransactionId: local.paymentTransactionId,
             bookingId: local.bookingId,
             bookingCode: local.bookingCode,
+            invoiceSentToWono: local.invoiceSentToWono,
             comment: local.comment,
           };
         });
@@ -955,7 +1233,7 @@ const resolveRoomForLead = async (lead) => {
         ),
       })
         .sort({ _id: 1 })
-        .select("name pricePerHour pricePerDay location floor wing")
+        .select("name type pricePerHour pricePerDay pricePerNight capacity location floor wing")
         .lean()
         .exec();
       if (room) return room;
@@ -964,7 +1242,7 @@ const resolveRoomForLead = async (lead) => {
         // Fall back to fetching candidates and matching in memory if the
         // regex ever fails to build.
         const rooms = await Resource.find({ workspaceId, status: "Active" })
-          .select("name pricePerHour pricePerDay location floor wing")
+          .select("name type pricePerHour pricePerDay pricePerNight capacity location floor wing")
           .lean()
           .exec();
         const lower = candidates.map((name) => name.toLowerCase());
@@ -996,12 +1274,9 @@ export const checkPublicBookingAvailability = async (req, res) => {
     const roomName = sanitizeValue(
       req.body?.roomName || req.body?.roomType || req.body?.productType || req.query?.roomName,
     );
-    const date = req.body?.startDate || req.body?.date || req.query?.startDate;
-    const start = websiteSlotDate(date, req.body?.startTime || req.body?.timeSlot || req.query?.startTime);
-    const end = websiteSlotDate(date, req.body?.endTime || req.query?.endTime);
-    if (!workspaceId || !roomName || !start || !end || end <= start) {
+    if (!workspaceId || !roomName) {
       return res.status(400).json({
-        message: "workspaceId, roomName, startDate, startTime and endTime are required",
+        message: "workspaceId and roomName are required",
       });
     }
 
@@ -1010,8 +1285,50 @@ export const checkPublicBookingAvailability = async (req, res) => {
       status: "Active",
       isActive: { $ne: false },
       name: new RegExp(`^${roomName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
-    }).select("name").lean().exec();
-    if (!room) return res.status(404).json({ message: "Meeting room not found" });
+    }).select("name type capacity").lean().exec();
+    if (!room) return res.status(404).json({ message: "Bookable resource not found" });
+
+    if (room.type === "Room" || room.type === "Dorm") {
+      const stay = resolveStaySchedule({ startDate: req.body?.startDate, endDate: req.body?.endDate }, null, null);
+      if (!stay.checkIn || !stay.checkOut) {
+        return res.status(400).json({ message: "startDate and endDate are required" });
+      }
+      const overlaps = await RoomStayBooking.find({
+        roomId: room._id,
+        status: { $in: ROOM_STAY_OPEN_STATUSES },
+        checkIn: { $lt: stay.checkOut },
+        checkOut: { $gt: stay.checkIn },
+      }).select("bookingCode bedNumber bedNumbers").lean().exec();
+      const publicDateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      const activeHolds = await RoomStayNightAllocation.find({
+        roomId: room._id,
+        dateKey: { $gte: publicDateKey(stay.checkIn), $lt: publicDateKey(stay.checkOut) },
+        expiresAt: { $gt: new Date() },
+      }).select("bedNumber").lean().exec();
+      const requestedBeds = Math.max(1, Math.trunc(Number(req.body?.attendees || req.body?.people || req.body?.noOfPeople || 1)) || 1);
+      // Dorm: bed-count allocation. Room (co-living): not split into beds,
+      // but the host-set occupancy capacity still caps how many guests can
+      // stay in it at once — a date-free room is still unavailable if the
+      // party is bigger than it sleeps.
+      const available = room.type === "Dorm"
+        ? allocateDormBeds(room.capacity || 1, [...overlaps, ...activeHolds.map((entry) => ({ bedNumber: entry.bedNumber }))], requestedBeds).length === requestedBeds
+        : overlaps.length === 0 && activeHolds.length === 0 && requestedBeds <= Math.max(1, Number(room.capacity) || 1);
+      return res.status(200).json({
+        available,
+        roomName: room.name,
+        start: stay.checkIn.toISOString(),
+        end: stay.checkOut.toISOString(),
+        requestedBeds: room.type === "Dorm" ? requestedBeds : undefined,
+        capacity: room.capacity,
+      });
+    }
+
+    const date = req.body?.startDate || req.body?.date || req.query?.startDate;
+    const start = websiteSlotDate(date, req.body?.startTime || req.body?.timeSlot || req.query?.startTime);
+    const end = websiteSlotDate(date, req.body?.endTime || req.query?.endTime);
+    if (!start || !end || end <= start) {
+      return res.status(400).json({ message: "startDate, startTime and endTime are required" });
+    }
 
     const conflict = await MeetingRoomBooking.findOne({
       roomId: room._id,
@@ -1065,17 +1382,43 @@ export const listPublicBookingsForNomad = async (req, res) => {
     return res.status(400).json({ message: "A valid account email is required" });
   }
 
-  const bookings = await MeetingRoomBooking.find({
-    ...(access?.bookingId ? { _id: access.bookingId } : {}),
-    bookingType: "External",
-    bookedByEmail: access ? sanitizeValue(access.email).toLowerCase() : accountEmail,
-  })
-    .select("bookingCode roomName roomId start end attendees status paymentStatus totalAmount currency workspaceId createdAt")
-    .populate("roomId", "location floor wing")
-    .sort({ start: -1 })
-    .limit(access ? 1 : 100)
-    .lean()
-    .exec();
+  const emailFilter = access ? sanitizeValue(access.email).toLowerCase() : accountEmail;
+  const [meetingBookings, stayBookings] = await Promise.all([
+    MeetingRoomBooking.find({
+      ...(access?.bookingId ? { _id: access.bookingId } : {}),
+      bookingType: "External",
+      bookedByEmail: emailFilter,
+    })
+      .select("bookingCode roomName roomId start end attendees status paymentStatus totalAmount currency workspaceId createdAt")
+      .populate("roomId", "name location floor wing")
+      .limit(access ? 1 : 100)
+      .lean()
+      .exec(),
+    RoomStayBooking.find({
+      ...(access?.bookingId ? { _id: access.bookingId } : {}),
+      guestEmail: emailFilter,
+    })
+      .select("bookingCode roomId roomType bedNumbers checkIn checkOut attendees status amountPaid total currency workspaceId createdAt")
+      .populate("roomId", "name location floor wing")
+      .limit(access ? 1 : 100)
+      .lean()
+      .exec(),
+  ]);
+  const bookings = [
+    ...meetingBookings.map((booking: any) => ({ ...booking, serviceType: "meeting-room" })),
+    ...stayBookings.map((booking: any) => ({
+      ...booking,
+      serviceType: booking.roomType === "Dorm" ? "hostel" : "co-living",
+      roomName: booking.roomId?.name || booking.roomType,
+      start: booking.checkIn,
+      end: booking.checkOut,
+      status: booking.status === "Checked-out" ? "completed" : booking.status === "Cancelled" ? "cancelled" : "confirmed",
+      paymentStatus: Number(booking.amountPaid || 0) >= Number(booking.total || 0) ? "Paid" : "Pending",
+      totalAmount: booking.total,
+    })),
+  ]
+    .sort((a: any, b: any) => new Date(b.start || b.createdAt).getTime() - new Date(a.start || a.createdAt).getTime())
+    .slice(0, access ? 1 : 100);
 
   const bookingIds = bookings.map((booking) => booking._id);
   const leads = bookingIds.length
@@ -1125,6 +1468,8 @@ export const listPublicBookingsForNomad = async (req, res) => {
       paymentStatus: booking.paymentStatus,
       totalAmount: booking.totalAmount,
       currency: booking.currency,
+      serviceType: booking.serviceType,
+      bedNumbers: booking.bedNumbers || [],
       imageUrl,
       location,
       rescheduleUrl: websiteByBookingId.get(String(booking._id)) || "",
@@ -1333,6 +1678,16 @@ const resolveWebsitePriceForLead = async (lead, meta) => {
 
 const computeLeadPayment = async (lead) => {
   let meta = { ...readLeadMeta(lead) };
+  if (isNonBookingInquiry(lead)) {
+    return {
+      currency: resolveLeadCurrency(meta),
+      ...applyFees(0),
+      rate: 0,
+      resourceId: "",
+      roomName: sanitizeValue(meta.roomType || meta.dormType || meta.packageName || lead?.productType),
+      location: sanitizeValue(meta.location),
+    };
+  }
   if (!["hourlyRate", "hourly", "rate", "pricePerHour", "roomRate", "price", "amount"]
     .some((key) => Number.isFinite(parseMoney(meta[key])) && parseMoney(meta[key]) > 0)) {
     const websitePrice = await resolveWebsitePriceForLead(lead, meta);
@@ -1367,6 +1722,41 @@ const computeLeadPayment = async (lead) => {
   // Resolve the room for its ID, name and location; its hourly price remains
   // the fallback when the form did not carry a rate.
   const room = await resolveRoomForLead(lead);
+
+  // Co-living/hostel leads book by night, not by hour — nights x
+  // pricePerNight, using resolveStaySchedule's whole-day checkIn/checkOut
+  // instead of the hourly-slot math above.
+  if (isStayVertical(lead, room)) {
+    const { nights } = resolveStaySchedule(meta, null, null);
+    let nightlyRate = parseMoney(meta.rate ?? meta.price ?? meta.amount ?? meta.pricePerNight);
+    if (!Number.isFinite(nightlyRate) || nightlyRate <= 0) {
+      nightlyRate = Number(room?.pricePerNight) > 0 ? Number(room.pricePerNight) : 0;
+    }
+    // Dorms are priced per bed, per night (matches the website's own
+    // estimate — TplLead.jsx's estimateTotal: unit x nights x beds) — a
+    // private Room/Co-Living space is priced per night regardless of
+    // occupancy.
+    const beds =
+      room?.type === "Dorm"
+        ? Math.max(1, Math.trunc(Number(parseMoney(meta.attendees ?? meta.noOfPeople ?? lead.noOfPeople ?? 1))) || 1)
+        : 1;
+    const stayBase = round2(nightlyRate * (nights || 0) * beds);
+    return {
+      currency: resolveLeadCurrency(meta),
+      ...applyFees(stayBase),
+      rate: nightlyRate,
+      nights: nights || 0,
+      beds,
+      resourceId: room?._id ? String(room._id) : "",
+      roomName: room?.name
+        ? String(room.name)
+        : sanitizeValue(meta.roomType || meta.dormType || meta.room || meta.roomName || meta.packageName),
+      location:
+        sanitizeValue(room?.location) ||
+        [sanitizeValue(room?.floor), sanitizeValue(room?.wing)].filter(Boolean).join(", "),
+    };
+  }
+
   if (room) {
     if (!Number.isFinite(rate) && room?.pricePerHour > 0) rate = Number(room.pricePerHour);
     if (!Number.isFinite(hours)) {
@@ -1510,25 +1900,8 @@ export const previewLeadPayment = async (req, res, next) => {
     // Read-only availability check — same conflict query finalize-booking
     // runs, just surfaced BEFORE payment instead of after, so the host isn't
     // charging a client for a slot that's already taken.
-    let availability = { checked: false, available: true, conflictBookingCode: "" };
     const meta = readLeadMeta(lead);
-    const room = await resolveRoomForLead(lead);
-    if (room) {
-      const { startDate, endDate } = resolveLeadSchedule(meta, null, null);
-      if (startDate && endDate && endDate > startDate) {
-        const conflict = await MeetingRoomBooking.findOne({
-          roomId: room._id,
-          status: { $nin: ["cancelled"] },
-          start: { $lt: endDate },
-          end: { $gt: startDate },
-        }).select("bookingCode").lean().exec();
-        availability = {
-          checked: true,
-          available: !conflict,
-          conflictBookingCode: conflict?.bookingCode || "",
-        };
-      }
-    }
+    const availability = await checkLeadAvailability(lead, meta);
 
     return res.status(200).json({ ...payment, availability });
   } catch (error) {
@@ -1569,13 +1942,20 @@ export const notifySlotUnavailable = async (req, res, next) => {
     localLead.paymentStatusUpdatedAt = new Date();
     await localLead.save();
 
+    // Suggested-slot recommendation only applies to hourly meeting-room
+    // leads — co-living/hostel conflicts are resolved by picking a
+    // different date range, which isn't a short list of time slots, so the
+    // email just omits that section for those (sendLeadSlotUnavailableEmail
+    // already renders nothing when suggestedSlots is empty).
     let suggestedSlots = [];
     try {
       const meta = readLeadMeta(localLead);
       const room = await resolveRoomForLead(localLead);
-      const { startDate, endDate } = resolveLeadSchedule(meta, null, null);
-      if (room && startDate && endDate && endDate > startDate) {
-        suggestedSlots = await findAvailableSlotsForDay(room._id, hostWorkspaceId, startDate, endDate - startDate);
+      if (!isStayVertical(localLead, room)) {
+        const { startDate, endDate } = resolveLeadSchedule(meta, null, null);
+        if (room && startDate && endDate && endDate > startDate) {
+          suggestedSlots = await findAvailableSlotsForDay(room._id, hostWorkspaceId, startDate, endDate - startDate);
+        }
       }
     } catch (error) {
       console.error("Could not compute suggested slots for slot-unavailable email:", error?.message || error);
@@ -1591,6 +1971,143 @@ export const notifySlotUnavailable = async (req, res, next) => {
       },
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/leads/send-invoice-to-wono — host requests payout for a
+// finalized, paid website booking. Creates a HostInvoiceRequest for the
+// host's NET amount (paymentBaseAmount — excludes the WoNo platform fee and
+// Stripe fee the client's payment already covered, since WONO already took
+// that cut). Idempotent: HostInvoiceRequest.leadId is unique, so a repeat
+// click just returns the existing request instead of creating a duplicate.
+// Backend-only for now — no Master Panel UI reads this collection yet.
+export const sendInvoiceToWono = async (req, res, next) => {
+  try {
+    const leadId = sanitizeValue(req.body?.leadId);
+    if (!leadId) {
+      return res.status(400).json({ message: "leadId is required" });
+    }
+    const hostWorkspaceId = sanitizeValue(
+      req.body?.workspaceId || req.workspaceMembership?.workspace,
+    );
+    if (!hostWorkspaceId) {
+      return res.status(400).json({ message: "A HostPanel workspace is required" });
+    }
+    const lead = await resolveLocalLeadForWorkspace(leadId, hostWorkspaceId);
+    if (!lead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
+    const ownsLead =
+      sanitizeValue(lead.escalatedWorkspaceId) === hostWorkspaceId ||
+      sanitizeValue(lead.workspaceId) === hostWorkspaceId;
+    if (!ownsLead) {
+      return res
+        .status(403)
+        .json({ message: "Lead does not belong to this HostPanel workspace" });
+    }
+    if ((lead.paymentStatus || "Pending") !== "Paid") {
+      return res.status(400).json({ message: "This lead has not been paid yet" });
+    }
+    if (!sanitizeValue(lead.bookingCode)) {
+      return res.status(400).json({
+        message: "This booking hasn't been finalized yet — confirm the booking first.",
+      });
+    }
+
+    const existing = await HostInvoiceRequest.findOne({ leadId: lead._id }).lean().exec();
+    if (existing) {
+      return res.status(200).json({
+        message: "Invoice was already sent to WONO for this booking.",
+        invoice: existing,
+      });
+    }
+
+    const meta = readLeadMeta(lead);
+    const room = await resolveRoomForLead(lead);
+    const isStay = isStayVertical(lead, room);
+    const bookingType = !isStay ? "MeetingRoom" : room?.type === "Dorm" ? "Hostel" : "CoLiving";
+    const { startDate: bookingStart, endDate: bookingEnd } = isStay
+      ? (() => {
+          const stay = resolveStaySchedule(meta, null, null);
+          return { startDate: stay.checkIn, endDate: stay.checkOut };
+        })()
+      : resolveLeadSchedule(meta, null, null);
+
+    const payment = {
+      subtotal: Number(lead.paymentSubtotalAmount) || 0,
+      discountAmount: Number(lead.discountAmount) || 0,
+      grossTotal: Number(lead.paymentTotalAmount) || 0,
+      platformFeeAmount: Number(lead.paymentPlatformFeeAmount) || 0,
+      platformFeePercent: Number(lead.paymentPlatformFeePercent) || PLATFORM_FEE_PERCENT,
+      amount: Number(lead.paymentBaseAmount) || 0,
+      currency: lead.paymentCurrency || LEAD_PAYMENT_CURRENCY,
+    };
+
+    // Best-effort — the invoice still gets created (and the lead flagged)
+    // even if PDF generation/upload fails; the host can retry by asking
+    // staff, the HostInvoiceRequest row (and its payout) isn't blocked on it.
+    let invoicePdfUrl = "";
+    try {
+      const workspaceDoc = await Workspace.findById(lead.workspaceId)
+        .select("businessName brandName address city state country branding")
+        .lean()
+        .exec();
+      const pdfBuffer = await buildHostInvoicePdfBuffer({
+        host: {
+          businessName: workspaceDoc?.businessName,
+          brandName: workspaceDoc?.brandName,
+          address: workspaceDoc?.address,
+          city: workspaceDoc?.city,
+          state: workspaceDoc?.state,
+          country: workspaceDoc?.country,
+          logoUrl: workspaceDoc?.branding?.logoUrl,
+        },
+        booking: {
+          bookingCode: lead.bookingCode,
+          bookingType,
+          resourceName: room?.name || sanitizeValue(meta.roomType || meta.dormType || meta.roomName),
+          startDate: bookingStart,
+          endDate: bookingEnd,
+          guestName: lead.fullName,
+          companyName: lead.companyName,
+        },
+        payment,
+        invoiceNumber: `INV-${lead.bookingCode}`,
+      });
+      const route = `host-invoices/${lead.workspaceId}/${lead.bookingCode}-${Date.now()}.pdf`;
+      const uploaded = await uploadFileToS3(route, { buffer: pdfBuffer, mimetype: "application/pdf" });
+      invoicePdfUrl = uploaded.url;
+    } catch (error) {
+      console.error("Could not generate/upload host invoice PDF:", error?.message || error);
+    }
+
+    const invoice = await HostInvoiceRequest.create({
+      workspaceId: lead.workspaceId,
+      companyId: sanitizeValue(lead.companyId),
+      companyName: sanitizeValue(lead.companyName),
+      leadId: lead._id,
+      bookingId: lead.bookingId || null,
+      bookingCode: lead.bookingCode,
+      bookingType,
+      amount: payment.amount,
+      currency: payment.currency,
+      invoicePdfUrl,
+      requestedBy: sanitizeValue(req.user) ? req.user : null,
+    });
+
+    lead.invoiceSentToWono = true;
+    lead.invoiceSentAt = new Date();
+    await lead.save();
+
+    return res.status(201).json({
+      message: `Invoice sent to WONO for ${invoice.currency} ${invoice.amount.toFixed(2)}.`,
+      invoice: invoice.toObject(),
+    });
+  } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(200).json({ message: "Invoice was already sent to WONO for this booking." });
+    }
     next(error);
   }
 };
@@ -1649,28 +2166,40 @@ export const updateLeads = async (req, res, next) => {
       if (typeof comment === "string") localLead.comment = comment;
 
       if (normalizedHostStatus === "Accepted") {
-        // Block accept on a slot that's already taken — same conflict query
-        // previewLeadPayment/finalizeLeadBooking use. Tells the client by
-        // email instead of charging them for a room they can't get.
+        // Co-working (and anything else with no bookable Meeting Room /
+        // Room / Dorm resource matched) isn't a payable, schedulable
+        // booking — it's a plain enquiry the host follows up on manually
+        // (tour, sign a tenancy, etc). Accept just marks it Accepted, no
+        // Stripe link, no conflict check, no fees.
+        const acceptRoomForTyping = isNonBookingInquiry(localLead) ? null : await resolveRoomForLead(localLead);
+        if (!acceptRoomForTyping) {
+          localLead.hostPanelStatus = "Accepted";
+          localLead.paymentStatus = "Not Required";
+          localLead.paymentStatusUpdatedAt = new Date();
+          await localLead.save();
+          return res.status(200).json({
+            message: "Lead accepted — follow up with the client directly.",
+            lead: {
+              _id: String(localLead._id),
+              ...localLead.toObject(),
+              ...leadPaymentSummary(localLead),
+              ...readLeadMeta(localLead),
+            },
+          });
+        }
+
+        // Block accept on a slot that's already taken — same conflict check
+        // previewLeadPayment/finalizeLeadBooking use (meeting room OR
+        // co-living/hostel, whichever this lead's vertical is). Tells the
+        // client by email instead of charging them for a room they can't get.
         const acceptMeta = readLeadMeta(localLead);
-        const acceptRoom = await resolveRoomForLead(localLead);
-        if (acceptRoom) {
-          const { startDate, endDate } = resolveLeadSchedule(acceptMeta, null, null);
-          if (startDate && endDate && endDate > startDate) {
-            const conflict = await MeetingRoomBooking.findOne({
-              roomId: acceptRoom._id,
-              status: { $nin: ["cancelled"] },
-              start: { $lt: endDate },
-              end: { $gt: startDate },
-            }).select("bookingCode").lean().exec();
-            if (conflict) {
-              sendLeadSlotUnavailableEmail(localLead);
-              return res.status(409).json({
-                message: "That slot is already booked. The client has been emailed to pick another slot.",
-                conflictBookingCode: conflict.bookingCode,
-              });
-            }
-          }
+        const acceptAvailability = await checkLeadAvailability(localLead, acceptMeta);
+        if (acceptAvailability.checked && !acceptAvailability.available) {
+          sendLeadSlotUnavailableEmail(localLead);
+          return res.status(409).json({
+            message: "That slot is already booked. The client has been emailed to pick another slot.",
+            conflictBookingCode: acceptAvailability.conflictBookingCode,
+          });
         }
         // computeLeadPayment resolves currency/resourceId/roomName metadata and
         // a best-effort auto base — the frontend shows that as a prefilled,
@@ -1698,7 +2227,32 @@ export const updateLeads = async (req, res, next) => {
           });
         }
         const meta = readLeadMeta(localLead);
+        const paymentRoom = await resolveRoomForLead(localLead);
+        const paymentServiceType = paymentRoom?.type === "Dorm"
+          ? "hostel"
+          : paymentRoom?.type === "Room"
+            ? "co-living"
+            : "meeting-room";
+        let stayHold = null;
+        if (isStayVertical(localLead, paymentRoom)) {
+          const stay = resolveStaySchedule(meta, null, null);
+          if (!stay.checkIn || !stay.checkOut) {
+            return res.status(400).json({ message: "Check-in and check-out are required before accepting a short stay." });
+          }
+          const requestedBeds = paymentRoom?.type === "Dorm"
+            ? Math.max(1, Math.trunc(Number(parseMoney(meta.attendees ?? localLead.noOfPeople ?? 1))) || 1)
+            : 1;
+          stayHold = await createRoomStayPaymentHold({
+            leadId: localLead._id,
+            room: paymentRoom,
+            checkIn: stay.checkIn,
+            checkOut: stay.checkOut,
+            requestedBeds,
+            expiresAt: new Date(Date.now() + 35 * 60 * 1000),
+          });
+        }
         let paymentLinkUrl = "";
+        const paymentSlots = resolveSlotRange(meta);
         try {
           const paymentLinkResponse = await axios.post(
             `${MASTER_PANEL_BASE_URL}/api/hostpanel/booking-payment-links`,
@@ -1709,21 +2263,35 @@ export const updateLeads = async (req, res, next) => {
               companyName: localLead.companyName,
               productType:
                 payment.roomName || localLead.productType || meta.roomType || "Booking",
+              serviceType: paymentServiceType,
               startDate: meta.startDate || meta.checkIn || meta.bookingDate || null,
               endDate: meta.endDate || meta.checkOut || null,
+              startTime: sanitizeValue(meta.startTime) || paymentSlots.start,
+              endTime: sanitizeValue(meta.endTime) || paymentSlots.end,
               noOfPeople: localLead.noOfPeople || meta.attendees || meta.guestCount || null,
               location:
                 payment.location || sanitizeValue(meta.location || meta.address || meta.venue),
               amount: payment.total,
               currency: payment.currency,
+              unitRate: payment.rate,
+              duration: paymentServiceType === "meeting-room" ? payment.hours : payment.nights,
+              durationUnit: paymentServiceType === "meeting-room" ? "hours" : "nights",
+              subtotalAmount: payment.subtotal,
+              discountAmount: payment.discountAmount,
+              baseAmount: payment.base,
+              platformFeePercent: payment.platformFeePercent,
+              platformFeeAmount: payment.platformFeeAmount,
+              taxAmount: 0,
               description: `${payment.roomName || localLead.productType || "Booking"} payment`,
               paymentType: "booking",
+              expiresAt: stayHold?.expiresAt || null,
               sendEmail: false,
             },
             { headers: masterPanelHeaders(), timeout: 10000 },
           );
           paymentLinkUrl = sanitizeValue(paymentLinkResponse?.data?.paymentLinkUrl);
         } catch (error) {
+          if (stayHold?.holdId) await releaseRoomStayPaymentHold(stayHold.holdId);
           return res.status(error?.response?.status || 502).json({
             message:
               error?.response?.data?.message ||
@@ -1731,6 +2299,7 @@ export const updateLeads = async (req, res, next) => {
           });
         }
         if (!paymentLinkUrl) {
+          if (stayHold?.holdId) await releaseRoomStayPaymentHold(stayHold.holdId);
           return res.status(502).json({
             message: "Master Panel did not return a Stripe payment link. The lead was not accepted.",
           });
@@ -1750,6 +2319,8 @@ export const updateLeads = async (req, res, next) => {
         localLead.paymentStripeFeePercent = payment.stripeFeePercent;
         localLead.paymentStripeFeeAmount = payment.stripeFeeAmount;
         localLead.paymentTotalAmount = payment.total;
+        localLead.stayHoldId = stayHold?.holdId || "";
+        localLead.stayHoldExpiresAt = stayHold?.expiresAt || null;
         await localLead.save();
         // Best-effort client notification ("Your Booking Is Accepted" with the
         // payment total); mail failures are logged, never fatal to the accept.
@@ -1766,6 +2337,9 @@ export const updateLeads = async (req, res, next) => {
         });
       }
 
+      if (localLead.stayHoldId) await releaseRoomStayPaymentHold(localLead.stayHoldId);
+      localLead.stayHoldId = "";
+      localLead.stayHoldExpiresAt = null;
       localLead.hostPanelStatus = "Rejected";
       localLead.paymentStatus = "Rejected";
       localLead.paymentStatusUpdatedAt = new Date();
