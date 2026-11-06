@@ -29,7 +29,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="organization-add-user"]', title: "Add a platform user", description: "Open the member form, choose an available Professional role and department access, then send the invitation. The button is disabled when the five-user plan limit is reached." },
       { selector: '[data-tour="organization-members-table"]', title: "Member records and access", description: "Review identity, role, departments, status, and access. Authorized users can toggle account access and open View Details for the complete member record.", side: "top" },
     ],
-    matches: exact("/core-modules/organization-management"),
+    matches: exact("/core-modules/organization-management/list"),
   },
   {
     id: "professional-access-grants",

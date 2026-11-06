@@ -266,7 +266,10 @@ export function OrganizationPage() {
   const [currentUser, setCurrentUser] = useState(() => auth?.user || getStoredUser());
   const [isLoading, setIsLoading] = useState(true);
   // --- STATE ---
-  const [activeTab, setActiveTab] = useState('users');
+  const [activeTab, setActiveTab] = useState(() => {
+    const requestedTab = new URLSearchParams(location.search).get('tab');
+    return requestedTab === 'departments' ? 'departments' : 'users';
+  });
   const [view, setView] = useState('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -822,11 +825,26 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
   };
 
   useEffect(() => {
+    if (isLoading) return;
     if (!canAccessDepartmentsTab && activeTab === 'departments') {
       setActiveTab('users');
       setView('list');
     }
-  }, [activeTab, canAccessDepartmentsTab]);
+  }, [activeTab, canAccessDepartmentsTab, isLoading]);
+
+  useEffect(() => {
+    if (isLoading) return;
+    const requestedTab = new URLSearchParams(location.search).get('tab');
+    if (requestedTab === 'departments' && canAccessDepartmentsTab) {
+      setActiveTab('departments');
+      setView('list');
+      return;
+    }
+    if (requestedTab === 'users') {
+      setActiveTab('users');
+      setView('list');
+    }
+  }, [canAccessDepartmentsTab, isLoading, location.search]);
 
   const filteredTeamMembers = useMemo(() => {
     const normalizedSearch = searchQuery.toLowerCase().trim();

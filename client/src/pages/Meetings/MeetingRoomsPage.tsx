@@ -3381,7 +3381,7 @@ export function MeetingRoomsPage() {
 
   const goToOrganizationManagement = () => {
     setShowInternalBookingDialog(false);
-    navigate('/core-modules/organization-management', {
+    navigate('/core-modules/organization-management/list?tab=users', {
       state: { from: '/meeting-rooms', intent: 'add-employee-for-internal-booking' },
     });
   };

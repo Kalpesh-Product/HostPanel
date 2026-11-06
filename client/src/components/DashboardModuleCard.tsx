@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 type DashboardModuleCardProps = {
@@ -42,9 +42,9 @@ export default function DashboardModuleCard({
         className="absolute inset-x-0 top-0 h-1 opacity-80"
         style={{ backgroundColor: color }}
       />
-      <ArrowUpRight
+      <ArrowRight
         size={14}
-        className="absolute right-3 top-3 text-slate-300 opacity-0 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-blue-600 group-hover:opacity-100"
+        className="absolute bottom-3 right-3 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-blue-600"
       />
       <span
         className={`mb-3 flex shrink-0 items-center justify-center rounded-xl ${

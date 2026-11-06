@@ -124,6 +124,7 @@ import CreateWorkspacePage from "../pages/WorkspaceSetup/CreateWorkspacePage";
 import SetupModulesPage from "../pages/WorkspaceSetup/SetupModulesPage";
 import FinalizeSetupPage from "../pages/WorkspaceSetup/FinalizeSetupPage";
 import OrganizationPage from "../pages/Organization/OrganizationPage";
+import OrganizationWorkspaceDashboard from "../pages/Organization/OrganizationWorkspaceDashboard";
 import UnitSettingsPage from "../pages/UnitSettings/UnitSettingsPage";
 import UnitManagementPage from "../pages/UnitSettings/UnitManagementPage";
 import CustomerSupportPage from "../pages/CustomerSupport/CustomerSupportPage";
@@ -188,6 +189,7 @@ import BudgetPage from "../components/Pages/BudgetPage";
 import SopUpload from "../components/Pages/SopUpload";
 import PolicyUpload from "../components/Pages/PolicyUpload";
 import AccessGrant from "../pages/Profile/AccessGrant";
+import AccessGrantsDashboard from "../pages/Profile/AccessGrantsDashboard";
 import ProfileLayout from "../pages/Profile/ProfileLayout";
 import UserDetails from "../pages/Profile/UserDetails";
 import CompanyProfile from "../pages/Profile/CompanyProfile";
@@ -805,10 +807,18 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "core-modules/organization-management",
+                element: <OrganizationWorkspaceDashboard />,
+              },
+              {
+                path: "core-modules/organization-management/list",
                 element: <OrganizationPage />,
               },
               {
                 path: "core-modules/access-grants",
+                element: <AccessGrantsDashboard />,
+              },
+              {
+                path: "core-modules/access-grants/list",
                 element: <AccessGrant />,
               },
               {

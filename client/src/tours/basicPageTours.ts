@@ -422,7 +422,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="organization-add-user"]', title: "Invite the Super Admin", description: "Select Add User to enter the additional user’s name and email. Their role is fixed to Super Admin on Basic. After that one invitation or member exists, this button is disabled because the plan limit has been reached." },
       { selector: '[data-tour="organization-members-table"]', title: "Manage member access", description: "Each row shows identity, role, status, access, and the View Details action. The access switch enables or disables the Super Admin’s workspace login; protected Founder and self-access controls remain locked.", side: "top" },
     ],
-    matches: exact("/core-modules/organization-management"),
+    matches: exact("/core-modules/organization-management/list"),
   },
   {
     id: "basic-access-grants",

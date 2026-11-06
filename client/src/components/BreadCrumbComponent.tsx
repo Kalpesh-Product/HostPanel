@@ -720,6 +720,14 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/core-modules/organization-management/list",
+    crumbs: [
+      { label: SECTION_LABELS.founderCore, path: "/core-modules" },
+      { label: "Organization Management", path: "/core-modules/organization-management" },
+      { label: "Workspace" },
+    ],
+  },
+  {
     pattern: "/core-modules/organization-management",
     crumbs: [
       { label: SECTION_LABELS.founderCore, path: "/core-modules" },
@@ -731,6 +739,14 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     crumbs: [
       { label: SECTION_LABELS.founderCore, path: "/core-modules" },
       { label: "Access Grants" },
+    ],
+  },
+  {
+    pattern: "/core-modules/access-grants/list",
+    crumbs: [
+      { label: SECTION_LABELS.founderCore, path: "/core-modules" },
+      { label: "Access Grants", path: "/core-modules/access-grants" },
+      { label: "Members" },
     ],
   },
   {

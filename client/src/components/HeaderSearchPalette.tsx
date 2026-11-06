@@ -430,7 +430,7 @@ const HeaderSearchPalette = ({ compact = false }: { compact?: boolean }) => {
               results.push({
                 title: member.fullName || member.name || member.email || "User",
                 description: [member.role, member.email].filter(Boolean).join(" · "),
-                route: `/core-modules/organization-management?globalSearch=${encodeURIComponent(debouncedSearch)}&recordId=${encodeURIComponent(id)}`,
+                route: `/core-modules/organization-management/list?tab=users&globalSearch=${encodeURIComponent(debouncedSearch)}&recordId=${encodeURIComponent(id)}`,
                 moduleId: "organization-management",
                 section: "Users",
                 searchText: "",
