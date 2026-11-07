@@ -10,6 +10,7 @@ import {
   getLeadPlanLimit,
   requestMoreLeads,
   sendInvoiceToWono,
+  previewPayoutInvoice,
   getHostInvoices,
 } from "../controllers/leadsControllers.js";
 const router = Router();
@@ -23,6 +24,7 @@ router.post("/notify-slot-unavailable", notifySlotUnavailable);
 router.get("/plan-limit", getLeadPlanLimit);
 router.post("/request-more-leads", requestMoreLeads);
 router.post("/send-invoice-to-wono", sendInvoiceToWono);
+router.post("/preview-payout-invoice", previewPayoutInvoice);
 router.get("/invoices", getHostInvoices);
 
 export default router;

@@ -1665,9 +1665,9 @@ export const sendExternalLifecycleEmail = async (
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
     <tr><td align="center">
       <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);font-family:${EMAIL_FONT};">
-        <tr><td style="background:#d97706;padding:32px 40px;">
+        <tr><td style="background:#2563eb;padding:32px 40px;">
           <p style="margin:0;font-size:22px;font-weight:600;color:#ffffff;font-family:${EMAIL_FONT};">Booking Rescheduled</p>
-          <p style="margin:8px 0 0;font-size:13px;font-weight:500;color:#fde68a;font-family:${EMAIL_FONT};">Your meeting room slot has changed</p>
+          <p style="margin:8px 0 0;font-size:13px;font-weight:500;color:#bfdbfe;font-family:${EMAIL_FONT};">Your meeting room slot has changed</p>
         </td></tr>
         <tr><td style="padding:32px 40px;">
           <p style="margin:0 0 24px;font-size:15px;font-weight:500;color:#334155;font-family:${EMAIL_FONT};">Hi <strong>${clientName}</strong>, your booking (ID <strong>${bookingCode}</strong>) has been rescheduled. Here are the updated details:</p>

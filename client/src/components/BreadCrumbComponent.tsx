@@ -337,6 +337,14 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/key-apps/all-leads/request-payout",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "All Leads", path: "/key-apps/all-leads" },
+      { label: "Request Payout" },
+    ],
+  },
+  {
     pattern: "/key-apps/all-leads",
     crumbs: [
       { label: SECTION_LABELS.keyApps, path: "/key-apps" },

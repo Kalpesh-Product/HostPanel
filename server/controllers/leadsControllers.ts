@@ -360,40 +360,30 @@ const findAvailableSlotsForDay = async (roomId, workspaceId, dayDate, durationMs
 // meeting-room booking (MRB booking code). Gated behind paymentStatus "Paid":
 // the Stripe Connect payment step flips that status when the guest pays, and
 // this endpoint turns the lead into a MeetingRoomBooking record.
-export const finalizeLeadBooking = async (req, res) => {
-  try {
-    const { leadId, roomId, start: bodyStart, end: bodyEnd, attendees: bodyAttendees } =
-      req.body || {};
-    if (!sanitizeValue(leadId)) {
-      return res.status(400).json({ message: "leadId is required" });
-    }
+// Thrown by runFinalizeLeadBooking instead of writing to res directly, so
+// the same logic works from both an HTTP request (finalizeLeadBooking) and
+// the payment webhook (no req/res at all).
+class FinalizeBookingError extends Error {
+  statusCode: number;
+  constructor(statusCode, message) {
+    super(message);
+    this.statusCode = statusCode;
+  }
+}
 
-    const hostWorkspaceId = sanitizeValue(
-      req.body?.workspaceId || req.workspaceMembership?.workspace,
-    );
-    const lead = await WebsiteLead.findById(sanitizeValue(leadId)).exec();
-    if (!lead) {
-      return res.status(404).json({ message: "Lead not found" });
-    }
-    if (
-      hostWorkspaceId &&
-      sanitizeValue(lead.escalatedWorkspaceId) !== hostWorkspaceId &&
-      sanitizeValue(lead.workspaceId) !== hostWorkspaceId
-    ) {
-      return res
-        .status(403)
-        .json({ message: "Lead does not belong to this HostPanel workspace" });
-    }
-
+// Shared by finalizeLeadBooking (manual "Create Booking" click) and
+// handlePaymentWebhook (automatic, the instant Stripe confirms payment) —
+// converting a paid, accepted lead into a real MeetingRoomBooking /
+// RoomStayBooking is the SAME operation regardless of what triggered it.
+// `actingUserId` is the HostUser to attribute the booking to — the real
+// logged-in host for a manual click, the workspace owner for an automatic
+// webhook finalize (nothing is "logged in" at that moment).
+const runFinalizeLeadBooking = async (lead, { roomId, bodyStart, bodyEnd, bodyAttendees, actingUserId } = {}) => {
     if ((lead.hostPanelStatus || "Pending") !== "Accepted") {
-      return res.status(400).json({
-        message: "Only accepted leads can be finalized into a booking",
-      });
+      throw new FinalizeBookingError(400, "Only accepted leads can be finalized into a booking");
     }
     if ((lead.paymentStatus || "Pending") !== "Paid") {
-      return res.status(400).json({
-        message: "Payment has not been completed for this lead yet",
-      });
+      throw new FinalizeBookingError(400, "Payment has not been completed for this lead yet");
     }
 
     const meta = readLeadMeta(lead);
@@ -409,38 +399,38 @@ export const finalizeLeadBooking = async (req, res) => {
         ? await RoomStayBooking.findById(lead.bookingId).lean().exec()
         : await MeetingRoomBooking.findById(lead.bookingId).lean().exec();
       if (existing) {
-        return res.status(200).json({
-          message: "Booking already finalized",
-          booking: existing,
-          lead: { _id: String(lead._id), ...lead.toObject() },
-        });
+        return {
+          alreadyFinalized: true,
+          body: {
+            message: "Booking already finalized",
+            booking: existing,
+            lead: { _id: String(lead._id), ...lead.toObject() },
+          },
+        };
       }
     }
 
     if (!room) {
-      return res.status(400).json({
-        message: isStay
+      throw new FinalizeBookingError(
+        400,
+        isStay
           ? "No room/dorm resource matched this lead — add the resource first or pass roomId"
           : "No meeting room resource matched this lead — add the room resource first or pass roomId",
-      });
+      );
     }
 
     // MeetingRoomBooking/RoomStayBooking.workspaceId are ObjectId refs; the
     // lead stores it as a string, so make the mismatch a clean 400 instead
     // of a CastError.
     if (!/^[a-f\d]{24}$/i.test(String(lead.workspaceId || ""))) {
-      return res.status(400).json({
-        message: "Lead has no valid workspace reference to attach a booking to",
-      });
+      throw new FinalizeBookingError(400, "Lead has no valid workspace reference to attach a booking to");
     }
     const baseAmount = Number(lead.paymentBaseAmount) || 0;
 
     if (isStay) {
       const { checkIn, checkOut, nights } = resolveStaySchedule(meta, bodyStart, bodyEnd);
       if (!checkIn || !checkOut) {
-        return res.status(400).json({
-          message: "Could not resolve the check-in/check-out dates for this lead — pass start and end",
-        });
+        throw new FinalizeBookingError(400, "Could not resolve the check-in/check-out dates for this lead — pass start and end");
       }
       const attendeeCount = Math.max(
         1,
@@ -470,7 +460,7 @@ export const finalizeLeadBooking = async (req, res) => {
         }
         bedNumber = bedNumbers[0] ?? null;
         if (bedNumbers.length !== attendeeCount) {
-          return res.status(409).json({ message: `${room.name} does not have ${attendeeCount} beds available for that date range` });
+          throw new FinalizeBookingError(409, `${room.name} does not have ${attendeeCount} beds available for that date range`);
         }
       } else {
         const conflict = await RoomStayBooking.findOne({
@@ -484,9 +474,7 @@ export const finalizeLeadBooking = async (req, res) => {
           .lean()
           .exec();
         if (conflict) {
-          return res.status(409).json({
-            message: `${room.name} is already booked (${conflict.bookingCode || ""}) for that date range`,
-          });
+          throw new FinalizeBookingError(409, `${room.name} is already booked (${conflict.bookingCode || ""}) for that date range`);
         }
       }
 
@@ -513,7 +501,7 @@ export const finalizeLeadBooking = async (req, res) => {
         paymentMethod: "Online (Stripe)",
         amountPaid: baseAmount,
         status: "Booked",
-        createdBy: sanitizeValue(req.user) ? req.user : null,
+        createdBy: sanitizeValue(actingUserId) ? actingUserId : null,
       });
 
       lead.bookingId = booking._id;
@@ -522,18 +510,19 @@ export const finalizeLeadBooking = async (req, res) => {
       lead.stayHoldExpiresAt = null;
       await lead.save();
 
-      return res.status(201).json({
-        message: `${room.type === "Dorm" ? "Bed" : "Room"} booked — confirmation code ${booking.bookingCode}`,
-        booking: booking.toObject(),
-        lead: { _id: String(lead._id), ...lead.toObject() },
-      });
+      return {
+        alreadyFinalized: false,
+        body: {
+          message: `${room.type === "Dorm" ? "Bed" : "Room"} booked — confirmation code ${booking.bookingCode}`,
+          booking: booking.toObject(),
+          lead: { _id: String(lead._id), ...lead.toObject() },
+        },
+      };
     }
 
     const { startDate, endDate } = resolveLeadSchedule(meta, bodyStart, bodyEnd);
     if (!startDate || !endDate || endDate <= startDate) {
-      return res.status(400).json({
-        message: "Could not resolve the booking start/end for this lead — pass start and end",
-      });
+      throw new FinalizeBookingError(400, "Could not resolve the booking start/end for this lead — pass start and end");
     }
 
     const conflict = await MeetingRoomBooking.findOne({
@@ -546,9 +535,7 @@ export const finalizeLeadBooking = async (req, res) => {
       .lean()
       .exec();
     if (conflict) {
-      return res.status(409).json({
-        message: `${room.name} is already booked (${conflict.bookingCode || ""}) for that time slot`,
-      });
+      throw new FinalizeBookingError(409, `${room.name} is already booked (${conflict.bookingCode || ""}) for that time slot`);
     }
 
     const attendeeCount = Math.max(
@@ -565,7 +552,7 @@ export const finalizeLeadBooking = async (req, res) => {
     const booking = await createBookingWithUniqueCode({
       workspaceId: lead.workspaceId,
       roomId: room._id,
-      ownerId: req.user,
+      ownerId: actingUserId,
       roomName: room.name,
       bookedByName: lead.fullName || "Website lead",
       bookedByEmail: sanitizeValue(lead.email),
@@ -592,12 +579,52 @@ export const finalizeLeadBooking = async (req, res) => {
     lead.bookingCode = booking.bookingCode;
     await lead.save();
 
-    return res.status(201).json({
-      message: `Meeting room booked — confirmation code ${booking.bookingCode}`,
-      booking: booking.toObject(),
-      lead: { _id: String(lead._id), ...lead.toObject() },
-    });
+    return {
+      alreadyFinalized: false,
+      body: {
+        message: `Meeting room booked — confirmation code ${booking.bookingCode}`,
+        booking: booking.toObject(),
+        lead: { _id: String(lead._id), ...lead.toObject() },
+      },
+    };
+};
+
+// POST /api/leads/finalize-booking — lock an accepted, paid lead in as a real
+// meeting-room booking (MRB booking code), or a real co-living/hostel stay.
+// Gated behind paymentStatus "Paid". Now largely a safety net/manual retry —
+// handlePaymentWebhook runs the same logic automatically the instant
+// payment is confirmed, so this almost always finds alreadyFinalized=true.
+export const finalizeLeadBooking = async (req, res) => {
+  try {
+    const { leadId, roomId, start: bodyStart, end: bodyEnd, attendees: bodyAttendees } =
+      req.body || {};
+    if (!sanitizeValue(leadId)) {
+      return res.status(400).json({ message: "leadId is required" });
+    }
+
+    const hostWorkspaceId = sanitizeValue(
+      req.body?.workspaceId || req.workspaceMembership?.workspace,
+    );
+    const lead = await WebsiteLead.findById(sanitizeValue(leadId)).exec();
+    if (!lead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
+    if (
+      hostWorkspaceId &&
+      sanitizeValue(lead.escalatedWorkspaceId) !== hostWorkspaceId &&
+      sanitizeValue(lead.workspaceId) !== hostWorkspaceId
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Lead does not belong to this HostPanel workspace" });
+    }
+
+    const result = await runFinalizeLeadBooking(lead, { roomId, bodyStart, bodyEnd, bodyAttendees, actingUserId: req.user });
+    return res.status(result.alreadyFinalized ? 200 : 201).json(result.body);
   } catch (error) {
+    if (error instanceof FinalizeBookingError) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
     console.error("Finalize lead booking error:", error);
     return res.status(500).json({
       message: error?.message || "Failed to finalize the booking",
@@ -823,6 +850,74 @@ export const requestMoreLeads = async (req, res, next) => {
     }).catch((error) => console.error("Lead quota upgrade request email failed:", error?.message || error));
 
     return res.status(200).json({ message: "Request sent — our team will reach out shortly." });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/leads/payment-webhook — MasterPanel calls this the instant
+// Stripe confirms a booking payment (checkout.session.completed), instead
+// of HostPanel only finding out whenever someone next loads the Leads page
+// (getLeads' pull below). Protected by verifyMasterPanelServiceKey, the
+// reverse of masterPanelHeaders() used for the other direction.
+export const handlePaymentWebhook = async (req, res, next) => {
+  try {
+    const leadId = sanitizeValue(req.body?.leadId);
+    const status = sanitizeValue(req.body?.status).toLowerCase();
+    if (!leadId) {
+      return res.status(400).json({ message: "leadId is required" });
+    }
+    if (status !== "paid") {
+      // Nothing else currently needs pushing (e.g. a failed/expired link) —
+      // acknowledge so MasterPanel doesn't retry, just don't update anything.
+      return res.status(200).json({ message: "Ignored — not a paid event" });
+    }
+
+    const lead = await WebsiteLead.findById(leadId).exec();
+    if (!lead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
+
+    // Still set/refresh these even if already Paid (e.g. a Stripe webhook
+    // retry) — but critically, do NOT early-return on that: a retry must
+    // still reach the finalize call below, in case the first attempt set
+    // paymentStatus but then finalize itself failed (hold race, etc.) —
+    // this is the retry's only chance to actually create the booking.
+    if (lead.paymentStatus !== "Paid") {
+      lead.paymentStatus = "Paid";
+      lead.paymentStatusUpdatedAt = new Date();
+      const currency = sanitizeValue(req.body?.currency).toUpperCase();
+      if (currency) lead.paymentCurrency = currency;
+      const amount = Number(req.body?.amount);
+      if (Number.isFinite(amount) && amount > 0) lead.paymentTotalAmount = amount;
+      const transactionId = sanitizeValue(req.body?.transactionId);
+      if (transactionId) lead.paymentTransactionId = transactionId;
+      await lead.save();
+    }
+
+    // Convert the hold into a real, confirmed booking right now — a
+    // customer must never be left charged with nothing actually locked in,
+    // waiting on a host to notice and click "Create Booking" later (the
+    // 35-minute hold can expire and lose the slot to someone else first).
+    // Best-effort: if this fails (e.g. the slot was somehow taken in the
+    // meantime), the payment status update above still stands, and staff
+    // can retry finalize manually from CompanyLeads — but this should be
+    // rare since the hold exists specifically to prevent that.
+    let bookingResult = null;
+    try {
+      const workspaceDoc = await Workspace.findById(lead.workspaceId).select("owner").lean().exec();
+      const result = await runFinalizeLeadBooking(lead, {
+        actingUserId: workspaceDoc?.owner ? String(workspaceDoc.owner) : null,
+      });
+      bookingResult = result.body?.booking || null;
+    } catch (error) {
+      console.error(
+        "Auto-finalize on payment webhook failed — lead is Paid but no booking was created automatically; finalize manually from CompanyLeads:",
+        error?.message || error,
+      );
+    }
+
+    return res.status(200).json({ message: "Lead payment status updated", booking: bookingResult });
   } catch (error) {
     next(error);
   }
@@ -1975,54 +2070,26 @@ export const notifySlotUnavailable = async (req, res, next) => {
   }
 };
 
-// POST /api/leads/send-invoice-to-wono — host requests payout for a
-// finalized, paid website booking. Creates a HostInvoiceRequest for the
-// host's NET amount (paymentBaseAmount — excludes the WoNo platform fee and
-// Stripe fee the client's payment already covered, since WONO already took
-// that cut). Idempotent: HostInvoiceRequest.leadId is unique, so a repeat
-// click just returns the existing request instead of creating a duplicate.
-// Backend-only for now — no Master Panel UI reads this collection yet.
-export const sendInvoiceToWono = async (req, res, next) => {
-  try {
-    const leadId = sanitizeValue(req.body?.leadId);
-    if (!leadId) {
-      return res.status(400).json({ message: "leadId is required" });
-    }
-    const hostWorkspaceId = sanitizeValue(
-      req.body?.workspaceId || req.workspaceMembership?.workspace,
-    );
-    if (!hostWorkspaceId) {
-      return res.status(400).json({ message: "A HostPanel workspace is required" });
-    }
-    const lead = await resolveLocalLeadForWorkspace(leadId, hostWorkspaceId);
-    if (!lead) {
-      return res.status(404).json({ message: "Lead not found" });
-    }
-    const ownsLead =
-      sanitizeValue(lead.escalatedWorkspaceId) === hostWorkspaceId ||
-      sanitizeValue(lead.workspaceId) === hostWorkspaceId;
-    if (!ownsLead) {
-      return res
-        .status(403)
-        .json({ message: "Lead does not belong to this HostPanel workspace" });
-    }
-    if ((lead.paymentStatus || "Pending") !== "Paid") {
-      return res.status(400).json({ message: "This lead has not been paid yet" });
-    }
-    if (!sanitizeValue(lead.bookingCode)) {
-      return res.status(400).json({
-        message: "This booking hasn't been finalized yet — confirm the booking first.",
-      });
-    }
+// Shared by `sendInvoiceToWono` (the real payout request) and
+// `previewPayoutInvoice` (draft PDF below) — resolve the Paid + not-yet-
+// invoiced bookings matching the request's selection (nothing = all,
+// leadId = the per-row action, leadIds = the ticked boxes) and build the
+// same entry/payment shape the HostInvoiceRequest + PDF pipeline expects.
+// Eligibility is always decided here against the database; the client's
+// tick boxes only narrow the selection, they can never make an unpaid or
+// already-invoiced booking billable.
+const resolveUnbilledLeadBundle = async (hostWorkspaceId, { leadId = "", leadIds = [] } = {}) => {
+  const unbilledLeads = await WebsiteLead.find({
+    workspaceId: hostWorkspaceId,
+    ...(leadId ? { _id: leadId } : {}),
+    ...(Array.isArray(leadIds) && leadIds.length ? { _id: { $in: leadIds } } : {}),
+    paymentStatus: "Paid",
+    bookingCode: { $nin: ["", null] },
+    invoiceSentToWono: { $ne: true },
+  }).exec();
 
-    const existing = await HostInvoiceRequest.findOne({ leadId: lead._id }).lean().exec();
-    if (existing) {
-      return res.status(200).json({
-        message: "Invoice was already sent to WONO for this booking.",
-        invoice: existing,
-      });
-    }
-
+  const entries = [];
+  for (const lead of unbilledLeads) {
     const meta = readLeadMeta(lead);
     const room = await resolveRoomForLead(lead);
     const isStay = isStayVertical(lead, room);
@@ -2035,7 +2102,6 @@ export const sendInvoiceToWono = async (req, res, next) => {
       : resolveLeadSchedule(meta, null, null);
 
     const payment = {
-      subtotal: Number(lead.paymentSubtotalAmount) || 0,
       discountAmount: Number(lead.discountAmount) || 0,
       grossTotal: Number(lead.paymentTotalAmount) || 0,
       platformFeeAmount: Number(lead.paymentPlatformFeeAmount) || 0,
@@ -2043,16 +2109,85 @@ export const sendInvoiceToWono = async (req, res, next) => {
       amount: Number(lead.paymentBaseAmount) || 0,
       currency: lead.paymentCurrency || LEAD_PAYMENT_CURRENCY,
     };
+    const resourceName = room?.name || sanitizeValue(meta.roomType || meta.dormType || meta.roomName);
 
-    // Best-effort — the invoice still gets created (and the lead flagged)
-    // even if PDF generation/upload fails; the host can retry by asking
-    // staff, the HostInvoiceRequest row (and its payout) isn't blocked on it.
+    entries.push({
+      lead,
+      payment,
+      booking: {
+        bookingCode: lead.bookingCode,
+        bookingType,
+        resourceName,
+        startDate: bookingStart,
+        endDate: bookingEnd,
+        guestName: lead.fullName,
+      },
+    });
+  }
+
+  // Single-currency assumption — same simplification the stat cards
+  // already make elsewhere; a workspace realistically bills in one
+  // currency throughout.
+  const currency = entries[0]?.payment.currency;
+  const grandTotalAmount = round2(entries.reduce((sum, e) => sum + (e.payment.amount || 0), 0));
+  return { unbilledLeads, entries, grandTotalAmount, currency };
+};
+
+// Fetch the host's workspace identity block used at the top of the
+// invoice PDF (name/logo/address) — identical for send and preview.
+const fetchHostInvoiceHost = (hostWorkspaceId) =>
+  Workspace.findById(hostWorkspaceId)
+    .select("businessName brandName address city state country branding")
+    .lean()
+    .exec();
+
+// POST /api/leads/request-payout — host requests one consolidated payout
+// covering EVERY finalized, paid booking in this workspace not yet
+// invoiced (not one request per booking — a busy host can have 15+
+// bookings/day; 15 separate bank transfers would eat the margin in wire
+// fees alone, same reasoning Stripe Connect/Airbnb-style payouts use).
+// Creates ONE HostInvoiceRequest bundling all of them, with one PDF that
+// still itemizes every booking's own detail + payment summary, plus a
+// grand total. Marks every included lead invoiceSentToWono so it's never
+// pulled into a later payout request again.
+export const sendInvoiceToWono = async (req, res, next) => {
+  try {
+    const hostWorkspaceId = sanitizeValue(
+      req.body?.workspaceId || req.workspaceMembership?.workspace,
+    );
+    if (!hostWorkspaceId) {
+      return res.status(400).json({ message: "A HostPanel workspace is required" });
+    }
+    // Optional: scope to a single lead for the per-row "Send Invoice" action
+    // instead of every unbilled booking (the consolidated "Request Payout").
+    // Also optional: a `leadIds` selection for the checkbox-based payout
+    // modal. Eligibility is NOT taken from the client — the query below
+    // still only matches Paid + unbilled bookings, so a stale or tampered
+    // selection can never bill an already-invoiced or unpaid booking.
+    const leadId = sanitizeValue(req.body?.leadId);
+    const requestedLeadIds = Array.isArray(req.body?.leadIds)
+      ? req.body.leadIds.map((id) => sanitizeValue(id)).filter(Boolean)
+      : [];
+
+    const { unbilledLeads, entries, grandTotalAmount, currency } = await resolveUnbilledLeadBundle(
+      hostWorkspaceId,
+      { leadId, leadIds: requestedLeadIds },
+    );
+
+    if (!unbilledLeads.length) {
+      return res.status(400).json({
+        message: leadId
+          ? "This booking is already invoiced or not eligible for a payout."
+          : requestedLeadIds.length
+            ? "None of the selected bookings are eligible — only paid, not-yet-invoiced bookings can be bundled."
+            : "No unbilled, paid bookings to request a payout for.",
+      });
+    }
+
     let invoicePdfUrl = "";
+    const invoiceNumber = `INV-${hostWorkspaceId.slice(-6)}-${Date.now()}`;
     try {
-      const workspaceDoc = await Workspace.findById(lead.workspaceId)
-        .select("businessName brandName address city state country branding")
-        .lean()
-        .exec();
+      const workspaceDoc = await fetchHostInvoiceHost(hostWorkspaceId);
       const pdfBuffer = await buildHostInvoicePdfBuffer({
         host: {
           businessName: workspaceDoc?.businessName,
@@ -2063,51 +2198,106 @@ export const sendInvoiceToWono = async (req, res, next) => {
           country: workspaceDoc?.country,
           logoUrl: workspaceDoc?.branding?.logoUrl,
         },
-        booking: {
-          bookingCode: lead.bookingCode,
-          bookingType,
-          resourceName: room?.name || sanitizeValue(meta.roomType || meta.dormType || meta.roomName),
-          startDate: bookingStart,
-          endDate: bookingEnd,
-          guestName: lead.fullName,
-          companyName: lead.companyName,
-        },
-        payment,
-        invoiceNumber: `INV-${lead.bookingCode}`,
+        entries: entries.map(({ booking, payment }) => ({ booking, payment })),
+        grandTotal: { amount: grandTotalAmount, currency },
+        invoiceNumber,
       });
-      const route = `host-invoices/${lead.workspaceId}/${lead.bookingCode}-${Date.now()}.pdf`;
+      const route = `host-invoices/${hostWorkspaceId}/${invoiceNumber}.pdf`;
       const uploaded = await uploadFileToS3(route, { buffer: pdfBuffer, mimetype: "application/pdf" });
       invoicePdfUrl = uploaded.url;
     } catch (error) {
-      console.error("Could not generate/upload host invoice PDF:", error?.message || error);
+      console.error("Could not generate/upload consolidated host invoice PDF:", error?.message || error);
     }
 
     const invoice = await HostInvoiceRequest.create({
-      workspaceId: lead.workspaceId,
-      companyId: sanitizeValue(lead.companyId),
-      companyName: sanitizeValue(lead.companyName),
-      leadId: lead._id,
-      bookingId: lead.bookingId || null,
-      bookingCode: lead.bookingCode,
-      bookingType,
-      amount: payment.amount,
-      currency: payment.currency,
+      workspaceId: hostWorkspaceId,
+      companyId: sanitizeValue(entries[0].lead.companyId),
+      companyName: sanitizeValue(entries[0].lead.companyName),
+      bookings: entries.map(({ lead, booking, payment }) => ({
+        leadId: lead._id,
+        bookingId: lead.bookingId || null,
+        bookingCode: booking.bookingCode,
+        bookingType: booking.bookingType,
+        resourceName: booking.resourceName,
+        guestName: booking.guestName,
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+        amount: payment.amount,
+      })),
+      amount: grandTotalAmount,
+      currency,
       invoicePdfUrl,
       requestedBy: sanitizeValue(req.user) ? req.user : null,
     });
 
-    lead.invoiceSentToWono = true;
-    lead.invoiceSentAt = new Date();
-    await lead.save();
+    const now = new Date();
+    await WebsiteLead.updateMany(
+      { _id: { $in: entries.map((e) => e.lead._id) } },
+      { $set: { invoiceSentToWono: true, invoiceSentAt: now } },
+    ).exec();
 
     return res.status(201).json({
-      message: `Invoice sent to WONO for ${invoice.currency} ${invoice.amount.toFixed(2)}.`,
+      message: `Payout requested for ${entries.length} booking${entries.length === 1 ? "" : "s"} — ${invoice.currency} ${invoice.amount.toFixed(2)}.`,
       invoice: invoice.toObject(),
     });
   } catch (error) {
-    if (error?.code === 11000) {
-      return res.status(200).json({ message: "Invoice was already sent to WONO for this booking." });
+    next(error);
+  }
+};
+
+// POST /api/leads/preview-payout-invoice — render the EXACT same
+// consolidated payout PDF that "Send Invoice to WONO" would emit: same
+// eligibility query, same entry building, same `buildHostInvoicePdfBuffer`
+// generator. Read-only by design — nothing is uploaded to S3, no
+// HostInvoiceRequest is created, and no lead is marked invoiceSentToWono.
+// The only difference is the number: a draft must never be mistaken for
+// an issued invoice, so it's prefixed PREVIEW- instead of INV-.
+export const previewPayoutInvoice = async (req, res, next) => {
+  try {
+    const hostWorkspaceId = sanitizeValue(
+      req.body?.workspaceId || req.workspaceMembership?.workspace,
+    );
+    if (!hostWorkspaceId) {
+      return res.status(400).json({ message: "A HostPanel workspace is required" });
     }
+    const leadId = sanitizeValue(req.body?.leadId);
+    const requestedLeadIds = Array.isArray(req.body?.leadIds)
+      ? req.body.leadIds.map((id) => sanitizeValue(id)).filter(Boolean)
+      : [];
+
+    const { unbilledLeads, entries, grandTotalAmount, currency } = await resolveUnbilledLeadBundle(
+      hostWorkspaceId,
+      { leadId, leadIds: requestedLeadIds },
+    );
+
+    if (!unbilledLeads.length) {
+      return res.status(400).json({
+        message: leadId
+          ? "This booking is already invoiced or not eligible for a payout."
+          : "Only paid, not-yet-invoiced bookings can be previewed.",
+      });
+    }
+
+    const workspaceDoc = await fetchHostInvoiceHost(hostWorkspaceId);
+    const pdfBuffer = await buildHostInvoicePdfBuffer({
+      host: {
+        businessName: workspaceDoc?.businessName,
+        brandName: workspaceDoc?.brandName,
+        address: workspaceDoc?.address,
+        city: workspaceDoc?.city,
+        state: workspaceDoc?.state,
+        country: workspaceDoc?.country,
+        logoUrl: workspaceDoc?.branding?.logoUrl,
+      },
+      entries: entries.map(({ booking, payment }) => ({ booking, payment })),
+      grandTotal: { amount: grandTotalAmount, currency },
+      invoiceNumber: `PREVIEW-INV-${hostWorkspaceId.slice(-6)}-${Date.now()}`,
+    });
+
+    res.set("Content-Type", "application/pdf");
+    res.set("Content-Disposition", `inline; filename="payout-invoice-preview.pdf"`);
+    return res.status(200).send(pdfBuffer);
+  } catch (error) {
     next(error);
   }
 };

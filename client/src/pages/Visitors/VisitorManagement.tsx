@@ -29,7 +29,6 @@ import {
 } from '../../services/meeting-room-bookings';
 import {
   getRoomBookings,
-  sendRoomStayConfirmationEmail,
   updateRoomBookingStatus,
 } from '../../services/roomStays';
 import { toast } from 'sonner';
@@ -3910,43 +3909,25 @@ export default function VisitorsManagementPage() {
       toast.success(needsPayment ? `Payment collected and entry confirmed for ${verifiedBooking.bookedBy}.` : `Entry confirmed for ${verifiedBooking.bookedBy}.`);
     }
     else if (visitorMode === 'website_booking' && websiteBookingLead) {
-      // Already paid at Accept time — nothing to collect here. Lock the real
-      // MeetingRoomBooking in (idempotent — finalize-booking returns the
-      // existing one if this lead was already finalized). This is a BOOKING,
-      // not a walk-in visitor check-in, so it ends in the same "Booking
-      // Confirmed" popup Walk-in Booking uses — not the visitor badge.
+      // The booking itself is created automatically the instant payment is
+      // confirmed (the payment webhook finalizes it — see HostPanel's
+      // handlePaymentWebhook), not here. This button no longer creates or
+      // finalizes anything — it's purely the "Booking Confirmed" badge/code
+      // display for the front desk, same popup Walk-in Booking uses.
+      if (!websiteBookingLead.bookingCode) {
+        toast.error('This booking has not been finalized yet — payment may still be processing. Try again shortly or finalize manually from the lead.');
+        return;
+      }
       setIsSubmittingVisitor(true);
       try {
-        let bookingCode = websiteBookingLead.bookingCode;
-        let confirmationEmailSent = Boolean(bookingCode);
-        if (!bookingCode) {
-          const finalizeResponse = await axiosPrivate.post('/api/leads/finalize-booking', {
-            leadId: websiteBookingLead.leadId,
-          });
-          const createdBooking = finalizeResponse?.data?.booking || null;
-          bookingCode = createdBooking?.bookingCode || '';
-          const createdBookingId = String(createdBooking?._id || createdBooking?.id || '').trim();
-          if (createdBookingId) {
-            try {
-              if (createdBooking?.roomType === 'Room' || createdBooking?.roomType === 'Dorm') {
-                await sendRoomStayConfirmationEmail(createdBookingId);
-              } else {
-                await sendExternalBookingConfirmationEmail(createdBookingId);
-              }
-              confirmationEmailSent = true;
-            } catch (emailError) {
-              console.warn('Website booking created, but its confirmation email could not be sent.', emailError);
-            }
-          }
-        }
         setBookingConfirmation({
-          bookingId: bookingCode || websiteBookingLead.leadId,
+          bookingId: websiteBookingLead.bookingCode,
           email: form.email.trim() || websiteBookingLead.email,
           paymentMode: websiteBookingLead.paymentMode || 'Online (Stripe)',
           totalAmount: websiteBookingLead.amount,
           roomName: websiteBookingLead.resourceName || 'Meeting Room',
           transactionId: websiteBookingLead.transactionId || '',
-          emailSent: confirmationEmailSent,
+          emailSent: true,
         });
         setShowBookingConfirmationPopup(true);
         toast.success(`Booking confirmed for ${form.name.trim() || websiteBookingLead.fullName}.`);

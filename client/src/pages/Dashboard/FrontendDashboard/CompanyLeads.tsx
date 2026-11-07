@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  CheckCircle2, Eye, Download, FileText, Globe, Search, Sparkles, Target, Users, X, Wallet,
+  ArrowLeft, CheckCircle2, Eye, Download, FileText, Globe, Search, Send, Sparkles, Target, Users, X, Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -75,7 +75,7 @@ function isSameCompanyWebsite(website, companyId, workspaceId, companyName) {
   return Boolean(companyName) && websiteCompanyName === String(companyName).trim().toLowerCase();
 }
 
-export default function CompanyLeads({ leadScope = "website" }) {
+export default function CompanyLeads({ leadScope = "website", payoutPage = false }) {
   const location = useLocation();
   const navigate = useNavigate();
   const selectedCompany = useSelector((state) => state.company.selectedCompany);
@@ -88,6 +88,32 @@ export default function CompanyLeads({ leadScope = "website" }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [stageFilter, setStageFilter] = useState("All");
   const [selectedLeadId, setSelectedLeadId] = useState(null);
+  // Consolidated-payout selection — "Request Payout" swaps the page into the
+  // payout view listing every paid, not-yet-invoiced booking; the host
+  // ticks the bookings to bundle into the payout request.
+  // Selection state for the Request Payout page — derived totals follow
+  // the ticked rows, so the button always shows exactly what will be sent.
+  // Deep-linked via /key-apps/all-leads/request-payout (`payoutPage`) for
+  // the All Leads scope; other scopes fall back to local view state.
+  const [payoutViewLocal, setPayoutViewLocal] = useState(false);
+  const showPayoutView = Boolean(payoutPage) || payoutViewLocal;
+  const closePayoutView = () => {
+    setPayoutSelectedIds([]);
+    if (payoutPage) navigate("/key-apps/all-leads");
+    else setPayoutViewLocal(false);
+  };
+  const openPayoutView = () => {
+    const selectedIds = unclaimedLeads.map((l) => String(l._id));
+    setPayoutSelectedIds(selectedIds);
+    if (isAllLeads) navigate("/key-apps/all-leads/request-payout", { state: { payoutLeadIds: selectedIds } });
+    else setPayoutViewLocal(true);
+  };
+  const [payoutSelectedIds, setPayoutSelectedIds] = useState(() =>
+    // Selection carried from the leads page through router state — the
+    // route change remounts this component, so the tick boxes would
+    // otherwise reset. Ticking/deticking still all happens on the page.
+    Array.isArray(location.state?.payoutLeadIds) ? location.state.payoutLeadIds.map(String) : [],
+  );
   const [isExportingReport, setIsExportingReport] = useState("");
   const [showExportModal, setShowExportModal] = useState(false);
   const [manualAmountPrompt, setManualAmountPrompt] = useState(null); // { leadId } | null
@@ -169,13 +195,38 @@ export default function CompanyLeads({ leadScope = "website" }) {
   // "Received from WONO" can sit at 0 for a long time — WONO pays by bank
   // transfer, nothing flips an invoice's status to "Paid" automatically.
   // Staff mark it Paid manually in Master Panel.
-  const invoicedToWonoTotal = hostInvoices
-    .filter((i) => i.status === "Requested")
-    .reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
   const receivedFromWonoTotal = hostInvoices
     .filter((i) => i.status === "Paid")
     .reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
   const hostInvoicesCurrency = hostInvoices[0]?.currency || "USD";
+  // Unclaimed Payout Balance — every paid, finalized booking not yet rolled
+  // into a payout request. "Request Payout" below bundles all of these into
+  // one consolidated invoice instead of one per booking.
+  const unclaimedLeads = leads.filter((l) => l.paymentStatus === "Paid" && l.bookingCode && !l.invoiceSentToWono);
+  const unclaimedPayoutTotal = unclaimedLeads.reduce((sum, l) => sum + (Number(l.paymentBaseAmount) || 0), 0);
+  const unclaimedPayoutCurrency = unclaimedLeads[0]?.paymentCurrency || hostInvoicesCurrency;
+
+  // Selection state for the Request Payout panel — derived totals follow
+  // the ticked rows, so the button always shows exactly what will be sent.
+  const payoutSelectedLeads = unclaimedLeads.filter((l) => payoutSelectedIds.includes(String(l._id)));
+  const payoutSelectedTotal = payoutSelectedLeads.reduce((sum, l) => sum + (Number(l.paymentBaseAmount) || 0), 0);
+  const payoutCurrency = payoutSelectedLeads[0]?.paymentCurrency || unclaimedPayoutCurrency;
+  const allPayoutSelected = unclaimedLeads.length > 0 && payoutSelectedIds.length === unclaimedLeads.length;
+  const togglePayoutLead = (leadId) => {
+    setPayoutSelectedIds((prev) => prev.includes(leadId) ? prev.filter((id) => id !== leadId) : [...prev, leadId]);
+  };
+  const toggleAllPayoutLeads = () => {
+    setPayoutSelectedIds(allPayoutSelected ? [] : unclaimedLeads.map((l) => String(l._id)));
+  };
+  // Deep-link without router state (bookmark / direct URL) — tick everything
+  // pending as the sensible default once leads are loaded. The derived
+  // totals above already intersect with eligibility, so a stale carried-over
+  // id can never inflate what actually gets sent.
+  useEffect(() => {
+    if (!showPayoutView || isPending || unclaimedLeads.length === 0) return;
+    setPayoutSelectedIds((prev) => (prev.length === 0 ? unclaimedLeads.map((l) => String(l._id)) : prev));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showPayoutView, isPending, unclaimedLeads.length]);
 
   const requestMoreLeadsMutation = useMutation({
     mutationFn: async () => {
@@ -337,14 +388,68 @@ export default function CompanyLeads({ leadScope = "website" }) {
     },
   });
 
-  const sendInvoiceToWonoMutation = useMutation({
+  const requestPayoutMutation = useMutation({
+    mutationFn: async (leadIds) => {
+      const res = await axiosPrivate.post("/api/leads/send-invoice-to-wono", {
+        workspaceId,
+        leadIds,
+      });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || "Payout requested");
+      queryClient.invalidateQueries({ queryKey: ["leadCompany"] });
+      queryClient.invalidateQueries({ queryKey: ["hostInvoices", workspaceId] });
+      closePayoutView();
+      setPayoutSelectedIds([]);
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to request payout");
+    },
+  });
+
+  // Preview counterpart to requestPayoutMutation — hits a read-only
+  // endpoint that runs the SAME PDF generator on the ticked selection and
+  // streams the draft back (nothing saved, nothing marked as sent), so the
+  // host opens it in a browser tab before committing the payout request.
+  const previewPayoutMutation = useMutation({
+    mutationFn: async (leadIds) => {
+      const res = await axiosPrivate.post(
+        "/api/leads/preview-payout-invoice",
+        { workspaceId, leadIds },
+        { responseType: "blob" },
+      );
+      return res.data;
+    },
+    onSuccess: (pdfBlob) => {
+      const url = URL.createObjectURL(new Blob([pdfBlob], { type: "application/pdf" }));
+      window.open(url, "_blank");
+      // Give the viewer time to load before the blob is reclaimed.
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    },
+    onError: async (err) => {
+      let message = "Failed to preview invoice";
+      const data = err?.response?.data;
+      if (data instanceof Blob) {
+        try {
+          message = JSON.parse(await data.text())?.message || message;
+        } catch { /* not JSON — keep the generic message */ }
+      }
+      toast.error(message);
+    },
+  });
+
+  // Per-row counterpart to requestPayoutMutation above — same endpoint,
+  // scoped to one lead instead of every unbilled booking in the workspace.
+  const sendIndividualInvoiceMutation = useMutation({
     mutationFn: async (leadId) => {
-      const res = await axiosPrivate.post("/api/leads/send-invoice-to-wono", { leadId, workspaceId });
+      const res = await axiosPrivate.post("/api/leads/send-invoice-to-wono", { workspaceId, leadId });
       return res.data;
     },
     onSuccess: (data) => {
       toast.success(data.message || "Invoice sent to WONO");
       queryClient.invalidateQueries({ queryKey: ["leadCompany"] });
+      queryClient.invalidateQueries({ queryKey: ["hostInvoices", workspaceId] });
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to send invoice");
@@ -369,10 +474,10 @@ export default function CompanyLeads({ leadScope = "website" }) {
         value: Number.isFinite(leadLimit) ? `${Math.max(leadLimit - total, 0)} / ${leadLimit}` : "Unlimited",
         icon: Target,
       },
-      { label: "Invoiced to WONO", value: formatMoney(invoicedToWonoTotal, hostInvoicesCurrency), icon: FileText },
+      { label: "Unclaimed Payout Balance", value: formatMoney(unclaimedPayoutTotal, unclaimedPayoutCurrency), icon: FileText },
       { label: "Received from WONO", value: formatMoney(receivedFromWonoTotal, hostInvoicesCurrency), icon: Wallet },
     ];
-  }, [leads, pageTitle, leadLimit, invoicedToWonoTotal, receivedFromWonoTotal, hostInvoicesCurrency]);
+  }, [leads, pageTitle, leadLimit, unclaimedPayoutTotal, unclaimedPayoutCurrency, receivedFromWonoTotal, hostInvoicesCurrency]);
 
   const visibleLeads = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -435,6 +540,163 @@ export default function CompanyLeads({ leadScope = "website" }) {
 
   if (isError) return <span className="text-red-500">Error Loading Leads</span>;
 
+  // REQUEST PAYOUT PAGE — an in-page view (not a popup) listing every paid
+  // booking that hasn't been invoiced to WONO yet. Tick boxes pick which
+  // ones to bundle into the consolidated invoice; "Select all" ticks every
+  // pending one. Back returns to the leads list untouched.
+  if (showPayoutView) {
+    return (
+      <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+        <PageFrame>
+          <div className="flex flex-col gap-4 text-slate-700 font-sans">
+
+            {/* HEADER */}
+            <div className="mb-1">
+              {/* <button type="button" onClick={closePayoutView}
+                className="flex items-center gap-1.5 text-[11px] font-pmedium text-slate-400 hover:text-slate-600 mb-2"
+              ><ArrowLeft size={13} /> Back to {pageTitle}</button> */}
+              {/* <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Settlement &amp; Payouts</p> */}
+              <h1 className="text-title font-pmedium text-primary uppercase mt-0.5">Request Payout</h1>
+              <p className="text-xs font-pmedium text-slate-500 mt-1">
+                Tick the paid bookings to bundle into one consolidated invoice to WONO.
+              </p>
+            </div>
+
+            {/* STAT CARDS */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-1 shrink-0">
+              <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Total Unclaimed</p>
+                  <p className="text-[15px] font-pmedium text-slate-900">{formatMoney(unclaimedPayoutTotal, unclaimedPayoutCurrency)}</p>
+                </div>
+                <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><FileText size={16} /></div>
+              </div>
+              <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">Selected Amount</p>
+                  <p className="text-[15px] font-pmedium text-slate-900">{formatMoney(payoutSelectedTotal, payoutCurrency)}</p>
+                </div>
+                <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><Wallet size={16} /></div>
+              </div>
+              <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-violet-500">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-pmedium text-violet-600 uppercase tracking-widest mb-1">Bookings Selected</p>
+                  <p className="text-[15px] font-pmedium text-slate-900">{payoutSelectedLeads.length} / {unclaimedLeads.length}</p>
+                </div>
+                <div className="p-2 rounded-2xl bg-violet-50 text-violet-600 shrink-0"><CheckCircle2 size={16} /></div>
+              </div>
+            </div>
+
+            {/* INVOICE LIST */}
+            <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
+              {unclaimedLeads.length === 0 ? (
+                <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
+                  <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"><CheckCircle2 size={28} /></div>
+                  <h3 className="text-[15px] font-pmedium text-slate-900">Nothing pending</h3>
+                  <p className="mt-2 max-w-md text-[12px] font-pmedium leading-relaxed text-slate-500">
+                    Every paid booking has already been invoiced to WONO.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto flex-1">
+                  <table className="w-full text-left min-w-[900px]">
+                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                      <tr>
+                        <th className="px-5 py-4 w-10">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 accent-[#2563EB]"
+                            checked={allPayoutSelected}
+                            onChange={toggleAllPayoutLeads}
+                            disabled={requestPayoutMutation.isPending}
+                            aria-label={`Select all ${unclaimedLeads.length} pending invoices`}
+                          />
+                        </th>
+                        <th className="px-5 py-4">Booking Code</th>
+                        <th className="px-5 py-4">Guest</th>
+                        <th className="px-5 py-4">Product</th>
+                        <th className="px-5 py-4">Received Date</th>
+                        <th className="px-5 py-4">Payment Status</th>
+                        <th className="px-5 py-4 text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100/60">
+                      {unclaimedLeads.map((lead) => {
+                        const isChecked = payoutSelectedIds.includes(String(lead._id));
+                        const pt = (lead.productType || "").trim();
+                        const v = (lead.vertical || "").trim();
+                        const product = pt && pt.toLowerCase() !== "co-working" ? pt : (v && v.toLowerCase() !== "co-working" ? v : "co-working");
+                        return (
+                          <tr key={lead._id} className={`transition-colors ${isChecked ? "bg-blue-50/40" : "hover:bg-slate-50/50"}`}>
+                            <td className="px-5 py-4">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 accent-[#2563EB]"
+                                checked={isChecked}
+                                onChange={() => togglePayoutLead(String(lead._id))}
+                                disabled={requestPayoutMutation.isPending}
+                              />
+                            </td>
+                            <td className="px-5 py-4"><span className="text-[12px] font-pmedium text-slate-900">{lead.bookingCode}</span></td>
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-2.5">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-[10px] font-pmedium text-white shadow-sm">{getInitials(lead.fullName)}</div>
+                                <p className="text-[12px] font-pmedium text-slate-900">{lead.fullName}</p>
+                              </div>
+                            </td>
+                            <td className="px-5 py-4"><span className="text-[12px] font-pmedium text-slate-700">{product}</span></td>
+                            <td className="px-5 py-4"><p className="text-[12px] font-pmedium text-slate-700">{formatDateLabel(lead.recievedDate || lead.receivedDate || lead.createdAt)}</p></td>
+                            <td className="px-5 py-4">
+                              <span className="rounded-full border px-2.5 py-1 whitespace-nowrap text-[10px] font-pmedium uppercase tracking-wider bg-emerald-50 text-emerald-700 border-emerald-100">
+                                Paid
+                              </span>
+                            </td>
+                            <td className="px-5 py-4 text-right"><span className="text-[12px] font-pmedium text-slate-900">{formatMoney(lead.paymentBaseAmount, lead.paymentCurrency)}</span></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* FOOTER */}
+              <div className="px-5 py-4 border-t border-slate-100/60 flex items-center justify-between gap-3 bg-white">
+                <div>
+                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Selected ({payoutSelectedLeads.length})</p>
+                  <p className="text-[15px] font-pmedium text-slate-900">{formatMoney(payoutSelectedTotal, payoutCurrency)}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={closePayoutView}
+                    disabled={requestPayoutMutation.isPending}
+                    className="px-4 py-2.5 rounded-xl text-[12px] font-pmedium border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                  >Cancel</button>
+                  <button
+                    type="button"
+                    onClick={() => previewPayoutMutation.mutate(payoutSelectedIds)}
+                    disabled={payoutSelectedIds.length === 0 || previewPayoutMutation.isPending || requestPayoutMutation.isPending}
+                    title="Open the same PDF this payout request would send to WONO"
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[12px] font-pmedium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                  ><FileText size={14} /> {previewPayoutMutation.isPending ? "Building PDF..." : "Preview Invoice"}</button>
+                  <button
+                    type="button"
+                    onClick={() => requestPayoutMutation.mutate(payoutSelectedIds)}
+                    disabled={payoutSelectedIds.length === 0 || requestPayoutMutation.isPending}
+                    className="px-4 py-2.5 rounded-xl text-[12px] font-pmedium bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60"
+                  >{requestPayoutMutation.isPending ? "Requesting..." : `Send Invoice — ${formatMoney(payoutSelectedTotal, payoutCurrency)}`}</button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </PageFrame>
+      </div>
+    );
+  }
+
+
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
@@ -451,6 +713,18 @@ export default function CompanyLeads({ leadScope = "website" }) {
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
+              {unclaimedPayoutTotal > 0 && (
+                <button type="button"
+                  onClick={() => {
+                    // Enter the payout selection page with everything ticked —
+                    // "Request Payout" on all pending bookings remains the
+                    // one-click default, the host just unticks to slim it down.
+                    openPayoutView();
+                  }}
+                  title="Bundle unbilled, paid bookings into one consolidated payout request."
+                  className="px-4 py-2.5 rounded-xl text-[12px] font-pmedium bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60"
+                >Request Payout — {formatMoney(unclaimedPayoutTotal, unclaimedPayoutCurrency)}</button>
+              )}
               {showReportExports && (
                 <>
                   <ReportExportButton onClick={() => setShowExportModal(true)} isExporting={Boolean(isExportingReport)} aria-label={`Export ${pageTitle.toLowerCase()}`} />
@@ -482,12 +756,12 @@ export default function CompanyLeads({ leadScope = "website" }) {
               </div>
               <div className="p-2 rounded-2xl bg-violet-50 text-violet-600 shrink-0"><Target size={16} /></div>
             </div>
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-orange-500">
+            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-orange-600 uppercase tracking-widest mb-1">Invoiced to WONO</p>
+                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Unclaimed Payout Balance</p>
                 <p className="text-[15px] font-pmedium text-slate-900">{leadStats[4]?.value ?? 0}</p>
               </div>
-              <div className="p-2 rounded-2xl bg-orange-50 text-orange-600 shrink-0"><FileText size={16} /></div>
+              <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><FileText size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-teal-500">
               <div className="min-w-0">
@@ -604,7 +878,6 @@ export default function CompanyLeads({ leadScope = "website" }) {
                       <th className="px-5 py-4">Status</th>
                       <th className="px-5 py-4">Payment Status</th>
                       <th className="px-5 py-4">Received Date</th>
-                      <th className="px-5 py-4">Send Invoice to WONO</th>
                       <th className="px-5 py-4 text-center">Action</th>
                     </tr>
                   </thead>
@@ -645,32 +918,17 @@ export default function CompanyLeads({ leadScope = "website" }) {
                             <p className="text-[12px] font-pmedium text-slate-700">{formatDateLabel(lead.recievedDate || lead.receivedDate || lead.createdAt)}</p>
                           </td>
                           <td className="px-5 py-4">
-                            {(() => {
-                              const isWebsiteLeadRow = lead._leadType ? lead._leadType === "Website" : !isNomadsLeads;
-                              if (!isWebsiteLeadRow) return <span className="text-[11px] text-slate-400">—</span>;
-                              if (lead.invoiceSentToWono) {
-                                return (
-                                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider text-emerald-700">
-                                    <CheckCircle2 size={12} /> Invoice Sent
-                                  </span>
-                                );
-                              }
-                              const isPaid = (lead.paymentStatus || "Pending") === "Paid";
-                              return (
-                                <button type="button"
-                                  onClick={() => sendInvoiceToWonoMutation.mutate(lead._id)}
-                                  disabled={!isPaid || sendInvoiceToWonoMutation.isPending}
-                                  title={isPaid ? "Request payout from WONO for this booking." : "Only available once payment is completed."}
-                                  className="rounded-full border border-amber-200 bg-white px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider text-amber-700 hover:bg-amber-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                                >Send Invoice to WONO</button>
-                              );
-                            })()}
-                          </td>
-                          <td className="px-5 py-4">
                             <div className="flex items-center justify-center gap-1.5">
                               <button type="button" onClick={() => setSelectedLeadId(lead._id)} data-tour="wb-leads-view"
                                 title="View details" aria-label={`View details for ${lead.fullName}`}
                                 className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"><Eye size={15} strokeWidth={2.5} aria-hidden="true" /></button>
+                              {lead.paymentStatus === "Paid" && lead.bookingCode && !lead.invoiceSentToWono && (
+                                <button type="button"
+                                  onClick={() => sendIndividualInvoiceMutation.mutate(lead._id)}
+                                  disabled={sendIndividualInvoiceMutation.isPending}
+                                  title="Send invoice to WONO" aria-label={`Send invoice to WONO for ${lead.fullName}`}
+                                  className="p-1.5 bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-700 rounded-lg transition-all disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"><Send size={15} strokeWidth={2.5} aria-hidden="true" /></button>
+                              )}
                             </div>
                           </td>
                         </tr>

@@ -113,7 +113,7 @@ import StaffViewPage from "../pages/StaffView/StaffViewPage";
 import FounderWorkspaceSelectionPage from "../pages/LoginPage/FounderWorkspaceSelectionPage";
 import CompanyReviews from "../pages/Dashboard/FrontendDashboard/CompanyReviews";
 import NomadsLeads from "../pages/Dashboard/FrontendDashboard/NomadsLeads";
-import AllLeads from "../pages/Dashboard/FrontendDashboard/AllLeads";
+import AllLeads, { AllLeadsRequestPayout } from "../pages/Dashboard/FrontendDashboard/AllLeads";
 import WonoNomad from "../pages/Dashboard/FrontendDashboard/WonoNomad";
 import ModuleCardsLanding from "../pages/Dashboard/FrontendDashboard/ModuleCardsLanding";
 import DepartmentDashboardRoute from "../pages/Dashboard/DepartmentDashboardRoute";
@@ -659,6 +659,10 @@ export const routes = createBrowserRouter([
               {
                 path: "key-apps/all-leads",
                 element: <AllLeads />,
+              },
+              {
+                path: "key-apps/all-leads/request-payout",
+                element: <AllLeadsRequestPayout />,
               },
               {
                 path: "key-apps/nomad-listings",
