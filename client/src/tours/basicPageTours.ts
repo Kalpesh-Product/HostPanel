@@ -1063,7 +1063,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="printouts-new-request"]', title: "Create a printout request", description: "Opens the request form. Describe the document, set copies, priority, color, paper size, double-sided preference, attach up to five files, and submit it to the front desk.", side: "left" },
       { selector: '[data-tour="printouts-table"]', title: "Request records and actions", description: "Each row shows the request details, attachments, status, submitted date, and actions. Use View to inspect the full request; Edit and Cancel appear only while your own request is still Pending.", side: "top" },
     ],
-    matches: exact("/common-modules/printouts"),
+    matches: exact("/common-modules/printouts/list"),
   },
   {
     id: "basic-printout-management",

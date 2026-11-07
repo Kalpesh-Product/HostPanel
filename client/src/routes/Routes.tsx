@@ -30,6 +30,7 @@ import DashboardIndex from "../pages/Dashboard/DashboardIndex";
 import { AttendancePage } from "../pages/Attendance/AttendancePage";
 import FrontendDashboard from "../pages/Dashboard/FrontendDashboard/FrontendDashboard";
 import { MeetingRoomsPage } from "../pages/Meetings/MeetingRoomsPage";
+import MeetingRoomBookingDashboard from "../pages/Meetings/MeetingRoomBookingDashboard";
 import FrontendLayout from "../pages/Dashboard/FrontendDashboard/FrontendLayout";
 import FrontendData from "../pages/Dashboard/FrontendDashboard/Data/FrontendData";
 import FrontendLeads from "../pages/Dashboard/FrontendDashboard/Data/FrontendLeads";
@@ -160,7 +161,9 @@ import AMCMaintenanceSchedulerPage from "../pages/Maintenance/AMCMaintenanceSche
 import ITRepairLogsPage from "../pages/IT/ITRepairLogsPage";
 import SystemAccessManagementPage from "../pages/IT/SystemAccessManagementPage";
 import { TicketsPage } from "../pages/Tickets/TicketsPage";
+import TicketsWorkspaceDashboard from "../pages/Tickets/TicketsWorkspaceDashboard";
 import PrintoutsPage from "../pages/Printouts/PrintoutsPage";
+import PrintoutsDashboard from "../pages/Printouts/PrintoutsDashboard";
 import PrintoutManagementPage from "../pages/Administration/Printouts/PrintoutManagementPage";
 import TenantDashboardPage from "../pages/tenant/TenantDashboardPage";
 import TenantMeetingRoomBookingPage from "../pages/tenant/TenantMeetingRoomBookingPage";
@@ -853,6 +856,10 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "common-modules/tickets",
+                element: <TicketsWorkspaceDashboard />,
+              },
+              {
+                path: "common-modules/tickets/list",
                 element: <TicketsPage />,
               },
               {
@@ -861,10 +868,18 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "common-modules/meeting-room-booking",
+                element: <MeetingRoomBookingDashboard />,
+              },
+              {
+                path: "common-modules/meeting-room-booking/list",
                 element: <MeetingRoomsPage />,
               },
               {
                 path: "common-modules/printouts",
+                element: <PrintoutsDashboard />,
+              },
+              {
+                path: "common-modules/printouts/list",
                 element: <PrintoutsPage />,
               },
               {

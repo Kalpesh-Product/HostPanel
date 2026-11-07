@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Search, ChevronDown, Clock, Users, Building,
   Eye, Plus, X, CheckCircle2, AlertCircle, CalendarClock, XCircle, ChevronLeft, ChevronRight, Calendar as CalIcon, Building2,
-  AlertTriangle, Briefcase, UserCheck, CreditCard, DollarSign, Phone, Mail, FileText, BarChart3, UserPlus, Globe, Tag, ArrowRight, Download, User
+  AlertTriangle, Briefcase, UserCheck, CreditCard, DollarSign, Phone, Mail, FileText, BarChart3, UserPlus, Globe, Tag, ArrowRight, Download, User,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { createReport } from '@/services/reports';
@@ -125,6 +125,7 @@ interface Booking {
   purpose: string;
   attendees?: number;
   inviteeUserIds: string[];
+  guestEmails?: string[];
   checkIn?: string;
   checkOut?: string;
   previousDate?: string;
@@ -735,13 +736,14 @@ function getExternalClientName(booking: any): string {
 
 function getBookingAttendeeCount(data: any) {
   const inviteCount = Array.isArray(data?.inviteeUserIds) ? data.inviteeUserIds.length : 0;
+  const guestCount = Array.isArray(data?.guestEmails) ? data.guestEmails.length : 0;
   const explicitCount = Number(data?.attendees || 0);
 
   if (explicitCount > 0) {
     return explicitCount;
   }
 
-  return inviteCount + 1;
+  return inviteCount + guestCount + 1;
 }
 
 function getBookingDisplayStatus(booking: any) {
@@ -2773,7 +2775,9 @@ export function MeetingRoomsPage() {
     endTime: '',
     purpose: '',
     inviteeUserIds: [],
+    guestEmails: [],
   });
+  const [guestEmailInput, setGuestEmailInput] = useState('');
   const [rescheduleData, setRescheduleData] = useState<Partial<Booking>>({});
   const [rescheduleInviteeIds, setRescheduleInviteeIds] = useState<string[]>([]);
   const [extendBooking, setExtendBooking] = useState<Booking | null>(null);
@@ -2792,6 +2796,41 @@ export function MeetingRoomsPage() {
   // --------- MAIN BOOKING TABS ---------
   const [mainBookingTab, setMainBookingTab] = useState<'my_bookings' | 'internal_booking' | 'external_booking' | 'tenant_bookings'>('my_bookings');
   const [showExportModal, setShowExportModal] = useState(false);
+
+  useEffect(() => {
+    const requestedModule = new URLSearchParams(location.search).get('module');
+    const allowedModules = new Set([
+      'my_bookings',
+      'internal_booking',
+      ...(canAccessExternalAndTenantTabs ? ['external_booking', 'tenant_bookings'] : []),
+    ]);
+    const nextModule = allowedModules.has(String(requestedModule || ''))
+      ? requestedModule
+      : 'my_bookings';
+
+    setMainBookingTab(nextModule as typeof mainBookingTab);
+    setActiveTab(nextModule === 'my_bookings' ? 'my_bookings' : 'bookings');
+    setStatusFilter('all');
+  }, [location.search, canAccessExternalAndTenantTabs]);
+
+  const bookingModulePageContent = {
+    my_bookings: {
+      title: 'My Bookings',
+      description: 'Reserve meeting rooms, review invitations, and manage your booking activity.',
+    },
+    internal_booking: {
+      title: 'Internal Booking',
+      description: 'Create and monitor meeting-room bookings for workspace members.',
+    },
+    external_booking: {
+      title: 'External Booking',
+      description: 'Manage walk-in and external-client bookings, payments, and booking history.',
+    },
+    tenant_bookings: {
+      title: 'Tenant Bookings',
+      description: 'Create and track meeting-room bookings for tenant companies.',
+    },
+  }[mainBookingTab];
 
   // --------- EXTERNAL BOOKINGS LIST FILTERS (Tasks 18/19) ---------
   const [externalSearchQuery, setExternalSearchQuery] = useState('');
@@ -3033,7 +3072,9 @@ export function MeetingRoomsPage() {
     if (!data.roomName || !data.date || !data.startTime || !data.endTime) return 'pending';
     const attendeeCount = getBookingAttendeeCount(data);
     if (!attendeeCount) return 'pending';
-    if (Array.isArray(data.inviteeUserIds) && attendeeCount < data.inviteeUserIds.length + 1) {
+    const inviteAndGuestCount = (Array.isArray(data.inviteeUserIds) ? data.inviteeUserIds.length : 0)
+      + (Array.isArray(data.guestEmails) ? data.guestEmails.length : 0);
+    if (attendeeCount < inviteAndGuestCount + 1) {
       return 'capacity';
     }
     const roomCapacity = getRoomCapacity(data.roomName);
@@ -3456,9 +3497,12 @@ export function MeetingRoomsPage() {
   };
 
   const focusMyBookingsTab = () => {
-    setMainBookingTab('my_bookings');
-    setActiveTab('my_bookings');
-    setStatusFilter('all');
+    navigate('/common-modules/meeting-room-booking/list?module=my_bookings', {
+      state: {
+        fromSection: 'meeting-room-booking-dashboard',
+        moduleTitle: 'My Bookings',
+      },
+    });
   };
 
   // --------- EXTERNAL (WALK-IN) PRICING ---------
@@ -4176,6 +4220,7 @@ export function MeetingRoomsPage() {
         purpose: newBooking.purpose.trim(),
         attendees: getBookingAttendeeCount(newBooking),
         inviteeUserIds: newBooking.inviteeUserIds,
+        guestEmails: newBooking.guestEmails,
         department: managerProfile.department,
       });
       await reloadBookings();
@@ -4185,7 +4230,8 @@ export function MeetingRoomsPage() {
       return;
     }
 
-    setNewBooking({ roomName: '', floor: '', wing: '', location: '', roomType: '', date: '', startTime: '', endTime: '', purpose: '', inviteeUserIds: [] });
+    setNewBooking({ roomName: '', floor: '', wing: '', location: '', roomType: '', date: '', startTime: '', endTime: '', purpose: '', inviteeUserIds: [], guestEmails: [] });
+    setGuestEmailInput('');
     setShowBookingDialog(false);
     setIsSavingBooking(false);
   };
@@ -4426,46 +4472,58 @@ export function MeetingRoomsPage() {
 
   // --------- SUMMARY CARDS (change per mainBookingTab) ---------
   const meetingSummaryCards = useMemo(() => {
-    const upcomingCount = scopedBookings.filter(b => getBookingDisplayStatus(b) === 'booked').length;
-    const inProgressCount = scopedBookings.filter(b => getBookingDisplayStatus(b) === 'in progress').length;
-    const completedCount = scopedBookings.filter(b => getBookingDisplayStatus(b) === 'completed').length;
-    const cancelledCount = scopedBookings.filter(b => getBookingDisplayStatus(b) === 'cancelled').length;
-    const externalBookings = allBookings.filter(b => normalize(b.bookingType) === 'external');
-    const tenantBookings = allBookings.filter(b => normalize(b.bookingType) === 'tenant');
+    const cardClass = 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md';
+    const tabBookings = visibleBookings.filter((booking) => isBookingInActiveTab(booking));
 
-    if (mainBookingTab === 'external_booking') {
+    if (activeTab === 'invites') {
       return [
-        { key: 'ext-total', icon: Globe, label: 'Total External', value: externalBookings.length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', iconClass: 'bg-amber-50 text-amber-600' },
-        { key: 'ext-upcoming', icon: CalendarClock, label: 'Upcoming', value: externalBookings.filter(b => getBookingDisplayStatus(b) === 'booked').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', iconClass: 'bg-blue-50 text-blue-600' },
-        { key: 'ext-progress', icon: Clock, label: 'In Progress', value: externalBookings.filter(b => getBookingDisplayStatus(b) === 'in progress').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', iconClass: 'bg-amber-50 text-amber-600' },
-        { key: 'ext-completed', icon: CheckCircle2, label: 'Completed', value: externalBookings.filter(b => getBookingDisplayStatus(b) === 'completed').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600' },
+        { key: 'invite-total', icon: UserCheck, label: 'Total Invites', value: receivedInvites.length, cardClass, iconClass: 'bg-blue-50 text-blue-600' },
+        { key: 'invite-pending', icon: Clock, label: 'Pending', value: receivedInvites.filter(invite => normalize(invite.status) === 'pending').length, cardClass: `${cardClass} border-l-4 border-l-amber-500`, iconClass: 'bg-amber-50 text-amber-600' },
+        { key: 'invite-accepted', icon: CheckCircle2, label: 'Accepted', value: receivedInvites.filter(invite => normalize(invite.status) === 'accepted').length, cardClass: `${cardClass} border-l-4 border-l-emerald-500`, iconClass: 'bg-emerald-50 text-emerald-600' },
+        { key: 'invite-rejected', icon: XCircle, label: 'Rejected', value: receivedInvites.filter(invite => normalize(invite.status) === 'rejected').length, cardClass: `${cardClass} border-l-4 border-l-red-500`, iconClass: 'bg-red-50 text-red-600' },
       ];
     }
-    if (mainBookingTab === 'tenant_bookings') {
+
+    if (activeTab === 'booking_history') {
       return [
-        { key: 'ten-total', icon: Building2, label: 'Total Tenant Bookings', value: tenantBookings.length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', iconClass: 'bg-blue-50 text-blue-600' },
-        { key: 'ten-upcoming', icon: CalendarClock, label: 'Upcoming', value: tenantBookings.filter(b => getBookingDisplayStatus(b) === 'booked').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', iconClass: 'bg-blue-50 text-blue-600' },
-        { key: 'ten-progress', icon: Clock, label: 'In Progress', value: tenantBookings.filter(b => getBookingDisplayStatus(b) === 'in progress').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', iconClass: 'bg-amber-50 text-amber-600' },
-        { key: 'ten-companies', icon: Briefcase, label: 'Tenant Companies', value: tenantCompanies.filter(t => t.status === 'Active').length || tenantCompanies.length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-indigo-500', iconClass: 'bg-indigo-50 text-indigo-600' },
+        { key: 'history-total', icon: CalendarClock, label: 'History Records', value: tabBookings.length, cardClass, iconClass: 'bg-blue-50 text-blue-600' },
+        { key: 'history-completed', icon: CheckCircle2, label: 'Completed', value: tabBookings.filter(booking => getBookingDisplayStatus(booking) === 'completed').length, cardClass: `${cardClass} border-l-4 border-l-emerald-500`, iconClass: 'bg-emerald-50 text-emerald-600' },
+        { key: 'history-cancelled', icon: XCircle, label: 'Cancelled', value: tabBookings.filter(booking => getBookingDisplayStatus(booking) === 'cancelled').length, cardClass: `${cardClass} border-l-4 border-l-red-500`, iconClass: 'bg-red-50 text-red-600' },
+        { key: 'history-rescheduled', icon: CalendarClock, label: 'Rescheduled', value: tabBookings.filter(isRescheduledBooking).length, cardClass: `${cardClass} border-l-4 border-l-violet-500`, iconClass: 'bg-violet-50 text-violet-600' },
       ];
     }
-    if (mainBookingTab === 'internal_booking') {
-      const internalBookings = allBookings.filter(b => normalize(b.bookingType) !== 'external' && normalize(b.bookingType) !== 'tenant');
-      return [
-        { key: 'int-upcoming', icon: CalendarClock, label: 'Upcoming', value: internalBookings.filter(b => getBookingDisplayStatus(b) === 'booked').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', iconClass: 'bg-blue-50 text-blue-600' },
-        { key: 'int-progress', icon: Clock, label: 'In Progress', value: internalBookings.filter(b => getBookingDisplayStatus(b) === 'in progress').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', iconClass: 'bg-amber-50 text-amber-600' },
-        { key: 'int-done', icon: CheckCircle2, label: 'Completed', value: internalBookings.filter(b => getBookingDisplayStatus(b) === 'completed').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600' },
-        { key: 'int-cancelled', icon: XCircle, label: 'Cancelled', value: internalBookings.filter(b => getBookingDisplayStatus(b) === 'cancelled').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-red-500', iconClass: 'bg-red-50 text-red-600' },
-      ];
-    }
-    // my_bookings (default)
+
     return [
-      { key: 'my-upcoming', icon: CalendarClock, label: 'Upcoming', value: upcomingCount, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', iconClass: 'bg-blue-50 text-blue-600' },
-      { key: 'my-progress', icon: Clock, label: 'In Progress', value: inProgressCount, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', iconClass: 'bg-amber-50 text-amber-600' },
-      { key: 'my-done', icon: CheckCircle2, label: 'Completed', value: completedCount, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600' },
-      { key: 'my-cancelled', icon: XCircle, label: 'Cancelled', value: cancelledCount, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-red-500', iconClass: 'bg-red-50 text-red-600' },
+      { key: 'tab-total', icon: CalendarClock, label: activeTab === 'bookings' ? 'Active Bookings' : 'Visible Bookings', value: tabBookings.length, cardClass, iconClass: 'bg-blue-50 text-blue-600' },
+      { key: 'tab-upcoming', icon: CalendarClock, label: 'Upcoming', value: tabBookings.filter(booking => getBookingDisplayStatus(booking) === 'booked').length, cardClass: `${cardClass} border-l-4 border-l-blue-500`, iconClass: 'bg-blue-50 text-blue-600' },
+      { key: 'tab-progress', icon: Clock, label: 'In Progress', value: tabBookings.filter(booking => getBookingDisplayStatus(booking) === 'in progress').length, cardClass: `${cardClass} border-l-4 border-l-amber-500`, iconClass: 'bg-amber-50 text-amber-600' },
+      { key: 'tab-completed', icon: CheckCircle2, label: 'Completed', value: tabBookings.filter(booking => getBookingDisplayStatus(booking) === 'completed').length, cardClass: `${cardClass} border-l-4 border-l-emerald-500`, iconClass: 'bg-emerald-50 text-emerald-600' },
     ];
-  }, [mainBookingTab, scopedBookings, allBookings, tenantCompanies]);
+  }, [activeTab, visibleBookings, receivedInvites, isBookingInActiveTab]);
+
+  const bookingScopeTabs = useMemo(() => {
+    if (mainBookingTab !== 'my_bookings') {
+      return [
+        { key: 'bookings', label: 'Bookings' },
+        { key: 'booking_history', label: 'Booking History' },
+      ];
+    }
+
+    const tabs = [{ key: 'my_bookings', label: 'My Bookings', tour: 'meetings-scope-my-bookings' }];
+    if (!isEmployeeProfile && (canViewCompanyBookings || isAssignedDeptProfile || isDepartmentManagerProfile)) {
+      tabs.push({
+        key: canViewCompanyBookings
+          ? 'company_bookings'
+          : isAssignedDeptProfile
+            ? 'assigned_dept_bookings'
+            : 'dept_bookings',
+        label: canViewCompanyBookings ? 'Company' : 'Department',
+        tour: 'meetings-scope-dept',
+      });
+    }
+    tabs.push({ key: 'invites', label: 'Invites', tour: 'meetings-scope-invites' });
+    return tabs;
+  }, [mainBookingTab, isEmployeeProfile, canViewCompanyBookings, isAssignedDeptProfile, isDepartmentManagerProfile]);
 
   // --------- EXISTING EXTERNAL CLIENTS (derived from booking history for the Existing Client tab) ---------
   const existingExternalClients = useMemo(() => {
@@ -4676,8 +4734,6 @@ export function MeetingRoomsPage() {
             {/* Header skeleton */}
             <div className="h-8 w-64 bg-slate-200 rounded-xl" />
             <div className="h-4 w-80 bg-slate-100 rounded-xl" />
-            {/* Tab bar skeleton */}
-            <div className="h-12 w-full bg-slate-100 rounded-2xl" />
             {/* Summary cards skeleton */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[1,2,3,4].map(i => <div key={i} className="h-20 bg-slate-200 rounded-[2rem]" />)}
@@ -4699,10 +4755,10 @@ export function MeetingRoomsPage() {
             <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
               <div>
                 <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                  Meeting Rooms Booking
+                  {bookingModulePageContent.title}
                 </h2>
                 <p className="text-xs font-pmedium text-slate-500 mt-1">
-                  Reserve campus workspaces and monitor department availability.
+                  {bookingModulePageContent.description}
                 </p>
               </div>
               {/* <div className="flex items-center gap-2">
@@ -4775,33 +4831,35 @@ export function MeetingRoomsPage() {
               </div>
             )}
 
-            {/* 2. MAIN TABS */}
-            <div data-tour="meetings-main-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-              {[
-                { key: 'my_bookings', label: 'My Bookings', tour: 'meetings-tab-my-bookings' },
-                { key: 'internal_booking', label: 'Internal Booking', tour: 'meetings-tab-internal' },
-                ...(canAccessExternalAndTenantTabs
-                  ? [
-                    { key: 'external_booking', label: 'External Booking', tour: 'meetings-tab-external' },
-                    { key: 'tenant_bookings', label: 'Tenant Bookings', tour: 'meetings-tab-tenant' },
-                  ]
-                  : []),
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  data-tour={tab.tour}
-                  onClick={() => {
-                    setMainBookingTab(tab.key as any);
-                    if (tab.key === 'my_bookings') setActiveTab('my_bookings');
-                    else setActiveTab('bookings');
-                    setStatusFilter('all');
-                  }}
-                  className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${mainBookingTab === tab.key ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+            <div
+              data-tour="meetings-scope-tabs"
+              className="mb-3 flex w-full gap-1.5 overflow-x-auto rounded-2xl border border-slate-100 bg-white p-1 shadow-sm [&::-webkit-scrollbar]:hidden"
+            >
+              {bookingScopeTabs.map((tab) => {
+                const isActiveScope = activeTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    data-tour={'tour' in tab ? tab.tour : undefined}
+                    onClick={() => {
+                      setActiveTab(tab.key);
+                      setStatusFilter('all');
+                    }}
+                    className={`relative z-10 flex min-w-[140px] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${isActiveScope ? 'text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                  >
+                    {isActiveScope && (
+                      <motion.div layoutId="roomScopeTabs" className="absolute inset-0 z-[-1] rounded-full bg-[#2563EB] shadow-sm" />
+                    )}
+                    {tab.label}
+                    {tab.key === 'invites' && actionablePendingInviteCount > 0 && (
+                      <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-pmedium text-white shadow-sm shadow-red-200">
+                        {actionablePendingInviteCount}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {/* 3. SUMMARY CARDS (4-card grid, changes per tab) */}
@@ -4993,7 +5051,7 @@ export function MeetingRoomsPage() {
                 </div>
 
                 {/* Scope Tabs */}
-                <div data-tour="meetings-scope-tabs" className="order-1 p-1 border-b border-slate-100/60 flex bg-white shadow-sm overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                <div aria-hidden="true" className="hidden">
                   {mainBookingTab === 'my_bookings' && (
                     <div className="flex w-full gap-1.5 overflow-x-auto rounded-2xl border border-slate-100 bg-white p-1 shadow-sm [&::-webkit-scrollbar]:hidden">
                       {isEmployeeProfile ? (
@@ -5882,7 +5940,7 @@ export function MeetingRoomsPage() {
                   {selectedRoomCapacity ? (
                     <div className="rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-2.5 text-[12px] font-pmedium text-blue-800 flex items-center justify-between">
                       <span>Capacity: <strong>{selectedRoomCapacity}</strong> seats</span>
-                      <span>Invite slots left: <strong>{Math.max(Number(selectedRoomCapacity) - 1 - Number(newBooking.inviteeUserIds.length || 0), 0)}</strong></span>
+                      <span>Invite slots left: <strong>{Math.max(Number(selectedRoomCapacity) - 1 - Number(newBooking.inviteeUserIds.length || 0) - Number(newBooking.guestEmails?.length || 0), 0)}</strong></span>
                     </div>
                   ) : canShowRoomTypeCount ? (
                     <p className={`text-[12px] font-pmedium ${selectedFloorRoomTypeCount > 0 ? 'text-blue-700' : 'text-rose-600'}`}>
@@ -6097,18 +6155,23 @@ export function MeetingRoomsPage() {
                   </div>
 
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Invite Members</label>
-                      <div className="flex items-center gap-2">
-                        {selectedRoomCapacity ? (
-                          <span className={`text-[11px] font-pmedium ${newBooking.inviteeUserIds.length >= Number(selectedRoomCapacity) - 1 ? 'text-rose-500' : 'text-slate-500'}`}>
-                            {newBooking.inviteeUserIds.length} / {Math.max(Number(selectedRoomCapacity) - 1, 0)} seats
-                          </span>
-                        ) : (
-                          <span className="text-[11px] font-pmedium text-slate-500">{newBooking.inviteeUserIds.length} selected</span>
-                        )}
-                      </div>
-                    </div>
+                    {(() => {
+                      const invitedSeatCount = newBooking.inviteeUserIds.length + (newBooking.guestEmails?.length || 0);
+                      return (
+                        <div className="flex items-center justify-between gap-3">
+                          <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Invite Members</label>
+                          <div className="flex items-center gap-2">
+                            {selectedRoomCapacity ? (
+                              <span className={`text-[11px] font-pmedium ${invitedSeatCount >= Number(selectedRoomCapacity) - 1 ? 'text-rose-500' : 'text-slate-500'}`}>
+                                {invitedSeatCount} / {Math.max(Number(selectedRoomCapacity) - 1, 0)} seats
+                              </span>
+                            ) : (
+                              <span className="text-[11px] font-pmedium text-slate-500">{invitedSeatCount} selected</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                     {selectedRoomCapacity && Number(selectedRoomCapacity) <= 1 && (
                       <p className="text-[11px] font-pmedium text-amber-600">This room seats 1 no additional members can be invited.</p>
                     )}
@@ -6123,7 +6186,7 @@ export function MeetingRoomsPage() {
                               const memberId = resolveMemberUserId(member);
                               const checked = newBooking.inviteeUserIds.includes(memberId);
                               const atCapacity = selectedRoomCapacity
-                                ? newBooking.inviteeUserIds.length >= Number(selectedRoomCapacity) - 1
+                                ? newBooking.inviteeUserIds.length + (newBooking.guestEmails?.length || 0) >= Number(selectedRoomCapacity) - 1
                                 : false;
                               const disabled = !checked && atCapacity;
                               const memberRole = normalize(member.role || '');
@@ -6169,6 +6232,46 @@ export function MeetingRoomsPage() {
                           No inviteable members found.
                         </div>
                       )}
+                    </div>
+
+                    <div className="pt-1">
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Invite Guests by Email</label>
+                      <div className="mt-2 flex gap-2">
+                        <input
+                          type="email"
+                          value={guestEmailInput}
+                          onChange={(e) => setGuestEmailInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key !== 'Enter') return;
+                            e.preventDefault();
+                            const email = guestEmailInput.trim().toLowerCase();
+                            if (!email) return;
+                            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setRoomBookingError('Enter a valid guest email address.'); return; }
+                            if ((newBooking.guestEmails || []).includes(email)) { setGuestEmailInput(''); return; }
+                            setNewBooking((prev) => ({ ...prev, guestEmails: [...(prev.guestEmails || []), email] }));
+                            setGuestEmailInput('');
+                          }}
+                          placeholder="guest@example.com — press Enter to add"
+                          className="flex-1 px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                        />
+                      </div>
+                      {(newBooking.guestEmails?.length || 0) > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {newBooking.guestEmails!.map((email) => (
+                            <span key={email} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-pmedium text-slate-700">
+                              {email}
+                              <button
+                                type="button"
+                                onClick={() => setNewBooking((prev) => ({ ...prev, guestEmails: (prev.guestEmails || []).filter((e) => e !== email) }))}
+                                className="text-slate-400 hover:text-rose-500"
+                              >
+                                <X size={11} />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <p className="mt-1.5 text-[10px] font-pmedium text-slate-400">Guests don't need a workspace account — they'll get an email invite with the meeting details.</p>
                     </div>
                   </div>
                 </div>

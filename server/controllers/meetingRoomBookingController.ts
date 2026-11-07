@@ -658,6 +658,14 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
     try {
         const workspaceId = workspaceIdFor(req);
         const { purpose, attendees, inviteeUserIds = [] } = req.body;
+        // Guests invited by raw email — no workspace account required. Validated
+        // and de-duplicated here; matched against resolved member emails below so
+        // the same person is never emailed twice.
+        const EMAIL_FORMAT_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const rawGuestEmails = (Array.isArray(req.body.guestEmails) ? req.body.guestEmails : [])
+            .map((email: any) => String(email || "").trim().toLowerCase())
+            .filter((email: string) => EMAIL_FORMAT_RE.test(email));
+        const uniqueGuestEmails = [...new Set(rawGuestEmails)];
         const workspaceLocalization = await getWorkspaceLocalization(workspaceId);
         const { roomIdCandidate, roomNameCandidate, range } = normalizeCreateBookingInput(
             req.body,
@@ -785,7 +793,7 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
         }
         // ── End of External booking branch ───────────────────────────────────
 
-        const attendeeCount = Math.max(1, Number(attendees) || 0, (inviteeUserIds?.length || 0) + 1);
+        const attendeeCount = Math.max(1, Number(attendees) || 0, (inviteeUserIds?.length || 0) + uniqueGuestEmails.length + 1);
         if (attendeeCount > Number(room.capacity || 0)) return res.status(400).json({ message: "Attendee count exceeds room capacity" });
         if (await findOverlap(roomId, range.start, range.end)) return res.status(409).json({ message: "Room is already booked for the selected time slot" });
 
@@ -812,9 +820,21 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
         }
 
         const rawInvites = await resolveInvites(inviteeUserIds);
-        const invites = rawInvites.filter(
+        const memberInvites = rawInvites.filter(
             (inv: any) => String(inv.invitedUserId || '') !== String(resolvedOwnerId)
         );
+        const ownerEmail = normalizeEmail(hostUser?.email || "");
+        const memberInviteEmails = new Set(
+            memberInvites.map((inv: any) => String(inv.invitedEmail || "").toLowerCase()).filter(Boolean)
+        );
+        const guestInvites = uniqueGuestEmails
+            .filter((email) => email !== ownerEmail && !memberInviteEmails.has(email))
+            .map((email) => ({
+                invitedName: email.split("@")[0] || "Guest",
+                invitedEmail: email,
+                status: "pending" as const,
+            }));
+        const invites = [...memberInvites, ...guestInvites];
         // Calculate credits for the booking
         const durationMinutes = (range.end.getTime() - range.start.getTime()) / 60000;
         const ratePerHour = Number(room.credits || 0);
@@ -979,6 +999,7 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
             const startParts = dateTimeParts(range.start, workspaceLocalization.timezone);
             const endParts = dateTimeParts(range.end, workspaceLocalization.timezone);
             const inviterName = hostUser?.name || "Someone";
+            const { sendMail } = await import("../config/mailer.js");
 
             for (const invite of invites) {
                 if (invite.invitedUserId && String(invite.invitedUserId) !== String(resolvedOwnerId)) {
@@ -999,6 +1020,44 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
                         isActionRequired: true,
                         dedupeKey: `meeting-invite:${booking._id}:${invite.invitedUserId}`,
                     });
+                }
+
+                // Fire-and-forget — a slow/failed mail send should never block the booking response.
+                if (invite.invitedEmail) {
+                    const inviteHtml = `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:${EMAIL_FONT};">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);font-family:${EMAIL_FONT};">
+        <tr><td style="background:#2563EB;padding:32px 40px;">
+          <p style="margin:0;font-size:22px;font-weight:600;color:#ffffff;font-family:${EMAIL_FONT};">Meeting Invitation</p>
+          <p style="margin:8px 0 0;font-size:13px;font-weight:500;color:#dbeafe;font-family:${EMAIL_FONT};">${inviterName} invited you to a meeting</p>
+        </td></tr>
+        <tr><td style="padding:32px 40px;">
+          <p style="margin:0 0 24px;font-size:15px;font-weight:500;color:#334155;font-family:${EMAIL_FONT};">Hi <strong>${invite.invitedName || "there"}</strong>, you've been invited to the meeting below.</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:24px;">
+            <tr><td style="padding:10px 16px;font-size:13px;font-weight:500;color:#64748b;font-family:${EMAIL_FONT};">Room</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#0f172a;text-align:right;font-family:${EMAIL_FONT};">${room.name}</td></tr>
+            <tr style="border-top:1px solid #f1f5f9;background:#f8fafc;"><td style="padding:10px 16px;font-size:13px;font-weight:500;color:#64748b;font-family:${EMAIL_FONT};">Date</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#0f172a;text-align:right;font-family:${EMAIL_FONT};">${startParts.date}</td></tr>
+            <tr style="border-top:1px solid #f1f5f9;"><td style="padding:10px 16px;font-size:13px;font-weight:500;color:#64748b;font-family:${EMAIL_FONT};">Time</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#0f172a;text-align:right;font-family:${EMAIL_FONT};">${startParts.time} &ndash; ${endParts.time}</td></tr>
+            ${purpose.trim() ? `<tr style="border-top:1px solid #f1f5f9;background:#f8fafc;"><td style="padding:10px 16px;font-size:13px;font-weight:500;color:#64748b;font-family:${EMAIL_FONT};">Purpose</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#0f172a;text-align:right;font-family:${EMAIL_FONT};">${purpose.trim()}</td></tr>` : ""}
+          </table>
+          <p style="margin:0;font-size:13px;font-weight:500;color:#94a3b8;line-height:1.6;font-family:${EMAIL_FONT};">Open the WoNo app to accept or decline this invite.</p>
+        </td></tr>
+        <tr><td style="background:#f1f5f9;padding:20px 40px;border-top:1px solid #e2e8f0;">
+          <p style="margin:0;font-size:11px;font-weight:500;color:#94a3b8;font-family:${EMAIL_FONT};">This is an automated notice. Please do not reply to this email.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+                    sendMail({
+                        to: invite.invitedEmail,
+                        subject: `Meeting Invitation — ${room.name} on ${startParts.date}`,
+                        html: inviteHtml,
+                        text: `${inviterName} invited you to a meeting in ${room.name} on ${startParts.date} from ${startParts.time} to ${endParts.time}.${purpose.trim() ? ` Purpose: ${purpose.trim()}.` : ""}`,
+                    }).catch((err: any) => console.error("Meeting invite email failed:", err?.message || err));
                 }
             }
         }

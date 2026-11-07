@@ -139,10 +139,26 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/common-modules/tickets/list",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      { label: "Tickets", path: "/common-modules/tickets" },
+      { label: "Ticket Queue" },
+    ],
+  },
+  {
     pattern: "/common-modules/tickets",
     crumbs: [
       { label: SECTION_LABELS.common, path: "/common-modules" },
       { label: "Tickets" },
+    ],
+  },
+  {
+    pattern: "/common-modules/meeting-room-booking/list",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      { label: "Meeting Room Booking", path: "/common-modules/meeting-room-booking" },
+      { label: "My Bookings" },
     ],
   },
   {
@@ -157,6 +173,14 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     crumbs: [
       { label: SECTION_LABELS.common, path: "/common-modules" },
       { label: "Printouts" },
+    ],
+  },
+  {
+    pattern: "/common-modules/printouts/list",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      { label: "Printouts", path: "/common-modules/printouts" },
+      { label: "Printout Requests" },
     ],
   },
   {
@@ -1332,6 +1356,46 @@ const BreadCrumbComponent = () => {
     ));
   }
 
+  if (
+    location.pathname === "/common-modules/tickets/list" &&
+    breadcrumbs.length > 0
+  ) {
+    const ticketTab = searchParams.get("tab");
+    const ticketTabLabels: Record<string, string> = {
+      queue: "Ticket Queue",
+      my_assigned: "Assigned Tickets",
+      my_raised: "Raised Tickets",
+      tenant_company: "Tenant Company Tickets",
+    };
+    const label =
+      String(routeState.moduleTitle || "").trim() ||
+      ticketTabLabels[String(ticketTab || "queue")] ||
+      "Ticket Queue";
+    breadcrumbs = breadcrumbs.map((crumb, index) => (
+      index === breadcrumbs.length - 1 ? { ...crumb, label } : crumb
+    ));
+  }
+
+  if (
+    location.pathname === "/common-modules/meeting-room-booking/list" &&
+    breadcrumbs.length > 0
+  ) {
+    const meetingModule = searchParams.get("module");
+    const meetingModuleLabels: Record<string, string> = {
+      my_bookings: "My Bookings",
+      internal_booking: "Internal Booking",
+      external_booking: "External Booking",
+      tenant_bookings: "Tenant Bookings",
+    };
+    const label =
+      String(routeState.moduleTitle || "").trim() ||
+      meetingModuleLabels[String(meetingModule || "my_bookings")] ||
+      "My Bookings";
+    breadcrumbs = breadcrumbs.map((crumb, index) => (
+      index === breadcrumbs.length - 1 ? { ...crumb, label } : crumb
+    ));
+  }
+
   // Modules opened from the Add-Ons page keep Add-Ons as their back link
   // instead of the module's home-section trail. Not on the Add-Ons page
   // itself, where that would duplicate its own crumb.
@@ -1371,7 +1435,13 @@ const BreadCrumbComponent = () => {
     if (key === "mode") return;
     // Already represented as the last crumb's label above — skip so it
     // isn't duplicated as a trailing raw chip (e.g. "daily").
-    if (key === "tab" && isVisitorManagementListPath) return;
+    if (
+      (key === "tab" &&
+        (isVisitorManagementListPath ||
+          location.pathname === "/common-modules/tickets/list")) ||
+      (key === "module" &&
+        location.pathname === "/common-modules/meeting-room-booking/list")
+    ) return;
     breadcrumbsToRender.push(
       <Typography key={`param-${index}-${key}`} color="text.primary">
         {value}

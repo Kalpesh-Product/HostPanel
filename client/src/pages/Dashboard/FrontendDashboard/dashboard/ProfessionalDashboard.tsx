@@ -614,15 +614,6 @@ const ProfessionalDashboard = ({
     showTickets,
     showVisitors,
   ].filter(Boolean).length;
-  const trendCardCount = [showBookings, showTickets, showTenants].filter(
-    Boolean,
-  ).length;
-  const trendGridClass =
-    trendCardCount <= 1
-      ? "grid-cols-1"
-      : trendCardCount === 2
-        ? "grid-cols-1 lg:grid-cols-2"
-        : "grid-cols-1 lg:grid-cols-2 xl:grid-cols-3";
   const showCustomUpgradeNudge = trialDaysLeft == null && !isTrialExpiringSoon;
 
   return (
@@ -1000,8 +991,8 @@ const ProfessionalDashboard = ({
             </div>
           )}
 
-          {/* Monthly operational trends — side by side instead of stacked full-width */}
-          <div className={`grid gap-5 ${trendGridClass}`}>
+          {/* Monthly operational trends — each full-width, stacked */}
+          <div className="grid grid-cols-1 gap-5">
             {showBookings && (
               <div data-tour="professional-booking-trend">
                 <ActivityPanel eyebrow="Fiscal year" title="Monthly Bookings">

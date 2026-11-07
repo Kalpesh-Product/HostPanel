@@ -359,7 +359,7 @@ const CompanySettingsDashboard = () => {
             />
           )}
           {access.plan === "custom" && <CustomDashboard access={access} />}
-          {access.plan !== "basic" && customDepartments.length > 0 && (
+          {access.plan === "custom" && customDepartments.length > 0 && (
             <ModuleAccessDashboard
               moduleMap={access.moduleMap}
               grantedModuleIds={customDepartmentGrantedModuleIds}

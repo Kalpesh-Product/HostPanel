@@ -6,3 +6,16 @@ export const getMyCalendar = async () => {
   const response = await axiosPrivate.get("/api/calendar/my-calendar");
   return unwrap(response);
 };
+
+export const createCalendarEvent = async (payload: {
+  title: string;
+  date: string;
+  startTime?: string;
+  endTime?: string;
+  description?: string;
+  inviteeUserIds?: string[];
+  guestEmails?: string[];
+}) => {
+  const response = await axiosPrivate.post("/api/calendar/events", payload);
+  return unwrap(response);
+};

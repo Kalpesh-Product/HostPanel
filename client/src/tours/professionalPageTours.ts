@@ -92,7 +92,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="tickets-raise-btn"]', title: "Raise a new ticket", description: "Click this to open the ticket form. Choose the target department, set a priority (Low, Medium, or High), write a clear title and description, set a due date, and optionally assign it to a specific person." },
       { selector: '[data-tour="tickets-table"]', title: "Ticket list and actions", description: "Each row shows the ticket ID, title, who raised it, which department it is routed to, its priority, status, and when it was last updated. Click the eye icon on any row to open the full ticket detail." },
     ],
-    matches: exact("/common-modules/tickets"),
+    matches: exact("/common-modules/tickets/list"),
   },
   {
     id: "professional-attendance",
@@ -134,11 +134,6 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
     description: "Reserve meeting rooms, manage bookings, and track invitations from one place. Book for yourself, for team members, for walk-in clients, or for tenant companies.",
     recordsDescription: "Booking records show the room, host or client, schedule, invite state, payment information when applicable, and available actions.",
     steps: [
-      { selector: '[data-tour="meetings-main-tabs"]', title: "Booking tabs", description: "These four tabs organize all meeting-room activity. My Bookings is your personal hub. Internal, External, and Tenant tabs handle other booking types with their own workflows." },
-      { selector: '[data-tour="meetings-tab-my-bookings"]', title: "My Bookings tab", description: "Your personal booking hub. See your own reservations, manage invites from others, and create new room bookings. This is where you start." },
-      { selector: '[data-tour="meetings-tab-internal"]', title: "Internal Booking tab", description: "Book a meeting room on behalf of a team member or colleague. Use this when someone asks you to reserve a room for them." },
-      { selector: '[data-tour="meetings-tab-external"]', title: "External Booking tab", description: "Handle walk-in or client bookings. These are external visitors who need a meeting room — you can track their payment status, schedule, and reservations." },
-      { selector: '[data-tour="meetings-tab-tenant"]', title: "Tenant Bookings tab", description: "Bookings made by or for tenant companies sharing your workspace. Monitor their reservations and manage any issues." },
       { selector: '[data-tour="meetings-summary"]', title: "Booking counts at a glance", description: "These four cards show booking stats that change with each tab — for example, Upcoming, In Progress, Completed, and Cancelled counts for your current view." },
       { selector: '[data-tour="meetings-scope-tabs"]', title: "Scope tabs within My Bookings", description: "Within My Bookings, additional scope tabs let you switch between your own bookings, company-wide bookings (if you have access), and invitations you have received." },
       { selector: '[data-tour="meetings-scope-dept"]', title: "Company or Department scope", description: "Shows all bookings for your company or department. Only visible to Owners, Super Admins, Admins, and Managers — not available to Employees." },
@@ -150,7 +145,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="meetings-table"]', title: "Booking list and actions", description: "Each row shows the room, host or client, schedule, status, and available actions. Click the eye icon to view full details, or use reschedule, extend, or cancel buttons as available." },
       { selector: '[data-tour="meetings-calendar"]', title: "Room availability calendar", description: "Check room availability by date. Select a room and month to see which days are free (green), partially booked (amber), or fully booked (red)." },
     ],
-    matches: startsWith("/common-modules/meeting-room-booking"),
+    matches: startsWith("/common-modules/meeting-room-booking/list"),
   },
   {
     id: "professional-calendar",

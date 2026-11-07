@@ -23,6 +23,7 @@ import {
   getStoredUser,
 } from '../../lib/auth-session';
 import { createTicket, getTickets, updateTicket, getTicketIssueSuggestions, createTicketIssue, recordTicketIssueUsage } from '../../services/tickets';
+import { getWorkspaceMembers } from '../../services/auth';
 import { getOrganizationOverview } from '../../services/organization';
 import { getAssets } from '../../services/assets';
 import { axiosPrivate } from '../../utils/axios';
@@ -34,7 +35,6 @@ import { createReport } from '../../services/reports';
 import { downloadReportFile } from '../../utils/report-download';
 import { isDateInExportPeriod } from '../../utils/export-period';
 
-// import { getWorkspaceMembers } from '@/services/auth';
 // import { getAssets } from '@/services/assets';
 // import { createTicket, getTicketIssueSuggestions, getTickets, updateTicket } from '@/services/tickets';
 
@@ -738,11 +738,56 @@ export function TicketsPage() {
   }
 
   // --- STATE ---
-  const [activeTab, setActiveTab] = useState(() => (
-    isAdminTicketProfile
+  const resolveRequestedTicketTab = () => {
+    const requestedTab = new URLSearchParams(location.search).get('tab');
+    const queueTab = isAdminTicketProfile
       ? 'assigned_dept_tickets'
-      : (isManagerTicketProfile ? 'department_tickets' : (isEmployeeTicketProfile ? 'department_tasks' : 'all'))
-  ));
+      : (isManagerTicketProfile ? 'department_tickets' : (isEmployeeTicketProfile ? 'department_tasks' : 'all'));
+    const assignedTab = (isAdminTicketProfile || isManagerTicketProfile || isEmployeeTicketProfile)
+      ? 'my_tickets'
+      : 'my_received';
+    const raisedTab = isAdminTicketProfile
+      ? 'my_assigned_tickets'
+      : (isEmployeeTicketProfile ? 'my_raised_tickets' : 'my_raised');
+
+    const dashboardTabs = {
+      queue: queueTab,
+      tenant_company: 'tenant_company_tickets',
+      my_assigned: assignedTab,
+      my_raised: raisedTab,
+    };
+    const resolvedTab = dashboardTabs[requestedTab] || requestedTab || queueTab;
+    const allowedTabs = new Set([
+      queueTab,
+      assignedTab,
+      raisedTab,
+      ...(showTenantCompanyTicketsTab ? ['tenant_company_tickets'] : []),
+    ]);
+
+    return allowedTabs.has(resolvedTab) ? resolvedTab : queueTab;
+  };
+
+  const [activeTab, setActiveTab] = useState(resolveRequestedTicketTab);
+  const activeViewTitle = activeTab === 'tenant_company_tickets'
+    ? 'Tenant Company Tickets'
+    : activeTab === 'my_tickets' || activeTab === 'my_received'
+      ? 'Assigned Tickets'
+      : activeTab === 'my_assigned_tickets' || activeTab === 'my_raised' || activeTab === 'my_raised_tickets'
+        ? 'Raised Tickets'
+        : isAdminTicketProfile
+          ? 'Assigned Departments'
+          : isManagerTicketProfile
+            ? 'Department Tickets'
+            : isEmployeeTicketProfile
+              ? 'Department Queue'
+              : 'Company Tickets';
+  const activeViewDescription = activeTab === 'tenant_company_tickets'
+    ? 'Review requests raised by tenant company teams and coordinate their resolution.'
+    : activeTab === 'my_tickets' || activeTab === 'my_received'
+      ? 'Work through tickets assigned to you, update progress, and complete resolutions.'
+      : activeTab === 'my_assigned_tickets' || activeTab === 'my_raised' || activeTab === 'my_raised_tickets'
+        ? 'Raise new tickets and track the issues you reported through resolution.'
+        : 'Review incoming tickets for your company or department, triage new requests, and monitor progress.';
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -934,6 +979,17 @@ export function TicketsPage() {
     }
 
     return normalized.replace(/[-\s]+/g, '_');
+  }
+
+  function normalizeDepartmentKey(department) {
+    const normalized = normalizeRoleValue(resolveDepartmentName(department));
+    if (normalized === 'tech' || normalized === 'tech_department') {
+      return 'technology';
+    }
+    if (normalized === 'information_technology' || normalized === 'it_department') {
+      return 'it';
+    }
+    return normalized.replace(/_department$/, '');
   }
 
   function canonicalizeDepartmentLabel(department) {
@@ -1249,7 +1305,7 @@ export function TicketsPage() {
       return [];
     }
 
-    const normalizedDepartment = normalizeRoleValue(department);
+    const normalizedDepartment = normalizeDepartmentKey(department);
     const routingPoolMembers =
       normalizedDepartment === 'owner'
         ? specialRoutingAssignees.owner
@@ -1265,7 +1321,7 @@ export function TicketsPage() {
         const memberRole = normalizeRoleValue(member?.role || '');
         const memberDepartments = Array.isArray(member?.departments) ? member.departments : [];
         const hasDepartment = memberDepartments.some(
-          (item) => normalizeRoleValue(item) === normalizedDepartment,
+          (item) => normalizeDepartmentKey(item) === normalizedDepartment,
         );
 
         if (normalizedDepartment === 'owner') {
@@ -1633,9 +1689,19 @@ export function TicketsPage() {
       if (!isMounted) return;
 
       try {
-        const response = await getOrganizationOverview(axiosPrivate);
+        const [response, workspaceMembersResponse] = await Promise.all([
+          getOrganizationOverview(axiosPrivate),
+          getWorkspaceMembers().catch(() => null),
+        ]);
         const data = response?.data?.data || response?.data || response;
-        const teamMembers = Array.isArray(data?.teamMembers) ? data.teamMembers : [];
+        const workspaceMembers = Array.isArray(workspaceMembersResponse?.members)
+          ? workspaceMembersResponse.members
+          : [];
+        const teamMembers = workspaceMembers.length > 0
+          ? workspaceMembers
+          : Array.isArray(data?.teamMembers)
+            ? data.teamMembers
+            : [];
         const departments = Array.isArray(data?.departments) ? data.departments : [];
         if (isMounted) {
           setWorkspacePlan(getWorkspacePlan({ selectedPlan: data?.workspace?.selectedPlan }));
@@ -1650,7 +1716,11 @@ export function TicketsPage() {
             name: member.name || member.email || '',
             email: member.email || '',
             role: normalizeRoleValue(member.role || 'employee'),
-            departments: Array.isArray(member.departmentNames) ? member.departmentNames.filter(Boolean) : [],
+            departments: Array.isArray(member.departmentNames) && member.departmentNames.length > 0
+              ? member.departmentNames.filter(Boolean)
+              : Array.isArray(member.departments)
+                ? member.departments.map(resolveDepartmentName).filter(Boolean)
+                : [resolveDepartmentName(member.department)].filter(Boolean),
           }));
 
         // Always include current user if not already in the list
@@ -2351,7 +2421,7 @@ export function TicketsPage() {
     }
   };
 
-  if (location.pathname !== "/common-modules/tickets") {
+  if (location.pathname !== "/common-modules/tickets/list") {
     return null;
   }
 
@@ -2366,14 +2436,10 @@ export function TicketsPage() {
             <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
               <div>
                 <h2 data-tour="tickets-heading" className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                  Tickets
+                  {activeViewTitle}
                 </h2>
                 <p className="text-xs font-pmedium text-slate-500 mt-1">
-                  {isEmployeeTicketProfile
-                    ? 'Employee workspace: accept department tickets, follow your assigned tickets, and review what you raised.'
-                    : isAdminTicketProfile
-                      ? 'Admin Control: Monitor assigned department tickets, route escalations, and manage follow-through.'
-                      : 'Founder God-Mode: Monitor escalations globally, track resolutions, and manage incident assignments.'}
+                  {activeViewDescription}
                 </p>
               </div>
               <ReportExportButton onClick={() => setShowExportModal(true)} />
@@ -2386,7 +2452,7 @@ export function TicketsPage() {
             ) : null}
 
             {/* 2. MAIN TABS (pill-style matching meetings page) */}
-            <div data-tour="tickets-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            <div data-tour="tickets-tabs" className="hidden">
               {isAdminTicketProfile ? (
                 <>
                   <button data-tour="tickets-tab-assigned-dept" onClick={() => { setActiveTab('assigned_dept_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'assigned_dept_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
@@ -2533,13 +2599,15 @@ export function TicketsPage() {
                       value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
-                  <button
-                    data-tour="tickets-raise-btn"
-                    onClick={openCreateModal}
-                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
-                  >
-                    <Plus size={13} strokeWidth={3} /> RAISE TICKET
-                  </button>
+                  {isViewingRaisedTab || activeTab === 'all' ? (
+                    <button
+                      data-tour="tickets-raise-btn"
+                      onClick={openCreateModal}
+                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                    >
+                      <Plus size={13} strokeWidth={3} /> RAISE TICKET
+                    </button>
+                  ) : null}
                 </div>
               </div>
 
