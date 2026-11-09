@@ -334,3 +334,56 @@ export const createCalendarEvent = async (
         next(error);
     }
 };
+
+export const respondToCalendarEvent = async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+) => {
+    try {
+        const workspaceId = req.workspaceMembership?.workspace;
+        if (!req.user || !workspaceId) {
+            return res.status(401).json({ message: "An active workspace is required" });
+        }
+
+        const status = req.body?.status === "declined" ? "rejected" : req.body?.status;
+        if (!["accepted", "rejected"].includes(status)) {
+            return res.status(400).json({ message: "A valid response is required" });
+        }
+
+        const event: any = await CalendarEvent.findOne({
+            _id: req.params.id,
+            workspaceId,
+            "invites.invitedUserId": req.user,
+        });
+        if (!event) return res.status(404).json({ message: "Invite not found" });
+
+        const invite = event.invites.find((item: any) => String(item.invitedUserId) === String(req.user));
+        invite.status = status;
+        await event.save();
+
+        if (event.ownerId && String(event.ownerId) !== String(req.user)) {
+            const responder = await HostUser.findById(req.user).select("name email").lean().exec();
+            const responderName = responder?.name || responder?.email || "Someone";
+            createNotification({
+                workspaceId,
+                recipientUserId: String(event.ownerId),
+                actorUserId: req.user,
+                type: "calendar_event_response",
+                category: "calendar",
+                title: `Calendar Invite ${status === "accepted" ? "Accepted" : "Declined"}`,
+                description: `${responderName} has ${status === "accepted" ? "accepted" : "declined"} your invitation to "${event.title}".`,
+                entityType: "calendar_event",
+                entityId: String(event._id),
+                targetUrl: "/common-modules/calendar",
+                data: { title: event.title, response: status },
+                priority: "normal",
+                dedupeKey: `calendar-event-response:${event._id}:${req.user}:${Date.now()}`,
+            });
+        }
+
+        return res.status(200).json({ message: "Invite response saved", data: event });
+    } catch (error) {
+        next(error);
+    }
+};

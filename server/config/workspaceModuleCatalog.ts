@@ -18,7 +18,7 @@ const MODULE_GROUPS = [
       { id: "calendar", label: "Calendar", route: "/calendar", implemented: true },
       { id: "cafe-orders", label: "Cafe Orders", route: "/common-modules/cafe-orders", implemented: true, verticals: ["cafe"] },
       { id: "hostel-booking", label: "Hostel Booking", route: "/common-modules/hostel-booking", implemented: true, verticals: ["hostel"] },
-      { id: "room-booking", label: "Room Booking", route: "/common-modules/room-booking", implemented: true, verticals: ["co-living"] },
+      { id: "room-booking", label: "Co-living Room Booking", route: "/common-modules/room-booking", implemented: true, verticals: ["co-living"] },
     ],
   },
   {

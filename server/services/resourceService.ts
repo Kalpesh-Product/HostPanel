@@ -83,6 +83,8 @@ function validateCreateInput(input: any) {
         errors.push("Price per night must be a non-negative number");
     if (input.credits != null && (isNaN(Number(input.credits)) || Number(input.credits) < 0))
         errors.push("Credits must be a non-negative number");
+    if (input.securityDepositAmount != null && (isNaN(Number(input.securityDepositAmount)) || Number(input.securityDepositAmount) < 0))
+        errors.push("Security deposit amount must be a non-negative number");
     if (input.description && input.description.length > 500) errors.push("Description must be at most 500 characters");
     if (input.status && !resourceStatuses.includes(input.status))
         errors.push(`Status must be one of: ${resourceStatuses.join(", ")}`);
@@ -114,6 +116,8 @@ function validateUpdateInput(input: any) {
         errors.push("Price per night must be a non-negative number");
     if (input.credits != null && (isNaN(Number(input.credits)) || Number(input.credits) < 0))
         errors.push("Credits must be a non-negative number");
+    if (input.securityDepositAmount != null && (isNaN(Number(input.securityDepositAmount)) || Number(input.securityDepositAmount) < 0))
+        errors.push("Security deposit amount must be a non-negative number");
     if (input.description && input.description.length > 500) errors.push("Description must be at most 500 characters");
     if (input.status && !resourceStatuses.includes(input.status))
         errors.push(`Status must be one of: ${resourceStatuses.join(", ")}`);
@@ -369,6 +373,10 @@ export async function createResourceForOwner(workspaceId: string, ownerId: strin
     const pricePerNight = isNightlyCategory ? Number(input.pricePerNight || 0) : 0;
     const credits = Number(input.credits || 0);
     const amenities = Array.isArray(input.amenities) ? input.amenities.map((entry: unknown) => String(entry).trim()).filter(Boolean) : [];
+    // Security deposit only applies to nightly stays (Room/Dorm) — other
+    // categories never charge one, regardless of what the form sends.
+    const chargesSecurityDeposit = isNightlyCategory ? Boolean(input.chargesSecurityDeposit) : false;
+    const securityDepositAmount = isNightlyCategory && chargesSecurityDeposit ? Math.max(0, Number(input.securityDepositAmount || 0)) : 0;
     const status = resolveResourceStatusForActivation({
         requestedStatus: input.status || "Active",
         pricePerHour,
@@ -398,6 +406,8 @@ export async function createResourceForOwner(workspaceId: string, ownerId: strin
         credits,
         description: input.description || "",
         amenities,
+        chargesSecurityDeposit,
+        securityDepositAmount,
         status,
         isActive: status === "Active",
         currentlyBooked: false,
@@ -468,6 +478,13 @@ export async function updateResourceForOwner(workspaceId: string, ownerId: strin
     if (typeof input.description === "string") resource!.description = input.description;
     if (Array.isArray(input.amenities)) {
         resource!.amenities = input.amenities.map((entry: unknown) => String(entry).trim()).filter(Boolean);
+    }
+    if (typeof input.chargesSecurityDeposit === "boolean") {
+        resource!.chargesSecurityDeposit = nightlyPricedCategories.has(resource!.resourceCategory) ? input.chargesSecurityDeposit : false;
+        if (!resource!.chargesSecurityDeposit) resource!.securityDepositAmount = 0;
+    }
+    if (typeof input.securityDepositAmount === "number" && resource!.chargesSecurityDeposit) {
+        resource!.securityDepositAmount = Math.max(0, input.securityDepositAmount);
     }
     if (typeof input.status === "string") {
         resource!.status = input.status as any;

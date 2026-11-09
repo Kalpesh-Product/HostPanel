@@ -137,7 +137,10 @@ import ResourcePricingPage from "../pages/Sales/ResourcePricing/Resource&Pricing
 import ResourcePricingDashboard from "../pages/Sales/ResourcePricing/ResourcePricingDashboard";
 import CafeManagementPage from "../pages/Sales/CafeManagement/CafeManagementPage";
 import CafeManagementDashboard from "../pages/Sales/CafeManagement/CafeManagementDashboard";
+import CafeOrdersDashboard from "../pages/Sales/CafeOrders/CafeOrdersDashboard";
 import CafeOrdersPage from "../pages/Sales/CafeOrders/CafeOrdersPage";
+import CoLivingRoomBookingDashboard from "../pages/RoomStays/CoLivingRoomBookingDashboard";
+import HostelBookingDashboard from "../pages/RoomStays/HostelBookingDashboard";
 import RoomStayBookingPage from "../pages/RoomStays/RoomStayBookingPage";
 import RoomManagementPage from "../pages/RoomManagement/RoomManagementPage";
 import RoomStayManagementDashboard from "../pages/RoomManagement/RoomStayManagementDashboard";
@@ -984,10 +987,18 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "common-modules/cafe-orders",
+                element: <CafeOrdersDashboard />,
+              },
+              {
+                path: "common-modules/cafe-orders/list",
                 element: <CafeOrdersPage />,
               },
               {
                 path: "common-modules/hostel-booking",
+                element: <HostelBookingDashboard />,
+              },
+              {
+                path: "common-modules/hostel-booking/list",
                 element: (
                   <RoomStayBookingPage
                     roomType="Dorm"
@@ -998,10 +1009,14 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "common-modules/room-booking",
+                element: <CoLivingRoomBookingDashboard />,
+              },
+              {
+                path: "common-modules/room-booking/list",
                 element: (
                   <RoomStayBookingPage
                     roomType="Room"
-                    title="Room Booking"
+                    title="Co-living Room Booking"
                     noun="Room"
                   />
                 ),

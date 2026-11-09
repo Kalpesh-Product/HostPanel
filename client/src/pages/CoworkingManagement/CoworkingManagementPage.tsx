@@ -1224,7 +1224,7 @@ export default function CoworkingManagementPage() {
                         <p className="text-[11px] font-pmedium text-slate-800">
                           {row.floor}
                         </p>
-                        <p className="mt-0.5 text-[10px] text-slate-400">
+                        <p className="mt-0.5 text-[10px] font-pmedium text-slate-400">
                           {row.occupied} occupied · {row.vacant} available
                         </p>
                       </div>

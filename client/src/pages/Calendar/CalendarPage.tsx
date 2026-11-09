@@ -14,7 +14,8 @@ import {
   X,
   AlertCircle
 } from 'lucide-react';
-import { getMyCalendar, createCalendarEvent as createCalendarEventRequest } from '@/services/calendar';
+import { getMyCalendar, createCalendarEvent as createCalendarEventRequest, respondToCalendarEvent } from '@/services/calendar';
+import { respondToMeetingRoomInvite } from '@/services/meeting-room-bookings';
 import { getWorkspaceMembers } from '@/services/auth';
 import { getStoredUser } from '@/lib/auth-session';
 import Skeleton from '@/components/ui/Skeleton';
@@ -27,6 +28,7 @@ import { statusPillClass } from '../../lib/status-pill';
 type EventType = 'booking' | 'task' | 'ticket' | 'leave' | 'holiday' | 'event' | 'personal';
 
 interface EventInvite {
+  invitedUserId?: string;
   invitedName?: string;
   invitedEmail?: string;
   invitedRole?: string;
@@ -485,9 +487,10 @@ function UnifiedCalendar() {
   const [isSavingEvent, setIsSavingEvent] = useState(false);
   const [eventFormError, setEventFormError] = useState('');
   const [workspaceMembers, setWorkspaceMembers] = useState<Array<{ userId: string; name: string; email: string }>>([]);
+  const currentUserId = String(getStoredUser()?.id || getStoredUser()?._id || '');
+  const [isRespondingToInvite, setIsRespondingToInvite] = useState(false);
 
   useEffect(() => {
-    const currentUserId = String(getStoredUser()?.id || getStoredUser()?._id || '');
     getWorkspaceMembers()
       .then((data: any) => {
         const members = Array.isArray(data?.members) ? data.members : [];
@@ -559,6 +562,25 @@ function UnifiedCalendar() {
       setEventFormError(error?.response?.data?.message || error?.message || 'Failed to create event.');
     } finally {
       setIsSavingEvent(false);
+    }
+  };
+
+  const respondToInvite = async (event: CalendarEvent, status: 'accepted' | 'rejected') => {
+    setIsRespondingToInvite(true);
+    try {
+      if (event.type === 'personal') {
+        const rawId = event.id.replace(/^calendar-event-/, '');
+        await respondToCalendarEvent(rawId, status);
+      } else {
+        await respondToMeetingRoomInvite(event.id, { status });
+      }
+      setShowEventModal(false);
+      setSelectedEvent(null);
+      refreshCalendar(true);
+    } catch (error: any) {
+      setLoadError(error?.response?.data?.message || error?.message || 'Failed to respond to the invite.');
+    } finally {
+      setIsRespondingToInvite(false);
     }
   };
 
@@ -1146,6 +1168,33 @@ function UnifiedCalendar() {
                 </div>
               )}
             </div>
+
+            {(() => {
+              if (selectedEvent.type !== 'booking' && selectedEvent.type !== 'personal') return null;
+              const invites = selectedEvent.details?.invites || [];
+              const myInvite = invites.find((invite: any) => String(invite.invitedUserId || '') === currentUserId);
+              if (!myInvite || String(myInvite.status || 'pending').toLowerCase() !== 'pending') return null;
+              return (
+                <div className="flex gap-3 border-t border-slate-100 bg-slate-50/50 p-4">
+                  <button
+                    type="button"
+                    disabled={isRespondingToInvite}
+                    onClick={() => respondToInvite(selectedEvent, 'rejected')}
+                    className="flex-1 rounded-2xl border border-slate-200 bg-white py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    Decline
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isRespondingToInvite}
+                    onClick={() => respondToInvite(selectedEvent, 'accepted')}
+                    className="flex-1 rounded-2xl bg-[#2563EB] py-2.5 text-[11px] font-pmedium uppercase tracking-widest text-white hover:bg-blue-700 disabled:opacity-60"
+                  >
+                    Accept
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -1259,7 +1308,7 @@ function UnifiedCalendar() {
                 </div>
               </div>
 
-              <div>
+              {/* <div>
                 <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Invite Guests by Email</label>
                 <input
                   type="email"
@@ -1282,7 +1331,7 @@ function UnifiedCalendar() {
                   </div>
                 )}
                 <p className="mt-1.5 text-[10px] font-pmedium text-slate-400">Members and guests both get an email invite.</p>
-              </div>
+              </div> */}
 
               {eventFormError && (
                 <p className="text-[11px] font-pmedium text-rose-500">{eventFormError}</p>

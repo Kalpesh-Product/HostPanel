@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Armchair,
@@ -41,6 +42,8 @@ import {
 } from "../../../services/cafe";
 
 type Tab = "live" | "reservations" | "insights" | "history";
+
+const CAFE_ORDER_TABS: Tab[] = ["live", "reservations", "insights", "history"];
 
 const todayInput = () => {
   const date = new Date();
@@ -110,10 +113,14 @@ const isOpenStatus = (status: CafeOrderStatus) => CAFE_OPEN_STATUSES.includes(st
 
 export default function CafeOrdersPage() {
   const workspacePreferences = useWorkspacePreferences();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab");
   const formatCurrency = (value = 0) =>
     formatWorkspaceCurrency(Number(value || 0), workspacePreferences.currency, { maximumFractionDigits: 2 });
 
-  const [tab, setTab] = useState<Tab>("live");
+  const [tab, setTab] = useState<Tab>(() =>
+    CAFE_ORDER_TABS.includes(requestedTab as Tab) ? requestedTab as Tab : "live",
+  );
   const [tables, setTables] = useState<CafeTable[]>([]);
   const [menuItems, setMenuItems] = useState<CafeMenuItem[]>([]);
   const [openOrders, setOpenOrders] = useState<CafeOrder[]>([]);
@@ -122,6 +129,18 @@ export default function CafeOrdersPage() {
   const [dialog, setDialog] = useState<{ table: CafeTable; order: CafeOrder | null; readOnly: boolean; initialCustomerName?: string } | null>(null);
   const [reservations, setReservations] = useState<CafeReservation[]>([]);
   const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const nextTab = CAFE_ORDER_TABS.includes(requestedTab as Tab)
+      ? requestedTab as Tab
+      : "live";
+    setTab(nextTab);
+  }, [requestedTab]);
+
+  const openTab = (nextTab: Tab) => {
+    setTab(nextTab);
+    setSearchParams({ tab: nextTab }, { replace: true });
+  };
 
   const loadLive = async () => {
     try {
@@ -205,28 +224,6 @@ export default function CafeOrdersPage() {
           </div>
         </div>
 
-        <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-          {(
-            [
-              { key: "live", label: "Live Tables" },
-              { key: "reservations", label: "Reservations" },
-              { key: "insights", label: "Insights" },
-              { key: "history", label: "Order History" },
-            ] as Array<{ key: Tab; label: string }>
-          ).map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => setTab(item.key)}
-              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
-                tab === item.key ? "bg-[#2563EB] text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-
         {tab === "live" && (
           <LiveTablesTab
             isLoading={isLoading}
@@ -248,7 +245,7 @@ export default function CafeOrdersPage() {
               const table = tables.find((entry) => entry._id === tableId);
               if (!table) return toast.error("That table could not be found.");
               setDialog({ table, order: openOrderByTable.get(tableId) || null, readOnly: false, initialCustomerName: reservation.guestName });
-              setTab("live");
+              openTab("live");
             }}
           />
         )}
@@ -288,10 +285,13 @@ function SummaryCards({
     <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4 shrink-0">
       {cards.map((card) => {
         const Icon = card.icon;
+        const labelToneClass =
+          card.iconClass.split(" ").find((className) => className.startsWith("text-")) ||
+          "text-slate-400";
         return (
           <div key={card.key} className={card.cardClass}>
             <div className="min-w-0">
-              <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+              <p className={`mb-1 text-[10px] font-pmedium uppercase tracking-widest ${labelToneClass}`}>{card.label}</p>
               <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
             </div>
             <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}>
@@ -364,23 +364,61 @@ function LiveTablesTab({
   formatCurrency: (value?: number) => string;
   onSelect: (table: CafeTable) => void;
 }) {
-  const [status, setStatus] = useState<"All" | "Free" | "Occupied">("All");
+  const [status, setStatus] = useState<"All" | "Free" | "Occupied" | "Ready" | "Reserved">("All");
   const [query, setQuery] = useState("");
 
-  const filtered = tables.filter((table) => {
-    if (query.trim() && !table.name.toLowerCase().includes(query.trim().toLowerCase())) return false;
-    const occupied = openOrderByTable.has(table._id);
-    if (status === "Free") return !occupied && table.isActive;
-    if (status === "Occupied") return occupied;
-    return true;
-  });
+  const activeTableCount = tables.filter((table) => table.isActive).length;
+  const availableCount = tables.filter(
+    (table) => table.isActive && !openOrderByTable.has(table._id) && !lockedReservationByTable.has(table._id),
+  ).length;
+
+  const filtered = tables
+    .filter((table) => {
+      if (query.trim() && !table.name.toLowerCase().includes(query.trim().toLowerCase())) return false;
+      const order = openOrderByTable.get(table._id);
+      const reserved = lockedReservationByTable.has(table._id);
+      if (status === "Free") return table.isActive && !order && !reserved;
+      if (status === "Occupied") return Boolean(order);
+      if (status === "Ready") return order?.status === "Ready";
+      if (status === "Reserved") return reserved;
+      return true;
+    })
+    .sort((left, right) => {
+      const priority = (table: CafeTable) => {
+        const order = openOrderByTable.get(table._id);
+        if (order?.status === "Ready") return 0;
+        if (order?.status === "Preparing") return 1;
+        if (order?.status === "Placed") return 2;
+        if (order?.status === "Served") return 3;
+        if (lockedReservationByTable.has(table._id)) return 4;
+        if (table.isActive) return 5;
+        return 6;
+      };
+      return priority(left) - priority(right) || left.name.localeCompare(right.name);
+    });
+
+  const orderAge = (createdAt: string) => {
+    const started = new Date(createdAt).getTime();
+    if (Number.isNaN(started)) return "";
+    const minutes = Math.max(0, Math.floor((Date.now() - started) / 60_000));
+    if (minutes < 60) return `${minutes}m open`;
+    return `${Math.floor(minutes / 60)}h ${minutes % 60}m open`;
+  };
+
+  const serviceCue = (status: CafeOrderStatus) => {
+    if (status === "Ready") return "Ready for service";
+    if (status === "Preparing") return "Kitchen preparing";
+    if (status === "Placed") return "Sent to kitchen";
+    if (status === "Served") return "Service completed";
+    return status;
+  };
 
   return (
     <>
       <SummaryCards
         cards={[
-          { key: "tables", icon: Armchair, label: "Tables", value: String(tables.length), cardClass: baseCardClass, iconClass: "bg-blue-50 text-blue-600" },
-          { key: "free", icon: CheckCircle2, label: "Free", value: String(tables.length - occupiedCount), cardClass: `${baseCardClass} border-l-4 border-l-emerald-500`, iconClass: "bg-emerald-50 text-emerald-600" },
+          { key: "tables", icon: Armchair, label: "Active tables", value: String(activeTableCount), cardClass: baseCardClass, iconClass: "bg-blue-50 text-blue-600" },
+          { key: "free", icon: CheckCircle2, label: "Available", value: String(availableCount), cardClass: `${baseCardClass} border-l-4 border-l-emerald-500`, iconClass: "bg-emerald-50 text-emerald-600" },
           { key: "occupied", icon: Users, label: "Occupied", value: `${occupiedCount} / ${tables.length}`, cardClass: `${baseCardClass} border-l-4 border-l-amber-500`, iconClass: "bg-amber-50 text-amber-600" },
           { key: "value", icon: Receipt, label: "Open bill value", value: formatCurrency(openValue), cardClass: `${baseCardClass} border-l-4 border-l-indigo-500`, iconClass: "bg-indigo-50 text-indigo-600" },
         ]}
@@ -388,7 +426,10 @@ function LiveTablesTab({
 
       <div className="flex min-h-110 flex-col overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
         <div className={TOOLBAR}>
-          <StatusPills options={["All", "Free", "Occupied"] as const} value={status} onChange={setStatus} />
+          <div>
+            <StatusPills options={["All", "Free", "Occupied", "Ready", "Reserved"] as const} value={status} onChange={setStatus} />
+            <p className="mt-2 text-[9px] font-pmedium uppercase tracking-wider text-slate-400">Ready and active kitchen orders are shown first</p>
+          </div>
           <div className="relative w-full xl:w-72">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
             <input className={SEARCH_INPUT} placeholder="Search tables..." value={query} onChange={(event) => setQuery(event.target.value)} />
@@ -444,11 +485,15 @@ function LiveTablesTab({
                       )}
                     </div>
                     {order ? (
-                      <div className="flex items-end justify-between text-[11px] font-pmedium text-slate-500">
-                        <span>
-                          Order #{order.orderNumber} · {order.items.reduce((sum, line) => sum + line.quantity, 0)} items
-                        </span>
-                        <span className="text-sm font-pmedium text-slate-900">{formatCurrency(order.total)}</span>
+                      <div className="space-y-2">
+                        <div className="flex items-end justify-between text-[11px] font-pmedium text-slate-500">
+                          <span>Order #{order.orderNumber} · {order.items.reduce((sum, line) => sum + line.quantity, 0)} items</span>
+                          <span className="text-sm font-pmedium text-slate-900">{formatCurrency(order.total)}</span>
+                        </div>
+                        <div className="flex items-center justify-between border-t border-slate-100 pt-2 text-[10px] font-pmedium">
+                          <span className={order.status === "Ready" ? "text-violet-600" : "text-slate-500"}>{serviceCue(order.status)}</span>
+                          <span className="text-slate-400">{orderAge(order.createdAt)}</span>
+                        </div>
                       </div>
                     ) : lockedReservation ? (
                       <span className="text-[11px] font-pmedium text-slate-500">{lockedReservation.guestName} · party of {lockedReservation.partySize}</span>
@@ -490,21 +535,27 @@ function OrderDialog({
   const { prompt } = useAppConfirm();
   const [customerName, setCustomerName] = useState(order?.customerName || initialCustomerName || "");
   const [notes, setNotes] = useState(order?.notes || "");
-  const [category, setCategory] = useState("All");
+  const [category, setCategory] = useState("Popular");
   const [draft, setDraft] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState(false);
+  const [showOrderReview, setShowOrderReview] = useState(false);
+  const [itemPopularity, setItemPopularity] = useState<Record<string, number>>({});
   const [showSettlement, setShowSettlement] = useState(false);
   const [discountType, setDiscountType] = useState<"none" | "percentage" | "fixed">("none");
   const [discountValue, setDiscountValue] = useState("0");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
 
-  const printReceipt = (title: string, body: string) => {
-    const printWindow = window.open("", "_blank", "width=420,height=720");
-    if (!printWindow) return toast.error("Allow pop-ups to print this receipt.");
+  const writeReceipt = (printWindow: Window, title: string, body: string) => {
     printWindow.document.write(`<!doctype html><html><head><title>${title}</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#111}h1{font-size:18px;text-align:center;margin:0 0 4px}.meta{text-align:center;font-size:12px;color:#555;margin-bottom:16px}.line{display:flex;justify-content:space-between;border-bottom:1px dashed #bbb;padding:6px 0}.total{font-weight:700;border-top:2px solid #111;margin-top:10px;padding-top:8px}.qr{text-align:center;margin-top:18px}.qr img{width:120px;height:120px}</style></head><body>${body}</body></html>`);
     printWindow.document.close();
     printWindow.focus();
     printWindow.print();
+  };
+
+  const printReceipt = (title: string, body: string) => {
+    const printWindow = window.open("", "_blank", "width=420,height=720");
+    if (!printWindow) return toast.error("Allow pop-ups to print this receipt.");
+    writeReceipt(printWindow, title, body);
   };
 
   useEffect(() => {
@@ -513,14 +564,79 @@ function OrderDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order?._id]);
 
-  const categories = useMemo(
-    () => ["All", ...Array.from(new Set(menuItems.map((item) => item.category || "Uncategorised")))],
+  useEffect(() => {
+    let cancelled = false;
+    getCafeOrders({ scope: "history" })
+      .then((response) => {
+        if (cancelled) return;
+        const history = Array.isArray(response?.data?.data) ? response.data.data as CafeOrder[] : [];
+        const popularity: Record<string, number> = {};
+        history
+          .filter((entry) => entry.status === "Paid")
+          .forEach((entry) => {
+            entry.items.forEach((line) => {
+              popularity[line.menuItemId] = (popularity[line.menuItemId] || 0) + Number(line.quantity || 0);
+            });
+          });
+        setItemPopularity(popularity);
+      })
+      .catch(() => {
+        if (!cancelled) setItemPopularity({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const categories = useMemo(() => {
+    const categoryPriority = (value: string) => {
+      const normalized = value.toLowerCase();
+      if (/starter|appetizer/.test(normalized)) return 0;
+      if (/snack|quick bite/.test(normalized)) return 1;
+      if (/tea|coffee|hot beverage/.test(normalized)) return 2;
+      if (/drink|beverage|juice|shake|smoothie|mocktail/.test(normalized)) return 3;
+      if (/breakfast/.test(normalized)) return 4;
+      if (/main|meal|lunch|dinner/.test(normalized)) return 5;
+      if (/dessert|sweet/.test(normalized)) return 6;
+      return 7;
+    };
+    const menuCategories = Array.from(
+      new Set(menuItems.map((item) => item.category || "Uncategorised")),
+    ).sort((left, right) => categoryPriority(left) - categoryPriority(right) || left.localeCompare(right));
+    return ["Popular", "Top Drinks", ...menuCategories];
+  }, [menuItems]);
+
+  const availableItems = useMemo(
+    () => menuItems.filter((item) => item.isAvailable),
     [menuItems],
   );
 
-  const visibleItems = menuItems.filter(
-    (item) => item.isAvailable && (category === "All" || (item.category || "Uncategorised") === category),
+  const byPopularity = useCallback(
+    (left: CafeMenuItem, right: CafeMenuItem) =>
+      (itemPopularity[right._id] || 0) - (itemPopularity[left._id] || 0) ||
+      Number(left.sortOrder || 0) - Number(right.sortOrder || 0) ||
+      left.name.localeCompare(right.name),
+    [itemPopularity],
   );
+
+  const popularItems = useMemo(
+    () => [...availableItems].sort(byPopularity).slice(0, 10),
+    [availableItems, byPopularity],
+  );
+
+  const topDrinkItems = useMemo(
+    () => availableItems
+      .filter((item) => /drink|beverage|juice|tea|coffee|shake|smoothie|water|soda|mocktail/i.test(`${item.category} ${item.name}`))
+      .sort(byPopularity)
+      .slice(0, 10),
+    [availableItems, byPopularity],
+  );
+
+  const visibleItems = category === "Popular"
+    ? popularItems
+    : category === "Top Drinks"
+      ? topDrinkItems
+      : availableItems.filter((item) => (item.category || "Uncategorised") === category);
 
   const draftLines = menuItems
     .filter((item) => (draft[item._id] || 0) > 0)
@@ -559,6 +675,7 @@ function OrderDialog({
       toast.success(response?.data?.message || "Round sent to the kitchen.");
       setDraft({});
       await onChanged();
+      onClose();
     } catch (error) {
       toast.error(getErrorMessage(error, "Unable to send this round."));
     } finally {
@@ -607,14 +724,18 @@ function OrderDialog({
     void run(() => updateCafeOrderStatus(order._id, status), `Marked ${status}.`);
   };
 
-  const handlePrintBill = () => {
-    if (!order) return;
+  const billReceiptBody = (billOrder: CafeOrder) => {
     const qr = settings.showReviewQr && settings.googleReviewUrl
       ? `<div class="qr"><p>Review us on Google</p><img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(settings.googleReviewUrl)}"></div>`
       : "";
+    return `<h1>${settings.companyName || "Cafe Bill"}</h1><div class="meta">Order #${billOrder.orderNumber} · ${table.name}<br>${new Date().toLocaleString()}${billOrder.waiterName ? `<br>Waiter: ${billOrder.waiterName}` : ""}</div>${billOrder.items.map((line) => `<div class="line"><span>${line.quantity} × ${line.name}</span><span>${formatCurrency(line.lineTotal)}</span></div>`).join("")}<div class="line"><span>Subtotal</span><span>${formatCurrency(billOrder.subtotal)}</span></div>${billOrder.discountAmount ? `<div class="line"><span>Discount</span><span>−${formatCurrency(billOrder.discountAmount)}</span></div>` : ""}${billOrder.taxAmount ? `<div class="line"><span>Tax (${billOrder.taxPercent}%)</span><span>${formatCurrency(billOrder.taxAmount)}</span></div>` : ""}<div class="line total"><span>Total</span><span>${formatCurrency(billOrder.total)}</span></div>${billOrder.paymentMethod ? `<div class="meta">Paid via ${billOrder.paymentMethod}</div>` : ""}${qr}`;
+  };
+
+  const handlePrintBill = () => {
+    if (!order) return;
     printReceipt(
       `Bill ${order.orderNumber}`,
-      `<h1>${settings.companyName || "Cafe Bill"}</h1><div class="meta">Order #${order.orderNumber} · ${table.name}<br>${new Date().toLocaleString()}${order.waiterName ? `<br>Waiter: ${order.waiterName}` : ""}</div>${order.items.map((line) => `<div class="line"><span>${line.quantity} × ${line.name}</span><span>${formatCurrency(line.lineTotal)}</span></div>`).join("")}<div class="line"><span>Subtotal</span><span>${formatCurrency(order.subtotal)}</span></div>${order.discountAmount ? `<div class="line"><span>Discount</span><span>−${formatCurrency(order.discountAmount)}</span></div>` : ""}${order.taxAmount ? `<div class="line"><span>Tax (${order.taxPercent}%)</span><span>${formatCurrency(order.taxAmount)}</span></div>` : ""}<div class="line total"><span>Total</span><span>${formatCurrency(order.total)}</span></div>${order.paymentMethod ? `<div class="meta">Paid via ${order.paymentMethod}</div>` : ""}${qr}`,
+      billReceiptBody(order),
     );
   };
 
@@ -630,15 +751,33 @@ function OrderDialog({
     void run(() => updateCafeOrderStatus(order._id, "Cancelled", result.reason), "Order voided.", true);
   };
 
-  const handlePaidAndDone = () => {
+  const handlePaidAndDone = async () => {
     if (!order) return;
     const numericDiscount = Number(discountValue || 0);
     if (!Number.isFinite(numericDiscount) || numericDiscount < 0) return toast.error("Enter a valid discount.");
-    void run(
-      () => billCafeOrder(order._id, { discountType, discountValue: discountType === "none" ? 0 : numericDiscount, paymentMethod }),
-      "Payment settled. Table is free.",
-      true,
-    );
+    const printWindow = window.open("", "_blank", "width=420,height=720");
+    setBusy(true);
+    try {
+      const response = await billCafeOrder(order._id, {
+        discountType,
+        discountValue: discountType === "none" ? 0 : numericDiscount,
+        paymentMethod,
+      });
+      const settledOrder = (response?.data?.data || order) as CafeOrder;
+      toast.success("Payment settled. Table is free.");
+      await onChanged();
+      if (printWindow) {
+        writeReceipt(printWindow, `Bill ${settledOrder.orderNumber}`, billReceiptBody(settledOrder));
+      } else {
+        toast.error("Payment was collected, but the bill pop-up was blocked. Print it from Order History.");
+      }
+      onClose();
+    } catch (error) {
+      printWindow?.close();
+      toast.error(getErrorMessage(error, "Unable to settle this payment."));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const previewDiscount = discountType === "percentage"
@@ -667,7 +806,7 @@ function OrderDialog({
           </div>
         </div>
 
-        <div className="grid flex-1 grid-cols-1 overflow-y-auto md:grid-cols-5">
+        <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto md:grid-cols-5">
           <div className={`flex flex-col gap-4 border-b border-slate-100 p-6 md:border-b-0 ${readOnly ? "md:col-span-5" : "md:col-span-2 md:border-r"}`}>
             <div>
               <label className={LABEL}>Customer</label>
@@ -736,12 +875,12 @@ function OrderDialog({
             {order && (
               <div className="rounded-2xl border border-dashed border-slate-300 p-4 text-[12px]">
                 <p className="text-center font-pmedium text-slate-900">{settings.companyName || "Cafe Bill"}</p>
-                <p className="text-center text-[11px] text-slate-500">Bill · Order #{order.orderNumber}</p>
-                <p className="text-center text-[11px] text-slate-500">
+                <p className="text-center font-pmedium text-[11px] text-slate-500">Bill · Order #{order.orderNumber}</p>
+                <p className="text-center font-pmedium text-[11px] text-slate-500">
                   {table.name} · {new Date().toLocaleString()}
                   {order.customerName ? ` · ${order.customerName}` : ""}
                 </p>
-                <div className="my-2 divide-y divide-slate-100 border-y border-slate-100">
+                <div className="my-2 divide-y divide-slate-100 border-y font-pmedium border-slate-100">
                   {order.items.map((line) => (
                     <div key={line.menuItemId} className="flex justify-between py-1">
                       <span>
@@ -756,18 +895,24 @@ function OrderDialog({
                   <span>{formatCurrency(order.subtotal)}</span>
                 </div>
                 {order.discountAmount > 0 && <div className="flex justify-between text-emerald-700"><span>Discount</span><span>−{formatCurrency(order.discountAmount)}</span></div>}
-                {order.taxAmount > 0 && <div className="flex justify-between text-slate-600"><span>Tax ({order.taxPercent}%)</span><span>{formatCurrency(order.taxAmount)}</span></div>}
+                {order.taxAmount > 0 && <div className="flex justify-between font-pmedium text-slate-600"><span>Tax ({order.taxPercent}%)</span><span>{formatCurrency(order.taxAmount)}</span></div>}
                 <div className="flex justify-between font-pmedium text-slate-900">
                   <span>Total</span>
                   <span>{formatCurrency(order.total)}</span>
                 </div>
-                {order.waiterName && <p className="mt-2 text-center text-[10px] text-slate-500">Waiter: {order.waiterName}</p>}
-                {order.paymentMethod && <p className="text-center text-[10px] text-slate-500">Paid via {order.paymentMethod}</p>}
+                {order.waiterName && <p className="mt-2 text-center font-pmedium text-[10px] text-slate-500">Waiter: {order.waiterName}</p>}
+                {order.paymentMethod && <p className="text-center font-pmedium text-[10px] text-slate-500">Paid via {order.paymentMethod}</p>}
               </div>
             )}
 
+            {order && ["Served", "Paid"].includes(order.status) && (
+              <button type="button" onClick={handlePrintBill} className={`${SECONDARY_BUTTON} w-full`}>
+                <Printer size={13} /> Print bill
+              </button>
+            )}
+
             {order && !readOnly && (
-              <div className="mt-auto flex flex-wrap gap-2">
+              <div className="mt-auto flex justify-center flex-wrap gap-2">
                 {!["Served", "Paid"].includes(order.status) && (
                   <button type="button" onClick={() => handleStatus("Served")} disabled={busy} className={PRIMARY_BUTTON}>
                     Mark as served
@@ -784,32 +929,35 @@ function OrderDialog({
             <div className="flex items-center justify-between rounded-xl bg-blue-50 px-3 py-2 text-[11px] font-pmedium text-blue-700">
               <span>Next kitchen ticket</span><span>Round {(order?.rounds?.length || 0) + 1}</span>
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {categories.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setCategory(item)}
-                  className={`rounded-full px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest ${
-                    category === item ? "bg-[#2563EB] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  {item}
-                </button>
-              ))}
+            <div className="flex items-end justify-between gap-3">
+              <div className="w-full sm:max-w-xs">
+                <label className={LABEL}>Menu category</label>
+                <select className={FIELD} value={category} onChange={(event) => setCategory(event.target.value)}>
+                  {categories.map((item) => <option key={item} value={item}>{item}</option>)}
+                </select>
+              </div>
+              <p className="hidden pb-2 text-right text-[9px] font-pmedium uppercase tracking-wider text-slate-400 sm:block">
+                {category === "Popular" ? "Top 10 by settled quantity" : category === "Top Drinks" ? "Most ordered drinks" : `${visibleItems.length} available`}
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="grid flex-1 content-start grid-cols-1 gap-2 pr-1 sm:grid-cols-2">
               {visibleItems.length === 0 && (
-                <p className="col-span-full text-[11px] font-pmedium text-slate-400">No available items in this category.</p>
+                <p className="col-span-full rounded-2xl bg-slate-50 p-6 text-center text-[11px] font-pmedium text-slate-400">No available items in this category.</p>
               )}
               {visibleItems.map((item) => {
                 const quantity = draft[item._id] || 0;
+                const orderedQuantity = itemPopularity[item._id] || 0;
                 return (
                   <div key={item._id} className="flex items-center justify-between rounded-2xl border border-slate-200 p-3">
                     <div className="min-w-0">
                       <p className="truncate text-[12px] font-pmedium text-slate-900">{item.name}</p>
                       <p className="text-[11px] font-pmedium text-slate-500">{formatCurrency(item.price)}</p>
+                      {category === "Popular" || category === "Top Drinks" ? (
+                        <p className="mt-1 text-[9px] font-pmedium uppercase tracking-wider text-blue-500">
+                          {orderedQuantity > 0 ? `${orderedQuantity} ordered` : "New menu item"}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="flex items-center gap-2">
                       <button type="button" onClick={() => adjust(item._id, -1)} disabled={quantity === 0} aria-label={`Remove one ${item.name}`} className="rounded-lg border border-slate-200 p-1 disabled:opacity-40">
@@ -829,6 +977,79 @@ function OrderDialog({
               <span className="text-[11px] font-pmedium text-slate-500">
                 {draftLines.length === 0 ? "Pick items to add" : `${draftLines.length} item(s) · ${formatCurrency(draftTotal)}`}
               </span>
+              <button type="button" onClick={() => setShowOrderReview(true)} disabled={busy || draftLines.length === 0} className={PRIMARY_BUTTON}>
+                Review order
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-6 py-4">
+          {/* <button type="button" onClick={onClose} className={SECONDARY_BUTTON}>
+            Close
+          </button> */}
+          {order && !readOnly && order.status === "Served" && (
+            <button type="button" onClick={() => setShowSettlement(true)} disabled={busy} className={PRIMARY_BUTTON}>
+              Discount &amp; settle
+            </button>
+          )}
+        </div>
+      </div>
+
+      {showOrderReview && draftLines.length > 0 && (
+        <div className="fixed inset-0 z-[10010] flex items-end justify-center bg-slate-950/55 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="flex max-h-[90vh] w-full flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-w-xl sm:rounded-[2rem]">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+              <div>
+                <h3 className="text-[13px] font-pmedium uppercase tracking-widest text-slate-900">Review kitchen order</h3>
+                <p className="mt-1 text-[11px] font-pmedium text-slate-500">
+                  {table.name} · {order ? `Round ${(order.rounds?.length || 0) + 1}` : "Round 1"}
+                </p>
+              </div>
+              <button type="button" onClick={() => setShowOrderReview(false)} aria-label="Close order review" className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-6">
+              <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-3">
+                <div className="flex justify-between gap-4 text-[10px] font-pmedium">
+                  <span className="uppercase tracking-wider text-blue-600">Customer</span>
+                  <span className="truncate text-slate-800">{customerName || "Walk-in customer"}</span>
+                </div>
+                {notes ? <p className="mt-2 border-t border-blue-100 pt-2 text-[10px] text-slate-600"><span className="font-pmedium">Notes:</span> {notes}</p> : null}
+              </div>
+
+              <div className="overflow-hidden rounded-xl border border-slate-200">
+                <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-b border-slate-100 bg-slate-50 px-4 py-2 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">
+                  <span>Selected item</span><span>Quantity</span><span>Amount</span>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {draftLines.map((line) => (
+                    <div key={line.item._id} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-[11px] font-pmedium text-slate-900">{line.item.name}</p>
+                        <button type="button" onClick={() => setDraft((current) => ({ ...current, [line.item._id]: 0 }))} className="mt-1 text-[9px] font-pmedium uppercase tracking-wider text-rose-500 hover:text-rose-700">Remove</button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => adjust(line.item._id, -1)} aria-label={`Reduce ${line.item.name}`} className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50"><Minus size={12} /></button>
+                        <span className="w-5 text-center text-[12px] font-pmedium text-slate-900">{line.quantity}</span>
+                        <button type="button" onClick={() => adjust(line.item._id, 1)} aria-label={`Add ${line.item.name}`} className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50"><Plus size={12} /></button>
+                      </div>
+                      <span className="min-w-20 text-right text-[11px] font-pmedium text-slate-900">{formatCurrency(line.lineTotal)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between rounded-xl bg-slate-950 px-4 py-3 text-white">
+                <div><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Selected quantity</p><p className="mt-1 text-[13px] font-pmedium">{draftLines.reduce((sum, line) => sum + line.quantity, 0)} items</p></div>
+                <div className="text-right"><p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Round value</p><p className="mt-1 text-[16px] font-pmedium">{formatCurrency(draftTotal)}</p></div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-6 py-4">
+              <button type="button" onClick={() => setShowOrderReview(false)} className={SECONDARY_BUTTON}>Back to menu</button>
               <button type="button" onClick={handleAddItems} disabled={busy || draftLines.length === 0} className={PRIMARY_BUTTON}>
                 {busy && <Loader2 size={13} className="animate-spin" />}
                 {order ? "Send next round" : "Send round 1"}
@@ -836,50 +1057,86 @@ function OrderDialog({
             </div>
           </div>
         </div>
+      )}
 
-        {order && showSettlement && order.status === "Served" && (
-          <div className="border-t border-slate-100 bg-slate-50/70 px-6 py-4">
-            <div className="grid gap-3 md:grid-cols-4">
+      {order && showSettlement && order.status === "Served" && (
+        <div className="fixed inset-0 z-[10010] flex items-end justify-center bg-slate-950/55 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-w-3xl sm:rounded-[2rem]">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <div>
-                <label className={LABEL}>Discount</label>
-                <select className={FIELD} value={discountType} onChange={(event) => setDiscountType(event.target.value as typeof discountType)}>
-                  <option value="none">No discount</option><option value="percentage">Percentage</option><option value="fixed">Fixed amount</option>
-                </select>
+                <h3 className="text-[13px] font-pmedium uppercase tracking-widest text-slate-900">Settle café bill</h3>
+                <p className="mt-1 text-[11px] font-pmedium text-slate-500">Order #{order.orderNumber} · {table.name}</p>
               </div>
-              <div>
-                <label className={LABEL}>{discountType === "percentage" ? "Discount %" : "Discount amount"}</label>
-                <input className={FIELD} type="number" min="0" max={discountType === "percentage" ? 100 : undefined} disabled={discountType === "none"} value={discountValue} onChange={(event) => setDiscountValue(event.target.value)} />
+              <button type="button" onClick={() => setShowSettlement(false)} aria-label="Close billing" className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="grid min-h-0 flex-1 overflow-y-auto md:grid-cols-5">
+              <div className="border-b border-slate-100 p-6 md:col-span-3 md:border-b-0 md:border-r">
+                <div className="mb-4 flex items-start justify-between">
+                  <div>
+                    <p className="text-[12px] font-pmedium text-slate-900">{settings.companyName || "Cafe Bill"}</p>
+                    <p className="mt-1 text-[10px] text-slate-500">{order.customerName || "Table customer"} · Waiter: {order.waiterName || "Not recorded"}</p>
+                  </div>
+                  <span className={pill("emerald")}>Served</span>
+                </div>
+
+                <div className="max-h-64 overflow-y-auto rounded-xl border border-slate-100">
+                  <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-b border-slate-100 bg-slate-50 px-4 py-2 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">
+                    <span>Item</span><span>Qty</span><span>Amount</span>
+                  </div>
+                  <div className="divide-y divide-slate-100">
+                    {order.items.map((line) => (
+                      <div key={line.menuItemId} className="grid grid-cols-[1fr_auto_auto] gap-3 px-4 py-2.5 text-[11px] font-pmedium">
+                        <span className="truncate text-slate-800">{line.name}</span>
+                        <span className="text-slate-500">{line.quantity}</span>
+                        <span className="min-w-20 text-right text-slate-900">{formatCurrency(line.lineTotal)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-2 text-[11px] font-pmedium">
+                  <div className="flex justify-between text-slate-600"><span>Subtotal</span><span>{formatCurrency(order.subtotal)}</span></div>
+                  <div className="flex justify-between text-emerald-700"><span>Discount</span><span>−{formatCurrency(previewDiscount)}</span></div>
+                  <div className="flex justify-between text-slate-600"><span>Tax ({order.taxPercent}%)</span><span>{formatCurrency(previewTax)}</span></div>
+                  <div className="flex justify-between border-t border-slate-200 pt-3 text-[15px] text-slate-950"><span>Amount payable</span><span>{formatCurrency(previewTotal)}</span></div>
+                </div>
               </div>
-              <div>
-                <label className={LABEL}>Payment method</label>
-                <select className={FIELD} value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>
-                  <option>Cash</option><option>Card</option><option>UPI</option><option>Bank Transfer</option><option>Other</option>
-                </select>
-              </div>
-              <div className="flex items-end justify-between rounded-xl border border-slate-200 bg-white px-3 py-2">
-                <div><p className={LABEL}>Amount to collect</p><p className="text-[15px] font-pmedium text-slate-900">{formatCurrency(previewTotal)}</p></div>
-                <button type="button" onClick={handlePaidAndDone} disabled={busy} className={PRIMARY_BUTTON}>{busy && <Loader2 size={13} className="animate-spin" />} Settle</button>
+
+              <div className="flex flex-col gap-4 bg-slate-50/70 p-6 md:col-span-2">
+                <div>
+                  <label className={LABEL}>Discount type</label>
+                  <select className={FIELD} value={discountType} onChange={(event) => setDiscountType(event.target.value as typeof discountType)}>
+                    <option value="none">No discount</option>
+                    <option value="percentage">Percentage</option>
+                    <option value="fixed">Fixed amount</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={LABEL}>{discountType === "percentage" ? "Discount percentage" : "Discount amount"}</label>
+                  <input className={FIELD} type="number" min="0" max={discountType === "percentage" ? 100 : undefined} disabled={discountType === "none"} value={discountValue} onChange={(event) => setDiscountValue(event.target.value)} />
+                </div>
+                <div>
+                  <label className={LABEL}>Payment method</label>
+                  <select className={FIELD} value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>
+                    <option>Cash</option><option>Card</option><option>UPI</option><option>Bank Transfer</option><option>Other</option>
+                  </select>
+                </div>
+
+                <div className="mt-auto rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Collect from customer</p>
+                  <p className="mt-1 text-[24px] font-pmedium text-slate-950">{formatCurrency(previewTotal)}</p>
+                  <button type="button" onClick={handlePaidAndDone} disabled={busy} className={`${PRIMARY_BUTTON} mt-4 w-full`}>
+                    {busy && <Loader2 size={13} className="animate-spin" />} Confirm payment &amp; print bill
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        )}
-
-        <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-6 py-4">
-          <button type="button" onClick={onClose} className={SECONDARY_BUTTON}>
-            Close
-          </button>
-          {order && (
-            <button type="button" onClick={handlePrintBill} className={SECONDARY_BUTTON}>
-              <Printer size={13} /> Print bill
-            </button>
-          )}
-          {order && !readOnly && order.status === "Served" && (
-            <button type="button" onClick={() => setShowSettlement((value) => !value)} disabled={busy} className={PRIMARY_BUTTON}>
-              Discount &amp; settle
-            </button>
-          )}
         </div>
-      </div>
+      )}
     </div>
   );
 }

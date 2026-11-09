@@ -5253,15 +5253,15 @@ export function MeetingRoomsPage() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-2 bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs font-pmedium text-slate-600">
                                   <div>
-                                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-pmedium block mb-0.5">Date</span>
+                                    <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider font-pmedium block mb-0.5">Date</span>
                                     {b.date}{b.endDate && b.endDate !== b.date ? ` ? ${b.endDate}` : ''}
                                   </div>
                                   <div>
-                                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-pmedium block mb-0.5">Time</span>
+                                    <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider font-pmedium block mb-0.5">Time</span>
                                     {formatTime12h(b.startTime)} {formatTime12h(b.endTime)}
                                   </div>
                                   <div>
-                                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-pmedium block mb-0.5">Payment</span>
+                                    <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider font-pmedium block mb-0.5">Payment</span>
                                     <span className={`px-2 py-0.5 rounded text-[9px] font-pmedium uppercase border ${paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
                                       {getExternalPaymentLabel(b)}
                                     </span>
@@ -6234,7 +6234,7 @@ export function MeetingRoomsPage() {
                       )}
                     </div>
 
-                    <div className="pt-1">
+                    {/* <div className="pt-1">
                       <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Invite Guests by Email</label>
                       <div className="mt-2 flex gap-2">
                         <input
@@ -6272,7 +6272,7 @@ export function MeetingRoomsPage() {
                         </div>
                       )}
                       <p className="mt-1.5 text-[10px] font-pmedium text-slate-400">Guests don't need a workspace account — they'll get an email invite with the meeting details.</p>
-                    </div>
+                    </div> */}
                   </div>
                 </div>
               </div>

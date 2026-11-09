@@ -19,3 +19,8 @@ export const createCalendarEvent = async (payload: {
   const response = await axiosPrivate.post("/api/calendar/events", payload);
   return unwrap(response);
 };
+
+export const respondToCalendarEvent = async (eventId: string, status: "accepted" | "rejected") => {
+  const response = await axiosPrivate.post(`/api/calendar/events/${eventId}/respond`, { status });
+  return unwrap(response);
+};

@@ -2,6 +2,13 @@ import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
 import { Resource } from "../models/Resource.js";
 import { RoomStaySettings } from "../models/RoomStaySettings.js";
+import Workspace from "../models/Workspace.js";
+import { uploadFileToS3 } from "../config/s3config.js";
+import {
+    getCountryBillingDefaults,
+    normalizeBillingConfig,
+    type WorkspaceBillingConfig,
+} from "../utils/workspaceBilling.js";
 import {
     ROOM_STAY_OPEN_STATUSES,
     ROOM_STAY_STATUSES,
@@ -16,6 +23,31 @@ interface AuthenticatedRequest extends Request {
         role: string;
         isPrimary: boolean;
     };
+    files?: {
+        idProofFile?: UploadedFile[];
+        securityDepositProof?: UploadedFile[];
+    };
+}
+
+// Minimal shape of a multer in-memory file — avoids depending on the global
+// Express.Multer.File ambient type, which isn't declared in this project
+// (there's no @types/multer package installed).
+type UploadedFile = {
+    originalname: string;
+    mimetype: string;
+    buffer: Buffer;
+    size: number;
+};
+
+async function uploadRoomStayAttachment(
+    folder: string,
+    workspaceId: mongoose.Types.ObjectId,
+    file: UploadedFile
+) {
+    const safeName = (file.originalname || "attachment").replace(/[^a-zA-Z0-9._-]/g, "_");
+    const route = `room-stays/${workspaceId}/${folder}/${Date.now()}-${safeName}`;
+    const result = await uploadFileToS3(route, file);
+    return { fileName: file.originalname || "attachment", fileUrl: result.url || "", publicId: result.id || route };
 }
 
 const badRequest = (message: string) => {
@@ -90,6 +122,65 @@ export async function getWorkspaceCheckTimes(workspaceId: mongoose.Types.ObjectI
     };
 }
 
+// Discount/tax use the same workspace billing settings as every other
+// walk-in style booking flow (e.g. Visitor Management, Meeting Rooms) —
+// country/state-derived defaults unless the founder explicitly customized
+// billing for this location.
+async function getWorkspaceBilling(workspaceId: mongoose.Types.ObjectId): Promise<WorkspaceBillingConfig> {
+    try {
+        const workspace = await Workspace.findById(workspaceId)
+            .select("countryCode state preferences.billing preferences.billingCustomized")
+            .lean();
+        const preferences = (workspace as any)?.preferences;
+        return preferences?.billingCustomized
+            ? normalizeBillingConfig(preferences?.billing, (workspace as any)?.countryCode, (workspace as any)?.state)
+            : getCountryBillingDefaults((workspace as any)?.countryCode, (workspace as any)?.state);
+    } catch {
+        return getCountryBillingDefaults("IN");
+    }
+}
+
+// Subtotal -> discount -> taxable base -> tax -> total, identical to the
+// walk-in booking pricing model used in Visitor Management.
+function calculateRoomStayPricing(
+    subtotalBeforeDiscount: number,
+    discountType: unknown,
+    discountValue: unknown,
+    applyTax: boolean,
+    billing: WorkspaceBillingConfig
+) {
+    const normalizedDiscountType: "amount" | "percent" = discountType === "percent" ? "percent" : "amount";
+    const rawDiscountValue = Math.max(0, Number(discountValue) || 0);
+    const rawDiscount = normalizedDiscountType === "percent"
+        ? subtotalBeforeDiscount * (Math.min(rawDiscountValue, 100) / 100)
+        : rawDiscountValue;
+    const discountAmount = roundMoney(Math.min(Math.max(rawDiscount, 0), subtotalBeforeDiscount));
+    const taxableBaseAfterDiscount = roundMoney(Math.max(subtotalBeforeDiscount - discountAmount, 0));
+
+    const tax = billing.tax;
+    const taxEnabled = tax.enabled && applyTax;
+    const taxRatePercent = taxEnabled ? Math.min(100, Math.max(0, Number(tax.ratePercent || 0))) : 0;
+    const rawTaxAmount = !taxEnabled || taxRatePercent <= 0
+        ? 0
+        : tax.priceIncludesTax
+            ? taxableBaseAfterDiscount * (taxRatePercent / (100 + taxRatePercent))
+            : taxableBaseAfterDiscount * (taxRatePercent / 100);
+    const taxAmount = roundMoney(rawTaxAmount);
+    const total = roundMoney(tax.priceIncludesTax && taxEnabled ? taxableBaseAfterDiscount : taxableBaseAfterDiscount + taxAmount);
+
+    return {
+        subtotalBeforeDiscount: roundMoney(subtotalBeforeDiscount),
+        discountType: normalizedDiscountType,
+        discountValue: rawDiscountValue,
+        discountAmount,
+        taxApplied: taxEnabled,
+        taxLabel: tax.label || "Tax",
+        taxRatePercent,
+        taxAmount,
+        total,
+    };
+}
+
 export async function getRoomStayCheckTimes(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
         const workspaceId = getWorkspaceObjectId(req);
@@ -155,7 +246,7 @@ export async function getRoomAvailability(req: AuthenticatedRequest, res: Respon
             checkIn: { $lt: checkOut },
             checkOut: { $gt: checkIn },
         })
-            .select("roomId bedNumber checkOut")
+            .select("roomId bedNumber bedNumbers checkOut")
             .lean();
 
         const takenByRoom = new Map<string, number[]>();
@@ -163,8 +254,13 @@ export async function getRoomAvailability(req: AuthenticatedRequest, res: Respon
         for (const booking of bookings) {
             const key = String(booking.roomId);
             const list = takenByRoom.get(key) || [];
-            if (booking.bedNumber !== null && booking.bedNumber !== undefined) list.push(booking.bedNumber);
-            else list.push(0);
+            if (Array.isArray(booking.bedNumbers) && booking.bedNumbers.length) {
+                list.push(...booking.bedNumbers);
+            } else if (booking.bedNumber !== null && booking.bedNumber !== undefined) {
+                list.push(booking.bedNumber);
+            } else {
+                list.push(0);
+            }
             takenByRoom.set(key, list);
             const current = nextFreeByRoom.get(key);
             if (!current || booking.checkOut < current) nextFreeByRoom.set(key, booking.checkOut);
@@ -224,18 +320,62 @@ export async function createRoomBooking(req: AuthenticatedRequest, res: Response
         const workspaceId = getWorkspaceObjectId(req);
         const {
             roomId: rawRoomId,
+            bookingSource,
+            bedCount: rawBedCount,
             guestName,
             guestPhone,
+            guestEmail,
+            guestAge: rawGuestAge,
+            guestCountry,
+            guestState,
+            guestCity,
+            guestNationality,
+            guestDateOfBirth: rawGuestDateOfBirth,
+            guestGender,
+            guestAddress,
+            additionalGuests: rawAdditionalGuests,
+            emergencyContactName,
+            emergencyContactPhone,
             checkIn: rawCheckIn,
             checkOut: rawCheckOut,
             notes,
             idProofType,
             idProofNumber,
             paymentMethod,
+            paymentTransactionNumber,
             amountPaid,
+            requireFullPayment,
+            discountType: rawDiscountType,
+            discountValue: rawDiscountValue,
+            applyTax: rawApplyTax,
+            securityDepositCollected: rawSecurityDepositCollected,
+            securityDepositPaymentMethod,
         } = req.body || {};
         const roomId = parseObjectId(rawRoomId, "Invalid room.");
+        const isDirectPaidBooking = String(requireFullPayment || "").toLowerCase() === "true";
         if (!String(guestName || "").trim()) throw badRequest("Guest name is required.");
+        const normalizedGuestEmail = String(guestEmail || "").trim().toLowerCase();
+        const guestDateOfBirth = rawGuestDateOfBirth ? parseDate(rawGuestDateOfBirth) : null;
+        const guestAge = Number(rawGuestAge);
+        if (isDirectPaidBooking) {
+            if (!String(guestPhone || "").trim()) throw badRequest("Guest phone number is required.");
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedGuestEmail)) {
+                throw badRequest("Enter a valid guest email address.");
+            }
+            if (!Number.isInteger(guestAge) || guestAge < 1 || guestAge > 120) {
+                throw badRequest("Enter a valid guest age.");
+            }
+            if (!String(guestGender || "").trim()) throw badRequest("Guest gender is required.");
+            if (!String(guestCountry || "").trim()) throw badRequest("Guest country is required.");
+            if (!String(guestState || "").trim()) throw badRequest("Guest state is required.");
+            if (!String(guestCity || "").trim()) throw badRequest("Guest city is required.");
+            if (!String(guestAddress || "").trim()) throw badRequest("Guest address is required.");
+        }
+        const hasEmergencyName = Boolean(String(emergencyContactName || "").trim());
+        const hasEmergencyPhone = Boolean(String(emergencyContactPhone || "").trim());
+        if (hasEmergencyName !== hasEmergencyPhone) {
+            throw badRequest("Enter both emergency contact name and phone, or leave both blank.");
+        }
 
         const checkInDateOnly = parseDate(rawCheckIn);
         const checkOutDateOnly = parseDate(rawCheckOut);
@@ -258,8 +398,40 @@ export async function createRoomBooking(req: AuthenticatedRequest, res: Response
         if (!room) throw notFound("Room not found.");
         if (!room.isActive || room.status !== "Active") throw conflict("This room is not available for booking.");
 
+        // How many beds this single guest/group booking should hold — a group
+        // of 2 can request 2 beds in the same dorm rather than booking twice.
+        // Rooms (private, not dorm) always book as a single unit.
+        const requestedBedCount = room.type === "Dorm" ? Math.max(1, Math.round(Number(rawBedCount) || 1)) : 1;
+        let additionalGuests: Array<{ name: string; age: number; gender: string }> = [];
+        if (rawAdditionalGuests) {
+            try {
+                const parsed = JSON.parse(String(rawAdditionalGuests));
+                if (!Array.isArray(parsed)) throw new Error("Additional guests must be an array.");
+                additionalGuests = parsed.map((guest) => ({
+                    name: String(guest?.name || "").trim(),
+                    age: Number(guest?.age),
+                    gender: String(guest?.gender || "").trim(),
+                }));
+            } catch {
+                throw badRequest("Enter valid details for the additional guests.");
+            }
+        }
+        if (isDirectPaidBooking && room.type === "Dorm" && requestedBedCount > 1) {
+            if (additionalGuests.length !== requestedBedCount - 1) {
+                throw badRequest("Add one guest for every additional bed.");
+            }
+            const invalidGuest = additionalGuests.some(
+                (guest) => !guest.name || !Number.isInteger(guest.age) || guest.age < 1 || guest.age > 120 || !guest.gender
+            );
+            if (invalidGuest) throw badRequest("Complete the name, age and gender for every additional guest.");
+        }
+
         let bedNumber: number | null = null;
+        let bedNumbers: number[] = [];
         if (room.type === "Dorm") {
+            if (requestedBedCount > room.capacity) {
+                throw badRequest(`This dorm only has ${room.capacity} bed${room.capacity === 1 ? "" : "s"} in total.`);
+            }
             const taken = await RoomStayBooking.find({
                 workspaceId,
                 roomId,
@@ -267,16 +439,26 @@ export async function createRoomBooking(req: AuthenticatedRequest, res: Response
                 checkIn: { $lt: checkOut },
                 checkOut: { $gt: checkIn },
             })
-                .select("bedNumber")
+                .select("bedNumber bedNumbers")
                 .lean();
-            const takenSet = new Set(taken.map((entry) => entry.bedNumber));
-            for (let bed = 1; bed <= room.capacity; bed += 1) {
-                if (!takenSet.has(bed)) {
-                    bedNumber = bed;
-                    break;
+            const takenSet = new Set<number>();
+            for (const entry of taken) {
+                if (Array.isArray(entry.bedNumbers) && entry.bedNumbers.length) {
+                    entry.bedNumbers.forEach((bed) => takenSet.add(bed));
+                } else if (entry.bedNumber !== null && entry.bedNumber !== undefined) {
+                    takenSet.add(entry.bedNumber);
                 }
             }
-            if (bedNumber === null) throw conflict("No beds available in this dorm for the selected dates.");
+            for (let bed = 1; bed <= room.capacity && bedNumbers.length < requestedBedCount; bed += 1) {
+                if (!takenSet.has(bed)) bedNumbers.push(bed);
+            }
+            if (bedNumbers.length < requestedBedCount) {
+                const available = room.capacity - takenSet.size;
+                throw conflict(
+                    `Only ${Math.max(0, available)} bed${available === 1 ? "" : "s"} available in this dorm for the selected dates — requested ${requestedBedCount}.`
+                );
+            }
+            bedNumber = bedNumbers[0];
         } else {
             const overlap = await RoomStayBooking.exists({
                 workspaceId,
@@ -290,27 +472,110 @@ export async function createRoomBooking(req: AuthenticatedRequest, res: Response
         }
 
         const ratePerNight = roundMoney(Number(room.pricePerNight) || 0);
-        const total = roundMoney(ratePerNight * nights);
+        const bedMultiplier = room.type === "Dorm" ? bedNumbers.length : 1;
+        const subtotalBeforeDiscount = roundMoney(ratePerNight * nights * bedMultiplier);
+
+        if (rawDiscountType !== undefined && !["amount", "percent"].includes(String(rawDiscountType))) {
+            throw badRequest("Invalid discount type.");
+        }
+        const discountValueCheck = Number(rawDiscountValue);
+        if (rawDiscountValue !== undefined && (!Number.isFinite(discountValueCheck) || discountValueCheck < 0)) {
+            throw badRequest("Enter a valid discount value.");
+        }
+        if (String(rawDiscountType) === "percent" && discountValueCheck > 100) {
+            throw badRequest("Discount percentage cannot be greater than 100.");
+        }
+
+        const billing = await getWorkspaceBilling(workspaceId);
+        const applyTax = String(rawApplyTax) !== "false";
+        const pricing = calculateRoomStayPricing(subtotalBeforeDiscount, rawDiscountType, rawDiscountValue, applyTax, billing);
+        const total = pricing.total;
+
+        if (isDirectPaidBooking && roundMoney(numericAmountPaid) !== total) {
+            throw badRequest("The complete booking amount must be paid before confirmation.");
+        }
+        const normalizedPaymentMethod = String(paymentMethod || "").trim();
+        const normalizedTransactionNumber = String(paymentTransactionNumber || "").trim();
+        if (isDirectPaidBooking && !["Cash", "Card", "UPI", "Bank Transfer"].includes(normalizedPaymentMethod)) {
+            throw badRequest("Select a valid payment method.");
+        }
+        if (isDirectPaidBooking && normalizedPaymentMethod !== "Cash" && !normalizedTransactionNumber) {
+            throw badRequest("Transaction or reference number is required for non-cash payment.");
+        }
         const latest = await RoomStayBooking.findOne({ workspaceId }).sort({ bookingNumber: -1 }).select("bookingNumber").lean();
+
+        // Security deposit is sourced from the room's own configuration at
+        // booking time — if the room doesn't charge one, these all resolve
+        // to the "not required" defaults regardless of what the client sends.
+        const securityDepositRequired = Boolean(room.chargesSecurityDeposit);
+        const securityDepositAmount = securityDepositRequired ? roundMoney(Number(room.securityDepositAmount) || 0) : 0;
+        const numericSecurityDepositCollected = Number(rawSecurityDepositCollected);
+        let securityDepositCollected = 0;
+        if (securityDepositRequired && rawSecurityDepositCollected !== undefined) {
+            if (!Number.isFinite(numericSecurityDepositCollected) || numericSecurityDepositCollected < 0 || numericSecurityDepositCollected > securityDepositAmount) {
+                throw badRequest("Enter a valid security deposit amount collected.");
+            }
+            securityDepositCollected = roundMoney(numericSecurityDepositCollected);
+        }
+
+        const idProofFileInput = req.files?.idProofFile?.[0];
+        if (!idProofFileInput) throw badRequest("Attach the guest's ID proof document.");
+        const idProofFile = idProofFileInput ? await uploadRoomStayAttachment("id-proof", workspaceId, idProofFileInput) : null;
+        const securityDepositProofInput = req.files?.securityDepositProof?.[0];
+        const securityDepositProof = securityDepositProofInput
+            ? await uploadRoomStayAttachment("security-deposit", workspaceId, securityDepositProofInput)
+            : null;
 
         const booking = await RoomStayBooking.create({
             workspaceId,
             bookingNumber: (latest?.bookingNumber || 0) + 1,
             roomId,
             roomType: room.type,
+            bookingSource: ["Walk-in", "Phone", "Website", "Partner"].includes(String(bookingSource || ""))
+                ? String(bookingSource)
+                : "Walk-in",
             bedNumber,
+            bedCount: bedMultiplier,
+            bedNumbers,
             guestName: String(guestName).trim(),
             guestPhone: String(guestPhone || "").trim(),
+            guestEmail: normalizedGuestEmail,
+            guestAge: Number.isInteger(guestAge) ? guestAge : null,
+            guestCountry: String(guestCountry || "").trim(),
+            guestState: String(guestState || "").trim(),
+            guestCity: String(guestCity || "").trim(),
+            guestNationality: String(guestNationality || "").trim(),
+            guestDateOfBirth,
+            guestGender: String(guestGender || "").trim(),
+            guestAddress: String(guestAddress || "").trim(),
+            additionalGuests,
+            emergencyContactName: String(emergencyContactName || "").trim(),
+            emergencyContactPhone: String(emergencyContactPhone || "").trim(),
             checkIn,
             checkOut,
             nights,
             ratePerNight,
+            subtotalBeforeDiscount: pricing.subtotalBeforeDiscount,
+            discountType: pricing.discountType,
+            discountValue: pricing.discountValue,
+            discountAmount: pricing.discountAmount,
+            taxApplied: pricing.taxApplied,
+            taxLabel: pricing.taxLabel,
+            taxRatePercent: pricing.taxRatePercent,
+            taxAmount: pricing.taxAmount,
             total,
             notes: String(notes || "").trim(),
             idProofType: String(idProofType || "").trim(),
             idProofNumber: String(idProofNumber || "").trim(),
-            paymentMethod: String(paymentMethod || "").trim(),
+            idProofFile,
+            paymentMethod: normalizedPaymentMethod,
+            paymentTransactionNumber: normalizedPaymentMethod === "Cash" ? "" : normalizedTransactionNumber,
             amountPaid: amountPaid !== undefined ? roundMoney(numericAmountPaid) : 0,
+            securityDepositRequired,
+            securityDepositAmount,
+            securityDepositCollected,
+            securityDepositPaymentMethod: securityDepositCollected > 0 ? String(securityDepositPaymentMethod || "").trim() : "",
+            securityDepositProof,
             createdBy: getOptionalUserObjectId(req),
         });
 
@@ -385,23 +650,39 @@ export async function extendRoomBooking(req: AuthenticatedRequest, res: Response
         const { checkOutTime } = await getWorkspaceCheckTimes(workspaceId);
         const newCheckOut = combineDateAndTime(String(req.body.checkOut), checkOutTime) as Date;
 
+        const bookedBeds = booking.bedNumbers && booking.bedNumbers.length ? booking.bedNumbers : booking.bedNumber !== null ? [booking.bedNumber] : [];
         const overlap = await RoomStayBooking.exists({
             _id: { $ne: booking._id },
             workspaceId,
             roomId: booking.roomId,
-            bedNumber: booking.bedNumber,
             status: { $in: ROOM_STAY_OPEN_STATUSES },
             checkIn: { $lt: newCheckOut },
             checkOut: { $gt: booking.checkOut },
+            ...(bookedBeds.length
+                ? { $or: [{ bedNumber: { $in: bookedBeds } }, { bedNumbers: { $in: bookedBeds } }] }
+                : { bedNumber: null }),
         });
         if (overlap) throw conflict("This bed/room is already booked during the extended period.");
 
         const checkInDateOnly = new Date(booking.checkIn.getFullYear(), booking.checkIn.getMonth(), booking.checkIn.getDate());
         const nights = nightsBetween(checkInDateOnly, newCheckOutDateOnly);
+        const bedMultiplier = Math.max(1, Number(booking.bedCount) || 1);
+        const subtotalBeforeDiscount = roundMoney(booking.ratePerNight * nights * bedMultiplier);
+        const billing = await getWorkspaceBilling(workspaceId);
+        const pricing = calculateRoomStayPricing(
+            subtotalBeforeDiscount,
+            booking.discountType,
+            booking.discountValue,
+            booking.taxApplied,
+            billing
+        );
 
         booking.checkOut = newCheckOut;
         booking.nights = nights;
-        booking.total = roundMoney(booking.ratePerNight * nights + (booking.lateFeeAmount || 0));
+        booking.subtotalBeforeDiscount = pricing.subtotalBeforeDiscount;
+        booking.discountAmount = pricing.discountAmount;
+        booking.taxAmount = pricing.taxAmount;
+        booking.total = roundMoney(pricing.total + (booking.lateFeeAmount || 0));
         await booking.save();
 
         res.status(200).json({ success: true, message: "Stay extended successfully.", data: booking });
@@ -430,14 +711,17 @@ export async function getRoomStayAnalytics(req: AuthenticatedRequest, res: Respo
             checkIn: { $lt: now },
             checkOut: { $gt: since },
         })
-            .select("checkIn checkOut")
+            .select("checkIn checkOut bedCount")
             .lean();
 
         let occupiedRoomNights = 0;
         for (const booking of openBookings) {
             const start = Math.max(booking.checkIn.getTime(), since.getTime());
             const end = Math.min(booking.checkOut.getTime(), now.getTime());
-            if (end > start) occupiedRoomNights += (end - start) / (24 * 60 * 60 * 1000);
+            if (end > start) {
+                const inventoryMultiplier = type === "Dorm" ? Math.max(1, Number(booking.bedCount) || 1) : 1;
+                occupiedRoomNights += ((end - start) / (24 * 60 * 60 * 1000)) * inventoryMultiplier;
+            }
         }
         const occupancyRate = availableRoomNights > 0 ? Math.round((occupiedRoomNights / availableRoomNights) * 1000) / 10 : 0;
 

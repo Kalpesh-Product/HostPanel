@@ -101,17 +101,17 @@ function StatTile({
   tone?: "blue" | "green" | "amber" | "violet" | "rose" | "slate";
 }) {
   const tones = {
-    blue: "border-l-blue-600 bg-blue-50 text-blue-700",
-    green: "border-l-emerald-500 bg-emerald-50 text-emerald-700",
-    amber: "border-l-amber-500 bg-amber-50 text-amber-700",
-    violet: "border-l-violet-500 bg-violet-50 text-violet-700",
-    rose: "border-l-rose-500 bg-rose-50 text-rose-700",
-    slate: "border-l-slate-500 bg-slate-100 text-slate-700",
+    blue: { card: "hover:border-l-blue-600", icon: "border-l-blue-600 bg-blue-50 text-blue-700" },
+    green: { card: "hover:border-l-emerald-500", icon: "border-l-emerald-500 bg-emerald-50 text-emerald-700" },
+    amber: { card: "hover:border-l-amber-500", icon: "border-l-amber-500 bg-amber-50 text-amber-700" },
+    violet: { card: "hover:border-l-violet-500", icon: "border-l-violet-500 bg-violet-50 text-violet-700" },
+    rose: { card: "hover:border-l-rose-500", icon: "border-l-rose-500 bg-rose-50 text-rose-700" },
+    slate: { card: "hover:border-l-slate-500", icon: "border-l-slate-500 bg-slate-100 text-slate-700" },
   };
 
   return (
-    <div className="flex min-h-[112px] items-center gap-4 rounded-xl border border-slate-200 border-l-4 bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border-l-2 ${tones[tone]}`}>
+    <div className={`flex min-h-[112px] items-center gap-4 rounded-xl border border-slate-200 border-l-4 border-l-transparent bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-blue-200 hover:shadow-md ${tones[tone].card}`}>
+      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border-l-2 ${tones[tone].icon}`}>
         {icon}
       </div>
       <div className="min-w-0 flex-1">

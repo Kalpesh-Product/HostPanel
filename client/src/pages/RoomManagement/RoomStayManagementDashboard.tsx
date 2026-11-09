@@ -1522,7 +1522,7 @@ export default function RoomStayManagementDashboard({
                           <p className="truncate text-[11px] font-pmedium text-slate-800">
                             {room.name}
                           </p>
-                          <p className="mt-0.5 text-[10px] text-slate-400">
+                          <p className="mt-0.5 text-[10px] font-pmedium text-slate-400">
                             {room.floor} · {room.capacity} {unitLabel} ·{" "}
                             {room.monthStays} stays this month
                           </p>

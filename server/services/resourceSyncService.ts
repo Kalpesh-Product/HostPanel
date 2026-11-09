@@ -238,6 +238,8 @@ export function formatResource(roomDoc: any, seatSummary?: { total: number; assi
         credits: Number(room.credits || 0),
         description: room.description || "",
         amenities: Array.isArray(room.amenities) ? room.amenities : [],
+        chargesSecurityDeposit: Boolean(room.chargesSecurityDeposit),
+        securityDepositAmount: Number(room.securityDepositAmount || 0),
         status,
         currentlyBooked: Boolean(room.currentlyBooked),
         sortOrder: Number(room.sortOrder || 0),
