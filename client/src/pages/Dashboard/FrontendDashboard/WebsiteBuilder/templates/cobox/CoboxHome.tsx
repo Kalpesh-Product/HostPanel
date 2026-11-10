@@ -44,7 +44,7 @@ const Hero: React.FC = () => {
   const avatars = (t.testimonials || [])
     .map((item: any) => srcOf(item.image))
     .filter(Boolean)
-    .slice(0, 3);
+    .slice(0, 4);
   const marquee =
     services.length > 0
       ? services.map((service) => service.name)
@@ -63,7 +63,7 @@ const Hero: React.FC = () => {
             <CEyebrow light>
               {c("home.hero.eyebrow", "Your space to create")}
             </CEyebrow>
-            <h1>
+            <h1 data-cursor="-opaque">
               {draft?.title ||
                 c(
                   "home.hero.title",
@@ -95,39 +95,43 @@ const Hero: React.FC = () => {
           </motion.div>
         </div>
         <motion.aside
-          className="cbx-hero-side"
+          className="cbx-hero-rating"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="cbx-hero-rating">
-            <div className="cbx-hero-rating-head">
-              <span>Google rating</span>
-              <b>{(rating.avg || 5).toFixed(1)}</b>
-            </div>
+          <p className="cbx-hero-quote">
+            “
+            {c(
+              "home.hero.quote",
+              "A perfect balance of comfort and productivity."
+            )}
+            ”
+          </p>
+          <PeopleStack images={avatars} />
+          <p className="cbx-hero-rating-label">Google Rating</p>
+          <div className="cbx-hero-stars">
             <CStars value={Math.round(rating.avg || 5)} />
-            <p>
-              “
-              {c(
-                "home.hero.quote",
-                "A perfect balance of comfort and productivity."
-              )}
-              ”
-            </p>
-          </div>
-          <div className="cbx-hero-clients">
-            <p>
-              <b>1,000+</b> trusted clients worldwide
-            </p>
-            <div className="cbx-marquee" aria-hidden="true">
-              <div className="cbx-marquee-track">
-                {[...marquee, ...marquee].map((name, index) => (
-                  <span key={`${name}-${index}`}>{name}</span>
-                ))}
-              </div>
-            </div>
+            <span>({(rating.avg || 5).toFixed(1)})</span>
           </div>
         </motion.aside>
+        <motion.div
+          className="cbx-hero-clients"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <p>
+            <span>1,000+</span> trusted clients worldwide
+          </p>
+          <div className="cbx-marquee" aria-hidden="true">
+            <div className="cbx-marquee-track">
+              {[...marquee, ...marquee].map((name, index) => (
+                <span key={`${name}-${index}`}>{name}</span>
+              ))}
+            </div>
+          </div>
+        </motion.div>
       </div>
     </section>
   );

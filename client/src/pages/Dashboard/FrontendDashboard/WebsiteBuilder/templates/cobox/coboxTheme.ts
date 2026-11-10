@@ -418,12 +418,15 @@ export const COBOX_CSS = String.raw`
 
 .cbx-hero {
   position: relative;
-  margin: 0 20px;
-  border-radius: 24px;
+  margin: 108px 20px 0;
+  border-radius: 20px 20px 0 20px;
   overflow: hidden;
-  min-height: min(880px, 94vh);
+  min-height: calc(100vh - 130px);
+  padding: 80px;
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
   background: var(--cbx-dark);
   isolation: isolate;
 }
@@ -440,34 +443,44 @@ export const COBOX_CSS = String.raw`
 .cbx-hero-shade {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(90deg, rgba(10, 30, 35, 0.68) 0%, rgba(10, 30, 35, 0.22) 58%, rgba(10, 30, 35, 0) 100%),
-    linear-gradient(180deg, rgba(16, 43, 50, 0.12) 22%, rgba(10, 30, 35, 0.9) 80%);
+  background: linear-gradient(
+    180deg,
+    rgba(16, 43, 50, 0) 31.75%,
+    rgba(16, 43, 50, 0.8) 68.76%
+  );
   z-index: -1;
 }
 
 .cbx-hero-grid {
   width: 100%;
-  display: grid;
-  grid-template-columns: minmax(0, 1.32fr) minmax(0, 0.68fr);
-  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
 }
 
 .cbx-hero-copy {
-  padding: 140px 40px 54px 64px;
   position: relative;
+  width: 57%;
+  z-index: 1;
 }
 
 .cbx-hero-copy h1 {
   color: #fff;
-  max-width: 15ch;
+  font-size: clamp(38px, 4.375vw, 70px);
+  font-weight: 500;
+  line-height: 1.14;
+  letter-spacing: -0.02em;
+  max-width: 100%;
+  cursor: none;
 }
 
 .cbx-hero-copy > p {
-  margin-top: 22px;
-  max-width: 52ch;
-  color: rgba(255, 255, 255, 0.78);
+  margin: 20px 0 0;
+  max-width: 56ch;
+  color: #fff;
   font-size: 16px;
+  line-height: 1.6;
 }
 
 .cbx-hero-actions {
@@ -487,17 +500,18 @@ export const COBOX_CSS = String.raw`
 }
 
 .cbx-people-stack {
-  display: flex;
+  display: inline-flex;
+  align-items: center;
 }
 
 .cbx-people-stack img,
 .cbx-people-stack span {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.7);
+  border: 1px solid #fff;
   object-fit: cover;
-  margin-left: -10px;
+  margin-left: -14px;
   background: var(--cbx-mist);
   display: grid;
   place-items: center;
@@ -515,62 +529,105 @@ export const COBOX_CSS = String.raw`
   font-weight: 600;
 }
 
-.cbx-hero-side {
-  background: #fff;
-  border-radius: 24px 0 0 0;
-  padding: 34px 34px 30px;
-  color: var(--cbx-body);
-  align-self: stretch;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: 22px;
-}
-
 .cbx-hero-rating {
-  border: 1px solid var(--cbx-line);
-  border-radius: 16px;
-  padding: 18px;
+  position: absolute;
+  top: 80px;
+  right: 80px;
+  max-width: 305px;
+  padding: 30px;
+  border-radius: 20px;
+  background: rgba(16, 43, 50, 0.1);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  color: #fff;
+  z-index: 1;
 }
 
-.cbx-hero-rating-head {
+.cbx-hero-quote {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.6;
+  margin: 0 0 25px;
+}
+
+.cbx-hero-rating .cbx-people-stack {
+  margin-bottom: 25px;
+}
+
+.cbx-hero-rating-label {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.cbx-hero-stars {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 5px;
+  margin-top: 5px;
 }
 
-.cbx-hero-rating-head span {
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+.cbx-hero-stars > span:last-child {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.cbx-hero-clients {
+  position: relative;
+  width: calc(43% + 80px);
+  margin: 0 -80px -80px 0;
+  padding: 40px 3.125vw;
+  background: #fff;
+  border-radius: 20px 0 0 0;
+  text-align: center;
+  z-index: 1;
   color: var(--cbx-body);
 }
 
-.cbx-hero-rating-head b {
-  font-size: 18px;
-  color: var(--cbx-dark);
-  letter-spacing: -0.02em;
+.cbx-hero-clients::before,
+.cbx-hero-clients::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: #fff;
 }
 
-.cbx-hero-rating p {
-  font-size: 13px;
-  line-height: 1.55;
-  margin-top: 10px;
-  color: var(--cbx-body);
+.cbx-hero-clients::before {
+  top: -20px;
+  left: -20px;
+  -webkit-mask-image: radial-gradient(
+    circle at 100% 100%,
+    transparent 19.5px,
+    #000 20px
+  );
+  mask-image: radial-gradient(circle at 100% 100%, transparent 19.5px, #000 20px);
+}
+
+.cbx-hero-clients::after {
+  bottom: 0;
+  left: -20px;
+  -webkit-mask-image: radial-gradient(
+    circle at 100% 0,
+    transparent 19.5px,
+    #000 20px
+  );
+  mask-image: radial-gradient(circle at 100% 0, transparent 19.5px, #000 20px);
 }
 
 .cbx-hero-clients p {
-  font-size: 13px;
-  margin-bottom: 12px;
-  color: var(--cbx-body);
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0 0 40px;
+  color: var(--t-text);
 }
 
-.cbx-hero-clients p b {
-  color: var(--cbx-dark);
-  font-size: 20px;
+.cbx-hero-clients p span {
   font-weight: 600;
-  margin-right: 4px;
 }
 
 .cbx-marquee {
@@ -585,6 +642,10 @@ export const COBOX_CSS = String.raw`
   gap: 30px;
   width: max-content;
   animation: cbx-marquee 26s linear infinite;
+}
+
+.cbx-hero-clients .cbx-marquee-track span {
+  color: var(--t-text);
 }
 
 .cbx-marquee-track span {
@@ -603,6 +664,103 @@ export const COBOX_CSS = String.raw`
   to {
     transform: translateX(-50%);
   }
+}
+
+/* ── custom cursor ───────────────────────────────────────── */
+
+.cbx-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 150;
+  contain: layout style size;
+  pointer-events: none;
+  will-change: transform;
+  opacity: 0;
+  transition: opacity 0.3s, color 0.4s;
+}
+
+.cbx-cursor::before {
+  content: '';
+  position: absolute;
+  top: -24px;
+  left: -24px;
+  display: block;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #fff;
+  mix-blend-mode: exclusion;
+  transform: scale(0);
+  transition: transform 0.3s ease-in-out, opacity 0.1s;
+}
+
+.cbx-cursor-text {
+  position: absolute;
+  top: -18px;
+  left: -18px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: scale(0) rotate(10deg);
+  opacity: 0;
+  color: #fff;
+  font-size: 16px;
+  line-height: 20px;
+  text-align: center;
+  transition: opacity 0.4s, transform 0.3s;
+}
+
+.cbx-cursor.is-visible {
+  opacity: 1;
+}
+
+.cbx-cursor.is-visible::before {
+  transform: scale(0.2);
+}
+
+.cbx-cursor.is-visible.is-active::before {
+  transform: scale(0.23);
+  transition-duration: 0.2s;
+}
+
+.cbx-cursor.is-pointer::before {
+  transform: scale(0);
+}
+
+.cbx-cursor.is-opaque::before {
+  transform: scale(1.32);
+}
+
+.cbx-cursor.is-opaque.is-active::before {
+  transform: scale(1.2);
+}
+
+.cbx-cursor.is-lg::before {
+  transform: scale(2);
+}
+
+.cbx-cursor.is-hidden::before {
+  transform: scale(0);
+}
+
+.cbx-cursor.is-text::before {
+  background: #000;
+  opacity: 0.8;
+  mix-blend-mode: normal;
+  transform: scale(1.7);
+}
+
+.cbx-cursor.is-text .cbx-cursor-text {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.cbx-cursor.is-text.is-active::before {
+  transform: scale(1.6);
+  transition-duration: 0.2s;
 }
 
 /* ── about ────────────────────────────────────────────────── */
@@ -784,9 +942,15 @@ export const COBOX_CSS = String.raw`
 /* ── services ─────────────────────────────────────────────── */
 
 .cbx-service-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 24px;
+}
+
+.cbx-service-grid > * {
+  flex: 0 0 calc((100% - 48px) / 3);
+  min-width: 0;
 }
 
 .cbx-service-card {
@@ -1400,9 +1564,15 @@ export const COBOX_CSS = String.raw`
 /* ── core values ──────────────────────────────────────────── */
 
 .cbx-value-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 24px;
+}
+
+.cbx-value-grid > * {
+  flex: 0 0 calc((100% - 48px) / 3);
+  min-width: 0;
 }
 
 .cbx-value-card {
@@ -2021,9 +2191,15 @@ export const COBOX_CSS = String.raw`
 }
 
 .cbx-page-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 26px;
+}
+
+.cbx-page-grid > * {
+  flex: 0 0 calc((100% - 52px) / 3);
+  min-width: 0;
 }
 
 .cbx-page-card {
@@ -2081,9 +2257,15 @@ export const COBOX_CSS = String.raw`
 }
 
 .cbx-space-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 26px;
+}
+
+.cbx-space-grid > * {
+  flex: 0 0 calc((100% - 52px) / 3);
+  min-width: 0;
 }
 
 .cbx-space-card {
@@ -2094,6 +2276,7 @@ export const COBOX_CSS = String.raw`
   display: flex;
   flex-direction: column;
   text-align: left;
+  cursor: pointer;
   transition: transform 0.35s ease, box-shadow 0.35s ease;
 }
 
@@ -2277,9 +2460,15 @@ export const COBOX_CSS = String.raw`
 }
 
 .cbx-team-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 24px;
+}
+
+.cbx-team-grid > * {
+  flex: 0 0 calc((100% - 48px) / 3);
+  min-width: 0;
 }
 
 .cbx-team-card {
@@ -2337,9 +2526,15 @@ export const COBOX_CSS = String.raw`
 }
 
 .cbx-review-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 22px;
+}
+
+.cbx-review-grid > * {
+  flex: 0 0 calc((100% - 44px) / 3);
+  min-width: 0;
 }
 
 .cbx-review-grid article {
@@ -2803,17 +2998,49 @@ export const COBOX_CSS = String.raw`
 /* ── responsive ───────────────────────────────────────────── */
 
 @media (max-width: 1200px) {
-  .cbx-hero-copy {
-    padding-left: 40px;
+  .cbx-hero {
+    padding: 60px;
   }
 
-  .cbx-about-grid,
-  .cbx-service-grid,
-  .cbx-value-grid,
-  .cbx-page-grid,
-  .cbx-space-grid,
-  .cbx-team-grid,
-  .cbx-review-grid {
+  .cbx-hero-copy {
+    width: 63%;
+  }
+
+  .cbx-hero-copy h1 {
+    font-size: 56px;
+  }
+
+  .cbx-hero-rating {
+    top: 60px;
+    right: 60px;
+  }
+
+  .cbx-hero-clients {
+    width: calc(37% + 60px);
+    padding: 30px 20px;
+    margin: 0 -60px -60px 0;
+  }
+
+  .cbx-hero-clients p {
+    margin: 0 0 20px;
+  }
+
+  .cbx-service-grid > *,
+  .cbx-value-grid > *,
+  .cbx-team-grid > * {
+    flex-basis: calc((100% - 24px) / 2);
+  }
+
+  .cbx-page-grid > *,
+  .cbx-space-grid > * {
+    flex-basis: calc((100% - 26px) / 2);
+  }
+
+  .cbx-review-grid > * {
+    flex-basis: calc((100% - 22px) / 2);
+  }
+
+  .cbx-about-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2857,29 +3084,34 @@ export const COBOX_CSS = String.raw`
   }
 
   .cbx-hero {
-    min-height: auto;
+    min-height: 100%;
+    padding: 50px 15px 15px;
+  }
+
+  .cbx-hero-shade {
+    background: var(--cbx-dark);
+    opacity: 0.4;
   }
 
   .cbx-hero-grid {
-    grid-template-columns: 1fr;
+    gap: 30px 15px;
   }
 
   .cbx-hero-copy {
-    padding: 160px 34px 40px;
+    width: 100%;
   }
 
-  .cbx-hero-side {
-    border-radius: 24px 24px 0 0;
-    flex-direction: row;
-    align-items: center;
-    gap: 18px;
-    padding: 24px 30px;
+  .cbx-hero-rating {
+    position: static;
+    width: 100%;
+    max-width: 100%;
+    padding: 20px;
   }
 
-  .cbx-hero-rating,
   .cbx-hero-clients {
-    flex: 1;
-    min-width: 0;
+    width: calc(60% - 15px);
+    padding: 20px 15px;
+    margin: 0 -15px -15px auto;
   }
 
   .cbx-do-grid,
@@ -2943,26 +3175,29 @@ export const COBOX_CSS = String.raw`
     margin-bottom: 14px;
   }
 
-  .cbx-hero-copy {
-    padding: 150px 24px 34px;
+  .cbx-hero {
+    border-radius: 0;
   }
 
   .cbx-hero-copy h1 {
-    max-width: 100%;
+    font-size: 42px;
   }
 
-  .cbx-hero-side {
-    flex-direction: column;
-    align-items: stretch;
+  .cbx-hero-clients::before,
+  .cbx-hero-clients::after {
+    display: none;
+  }
+
+  .cbx-service-grid > *,
+  .cbx-value-grid > *,
+  .cbx-page-grid > *,
+  .cbx-space-grid > *,
+  .cbx-team-grid > *,
+  .cbx-review-grid > * {
+    flex-basis: 100%;
   }
 
   .cbx-about-grid,
-  .cbx-service-grid,
-  .cbx-value-grid,
-  .cbx-page-grid,
-  .cbx-space-grid,
-  .cbx-team-grid,
-  .cbx-review-grid,
   .cbx-plan-grid,
   .cbx-project-grid,
   .cbx-footer-grid {
@@ -3073,16 +3308,18 @@ export const COBOX_CSS = String.raw`
     font-size: 19px;
   }
 
-  .cbx-hero-copy {
-    padding: 130px 20px 30px;
+  .cbx-hero-copy h1 {
+    font-size: 30px;
   }
 
   .cbx-hero-actions {
     gap: 18px;
   }
 
-  .cbx-hero-side {
-    padding: 20px;
+  .cbx-hero-clients {
+    width: calc(100% + 30px);
+    margin: 0 -15px -15px;
+    border-radius: 0;
   }
 
   .cbx-section {

@@ -25,12 +25,24 @@ const SpaceCard: React.FC<{
   service: Service;
   item: ServiceItem;
   index: number;
-}> = ({ service, item, index }) => {
+}> = ({ service, item }) => {
   const { goToItem, openLead } = useCobox();
   const image =
     item.images?.[0] || item.image || service.cardImage || service.heroImage;
   return (
-    <article className="cbx-space-card">
+    <article
+      className="cbx-space-card"
+      role="link"
+      tabIndex={0}
+      aria-label={`View ${item.title}`}
+      onClick={() => goToItem(service, item)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          goToItem(service, item);
+        }
+      }}
+    >
       <figure>
         {image ? (
           <img src={image} alt={item.title} />
@@ -51,19 +63,17 @@ const SpaceCard: React.FC<{
         ) : null}
         <div className="cbx-space-foot">
           <b>{priceWithUnit(item.price, item.priceUnit) || "On request"}</b>
-          <button type="button" onClick={() => openLead(service, item)}>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              openLead(service, item);
+            }}
+          >
             Reserve {CIcon.arrow(14)}
           </button>
         </div>
       </div>
-      <button
-        type="button"
-        aria-label={`View ${item.title}`}
-        onClick={() => goToItem(service, item)}
-        style={{ display: "none" }}
-      >
-        {index}
-      </button>
     </article>
   );
 };

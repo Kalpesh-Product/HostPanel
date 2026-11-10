@@ -38,6 +38,7 @@ import {
   ServicesIndex,
 } from "./CoboxPages";
 import { CoboxLeadModal } from "./CoboxBooking";
+import { CoboxCursor } from "./CoboxCursor";
 
 const Loader: React.FC<{ name: string }> = ({ name }) => (
   <motion.div
@@ -202,6 +203,7 @@ const CoboxTemplate: React.FC = () => {
     <CoboxProvider value={ctx}>
       <div className="cbx" style={themeVars}>
         <style>{COBOX_CSS}</style>
+        <CoboxCursor />
         <AnimatePresence>
           {loading ? <Loader name={draft.companyName || "Cobox"} /> : null}
         </AnimatePresence>
