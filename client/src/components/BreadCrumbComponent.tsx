@@ -950,10 +950,82 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/core-modules/workspace-settings/list",
+    crumbs: [
+      { label: SECTION_LABELS.founderCore, path: "/core-modules" },
+      { label: "Unit Settings", path: "/core-modules/workspace-settings" },
+      { label: "Units & Profile" },
+    ],
+  },
+  {
+    pattern: "/core-modules/workspace-settings/business-hours",
+    crumbs: [
+      { label: SECTION_LABELS.founderCore, path: "/core-modules" },
+      { label: "Unit Settings", path: "/core-modules/workspace-settings" },
+      { label: "Business Hours" },
+    ],
+  },
+  {
+    pattern: "/core-modules/workspace-settings/fiscal-year",
+    crumbs: [
+      { label: SECTION_LABELS.founderCore, path: "/core-modules" },
+      { label: "Unit Settings", path: "/core-modules/workspace-settings" },
+      { label: "Financial Year" },
+    ],
+  },
+  {
+    pattern: "/core-modules/workspace-settings/billing",
+    crumbs: [
+      { label: SECTION_LABELS.founderCore, path: "/core-modules" },
+      { label: "Unit Settings", path: "/core-modules/workspace-settings" },
+      { label: "Billing & Payments" },
+    ],
+  },
+  {
     pattern: "/core-modules/workspace-settings",
     crumbs: [
       { label: SECTION_LABELS.founderCore, path: "/core-modules" },
       { label: "Unit Settings" },
+    ],
+  },
+  {
+    pattern: "/core-modules/workspace-management/list",
+    crumbs: [
+      { label: SECTION_LABELS.founderCore, path: "/core-modules" },
+      { label: "Unit Management", path: "/core-modules/workspace-management" },
+      { label: "Unit Details" },
+    ],
+  },
+  {
+    pattern: "/core-modules/workspace-management/employees",
+    crumbs: [
+      { label: SECTION_LABELS.founderCore, path: "/core-modules" },
+      { label: "Unit Management", path: "/core-modules/workspace-management" },
+      { label: "Employees" },
+    ],
+  },
+  {
+    pattern: "/core-modules/workspace-management/roles",
+    crumbs: [
+      { label: SECTION_LABELS.founderCore, path: "/core-modules" },
+      { label: "Unit Management", path: "/core-modules/workspace-management" },
+      { label: "Roles & Access" },
+    ],
+  },
+  {
+    pattern: "/core-modules/workspace-management/work-items",
+    crumbs: [
+      { label: SECTION_LABELS.founderCore, path: "/core-modules" },
+      { label: "Unit Management", path: "/core-modules/workspace-management" },
+      { label: "Work Items" },
+    ],
+  },
+  {
+    pattern: "/core-modules/workspace-management/departments",
+    crumbs: [
+      { label: SECTION_LABELS.founderCore, path: "/core-modules" },
+      { label: "Unit Management", path: "/core-modules/workspace-management" },
+      { label: "Departments" },
     ],
   },
   {
@@ -1034,6 +1106,51 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
         path: "/department-accesses/administration-department",
       },
       { label: "Bookings" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/administration-department/bookings/meeting-rooms",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Administration Department", path: "/department-accesses/administration-department" },
+      { label: "Bookings", path: "/department-accesses/administration-department/bookings" },
+      { label: "Meeting Room Bookings" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/administration-department/bookings/hostel",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Administration Department", path: "/department-accesses/administration-department" },
+      { label: "Bookings", path: "/department-accesses/administration-department/bookings" },
+      { label: "Hostel Bookings" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/administration-department/bookings/co-living",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Administration Department", path: "/department-accesses/administration-department" },
+      { label: "Bookings", path: "/department-accesses/administration-department/bookings" },
+      { label: "Co-living Bookings" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/administration-department/bookings/cafe",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Administration Department", path: "/department-accesses/administration-department" },
+      { label: "Bookings", path: "/department-accesses/administration-department/bookings" },
+      { label: "Cafe Orders" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/administration-department/bookings/history",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Administration Department", path: "/department-accesses/administration-department" },
+      { label: "Bookings", path: "/department-accesses/administration-department/bookings" },
+      { label: "All Booking History" },
     ],
   },
   {

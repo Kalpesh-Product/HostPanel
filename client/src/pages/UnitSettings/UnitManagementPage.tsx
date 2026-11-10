@@ -26,6 +26,8 @@ import useAuth from "../../hooks/useAuth";
 import { getWorkspaceManagementOverview } from "../../services/unit-management";
 import { switchWorkspaceSession } from "../../services/workspace-session";
 import PageFrame from "../../components/Pages/PageFrame";
+import DonutChart from "../../components/graphs/DonutChart";
+import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
 
 // Type definitions
 interface Workspace {
@@ -74,6 +76,21 @@ const getStoredUser = () => {
 };
 
 const COMBINED_RECENT_LIMIT = 12;
+const WORKLOAD_COLORS = ["#2563EB", "#F59E0B", "#7C3AED", "#0F766E", "#64748B"];
+
+function SectionCard({ title, subtitle, children, bodyClassName = "p-5" }) {
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+      <div className="border-b border-slate-100 px-5 py-4">
+        <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">
+          {title}
+        </h2>
+        {subtitle ? <p className="mt-1 text-[11px] text-slate-500">{subtitle}</p> : null}
+      </div>
+      <div className={bodyClassName}>{children}</div>
+    </section>
+  );
+}
 
 function MetricCard({ icon: Icon, label, value, tone = "blue" }) {
   const toneClassName = {
@@ -479,6 +496,46 @@ export default function WorkspaceManagementPage() {
     },
   };
 
+  // Visual summary for the data panel: a workload split donut and an
+  // employees-by-unit bar, same chart idiom as the Unit Management
+  // dashboard, so the combined numbers above are also readable at a glance.
+  const workloadRows = [
+    { label: "Tickets", value: Number(summary.totalTickets || 0) },
+    { label: "Tasks", value: Number(summary.totalTasks || 0) },
+    { label: "Bookings", value: Number(summary.totalMeetingBookings || 0) },
+    { label: "Assets", value: Number(summary.totalAssets || 0) },
+    { label: "Inventory", value: Number(summary.totalInventory || 0) },
+  ].filter((item) => item.value > 0);
+
+  const employeeRows = workspaceList
+    .filter((workspace) => !workspace.isDeleted)
+    .map((workspace) => ({
+      label: workspace.workspaceName || workspace.businessName || "Unnamed unit",
+      value: Number(workspace.metrics?.totalEmployees || 0),
+    }))
+    .sort((left, right) => right.value - left.value)
+    .slice(0, 8);
+
+  const employeeChartOptions = {
+    chart: { toolbar: { show: false }, fontFamily: "Poppins-Regular" },
+    plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: "55%" } },
+    dataLabels: {
+      enabled: true,
+      formatter: (value: number) => String(value),
+      style: { fontSize: "11px", colors: ["#1E3D73"] },
+      offsetX: 6,
+    },
+    colors: ["#2563EB"],
+    xaxis: {
+      categories: employeeRows.map((row) => row.label),
+      min: 0,
+      labels: { style: { fontSize: "10px" } },
+    },
+    yaxis: { labels: { style: { fontSize: "11px" } } },
+    grid: { borderColor: "#EEF2F7" },
+    tooltip: { theme: "light" },
+  };
+
   const combinedData = useMemo(() => {
     interface StatusEntry {
       status?: string;
@@ -662,6 +719,47 @@ export default function WorkspaceManagementPage() {
                   ) : null}
                   <MetricCard icon={CalendarDays} label="Meeting Room Bookings" value={summary.totalMeetingBookings || 0} tone="orange" />
                   <MetricCard icon={BarChart3} label="Performance" value={`${summary.performance?.overallScore || 0}%`} tone="indigo" />
+                </div>
+              ) : null}
+
+              {/* 2b. VISUAL SUMMARY — the same numbers above, read at a
+                  glance instead of only as tiles. */}
+              {isMultiUnit && (workloadRows.length > 0 || employeeRows.length > 0) ? (
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                  <SectionCard
+                    title="Operational workload"
+                    subtitle="Current work and resource records across all units."
+                  >
+                    {workloadRows.length ? (
+                      <DonutChart
+                        centerLabel="Records"
+                        labels={workloadRows.map((item) => item.label)}
+                        series={workloadRows.map((item) => item.value)}
+                        colors={WORKLOAD_COLORS.slice(0, workloadRows.length)}
+                        tooltipValue={workloadRows.map((item) => `${item.value} records`)}
+                        wrapLabels
+                      />
+                    ) : (
+                      <div className="flex h-[280px] items-center justify-center text-[11px] text-slate-500">
+                        No operational workload has been recorded yet.
+                      </div>
+                    )}
+                  </SectionCard>
+                  <SectionCard
+                    title="Employees by unit"
+                    subtitle="How the combined workforce is distributed."
+                  >
+                    {employeeRows.length ? (
+                      <GroupedBarGraph
+                        options={employeeChartOptions}
+                        series={[{ name: "Employees", data: employeeRows.map((item) => item.value) }]}
+                      />
+                    ) : (
+                      <div className="flex h-[280px] items-center justify-center text-[11px] text-slate-500">
+                        No employee allocation data is available yet.
+                      </div>
+                    )}
+                  </SectionCard>
                 </div>
               ) : null}
 

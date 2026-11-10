@@ -127,7 +127,16 @@ import FinalizeSetupPage from "../pages/WorkspaceSetup/FinalizeSetupPage";
 import OrganizationPage from "../pages/Organization/OrganizationPage";
 import OrganizationWorkspaceDashboard from "../pages/Organization/OrganizationWorkspaceDashboard";
 import UnitSettingsPage from "../pages/UnitSettings/UnitSettingsPage";
+import UnitSettingsDashboard from "../pages/UnitSettings/UnitSettingsDashboard";
+import UnitBusinessHoursPage from "../pages/UnitSettings/UnitBusinessHoursPage";
+import UnitFiscalYearPage from "../pages/UnitSettings/UnitFiscalYearPage";
+import UnitBillingPage from "../pages/UnitSettings/UnitBillingPage";
 import UnitManagementPage from "../pages/UnitSettings/UnitManagementPage";
+import UnitManagementDashboard from "../pages/UnitSettings/UnitManagementDashboard";
+import UnitEmployeesPage from "../pages/UnitSettings/UnitEmployeesPage";
+import UnitRolesPage from "../pages/UnitSettings/UnitRolesPage";
+import UnitWorkItemsPage from "../pages/UnitSettings/UnitWorkItemsPage";
+import UnitDepartmentsPage from "../pages/UnitSettings/UnitDepartmentsPage";
 import CustomerSupportPage from "../pages/CustomerSupport/CustomerSupportPage";
 import CustomerSupportDashboard from "../pages/CustomerSupport/CustomerSupportDashboard";
 import AnalyticsPage from "../pages/Analytics/AnalyticsPage";
@@ -157,6 +166,10 @@ import VirtualOfficeDetailPage from "../pages/Sales/VirtualOffices/VirtualOffice
 import AdministrationTenantCompaniesPage from "../pages/Administration/TenantCompanies/TenantCompaniesPage";
 import AdministrationTenantCompanyDetailPage from "../pages/Administration/TenantCompanies/TenantCompanyDetailPage";
 import AdministrationBookingsPage from "../pages/Administration/Bookings/BookingsPage";
+import BookingsDashboard from "../pages/Administration/Bookings/BookingsDashboard";
+import VerticalRoomBookingsPage from "../pages/Administration/Bookings/VerticalRoomBookingsPage";
+import CafeBookingsPage from "../pages/Administration/Bookings/CafeBookingsPage";
+import AllBookingHistoryPage from "../pages/Administration/Bookings/AllBookingHistoryPage";
 import AdministrationResourceManagementPage from "../pages/Administration/ResourceManagement/ResourceManagementPage";
 import AdministrationHousekeepingPage from "../pages/Administration/HouseKeeping/HousekeepingPage";
 import RepairLogsPage from "../pages/Maintenance/RepairLogsPage";
@@ -829,11 +842,47 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "core-modules/workspace-settings",
+                element: <UnitSettingsDashboard />,
+              },
+              {
+                path: "core-modules/workspace-settings/list",
                 element: <UnitSettingsPage />,
               },
               {
+                path: "core-modules/workspace-settings/business-hours",
+                element: <UnitBusinessHoursPage />,
+              },
+              {
+                path: "core-modules/workspace-settings/fiscal-year",
+                element: <UnitFiscalYearPage />,
+              },
+              {
+                path: "core-modules/workspace-settings/billing",
+                element: <UnitBillingPage />,
+              },
+              {
                 path: "core-modules/workspace-management",
+                element: <UnitManagementDashboard />,
+              },
+              {
+                path: "core-modules/workspace-management/list",
                 element: <UnitManagementPage />,
+              },
+              {
+                path: "core-modules/workspace-management/employees",
+                element: <UnitEmployeesPage />,
+              },
+              {
+                path: "core-modules/workspace-management/roles",
+                element: <UnitRolesPage />,
+              },
+              {
+                path: "core-modules/workspace-management/work-items",
+                element: <UnitWorkItemsPage />,
+              },
+              {
+                path: "core-modules/workspace-management/departments",
+                element: <UnitDepartmentsPage />,
               },
               {
                 path: "core-modules/analytics",
@@ -1606,7 +1655,27 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/administration-department/bookings",
+                element: <BookingsDashboard />,
+              },
+              {
+                path: "department-accesses/administration-department/bookings/meeting-rooms",
                 element: <AdministrationBookingsPage />,
+              },
+              {
+                path: "department-accesses/administration-department/bookings/hostel",
+                element: <VerticalRoomBookingsPage roomType="Dorm" title="Hostel Bookings" noun="Dorm" />,
+              },
+              {
+                path: "department-accesses/administration-department/bookings/co-living",
+                element: <VerticalRoomBookingsPage roomType="Room" title="Co-living Bookings" noun="Room" />,
+              },
+              {
+                path: "department-accesses/administration-department/bookings/cafe",
+                element: <CafeBookingsPage />,
+              },
+              {
+                path: "department-accesses/administration-department/bookings/history",
+                element: <AllBookingHistoryPage />,
               },
               {
                 path: "department-accesses/administration-department/resource-management",

@@ -1008,7 +1008,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="admin-bookings-table"]', tabPage: "tenant", title: "Tenant company reservations", description: "Reservations made by tenant companies with the company column shown per row. Open a row to review the booking and its current state.", side: "top" },
       { selector: '[data-tour="admin-bookings-table"]', tabPage: "history", title: "Booking history", description: "The archived record of past bookings across scopes — use it to audit usage or resolve disputes about earlier reservations.", side: "top" },
     ],
-    matches: exact("/department-accesses/administration-department/bookings"),
+    matches: exact("/department-accesses/administration-department/bookings/meeting-rooms"),
   },
   {
     id: "basic-admin-resource-management",

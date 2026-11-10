@@ -59,6 +59,32 @@ const timeToMinutes = (value: unknown) => {
   return Number(match[1]) * 60 + Number(match[2]);
 };
 
+// The backend never persists a "completed" status on a booking — it only
+// ever stores pending/confirmed/cancelled/rescheduled. Completion is a
+// derived, time-based fact: a booking is completed once its end date/time
+// has passed, unless it was cancelled. MeetingRoomsPage.tsx derives this the
+// same way (deriveLiveMeetingStatus) using timezone-aware clock parts; this
+// dashboard already works in local time elsewhere (todayKey below), so this
+// keeps the same simpler local-time comparison instead of duplicating that
+// timezone machinery.
+const isBookingCompleted = (booking: BookingRecord, now: Date = new Date()) => {
+  if (bookingStatus(booking) === "cancelled") return false;
+
+  const endDateKey = String(booking.endDate || booking.date || booking.bookingDate || booking.startDate || "").slice(0, 10);
+  if (!endDateKey) return false;
+
+  const endMinutes = timeToMinutes(booking.endTime || booking.checkOut);
+  const nowKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+  if (endDateKey < nowKey) return true;
+  if (endDateKey > nowKey) return false;
+  // Same day: completed once the end time has passed. If there's no parsable
+  // end time, fall back to treating a same-day booking as not yet completed.
+  if (endMinutes === null) return false;
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  return nowMinutes >= endMinutes;
+};
+
 const bookingDurationMinutes = (booking: BookingRecord) => {
   const explicitMinutes = Number(booking.durationMinutes || booking.totalMinutes || 0);
   if (Number.isFinite(explicitMinutes) && explicitMinutes > 0) return explicitMinutes;
@@ -256,9 +282,13 @@ export default function MeetingRoomBookingDashboard() {
       today: bookings.filter((booking) => bookingDate(booking) === todayKey).length,
       upcoming: bookings.filter((booking) => {
         const status = bookingStatus(booking);
-        return bookingDate(booking) >= todayKey && !["completed", "cancelled", "rejected"].includes(status);
+        return (
+          bookingDate(booking) >= todayKey &&
+          !["cancelled", "rejected"].includes(status) &&
+          !isBookingCompleted(booking)
+        );
       }).length,
-      completed: bookings.filter((booking) => bookingStatus(booking) === "completed").length,
+      completed: bookings.filter((booking) => isBookingCompleted(booking)).length,
       cancelled: bookings.filter((booking) => bookingStatus(booking) === "cancelled").length,
       internal: typeCount("Internal"),
       external: typeCount("External"),
@@ -278,7 +308,7 @@ export default function MeetingRoomBookingDashboard() {
     return {
       labels: months.map((month) => month.label),
       total: months.map((month) => bookings.filter((booking) => bookingDate(booking).startsWith(month.key)).length),
-      completed: months.map((month) => bookings.filter((booking) => bookingDate(booking).startsWith(month.key) && bookingStatus(booking) === "completed").length),
+      completed: months.map((month) => bookings.filter((booking) => bookingDate(booking).startsWith(month.key) && isBookingCompleted(booking)).length),
     };
   }, [bookings, todayKey]);
 
