@@ -21,6 +21,7 @@ const TEMPLATE_KIND: Record<string, ServiceKind> = {
   brixspace: "meeting",
   worpace: "workspace",
   qerja: "workspace",
+  cobox: "workspace",
   wayfarer: "hostel",
   travigo: "hostel",
   lodge: "hostel",
@@ -1311,6 +1312,104 @@ const QERJA_DEMO_BUSINESS: DemoBusiness = (() => {
   };
 })();
 
+// Cobox uses a bright, architectural photo direction with glass, daylight and
+// open-plan work areas so its preview reads as a modern co-working brand.
+const COBOX_PHOTOS = {
+  hero: [
+    "photo-1497366754035-f200968a6e72",
+    "photo-1497366811353-6870744d04b2",
+    "photo-1524758631624-e2822e304c36",
+  ],
+  spaces: [
+    "photo-1521737711867-e3b97375f902",
+    "photo-1522071820081-009f0129c71c",
+    "photo-1497215728101-856f4ea42174",
+    "photo-1531973576160-7125cd663d86",
+    "photo-1556761175-b413da4baf72",
+    "photo-1497366216548-37526070297c",
+    "photo-1504384308090-c894fdcc538d",
+    "photo-1542744173-8e7e53415bb0",
+    "photo-1519389950473-47ba0277781c",
+    "photo-1527192491265-7e15c55b1ed2",
+    "photo-1497366858526-0766cadbe8fa",
+    "photo-1517245386807-bb43f82c33c4",
+  ],
+  faces: [
+    "photo-1494790108377-be9c29b29330",
+    "photo-1500648767791-00dcc994a43e",
+    "photo-1534528741775-53994a69daeb",
+    "photo-1507003211169-0a1dd7228f2d",
+  ],
+};
+const COBOX_DEMO_BUSINESS: DemoBusiness = (() => {
+  const base = DEMO_BUSINESSES.workspace;
+  const items = (base.pageItems || []) as any[];
+  return {
+    ...base,
+    companyName: "Cobox",
+    title: "Flexible co-working spaces tailored to your needs",
+    subTitle:
+      "Discover modern, inspiring and fully equipped workspaces designed to fuel creativity, collaboration and growth.",
+    cta: "Book a trial visit",
+    heroImages: COBOX_PHOTOS.hero.map((id) => photo(id, 1900)),
+    gallery: [...COBOX_PHOTOS.hero, ...COBOX_PHOTOS.spaces].map((id) =>
+      photo(id, 1450),
+    ),
+    aboutImages: [
+      COBOX_PHOTOS.spaces[1],
+      COBOX_PHOTOS.spaces[4],
+      COBOX_PHOTOS.spaces[7],
+    ].map((id) => photo(id, 1200)),
+    aboutTitle: "A workspace built around the way you work",
+    aboutPageStory:
+      "Cobox brings bright, flexible workspaces and a genuinely useful community together under one roof.",
+    about: [
+      "Cobox began with a simple brief: make a workspace that feels as good as it works. Calm rooms, reliable technology and people who look out for each other.",
+      "Today freelancers, startups and established teams share the same floors, with quiet zones, meeting rooms, a sunlit lounge and a kitchen that never runs out of good coffee.",
+    ],
+    founders: [
+      {
+        name: "Rhea Kapoor",
+        role: "Founder & Community Director",
+        bio: "Rhea builds spaces that make it easier to do good work and meet good people.",
+        highlights: "Community and hospitality",
+        image: photo(COBOX_PHOTOS.faces[0], 700),
+      },
+      {
+        name: "Arjun Nair",
+        role: "Head of Workspace Operations",
+        bio: "Arjun makes sure every room, desk and service is ready before you are.",
+        highlights: "Workspace operations",
+        image: photo(COBOX_PHOTOS.faces[1], 700),
+      },
+      {
+        name: "Neha Bhat",
+        role: "Partnerships Lead",
+        bio: "Neha connects members with the people and businesses that help them grow.",
+        highlights: "Partnerships",
+        image: photo(COBOX_PHOTOS.faces[2], 700),
+      },
+    ],
+    address: "4th Floor, Riverside Plaza, MG Road, Bengaluru 560001",
+    page: {
+      ...base.page,
+      name: "Co-working",
+      slug: "co-working",
+      heroHeading: "Workspace solutions built for your team",
+      heroSubHeading:
+        "Choose a flexible desk, private office or team suite and make the workday your own.",
+      heroImage: photo(COBOX_PHOTOS.hero[0], 1900),
+      cardImage: photo(COBOX_PHOTOS.hero[1], 1100),
+    },
+    pageItems: items.map((item, index) => ({
+      ...item,
+      images: COBOX_PHOTOS.spaces
+        .slice(index * 2, index * 2 + 3)
+        .map((id) => photoValue(id)),
+    })),
+  };
+})();
+
 // Cali Hostel has its own sun-washed, people-first photo library so it never
 // repeats the room imagery or travel tone of Wayfarer, Travigo or Lodge.
 const caliPhoto = (id: string, width = 1600) =>
@@ -1625,6 +1724,8 @@ const demoBusinessFor = (
     return WORPACE_DEMO_BUSINESS;
   if (themeVariant === "qerja" && kind === "workspace")
     return QERJA_DEMO_BUSINESS;
+  if (themeVariant === "cobox" && kind === "workspace")
+    return COBOX_DEMO_BUSINESS;
   if (themeVariant === "travigo" && kind === "hostel")
     return TRAVIGO_DEMO_BUSINESS;
   if (themeVariant === "lodge" && kind === "hostel") return LODGE_DEMO_BUSINESS;

@@ -127,6 +127,12 @@ export const THEME_DEFAULTS: Record<string, ThemeDefaults> = {
     accent: "#3b6cf0",
     surfaceUp: true,
   },
+  cobox: {
+    bg: "#ffffff",
+    text: "#102b32",
+    accent: "#dff39e",
+    surfaceUp: true,
+  },
 };
 
 export const supportsThemeColors = (templateId?: string | null) =>
