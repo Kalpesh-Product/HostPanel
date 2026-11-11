@@ -690,7 +690,6 @@ export const COBOX_CSS = String.raw`
   height: 48px;
   border-radius: 50%;
   background: #fff;
-  mix-blend-mode: exclusion;
   transform: scale(0);
   transition: transform 0.3s ease-in-out, opacity 0.1s;
 }
@@ -728,6 +727,10 @@ export const COBOX_CSS = String.raw`
 
 .cbx-cursor.is-pointer::before {
   transform: scale(0);
+}
+
+.cbx-cursor.is-opaque {
+  mix-blend-mode: exclusion;
 }
 
 .cbx-cursor.is-opaque::before {
@@ -951,6 +954,11 @@ export const COBOX_CSS = String.raw`
 .cbx-service-grid > * {
   flex: 0 0 calc((100% - 48px) / 3);
   min-width: 0;
+  display: flex;
+}
+
+.cbx-service-grid > * > * {
+  width: 100%;
 }
 
 .cbx-service-card {
@@ -1573,6 +1581,11 @@ export const COBOX_CSS = String.raw`
 .cbx-value-grid > * {
   flex: 0 0 calc((100% - 48px) / 3);
   min-width: 0;
+  display: flex;
+}
+
+.cbx-value-grid > * > * {
+  width: 100%;
 }
 
 .cbx-value-card {
@@ -2200,6 +2213,11 @@ export const COBOX_CSS = String.raw`
 .cbx-page-grid > * {
   flex: 0 0 calc((100% - 52px) / 3);
   min-width: 0;
+  display: flex;
+}
+
+.cbx-page-grid > * > * {
+  width: 100%;
 }
 
 .cbx-page-card {
@@ -2266,6 +2284,11 @@ export const COBOX_CSS = String.raw`
 .cbx-space-grid > * {
   flex: 0 0 calc((100% - 52px) / 3);
   min-width: 0;
+  display: flex;
+}
+
+.cbx-space-grid > * > * {
+  width: 100%;
 }
 
 .cbx-space-card {
@@ -2469,6 +2492,11 @@ export const COBOX_CSS = String.raw`
 .cbx-team-grid > * {
   flex: 0 0 calc((100% - 48px) / 3);
   min-width: 0;
+  display: flex;
+}
+
+.cbx-team-grid > * > * {
+  width: 100%;
 }
 
 .cbx-team-card {
@@ -2535,6 +2563,11 @@ export const COBOX_CSS = String.raw`
 .cbx-review-grid > * {
   flex: 0 0 calc((100% - 44px) / 3);
   min-width: 0;
+  display: flex;
+}
+
+.cbx-review-grid > * > * {
+  width: 100%;
 }
 
 .cbx-review-grid article {
