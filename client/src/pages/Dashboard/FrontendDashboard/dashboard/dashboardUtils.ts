@@ -70,7 +70,26 @@ export const getModuleGridClass = (count: number): string => {
   if (count === 4) {
     return "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4";
   }
-  return "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
+  if (
+    count === 5 ||
+    count === 9 ||
+    count === 10 ||
+    count === 13 ||
+    count === 14 ||
+    count === 15
+  ) {
+    return "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
+  }
+  if (
+    count === 7 ||
+    count === 8 ||
+    count === 11 ||
+    count === 12 ||
+    count >= 16
+  ) {
+    return "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
+  }
+  return "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3";
 };
 
 export const resolveWorkspaceId = (storedUser: any): string =>
