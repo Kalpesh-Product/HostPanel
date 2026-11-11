@@ -159,7 +159,28 @@ function TablePageSkeleton({ rows = 6, columns = 6 }) {
   );
 }
 
-export default function LeadsManagementPage() {
+// Titles and sub-text for the dedicated single-view routes opened from the
+// Leads Management dashboard's module cards.
+const LEADS_VIEW_META: Record<string, { title: string; subtitle: string }> = {
+  "website-leads": {
+    title: "Website & Nomad Leads",
+    subtitle:
+      "Review and update enquiries from Website Builder and Nomad, with stage tracking.",
+  },
+  "unit-tour": {
+    title: "Unit Tour Leads",
+    subtitle:
+      "Follow up walk-in tour leads synced from Visitor Management through the sales pipeline.",
+  },
+};
+
+export default function LeadsManagementPage({
+  lockedTab,
+}: {
+  // When set, the page renders a single view with the main tab strip hidden —
+  // used by the dedicated routes the Leads dashboard's module cards open.
+  lockedTab?: string;
+}) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -173,7 +194,11 @@ export default function LeadsManagementPage() {
   const [showExportModal, setShowExportModal] = useState(false);
   const location = useLocation();
   const requestedTab = (location.state as { tab?: string } | null)?.tab;
-  const [mainTab, setMainTab] = useState(requestedTab === "unit-tour" ? "unit-tour" : "website-leads");
+  const [mainTab, setMainTab] = useState(
+    lockedTab === "unit-tour" || (!lockedTab && requestedTab === "unit-tour")
+      ? "unit-tour"
+      : "website-leads",
+  );
   const [websiteLeads, setWebsiteLeads] = useState([]);
   const [websiteLeadStages, setWebsiteLeadStages] = useState({});
   const [selectedWebsiteLeadId, setSelectedWebsiteLeadId] = useState(null);
@@ -437,10 +462,15 @@ export default function LeadsManagementPage() {
         <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
           <div>
             <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-              Leads Management
+              {lockedTab
+                ? LEADS_VIEW_META[lockedTab]?.title || "Leads Management"
+                : "Leads Management"}
             </h2>
             <p className="text-xs font-pmedium text-slate-500 mt-1">
-              Sales synced from Visitor Management and Website Builder.
+              {lockedTab
+                ? LEADS_VIEW_META[lockedTab]?.subtitle ||
+                  "Sales synced from Visitor Management and Website Builder."
+                : "Sales synced from Visitor Management and Website Builder."}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
@@ -468,6 +498,9 @@ export default function LeadsManagementPage() {
         
 
         {/* 2. MAIN TABS (Website & Nomad Leads | Unit Tour List) */}
+        {/* Hidden on the dedicated single-view routes — those pages are
+            locked to one tab, so the switcher would be noise. */}
+        {!lockedTab ? (
         <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
           {[
             { key: "website-leads", label: "All Website & Nomad Leads" },
@@ -478,6 +511,7 @@ export default function LeadsManagementPage() {
             >{tab.label}</button>
           ))}
         </div>
+        ) : null}
 
         {/* 3. STAT CARDS (DESIGN.md 4-col grid with border-left accents) */}
         {mainTab === "unit-tour" ? (

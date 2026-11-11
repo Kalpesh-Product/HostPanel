@@ -42,7 +42,10 @@ router.get("/clients", getExternalClients);             // Get external clients 
 router.post("/clients", createExternalClient);          // Create external client (or return existing)
 
 // Booking Management — all /bookings/* routes before /:id wildcard
-router.post("/bookings", upload.single("paymentProof"), createBooking); // Create booking
+router.post("/bookings", upload.fields([
+    { name: "paymentProof", maxCount: 1 },
+    { name: "idProofFile", maxCount: 1 },
+]), createBooking); // Create booking
 router.get("/bookings", getBookings); // All bookings in the active workspace
 router.get("/bookings/workspace/:workspaceId", getBookings); // All bookings in workspace
 router.get("/bookings/my", getMyBookings);                  // Current user's bookings

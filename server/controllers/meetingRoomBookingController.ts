@@ -707,24 +707,40 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
                 });
             }
             const normalizedTransactionId = String(transactionId || "").trim();
+            const paymentProofFile = (req.files as Record<string, any>)?.paymentProof?.[0];
+            const idProofFile = (req.files as Record<string, any>)?.idProofFile?.[0];
             if (paymentMethod.requiresReference && !normalizedTransactionId) {
                 return res.status(400).json({ message: `Payment reference is required for ${paymentMethod.label}.` });
             }
-            if (paymentMethod.requiresProof && !req.file) {
+            if (paymentMethod.requiresProof && !paymentProofFile) {
                 return res.status(400).json({ message: `Payment proof is required for ${paymentMethod.label}.` });
+            }
+            if (!idProofFile) {
+                return res.status(400).json({ message: "Attach the guest's ID proof document." });
             }
             const pricingSnapshot = calculateExternalPricingSnapshot(req.body, workspaceLocalization.billing);
             const isCashPayment = paymentMethod.code === "cash";
 
             let paymentProofUrl = "";
-            if (req.file) {
-                const safeFileName = String(req.file.originalname || "payment-proof")
+            if (paymentProofFile) {
+                const safeFileName = String(paymentProofFile.originalname || "payment-proof")
                     .replace(/[^a-zA-Z0-9._-]+/g, "-");
                 const uploadResult = await uploadFileToS3(
                     `meeting-room-payments/${workspaceId}/${Date.now()}-${safeFileName}`,
-                    req.file,
+                    paymentProofFile,
                 );
                 paymentProofUrl = uploadResult.url || "";
+            }
+
+            let idProofFileUrl = "";
+            if (idProofFile) {
+                const safeIdFileName = String(idProofFile.originalname || "id-proof")
+                    .replace(/[^a-zA-Z0-9._-]+/g, "-");
+                const idUploadResult = await uploadFileToS3(
+                    `meeting-room-id-proofs/${workspaceId}/${Date.now()}-${safeIdFileName}`,
+                    idProofFile,
+                );
+                idProofFileUrl = idUploadResult.url || "";
             }
 
             // 1. Validate externalClientId if provided
@@ -778,6 +794,17 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
                 paymentStatus: isCashPayment ? (String(paymentStatus || "").trim() || "Paid") : "Paid",
                 transactionId: normalizedTransactionId,
                 paymentProofUrl,
+                idProofType: String(req.body.idProofType || "").trim(),
+                idProofNumber: String(req.body.idProofNumber || "").trim(),
+                idProofFileUrl,
+                guestAge: Number.isInteger(Number(req.body.guestAge)) && Number(req.body.guestAge) > 0 ? Number(req.body.guestAge) : null,
+                guestGender: String(req.body.guestGender || "").trim(),
+                guestCountry: String(req.body.guestCountry || "").trim(),
+                guestState: String(req.body.guestState || "").trim(),
+                guestCity: String(req.body.guestCity || "").trim(),
+                guestAddress: String(req.body.guestAddress || "").trim(),
+                emergencyContactName: String(req.body.emergencyContactName || "").trim(),
+                emergencyContactPhone: String(req.body.emergencyContactPhone || "").trim(),
                 status: "confirmed",
             });
 
@@ -793,7 +820,11 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
         }
         // ── End of External booking branch ───────────────────────────────────
 
-        const attendeeCount = Math.max(1, Number(attendees) || 0, (inviteeUserIds?.length || 0) + uniqueGuestEmails.length + 1);
+        // Tenant bookings don't seat the admin/staff member who books on the
+        // tenant's behalf, so unlike Internal (where the host attends), the
+        // host doesn't occupy a capacity slot.
+        const hostOccupiesSeat = String(req.body.bookingType || "Internal").toLowerCase() !== "tenant";
+        const attendeeCount = Math.max(1, Number(attendees) || 0, (inviteeUserIds?.length || 0) + uniqueGuestEmails.length + (hostOccupiesSeat ? 1 : 0));
         if (attendeeCount > Number(room.capacity || 0)) return res.status(400).json({ message: "Attendee count exceeds room capacity" });
         if (await findOverlap(roomId, range.start, range.end)) return res.status(409).json({ message: "Room is already booked for the selected time slot" });
 
@@ -860,6 +891,11 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
                 ],
             }).lean().exec();
             tenantEmployeeDepartment = String(tenantEmployee?.department || "").trim();
+            // The booking belongs to the tenant company, not the admin/staff member
+            // creating it on their behalf, so it must never be attributed to the booker.
+            resolvedBookedForName = (typeof req.body.bookedByName === "string" && req.body.bookedByName.trim())
+                || tenantBookingCompanyName
+                || "";
         }
 
         const booking = await createBookingWithUniqueCode({

@@ -4,6 +4,7 @@ import { City, Country, State } from 'country-state-city';
 import useAuth from '../../hooks/useAuth';
 import useAxiosPrivate from '../../hooks/useAxiosPrivate';
 import useBusinessHours from '../../hooks/useBusinessHours';
+import useModuleAccessMap from '../../hooks/useModuleAccessMap';
 import useWorkspacePreferences from '../../hooks/useWorkspacePreferences';
 import {
   DEFAULT_WORKSPACE_TIMEZONE,
@@ -27,6 +28,7 @@ import {
   sendExternalBookingConfirmationEmail,
   updateMeetingRoomBooking,
 } from '../../services/meeting-room-bookings';
+import { createRoomBooking, getGuestRooms, getRoomAvailability, getRoomBookings, updateRoomBookingStatus } from '../../services/roomStays';
 import { toast } from 'sonner';
 import { createReport } from '../../services/reports';
 import { downloadReportFile } from '../../utils/report-download';
@@ -36,7 +38,7 @@ import {
   LogOut, UserPlus, FileText, BadgeCheck, Phone, Mail,
   CalendarDays, ShieldCheck, ArrowRight, ArrowLeft, PlayCircle, Wallet, Banknote, Sparkles,
   XCircle, ShieldAlert, Calendar as CalendarIcon, AlertTriangle, Globe, Smartphone, LayoutGrid,
-  Download, Printer, Lock, Home, UserCheck, Tag, Users
+  Download, Printer, Lock, Home, UserCheck, Tag, Users, Bed, LogIn
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
 import { VisitorManagementSkeleton } from '../../components/ui/Skeleton';
@@ -151,6 +153,16 @@ function getDefaultVisitorForm() {
     paymentSettled: 'paid',
     transactionId: '',
     paymentProofFile: null,
+    idProofType: 'Aadhaar',
+    idProofNumber: '',
+    idProofFile: null,
+    guestAge: '',
+    guestGender: '',
+    guestAddress: '',
+    emergencyContactName: '',
+    emergencyContactPhone: '',
+    // One { name, age, gender } row per extra dorm bed beyond the first guest.
+    additionalGuests: [],
     bookingId: '',
     clientBookingMode: 'new',
     clientId: '',
@@ -503,13 +515,45 @@ function getWalkInValidationErrors(form = {}, options = {}) {
   else if (!isValidEmail(email)) errors.email = 'Enter a valid email address.';
 
   // Wing is optional — rooms can be picked across all wings of the floor.
-  ['spaceType', 'floor', 'resourceName', 'startDate', 'endDate', 'startTime', 'endTime', 'paymentMode'].forEach((field) => {
+  // Floor itself is only required when this space type actually tracks
+  // floors (some Room/Dorm resources have none set at all).
+  // Room/Dorm walk-ins are date-range stays with no time-of-day component.
+  const requiredFields = [
+    'spaceType',
+    ...(options.walkInTypeTracksFloors ? ['floor'] : []),
+    'resourceName',
+    'startDate',
+    'endDate',
+    ...(options.isRoomOrDormWalkIn ? [] : ['startTime', 'endTime']),
+    'paymentMode',
+  ];
+  requiredFields.forEach((field) => {
     if (!String(form[field] || '').trim()) errors[field] = requiredMessage;
   });
 
-  if (attendees < 1) errors.attendees = 'Enter at least one attendee.';
-  if (options.attendeeCapacity && attendees > options.attendeeCapacity) {
-    errors.attendees = `Maximum ${options.attendeeCapacity} attendees allowed.`;
+  // Guest personal details are part of the common walk-in form now, required
+  // for every space type (not just Dorm/Room).
+  ['guestAge', 'guestGender', 'country', 'state', 'city', 'guestAddress'].forEach((field) => {
+    if (!String(form[field] || '').trim()) errors[field] = requiredMessage;
+  });
+
+  if (form.spaceType !== 'Room') {
+    if (attendees < 1) errors.attendees = options.isRoomOrDormWalkIn ? 'Enter at least one bed.' : 'Enter at least one attendee.';
+    if (options.attendeeCapacity && attendees > options.attendeeCapacity) {
+      errors.attendees = options.isRoomOrDormWalkIn
+        ? `Only ${options.attendeeCapacity} beds in this dorm.`
+        : `Maximum ${options.attendeeCapacity} attendees allowed.`;
+    }
+  }
+  if (form.spaceType === 'Dorm' && attendees > 1) {
+    const extraGuests = Array.isArray(form.additionalGuests) ? form.additionalGuests : [];
+    const needed = attendees - 1;
+    const incomplete = Array.from({ length: needed }).some((_, index) => {
+      const guest = extraGuests[index] || {};
+      const age = Number(guest.age);
+      return !String(guest.name || '').trim() || !Number.isInteger(age) || age < 1 || age > 120 || !String(guest.gender || '').trim();
+    });
+    if (incomplete) errors.additionalGuests = 'Complete the name, age and gender for every additional guest.';
   }
   if (options.isDeskAreaSeatBooking && !String(form.seatNumber || '').trim()) {
     errors.seatNumber = requiredMessage;
@@ -519,6 +563,9 @@ function getWalkInValidationErrors(form = {}, options = {}) {
   }
   if (options.paymentMethod?.requiresProof && !form.paymentProofFile) {
     errors.paymentProofFile = `Upload payment proof for ${options.paymentMethod.label}.`;
+  }
+  if (!form.idProofFile) {
+    errors.idProofFile = "Attach the guest's ID proof document.";
   }
   if (!options.availability?.available) {
     errors.availability = options.availability?.reason || 'Please choose an available slot.';
@@ -622,6 +669,8 @@ function getRoomTypeFromName(roomName) {
 function normalizeResourceType(type = '', resourceCategory = '') {
   const t = normalizeText(type).toLowerCase();
   const cat = normalizeText(resourceCategory).toLowerCase();
+  if (cat === 'dorm' || t === 'dorm') return 'Dorm';
+  if (cat === 'room' || t === 'room') return 'Room';
   if (t.includes('virtual') || cat.includes('virtual')) return 'Virtual Office';
   if (t.includes('conference')) return 'Conference Room';
   if (t.includes('meeting')) return 'Meeting Room';
@@ -667,6 +716,7 @@ function normalizeMeetingRoom(room = {}) {
     pricing: room.pricing || '',
     pricePerHour: Number(room.pricePerHour || 0),
     pricePerDay: Number(room.pricePerDay || 0),
+    pricePerNight: Number(room.pricePerNight || 0),
   };
 }
 
@@ -717,6 +767,29 @@ function getWalkInDaySpan(startDate, endDate) {
 
   const diff = Math.floor((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
   return diff >= 0 ? diff + 1 : 0;
+}
+
+// Nights for a Room/Dorm stay — unlike getWalkInDaySpan (which counts the
+// start day itself for repeating hourly bookings), check-in day to check-out
+// day is NOT a night, so this is the plain date diff with no +1.
+function getNightsSpan(startDate, endDate) {
+  const startDateKey = formatDateKey(startDate);
+  const endDateKey = formatDateKey(endDate);
+  if (!startDateKey || !endDateKey) return 0;
+  const start = new Date(`${startDateKey}T00:00:00`);
+  const end = new Date(`${endDateKey}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+  const diff = Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+  return diff > 0 ? diff : 0;
+}
+
+function addDays(dateKey, days) {
+  const key = formatDateKey(dateKey);
+  if (!key) return '';
+  const date = new Date(`${key}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return '';
+  date.setDate(date.getDate() + days);
+  return formatDateKey(date);
 }
 
 const TOUR_INDUSTRY_OPTIONS = [
@@ -1035,6 +1108,9 @@ const VALIDATION_FIELD_LABELS = {
   attendees: 'Attendees', seatNumber: 'Seat number', startDate: 'Start date', endDate: 'End date',
   startTime: 'Start time', endTime: 'End time', availability: 'Availability', paymentMode: 'Payment mode',
   transactionId: 'Transaction ID', paymentProofFile: 'Payment screenshot',
+  guestAge: 'Age', guestGender: 'Gender', guestAddress: 'Address',
+  idProofType: 'ID proof type', idProofNumber: 'ID proof number', idProofFile: 'ID proof document',
+  additionalGuests: 'Additional guests',
 };
 
 function ValidationSummary({ errors = {} }) {
@@ -1044,7 +1120,7 @@ function ValidationSummary({ errors = {} }) {
     <div data-validation-summary tabIndex={-1} role="alert" aria-live="polite" className="mx-6 mb-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 outline-none focus:ring-2 focus:ring-red-300">
       <p className="flex items-center gap-1.5 text-[10px] font-pmedium uppercase tracking-widest text-red-700"><AlertCircle size={13} /> Complete the following fields</p>
 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-        {entries.map((field, message) => <span key={field} className="text-[10px] font-pmedium text-red-600">• {VALIDATION_FIELD_LABELS[field] || field}: {message}</span>)}
+        {entries.map(([field, message]) => <span key={field} className="text-[10px] font-pmedium text-red-600">• {VALIDATION_FIELD_LABELS[field] || field}: {message}</span>)}
       </div>
     </div>
   );
@@ -1054,6 +1130,7 @@ export default function VisitorsManagementPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { auth } = useAuth();
+  const { hasModuleAccess } = useModuleAccessMap();
   const axiosPrivate = useAxiosPrivate();
   const businessHours = useBusinessHours();
   const workspacePreferences = useWorkspacePreferences();
@@ -1332,6 +1409,18 @@ export default function VisitorsManagementPage() {
   const [visitorHostGroups, setVisitorHostGroups] = useState([]);
   const [visitorTenantCompanies, setVisitorTenantCompanies] = useState([]);
   const [meetingRoomCatalog, setMeetingRoomCatalog] = useState([]);
+  // Room/Dorm resources (hostel & co-living verticals) — merged into the same
+  // catalog as meeting rooms so the existing Space Type/Floor/Wing/Specific
+  // Room pickers work unchanged for both. Only fetched when the workspace
+  // actually has one of these verticals.
+  const [roomDormCatalog, setRoomDormCatalog] = useState([]);
+  const [roomDormAvailability, setRoomDormAvailability] = useState([]);
+  const [isLoadingRoomDormAvailability, setIsLoadingRoomDormAvailability] = useState(false);
+  // Room/Dorm stay bookings — shown in the Bookings tab alongside meeting
+  // room bookings, same as hotel/co-living walk-ins are created there.
+  const [roomStayBookingsRaw, setRoomStayBookingsRaw] = useState([]);
+  const [viewingRoomStayBooking, setViewingRoomStayBooking] = useState(null);
+  const [isUpdatingRoomStayBooking, setIsUpdatingRoomStayBooking] = useState(false);
   const [meetingRoomBookings, setMeetingRoomBookings] = useState([]);
   const [bookingClients, setBookingClients] = useState([]);
   const [countrySearch, setCountrySearch] = useState('');
@@ -1596,6 +1685,40 @@ export default function VisitorsManagementPage() {
   }, [visitorOverviewRefreshToken]);
 
   useEffect(() => {
+    if (!workspaceId || (!hasModuleAccess('hostel-booking') && !hasModuleAccess('room-booking'))) {
+      return;
+    }
+    let isCancelled = false;
+    getGuestRooms()
+      .then((res) => {
+        if (isCancelled) return;
+        const list = Array.isArray(res?.data?.data) ? res.data.data : [];
+        setRoomDormCatalog(list.filter((room) => room.isActive !== false));
+      })
+      .catch(() => {
+        // Room/dorm picker just stays empty.
+      });
+    return () => { isCancelled = true; };
+  }, [workspaceId, hasModuleAccess]);
+
+  const refreshRoomStayBookings = useCallback(() => {
+    if (!workspaceId || (!hasModuleAccess('hostel-booking') && !hasModuleAccess('room-booking'))) {
+      return;
+    }
+    getRoomBookings({})
+      .then((res) => {
+        setRoomStayBookingsRaw(Array.isArray(res?.data?.data) ? res.data.data : []);
+      })
+      .catch(() => {
+        // Bookings tab just won't show room/dorm stays.
+      });
+  }, [workspaceId, hasModuleAccess]);
+
+  useEffect(() => {
+    refreshRoomStayBookings();
+  }, [refreshRoomStayBookings]);
+
+  useEffect(() => {
     let isCancelled = false;
 
     async function loadMeetingRoomOverview() {
@@ -1815,6 +1938,50 @@ export default function VisitorsManagementPage() {
     });
   }, [visitorHistory, historyMonth, historyYear, searchQuery]);
 
+  // Room/Dorm stay bookings, reshaped into the same row fields the Bookings
+  // tab table already reads for meeting room bookings — so they show up
+  // there the same way, instead of only living on the dedicated Hostel/Room
+  // Booking page.
+  const normalizedRoomStayBookings = useMemo(() => {
+    const statusMap = { Booked: 'Booked', 'Checked-in': 'In Progress', 'Checked-out': 'Completed', Cancelled: 'Cancelled' };
+    return roomStayBookingsRaw.map((booking) => {
+      const room = roomDormCatalog.find((r) => String(r._id) === String(booking.roomId));
+      const amountPaid = Number(booking.amountPaid || 0);
+      const total = Number(booking.total || 0);
+      const checkInDate = booking.checkIn ? String(booking.checkIn).slice(0, 10) : '';
+      const checkOutDate = booking.checkOut ? String(booking.checkOut).slice(0, 10) : '';
+      return {
+        bookingKind: 'roomStay',
+        id: `#${booking.bookingNumber}`,
+        recordId: String(booking._id || ''),
+        resource: room?.name || (booking.roomType === 'Dorm' ? 'Dorm' : 'Room'),
+        date: checkInDate,
+        dateLabel: formatDisplayDate(checkInDate),
+        endDate: checkOutDate,
+        endDateLabel: formatDisplayDate(checkOutDate),
+        isMultiDay: checkOutDate !== checkInDate,
+        time: `${booking.nights} night${booking.nights === 1 ? '' : 's'}`,
+        bookedBy: booking.guestName || '',
+        host: '',
+        company: booking.bookingSource || 'Walk-in',
+        source: booking.bookingSource || 'Walk-in',
+        email: booking.guestEmail || '',
+        phone: booking.guestPhone || '',
+        paymentStatus: total > 0 && amountPaid >= total ? 'Paid' : amountPaid > 0 ? 'Partial Payment' : 'Pending Payment',
+        paymentMode: booking.paymentMethod || '',
+        totalAmount: total,
+        amountDue: Math.max(0, total - amountPaid),
+        discountAmount: Number(booking.discountAmount || 0),
+        discountType: booking.discountType,
+        discountValue: booking.discountValue,
+        status: statusMap[booking.status] || booking.status,
+        isExtended: false,
+        isRescheduled: false,
+        raw: booking,
+      };
+    });
+  }, [roomStayBookingsRaw, roomDormCatalog]);
+
   const bookingCollections = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     const matchesSearch = (booking) => {
@@ -1841,7 +2008,8 @@ export default function VisitorsManagementPage() {
 
     const externalBookings = upcomingBookings
       .filter((booking) => isExternalMeetingBooking(booking.raw || booking))
-      .filter(matchesSearch);
+      .filter(matchesSearch)
+      .concat(normalizedRoomStayBookings.filter(matchesSearch));
 
     return {
       all: externalBookings,
@@ -1850,7 +2018,7 @@ export default function VisitorsManagementPage() {
       completed: externalBookings.filter((booking) => booking.status === 'Completed'),
       cancelled: externalBookings.filter((booking) => booking.status === 'Cancelled'),
     };
-  }, [searchQuery, upcomingBookings]);
+  }, [searchQuery, upcomingBookings, normalizedRoomStayBookings]);
 
   const selectedBookingList = bookingCollections[bookingStatusTab] || bookingCollections.upcoming;
 
@@ -2274,20 +2442,73 @@ export default function VisitorsManagementPage() {
   };
 
   const normalizedMeetingRoomCatalog = useMemo(
-    () => meetingRoomCatalog.map(normalizeMeetingRoom),
-    [meetingRoomCatalog],
+    () => [...meetingRoomCatalog, ...roomDormCatalog].map(normalizeMeetingRoom),
+    [meetingRoomCatalog, roomDormCatalog],
   );
   const hasWalkInBookableResources = useMemo(
     () => normalizedMeetingRoomCatalog.some((room) => {
       const assignedToTenant = Boolean(room.assignedTenantCompanyId || room.assignedTenantCompanyName);
       const assignedToDepartment = Boolean(room.assignedDepartmentId || room.assignedDepartmentName);
       const assignmentBlocked = Boolean(room.walkInBlockedByAssignment || assignedToTenant || assignedToDepartment);
-      const pricingBlocked = room.activationReady === false || Number(room.credits || 0) <= 0 || (!Number(room.pricePerHour || 0) && !Number(room.pricePerDay || 0));
+      // credits is deprecated server-side (0 is a valid value, e.g. complimentary
+      // resources) — only pricing determines whether a resource is bookable.
+      const pricingBlocked = room.activationReady === false || (!Number(room.pricePerHour || 0) && !Number(room.pricePerDay || 0) && !Number(room.pricePerNight || 0));
       const statusBlocked = room.status && room.status !== 'Active';
       return !assignmentBlocked && !pricingBlocked && !statusBlocked;
     }),
     [normalizedMeetingRoomCatalog],
   );
+
+  // Walk-in Booking's form/data model (time-slot meeting/conference room
+  // booking) only fits the meeting-rooms/co-working verticals. Hostel and
+  // co-living already have their own dedicated walk-in-capable booking flow
+  // (RoomStayBookingPage, bookingSource "Walk-in") under Common Modules, so
+  // for those verticals this mode should hand off there instead of showing
+  // the meeting-room form.
+  // Which Space Type options Walk-in Booking offers, driven by the workspace's
+  // vertical (same grant list Sidebar.tsx already uses) — meeting/conference
+  // rooms for meeting-rooms/co-working, Dorm/Room for hostel/co-living.
+  const walkInSpaceTypeOptions = useMemo(() => {
+    const options = [];
+    if (hasModuleAccess('meeting-room-system')) {
+      options.push('Desk', 'Cabin', 'Meeting Room', 'Conference Room', 'Virtual Office');
+    }
+    if (hasModuleAccess('hostel-booking')) options.push('Dorm');
+    if (hasModuleAccess('room-booking')) options.push('Room');
+    return options;
+  }, [hasModuleAccess]);
+  const isRoomOrDormWalkIn = form.spaceType === 'Room' || form.spaceType === 'Dorm';
+
+  // Room/Dorm walk-ins are date-range (nightly) stays, not hourly slots, so
+  // availability has to come from the room-stays availability endpoint
+  // (per-bed conflicts across the whole stay) rather than the meeting-room
+  // slot logic below.
+  useEffect(() => {
+    if (!isRoomOrDormWalkIn || !form.startDate || !form.endDate || form.endDate <= form.startDate) {
+      setRoomDormAvailability([]);
+      return;
+    }
+    let isCancelled = false;
+    setIsLoadingRoomDormAvailability(true);
+    getRoomAvailability(form.spaceType, form.startDate, form.endDate)
+      .then((res) => {
+        if (isCancelled) return;
+        setRoomDormAvailability(Array.isArray(res?.data?.data?.rooms) ? res.data.data.rooms : []);
+      })
+      .catch(() => {
+        if (!isCancelled) setRoomDormAvailability([]);
+      })
+      .finally(() => {
+        if (!isCancelled) setIsLoadingRoomDormAvailability(false);
+      });
+    return () => { isCancelled = true; };
+  }, [isRoomOrDormWalkIn, form.spaceType, form.startDate, form.endDate]);
+
+  const roomDormAvailabilityByRoomId = useMemo(() => {
+    const map = new Map();
+    roomDormAvailability.forEach((room) => map.set(String(room._id), room));
+    return map;
+  }, [roomDormAvailability]);
 
   const walkInBookableCountByType = useMemo(() => {
     const counts = {};
@@ -2295,7 +2516,9 @@ export default function VisitorsManagementPage() {
       const assignedToTenant = Boolean(room.assignedTenantCompanyId || room.assignedTenantCompanyName);
       const assignedToDepartment = Boolean(room.assignedDepartmentId || room.assignedDepartmentName);
       const assignmentBlocked = Boolean(room.walkInBlockedByAssignment || assignedToTenant || assignedToDepartment);
-      const pricingBlocked = room.activationReady === false || Number(room.credits || 0) <= 0 || (!Number(room.pricePerHour || 0) && !Number(room.pricePerDay || 0));
+      // credits is deprecated server-side (0 is a valid value, e.g. complimentary
+      // resources) — only pricing determines whether a resource is bookable.
+      const pricingBlocked = room.activationReady === false || (!Number(room.pricePerHour || 0) && !Number(room.pricePerDay || 0) && !Number(room.pricePerNight || 0));
       const statusBlocked = room.status && room.status !== 'Active';
       if (assignmentBlocked || pricingBlocked || statusBlocked) {
         return;
@@ -2323,7 +2546,11 @@ export default function VisitorsManagementPage() {
       return availableFloors;
     }
 
-    const floors = Array.from(
+    // Never fall back to another type's floors here — a Room/Dorm resource
+    // with no floor set must not surface Meeting Room floors (and vice
+    // versa). An empty result means "this type doesn't track floors", which
+    // walkInRoomOptions below treats as "skip the floor filter".
+    return Array.from(
       new Set(
         normalizedMeetingRoomCatalog
           .filter((room) => room.type === form.spaceType)
@@ -2331,9 +2558,7 @@ export default function VisitorsManagementPage() {
           .filter(Boolean),
       ),
     );
-
-    return floors.length > 0 ? floors : availableFloors;
-  }, [availableFloors, form.spaceType, normalizedMeetingRoomCatalog]);
+  }, [form.spaceType, normalizedMeetingRoomCatalog]);
 
   // Wings actually present on the selected floor for the selected space type —
   // sourced from the resource catalog, not hardcoded.
@@ -2345,8 +2570,13 @@ export default function VisitorsManagementPage() {
     return Array.from(new Set(wings)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   }, [form.floor, form.spaceType, normalizedMeetingRoomCatalog]);
 
+  // Whether this space type actually has floors set on its resources at
+  // all — Room/Dorm resources are commonly created without a floor, and in
+  // that case floor must not gate picking a specific one.
+  const walkInTypeTracksFloors = walkInFloorOptions.length > 0;
+
   const walkInRoomOptions = useMemo(() => {
-    if (!form.spaceType || !form.floor) {
+    if (!form.spaceType || (walkInTypeTracksFloors && !form.floor)) {
       return [];
     }
 
@@ -2355,12 +2585,16 @@ export default function VisitorsManagementPage() {
     const selectedWing = form.wing;
 
     return normalizedMeetingRoomCatalog
-      .filter((room) => room.type === selectedType && room.floor === selectedFloor && (!selectedWing || room.wing === selectedWing))
+      .filter((room) => room.type === selectedType
+        && (!walkInTypeTracksFloors || room.floor === selectedFloor)
+        && (!selectedWing || room.wing === selectedWing))
       .map((room) => {
         const assignedToTenant = Boolean(room.assignedTenantCompanyId || room.assignedTenantCompanyName);
         const assignedToDepartment = Boolean(room.assignedDepartmentId || room.assignedDepartmentName);
         const assignmentBlocked = Boolean(room.walkInBlockedByAssignment || assignedToTenant || assignedToDepartment);
-        const pricingBlocked = room.activationReady === false || Number(room.credits || 0) <= 0 || (!Number(room.pricePerHour || 0) && !Number(room.pricePerDay || 0));
+        // credits is deprecated server-side (0 is a valid value, e.g. complimentary
+      // resources) — only pricing determines whether a resource is bookable.
+      const pricingBlocked = room.activationReady === false || (!Number(room.pricePerHour || 0) && !Number(room.pricePerDay || 0) && !Number(room.pricePerNight || 0));
         const statusBlocked = room.status && room.status !== 'Active';
 
         let walkInDisableReason = '';
@@ -2392,7 +2626,7 @@ export default function VisitorsManagementPage() {
 
         return Number(left.capacity || 0) - Number(right.capacity || 0);
       });
-  }, [form.floor, form.spaceType, form.wing, normalizedMeetingRoomCatalog]);
+  }, [form.floor, form.spaceType, form.wing, normalizedMeetingRoomCatalog, walkInTypeTracksFloors]);
 
   const filteredWalkInRooms = useMemo(
     () => walkInRoomOptions.filter((room) => !room.walkInDisabled),
@@ -2550,19 +2784,66 @@ export default function VisitorsManagementPage() {
     }));
   };
 
-  const hasWalkInQuote = Boolean(
-    selectedWalkInRoom &&
-    form.startDate &&
-    form.endDate &&
-    form.startTime &&
-    form.endTime &&
-    timeToMinutes(form.endTime) != null &&
-    timeToMinutes(form.startTime) != null &&
-    timeToMinutes(form.endTime) > timeToMinutes(form.startTime)
-  );
+  const updateAdditionalGuest = (index, field, value) => {
+    setForm((prev) => {
+      const next = [...(prev.additionalGuests || [])];
+      while (next.length <= index) next.push({ name: '', age: '', gender: '' });
+      next[index] = { ...next[index], [field]: value };
+      return { ...prev, additionalGuests: next };
+    });
+  };
+
+  const hasWalkInQuote = isRoomOrDormWalkIn
+    ? Boolean(selectedWalkInRoom && form.startDate && form.endDate && getNightsSpan(form.startDate, form.endDate) > 0)
+    : Boolean(
+      selectedWalkInRoom &&
+      form.startDate &&
+      form.endDate &&
+      form.startTime &&
+      form.endTime &&
+      timeToMinutes(form.endTime) != null &&
+      timeToMinutes(form.startTime) != null &&
+      timeToMinutes(form.endTime) > timeToMinutes(form.startTime)
+    );
 
   const walkInPricing = useMemo(() => {
     const room = selectedWalkInRoom;
+
+    if (isRoomOrDormWalkIn) {
+      const nights = getNightsSpan(form.startDate, form.endDate);
+      const nightlyRate = Number(room?.pricePerNight || 0);
+      const bedCount = form.spaceType === 'Dorm' ? Math.max(1, Number(form.attendees || 1)) : 1;
+      if (!nights || nightlyRate <= 0) {
+        return {
+          base: 0, discountType: form.discountType || 'amount', discountValue: 0, discountAmount: 0,
+          subtotalBeforeDiscount: 0, taxableBaseAfterDiscount: 0, gst: 0, total: 0, nights: nights || 0,
+          roomRate: { nightly: nightlyRate },
+        };
+      }
+      const subtotalBeforeDiscount = Math.round(nights * nightlyRate * bedCount * 100) / 100;
+      const discountType = form.discountType === 'percent' ? 'percent' : 'amount';
+      const rawDiscountValue = Number(form.discountValue || 0);
+      const discountValue = Number.isFinite(rawDiscountValue) ? Math.max(rawDiscountValue, 0) : 0;
+      const discountAmountRaw = discountType === 'percent'
+        ? (subtotalBeforeDiscount * Math.min(discountValue, 100)) / 100
+        : discountValue;
+      const discountAmount = Math.min(Math.max(discountAmountRaw, 0), subtotalBeforeDiscount);
+      const taxableBaseAfterDiscount = Math.max(subtotalBeforeDiscount - discountAmount, 0);
+      const taxEnabled = taxConfig.enabled && form.applyTax !== false;
+      const taxRate = taxEnabled ? Math.max(0, Number(taxConfig.ratePercent || 0)) / 100 : 0;
+      const gst = taxRate <= 0
+        ? 0
+        : taxConfig.priceIncludesTax
+          ? taxableBaseAfterDiscount * (taxRate / (1 + taxRate))
+          : taxableBaseAfterDiscount * taxRate;
+      return {
+        base: taxableBaseAfterDiscount, discountType, discountValue, discountAmount,
+        subtotalBeforeDiscount, taxableBaseAfterDiscount, gst,
+        total: (taxConfig.priceIncludesTax && taxEnabled) ? taxableBaseAfterDiscount : taxableBaseAfterDiscount + gst,
+        nights, roomRate: { nightly: nightlyRate },
+      };
+    }
+
     const dateSpanDays = getWalkInDaySpan(form.startDate, form.endDate || form.startDate);
     const { startMinutes, endMinutes } = getWalkInEffectiveMinutes(form);
     const rate = getWalkInRate(room);
@@ -2615,7 +2896,7 @@ export default function VisitorsManagementPage() {
       durationHours,
       roomRate: rate,
     };
-  }, [form.discountType, form.discountValue, form.applyTax, form.endDate, form.endTime, form.startDate, form.startTime, selectedWalkInRoom, taxConfig]);
+  }, [form.discountType, form.discountValue, form.applyTax, form.endDate, form.endTime, form.startDate, form.startTime, form.attendees, form.spaceType, isRoomOrDormWalkIn, selectedWalkInRoom, taxConfig]);
 
   const walkInAvailability = useMemo(() => {
     const selectedType = form.spaceType || 'space';
@@ -2648,7 +2929,7 @@ export default function VisitorsManagementPage() {
       };
     }
 
-    if (!form.floor) {
+    if (walkInTypeTracksFloors && !form.floor) {
       return {
         status: 'pending',
         available: false,
@@ -2706,6 +2987,45 @@ export default function VisitorsManagementPage() {
         slotSuggestions: [],
         seatSuggestions: [],
         hasConflict: false,
+      };
+    }
+
+    // Room/Dorm walk-ins are nightly stays — skip the time-of-day slot logic
+    // below entirely and check bed/room availability for the date range via
+    // the room-stays availability endpoint instead.
+    if (selectedType === 'Room' || selectedType === 'Dorm') {
+      if (isLoadingRoomDormAvailability) {
+        return {
+          status: 'pending', available: false, reason: 'Checking availability...',
+          roomSuggestions: [], slotSuggestions: [], seatSuggestions: [], hasConflict: false,
+        };
+      }
+      const availabilityEntry = roomDormAvailabilityByRoomId.get(String(room._id));
+      if (!availabilityEntry) {
+        return {
+          status: 'pending', available: false, reason: 'Checking availability...',
+          roomSuggestions: [], slotSuggestions: [], seatSuggestions: [], hasConflict: false,
+        };
+      }
+      const nights = getNightsSpan(startDateKey, endDateKey);
+      const bedsNeeded = selectedType === 'Dorm' ? Math.max(1, Number(form.attendees || 1)) : 1;
+      const availableBeds = Number(availabilityEntry.availableBeds || 0);
+      if (availableBeds < bedsNeeded) {
+        const nextFree = availabilityEntry.nextAvailableAt ? new Date(availabilityEntry.nextAvailableAt).toLocaleDateString() : null;
+        return {
+          status: 'conflict',
+          available: false,
+          reason: selectedType === 'Dorm'
+            ? `Only ${availableBeds} bed${availableBeds === 1 ? '' : 's'} free for these dates.${nextFree ? ` Next free from ${nextFree}.` : ''}`
+            : `This room is already booked for these dates.${nextFree ? ` Free again from ${nextFree}.` : ''}`,
+          roomSuggestions: [], slotSuggestions: [], seatSuggestions: [], hasConflict: true,
+        };
+      }
+      return {
+        status: 'available',
+        available: true,
+        reason: `Available — ${nights} night${nights === 1 ? '' : 's'}, ${availableBeds} ${selectedType === 'Dorm' ? 'bed(s)' : 'room'} free.`,
+        roomSuggestions: [], slotSuggestions: [], seatSuggestions: [], hasConflict: false,
       };
     }
 
@@ -2849,11 +3169,15 @@ export default function VisitorsManagementPage() {
     form.startDate,
     form.startTime,
     form.wing,
+    form.attendees,
     isDeskAreaSeatBooking,
+    isLoadingRoomDormAvailability,
+    roomDormAvailabilityByRoomId,
     meetingRoomBookings,
     meetingRoomCatalog,
     selectedSeatNumber,
     selectedWalkInRoom,
+    walkInTypeTracksFloors,
     workspacePreferences.timezone,
   ]);
 
@@ -2938,8 +3262,10 @@ export default function VisitorsManagementPage() {
     attendeeCapacity,
     availability: walkInAvailability,
     isDeskAreaSeatBooking,
+    isRoomOrDormWalkIn,
+    walkInTypeTracksFloors,
     paymentMethod: selectedPaymentMethod,
-  }), [attendeeCapacity, form, isDeskAreaSeatBooking, selectedPaymentMethod, walkInAvailability]);
+  }), [attendeeCapacity, form, isDeskAreaSeatBooking, isRoomOrDormWalkIn, walkInTypeTracksFloors, selectedPaymentMethod, walkInAvailability]);
   const visibleWalkInErrors = useMemo(() => {
     const nextErrors = {};
     Object.entries(walkInErrors).forEach(([field, message]) => {
@@ -2964,7 +3290,7 @@ export default function VisitorsManagementPage() {
         : false;
 
   useEffect(() => {
-    if (!isLoggingVisitor || !activeFormSubmitAttempted || Object.keys(activeFormValidationErrors).length === 0) return undefined;
+    if ((!isLoggingVisitor && !isFrontdeskPage) || !activeFormSubmitAttempted || Object.keys(activeFormValidationErrors).length === 0) return undefined;
     const timer = window.setTimeout(() => {
       const firstInvalidField = document.querySelector('[data-frontdesk-form] .border-red-300') || document.querySelector('[data-validation-summary]');
       if (!firstInvalidField) return;
@@ -2972,7 +3298,7 @@ export default function VisitorsManagementPage() {
       if (typeof firstInvalidField.focus === 'function') firstInvalidField.focus({ preventScroll: true });
     }, 80);
     return () => window.clearTimeout(timer);
-  }, [activeFormSubmitAttempted, activeFormValidationErrors, isLoggingVisitor, visitorMode]);
+  }, [activeFormSubmitAttempted, activeFormValidationErrors, isLoggingVisitor, isFrontdeskPage, visitorMode]);
 
   useEffect(() => {
     if (!hasLoadedCurrentMemberGrants) return;
@@ -3604,6 +3930,7 @@ export default function VisitorsManagementPage() {
     else if (visitorMode === 'walkin_booking') {
       if (!isWalkInFormComplete) {
         setWalkInSubmitAttempted(true);
+        toast.error('Please complete all required fields before confirming.');
         return;
       }
       if (form.discountType === 'percent' && walkInPricing.discountValue > 100) {
@@ -3612,6 +3939,67 @@ export default function VisitorsManagementPage() {
       if (form.discountType === 'amount' && walkInPricing.discountAmount > walkInPricing.subtotalBeforeDiscount) {
         return alert('Discount amount cannot be greater than base amount.');
       }
+
+      if (isRoomOrDormWalkIn) {
+        if (!selectedWalkInRoom) {
+          return alert('Select a room first.');
+        }
+        setIsSubmittingVisitor(true);
+        try {
+          const response = await createRoomBooking({
+            roomId: selectedWalkInRoom._id,
+            bookingSource: 'Walk-in',
+            bedCount: form.spaceType === 'Dorm' ? attendeeCount : 1,
+            guestName: fullName,
+            guestPhone: form.phone,
+            guestEmail: normalizedEmail,
+            guestAge: form.guestAge,
+            guestGender: form.guestGender,
+            guestCountry: form.country,
+            guestState: form.state,
+            guestCity: form.city,
+            guestAddress: form.guestAddress,
+            emergencyContactName: form.emergencyContactName,
+            emergencyContactPhone: form.emergencyContactPhone,
+            additionalGuests: form.spaceType === 'Dorm' && attendeeCount > 1
+              ? form.additionalGuests.slice(0, attendeeCount - 1).map((guest) => ({
+                name: guest.name,
+                age: Number(guest.age),
+                gender: guest.gender,
+              }))
+              : [],
+            checkIn: form.startDate,
+            checkOut: form.endDate,
+            notes: form.bookingNotes || `Walk-in confirmed via ${form.paymentMode}. Visitors Management capture.`,
+            idProofType: form.idProofType,
+            idProofNumber: form.idProofNumber,
+            idProofFile: form.idProofFile,
+            paymentMethod: selectedPaymentMethod?.label || form.paymentMode,
+            paymentTransactionNumber: form.transactionId.trim(),
+            discountType: walkInPricing.discountType === 'percent' ? 'percent' : 'amount',
+            discountValue: walkInPricing.discountValue,
+            applyTax: form.applyTax !== false,
+            amountPaid: (selectedPaymentMethod?.code === 'cash' && form.paymentSettled === 'unpaid') ? 0 : walkInPricing.total,
+          });
+          // createRoomBooking's server route returns { data: booking } directly
+          // (unlike the meeting-room routes, which nest it one level deeper as
+          // { data: { booking } }) — no extra .booking here.
+          const createdRoomBooking = response?.data?.data || null;
+          if (createdRoomBooking) {
+            toast.success(`Booking confirmed — #${createdRoomBooking.bookingNumber}`);
+            refreshRoomStayBookings();
+            setIsLoggingVisitor(false);
+            setActiveTab('bookings');
+            if (isFrontdeskPage) navigateBackToManagement();
+          }
+        } catch (error) {
+          alert(error?.response?.data?.message || error?.message || 'Unable to create this booking right now.');
+        } finally {
+          setIsSubmittingVisitor(false);
+        }
+        return;
+      }
+
       const walkInSeatNumber = normalizeSeatNumber(form.seatNumber);
       const bookingAttendees = isDeskAreaSeatBooking ? 1 : attendeeCount;
 
@@ -3645,7 +4033,11 @@ export default function VisitorsManagementPage() {
           endDate: form.endDate || form.startDate,
           startTime: form.startTime,
           endTime: form.endTime,
-          purpose: form.purpose || 'Walk-in Booking',
+          // form.purpose is the Standard Visitor "purpose of visit" field
+          // (shared form state, defaults to 'Meeting') — walk-in bookings
+          // capture their own free-text note via form.bookingNotes instead,
+          // so this must not read form.purpose.
+          purpose: 'Walk-in Booking',
           attendees: bookingAttendees,
           seatNumber: isDeskAreaSeatBooking ? walkInSeatNumber : undefined,
           paymentMode: selectedPaymentMethod?.code || form.paymentMode,
@@ -3654,6 +4046,17 @@ export default function VisitorsManagementPage() {
           paymentVerificationStatus: selectedPaymentMethod?.code === 'cash' ? '' : 'Pending',
           transactionId: form.transactionId.trim(),
           paymentProof: form.paymentProofFile,
+          idProofType: form.idProofType,
+          idProofNumber: form.idProofNumber,
+          idProofFile: form.idProofFile,
+          guestAge: form.guestAge,
+          guestGender: form.guestGender,
+          guestCountry: form.country,
+          guestState: form.state,
+          guestCity: form.city,
+          guestAddress: form.guestAddress,
+          emergencyContactName: form.emergencyContactName,
+          emergencyContactPhone: form.emergencyContactPhone,
           discountType: walkInPricing.discountType === 'percent' ? 'percent' : 'flat',
           discountValue: walkInPricing.discountValue,
           discountAmount: walkInPricing.discountAmount,
@@ -4566,7 +4969,7 @@ export default function VisitorsManagementPage() {
                 <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
                     <th className="px-5 py-4">Booking / Client</th>
-                    <th className="px-5 py-4">Meeting Room</th>
+                    <th className="px-5 py-4">Resource</th>
                     <th className="px-5 py-4">Schedule</th>
                     <th className="px-5 py-4">Payment</th>
                     <th className="px-5 py-4">Amount</th>
@@ -4610,10 +5013,16 @@ export default function VisitorsManagementPage() {
                       <td className="px-5 py-4 align-top"><span className={statusPillClass(bkg.status)}>{bkg.status}</span>{bkg.isExtended && <span className={statusPillClass(bkg.scheduleChangeLabel)}>{bkg.scheduleChangeLabel}</span>}</td>
                       <td className="px-5 py-4 align-top">
                         <div className="flex items-center gap-1.5">
-                          <button type="button" title="View booking" onClick={() => setViewingBooking(bkg)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"><Eye size={15} strokeWidth={2.5} /></button>
-                          {bkg.invoiceFileUrl && <button type="button" title="Download invoice" onClick={() => window.open(bkg.invoiceFileUrl, '_blank', 'noopener,noreferrer')} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-700 rounded-lg transition-all"><Download size={15} strokeWidth={2.5} /></button>}
-                          {bkg.status === 'In Progress' && <button type="button" title="Extend slot" onClick={() => { setExtendingBooking(bkg); setExtendAvailability('idle'); setExtendForm({ newEndTime: '', paymentMode: 'Cash' }); setIsExtendModalOpen(true); }} className="p-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg transition-all"><Clock size={15} strokeWidth={2.5} /></button>}
-                          {bkg.status !== 'In Progress' && bkg.status !== 'Completed' && bkg.status !== 'Cancelled' && <><button type="button" title="Reschedule booking" onClick={() => { setReschedulingBooking(bkg); setRescheduleForm({ newDate: '', newEndDate: '', newStartTime: '', newEndTime: '', paymentMode: 'Cash' }); }} className="p-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg transition-all"><CalendarIcon size={15} strokeWidth={2.5} /></button><button type="button" title="Cancel booking" onClick={() => setCancellingBooking(bkg)} className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-all"><XCircle size={15} strokeWidth={2.5} /></button></>}
+                          {bkg.bookingKind === 'roomStay' ? (
+                            <button type="button" title="View booking" onClick={() => setViewingRoomStayBooking(bkg)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"><Eye size={15} strokeWidth={2.5} /></button>
+                          ) : (
+                            <>
+                              <button type="button" title="View booking" onClick={() => setViewingBooking(bkg)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"><Eye size={15} strokeWidth={2.5} /></button>
+                              {bkg.invoiceFileUrl && <button type="button" title="Download invoice" onClick={() => window.open(bkg.invoiceFileUrl, '_blank', 'noopener,noreferrer')} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-700 rounded-lg transition-all"><Download size={15} strokeWidth={2.5} /></button>}
+                              {bkg.status === 'In Progress' && <button type="button" title="Extend slot" onClick={() => { setExtendingBooking(bkg); setExtendAvailability('idle'); setExtendForm({ newEndTime: '', paymentMode: 'Cash' }); setIsExtendModalOpen(true); }} className="p-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg transition-all"><Clock size={15} strokeWidth={2.5} /></button>}
+                              {bkg.status !== 'In Progress' && bkg.status !== 'Completed' && bkg.status !== 'Cancelled' && <><button type="button" title="Reschedule booking" onClick={() => { setReschedulingBooking(bkg); setRescheduleForm({ newDate: '', newEndDate: '', newStartTime: '', newEndTime: '', paymentMode: 'Cash' }); }} className="p-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg transition-all"><CalendarIcon size={15} strokeWidth={2.5} /></button><button type="button" title="Cancel booking" onClick={() => setCancellingBooking(bkg)} className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-all"><XCircle size={15} strokeWidth={2.5} /></button></>}
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -5894,6 +6303,162 @@ export default function VisitorsManagementPage() {
                             )}
                           </div>
 
+                          <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                            <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                              <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><BadgeCheck size={16} /></span>
+                              <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Guest Details &amp; ID Proof</span>
+                            </h4>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Age <span className="text-red-400">*</span></label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="120"
+                                  value={form.guestAge}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, guestAge: true }))}
+                                  onChange={(e) => setForm({ ...form, guestAge: e.target.value })}
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.guestAge ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
+                                />
+                                {visibleWalkInErrors.guestAge ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.guestAge}</span> : null}
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Gender <span className="text-red-400">*</span></label>
+                                <select
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.guestGender ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
+                                  value={form.guestGender}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, guestGender: true }))}
+                                  onChange={(e) => setForm({ ...form, guestGender: e.target.value })}
+                                >
+                                  <option value="">Select</option>
+                                  {['Female', 'Male', 'Non-binary', 'Prefer not to say'].map((gender) => (
+                                    <option key={gender} value={gender}>{gender}</option>
+                                  ))}
+                                </select>
+                                {visibleWalkInErrors.guestGender ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.guestGender}</span> : null}
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Address <span className="text-red-400">*</span></label>
+                                <input
+                                  type="text"
+                                  value={form.guestAddress}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, guestAddress: true }))}
+                                  onChange={(e) => setForm({ ...form, guestAddress: e.target.value })}
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.guestAddress ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
+                                />
+                                {visibleWalkInErrors.guestAddress ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.guestAddress}</span> : null}
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Country <span className="text-red-400">*</span></label>
+                                <select
+                                  value={form.country}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, country: true }))}
+                                  onChange={(e) => setForm({ ...form, country: e.target.value, state: '', city: '' })}
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.country ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
+                                >
+                                  <option value="">Select Country</option>
+                                  {countryOptions.map((country) => (
+                                    <option key={country.isoCode} value={country.name}>{country.name}</option>
+                                  ))}
+                                </select>
+                                {visibleWalkInErrors.country ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.country}</span> : null}
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">State <span className="text-red-400">*</span></label>
+                                <select
+                                  value={form.state}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, state: true }))}
+                                  onChange={(e) => setForm({ ...form, state: e.target.value, city: '' })}
+                                  disabled={!form.country}
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 ${visibleWalkInErrors.state ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
+                                >
+                                  <option value="">{form.country ? 'Select State' : 'Select country first'}</option>
+                                  {stateOptions.map((state) => (
+                                    <option key={state.isoCode} value={state.name}>{state.name}</option>
+                                  ))}
+                                </select>
+                                {visibleWalkInErrors.state ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.state}</span> : null}
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">City <span className="text-red-400">*</span></label>
+                                <select
+                                  value={form.city}
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, city: true }))}
+                                  onChange={(e) => setForm({ ...form, city: e.target.value })}
+                                  disabled={!form.country || !form.state}
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 ${visibleWalkInErrors.city ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
+                                >
+                                  <option value="">{form.country && form.state ? 'Select City' : 'Select country and state first'}</option>
+                                  {cityOptions.map((city) => (
+                                    <option key={`${city.name}-${city.stateCode}-${city.latitude}`} value={city.name}>{city.name}</option>
+                                  ))}
+                                </select>
+                                {visibleWalkInErrors.city ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.city}</span> : null}
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Emergency Contact Name</label>
+                                <input
+                                  type="text"
+                                  value={form.emergencyContactName}
+                                  onChange={(e) => setForm({ ...form, emergencyContactName: e.target.value })}
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  placeholder="Optional"
+                                />
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Emergency Contact Phone</label>
+                                <input
+                                  type="tel"
+                                  value={form.emergencyContactPhone}
+                                  onChange={(e) => setForm({ ...form, emergencyContactPhone: e.target.value })}
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  placeholder="Optional"
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">ID Type</label>
+                                <select
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  value={form.idProofType}
+                                  onChange={(e) => setForm({ ...form, idProofType: e.target.value })}
+                                >
+                                  {['Aadhaar', 'Passport', 'Driving License', 'Voter ID', 'Other'].map((type) => (
+                                    <option key={type} value={type}>{type}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">ID Number</label>
+                                <input
+                                  type="text"
+                                  value={form.idProofNumber}
+                                  onChange={(e) => setForm({ ...form, idProofNumber: e.target.value })}
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  placeholder="Optional"
+                                />
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">ID Document <span className="text-red-400">*</span></label>
+                                <input
+                                  type="file"
+                                  accept="image/*,.pdf"
+                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, idProofFile: true }))}
+                                  onChange={(e) => { setWalkInTouched((prev) => ({ ...prev, idProofFile: true })); setForm({ ...form, idProofFile: e.target.files?.[0] || null }); }}
+                                  className={`block w-full rounded-lg border border-dashed bg-slate-50 px-2 py-1.5 text-[11px] text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-[#2563EB] file:px-3 file:py-1.5 file:text-[9px] file:font-bold file:uppercase file:tracking-wider file:text-white hover:border-blue-300 ${visibleWalkInErrors.idProofFile ? 'border-red-300 bg-red-50' : 'border-slate-300'}`}
+                                />
+                                {visibleWalkInErrors.idProofFile ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.idProofFile}</span> : null}
+                                {form.idProofFile?.name ? <p className="text-[10px] font-medium text-blue-700">Selected: {form.idProofFile.name}</p> : null}
+                              </div>
+                            </div>
+                          </div>
+
+
                            {walkInSpaceTypeMissingResources && (
                             <div className="flex flex-col items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
                               <div className="flex items-start gap-2.5">
@@ -5933,12 +6498,13 @@ export default function VisitorsManagementPage() {
                                   }}
                                 >
                                   <option value="">Select type</option>
-                                  {['Desk', 'Cabin', 'Meeting Room', 'Conference Room', 'Virtual Office'].map((type) => (
+                                  {walkInSpaceTypeOptions.map((type) => (
                                     <option key={type} value={type}>{type}</option>
                                   ))}
                                 </select>
                                 {visibleWalkInErrors.spaceType ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.spaceType}</span> : null}
                               </div>
+                              {walkInTypeTracksFloors && (
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Floor <span className="text-red-400">*</span></label>
                                 <select
@@ -5958,6 +6524,8 @@ export default function VisitorsManagementPage() {
                                 </select>
                                 {visibleWalkInErrors.floor ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.floor}</span> : null}
                               </div>
+                              )}
+                              {walkInTypeTracksFloors && (
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Wing <span className="text-slate-400 normal-case">(optional)</span></label>
                                 <select
@@ -5977,12 +6545,13 @@ export default function VisitorsManagementPage() {
                                 </select>
                                 {visibleWalkInErrors.wing ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.wing}</span> : null}
                               </div>
+                              )}
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Specific Room <span className="text-red-400">*</span></label>
                                 <select
                                   className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 ${visibleWalkInErrors.resourceName ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.resourceName}
-                                  disabled={!form.spaceType || !form.floor || walkInSpaceTypeMissingResources}
+                                  disabled={!form.spaceType || (walkInTypeTracksFloors && !form.floor) || walkInSpaceTypeMissingResources}
                                   onBlur={() => setWalkInTouched((prev) => ({ ...prev, resourceName: true }))}
                                   onChange={(e) => setForm({ ...form, resourceName: e.target.value, seatNumber: '' })}
                                 >
@@ -5995,40 +6564,95 @@ export default function VisitorsManagementPage() {
                                 </select>
                                 {visibleWalkInErrors.resourceName ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.resourceName}</span> : null}
                               </div>
-                              <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Attendees <span className="text-red-400">*</span></label>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  max={selectedWalkInRoom?.capacity || undefined}
-                                  inputMode="numeric"
-                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.attendees ? 'border-red-300 bg-red-50' : 'border-slate-200/60'} ${isDeskAreaSeatBooking ? 'opacity-70' : ''}`}
-                                  value={isDeskAreaSeatBooking ? 1 : form.attendees}
-                                  disabled={isDeskAreaSeatBooking || walkInSpaceTypeMissingResources}
-                                  onBlur={() => setWalkInTouched((prev) => ({ ...prev, attendees: true }))}
-                                  onChange={(e) => {
-                                    if (isDeskAreaSeatBooking) {
-                                      return;
-                                    }
-                                    const rawValue = e.target.value === '' ? '' : Number(e.target.value);
-                                    const roomCapacity = Number(selectedWalkInRoom?.capacity || 0);
-                                    const nextValue = rawValue === '' ? '' : Math.max(1, roomCapacity ? Math.min(roomCapacity, rawValue) : rawValue);
-                                    setForm({ ...form, attendees: nextValue === '' ? 1 : nextValue });
-                                  }}
-                                />
-                                {visibleWalkInErrors.attendees ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.attendees}</span> : null}
-                                <p className="text-[10px] font-medium text-slate-400">
-                                  {isDeskAreaSeatBooking
-                                    ? 'Desk area bookings are one seat per booking.'
-                                    : selectedWalkInRoom?.capacity
-                                      ? `Maximum ${selectedWalkInRoom.capacity} for this room.`
-                                      : 'Select a room to set capacity.'}
-                                </p>
-                              </div>
+                              {form.spaceType !== 'Room' && (
+                                <div className="flex flex-col gap-1">
+                                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">{isRoomOrDormWalkIn ? 'Beds' : 'Attendees'} <span className="text-red-400">*</span></label>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max={selectedWalkInRoom?.capacity || undefined}
+                                    inputMode="numeric"
+                                    className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.attendees ? 'border-red-300 bg-red-50' : 'border-slate-200/60'} ${isDeskAreaSeatBooking ? 'opacity-70' : ''}`}
+                                    value={isDeskAreaSeatBooking ? 1 : form.attendees}
+                                    disabled={isDeskAreaSeatBooking || walkInSpaceTypeMissingResources}
+                                    onBlur={() => setWalkInTouched((prev) => ({ ...prev, attendees: true }))}
+                                    onChange={(e) => {
+                                      if (isDeskAreaSeatBooking) {
+                                        return;
+                                      }
+                                      const rawValue = e.target.value === '' ? '' : Number(e.target.value);
+                                      const roomCapacity = Number(selectedWalkInRoom?.capacity || 0);
+                                      const nextValue = rawValue === '' ? '' : Math.max(1, roomCapacity ? Math.min(roomCapacity, rawValue) : rawValue);
+                                      setForm({ ...form, attendees: nextValue === '' ? 1 : nextValue });
+                                    }}
+                                  />
+                                  {visibleWalkInErrors.attendees ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.attendees}</span> : null}
+                                  <p className="text-[10px] font-medium text-slate-400">
+                                    {isDeskAreaSeatBooking
+                                      ? 'Desk area bookings are one seat per booking.'
+                                      : selectedWalkInRoom?.capacity
+                                        ? `Maximum ${selectedWalkInRoom.capacity} ${isRoomOrDormWalkIn ? 'beds in this dorm' : 'for this room'}.`
+                                        : `Select a ${isRoomOrDormWalkIn ? 'dorm' : 'room'} to set capacity.`}
+                                  </p>
+                                </div>
+                              )}
                             </div>
 
-                         
+
                           </div>
+
+                          {form.spaceType === 'Dorm' && attendeeCount > 1 && (
+                            <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                              <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                                <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Users size={16} /></span>
+                                <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Additional Guests ({attendeeCount - 1})</span>
+                              </h4>
+                              <p className="text-[10px] font-pmedium text-slate-400">One row for every extra bed beyond the first guest.</p>
+                              <div className="space-y-3">
+                                {Array.from({ length: attendeeCount - 1 }).map((_, index) => {
+                                  const guest = form.additionalGuests[index] || { name: '', age: '', gender: '' };
+                                  return (
+                                    <div key={index} className="grid grid-cols-1 gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-3 sm:grid-cols-3">
+                                      <div className="flex flex-col gap-1">
+                                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Guest {index + 2} Name <span className="text-red-400">*</span></label>
+                                        <input
+                                          type="text"
+                                          value={guest.name}
+                                          onChange={(e) => updateAdditionalGuest(index, 'name', e.target.value)}
+                                          className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                        />
+                                      </div>
+                                      <div className="flex flex-col gap-1">
+                                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Age <span className="text-red-400">*</span></label>
+                                        <input
+                                          type="number"
+                                          min="1"
+                                          max="120"
+                                          value={guest.age}
+                                          onChange={(e) => updateAdditionalGuest(index, 'age', e.target.value)}
+                                          className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                        />
+                                      </div>
+                                      <div className="flex flex-col gap-1">
+                                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Gender <span className="text-red-400">*</span></label>
+                                        <select
+                                          value={guest.gender}
+                                          onChange={(e) => updateAdditionalGuest(index, 'gender', e.target.value)}
+                                          className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                        >
+                                          <option value="">Select</option>
+                                          {['Female', 'Male', 'Non-binary', 'Prefer not to say'].map((gender) => (
+                                            <option key={gender} value={gender}>{gender}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              {visibleWalkInErrors.additionalGuests ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.additionalGuests}</span> : null}
+                            </div>
+                          )}
 
                           {isDeskAreaSeatBooking && (
                             <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
@@ -6076,14 +6700,14 @@ export default function VisitorsManagementPage() {
                                 rows="3"
                                 placeholder="Add booking purpose, special request, or internal note"
                                 className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none"
-                                value={form.purpose}
-                                onChange={(e) => setForm({ ...form, purpose: e.target.value })}
+                                value={form.bookingNotes}
+                                onChange={(e) => setForm({ ...form, bookingNotes: e.target.value })}
                               />
                             </div>
 
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                               <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Booking Start Date <span className="text-red-400">*</span></label>
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">{isRoomOrDormWalkIn ? 'Check-in Date' : 'Booking Start Date'} <span className="text-red-400">*</span></label>
                                 <input
                                   type="date"
                                   min={getWorkspaceDateKey(new Date(), workspacePreferences.timezone)}
@@ -6092,10 +6716,11 @@ export default function VisitorsManagementPage() {
                                   onBlur={() => setWalkInTouched((prev) => ({ ...prev, startDate: true }))}
                                   onChange={(e) => {
                                     const nextStartDate = e.target.value;
+                                    const minEndDate = isRoomOrDormWalkIn ? addDays(nextStartDate, 1) : nextStartDate;
                                     setForm({
                                       ...form,
                                       startDate: nextStartDate,
-                                      endDate: !form.endDate || form.endDate < nextStartDate ? nextStartDate : form.endDate,
+                                      endDate: !form.endDate || form.endDate < minEndDate ? minEndDate : form.endDate,
                                       startTime: '',
                                       endTime: '',
                                     });
@@ -6104,10 +6729,10 @@ export default function VisitorsManagementPage() {
                                 {visibleWalkInErrors.startDate ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.startDate}</span> : null}
                               </div>
                               <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Booking End Date <span className="text-red-400">*</span></label>
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">{isRoomOrDormWalkIn ? 'Check-out Date' : 'Booking End Date'} <span className="text-red-400">*</span></label>
                                 <input
                                   type="date"
-                                  min={form.startDate || formatDateKey(new Date())}
+                                  min={isRoomOrDormWalkIn ? addDays(form.startDate, 1) : (form.startDate || formatDateKey(new Date()))}
                                   className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleWalkInErrors.endDate ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                   value={form.endDate}
                                   onBlur={() => setWalkInTouched((prev) => ({ ...prev, endDate: true }))}
@@ -6133,14 +6758,17 @@ export default function VisitorsManagementPage() {
                                 ) : null}
                                 {visibleWalkInErrors.availability ? <p className="mt-2 text-[10px] font-medium text-red-500">{visibleWalkInErrors.availability}</p> : null}
                               </div>
+                              {!isRoomOrDormWalkIn && (
                               <div className="mt-3 shrink-0 border-t border-blue-100 pt-3 text-left sm:mt-0 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0 sm:text-right">
                                 <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Booking Hours</p>
                                 <p className="mt-1 whitespace-nowrap text-[12px] font-pmedium text-blue-800">
                                   {formatTimeOptionLabel(businessHours.start)} - {formatTimeOptionLabel(businessHours.end)}
                                 </p>
                               </div>
+                              )}
                             </div>
 
+                            {!isRoomOrDormWalkIn && (
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                               <div className="flex flex-col gap-1">
                                 <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Start Time <span className="text-red-400">*</span></label>
@@ -6186,6 +6814,7 @@ export default function VisitorsManagementPage() {
                                 {visibleWalkInErrors.endTime ? <span className="text-[10px] font-medium text-red-500">{visibleWalkInErrors.endTime}</span> : null}
                               </div>
                             </div>
+                            )}
                           {walkInAvailability.status === 'conflict' && walkInAvailability.slotSuggestions.length > 0 && (
                             <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3 space-y-2">
                               <div className="flex items-center justify-between">
@@ -6238,12 +6867,14 @@ export default function VisitorsManagementPage() {
                             <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-4 space-y-3">
                               <div className="flex items-center justify-between">
                                 <span className={statusPillClass("Live Pricing")}>Live Pricing</span>
-                                <span className="text-[10px] font-pmedium text-slate-400">{selectedWalkInRoom?.capacity || 0} seats</span>
+                                <span className="text-[10px] font-pmedium text-slate-400">{selectedWalkInRoom?.capacity || 0} {isRoomOrDormWalkIn ? 'beds' : 'seats'}</span>
                               </div>
                               <p className="text-[12px] font-semibold text-blue-700">
-                                {selectedWalkInRoom?.pricePerHour > 0
-                                  ? `${formatCurrency(selectedWalkInRoom.pricePerHour)} / hr`
-                                  : selectedWalkInRoom?.pricing || 'Pricing pending'}
+                                {isRoomOrDormWalkIn
+                                  ? (selectedWalkInRoom?.pricePerNight > 0 ? `${formatCurrency(selectedWalkInRoom.pricePerNight)} / night` : 'Pricing pending')
+                                  : selectedWalkInRoom?.pricePerHour > 0
+                                    ? `${formatCurrency(selectedWalkInRoom.pricePerHour)} / hr`
+                                    : selectedWalkInRoom?.pricing || 'Pricing pending'}
                               </p>
                               <div className="grid grid-cols-2 gap-2">
                                 <button
@@ -6537,7 +7168,7 @@ export default function VisitorsManagementPage() {
                 )}
                 {visitorMode === 'walkin_booking' && (
                   <button type="button" disabled={isSubmittingVisitor || !visitorAccess.modes.walkin_booking || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.walkin_booking ? 'You do not have access to Walk-in Booking tab.' : undefined} onClick={handleProcessAction} className="w-full sm:flex-1 rounded-2xl font-pmedium text-[10px] uppercase tracking-wider px-6 py-3 bg-[#2563EB] text-white shadow-sm shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5">
-                    <Wallet size={18} /> {isSubmittingVisitor ? 'CONFIRMING...' : (selectedPaymentMethod?.code === 'cash' && form.paymentSettled === 'unpaid') ? 'SAVE BOOKING (UNPAID)' : 'COLLECT PAYMENT & CONFIRM'}
+                    <Wallet size={18} /> {isSubmittingVisitor ? 'CONFIRMING...' : isRoomOrDormWalkIn ? (selectedPaymentMethod?.code === 'cash' && form.paymentSettled === 'unpaid' ? 'SAVE BOOKING (UNPAID)' : 'CONFIRM WALK-IN STAY') : (selectedPaymentMethod?.code === 'cash' && form.paymentSettled === 'unpaid') ? 'SAVE BOOKING (UNPAID)' : 'COLLECT PAYMENT & CONFIRM'}
                   </button>
                 )}
                 {visitorMode === 'verify_booking' && (
@@ -7471,6 +8102,165 @@ export default function VisitorsManagementPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                     <button onClick={() => { setReschedulingBooking(viewingBooking); setRescheduleForm({ newDate: '', newEndDate: '', newStartTime: '', newEndTime: '', paymentMode: 'Cash' }); setViewingBooking(null); }} className="w-full py-2.5 bg-white border border-slate-200 rounded-xl font-pmedium text-[12px] text-slate-600 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-1.5"><CalendarIcon size={14} /> Reschedule</button>
                     <button onClick={() => { setCancellingBooking(viewingBooking); setViewingBooking(null); }} className="w-full py-2.5 bg-white border border-red-200 rounded-xl font-pmedium text-[12px] text-red-600 hover:bg-red-50 transition-all shadow-sm flex items-center justify-center gap-1.5"><XCircle size={14} /> Cancel</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL 5B: ROOM/DORM STAY BOOKING DETAILS */}
+        {viewingRoomStayBooking && (
+          <div className="fixed inset-0 z-[105] flex items-center justify-center p-3 bg-[#0F172A]/40 backdrop-blur-sm">
+            <div className="bg-white rounded-[2rem] max-w-xl w-full max-h-[90vh] shadow-2xl border border-white/70 flex flex-col overflow-hidden animate-in zoom-in duration-200">
+              <div className="p-5 sm:p-6 border-b border-gray-100 bg-blue-50/30 flex items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm shrink-0 bg-[#2563EB] text-white">
+                    <Bed size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-base lg:text-lg font-pmedium tracking-tight text-gray-800 truncate">Stay Details</h2>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className={statusPillClass(viewingRoomStayBooking.status)}>{viewingRoomStayBooking.status}</span>
+                    </div>
+                  </div>
+                </div>
+                <button onClick={() => setViewingRoomStayBooking(null)} className="w-8 h-8 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-gray-400 shadow-sm hover:text-gray-700 hover:bg-gray-50 transition-colors shrink-0">
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1 bg-white">
+                <div>
+                  <h3 className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest border-b border-gray-100 pb-2 mb-3 flex items-center gap-2">
+                    <Bed size={14} /> Booking Information
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50/60 p-4 rounded-2xl border border-gray-100">
+                    <div>
+                      <p className="text-[9px] text-gray-400 uppercase font-pmedium tracking-widest mb-1">{viewingRoomStayBooking.raw?.roomType || 'Room'}</p>
+                      <p className="text-[12px] font-pmedium text-gray-900">{viewingRoomStayBooking.resource}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-gray-400 uppercase font-pmedium tracking-widest mb-1">Guest</p>
+                      <p className="text-[12px] font-pmedium text-gray-900">{viewingRoomStayBooking.bookedBy}</p>
+                      <p className="mt-0.5 text-[11px] font-pmedium text-gray-500">{viewingRoomStayBooking.phone || 'No phone'} • {viewingRoomStayBooking.email || 'No email'}</p>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <p className="text-[9px] text-gray-400 uppercase font-pmedium tracking-widest mb-1">Stay</p>
+                      <p className="text-[12px] font-pmedium text-gray-900">{viewingRoomStayBooking.dateLabel}{viewingRoomStayBooking.isMultiDay ? ` → ${viewingRoomStayBooking.endDateLabel}` : ''}</p>
+                      <p className="mt-0.5 text-[11px] font-pmedium text-gray-500">{viewingRoomStayBooking.time}{viewingRoomStayBooking.raw?.bedNumbers?.length ? ` • Bed ${viewingRoomStayBooking.raw.bedNumbers.join(', ')}` : ''}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest border-b border-gray-100 pb-2 mb-3 flex items-center gap-2">
+                    <User size={14} /> Guest Details
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50/60 p-4 rounded-2xl border border-gray-100">
+                    <div>
+                      <p className="text-[9px] text-gray-400 uppercase font-pmedium tracking-widest mb-1">Age / Gender</p>
+                      <p className="text-[12px] font-pmedium text-gray-900">{viewingRoomStayBooking.raw?.guestAge || '—'} {viewingRoomStayBooking.raw?.guestGender ? `/ ${viewingRoomStayBooking.raw.guestGender}` : ''}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-gray-400 uppercase font-pmedium tracking-widest mb-1">Location</p>
+                      <p className="text-[12px] font-pmedium text-gray-900">{[viewingRoomStayBooking.raw?.guestCity, viewingRoomStayBooking.raw?.guestState, viewingRoomStayBooking.raw?.guestCountry].filter(Boolean).join(', ') || '—'}</p>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <p className="text-[9px] text-gray-400 uppercase font-pmedium tracking-widest mb-1">Address</p>
+                      <p className="text-[12px] font-pmedium text-gray-900">{viewingRoomStayBooking.raw?.guestAddress || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-gray-400 uppercase font-pmedium tracking-widest mb-1">ID Proof</p>
+                      <p className="text-[12px] font-pmedium text-gray-900">{viewingRoomStayBooking.raw?.idProofType || 'Not set'} {viewingRoomStayBooking.raw?.idProofNumber ? `• ${viewingRoomStayBooking.raw.idProofNumber}` : ''}</p>
+                      {viewingRoomStayBooking.raw?.idProofFile?.fileUrl && (
+                        <a href={viewingRoomStayBooking.raw.idProofFile.fileUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-[10px] font-pmedium uppercase tracking-wider text-[#2563EB] hover:underline">
+                          <Eye size={11} /> View document
+                        </a>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-gray-400 uppercase font-pmedium tracking-widest mb-1">Emergency Contact</p>
+                      <p className="text-[12px] font-pmedium text-gray-900">{viewingRoomStayBooking.raw?.emergencyContactName || 'Not provided'} {viewingRoomStayBooking.raw?.emergencyContactPhone ? `• ${viewingRoomStayBooking.raw.emergencyContactPhone}` : ''}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest border-b border-gray-100 pb-2 mb-3 flex items-center gap-2">
+                    <CreditCard size={14} /> Payment
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+                      <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Payment Status</p>
+                      <p className={`mt-2 text-sm font-pmedium ${normalizeText(viewingRoomStayBooking.paymentStatus).includes('pending') ? 'text-amber-600' : 'text-emerald-600'}`}>{viewingRoomStayBooking.paymentStatus}</p>
+                    </div>
+                    <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+                      <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Total</p>
+                      <p className="mt-2 text-sm font-pmedium text-gray-900">{formatCurrency(viewingRoomStayBooking.totalAmount || 0)}</p>
+                    </div>
+                    <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+                      <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Payment Mode</p>
+                      <p className="mt-2 text-sm font-pmedium text-gray-900">{viewingRoomStayBooking.paymentMode || 'Not set'}</p>
+                    </div>
+                    <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+                      <p className="text-[9px] font-pmedium text-gray-400 uppercase tracking-widest">Amount Due</p>
+                      <p className="mt-2 text-sm font-pmedium text-gray-900">{formatCurrency(viewingRoomStayBooking.amountDue || 0)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {viewingRoomStayBooking.raw?.notes && (
+                  <div>
+                    <h3 className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest border-b border-gray-100 pb-2 mb-3 flex items-center gap-2">
+                      <FileText size={14} /> Notes
+                    </h3>
+                    <p className="text-sm font-medium text-gray-700 leading-relaxed bg-gray-50/60 p-4 rounded-2xl border border-gray-100">{viewingRoomStayBooking.raw.notes}</p>
+                  </div>
+                )}
+
+                {viewingRoomStayBooking.status !== 'Completed' && viewingRoomStayBooking.status !== 'Cancelled' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    {viewingRoomStayBooking.status === 'Booked' && (
+                      <button
+                        disabled={isUpdatingRoomStayBooking}
+                        onClick={async () => {
+                          setIsUpdatingRoomStayBooking(true);
+                          try {
+                            await updateRoomBookingStatus(viewingRoomStayBooking.raw._id, 'Checked-in');
+                            toast.success('Guest checked in.');
+                            refreshRoomStayBookings();
+                            setViewingRoomStayBooking(null);
+                          } catch (error) {
+                            toast.error(error?.response?.data?.message || 'Unable to check in this guest.');
+                          } finally {
+                            setIsUpdatingRoomStayBooking(false);
+                          }
+                        }}
+                        className="w-full py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 disabled:opacity-60"
+                      >
+                        <LogIn size={14} /> Check In
+                      </button>
+                    )}
+                    <button
+                      disabled={isUpdatingRoomStayBooking}
+                      onClick={async () => {
+                        setIsUpdatingRoomStayBooking(true);
+                        try {
+                          await updateRoomBookingStatus(viewingRoomStayBooking.raw._id, 'Cancelled');
+                          toast.success('Reservation cancelled.');
+                          refreshRoomStayBookings();
+                          setViewingRoomStayBooking(null);
+                        } catch (error) {
+                          toast.error(error?.response?.data?.message || 'Unable to cancel this booking.');
+                        } finally {
+                          setIsUpdatingRoomStayBooking(false);
+                        }
+                      }}
+                      className="w-full py-2.5 bg-white border border-red-200 rounded-xl font-pmedium text-[12px] text-red-600 hover:bg-red-50 transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-60"
+                    >
+                      <XCircle size={14} /> Cancel
+                    </button>
                   </div>
                 )}
               </div>

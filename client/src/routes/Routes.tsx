@@ -172,6 +172,7 @@ import CafeBookingsPage from "../pages/Administration/Bookings/CafeBookingsPage"
 import AllBookingHistoryPage from "../pages/Administration/Bookings/AllBookingHistoryPage";
 import AdministrationResourceManagementPage from "../pages/Administration/ResourceManagement/ResourceManagementPage";
 import AdministrationHousekeepingPage from "../pages/Administration/HouseKeeping/HousekeepingPage";
+import HousekeepingDashboard from "../pages/Administration/HouseKeeping/HousekeepingDashboard";
 import RepairLogsPage from "../pages/Maintenance/RepairLogsPage";
 import AMCMaintenanceSchedulerPage from "../pages/Maintenance/AMCMaintenanceSchedulerPage";
 import ITRepairLogsPage from "../pages/IT/ITRepairLogsPage";
@@ -181,6 +182,7 @@ import TicketsWorkspaceDashboard from "../pages/Tickets/TicketsWorkspaceDashboar
 import PrintoutsPage from "../pages/Printouts/PrintoutsPage";
 import PrintoutsDashboard from "../pages/Printouts/PrintoutsDashboard";
 import PrintoutManagementPage from "../pages/Administration/Printouts/PrintoutManagementPage";
+import PrintoutManagementDashboard from "../pages/Administration/Printouts/PrintoutManagementDashboard";
 import TenantDashboardPage from "../pages/tenant/TenantDashboardPage";
 import TenantMeetingRoomBookingPage from "../pages/tenant/TenantMeetingRoomBookingPage";
 import TenantPrintoutsPage from "../pages/tenant/TenantPrintoutsPage";
@@ -947,6 +949,26 @@ export const routes = createBrowserRouter([
                 element: <CafeManagementPage />,
               },
               {
+                path: "key-apps/cafe-management/reservations",
+                element: <CafeManagementPage lockedTabs={["reservations"]} />,
+              },
+              {
+                path: "key-apps/cafe-management/orders",
+                element: <CafeManagementPage lockedTabs={["orders"]} />,
+              },
+              {
+                path: "key-apps/cafe-management/tables-menu",
+                element: <CafeManagementPage lockedTabs={["tables", "menu"]} />,
+              },
+              {
+                path: "key-apps/cafe-management/order-history",
+                element: <CafeManagementPage lockedTabs={["history"]} />,
+              },
+              {
+                path: "key-apps/cafe-management/reports-settings",
+                element: <CafeManagementPage lockedTabs={["reports", "settings"]} />,
+              },
+              {
                 path: "key-apps/hostel-management",
                 element: (
                   <RoomStayManagementDashboard
@@ -1634,6 +1656,14 @@ export const routes = createBrowserRouter([
                 element: <LeadsManagementPage />,
               },
               {
+                path: "department-accesses/sales-department/leads-management/website-leads",
+                element: <LeadsManagementPage lockedTab="website-leads" />,
+              },
+              {
+                path: "department-accesses/sales-department/leads-management/unit-tour-leads",
+                element: <LeadsManagementPage lockedTab="unit-tour" />,
+              },
+              {
                 path: "department-accesses/sales-department/sales-architecture",
                 element: <SalesArchitecturePage />,
               },
@@ -1683,10 +1713,38 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/administration-department/house-keeping",
+                element: <HousekeepingDashboard />,
+              },
+              {
+                path: "department-accesses/administration-department/house-keeping/dashboard",
                 element: <AdministrationHousekeepingPage />,
               },
               {
+                path: "department-accesses/administration-department/house-keeping/staff",
+                element: <AdministrationHousekeepingPage lockedTab="staff" />,
+              },
+              {
+                path: "department-accesses/administration-department/house-keeping/scheduled-tasks",
+                element: <AdministrationHousekeepingPage lockedTab="scheduled" />,
+              },
+              {
+                path: "department-accesses/administration-department/house-keeping/booking-tasks",
+                element: <AdministrationHousekeepingPage lockedTab="auto" />,
+              },
+              {
+                path: "department-accesses/administration-department/house-keeping/history",
+                element: <AdministrationHousekeepingPage lockedTab="history" />,
+              },
+              {
+                path: "department-accesses/administration-department/house-keeping/performance",
+                element: <AdministrationHousekeepingPage lockedTab="performance" />,
+              },
+              {
                 path: "department-accesses/administration-department/printouts",
+                element: <PrintoutManagementDashboard />,
+              },
+              {
+                path: "department-accesses/administration-department/printouts/dashboard",
                 element: <PrintoutManagementPage />,
               },
               {

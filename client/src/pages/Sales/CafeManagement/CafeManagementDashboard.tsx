@@ -5,9 +5,11 @@ import {
   AlertTriangle,
   Armchair,
   ArrowRight,
+  BarChart3,
   CalendarCheck,
   CalendarClock,
   ChefHat,
+  ClipboardList,
   Clock,
   Coffee,
   IndianRupee,
@@ -213,23 +215,44 @@ function StatTile({
   label,
   value,
   sub,
-  status = "default",
+  tone = "blue",
 }: {
   icon: ReactNode;
   label: string;
   value: number | string;
   sub?: string;
-  status?: "default" | "success" | "attention";
+  tone?: "blue" | "amber" | "violet" | "emerald" | "orange";
 }) {
-  const statuses = {
-    default: "border-l-blue-600 bg-blue-50 text-blue-700",
-    success: "border-l-emerald-500 bg-emerald-50 text-emerald-700",
-    attention: "border-l-amber-500 bg-amber-50 text-amber-700",
+  // Sales-module KPI convention: the tile stays neutral at rest, and on
+  // hover the KPI's own colour shows on the left border — blue = volume,
+  // violet = money in flight, emerald = occupancy/earned, amber = waiting,
+  // orange = waste/attention.
+  const tones = {
+    blue: {
+      card: "hover:border-l-blue-600",
+      icon: "border-l-blue-600 bg-blue-50 text-blue-700",
+    },
+    amber: {
+      card: "hover:border-l-amber-500",
+      icon: "border-l-amber-500 bg-amber-50 text-amber-700",
+    },
+    violet: {
+      card: "hover:border-l-violet-500",
+      icon: "border-l-violet-500 bg-violet-50 text-violet-700",
+    },
+    emerald: {
+      card: "hover:border-l-emerald-500",
+      icon: "border-l-emerald-500 bg-emerald-50 text-emerald-700",
+    },
+    orange: {
+      card: "hover:border-l-orange-500",
+      icon: "border-l-orange-500 bg-orange-50 text-orange-700",
+    },
   };
   return (
-    <div className="flex min-h-[112px] items-center gap-4 rounded-xl border border-slate-200 border-l-4 bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-blue-200 hover:border-l-blue-600 hover:shadow-md">
+    <div className={`flex min-h-[112px] items-center gap-4 rounded-xl border border-slate-200 border-l-4 border-l-transparent bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-blue-200 hover:shadow-md ${tones[tone].card}`}>
       <div
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border-l-2 ${statuses[status]}`}
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border-l-2 ${tones[tone].icon}`}
       >
         {icon}
       </div>
@@ -267,9 +290,10 @@ export default function CafeManagementDashboard() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const headingParts = "Cafe Management".split(" ");
-  const headingAccent = headingParts.pop() || "";
-  const headingPrimary = headingParts.join(" ");
+  // Banner reads "<Title> Dashboard" — the two-tone split every module
+  // dashboard uses (primary title + accent "Dashboard").
+  const headingPrimary = "Cafe Management";
+  const headingAccent = "Dashboard";
 
   useEffect(() => {
     let cancelled = false;
@@ -679,9 +703,9 @@ export default function CafeManagementDashboard() {
                   "linear-gradient(to right, black 0%, black 76%, transparent 100%)",
               }}
             />
-            <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center gap-2.5 px-6 py-6 sm:w-[58%]">
-              <h1 className="text-[30px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[38px]">
-                <span className="text-primary">{headingPrimary}</span>{" "}
+            <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center gap-2.5 px-6 py-6 sm:w-[68%]">
+              <h1 className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[30px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[38px]">
+                <span className="text-primary">{headingPrimary}</span>
                 <span className="text-accent">{headingAccent}</span>
               </h1>
               <p className="max-w-sm text-[11px] font-pmedium leading-5 text-slate-500">
@@ -743,33 +767,35 @@ export default function CafeManagementDashboard() {
               label="Open orders"
               value={scopedOpenOrders.length}
               sub={`${readyOrders.length} ready to serve · ${Math.max(0, scopedOpenOrders.length - readyOrders.length)} in progress`}
-              status={readyOrders.length > 0 ? "attention" : "default"}
+              tone="blue"
             />
             <StatTile
               icon={<IndianRupee size={20} />}
               label="Open order value"
               value={currency(openOrderValue)}
               sub={`${openOrderItems} items across ${new Set(scopedOpenOrders.map((order) => tableNameOf(order))).size} table${new Set(scopedOpenOrders.map((order) => tableNameOf(order))).size === 1 ? "" : "s"}`}
+              tone="violet"
             />
             <StatTile
               icon={<Armchair size={20} />}
               label="Tables occupied"
               value={`${occupiedTables}/${activeTables}`}
               sub={`${Math.max(0, activeTables - occupiedTables)} free of ${scopedTables.length} in the selected scope`}
-              status={occupiedTables === 0 ? "success" : "default"}
+              tone="emerald"
             />
             <StatTile
               icon={<CalendarCheck size={20} />}
               label="Reservations today"
               value={scopedReservations.length}
               sub={`${seatedReservations.length} seated · ${pendingReservations.length} still to arrive`}
-              status={pendingReservations.length > 0 ? "attention" : "default"}
+              tone="amber"
             />
             <StatTile
               icon={<Wallet size={20} />}
               label="Billed value"
               value={currency(fiscalYearEntry.revenue)}
               sub={`${fiscalYearLabel} · ${fiscalYearEntry.bills} paid bill${fiscalYearEntry.bills === 1 ? "" : "s"} in scope`}
+              tone="emerald"
             />
             <StatTile
               icon={<Coffee size={20} />}
@@ -780,20 +806,21 @@ export default function CafeManagementDashboard() {
                   ? "From paid bills at this table"
                   : "Per paid bill, outlet-wide"
               }
+              tone="blue"
             />
             <StatTile
               icon={<ChefHat size={20} />}
               label="Menu availability"
               value={`${menuItems.length - unavailableItems.length}/${menuItems.length}`}
               sub={`${unavailableItems.length} unavailable · ${categoryMix.length} categories`}
-              status={unavailableItems.length > 0 ? "attention" : "success"}
+              tone="violet"
             />
             <StatTile
               icon={<XCircle size={20} />}
               label="Cancellation rate"
               value={`${cancellationRate}%`}
               sub={`${scopedCancelledOrders.length} of ${settledCount} settled bills cancelled`}
-              status={cancellationRate >= 10 ? "attention" : "success"}
+              tone="orange"
             />
           </div>
         )}
@@ -825,28 +852,52 @@ export default function CafeManagementDashboard() {
           </div>
           <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
             <DashboardModuleCard
-              icon={<Receipt />}
+              icon={<CalendarCheck />}
+              title="Reservations"
+              route="/key-apps/cafe-management/reservations"
+              state={{ fromSection: "cafe-management" }}
+              description="Book tables and manage today's seating"
+              color="#2563EB"
+            />
+            <DashboardModuleCard
+              icon={<ClipboardList />}
+              title="Orders Management"
+              route="/key-apps/cafe-management/orders"
+              state={{ fromSection: "cafe-management" }}
+              description="Track floor orders live and settle bills"
+              color="#0F766E"
+            />
+            <DashboardModuleCard
+              icon={<Armchair />}
+              title="Tables & Menu Items"
+              route="/key-apps/cafe-management/tables-menu"
+              state={{ fromSection: "cafe-management" }}
+              description="Table layout and menu availability in one place"
+              color="#0D9488"
+            />
+            <DashboardModuleCard
+              icon={<Clock />}
+              title="Order History"
+              route="/key-apps/cafe-management/order-history"
+              state={{ fromSection: "cafe-management" }}
+              description="Review settled and cancelled bills"
+              color="#DB2777"
+            />
+            <DashboardModuleCard
+              icon={<BarChart3 />}
+              title="Reports & Settings"
+              route="/key-apps/cafe-management/reports-settings"
+              state={{ fromSection: "cafe-management" }}
+              description="Cafe performance reports and outlet controls"
+              color="#D97706"
+            />
+            <DashboardModuleCard
+              icon={<ShoppingCart />}
               title="Cafe Orders"
               route={ordersRoute}
               state={{ fromSection: "cafe-management" }}
               description="Live orders, billing, and settlement"
               color="#EA580C"
-            />
-            <DashboardModuleCard
-              icon={<CalendarCheck />}
-              title="Reservations"
-              route={managementRoute}
-              state={{ fromSection: "cafe-management", tab: "reservations" }}
-              description="Table reservations and guest arrivals"
-              color="#2563EB"
-            />
-            <DashboardModuleCard
-              icon={<Armchair />}
-              title="Tables & Menu"
-              route={managementRoute}
-              state={{ fromSection: "cafe-management", tab: "tables" }}
-              description="Table layout, menu, and availability"
-              color="#0D9488"
             />
             <DashboardModuleCard
               icon={<ShoppingCart />}

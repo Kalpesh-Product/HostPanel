@@ -99,22 +99,47 @@ function StatTile({
   label,
   value,
   sub,
-  status = "default",
+  tone = "blue",
 }: {
   icon: ReactNode;
   label: string;
   value: number | string;
   sub?: string;
-  status?: "default" | "success" | "attention";
+  tone?: "blue" | "amber" | "violet" | "emerald" | "rose" | "orange";
 }) {
-  const statuses = {
-    default: "border-l-blue-600 bg-blue-50 text-blue-700",
-    success: "border-l-emerald-500 bg-emerald-50 text-emerald-700",
-    attention: "border-l-amber-500 bg-amber-50 text-amber-700",
+  // Sales-module KPI convention (CafeOrders/CafeManagement): the tile stays
+  // neutral at rest, and on hover the KPI's own colour shows on the left
+  // border — blue = volume, violet/amber/orange = work in flight,
+  // emerald = won, rose = urgent.
+  const tones = {
+    blue: {
+      card: "hover:border-l-blue-600",
+      icon: "border-l-blue-600 bg-blue-50 text-blue-700",
+    },
+    amber: {
+      card: "hover:border-l-amber-500",
+      icon: "border-l-amber-500 bg-amber-50 text-amber-700",
+    },
+    violet: {
+      card: "hover:border-l-violet-500",
+      icon: "border-l-violet-500 bg-violet-50 text-violet-700",
+    },
+    emerald: {
+      card: "hover:border-l-emerald-500",
+      icon: "border-l-emerald-500 bg-emerald-50 text-emerald-700",
+    },
+    rose: {
+      card: "hover:border-l-rose-500",
+      icon: "border-l-rose-500 bg-rose-50 text-rose-700",
+    },
+    orange: {
+      card: "hover:border-l-orange-500",
+      icon: "border-l-orange-500 bg-orange-50 text-orange-700",
+    },
   };
   return (
-    <div className="flex min-h-[112px] items-center gap-4 rounded-xl border border-slate-200 border-l-4 bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-blue-200 hover:border-l-blue-600 hover:shadow-md">
-      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border-l-2 ${statuses[status]}`}>{icon}</div>
+    <div className={`flex min-h-[112px] items-center gap-4 rounded-xl border border-slate-200 border-l-4 border-l-transparent bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-blue-200 hover:shadow-md ${tones[tone].card}`}>
+      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border-l-2 ${tones[tone].icon}`}>{icon}</div>
       <div className="min-w-0 flex-1">
         <p className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-slate-500">{label}</p>
         <p className="mt-1 text-[22px] font-pmedium leading-none text-slate-900">{value}</p>
@@ -311,7 +336,7 @@ export default function LeadsManagementDashboard() {
             />
             <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center gap-2.5 px-6 py-6 sm:w-[58%]">
               <h1 className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[22px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[28px]">
-                <span className="text-primary">Leads</span> <span className="text-accent">Dashboard</span>
+                <span className="text-primary">Leads Management</span> <span className="text-accent">Dashboard</span>
               </h1>
               <p className="max-w-sm text-[11px] font-pmedium leading-5 text-slate-500">
                 Live pipeline visibility across website enquiries, Nomad leads, and unit-tour walk-ins.
@@ -346,34 +371,32 @@ export default function LeadsManagementDashboard() {
           </div>
         ) : (
           <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3">
-            <StatTile icon={<Magnet size={20} />} label="Total leads" value={stats.total} sub="Website, Nomad, and unit-tour leads combined" />
-            <StatTile icon={<Globe size={20} />} label="Website & Nomad" value={stats.websiteCount} sub="All website and Nomad enquiries" />
-            <StatTile icon={<Users size={20} />} label="Unit tour leads" value={stats.unitTourCount} sub="Synced from Visitor Management" />
-            <StatTile icon={<Sparkles size={20} />} label="Pending review" value={stats.pendingReview} sub="Not yet closed or converted" status={stats.pendingReview ? "attention" : "success"} />
-            <StatTile icon={<Target size={20} />} label="High priority" value={stats.highPriority} sub="High-budget unit-tour leads" status={stats.highPriority ? "attention" : "success"} />
-            <StatTile icon={<CheckCircle2 size={20} />} label="Converted / closed" value={stats.converted} sub="Converted tours and closed website leads" status="success" />
+            <StatTile icon={<Magnet size={20} />} label="Total leads" value={stats.total} sub="Website, Nomad, and unit-tour leads combined" tone="blue" />
+            <StatTile icon={<Globe size={20} />} label="Website & Nomad" value={stats.websiteCount} sub="All website and Nomad enquiries" tone="violet" />
+            <StatTile icon={<Users size={20} />} label="Unit tour leads" value={stats.unitTourCount} sub="Synced from Visitor Management" tone="orange" />
+            <StatTile icon={<Sparkles size={20} />} label="Pending review" value={stats.pendingReview} sub="Not yet closed or converted" tone="amber" />
+            <StatTile icon={<Target size={20} />} label="High priority" value={stats.highPriority} sub="High-budget unit-tour leads" tone="rose" />
+            <StatTile icon={<CheckCircle2 size={20} />} label="Converted / closed" value={stats.converted} sub="Converted tours and closed website leads" tone="emerald" />
           </div>
         )}
 
         <div className="mb-6">
           <div className="mb-3">
             <p className="text-sm font-pmedium text-slate-900">Manage leads</p>
-            <p className="mt-1 text-[10px] font-pmedium text-slate-500">Open the full leads list, pre-filtered to the pool you need.</p>
+            <p className="mt-1 text-[10px] font-pmedium text-slate-500">Each lead pool opens on its own page — website/Nomad enquiries and visitor-desk tour leads.</p>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <DashboardModuleCard
               icon={<Globe size={19} />}
               title="Website & Nomad Leads"
-              route="/department-accesses/sales-department/leads-management/list"
-              state={{ tab: "website-leads" }}
+              route="/department-accesses/sales-department/leads-management/website-leads"
               description="Review and update website enquiries"
               color="#2563EB"
             />
             <DashboardModuleCard
               icon={<Users size={19} />}
               title="Unit Tour Leads"
-              route="/department-accesses/sales-department/leads-management/list"
-              state={{ tab: "unit-tour" }}
+              route="/department-accesses/sales-department/leads-management/unit-tour-leads"
               description="Follow up visitor-desk walk-ins"
               color="#7C3AED"
             />

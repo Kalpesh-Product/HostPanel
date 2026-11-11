@@ -60,6 +60,31 @@ import {
 
 type Tab = "reservations" | "orders" | "tables" | "menu" | "history" | "reports" | "settings";
 const TAB_KEYS: Tab[] = ["reservations", "orders", "tables", "menu", "history", "reports", "settings"];
+
+// Titles and sub-text for the dedicated routes the Cafe Management
+// dashboard's module cards open (keyed by the locked tab group).
+const CAFE_VIEW_META: Record<string, { title: string; subtitle: string }> = {
+  reservations: {
+    title: "Cafe Reservations",
+    subtitle: "Book tables in advance and manage today's seating.",
+  },
+  orders: {
+    title: "Orders Management",
+    subtitle: "Track floor orders live — take, serve, and settle bills.",
+  },
+  "tables-menu": {
+    title: "Tables & Menu Items",
+    subtitle: "Floor inventory and menu availability, side by side.",
+  },
+  history: {
+    title: "Order History",
+    subtitle: "Every settled and cancelled bill, ready to review.",
+  },
+  "reports-settings": {
+    title: "Reports & Settings",
+    subtitle: "Cafe performance reports and outlet configuration in one place.",
+  },
+};
 type TableFilter = "All" | "Free" | "Occupied" | "Inactive";
 type MenuFilter = "All" | "Available" | "Unavailable";
 
@@ -111,19 +136,22 @@ const emptyRow = (colSpan: number, message: string) => (
   </tr>
 );
 
-export default function CafeManagementPage() {
+export default function CafeManagementPage({ lockedTabs }: { lockedTabs?: Tab[] }) {
   const workspacePreferences = useWorkspacePreferences();
   const formatCurrency = (value = 0) =>
     formatWorkspaceCurrency(Number(value || 0), workspacePreferences.currency, { maximumFractionDigits: 2 });
 
-  // Quick-action cards on the management dashboard preselect a tab by passing
-  // { tab } through router state; every other entry point falls back to orders.
+  // Dedicated routes from the management dashboard lock the page to one tab
+  // or a pair (Tables & Menu Items, Reports & Settings); every other entry
+  // point falls back to router state or the orders tab.
   const location = useLocation();
   const requestedTab = (location.state as { tab?: string } | null)?.tab;
   const [tab, setTab] = useState<Tab>(
-    requestedTab && TAB_KEYS.includes(requestedTab as Tab) ? (requestedTab as Tab) : "orders",
+    lockedTabs?.[0] ||
+      (requestedTab && TAB_KEYS.includes(requestedTab as Tab) ? (requestedTab as Tab) : "orders"),
   );
   const { confirm } = useAppConfirm();
+  const viewMeta = lockedTabs ? CAFE_VIEW_META[lockedTabs.join("-")] : undefined;
   const [tableFilter, setTableFilter] = useState<TableFilter>("All");
   const [menuFilter, setMenuFilter] = useState<MenuFilter>("All");
   const [menuCategory, setMenuCategory] = useState("All Categories");
@@ -284,11 +312,19 @@ export default function CafeManagementPage() {
       <PageFrame>
         <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
-            <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">Cafe Management</h2>
-            <p className="text-xs font-pmedium text-slate-500 mt-1">Track floor orders, payments, menu, reports, and cafe controls.</p>
+            <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
+              {viewMeta?.title ?? "Cafe Management"}
+            </h2>
+            <p className="text-xs font-pmedium text-slate-500 mt-1">
+              {viewMeta?.subtitle ??
+                "Track floor orders, payments, menu, reports, and cafe controls."}
+            </p>
           </div>
         </div>
 
+        {/* Tab strip — hidden on single-view dedicated routes; paired views
+            (Tables & Menu Items, Reports & Settings) show only their tabs. */}
+        {(lockedTabs ?? TAB_KEYS).length > 1 ? (
         <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
           {(
             [
@@ -300,7 +336,9 @@ export default function CafeManagementPage() {
               { key: "reports", label: "Reports" },
               { key: "settings", label: "Settings" },
             ] as Array<{ key: Tab; label: string }>
-          ).map((item) => (
+          )
+            .filter((item) => (lockedTabs ?? TAB_KEYS).includes(item.key))
+            .map((item) => (
             <button
               key={item.key}
               type="button"
@@ -313,6 +351,7 @@ export default function CafeManagementPage() {
             </button>
           ))}
         </div>
+        ) : null}
 
         {tab === "orders" && (
           <FloorOrdersPanel

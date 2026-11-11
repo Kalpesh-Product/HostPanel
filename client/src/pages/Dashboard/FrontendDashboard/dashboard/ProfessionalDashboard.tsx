@@ -26,6 +26,7 @@ import {
   AlertCircle,
   ArrowRight,
   Zap,
+  Clock,
   Activity,
 } from "lucide-react";
 import {
@@ -614,29 +615,65 @@ const ProfessionalDashboard = ({
     showTickets,
     showVisitors,
   ].filter(Boolean).length;
-  const showCustomUpgradeNudge = trialDaysLeft == null && !isTrialExpiringSoon;
-
   return (
     <div className="flex flex-col gap-5">
-      {/* Upgrade nudge — opens modal for Custom plan */}
-      {showCustomUpgradeNudge && (
-        <button
-          type="button"
-          data-tour="professional-plan"
-          className="flex w-full flex-wrap items-center gap-3 rounded-xl border-2 border-accent/30 bg-blue-50 p-4 text-left transition-colors hover:bg-blue-100 sm:flex-nowrap"
-          onClick={onUpgradeClick}
+      {/* Upgrade nudge — opens modal for Custom plan. Shown even during an
+          active/expiring trial: the only thing gated by trial state
+          elsewhere is a day-count callout near the plan badge, not an
+          upgrade-to-Custom offer, so there's nothing for this to stack
+          against. */}
+      <button
+        type="button"
+        data-tour="professional-plan"
+        className="flex w-full flex-wrap items-center gap-3 rounded-xl border-2 border-accent/30 bg-blue-50 p-4 text-left transition-colors hover:bg-blue-100 sm:flex-nowrap"
+        onClick={onUpgradeClick}
+      >
+        <Zap size={18} className="flex-shrink-0 text-accent" />
+        <p className="min-w-0 flex-1 text-content font-pmedium text-blue-800">
+          You're on the <strong>Professional Plan</strong> — upgrade to the{" "}
+          <strong>Custom Plan</strong> for Finance, HR, AI tools, Maintenance,
+          IT and more.
+        </p>
+        <span className="ml-7 flex-shrink-0 whitespace-nowrap rounded-full border border-accent bg-accent px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-white sm:ml-auto">
+          Upgrade
+        </span>
+        <ArrowRight size={14} className="flex-shrink-0 text-accent" />
+      </button>
+
+      {trialDaysLeft != null && (
+        <a
+          href="/profile/plan-billing"
+          data-tour="professional-trial"
+          className={`flex w-full flex-wrap items-center gap-3 rounded-xl border-2 p-4 text-left transition-colors sm:flex-nowrap ${
+            isTrialExpiringSoon
+              ? "border-amber-400/40 bg-amber-50 hover:bg-amber-100"
+              : "border-accent/30 bg-blue-50 hover:bg-blue-100"
+          }`}
         >
-          <Zap size={18} className="flex-shrink-0 text-accent" />
-          <p className="min-w-0 flex-1 text-content font-pmedium text-blue-800">
-            You're on the <strong>Professional Plan</strong> — upgrade to the{" "}
-            <strong>Custom Plan</strong> for Finance, HR, AI tools, Maintenance,
-            IT and more.
+          <Clock
+            size={18}
+            className={`flex-shrink-0 ${isTrialExpiringSoon ? "text-amber-600" : "text-accent"}`}
+          />
+          <p
+            className={`min-w-0 flex-1 text-content font-pmedium ${
+              isTrialExpiringSoon ? "text-amber-800" : "text-blue-800"
+            }`}
+          >
+            {trialDaysLeft} day{trialDaysLeft === 1 ? "" : "s"} left in your free trial —
+            renew to keep the <strong>Professional Plan</strong>.
           </p>
-          <span className="ml-7 flex-shrink-0 whitespace-nowrap rounded-full border border-accent bg-accent px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-white sm:ml-auto">
-            Upgrade
+          <span
+            className={`ml-7 flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-white sm:ml-auto ${
+              isTrialExpiringSoon ? "border-amber-500 bg-amber-500" : "border-accent bg-accent"
+            }`}
+          >
+            Renew Now
           </span>
-          <ArrowRight size={14} className="flex-shrink-0 text-accent" />
-        </button>
+          <ArrowRight
+            size={14}
+            className={`flex-shrink-0 ${isTrialExpiringSoon ? "text-amber-600" : "text-accent"}`}
+          />
+        </a>
       )}
 
       <WonoListingsCard />

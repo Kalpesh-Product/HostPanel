@@ -636,10 +636,10 @@ export default function CoworkingManagementPage() {
                   "linear-gradient(to right, black 0%, black 76%, transparent 100%)",
               }}
             />
-            <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center gap-2.5 px-6 py-6 sm:w-[58%]">
+            <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center gap-2.5 px-6 py-6 sm:w-[75%]">
               <h1 className="text-[30px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[38px]">
-                <span className="text-primary">Coworking</span>{" "}
-                <span className="text-accent">Management</span>
+                <span className="text-primary">Coworking Management</span>{" "}
+                <span className="text-accent">Dashboard</span>
               </h1>
               <p className="max-w-sm text-[11px] font-pmedium leading-5 text-slate-500">
                 Live capacity, tenant agreements, billing completeness, pricing,

@@ -658,7 +658,11 @@ const BasicDashboard = ({
       <WonoListingsCard />
 
       <VerifiedBadgeNotice />
-      <BonusTrialOfferNotice suppressed={isExpiredDowngrade} />
+      {/* Not suppressed by isExpiredDowngrade: a staff-granted bonus trial is
+          most often offered right after the free trial expires, so hiding it
+          in exactly that state defeated the whole feature. The component
+          already no-ops unless there's an active, unclaimed offer. */}
+      <BonusTrialOfferNotice />
 
       <div data-tour="dashboard-getting-started">
         <WorkspaceProgress

@@ -617,6 +617,96 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/key-apps/cafe-management/reservations",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      {
+        label: "Sales Dashboard",
+        path: "/department-accesses/sales-department",
+      },
+      {
+        label: "Cafe Management",
+        path: "/key-apps/cafe-management",
+      },
+      { label: "Reservations" },
+    ],
+  },
+  {
+    pattern: "/key-apps/cafe-management/orders",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      {
+        label: "Sales Dashboard",
+        path: "/department-accesses/sales-department",
+      },
+      {
+        label: "Cafe Management",
+        path: "/key-apps/cafe-management",
+      },
+      { label: "Orders Management" },
+    ],
+  },
+  {
+    pattern: "/key-apps/cafe-management/tables-menu",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      {
+        label: "Sales Dashboard",
+        path: "/department-accesses/sales-department",
+      },
+      {
+        label: "Cafe Management",
+        path: "/key-apps/cafe-management",
+      },
+      { label: "Tables & Menu Items" },
+    ],
+  },
+  {
+    pattern: "/key-apps/cafe-management/order-history",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      {
+        label: "Sales Dashboard",
+        path: "/department-accesses/sales-department",
+      },
+      {
+        label: "Cafe Management",
+        path: "/key-apps/cafe-management",
+      },
+      { label: "Order History" },
+    ],
+  },
+  {
+    pattern: "/key-apps/cafe-management/reports-settings",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      {
+        label: "Sales Dashboard",
+        path: "/department-accesses/sales-department",
+      },
+      {
+        label: "Cafe Management",
+        path: "/key-apps/cafe-management",
+      },
+      { label: "Reports & Settings" },
+    ],
+  },
+  {
     pattern: "/key-apps/cafe-management",
     crumbs: [
       {
@@ -1168,6 +1258,24 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/department-accesses/administration-department/printouts/dashboard",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      {
+        label: "Administration Department",
+        path: "/department-accesses/administration-department",
+      },
+      {
+        label: "Printout Management",
+        path: "/department-accesses/administration-department/printouts",
+      },
+      { label: "Requests Console" },
+    ],
+  },
+  {
     pattern:
       "/department-accesses/administration-department/resource-management",
     crumbs: [
@@ -1194,6 +1302,114 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
         path: "/department-accesses/administration-department",
       },
       { label: "House Keeping" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/administration-department/house-keeping/dashboard",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      {
+        label: "Administration Department",
+        path: "/department-accesses/administration-department",
+      },
+      {
+        label: "House Keeping",
+        path: "/department-accesses/administration-department/house-keeping",
+      },
+      { label: "Management Console" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/administration-department/house-keeping/staff",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      {
+        label: "Administration Department",
+        path: "/department-accesses/administration-department",
+      },
+      {
+        label: "House Keeping",
+        path: "/department-accesses/administration-department/house-keeping",
+      },
+      { label: "Housekeeping Staff" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/administration-department/house-keeping/scheduled-tasks",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      {
+        label: "Administration Department",
+        path: "/department-accesses/administration-department",
+      },
+      {
+        label: "House Keeping",
+        path: "/department-accesses/administration-department/house-keeping",
+      },
+      { label: "Daily Scheduled Tasks" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/administration-department/house-keeping/booking-tasks",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      {
+        label: "Administration Department",
+        path: "/department-accesses/administration-department",
+      },
+      {
+        label: "House Keeping",
+        path: "/department-accesses/administration-department/house-keeping",
+      },
+      { label: "Booking-Based Tasks" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/administration-department/house-keeping/history",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      {
+        label: "Administration Department",
+        path: "/department-accesses/administration-department",
+      },
+      {
+        label: "House Keeping",
+        path: "/department-accesses/administration-department/house-keeping",
+      },
+      { label: "Task History" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/administration-department/house-keeping/performance",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      {
+        label: "Administration Department",
+        path: "/department-accesses/administration-department",
+      },
+      {
+        label: "House Keeping",
+        path: "/department-accesses/administration-department/house-keeping",
+      },
+      { label: "Staff Performance" },
     ],
   },
   {
@@ -1226,6 +1442,42 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
         path: "/department-accesses/sales-department/leads-management",
       },
       { label: "All Leads" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/sales-department/leads-management/website-leads",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      {
+        label: "Sales Dashboard",
+        path: "/department-accesses/sales-department",
+      },
+      {
+        label: "Leads Management",
+        path: "/department-accesses/sales-department/leads-management",
+      },
+      { label: "Website & Nomad Leads" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/sales-department/leads-management/unit-tour-leads",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      {
+        label: "Sales Dashboard",
+        path: "/department-accesses/sales-department",
+      },
+      {
+        label: "Leads Management",
+        path: "/department-accesses/sales-department/leads-management",
+      },
+      { label: "Unit Tour Leads" },
     ],
   },
   {

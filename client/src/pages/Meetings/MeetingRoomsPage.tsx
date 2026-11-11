@@ -3496,15 +3496,6 @@ export function MeetingRoomsPage() {
     }
   };
 
-  const focusMyBookingsTab = () => {
-    navigate('/common-modules/meeting-room-booking/list?module=my_bookings', {
-      state: {
-        fromSection: 'meeting-room-booking-dashboard',
-        moduleTitle: 'My Bookings',
-      },
-    });
-  };
-
   // --------- EXTERNAL (WALK-IN) PRICING ---------
   const externalWalkInPricing = useMemo(() => {
     const room = roomCatalog.find(r => r.name === externalBookingForm.roomName);
@@ -4093,10 +4084,14 @@ export function MeetingRoomsPage() {
         .map((invite: any) => String(invite.invitedUserId || ''))
         .filter(Boolean),
     );
+    // Tenant bookings don't seat the admin/staff member who books on the
+    // tenant's behalf, so unlike Internal (where the host attends), the
+    // host doesn't occupy a capacity slot.
+    const hostOccupiesSeat = normalize(viewingBooking.bookingType) !== 'tenant';
     return {
       capacity,
       activeInviteIds,
-      remainingSlots: Math.max(0, capacity - 1 - activeInviteIds.size),
+      remainingSlots: Math.max(0, capacity - (hostOccupiesSeat ? 1 : 0) - activeInviteIds.size),
       ownerId: stringifyId((viewingBooking as any).ownerId),
       bookedByUserId: stringifyId((viewingBooking as any).bookedByUserId),
     };
@@ -4595,7 +4590,6 @@ export function MeetingRoomsPage() {
         applyTax: externalBookingForm.applyTax !== false,
       } as any);
       await reloadBookings();
-      focusMyBookingsTab();
 
       // Send email confirmation if client has an email address (silent don't fail booking on email error)
       if (externalBookingForm.email) {
@@ -4662,7 +4656,6 @@ export function MeetingRoomsPage() {
         requirements: internalBookingForm.requirements,
       } as any);
       await reloadBookings();
-      focusMyBookingsTab();
       setShowInternalBookingDialog(false);
       setInternalBookingForm({ bookedForName: '', bookedForUserId: '', department: '', roomType: '', floor: '', wing: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', inviteParticipantIds: [], notes: '', requirements: [] });
     } catch (error: any) {
@@ -4715,7 +4708,6 @@ export function MeetingRoomsPage() {
         requirements: tenantBookingForm.requirements,
       } as any);
       await reloadBookings();
-      focusMyBookingsTab();
       setShowTenantBookingDialog(false);
       setTenantBookingForm({ tenantCompanyId: '', tenantCompanyName: '', bookedByName: '', bookedByEmail: '', bookedByPhone: '', roomType: '', floor: '', wing: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', notes: '', creditsToDeduct: 0, inviteParticipantIds: [], requirements: [] });
       setTenantSearchQuery('');
