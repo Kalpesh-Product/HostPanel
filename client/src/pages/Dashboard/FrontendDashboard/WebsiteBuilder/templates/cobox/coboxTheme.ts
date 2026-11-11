@@ -96,8 +96,9 @@ export const COBOX_CSS = String.raw`
 }
 
 .cbx-shell {
-  width: min(1280px, calc(100% - 48px));
+  width: min(1500px, calc(100% - 30px));
   margin-inline: auto;
+  padding-inline: 15px;
 }
 
 .cbx-main {
@@ -313,23 +314,24 @@ export const COBOX_CSS = String.raw`
 
 .cbx-headwrap {
   position: fixed;
-  inset: 12px 0 auto;
+  inset: 20px 0 auto;
   z-index: 60;
-  padding-inline: 20px;
+  padding-inline: 28px;
   pointer-events: none;
 }
 
 .cbx-headbar {
   pointer-events: auto;
-  width: min(1400px, 100%);
+  width: 100%;
+  min-height: 90px;
   margin-inline: auto;
   display: flex;
   align-items: center;
   gap: 24px;
-  background: #fff;
-  border: 1px solid var(--cbx-line);
-  border-radius: 18px;
-  padding: 12px 14px 12px 16px;
+  background: var(--cbx-mist);
+  border: 1px solid transparent;
+  border-radius: 20px;
+  padding: 12px 20px;
   transition: box-shadow 0.3s ease, padding 0.3s ease;
 }
 
@@ -418,7 +420,7 @@ export const COBOX_CSS = String.raw`
 
 .cbx-hero {
   position: relative;
-  margin: 108px 20px 0;
+  margin: 130px 20px 0;
   border-radius: 20px 20px 0 20px;
   overflow: hidden;
   min-height: calc(100vh - 130px);
@@ -3126,7 +3128,13 @@ export const COBOX_CSS = String.raw`
     margin-left: auto;
   }
 
+  .cbx-headbar {
+    min-height: 72px;
+    padding: 12px 16px;
+  }
+
   .cbx-hero {
+    margin-top: 104px;
     min-height: 100%;
     padding: 50px 15px 15px;
   }
@@ -3199,7 +3207,7 @@ export const COBOX_CSS = String.raw`
 
 @media (max-width: 860px) {
   .cbx-shell {
-    width: calc(100% - 36px);
+    width: 100%;
   }
 
   .cbx-hero,
@@ -3327,7 +3335,7 @@ export const COBOX_CSS = String.raw`
   }
 
   .cbx-shell {
-    width: calc(100% - 28px);
+    width: 100%;
   }
 
   .cbx-headwrap {
@@ -3336,6 +3344,7 @@ export const COBOX_CSS = String.raw`
   }
 
   .cbx-headbar {
+    min-height: 60px;
     padding: 9px 10px 9px 12px;
     gap: 10px;
   }
