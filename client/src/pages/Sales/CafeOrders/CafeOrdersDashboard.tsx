@@ -266,7 +266,7 @@ export default function CafeOrdersDashboard() {
             <div aria-hidden="true" className="absolute inset-y-0 right-0 w-full bg-gradient-to-br from-[#2563EB]/55 via-[#3B82F6]/35 to-[#60A5FA]/20 sm:w-[64%]" style={{ WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 22%, black 100%)", maskImage: "linear-gradient(to right, transparent 0%, black 22%, black 100%)" }} />
             <div aria-hidden="true" className="absolute inset-y-0 left-0 w-full bg-white/90 sm:w-[66%]" style={{ WebkitMaskImage: "linear-gradient(to right, black 0%, black 76%, transparent 100%)", maskImage: "linear-gradient(to right, black 0%, black 76%, transparent 100%)" }} />
             <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center gap-2.5 px-6 py-6 sm:w-[76%]">
-              <h1 className="flex flex-wrap items-center gap-x-2 text-[29px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[36px]">
+              <h1 className="flex flex-wrap items-center gap-x-2 text-[22px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[28px]">
                 <span className="text-primary">Cafe Orders</span><span className="text-accent">Dashboard</span>
               </h1>
               <p className="max-w-md text-[11px] font-pmedium leading-5 text-slate-500">Live table service, reservations, kitchen flow, sales performance, and order history.</p>

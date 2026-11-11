@@ -640,7 +640,7 @@ const ProfessionalDashboard = ({
         <ArrowRight size={14} className="flex-shrink-0 text-accent" />
       </button>
 
-      {trialDaysLeft != null && (
+      {/* {trialDaysLeft != null && (
         <a
           href="/profile/plan-billing"
           data-tour="professional-trial"
@@ -674,7 +674,7 @@ const ProfessionalDashboard = ({
             className={`flex-shrink-0 ${isTrialExpiringSoon ? "text-amber-600" : "text-accent"}`}
           />
         </a>
-      )}
+      )} */}
 
       <WonoListingsCard />
       <VerifiedBadgeNotice />

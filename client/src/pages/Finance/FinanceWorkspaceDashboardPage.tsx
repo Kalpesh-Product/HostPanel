@@ -518,7 +518,7 @@ export default function FinanceWorkspaceDashboardPage() {
               }}
             />
             <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center gap-2.5 px-6 py-6 sm:w-[58%]">
-              <h1 className="text-[30px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[38px]">
+              <h1 className="text-[22px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[28px]">
                 <span className="text-primary">Finance</span>{" "}
                 <span className="text-accent">Dashboard</span>
               </h1>

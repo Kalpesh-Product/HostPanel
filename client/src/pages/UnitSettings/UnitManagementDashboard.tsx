@@ -322,7 +322,7 @@ export default function UnitManagementDashboard() {
               }}
             />
             <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center gap-2.5 px-6 py-6 sm:w-[78%]">
-              <h1 className="flex flex-wrap items-center gap-x-2 text-[29px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[36px]">
+              <h1 className="flex flex-wrap items-center gap-x-2 text-[22px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[28px]">
                 <span className="text-primary">Unit Management</span>
                 <span className="text-accent">Dashboard</span>
               </h1>
