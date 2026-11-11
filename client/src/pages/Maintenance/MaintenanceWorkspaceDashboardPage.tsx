@@ -29,6 +29,7 @@ import {
 import { getRepairLogs } from "../../services/repair-logs";
 import { DepartmentVisitorsCard } from "../Dashboard/FrontendDashboard/dashboard/DepartmentVisitorsCard";
 import { TeamLiveStatusCard } from "../Dashboard/FrontendDashboard/dashboard/TeamLiveStatusCard";
+import { isModuleUsable } from "../Dashboard/FrontendDashboard/dashboard/dashboardUtils";
 
 type Row = Record<string, any>;
 type DashboardData = {
@@ -308,8 +309,15 @@ export default function MaintenanceWorkspaceDashboardPage() {
 
   const modules = useMemo(() => {
     if (access.isLoading) return [...MODULES];
-    const enabled = MODULES.filter((module) => access.hasModule(module.id));
-    return enabled.length ? enabled : [...MODULES];
+    return MODULES.filter((module) =>
+      isModuleUsable(
+        access.grantedModuleIds,
+        access.enabledModuleIds,
+        module.id,
+        (module as { verticals?: string[] }).verticals,
+        access.verticalKeys,
+      ),
+    );
   }, [access]);
   const stats = useMemo(() => {
     const open = data.repairs.filter((row) =>

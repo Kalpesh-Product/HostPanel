@@ -354,6 +354,9 @@ const CompanySettingsDashboard = () => {
               onUpgradeClick={() => setShowUpgradeModal(true)}
               enabledModuleIds={access.enabledModuleIds}
               grantedModuleIds={access.grantedModuleIds}
+              verticalKeys={access.verticalKeys}
+              activeMembers={access.metrics.activeMembers}
+              totalMembers={access.metrics.totalMembers}
               trialDaysLeft={trialDaysLeft}
               isTrialExpiringSoon={planSummary?.planStatus === "expiring_soon"}
             />

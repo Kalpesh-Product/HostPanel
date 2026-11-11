@@ -22,6 +22,7 @@ import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
 import PageFrame from "../../components/Pages/PageFrame";
 import { DepartmentVisitorsCard } from "../Dashboard/FrontendDashboard/dashboard/DepartmentVisitorsCard";
 import { TeamLiveStatusCard } from "../Dashboard/FrontendDashboard/dashboard/TeamLiveStatusCard";
+import { isModuleUsable } from "../Dashboard/FrontendDashboard/dashboard/dashboardUtils";
 import hrBannerImage from "../../assets/hr-dashboard-banner.webp";
 import { DEFAULT_FISCAL_YEAR } from "../../features/finance/utils/fiscalYear";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
@@ -457,8 +458,15 @@ export default function HRWorkspaceDashboardPage() {
 
   const enabledModules = useMemo(() => {
     if (access.isLoading) return [...HR_MODULES];
-    const filtered = HR_MODULES.filter((module) => access.hasModule(module.id));
-    return filtered.length ? filtered : [...HR_MODULES];
+    return HR_MODULES.filter((module) =>
+      isModuleUsable(
+        access.grantedModuleIds,
+        access.enabledModuleIds,
+        module.id,
+        (module as { verticals?: string[] }).verticals,
+        access.verticalKeys,
+      ),
+    );
   }, [access]);
   const stats = useMemo(() => {
     const present = data.teamAttendance.filter((record) => {

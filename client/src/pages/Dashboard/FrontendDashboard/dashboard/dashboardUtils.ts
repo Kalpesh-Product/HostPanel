@@ -10,7 +10,10 @@ import { formatWorkspaceCurrency } from "../../../../lib/workspaceLocalization";
 // "visitor-management" (Key Apps, singular) ids point at the same page and
 // are granted interchangeably across the catalog and role grants — access
 // checks must accept either spelling.
-const VISITOR_EQUIVALENT_MODULE_IDS = ["visitor-management", "visitors-management"];
+const VISITOR_EQUIVALENT_MODULE_IDS = [
+  "visitor-management",
+  "visitors-management",
+];
 
 /**
  * True when a module is both included in the plan/workspace (enabled) and
@@ -29,6 +32,45 @@ export const hasModuleUse = (
       ? VISITOR_EQUIVALENT_MODULE_IDS
       : [moduleId];
   return candidates.some((id) => enabledIds.has(id) && grantedIds.has(id));
+};
+
+/**
+ * True when a module is actually usable right now on a department/workspace
+ * dashboard: plan/workspace-enabled, granted to the current member, AND —
+ * for modules tagged with their own `verticals` list (see
+ * salesDashboardModules.ts) — the workspace has at least one of those
+ * verticals enabled (edited via Unit Settings). Untagged modules skip the
+ * vertical check entirely. Dashboards must only render modules that pass
+ * this; failing modules are omitted outright, never shown as locked tiles —
+ * the locked-tile UI is exclusive to the module landing cards.
+ */
+export const isModuleUsable = (
+  grantedIds: Set<string>,
+  enabledIds: Set<string>,
+  moduleId: string,
+  moduleVerticals: string[] | undefined,
+  workspaceVerticalKeys: string[],
+): boolean => {
+  if (!hasModuleUse(grantedIds, enabledIds, moduleId)) return false;
+  if (!moduleVerticals || !moduleVerticals.length) return true;
+  return moduleVerticals.some((key) => workspaceVerticalKeys.includes(key));
+};
+
+/**
+ * Lets small module sets use the complete row instead of leaving the fixed
+ * four/five-column gaps used by dense dashboards. Every returned Tailwind
+ * class is literal so the production build can discover it safely.
+ */
+export const getModuleGridClass = (count: number): string => {
+  if (count <= 1) return "grid grid-cols-1 gap-4";
+  if (count === 2) return "grid grid-cols-1 gap-4 sm:grid-cols-2";
+  if (count === 3) {
+    return "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3";
+  }
+  if (count === 4) {
+    return "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4";
+  }
+  return "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
 };
 
 export const resolveWorkspaceId = (storedUser: any): string =>
@@ -56,7 +98,11 @@ export const getGreeting = (hours: number) => {
 
 export const statusBadgeColor = (status: string) => {
   const s = (status || "").toLowerCase();
-  if (["confirmed", "active", "resolved", "completed", "paid"].some((k) => s.includes(k)))
+  if (
+    ["confirmed", "active", "resolved", "completed", "paid"].some((k) =>
+      s.includes(k),
+    )
+  )
     return "bg-emerald-50 text-emerald-700 border-emerald-200";
   if (["pending", "in_progress", "inprogress"].some((k) => s.includes(k)))
     return "bg-amber-50 text-amber-700 border-amber-200";

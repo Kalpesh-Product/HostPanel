@@ -41,6 +41,10 @@ import {
 } from "./salesDashboardModules";
 import { DepartmentVisitorsCard } from "../Dashboard/FrontendDashboard/dashboard/DepartmentVisitorsCard";
 import { TeamLiveStatusCard } from "../Dashboard/FrontendDashboard/dashboard/TeamLiveStatusCard";
+import {
+  getModuleGridClass,
+  isModuleUsable,
+} from "../Dashboard/FrontendDashboard/dashboard/dashboardUtils";
 
 type LeadRecord = {
   id?: string;
@@ -409,7 +413,15 @@ export default function SalesWorkspaceDashboardPage() {
 
   const enabledModules = useMemo(
     () =>
-      SALES_DASHBOARD_MODULES.filter((module) => access.hasModule(module.id)),
+      SALES_DASHBOARD_MODULES.filter((module) =>
+        isModuleUsable(
+          access.grantedModuleIds,
+          access.enabledModuleIds,
+          module.id,
+          module.verticals,
+          access.verticalKeys,
+        ),
+      ),
     [access],
   );
 
@@ -1032,7 +1044,7 @@ export default function SalesWorkspaceDashboardPage() {
               <RefreshCw size={13} /> Refresh
             </button> */}
           </div>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">
+          <div className={getModuleGridClass(enabledModules.length)}>
             {enabledModules.map((module) => {
               const Icon = module.icon;
               return (

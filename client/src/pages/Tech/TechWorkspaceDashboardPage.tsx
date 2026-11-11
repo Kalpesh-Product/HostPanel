@@ -27,6 +27,7 @@ import { getWebsiteLeads } from "../../services/sales-leads";
 import { axiosPrivate } from "../../utils/axios";
 import { DepartmentVisitorsCard } from "../Dashboard/FrontendDashboard/dashboard/DepartmentVisitorsCard";
 import { TeamLiveStatusCard } from "../Dashboard/FrontendDashboard/dashboard/TeamLiveStatusCard";
+import { isModuleUsable } from "../Dashboard/FrontendDashboard/dashboard/dashboardUtils";
 
 type Row = Record<string, any>;
 type DashboardData = { leads: Row[]; reviews: Row[]; finance: Row | null };
@@ -323,10 +324,16 @@ export default function TechWorkspaceDashboardPage() {
 
   const modules = useMemo(() => {
     if (access.isLoading) return [...MODULES];
-    const enabled = MODULES.filter((module) =>
-      access.hasModule(module.accessId || module.id),
-    );
-    return enabled.length ? enabled : [...MODULES];
+    return MODULES.filter((module) => {
+      const m = module as { id: string; accessId?: string; verticals?: string[] };
+      return isModuleUsable(
+        access.grantedModuleIds,
+        access.enabledModuleIds,
+        m.accessId || m.id,
+        m.verticals,
+        access.verticalKeys,
+      );
+    });
   }, [access]);
   const stats = useMemo(() => {
     const newLeads = data.leads.filter((row) =>

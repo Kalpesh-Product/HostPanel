@@ -7,22 +7,12 @@ import { Role } from "../models/Role.js";
 import Department from "../models/Department.js";
 import { MeetingRoomBooking } from "../models/MeetingRoomBooking.js";
 import { Ticket } from "../models/Ticket.js";
-import {
-  buildWorkspaceModuleCatalog,
-  buildWorkspaceModulesStructure,
-  getEffectiveEnabledModuleIds,
-  getWorkspaceVerticalKeys,
-} from "../config/workspaceModuleCatalog.js";
+import { buildWorkspaceModuleCatalog, buildWorkspaceModulesStructure, getEffectiveEnabledModuleIds, getWorkspaceVerticalKeys } from "../config/workspaceModuleCatalog.js";
 import { ensureEmployeeProfileForMember } from "../services/core/hr.service.js";
 import { sendMail } from "../config/mailer.js";
 import { getCountryBillingDefaults, normalizeBillingConfig } from "../utils/workspaceBilling.js";
 import { recalcResourceDailyPricesForWorkspace } from "../services/resourceService.js";
-import {
-  isValidCurrency,
-  isValidTimeZone,
-  normalizeCurrency,
-  normalizeTimeZone,
-} from "../utils/workspaceLocalization.js";
+import { isValidCurrency, isValidTimeZone, normalizeCurrency, normalizeTimeZone } from "../utils/workspaceLocalization.js";
 import {
   resolveAccountPlan,
   syncAccountWorkspacePlans,
@@ -77,9 +67,7 @@ const resolvePlanLifecycleFields = async ({
       selectedPlan: effectivePlan,
       planStatus: { $in: ["active", "expiring_soon"] },
     })
-      .select(
-        "purchasedPlan planStatus planStartDate planExpiryDate planLastPaidAt billingCycle customPlanModuleIds customPlanMonthlyPriceUsd",
-      )
+      .select("purchasedPlan planStatus planStartDate planExpiryDate planLastPaidAt billingCycle customPlanModuleIds customPlanMonthlyPriceUsd")
       .lean();
     if (sibling) {
       return {
@@ -141,7 +129,10 @@ const _getRoleName = (role: any) => {
   return String(role);
 };
 const _normalizeRole = (role = "") => {
-  const n = _getRoleName(role).trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const n = _getRoleName(role)
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
   if (n === "founder") return "owner";
   if (n === "superadmin") return "super_admin";
   return n || "employee";
@@ -164,19 +155,11 @@ const PENDING_TICKET_STATUSES = new Set(["Open", "In Progress"]);
 
 const computePerformanceMetrics = (tickets: any[] = [], bookings: any[] = []) => {
   const totalTickets = tickets.length;
-  const resolvedTickets = tickets.filter((ticket: any) =>
-    RESOLVED_TICKET_STATUSES.has(String(ticket?.status || "")),
-  ).length;
-  const pendingTickets = tickets.filter((ticket: any) =>
-    PENDING_TICKET_STATUSES.has(String(ticket?.status || "")),
-  ).length;
+  const resolvedTickets = tickets.filter((ticket: any) => RESOLVED_TICKET_STATUSES.has(String(ticket?.status || ""))).length;
+  const pendingTickets = tickets.filter((ticket: any) => PENDING_TICKET_STATUSES.has(String(ticket?.status || ""))).length;
 
   const totalBookings = bookings.length;
-  const completedBookings = bookings.filter(
-    (booking: any) =>
-      String(booking?.status || "") === "completed" &&
-      String(booking?.scheduleChangeType || "") !== "rescheduled",
-  ).length;
+  const completedBookings = bookings.filter((booking: any) => String(booking?.status || "") === "completed" && String(booking?.scheduleChangeType || "") !== "rescheduled").length;
 
   const ticketResolutionRate = totalTickets > 0 ? Math.round((resolvedTickets / totalTickets) * 100) : 0;
   const bookingCompletionRate = totalBookings > 0 ? Math.round((completedBookings / totalBookings) * 100) : 0;
@@ -185,13 +168,7 @@ const computePerformanceMetrics = (tickets: any[] = [], bookings: any[] = []) =>
   // a unit that has tickets but no bookings (or vice versa) shouldn't be
   // penalized by the other module sitting at 0%.
   const overallScore =
-    totalTickets > 0 && totalBookings > 0
-      ? Math.round((ticketResolutionRate + bookingCompletionRate) / 2)
-      : totalTickets > 0
-        ? ticketResolutionRate
-        : totalBookings > 0
-          ? bookingCompletionRate
-          : 0;
+    totalTickets > 0 && totalBookings > 0 ? Math.round((ticketResolutionRate + bookingCompletionRate) / 2) : totalTickets > 0 ? ticketResolutionRate : totalBookings > 0 ? bookingCompletionRate : 0;
 
   return {
     totalTickets,
@@ -216,7 +193,11 @@ const normalizeStringArray = (value: unknown) => {
 };
 
 const derivePrimaryVertical = (businessTypes: string[] = []) => {
-  const normalized = businessTypes.map((item) => String(item || "").trim().toLowerCase());
+  const normalized = businessTypes.map((item) =>
+    String(item || "")
+      .trim()
+      .toLowerCase(),
+  );
   if (normalized.includes("co-working")) return "co-working";
   if (normalized.includes("co-living")) return "co-living";
   if (normalized.includes("workation")) return "workation";
@@ -232,28 +213,18 @@ const formatIndustryFromBusinessTypes = (businessTypes: string[] = []) =>
     .filter(Boolean)
     .join(", ");
 
-const buildAuthUserPayload = (
-  user: any,
-  company: any,
-  workspaceMembership: any = null,
-  workspaceCount = 1,
-) => {
+const buildAuthUserPayload = (user: any, company: any, workspaceMembership: any = null, workspaceCount = 1) => {
   // This payload is only built inside completeWorkspaceSetup, where the acting
   // user is always the workspace owner (assigned the "founder" role). Resolve
   // the role to its NAME — never leak the raw Role ObjectId to the client, and
   // never fall back to a generic label like "member".
-  const membershipRoleName = workspaceMembership
-    ? _getRoleName(workspaceMembership.role) || "founder"
-    : null;
-  const isFounderMembership =
-    !!membershipRoleName &&
-    ["founder", "owner"].includes(String(membershipRoleName).trim().toLowerCase());
+  const membershipRoleName = workspaceMembership ? _getRoleName(workspaceMembership.role) || "founder" : null;
+  const isFounderMembership = !!membershipRoleName && ["founder", "owner"].includes(String(membershipRoleName).trim().toLowerCase());
 
   return {
     ...user,
     companyId: company?.companyId || user?.companyId,
-    effectiveNomadsCompanyId:
-      company?.linkedNomadsCompanyId || company?.companyId || user?.companyId,
+    effectiveNomadsCompanyId: company?.linkedNomadsCompanyId || company?.companyId || user?.companyId,
     companiesListingRequested: Boolean(company?.companiesListingRequestedAt),
     companyName: company?.companyName,
     logo: company?.logo,
@@ -287,8 +258,7 @@ const buildAuthUserPayload = (
 const SETUP_DOCUMENT_KINDS = ["signedAgreement", "businessDocument"];
 const MAX_BUSINESS_DOCUMENTS = 5;
 
-const setupDocumentPrefix = (companyId: string) =>
-  `host-setup-documents/${String(companyId || "").trim()}/`;
+const setupDocumentPrefix = (companyId: string) => `host-setup-documents/${String(companyId || "").trim()}/`;
 
 const toSafeFileName = (name: unknown) =>
   String(name || "document")
@@ -307,19 +277,17 @@ const normalizeSetupDocument = (doc: any, companyId: string) => {
   return {
     url,
     id,
-    name: String(doc.name || "").trim().slice(0, 200) || toSafeFileName(id.split("/").pop()),
+    name:
+      String(doc.name || "")
+        .trim()
+        .slice(0, 200) || toSafeFileName(id.split("/").pop()),
   };
 };
 
 const findCompanyAgreement = async (user: any) => {
-  const company =
-    (user?.companyId && (await Company.findOne({ companyId: user.companyId }).lean().exec())) ||
-    (user?.company && (await Company.findById(user.company).lean().exec())) ||
-    null;
+  const company = (user?.companyId && (await Company.findOne({ companyId: user.companyId }).lean().exec())) || (user?.company && (await Company.findById(user.company).lean().exec())) || null;
   const agreement = (company as any)?.agreementDocument;
-  return agreement?.url
-    ? { url: agreement.url, name: agreement.name || "Agreement.pdf" }
-    : null;
+  return agreement?.url ? { url: agreement.url, name: agreement.name || "Agreement.pdf" } : null;
 };
 
 // GET /api/workspaces/setup-agreement
@@ -348,10 +316,7 @@ export const uploadSetupDocument = async (req, res, next) => {
       return res.status(404).json({ message: "Host user not found." });
     }
 
-    const uploaded = await uploadFileToS3(
-      `${setupDocumentPrefix(user.companyId)}${kind}/${Date.now()}_${toSafeFileName(req.file.originalname)}`,
-      req.file,
-    );
+    const uploaded = await uploadFileToS3(`${setupDocumentPrefix(user.companyId)}${kind}/${Date.now()}_${toSafeFileName(req.file.originalname)}`, req.file);
     return res.status(201).json({
       document: {
         url: uploaded.url,
@@ -394,10 +359,7 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       const submitted = workspaceDetails.agreement || {};
       const sentAgreement = await findCompanyAgreement(user);
       const signedDocument = normalizeSetupDocument(submitted.signedDocument, user.companyId);
-      const businessDocuments = (Array.isArray(submitted.businessDocuments)
-        ? submitted.businessDocuments
-        : []
-      )
+      const businessDocuments = (Array.isArray(submitted.businessDocuments) ? submitted.businessDocuments : [])
         .slice(0, MAX_BUSINESS_DOCUMENTS)
         .map((doc) => normalizeSetupDocument(doc, user.companyId))
         .filter(Boolean);
@@ -453,36 +415,28 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       if (keptCount >= keptLimit) {
         return res.status(403).json({
           code: "WORKSPACE_LIMIT_REACHED",
-          message: `Your ${effectivePlan} plan allows up to ${keptLimit} unit${
-            keptLimit === 1 ? "" : "s"
-          }. Delete a unit to add a new one.`,
+          message: `Your ${effectivePlan} plan allows up to ${keptLimit} unit${keptLimit === 1 ? "" : "s"}. Delete a unit to add a new one.`,
         });
       }
       if (activeCount >= activeLimit) {
         return res.status(403).json({
           code: "ACTIVE_WORKSPACE_LIMIT_REACHED",
-          message: `Only ${activeLimit} unit${
-            activeLimit === 1 ? "" : "s"
-          } can be active at a time on the ${effectivePlan} plan. Disable an active unit before adding another.`,
+          message: `Only ${activeLimit} unit${activeLimit === 1 ? "" : "s"} can be active at a time on the ${effectivePlan} plan. Disable an active unit before adding another.`,
         });
       }
     }
 
-    const normalizedWorkspaceName = normalizeWorkspaceName(
-      workspaceDetails.workspaceName || "",
-    );
-    const normalizedBusinessName = String(
-      workspaceDetails.businessName || "",
-    ).trim();
+    const normalizedWorkspaceName = normalizeWorkspaceName(workspaceDetails.workspaceName || "");
+    const normalizedBusinessName = String(workspaceDetails.businessName || "").trim();
     const normalizedBrandName = String(workspaceDetails.brandName || "").trim();
     const requestedTimeZone = String(workspaceDetails.timezone || "").trim();
-    const requestedCurrency = String(workspaceDetails.currency || "").trim().toUpperCase();
-    const requestedCountryCode = String(workspaceDetails.countryCode || "").trim().toUpperCase();
-    const requestedBilling = normalizeBillingConfig(
-      workspaceDetails.billing,
-      requestedCountryCode,
-      workspaceDetails.state,
-    );
+    const requestedCurrency = String(workspaceDetails.currency || "")
+      .trim()
+      .toUpperCase();
+    const requestedCountryCode = String(workspaceDetails.countryCode || "")
+      .trim()
+      .toUpperCase();
+    const requestedBilling = normalizeBillingConfig(workspaceDetails.billing, requestedCountryCode, workspaceDetails.state);
 
     if (!requestedTimeZone || !isValidTimeZone(requestedTimeZone)) {
       return res.status(400).json({
@@ -514,9 +468,7 @@ export const completeWorkspaceSetup = async (req, res, next) => {
 
     const normalizedBusinessTypes = normalizeStringArray(workspaceDetails.businessTypes);
 
-    let company =
-      (user.companyId && (await Company.findOne({ companyId: user.companyId }))) ||
-      (user.company && (await Company.findById(user.company)));
+    let company = (user.companyId && (await Company.findOne({ companyId: user.companyId }))) || (user.company && (await Company.findById(user.company)));
 
     if (!company) {
       company = await Company.create({
@@ -674,9 +626,7 @@ export const completeWorkspaceSetup = async (req, res, next) => {
     await user.save();
 
     const updatedUser = await HostUser.findById(user._id).lean().exec();
-    const updatedCompany =
-      (company?._id && (await Company.findById(company._id).lean().exec())) ||
-      null;
+    const updatedCompany = (company?._id && (await Company.findById(company._id).lean().exec())) || null;
 
     const workspaceCount = await WorkspaceMember.countDocuments({
       user: user._id,
@@ -686,12 +636,7 @@ export const completeWorkspaceSetup = async (req, res, next) => {
     return res.status(201).json({
       message: "Unit created successfully.",
       workspace,
-      user: buildAuthUserPayload(
-        updatedUser,
-        updatedCompany,
-        workspaceMembership,
-        workspaceCount,
-      ),
+      user: buildAuthUserPayload(updatedUser, updatedCompany, workspaceMembership, workspaceCount),
     });
   } catch (error) {
     next(error);
@@ -710,7 +655,10 @@ const getCurrentWorkspaceContext = async (userId: string) => {
   }
 
   if (!workspace) {
-    const membership = await WorkspaceMember.findOne({ user: user._id, isActive: true })
+    const membership = await WorkspaceMember.findOne({
+      user: user._id,
+      isActive: true,
+    })
       .sort({ isPrimary: -1, createdAt: 1 })
       .lean()
       .exec();
@@ -720,7 +668,10 @@ const getCurrentWorkspaceContext = async (userId: string) => {
   }
 
   if (!workspace) {
-    workspace = await Workspace.findOne({ owner: user._id, isActive: true }).sort({
+    workspace = await Workspace.findOne({
+      owner: user._id,
+      isActive: true,
+    }).sort({
       createdAt: 1,
     });
   }
@@ -736,8 +687,7 @@ const canManageWorkspaces = (workspaceMembership: any) => {
 };
 
 const normalizeWorkspaceName = (value: unknown) => String(value || "").trim();
-const buildWorkspaceNameRegex = (value: string) =>
-  new RegExp(`^${value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
+const buildWorkspaceNameRegex = (value: string) => new RegExp(`^${value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
 
 export const validateWorkspaceName = async (req, res, next) => {
   try {
@@ -777,10 +727,7 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
     const ownerId = workspace.owner;
     // Include disabled AND deleted workspaces so the founder can see disabled
     // ones (to re-enable) and deleted ones (locked, with a recovery request).
-    const ownerWorkspaces = await Workspace.find({ owner: ownerId })
-      .sort({ createdAt: 1 })
-      .lean()
-      .exec();
+    const ownerWorkspaces = await Workspace.find({ owner: ownerId }).sort({ createdAt: 1 }).lean().exec();
 
     // The account's main (registration) workspace can never be disabled or
     // deleted — it is the earliest-created non-deleted workspace.
@@ -789,21 +736,18 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
     const keptLimit = getWorkspaceLimitForPlan(accountPlan);
     const activeLimit = getActiveWorkspaceLimitForPlan(accountPlan);
     const keptWorkspaceCount = ownerWorkspaces.filter((item) => item.isDeleted !== true).length;
-    const activeWorkspaceCount = ownerWorkspaces.filter(
-      (item) => item.isDeleted !== true && item.isActive !== false,
-    ).length;
+    const activeWorkspaceCount = ownerWorkspaces.filter((item) => item.isDeleted !== true && item.isActive !== false).length;
 
     const workspaceIds = ownerWorkspaces.map((item) => item._id);
-    const membershipCounts = await WorkspaceMember.aggregate([
-      { $match: { workspace: { $in: workspaceIds }, isActive: true } },
-      { $group: { _id: "$workspace", count: { $sum: 1 } } },
-    ]);
+    const membershipCounts = await WorkspaceMember.aggregate([{ $match: { workspace: { $in: workspaceIds }, isActive: true } }, { $group: { _id: "$workspace", count: { $sum: 1 } } }]);
     const memberMap = new Map(membershipCounts.map((item) => [toId(item._id), Number(item.count || 0)]));
 
     const allDepartments = await Department.find({
       workspaceId: { $in: workspaceIds },
       isActive: true,
-    }).lean().exec();
+    })
+      .lean()
+      .exec();
 
     const departmentsByWorkspace = new Map<string, any[]>();
     for (const dept of allDepartments) {
@@ -874,21 +818,17 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
     // client/src/utils/workspacePlanAccess.ts — keep both in lockstep.
     // Basic workspaces have no real departments (Founder/Super Admin only);
     // Professional includes Sales + Technology plus workspace-created departments; Custom is unrestricted.
-    const DEFAULT_DEPARTMENT_NAMES = new Set([
-      "hr",
-      "administration",
-      "sales",
-      "finance",
-      "maintenance",
-      "technology",
-      "it",
-    ]);
+    const DEFAULT_DEPARTMENT_NAMES = new Set(["hr", "administration", "sales", "finance", "maintenance", "technology", "it"]);
     const PROFESSIONAL_DEPARTMENT_NAMES = new Set(["sales", "technology"]);
     const isDepartmentAllowedForWorkspacePlan = (plan: unknown, name: unknown) => {
-      const normalizedPlan = String(plan || "basic").trim().toLowerCase();
+      const normalizedPlan = String(plan || "basic")
+        .trim()
+        .toLowerCase();
       if (normalizedPlan === "basic") return false;
       if (normalizedPlan === "professional") {
-        const normalizedName = String(name || "").trim().toLowerCase();
+        const normalizedName = String(name || "")
+          .trim()
+          .toLowerCase();
         return PROFESSIONAL_DEPARTMENT_NAMES.has(normalizedName) || !DEFAULT_DEPARTMENT_NAMES.has(normalizedName);
       }
       return true;
@@ -899,9 +839,7 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
     const list = ownerWorkspaces.map((item) => {
       const workspaceId = toId(item._id);
       const workspaceMembers = membersByWorkspace.get(workspaceId) || [];
-      const departments = (departmentsByWorkspace.get(workspaceId) || []).filter((dept: any) =>
-        isDepartmentAllowedForWorkspacePlan(item.selectedPlan, dept?.name),
-      );
+      const departments = (departmentsByWorkspace.get(workspaceId) || []).filter((dept: any) => isDepartmentAllowedForWorkspacePlan(item.selectedPlan, dept?.name));
       departments.forEach((dept: any) => {
         if (dept?.name) allowedDepartmentNames.add(dept.name);
       });
@@ -980,20 +918,26 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
       const departmentEmployeeCounts = new Map<string, number>();
       employees.forEach((employee) => {
         (employee.departments || []).forEach((departmentName: string) => {
-          const key = String(departmentName || "").trim().toLowerCase();
+          const key = String(departmentName || "")
+            .trim()
+            .toLowerCase();
           if (!key) return;
           departmentEmployeeCounts.set(key, Number(departmentEmployeeCounts.get(key) || 0) + 1);
         });
       });
       const departmentBookingCounts = new Map<string, number>();
       workspaceBookings.forEach((booking: any) => {
-        const key = String(booking?.department || "").trim().toLowerCase();
+        const key = String(booking?.department || "")
+          .trim()
+          .toLowerCase();
         if (!key) return;
         departmentBookingCounts.set(key, Number(departmentBookingCounts.get(key) || 0) + 1);
       });
       const departmentTicketCounts = new Map<string, number>();
       workspaceTickets.forEach((ticket: any) => {
-        const key = String(ticket?.department || "").trim().toLowerCase();
+        const key = String(ticket?.department || "")
+          .trim()
+          .toLowerCase();
         if (!key) return;
         departmentTicketCounts.set(key, Number(departmentTicketCounts.get(key) || 0) + 1);
       });
@@ -1014,10 +958,11 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
         businessTypes: Array.isArray(item.businessTypes) ? item.businessTypes : [],
         timezone: item.preferences?.timezone || "",
         currency: item.preferences?.currency || "",
-        selectedPlan: String(item.selectedPlan || "basic").trim().toLowerCase(),
+        selectedPlan: String(item.selectedPlan || "basic")
+          .trim()
+          .toLowerCase(),
         status: item.isDeleted === true ? "deleted" : item.isActive === false ? "inactive" : "active",
-        isActiveWorkspace:
-          item.isDeleted !== true && workspaceId === toId(user.primaryWorkspace || workspace._id),
+        isActiveWorkspace: item.isDeleted !== true && workspaceId === toId(user.primaryWorkspace || workspace._id),
         isMain: workspaceId === mainWorkspaceId,
         isDeleted: item.isDeleted === true,
         isDisabled: item.isDeleted !== true && item.isActive === false,
@@ -1059,7 +1004,9 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
           employees,
           roles,
           departments: departments.map((department: any) => {
-            const key = String(department?.name || "").trim().toLowerCase();
+            const key = String(department?.name || "")
+              .trim()
+              .toLowerCase();
             return {
               name: department?.name || "",
               totalEmployees: departmentEmployeeCounts.get(key) || 0,
@@ -1105,14 +1052,8 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
 
     // Merged (across all linked units) performance, weighted by the actual
     // resolved/completed counts so one busy unit can't be skewed by a quiet one.
-    const mergedTicketResolutionRate =
-      summaryAgg.totalTickets > 0
-        ? Math.round((summaryAgg.resolvedTickets / summaryAgg.totalTickets) * 100)
-        : 0;
-    const mergedBookingCompletionRate =
-      summaryAgg.totalMeetingBookings > 0
-        ? Math.round((summaryAgg.completedBookings / summaryAgg.totalMeetingBookings) * 100)
-        : 0;
+    const mergedTicketResolutionRate = summaryAgg.totalTickets > 0 ? Math.round((summaryAgg.resolvedTickets / summaryAgg.totalTickets) * 100) : 0;
+    const mergedBookingCompletionRate = summaryAgg.totalMeetingBookings > 0 ? Math.round((summaryAgg.completedBookings / summaryAgg.totalMeetingBookings) * 100) : 0;
     const mergedOverallScore =
       summaryAgg.totalTickets > 0 && summaryAgg.totalMeetingBookings > 0
         ? Math.round((mergedTicketResolutionRate + mergedBookingCompletionRate) / 2)
@@ -1222,7 +1163,9 @@ export const updateManagedWorkspace = async (req, res, next) => {
       target.country = String(profile.country || "").trim();
     }
     if (profile.countryCode !== undefined) {
-      target.countryCode = String(profile.countryCode || "").trim().toUpperCase();
+      target.countryCode = String(profile.countryCode || "")
+        .trim()
+        .toUpperCase();
     }
     if (profile.address !== undefined) {
       target.address = String(profile.address || "").trim();
@@ -1235,6 +1178,16 @@ export const updateManagedWorkspace = async (req, res, next) => {
     // and is intentionally left untouched.
     if (profile.businessTypes !== undefined) {
       target.businessTypes = normalizeStringArray(profile.businessTypes);
+      const verticalKeys = getWorkspaceVerticalKeys(target.businessTypes);
+      target.enabledModuleIds = getEffectiveEnabledModuleIds({
+        selectedPlan: target.selectedPlan,
+        existingEnabledModuleIds: Array.isArray(target.enabledModuleIds) ? target.enabledModuleIds : [],
+        verticalKeys,
+      });
+      target.modules = buildWorkspaceModulesStructure({
+        selectedPlan: target.selectedPlan,
+        enabledModuleIds: target.enabledModuleIds,
+      });
     }
     if (profile.timezone !== undefined) {
       const nextTimezone = String(profile.timezone || "").trim();
@@ -1249,7 +1202,9 @@ export const updateManagedWorkspace = async (req, res, next) => {
       };
     }
     if (profile.currency !== undefined) {
-      const nextCurrency = String(profile.currency || "").trim().toUpperCase();
+      const nextCurrency = String(profile.currency || "")
+        .trim()
+        .toUpperCase();
       if (!nextCurrency || !isValidCurrency(nextCurrency)) {
         return res.status(400).json({
           message: "Select a valid ISO currency for this business location.",
@@ -1294,10 +1249,7 @@ const reassignPrimaryToMain = async (user: any, mainWorkspaceId: string) => {
   user.primaryWorkspace = mainWorkspaceId;
   await user.save();
   await WorkspaceMember.updateMany({ user: user._id }, { $set: { isPrimary: false } });
-  await WorkspaceMember.updateOne(
-    { user: user._id, workspace: mainWorkspaceId },
-    { $set: { isPrimary: true, isActive: true } },
-  );
+  await WorkspaceMember.updateOne({ user: user._id, workspace: mainWorkspaceId }, { $set: { isPrimary: true, isActive: true } });
 };
 
 export const setWorkspaceActiveStatus = async (req, res, next) => {
@@ -1344,9 +1296,7 @@ export const setWorkspaceActiveStatus = async (req, res, next) => {
       if (activeWorkspaceCount >= activeLimit) {
         return res.status(403).json({
           code: "ACTIVE_WORKSPACE_LIMIT_REACHED",
-          message: `Only ${activeLimit} unit${
-            activeLimit === 1 ? "" : "s"
-          } can be active at a time on the ${accountPlan} plan. Disable another active unit first.`,
+          message: `Only ${activeLimit} unit${activeLimit === 1 ? "" : "s"} can be active at a time on the ${accountPlan} plan. Disable another active unit first.`,
         });
       }
     }
@@ -1359,19 +1309,10 @@ export const setWorkspaceActiveStatus = async (req, res, next) => {
     // founder's access comes back — every other member stays off until the
     // founder enables them individually from the unit's Access page.
     if (!desiredActive) {
-      await WorkspaceMember.updateMany(
-        { workspace: target._id },
-        { $set: { isActive: false, status: "disabled" } },
-      );
+      await WorkspaceMember.updateMany({ workspace: target._id }, { $set: { isActive: false, status: "disabled" } });
     } else {
-      await WorkspaceMember.updateMany(
-        { workspace: target._id, user: { $ne: workspace.owner } },
-        { $set: { isActive: false, status: "disabled" } },
-      );
-      await WorkspaceMember.updateOne(
-        { workspace: target._id, user: workspace.owner },
-        { $set: { isActive: true, status: "joined" } },
-      );
+      await WorkspaceMember.updateMany({ workspace: target._id, user: { $ne: workspace.owner } }, { $set: { isActive: false, status: "disabled" } });
+      await WorkspaceMember.updateOne({ workspace: target._id, user: workspace.owner }, { $set: { isActive: true, status: "joined" } });
     }
 
     if (!desiredActive && String(user.primaryWorkspace || "") === String(target._id)) {
@@ -1429,10 +1370,7 @@ export const deleteManagedWorkspace = async (req, res, next) => {
     target.deletedAt = new Date();
     target.recoveryRequestedAt = null;
     await target.save();
-    await WorkspaceMember.updateMany(
-      { workspace: target._id },
-      { $set: { isActive: false } },
-    );
+    await WorkspaceMember.updateMany({ workspace: target._id }, { $set: { isActive: false } });
 
     if (String(user.primaryWorkspace || "") === String(target._id)) {
       await reassignPrimaryToMain(user, mainWorkspaceId);
@@ -1472,7 +1410,10 @@ export const requestWorkspaceRecovery = async (req, res, next) => {
     if (target.recoveryRequestedAt) {
       return res.status(200).json({
         message: "Recovery has already been requested. The WONO team will reach out.",
-        data: { workspaceId: String(target._id), recoveryRequestedAt: target.recoveryRequestedAt },
+        data: {
+          workspaceId: String(target._id),
+          recoveryRequestedAt: target.recoveryRequestedAt,
+        },
       });
     }
 
@@ -1481,15 +1422,10 @@ export const requestWorkspaceRecovery = async (req, res, next) => {
 
     // Notify the WONO team. Best-effort: the request is recorded regardless of
     // whether the email dispatch succeeds.
-    const supportEmail = String(
-      process.env.WONO_SUPPORT_EMAIL || process.env.SUPPORT_EMAIL || "",
-    ).trim();
+    const supportEmail = String(process.env.WONO_SUPPORT_EMAIL || process.env.SUPPORT_EMAIL || "").trim();
     if (supportEmail) {
       try {
-        const ownerRecord = await HostUser.findById(target.owner)
-          .select("name email companyId")
-          .lean()
-          .exec();
+        const ownerRecord = await HostUser.findById(target.owner).select("name email companyId").lean().exec();
         await sendMail({
           to: supportEmail,
           subject: `Unit recovery requested: ${target.workspaceName || target._id}`,
@@ -1513,7 +1449,10 @@ export const requestWorkspaceRecovery = async (req, res, next) => {
 
     return res.status(200).json({
       message: "Recovery requested. The WONO team will review and restore this unit.",
-      data: { workspaceId: String(target._id), recoveryRequestedAt: target.recoveryRequestedAt },
+      data: {
+        workspaceId: String(target._id),
+        recoveryRequestedAt: target.recoveryRequestedAt,
+      },
     });
   } catch (error) {
     next(error);
@@ -1535,11 +1474,16 @@ export const switchWorkspace = async (req, res, next) => {
       user: user._id,
       workspace: workspaceId,
       isActive: true,
-    }).lean().exec();
+    })
+      .lean()
+      .exec();
     if (!targetMembership) {
       return res.status(403).json({ message: "You do not have access to this workspace." });
     }
-    const targetWorkspace = await Workspace.findOne({ _id: workspaceId, isActive: true });
+    const targetWorkspace = await Workspace.findOne({
+      _id: workspaceId,
+      isActive: true,
+    });
     if (!targetWorkspace) return res.status(404).json({ message: "Selected workspace not found." });
 
     user.primaryWorkspace = targetWorkspace._id;
@@ -1554,29 +1498,22 @@ export const switchWorkspace = async (req, res, next) => {
     }
 
     await WorkspaceMember.updateMany({ user: user._id }, { $set: { isPrimary: false } });
-    await WorkspaceMember.updateOne(
-      { user: user._id, workspace: targetWorkspace._id },
-      { $set: { isPrimary: true, isActive: true } },
-    );
+    await WorkspaceMember.updateOne({ user: user._id, workspace: targetWorkspace._id }, { $set: { isPrimary: true, isActive: true } });
 
-    const memberships = await WorkspaceMember.find({ user: user._id, isActive: true })
+    const memberships = await WorkspaceMember.find({
+      user: user._id,
+      isActive: true,
+    })
       .populate("workspace")
       .lean()
       .exec();
     const accessibleWorkspaces = memberships
-      .filter(
-        (membership: any) =>
-          membership?.workspace &&
-          membership.workspace.isActive !== false &&
-          membership.workspace.isDeleted !== true,
-      )
+      .filter((membership: any) => membership?.workspace && membership.workspace.isActive !== false && membership.workspace.isDeleted !== true)
       .map((membership: any) => ({
         id: toId(membership.workspace?._id),
         workspaceName: membership.workspace?.workspaceName || "Workspace",
         businessName: membership.workspace?.businessName || "",
-        location: [membership.workspace?.city, membership.workspace?.state, membership.workspace?.country]
-          .filter(Boolean)
-          .join(", "),
+        location: [membership.workspace?.city, membership.workspace?.state, membership.workspace?.country].filter(Boolean).join(", "),
         isPrimary: Boolean(membership?.isPrimary),
         isMain: Boolean(membership?.isMainUnit),
       }));
@@ -1604,7 +1541,10 @@ export const getWorkspaceMembers = async (req, res, next) => {
     const workspaceId = req.workspaceMembership?.workspace;
     if (!workspaceId) return res.status(400).json({ message: "Workspace is required" });
 
-    const members = await WorkspaceMember.find({ workspace: workspaceId, isActive: true })
+    const members = await WorkspaceMember.find({
+      workspace: workspaceId,
+      isActive: true,
+    })
       .populate("user", "name email")
       .populate("role", "name")
       .populate("departments", "name")
@@ -1620,12 +1560,13 @@ export const getWorkspaceMembers = async (req, res, next) => {
       fullName: member.user?.name || "",
       email: member.user?.email || "",
       role: _normalizeRole(member.role?.name || "employee"),
-      departments: Array.isArray(member.departments)
-        ? member.departments.map((department: any) => department?.name).filter(Boolean)
-        : [],
+      departments: Array.isArray(member.departments) ? member.departments.map((department: any) => department?.name).filter(Boolean) : [],
     }));
 
-    return res.status(200).json({ message: "Members loaded successfully", data: { members: formatted } });
+    return res.status(200).json({
+      message: "Members loaded successfully",
+      data: { members: formatted },
+    });
   } catch (error) {
     next(error);
   }
@@ -1637,9 +1578,7 @@ export const getWorkspaceSettings = async (req, res, next) => {
     // for tenant users that is the host's workspace (via TenantEmployee →
     // TenantCompany), which getCurrentWorkspaceContext cannot resolve.
     const membershipWorkspaceId = req.workspaceMembership?.workspace;
-    let workspace = membershipWorkspaceId
-      ? await Workspace.findById(membershipWorkspaceId)
-      : null;
+    let workspace = membershipWorkspaceId ? await Workspace.findById(membershipWorkspaceId) : null;
     if (!workspace) {
       ({ workspace } = await getCurrentWorkspaceContext(req.user));
     }
@@ -1660,13 +1599,9 @@ export const getWorkspaceSettings = async (req, res, next) => {
           profile: {
             workspaceName: workspace.workspaceName || "",
             businessName: workspace.businessName || "",
-            location: [workspace.city, workspace.state, workspace.country]
-              .filter(Boolean)
-              .join(", "),
+            location: [workspace.city, workspace.state, workspace.country].filter(Boolean).join(", "),
             industry: "",
-            businessType: Array.isArray(workspace.businessTypes)
-              ? workspace.businessTypes.join(", ")
-              : "",
+            businessType: Array.isArray(workspace.businessTypes) ? workspace.businessTypes.join(", ") : "",
           },
           preferences: {
             timezone: preferences.timezone || "Asia/Kolkata",
@@ -1701,11 +1636,11 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
       return res.status(404).json({ message: "Workspace not found for this user." });
     }
 
-    const selectedPlan = String(workspace.selectedPlan || "basic").trim().toLowerCase();
+    const selectedPlan = String(workspace.selectedPlan || "basic")
+      .trim()
+      .toLowerCase();
     const verticalKeys = getWorkspaceVerticalKeys(workspace.businessTypes);
-    const enabledModuleIds = Array.isArray(workspace.enabledModuleIds)
-      ? workspace.enabledModuleIds
-      : [];
+    const enabledModuleIds = Array.isArray(workspace.enabledModuleIds) ? workspace.enabledModuleIds : [];
     const modules =
       Array.isArray(workspace.modules) && workspace.modules.length > 0
         ? workspace.modules
@@ -1718,9 +1653,7 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
       enabledModuleIds,
       verticalKeys,
     });
-    const currentUserId = String(
-      req.user?.id || req.user?._id || req.user || "",
-    ).trim();
+    const currentUserId = String(req.user?.id || req.user?._id || req.user || "").trim();
     const currentMember = currentUserId
       ? await WorkspaceMember.findOne({
           workspace: workspace._id,
@@ -1733,16 +1666,12 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
       : null;
 
     const roleBand = _getRoleBand(currentMember?.role);
-    const explicitGrants: string[] = Array.isArray(currentMember?.grantedModules)
-      ? currentMember.grantedModules.map((m) => String(m).trim()).filter(Boolean)
-      : [];
+    const explicitGrants: string[] = Array.isArray(currentMember?.grantedModules) ? currentMember.grantedModules.map((m) => String(m).trim()).filter(Boolean) : [];
     // Modules granted specifically through the Add-ons catalogue. Kept
     // separate from grantedModules so the sidebar can render them only inside
     // the expandable Add-ons section instead of duplicating them in their
     // normal section. They still count toward the effective permission union.
-    const explicitAddOnGrants: string[] = Array.isArray(currentMember?.addOnGrantedModules)
-      ? currentMember.addOnGrantedModules.map((m) => String(m).trim()).filter(Boolean)
-      : [];
+    const explicitAddOnGrants: string[] = Array.isArray(currentMember?.addOnGrantedModules) ? currentMember.addOnGrantedModules.map((m) => String(m).trim()).filter(Boolean) : [];
 
     let baseModules: string[] = [];
 
@@ -1767,7 +1696,7 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
       // here and unioning them back in would silently undo any individual
       // module a master panel admin explicitly revoked for one member via
       // Employee Access (updateMemberWorkspaceAccess writes straight to this
-      // same grantedModules field) 
+      // same grantedModules field)
       baseModules = [];
     }
 
@@ -1776,9 +1705,7 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
     // toggled off at the workspace level in master panel can never leak
     // through via a stale per-member grant or a department's moduleIds.
     const enabledSet = new Set(enabledModuleIds);
-    const effectiveGrantedModules = Array.from(
-      new Set([...baseModules, ...explicitGrants, ...explicitAddOnGrants]),
-    ).filter((id) => enabledSet.has(id));
+    const effectiveGrantedModules = Array.from(new Set([...baseModules, ...explicitGrants, ...explicitAddOnGrants])).filter((id) => enabledSet.has(id));
 
     return res.status(200).json({
       message: "Workspace module access map loaded successfully.",
@@ -1793,9 +1720,7 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
         currentMemberGrantedModules: effectiveGrantedModules,
         currentMemberNormalGrantedModules: explicitGrants.filter((id) => enabledSet.has(id)),
         currentMemberAddOnGrantedModules: explicitAddOnGrants.filter((id) => enabledSet.has(id)),
-        currentMemberEnabledModules: Array.isArray(currentMember?.enabledModules)
-          ? currentMember.enabledModules
-          : [],
+        currentMemberEnabledModules: Array.isArray(currentMember?.enabledModules) ? currentMember.enabledModules : [],
       },
     });
   } catch (error) {
@@ -1827,22 +1752,20 @@ export const updateWorkspaceSettings = async (req, res, next) => {
     if (preferences.fiscalYearStartMonth !== undefined) {
       const fiscalYearStartMonth = Number(preferences.fiscalYearStartMonth);
       if (!Number.isInteger(fiscalYearStartMonth) || fiscalYearStartMonth < 1 || fiscalYearStartMonth > 12) {
-        return res.status(400).json({ message: "Fiscal year start month must be between 1 and 12." });
+        return res.status(400).json({
+          message: "Fiscal year start month must be between 1 and 12.",
+        });
       }
     }
     const normalizedPreferences = {
       ...preferences,
-      ...(preferences.timezone !== undefined
-        ? { timezone: normalizeTimeZone(preferences.timezone) }
-        : {}),
-      ...(preferences.currency !== undefined
-        ? { currency: normalizeCurrency(preferences.currency) }
-        : {}),
-      ...(preferences.fiscalYearStartMonth !== undefined
-        ? { fiscalYearStartMonth: Number(preferences.fiscalYearStartMonth) }
-        : {}),
+      ...(preferences.timezone !== undefined ? { timezone: normalizeTimeZone(preferences.timezone) } : {}),
+      ...(preferences.currency !== undefined ? { currency: normalizeCurrency(preferences.currency) } : {}),
+      ...(preferences.fiscalYearStartMonth !== undefined ? { fiscalYearStartMonth: Number(preferences.fiscalYearStartMonth) } : {}),
       ...(preferences.billing !== undefined
-        ? { billing: normalizeBillingConfig(preferences.billing, workspace.countryCode, workspace.state) }
+        ? {
+            billing: normalizeBillingConfig(preferences.billing, workspace.countryCode, workspace.state),
+          }
         : {}),
     };
 
@@ -1881,14 +1804,10 @@ export const updateWorkspaceSettings = async (req, res, next) => {
       ...(workspace.preferences?.toObject?.() || workspace.preferences || {}),
       ...normalizedPreferences,
       businessHours: {
-        ...(workspace.preferences?.businessHours?.toObject?.() ||
-          workspace.preferences?.businessHours ||
-          {}),
+        ...(workspace.preferences?.businessHours?.toObject?.() || workspace.preferences?.businessHours || {}),
         ...(preferences.businessHours || {}),
       },
-      billing: preferences.billing !== undefined
-        ? normalizedPreferences.billing
-        : (workspace.preferences?.billing?.toObject?.() || workspace.preferences?.billing),
+      billing: preferences.billing !== undefined ? normalizedPreferences.billing : workspace.preferences?.billing?.toObject?.() || workspace.preferences?.billing,
       // Once a founder saves billing explicitly, the stored config becomes the
       // source of truth for this location (overriding country-derived
       // defaults). This lives under preferences (matching the schema path at
@@ -1896,9 +1815,7 @@ export const updateWorkspaceSettings = async (req, res, next) => {
       // as a top-level workspace field that the schema doesn't define, so it
       // was silently dropped on save and getWorkspaceSettings always fell
       // back to country defaults.
-      billingCustomized: preferences.billing !== undefined
-        ? true
-        : Boolean(workspace.preferences?.billingCustomized),
+      billingCustomized: preferences.billing !== undefined ? true : Boolean(workspace.preferences?.billingCustomized),
     };
     workspace.branding = {
       ...(workspace.branding?.toObject?.() || workspace.branding || {}),
@@ -1929,17 +1846,11 @@ export const getCurrentHostCompanyIdentity = async (req, res, next) => {
 
     let companyRecord = null;
     if (user.company) {
-      companyRecord = await Company.findById(user.company)
-        .select("_id companyId companyName")
-        .lean()
-        .exec();
+      companyRecord = await Company.findById(user.company).select("_id companyId companyName").lean().exec();
     }
 
     if (!companyRecord && user.companyId) {
-      companyRecord = await Company.findOne({ companyId: user.companyId })
-        .select("_id companyId companyName")
-        .lean()
-        .exec();
+      companyRecord = await Company.findOne({ companyId: user.companyId }).select("_id companyId companyName").lean().exec();
     }
 
     if (!companyRecord) {
@@ -1965,23 +1876,25 @@ export const backfillWorkspaceModules = async (req, res, next) => {
       .trim()
       .toLowerCase()
       .replace(/-/g, "_");
-    const isAllowedActor =
-      actorRole === "owner" || actorRole === "founder" || actorRole === "super_admin";
+    const isAllowedActor = actorRole === "owner" || actorRole === "founder" || actorRole === "super_admin";
     if (!isAllowedActor) {
       return res.status(403).json({
         message: "Only founder or super admin can run workspace module backfill.",
       });
     }
 
-    const force = String(req.query?.force || "").trim().toLowerCase() === "true";
+    const force =
+      String(req.query?.force || "")
+        .trim()
+        .toLowerCase() === "true";
     const workspaces = await Workspace.find({ isActive: true }).exec();
     let updatedCount = 0;
 
     for (const workspace of workspaces) {
-      const selectedPlan = String(workspace.selectedPlan || "basic").trim().toLowerCase();
-      const existingEnabled = Array.isArray(workspace.enabledModuleIds)
-        ? workspace.enabledModuleIds
-        : [];
+      const selectedPlan = String(workspace.selectedPlan || "basic")
+        .trim()
+        .toLowerCase();
+      const existingEnabled = Array.isArray(workspace.enabledModuleIds) ? workspace.enabledModuleIds : [];
       const nextEnabled = getEffectiveEnabledModuleIds({
         selectedPlan,
         existingEnabledModuleIds: existingEnabled,
@@ -1991,12 +1904,8 @@ export const backfillWorkspaceModules = async (req, res, next) => {
         enabledModuleIds: nextEnabled,
       });
 
-      const shouldWriteModules =
-        force ||
-        !Array.isArray(workspace.modules) ||
-        workspace.modules.length === 0;
-      const shouldWriteEnabled =
-        force || JSON.stringify(existingEnabled) !== JSON.stringify(nextEnabled);
+      const shouldWriteModules = force || !Array.isArray(workspace.modules) || workspace.modules.length === 0;
+      const shouldWriteEnabled = force || JSON.stringify(existingEnabled) !== JSON.stringify(nextEnabled);
 
       if (!shouldWriteModules && !shouldWriteEnabled) {
         continue;
