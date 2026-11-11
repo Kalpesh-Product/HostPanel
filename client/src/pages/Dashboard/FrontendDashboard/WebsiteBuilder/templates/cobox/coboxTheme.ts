@@ -590,37 +590,6 @@ export const COBOX_CSS = String.raw`
   color: var(--cbx-body);
 }
 
-.cbx-hero-clients::before,
-.cbx-hero-clients::after {
-  content: '';
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  background: #fff;
-}
-
-.cbx-hero-clients::before {
-  top: -20px;
-  left: -20px;
-  -webkit-mask-image: radial-gradient(
-    circle at 100% 100%,
-    transparent 19.5px,
-    #000 20px
-  );
-  mask-image: radial-gradient(circle at 100% 100%, transparent 19.5px, #000 20px);
-}
-
-.cbx-hero-clients::after {
-  bottom: 0;
-  left: -20px;
-  -webkit-mask-image: radial-gradient(
-    circle at 100% 0,
-    transparent 19.5px,
-    #000 20px
-  );
-  mask-image: radial-gradient(circle at 100% 0, transparent 19.5px, #000 20px);
-}
-
 .cbx-hero-clients p {
   font-size: 16px;
   font-weight: 500;
@@ -3232,11 +3201,6 @@ export const COBOX_CSS = String.raw`
 
   .cbx-hero-copy h1 {
     font-size: 42px;
-  }
-
-  .cbx-hero-clients::before,
-  .cbx-hero-clients::after {
-    display: none;
   }
 
   .cbx-service-grid > *,
