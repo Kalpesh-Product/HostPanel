@@ -54,24 +54,26 @@ const SpaceCard: React.FC<{
         <small>{item.category || service.name}</small>
         <h3>{item.title}</h3>
         <p>{item.description}</p>
-        {item.features.length ? (
-          <div className="cbx-chips">
-            {item.features.slice(0, 3).map((feature) => (
-              <span key={feature}>{feature}</span>
-            ))}
+        <div className="cbx-space-bottom">
+          {item.features.length ? (
+            <div className="cbx-chips">
+              {item.features.slice(0, 3).map((feature) => (
+                <span key={feature}>{feature}</span>
+              ))}
+            </div>
+          ) : null}
+          <div className="cbx-space-foot">
+            <b>{priceWithUnit(item.price, item.priceUnit) || "On request"}</b>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                openLead(service, item);
+              }}
+            >
+              Reserve {CIcon.arrow(14)}
+            </button>
           </div>
-        ) : null}
-        <div className="cbx-space-foot">
-          <b>{priceWithUnit(item.price, item.priceUnit) || "On request"}</b>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              openLead(service, item);
-            }}
-          >
-            Reserve {CIcon.arrow(14)}
-          </button>
         </div>
       </div>
     </article>

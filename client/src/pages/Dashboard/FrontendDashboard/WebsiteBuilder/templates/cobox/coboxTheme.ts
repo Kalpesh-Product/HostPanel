@@ -2338,6 +2338,16 @@ export const COBOX_CSS = String.raw`
   font-size: 14px;
 }
 
+.cbx-space-bottom {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.cbx-space-bottom .cbx-chips {
+  margin-bottom: 16px;
+}
+
 .cbx-space-foot {
   margin-top: auto;
   display: flex;
