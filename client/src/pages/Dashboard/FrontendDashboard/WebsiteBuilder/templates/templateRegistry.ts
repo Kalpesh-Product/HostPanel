@@ -12,6 +12,7 @@ import CommonsTemplate from "./commons/CommonsTemplate";
 import HuddleTemplate from "./huddle/HuddleTemplate";
 import TravigoTemplate from "./travigo/TravigoTemplate";
 import TulumTemplate from "./tulum/TulumTemplate";
+import TinyHomeTemplate from "./tinyhome/TinyHomeTemplate";
 import GrindelwaldTemplate from "./grindelwald/GrindelwaldTemplate";
 import LodgeTemplate from "./lodge/LodgeTemplate";
 import CaliHostelTemplate from "./caliHostel/CaliHostelTemplate";
@@ -195,6 +196,15 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       font: "'Manrope', sans-serif",
     },
     recommendedFor: ["hostel"],
+    supportsBooking: true,
+  },
+  tinyhome: {
+    id: "tinyhome",
+    name: "Tiny Home",
+    description: "A minimalist cabin theme with a full-bleed photo hero, a compact stays catalog, and an enquiry form.",
+    component: TinyHomeTemplate,
+    swatch: { bg: "#ffffff", fg: "#272724", accent: "#353932", font: "'Spinnaker', sans-serif" },
+    recommendedFor: ["coLiving"],
     supportsBooking: true,
   },
   tulum: {

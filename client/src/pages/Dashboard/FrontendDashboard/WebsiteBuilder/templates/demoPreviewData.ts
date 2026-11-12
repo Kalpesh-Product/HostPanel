@@ -30,6 +30,7 @@ const TEMPLATE_KIND: Record<string, ServiceKind> = {
   haven: "coLiving",
   camelia: "coLiving",
   tulum: "coLiving",
+  tinyhome: "coLiving",
   grindelwald: "coLiving",
   commons: "workspace",
   huddle: "meeting",
@@ -1767,10 +1768,71 @@ const RESTOBAR_DEMO_BUSINESS: DemoBusiness = (() => {
   };
 })();
 
+const tinyHomeDemo: DemoBusiness = (() => {
+  const base = DEMO_BUSINESSES.coLiving;
+  const interior = photo("photo-1628394029749-ea3dcce4caa6", 1800);
+  const nook = photo("photo-1543806053-7f9ac02e6631", 1050);
+  const cabin = photo("photo-1510798831971-661eb04b3739", 1500);
+  const kitchen = photo("photo-1586753701871-07e025659129", 1350);
+  const patio = photo("photo-1600607687939-ce8a6c25118c", 1100);
+  const woodland = photo("photo-1503278501277-e50457741130", 1100);
+  const cafe = photo("photo-1501339847302-ac426a4a7cbb", 1100);
+  const outdoors = photo("photo-1440492248262-6895f9da82fc", 1100);
+  return {
+    ...base,
+    companyName: "Tiny Home",
+    title: "A little closer to nature",
+    subTitle: "Leave the city behind for a furnished cabin, slow mornings, and trails just beyond the door.",
+    cta: "Book a stay",
+    heroImages: [interior, cabin, kitchen],
+    gallery: [patio, nook, kitchen, cabin, woodland, cafe, outdoors],
+    aboutImages: [nook, cabin, interior],
+    aboutTitle: "A small home with room to slow down.",
+    aboutPageStory: "We set up these small cabins for people who want more time outdoors and a comfortable place to come back to.",
+    aboutPageMission: "Give guests an easy place to settle in, cook for themselves, and explore the area at their own pace.",
+    aboutPageValues: "Simple spaces, quiet evenings, and a warm welcome.",
+    about: [
+      "Make coffee in your own kitchen, read on the porch, or take a walk before breakfast. Each cabin has what you need for a few nights or a longer stay.",
+      "The cabins share an outdoor gathering area, with room for both company and quiet.",
+    ],
+    testimonials: [
+      { name: "Maya Chen", jobPosition: "Weekend guest", rating: 5, image: "", testimony: "We spent most mornings on the porch and had everything we needed to cook dinner after a day outside." },
+      { name: "Leo Martin", jobPosition: "Long-stay guest", rating: 5, image: "", testimony: "A quiet cabin with a comfortable bed and a good spot to work when I needed it." },
+    ],
+    address: "Main Street, Catskill, NY 12414",
+    inclusions: ["fast-internet", "housekeeping"],
+    partnerHeading: "Partner with Tiny Home",
+    partnerContent: "Tell us about your retreat, relocation, or extended-stay plans.",
+    page: {
+      ...base.page,
+      homeCardHeading: "Cabin stays",
+      homeCardSubText: "Furnished cabins with private kitchens and outdoor space.",
+      heroHeading: "Explore our tiny homes",
+      heroSubHeading: "Choose a cabin that suits the way you want to stay.",
+      heroImage: cabin,
+      cardImage: interior,
+      inclusions: ["fast-internet", "housekeeping"],
+    },
+    extra: {
+      ...base.extra,
+      coLivingRooms: [
+        { title: "Woodland Cabin", price: "$125", priceUnit: "per night", description: "A furnished hideaway for two with a private kitchenette, a reading nook, and a covered porch.", images: [interior, nook, patio].map((url) => ({ url })), occupancy: "double", bathroom: "ensuite", furnished: true, featured: true, enabled: true, features: ["Private kitchenette", "Covered porch", "Reading nook", "Wi-Fi"] },
+        { title: "Meadow Cabin", price: "$145", priceUnit: "per night", description: "A cabin with a full kitchen and an outdoor table for long lunches.", images: [cabin, kitchen].map((url) => ({ url })), occupancy: "double", bathroom: "ensuite", furnished: true, enabled: true, features: ["Full kitchen", "Outdoor dining", "Wi-Fi"] },
+      ],
+    },
+    settings: {
+      ...base.settings,
+      stayPolicy: { checkInTime: "15:00", checkOutTime: "11:00", houseRules: ["Quiet hours after 10 PM", "No smoking indoors"] },
+      tourBooking: { enabled: false },
+    },
+  };
+})();
+
 const demoBusinessFor = (
   kind: ServiceKind,
   themeVariant: string,
 ): DemoBusiness => {
+  if (themeVariant === "tinyhome" && kind === "coLiving") return tinyHomeDemo;
   if (themeVariant === "restobar" && kind === "menu") return RESTOBAR_DEMO_BUSINESS;
   if (themeVariant === "tastyc" && kind === "menu") return TASTYC_DEMO_BUSINESS;
   if (themeVariant === "grandbar" && kind === "menu")
