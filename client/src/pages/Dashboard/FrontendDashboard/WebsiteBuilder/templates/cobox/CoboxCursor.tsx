@@ -10,7 +10,7 @@ export const CoboxCursor: React.FC = () => {
     if (!node) return;
     if (
       typeof window.matchMedia !== "function" ||
-      !window.matchMedia("(pointer: fine)").matches
+      !window.matchMedia("(pointer: fine) and (prefers-reduced-motion: no-preference)").matches
     ) {
       return;
     }

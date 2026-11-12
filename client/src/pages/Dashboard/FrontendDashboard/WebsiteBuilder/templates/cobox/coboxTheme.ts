@@ -474,7 +474,12 @@ export const COBOX_CSS = String.raw`
   line-height: 1.14;
   letter-spacing: -0.02em;
   max-width: 100%;
-  cursor: none;
+}
+
+@media (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .cbx-hero-copy h1 {
+    cursor: none;
+  }
 }
 
 .cbx-hero-copy > p {
@@ -1141,7 +1146,7 @@ export const COBOX_CSS = String.raw`
   margin: 0 auto;
 }
 
-.cbx-play {
+.cbx .cbx-play {
   display: grid;
   place-items: center;
   width: 88px;
@@ -1494,6 +1499,10 @@ export const COBOX_CSS = String.raw`
   background: var(--cbx-mist);
   color: var(--cbx-dark);
   font-style: normal;
+}
+
+.cbx-why-item > div {
+  grid-column: -2 / -1;
 }
 
 .cbx-why-item h4 {
@@ -2080,29 +2089,16 @@ export const COBOX_CSS = String.raw`
   margin-top: 6px;
 }
 
-.cbx-news input {
-  flex: 1;
-  min-width: 0;
-  background: none;
-  border: 0;
-  outline: none;
+.cbx .cbx-news {
+  justify-content: space-between;
   color: #fff;
-  font-size: 13px;
+  padding: 10px 16px;
 }
 
-.cbx-news input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.cbx-news button {
+.cbx-news i {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: var(--t-accent);
-  color: var(--t-accent-text, #102b32);
-  flex: 0 0 auto;
+  color: var(--t-accent);
 }
 
 .cbx-footer-note {
@@ -2435,6 +2431,18 @@ export const COBOX_CSS = String.raw`
 
 .cbx-about-story p + p {
   margin-top: 14px;
+}
+
+.cbx-about-narrative {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 24px;
+  margin-block: 32px;
+}
+
+.cbx-about-narrative p {
+  margin-top: 8px;
+  white-space: pre-line;
 }
 
 .cbx-about-imgs {
@@ -3384,7 +3392,7 @@ export const COBOX_CSS = String.raw`
     padding: 60px 0 30px;
   }
 
-  .cbx-play {
+  .cbx .cbx-play {
     width: 70px;
     height: 70px;
   }

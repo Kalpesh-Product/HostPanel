@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { AnimatePresence, motion } from "../motion";
+import { useLocation } from "react-router-dom";
+import { AnimatePresence, motion as Motion } from "../motion";
 import {
   normalizeSlug,
   resolveSectionFromSlug,
@@ -41,13 +41,13 @@ import { CoboxLeadModal } from "./CoboxBooking";
 import { CoboxCursor } from "./CoboxCursor";
 
 const Loader: React.FC<{ name: string }> = ({ name }) => (
-  <motion.div
+  <Motion.div
     className="cbx-loader"
     initial={{ opacity: 1 }}
     exit={{ opacity: 0 }}
     transition={{ duration: 0.45 }}
   >
-    <motion.div
+    <Motion.div
       className="cbx-loader-box"
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
@@ -59,15 +59,14 @@ const Loader: React.FC<{ name: string }> = ({ name }) => (
       <b>{name || "Cobox"}</b>
       <small>Space to create</small>
       <em />
-    </motion.div>
-  </motion.div>
+    </Motion.div>
+  </Motion.div>
 );
 
 const CoboxTemplate: React.FC = () => {
   const t = useWebsiteTemplateData();
   const { draft } = t;
   const location = useLocation();
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [leadTarget, setLeadTarget] = useState<{
     service: Service;
@@ -114,6 +113,7 @@ const CoboxTemplate: React.FC = () => {
   }
 
   const openLead: CoboxCtx["openLead"] = (service, item = null, prefill) => {
+    if (!service.leadEnabled) return;
     t.openLeadModal(
       {
         ...(service.page || {}),
@@ -142,14 +142,7 @@ const CoboxTemplate: React.FC = () => {
     rating,
     status,
     openLead,
-    goToService: (service, opts) => {
-      const params = new URLSearchParams(opts?.search || {});
-      if (opts?.category) params.set("cat", opts.category);
-      const query = params.toString();
-      if (query)
-        navigate(`/website-preview/page/products/${service.slug}?${query}`);
-      else t.goToProductPage(service.slug);
-    },
+    goToService: (service) => t.goToProductPage(service.slug),
     goToItem: (service, item) => t.goToProductItem(service.slug, item.slug),
     navLabel: (section, fallback) => {
       const match = (t.navItems || []).find(
@@ -208,7 +201,7 @@ const CoboxTemplate: React.FC = () => {
           {loading ? <Loader name={draft.companyName || "Cobox"} /> : null}
         </AnimatePresence>
         <CoboxHeader />
-        <motion.main
+        <Motion.main
           key={location.pathname}
           className="cbx-main"
           initial={{ opacity: 0 }}
@@ -216,10 +209,10 @@ const CoboxTemplate: React.FC = () => {
           transition={{ duration: 0.4 }}
         >
           {renderPage()}
-        </motion.main>
-        <CoboxFooter />
+        </Motion.main>
+        {t.isSectionEnabled("home_footer") ? <CoboxFooter /> : null}
         <CoboxLeadModal
-          open={Boolean(leadTarget)}
+          open={Boolean(leadTarget && t.selectedLeadProduct)}
           onClose={closeLead}
           service={leadTarget?.service || null}
           item={leadTarget?.item || null}

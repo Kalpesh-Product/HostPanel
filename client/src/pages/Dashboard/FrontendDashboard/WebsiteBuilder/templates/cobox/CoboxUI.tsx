@@ -1,5 +1,5 @@
 import React from "react";
-import { motion } from "../motion";
+import { motion as Motion } from "../motion";
 
 const svg = (children: React.ReactNode, size = 18) => (
   <svg
@@ -52,7 +52,7 @@ export const CReveal: React.FC<{
   delay?: number;
   className?: string;
 }> = ({ children, delay = 0, className }) => (
-  <motion.div
+  <Motion.div
     className={className}
     initial={{ opacity: 0, y: 26 }}
     whileInView={{ opacity: 1, y: 0 }}
@@ -60,7 +60,7 @@ export const CReveal: React.FC<{
     transition={{ duration: 0.65, delay, ease: [0.22, 1, 0.36, 1] }}
   >
     {children}
-  </motion.div>
+  </Motion.div>
 );
 
 export const CEyebrow: React.FC<{
@@ -74,17 +74,17 @@ export const CPlaceholder: React.FC<{ text?: string }> = ({ text = "Cobox" }) =>
   <div className="cbx-placeholder">{text}</div>
 );
 
-export const CStars: React.FC<{ value?: number; count?: number }> = ({
-  value = 5,
-  count = 5,
-}) => (
-  <span className="cbx-stars" aria-label={`${value} out of 5`}>
-    {"★".repeat(Math.max(1, Math.min(5, Math.round(value))))}
-    <span aria-hidden="true" style={{ opacity: 0.25 }}>
-      {"★".repeat(Math.max(0, 5 - Math.round(value)))}
+export const CStars: React.FC<{ value: number }> = ({ value }) => {
+  const filled = Math.max(0, Math.min(5, Math.round(value)));
+  return (
+    <span className="cbx-stars" aria-label={`${value} out of 5`}>
+      {"★".repeat(filled)}
+      <span aria-hidden="true" style={{ opacity: 0.25 }}>
+        {"★".repeat(5 - filled)}
+      </span>
     </span>
-  </span>
-);
+  );
+};
 
 export const CPageHero: React.FC<{
   title: string;
@@ -95,7 +95,7 @@ export const CPageHero: React.FC<{
   <section className="cbx-page-hero">
     {image ? <img className="cbx-page-hero-bg" src={image} alt="" /> : null}
     <div className="cbx-shell">
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
@@ -103,7 +103,7 @@ export const CPageHero: React.FC<{
         {eyebrow ? <CEyebrow light>{eyebrow}</CEyebrow> : null}
         <h1>{title}</h1>
         {children}
-      </motion.div>
+      </Motion.div>
     </div>
   </section>
 );

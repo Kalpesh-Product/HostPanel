@@ -3885,6 +3885,20 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContentDef> = {
   },
   cobox: {
     slots: [
+      text("header.tour", HOME, "Header tour button", "Schedule a Free Tour"),
+      text("home.hero.satisfaction", HOME, "Hero client satisfaction percentage", ""),
+      text("home.hero.clientCount", HOME, "Hero client count", ""),
+      text("home.about.stats.clients", HOME, "Happy client count", ""),
+      text("home.about.stats.retention", HOME, "Client retention percentage", ""),
+      text("home.about.stats.startups", HOME, "Successful startup count", ""),
+      text("home.about.stats.workspaces", HOME, "Workspace count", ""),
+      text("home.why.clients", HOME, "Client count for benefits cards", ""),
+      text("home.values.projects", HOME, "Completed project count", ""),
+      text("home.values.members", HOME, "Professional member count", ""),
+      text("home.video.url", HOME, "Workspace video URL", "https://"),
+      text("footer.newsletterUrl", FOOTER, "Newsletter signup page URL", "https://"),
+      text("footer.termsUrl", FOOTER, "Terms and conditions URL", "https://"),
+      text("footer.privacyUrl", FOOTER, "Privacy policy URL", "https://"),
       text("home.hero.eyebrow", HOME, "Hero: small label", "Your space to create"),
       text(
         "home.hero.title",
@@ -3902,7 +3916,7 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContentDef> = {
         "home.hero.quote",
         HOME,
         "Hero review card: quote",
-        "A perfect balance of comfort and productivity.",
+        "",
       ),
       text("home.about.eyebrow", HOME, "About: small label", "About us"),
       text(
@@ -4274,7 +4288,16 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContentDef> = {
         "We are more than just a workspace — we're a thriving community where professionals, startups and innovators come together to collaborate, create and grow.",
       ),
     ],
-    switches: [],
+    switches: [
+      { key: "home_stats", label: "Statistics" },
+      { key: "home_services", label: "Services showcase" },
+      { key: "home_video", label: "Workspace video" },
+      { key: "home_steps", label: "How it works" },
+      { key: "home_pricing", label: "Pricing plans" },
+      { key: "home_why", label: "Why choose us" },
+      { key: "home_values", label: "Core values" },
+      { key: "home_faq", label: "Frequently asked questions" },
+    ],
   },
 };
 
