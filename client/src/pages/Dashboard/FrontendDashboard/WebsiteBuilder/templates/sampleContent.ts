@@ -18,6 +18,7 @@ export const SAMPLE_TEMPLATE_IDS = [
   "tastyc",
   "grandbar",
   "aromatica",
+  "restobar",
   "flowspace",
   "workscape",
   "brixspace",
@@ -253,7 +254,7 @@ export const buildSampleContent = async ({
     testimonials,
     pages,
   ] = await Promise.all([
-    serviceOnly ? [] : loadMany(draft.heroImages, LIMITS.hero),
+    serviceOnly ? [] : loadMany(draft.heroImages, themeVariant === "restobar" ? 4 : LIMITS.hero),
     serviceOnly ? [] : loadMany(draft.gallery, LIMITS.gallery),
     serviceOnly ? [] : loadMany(draft.aboutPageImages, LIMITS.about),
     Promise.all(

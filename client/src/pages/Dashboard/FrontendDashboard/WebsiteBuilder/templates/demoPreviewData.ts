@@ -16,6 +16,7 @@ const TEMPLATE_KIND: Record<string, ServiceKind> = {
   tastyc: "menu",
   grandbar: "menu",
   aromatica: "menu",
+  restobar: "menu",
   flowspace: "meeting",
   workscape: "meeting",
   brixspace: "meeting",
@@ -1705,10 +1706,72 @@ const AROMATICA_DEMO_BUSINESS: DemoBusiness = (() => {
   };
 })();
 
+const RESTOBAR_DEMO_BUSINESS: DemoBusiness = (() => {
+  const base = DEMO_BUSINESSES.menu;
+  const hero = [
+    "photo-1517248135467-4c7edcad34c4",
+    "photo-1528605248644-14dd04022da1",
+    "photo-1504674900247-0877df9cc836",
+    "photo-1551024506-0bccd828d307",
+  ];
+  const room = [
+    "photo-1552566626-52f8b828add9",
+    "photo-1514933651103-005eec06c04b",
+    "photo-1515003197210-e0cd71810b5f",
+    "photo-1527761939622-911909463c76",
+  ];
+  const menu = [
+    ["Starters", "Burrata & tomatoes", "$13", "Ripe tomatoes, basil oil and a slice of toasted sourdough.", "photo-1547592180-85f173990554"],
+    ["Starters", "Roasted squash salad", "$11", "Roasted squash, greens and toasted seeds with lemon dressing.", "photo-1512621776951-a57141f2eefd"],
+    ["Starters", "Soup of the day", "$9", "Ask the kitchen what is simmering today. Served with bread.", "photo-1547592166-23ac45744acd"],
+    ["Mains", "Wild mushroom pasta", "$19", "Fresh pasta tossed with mushrooms, thyme and parmesan.", "photo-1473093295043-cdd812d0e601"],
+    ["Mains", "Grilled market fish", "$24", "Market fish with seasonal greens and herb butter.", "photo-1519708227418-c8fd9a32b7a2"],
+    ["Mains", "Roast vegetable bowl", "$16", "Roasted vegetables with grains, herbs and a bright tahini dressing.", "photo-1504674900247-0877df9cc836"],
+    ["Desserts", "Chocolate tart", "$9", "Dark chocolate, crisp pastry and a spoonful of cream.", "photo-1551024506-0bccd828d307"],
+    ["Desserts", "Vanilla panna cotta", "$8", "Vanilla cream set softly, topped with seasonal fruit.", "photo-1488477181946-6428a0291777"],
+    ["Drinks", "Citrus spritz", "$8", "Orange, lemon and soda served over ice.", "photo-1544145945-f90425340c7e"],
+    ["Drinks", "Flat white", "$5", "A double espresso with silky steamed milk.", "photo-1509042239860-f550ce710b93"],
+  ];
+  return {
+    ...base,
+    companyName: "Restobar",
+    title: "Seasonal cooking, shared around the table.",
+    subTitle: "An all-day café and bistro for plates worth passing around, a good drink, and time with friends.",
+    cta: "See our menu",
+    heroImages: hero.map((id) => photo(id, 1920)),
+    gallery: [...room, ...hero].map((id) => photo(id, 1300)),
+    aboutImages: [room[0], room[2]].map((id) => photo(id, 1200)),
+    aboutTitle: "A neighborhood table",
+    aboutPageStory: "Restobar began with a simple idea: a neighborhood café should make it easy to slow down and share a good meal.",
+    aboutPageMission: "We build our menus around the season and keep a table ready for everyday celebrations.",
+    about: [
+      "Our café serves breakfast, lunch and dinner with a menu that changes with the seasons.",
+      "Come in for a quick bite, settle into a booth for dinner, or order something sweet to share.",
+    ],
+    address: "12 Museum Road, Bengaluru 560001",
+    page: {
+      ...base.page,
+      homeCardHeading: "Restobar menu",
+      homeCardSubText: "Seasonal plates, house desserts and drinks.",
+      heroHeading: "From the Restobar kitchen",
+      heroSubHeading: "Something to start, a plate to share, and a good reason to stay for dessert.",
+      heroImage: photo(hero[2], 1800),
+      cardImage: photo(room[2], 1100),
+    },
+    extra: {
+      ...base.extra,
+      menuItems: menu.map(([category, name, price, description, image]) => ({
+        category, name, price, description, image: photoValue(image), enabled: true,
+      })),
+    },
+  };
+})();
+
 const demoBusinessFor = (
   kind: ServiceKind,
   themeVariant: string,
 ): DemoBusiness => {
+  if (themeVariant === "restobar" && kind === "menu") return RESTOBAR_DEMO_BUSINESS;
   if (themeVariant === "tastyc" && kind === "menu") return TASTYC_DEMO_BUSINESS;
   if (themeVariant === "grandbar" && kind === "menu")
     return GRAND_BAR_DEMO_BUSINESS;

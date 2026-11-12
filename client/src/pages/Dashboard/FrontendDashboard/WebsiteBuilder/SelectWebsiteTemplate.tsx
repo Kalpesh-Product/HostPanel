@@ -89,7 +89,9 @@ export const TemplatePicker = ({ onClose }: { onClose?: () => void }) => {
     : "/dashboard/website-builder";
 
   const handlePreview = (templateId: string) => {
-    const draft = buildDemoPreviewDraft(templateId, services);
+    // Restobar's showcase uses its café menu and dining photography even when
+    // the picker currently has a different primary service selected.
+    const draft = buildDemoPreviewDraft(templateId, templateId === "restobar" ? [] : services);
     localStorage.setItem(LIVE_PREVIEW_DRAFT_STORAGE_KEY, JSON.stringify(draft));
     window.open("/website-preview", "_blank", "noopener,noreferrer");
   };

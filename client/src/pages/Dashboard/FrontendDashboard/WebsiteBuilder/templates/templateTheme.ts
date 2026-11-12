@@ -57,6 +57,7 @@ export const THEME_DEFAULTS: Record<string, ThemeDefaults> = {
     accent: "#e9a542",
     surfaceUp: true,
   },
+  restobar: { bg: "#101519", text: "#f5f0e9", accent: "#c29a77", surfaceUp: true },
   flowspace: {
     bg: "#fbfaeb",
     text: "#11110f",

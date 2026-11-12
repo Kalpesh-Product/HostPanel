@@ -18,6 +18,7 @@ import CaliHostelTemplate from "./caliHostel/CaliHostelTemplate";
 import TastycTemplate from "./tastyc/TastycTemplate";
 import GrandBarTemplate from "./grandbar/GrandBarTemplate";
 import AromaticaTemplate from "./aromatica/AromaticaTemplate";
+import RestobarTemplate from "./restobar/RestobarTemplate";
 import FlowspaceTemplate from "./flowspace/FlowspaceTemplate";
 import WorpaceTemplate from "./worpace/WorpaceTemplate";
 import WorkscapeTemplate from "./workscape/WorkscapeTemplate";
@@ -148,6 +149,20 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       fg: "#11111b",
       accent: "#e9a542",
       font: "'Manrope', sans-serif",
+    },
+    recommendedFor: ["menu"],
+    supportsBooking: true,
+  },
+  restobar: {
+    id: "restobar",
+    name: "Restobar",
+    description: "A dark café and bistro theme with a four-panel photo hero, category menus, and table reservations.",
+    component: RestobarTemplate,
+    swatch: {
+      bg: "#101519",
+      fg: "#f5f0e9",
+      accent: "#c29a77",
+      font: "'Merriweather', Georgia, serif",
     },
     recommendedFor: ["menu"],
     supportsBooking: true,
