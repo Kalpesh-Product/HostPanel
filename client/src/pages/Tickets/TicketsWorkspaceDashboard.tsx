@@ -16,7 +16,7 @@ import DashboardModuleCard from "../../components/DashboardModuleCard";
 import DonutChart from "../../components/graphs/DonutChart";
 import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
 import PageFrame from "../../components/Pages/PageFrame";
-import ticketBannerImage from "../../assets/administration-dashboard-banner.webp";
+import ticketBannerImage from "../../assets/module-banners/ticket-management-banner.webp";
 import {
   canAccessAdminDashboard,
   canAccessAdministrationDashboard,
@@ -409,18 +409,18 @@ export default function TicketsWorkspaceDashboard() {
               src={ticketBannerImage}
               alt=""
               aria-hidden="true"
-              className="absolute inset-y-0 right-0 h-full w-full object-cover object-center sm:w-[64%]"
+              className="absolute inset-0 h-full w-full object-cover object-center"
               style={{
-                WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
-                maskImage: "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+                WebkitMaskImage: "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
+                maskImage: "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
               }}
             />
             <div
               aria-hidden="true"
-              className="absolute inset-y-0 right-0 w-full bg-gradient-to-br from-[#2563EB]/55 via-[#3b82f6]/35 to-[#60a5fa]/20 sm:w-[64%]"
+              className="absolute inset-0 bg-gradient-to-br from-[#2563EB]/45 via-[#3b82f6]/25 to-[#60a5fa]/15"
               style={{
-                WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
-                maskImage: "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+                WebkitMaskImage: "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
+                maskImage: "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
               }}
             />
             <div

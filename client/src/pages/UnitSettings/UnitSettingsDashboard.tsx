@@ -11,7 +11,7 @@ import {
   Settings2,
   Users,
 } from "lucide-react";
-import unitSettingsBanner from "../../assets/coworking-banner.jpg";
+import unitSettingsBanner from "../../assets/module-banners/unit-operations-banner.webp";
 import { formatTime12hLabel } from "../../components/ui/TimePicker12h";
 import DashboardModuleCard from "../../components/DashboardModuleCard";
 import DonutChart from "../../components/graphs/DonutChart";
@@ -339,22 +339,22 @@ export default function UnitSettingsDashboard() {
               src={unitSettingsBanner}
               alt=""
               aria-hidden="true"
-              className="absolute inset-y-0 right-0 h-full w-full object-cover object-center sm:w-[64%]"
+              className="absolute inset-0 h-full w-full object-cover object-center"
               style={{
                 WebkitMaskImage:
-                  "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+                  "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
                 maskImage:
-                  "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+                  "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
               }}
             />
             <div
               aria-hidden="true"
-              className="absolute inset-y-0 right-0 w-full bg-gradient-to-br from-[#2563EB]/55 via-[#3B82F6]/35 to-[#60A5FA]/20 sm:w-[64%]"
+              className="absolute inset-0 bg-gradient-to-br from-[#2563EB]/45 via-[#3B82F6]/25 to-[#60A5FA]/15"
               style={{
                 WebkitMaskImage:
-                  "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+                  "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
                 maskImage:
-                  "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+                  "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
               }}
             />
             <div

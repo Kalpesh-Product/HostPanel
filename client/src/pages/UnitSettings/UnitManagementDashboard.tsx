@@ -11,7 +11,7 @@ import {
   Ticket,
   Users,
 } from "lucide-react";
-import unitManagementBanner from "../../assets/administration-dashboard-banner.webp";
+import unitManagementBanner from "../../assets/module-banners/unit-operations-banner.webp";
 import DashboardModuleCard from "../../components/DashboardModuleCard";
 import DonutChart from "../../components/graphs/DonutChart";
 import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
@@ -293,22 +293,22 @@ export default function UnitManagementDashboard() {
               src={unitManagementBanner}
               alt=""
               aria-hidden="true"
-              className="absolute inset-y-0 right-0 h-full w-full object-cover object-center sm:w-[64%]"
+              className="absolute inset-0 h-full w-full object-cover object-center"
               style={{
                 WebkitMaskImage:
-                  "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+                  "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
                 maskImage:
-                  "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+                  "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
               }}
             />
             <div
               aria-hidden="true"
-              className="absolute inset-y-0 right-0 w-full bg-gradient-to-br from-[#2563EB]/55 via-[#3B82F6]/35 to-[#60A5FA]/20 sm:w-[64%]"
+              className="absolute inset-0 bg-gradient-to-br from-[#2563EB]/45 via-[#3B82F6]/25 to-[#60A5FA]/15"
               style={{
                 WebkitMaskImage:
-                  "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+                  "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
                 maskImage:
-                  "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+                  "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
               }}
             />
             <div

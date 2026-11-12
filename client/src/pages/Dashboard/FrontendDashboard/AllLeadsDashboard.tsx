@@ -14,7 +14,7 @@ import PageFrame from "../../../components/Pages/PageFrame";
 import DashboardModuleCard from "../../../components/DashboardModuleCard";
 import DonutChart from "../../../components/graphs/DonutChart";
 import GroupedBarGraph from "../../../components/graphs/GroupedBarGraph";
-import coworkingBannerImage from "../../../assets/coworking-banner.jpg";
+import salesBannerImage from "../../../assets/sales-dashboard-banner.webp";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import useAuth from "../../../hooks/useAuth";
 
@@ -298,7 +298,7 @@ const AllLeadsDashboard = () => {
         <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img
-              src={coworkingBannerImage}
+              src={salesBannerImage}
               alt=""
               aria-hidden="true"
               className="absolute inset-y-0 right-0 h-full w-full object-cover object-center sm:w-[64%]"

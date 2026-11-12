@@ -12,7 +12,7 @@ import PageFrame from "../../../components/Pages/PageFrame";
 import DashboardModuleCard from "../../../components/DashboardModuleCard";
 import DonutChart from "../../../components/graphs/DonutChart";
 import GroupedBarGraph from "../../../components/graphs/GroupedBarGraph";
-import leadsBannerImage from "../../../assets/coworking-banner.jpg";
+import leadsBannerImage from "../../../assets/sales-dashboard-banner.webp";
 import { useFreshCurrentUser } from "../../../hooks/useFreshCurrentUser";
 import { getSalesTourLeads, getWebsiteLeads } from "../../../services/sales-leads";
 import { getUnitTourLeads } from "../../../services/visitors";
