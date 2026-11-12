@@ -165,6 +165,12 @@ const DEFAULT_TEMPLATE_SETTINGS = {
       allowedPlans: ["basic", "professional", "custom"],
     },
     {
+      templateId: "coplace",
+      enabled: true,
+      visible: true,
+      allowedPlans: ["basic", "professional", "custom"],
+    },
+    {
       templateId: "cobox",
       enabled: true,
       visible: true,

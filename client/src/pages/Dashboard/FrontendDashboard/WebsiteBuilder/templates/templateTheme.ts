@@ -129,6 +129,7 @@ export const THEME_DEFAULTS: Record<string, ThemeDefaults> = {
     accent: "#3b6cf0",
     surfaceUp: true,
   },
+  coplace: { bg: "#ffffff", text: "#10292d", accent: "#0e3036", surfaceUp: true },
   cobox: {
     bg: "#ffffff",
     text: "#102b32",

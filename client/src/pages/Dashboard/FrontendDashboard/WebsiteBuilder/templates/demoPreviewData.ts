@@ -23,6 +23,7 @@ const TEMPLATE_KIND: Record<string, ServiceKind> = {
   worpace: "workspace",
   qerja: "workspace",
   cobox: "workspace",
+  coplace: "workspace",
   wayfarer: "hostel",
   travigo: "hostel",
   lodge: "hostel",
@@ -1828,6 +1829,53 @@ const tinyHomeDemo: DemoBusiness = (() => {
   };
 })();
 
+const coPlaceDemo: DemoBusiness = (() => {
+  const base = DEMO_BUSINESSES.workspace;
+  const shared = "photo-1524758631624-e2822e304c36";
+  const office = "photo-1497366754035-f200968a6e72";
+  const meeting = "photo-1497366811353-6870744d04b2";
+  const lounge = "photo-1521737711867-e3b97375f902";
+  const team = "photo-1522071820081-009f0129c71c";
+  const workspaces = [
+    { name: "Private Offices", cost: "$450", priceUnit: "per month", description: "A furnished office with a door you can close and space to make your own.", seats: 4, features: ["Fast Wi-Fi", "Ergonomic seating", "Lockable office"], images: [office, shared].map((id) => photoValue(id)) },
+    { name: "Meeting Rooms", cost: "$35", priceUnit: "per hour", description: "A ready-to-use room for workshops, calls, and team meetings.", seats: 8, features: ["Display screen", "Whiteboard", "Video calls"], images: [meeting, office].map((id) => photoValue(id)) },
+    { name: "Shared Desks", cost: "$24", priceUnit: "per day", description: "A flexible desk in a bright shared space with a quiet corner nearby.", seats: 1, features: ["Fast Wi-Fi", "Shared lounge", "Kitchen access"], images: [shared, lounge].map((id) => photoValue(id)) },
+  ];
+  return {
+    ...base,
+    companyName: "CoPlace",
+    title: "Work better in spaces designed to inspire",
+    subTitle: "Flexible coworking for focused days and team sessions. Find a desk, private office, or meeting room that fits.",
+    cta: "Book a tour",
+    heroImages: [lounge, shared, office].map((id) => photo(id, 1600)),
+    gallery: [shared, meeting, office, team].map((id) => photo(id, 1250)),
+    aboutImages: [team, shared, office].map((id) => photo(id, 1200)),
+    aboutTitle: "Designed for collaboration, built for focus",
+    aboutPageStory: "CoPlace started with a shared table and the idea that good work needs room for both conversation and quiet.",
+    aboutPageMission: "Make a productive workday easier with spaces people can use when they need them.",
+    aboutPageTeamHeading: "The people behind your best workdays",
+    about: ["Work alongside other people, with room to concentrate when you need it. We offer flexible desks, private offices, and meeting rooms under one roof."],
+    founders: [
+      { name: "Mira Rao", role: "Community lead", bio: "Mira helps members settle in and find the right workspace.", highlights: "", image: faceCrop("photo-1573497019236-17f8177b81e8") },
+      { name: "Arjun Shah", role: "Workspace operations", bio: "Arjun looks after the rooms, desks, and day-to-day setup.", highlights: "", image: faceCrop("photo-1500648767791-00dcc994a43e") },
+      { name: "Leena Patel", role: "Member experience", bio: "Leena helps teams plan visits and find a membership that fits.", highlights: "", image: faceCrop("photo-1580489944761-15a19d654956") },
+    ],
+    address: "100 Residency Road, Bengaluru 560025",
+    partnerHeading: "Partner with CoPlace",
+    partnerContent: "Tell us how we can support your team, community, or event.",
+    page: {
+      ...base.page,
+      heroHeading: "Explore CoPlace workspaces",
+      heroSubHeading: "Find a desk, private office, or meeting room that fits your workday.",
+      homeCardHeading: "Coworking spaces",
+      homeCardSubText: "Flexible desks, equipped meeting rooms, and furnished offices.",
+      heroImage: photo(shared, 1700),
+      cardImage: photo(office, 1000),
+    },
+    pageItems: workspaces.map((item) => ({ ...item, enabled: true })),
+  };
+})();
+
 const demoBusinessFor = (
   kind: ServiceKind,
   themeVariant: string,
@@ -1849,6 +1897,7 @@ const demoBusinessFor = (
     return WORPACE_DEMO_BUSINESS;
   if (themeVariant === "qerja" && kind === "workspace")
     return QERJA_DEMO_BUSINESS;
+  if (themeVariant === "coplace" && kind === "workspace") return coPlaceDemo;
   if (themeVariant === "cobox" && kind === "workspace")
     return COBOX_DEMO_BUSINESS;
   if (themeVariant === "travigo" && kind === "hostel")

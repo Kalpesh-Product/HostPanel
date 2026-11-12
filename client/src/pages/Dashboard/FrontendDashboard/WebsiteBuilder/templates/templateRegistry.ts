@@ -26,6 +26,7 @@ import WorkscapeTemplate from "./workscape/WorkscapeTemplate";
 import BrixspaceTemplate from "./brixspace/BrixspaceTemplate";
 import QerjaTemplate from "./qerja/QerjaTemplate";
 import CoboxTemplate from "./cobox/CoboxTemplate";
+import CoPlaceTemplate from "./coplace/CoPlaceTemplate";
 import type { ServiceKind } from "./verticalProfiles";
 
 export interface TemplateDefinition {
@@ -399,6 +400,15 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       accent: "#f3c441",
       font: "'Manrope', sans-serif",
     },
+    recommendedFor: ["workspace"],
+    supportsBooking: true,
+  },
+  coplace: {
+    id: "coplace",
+    name: "CoPlace",
+    description: "A mint-accented coworking template with a circular photo hero, workspace plans, and tour enquiries.",
+    component: CoPlaceTemplate,
+    swatch: { bg: "#edf8fa", fg: "#10292d", accent: "#28c49a", font: "'Raleway', sans-serif" },
     recommendedFor: ["workspace"],
     supportsBooking: true,
   },

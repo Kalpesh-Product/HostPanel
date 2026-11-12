@@ -25,6 +25,7 @@ export const SAMPLE_TEMPLATE_IDS = [
   "worpace",
   "qerja",
   "cobox",
+  "coplace",
   "wayfarer",
   "travigo",
   "lodge",

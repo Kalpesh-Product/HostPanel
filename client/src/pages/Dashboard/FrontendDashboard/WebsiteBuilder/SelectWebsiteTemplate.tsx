@@ -91,7 +91,7 @@ export const TemplatePicker = ({ onClose }: { onClose?: () => void }) => {
   const handlePreview = (templateId: string) => {
     // These previews show the template's own business, even with another
     // primary service selected in the picker.
-    const usesOwnDemo = templateId === "restobar" || templateId === "tinyhome";
+    const usesOwnDemo = ["restobar", "tinyhome", "coplace"].includes(templateId);
     const draft = buildDemoPreviewDraft(templateId, usesOwnDemo ? [] : services);
     localStorage.setItem(LIVE_PREVIEW_DRAFT_STORAGE_KEY, JSON.stringify(draft));
     window.open("/website-preview", "_blank", "noopener,noreferrer");
