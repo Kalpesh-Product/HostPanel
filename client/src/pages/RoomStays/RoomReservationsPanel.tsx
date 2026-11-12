@@ -306,6 +306,7 @@ function CreateRoomReservationDialog({
     try {
       await createRoomBooking({
         roomId,
+        bookingSource: "Phone",
         guestName: guestName.trim(),
         guestPhone: guestPhone.trim(),
         checkIn,
@@ -343,7 +344,7 @@ function CreateRoomReservationDialog({
                 ))}
               </select>
               {roomType === "Dorm" && selectedRoom && (
-                <p className="mt-1 text-[10px] text-slate-400">A bed will be auto-assigned from {selectedRoom.capacity} in this dorm.</p>
+                <p className="mt-1 text-[10px] font-pmedium text-slate-400">A bed will be auto-assigned from {selectedRoom.capacity} in this dorm.</p>
               )}
               {selectedRoom && selectedRoom.amenities && selectedRoom.amenities.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">

@@ -177,9 +177,12 @@ export default function ReservationsPanel({
           { key: "closed", label: "No-show / Cancelled", value: String(closedCount), icon: XCircle, cardClass: `${baseCardClass} border-l-4 border-l-red-500`, iconClass: "bg-red-50 text-red-600" },
         ].map((card) => {
           const Icon = card.icon;
+          const labelToneClass =
+            card.iconClass.split(" ").find((className) => className.startsWith("text-")) ||
+            "text-slate-400";
           return (
             <div key={card.key} className={card.cardClass}>
-              <div><p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">{card.label}</p><p className="text-[15px] font-pmedium text-slate-900">{card.value}</p></div>
+              <div><p className={`mb-1 text-[10px] font-pmedium uppercase tracking-widest ${labelToneClass}`}>{card.label}</p><p className="text-[15px] font-pmedium text-slate-900">{card.value}</p></div>
               <div className={`rounded-2xl p-2 shrink-0 ${card.iconClass}`}><Icon size={16} /></div>
             </div>
           );

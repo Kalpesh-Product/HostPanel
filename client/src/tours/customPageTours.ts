@@ -32,7 +32,7 @@ const CUSTOM_PAGE_TOURS: CustomTourRoute[] = [
       { selector: '[data-tour="organization-add-user"]', title: "Add a platform user", description: "Open the member form, choose an available role and department access, then send the invitation." },
       { selector: '[data-tour="organization-members-table"]', title: "Member records and access", description: "Review identity, role, departments, status, and access. Authorized users can toggle account access and open View Details for the complete member record.", side: "top" },
     ],
-    matches: exact("/core-modules/organization-management"),
+    matches: exact("/core-modules/organization-management/list"),
   },
   {
     id: "custom-calendar",

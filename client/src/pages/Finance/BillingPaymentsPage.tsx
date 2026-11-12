@@ -2891,7 +2891,7 @@ export function BillingPaymentsPage() {
                         Apply {taxLabel} ({taxRatePercent}%){applyVoTax && ` — Tax: ${formatCurrency(computeTaxPreview(Number(voPaymentAmount) || getVoTargetPeriod(viewingVo)?.dueAmount || 0).tax)} · Total: ${formatCurrency(computeTaxPreview(Number(voPaymentAmount) || getVoTargetPeriod(viewingVo)?.dueAmount || 0).total)}`}
                       </label>
                     )}
-                    <p className="text-[10px] text-slate-400">Pay in full or in installments — a partial amount keeps the period Overdue until the balance clears.</p>
+                    <p className="text-[10px] font-pmedium text-slate-400">Pay in full or in installments — a partial amount keeps the period Overdue until the balance clears.</p>
                     <div className="pt-1">
                       <label className="block text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Attach receipt (optional)</label>
                       <input

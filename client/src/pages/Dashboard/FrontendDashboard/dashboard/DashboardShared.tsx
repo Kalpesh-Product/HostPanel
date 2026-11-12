@@ -3,7 +3,7 @@
  * Only exports React components (fast-refresh compliant).
  * Pure utility functions live in ./dashboardUtils.ts
  */
-import type { ElementType, ReactNode } from "react";
+import type { CSSProperties, ElementType, ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import DonutChart from "../../../../components/graphs/DonutChart";
@@ -283,15 +283,24 @@ export const MetricTile = ({
   value,
   sub,
   route,
+  color = "#2563EB",
 }: MetricTileProps) => {
   const navigate = useNavigate();
   return (
     <button
       type="button"
       onClick={() => route && navigate(route)}
-      className="group flex min-w-0 items-center gap-4 rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg"
+      style={{ "--metric-color": color } as CSSProperties}
+      className="group flex min-w-0 items-center gap-4 rounded-2xl border border-l-4 border-slate-100 border-l-transparent bg-white p-4 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[var(--metric-color)] hover:border-l-[var(--metric-color)] hover:shadow-lg"
     >
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#2563EB] transition group-hover:bg-[#2563EB] group-hover:text-white">
+      <div
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-l-2 transition group-hover:bg-[var(--metric-color)] group-hover:text-white"
+        style={{
+          backgroundColor: `${color}14`,
+          borderLeftColor: color,
+          color,
+        }}
+      >
         <Icon size={19} />
       </div>
       <div className="min-w-0 flex-1">
@@ -311,7 +320,7 @@ export const MetricTile = ({
       </div>
       <ArrowRight
         size={13}
-        className="shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#2563EB]"
+        className="shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[var(--metric-color)]"
       />
     </button>
   );

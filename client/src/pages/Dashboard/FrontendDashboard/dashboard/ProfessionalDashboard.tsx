@@ -1,16 +1,13 @@
 /**
  * ProfessionalDashboard — shown for workspaces on the Professional plan.
  *
- * Adds on top of Basic:
- *   tickets, meeting-room-system, calendar,
- *   workspace-settings, workspace-management,
- *   tenant-companies-admin, bookings, resource-management,
- *   leads-management, tenant-companies-sales, resource-pricing, sales-architecture
+ * Adds the Professional plan's own modules on top of Basic, while business-
+ * vertical modules are shown separately only when Unit Settings enables them.
  *
  * Focus: Tenants, meeting room bookings, tickets, visitors and organization.
  * Upgrade nudge → opens the upgrade modal (Custom plan only).
  */
-import { useMemo } from "react";
+import { useMemo, type ElementType } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
@@ -26,7 +23,19 @@ import {
   AlertCircle,
   ArrowRight,
   Zap,
+  Clock,
   Activity,
+  BarChart3,
+  Boxes,
+  ContactRound,
+  Coffee,
+  Headphones,
+  Magnet,
+  Printer,
+  ShieldCheck,
+  SlidersHorizontal,
+  UserCog,
+  UsersRound,
 } from "lucide-react";
 import {
   MetricTile,
@@ -38,16 +47,204 @@ import {
 import type { QuickLinkItem } from "./DashboardShared";
 import DonutChart from "../../../../components/graphs/DonutChart";
 import BarGraph from "../../../../components/graphs/BarGraph";
+import DashboardModuleCard from "../../../../components/DashboardModuleCard";
 import WonoListingsCard from "./WonoListingsCard";
 import VerifiedBadgeNotice from "./VerifiedBadgeNotice";
 import BonusTrialOfferNotice from "./BonusTrialOfferNotice";
-import { statusBadgeColor, humanRelTime, hasModuleUse } from "./dashboardUtils";
+import {
+  getModuleGridClass,
+  statusBadgeColor,
+  humanRelTime,
+  hasModuleUse,
+  isModuleUsable,
+} from "./dashboardUtils";
 import { getStoredUser } from "../../../../lib/auth-session";
 import { getTenantCompanies } from "../../../../services/tenant-companies";
 import { getMeetingRoomBookings } from "../../../../services/meeting-room-bookings";
 import { getTickets } from "../../../../services/tickets";
 import dayjs from "dayjs";
 import PlanDashboardSkeleton from "./PlanDashboardSkeleton";
+import { SALES_DASHBOARD_MODULES } from "../../../Sales/salesDashboardModules";
+
+type ProfessionalModuleCard = {
+  id: string;
+  label: string;
+  description: string;
+  route: string;
+  icon: ElementType;
+  color: string;
+  verticals?: string[];
+};
+
+const PROFESSIONAL_PLAN_MODULES: ProfessionalModuleCard[] = [
+  {
+    id: "customer-support",
+    label: "Customer Support",
+    description: "Raise and follow support requests",
+    route: "/common-modules/customer-support",
+    icon: Headphones,
+    color: "#2563EB",
+  },
+  {
+    id: "tickets",
+    label: "Tickets",
+    description: "Review raised and assigned tickets",
+    route: "/tickets",
+    icon: Ticket,
+    color: "#DC2626",
+  },
+  {
+    id: "visitor-management",
+    label: "Visitor Management",
+    description: "Manage arrivals, bookings, and clients",
+    route: "/visitors/dashboard",
+    icon: ContactRound,
+    color: "#059669",
+  },
+  {
+    id: "printouts",
+    label: "Printouts",
+    description: "Request and track document printouts",
+    route: "/common-modules/printouts",
+    icon: Printer,
+    color: "#7C3AED",
+  },
+  {
+    id: "calendar",
+    label: "Calendar",
+    description: "View schedules and unit events",
+    route: "/common-modules/calendar",
+    icon: Calendar,
+    color: "#0891B2",
+  },
+  {
+    id: "website-builder",
+    label: "Website Builder",
+    description: "Build and publish the unit website",
+    route: "/key-apps/website-builder",
+    icon: Globe,
+    color: "#4F46E5",
+  },
+  {
+    id: "wono-nomad",
+    label: "Nomad Listings",
+    description: "Manage marketplace listings",
+    route: "/key-apps/wono-nomad",
+    icon: ShieldCheck,
+    color: "#0F766E",
+  },
+  {
+    id: "website-leads",
+    label: "All Leads",
+    description: "Review enquiries received online",
+    route: "/key-apps/all-leads",
+    icon: Magnet,
+    color: "#EA580C",
+  },
+  {
+    id: "organization-management",
+    label: "Organization Management",
+    description: "Manage members and departments",
+    route: "/core-modules/organization-management",
+    icon: Building2,
+    color: "#1E3D73",
+  },
+  {
+    id: "access-grants",
+    label: "Access Grants",
+    description: "Control member module access",
+    route: "/core-modules/access-grants",
+    icon: UserCog,
+    color: "#9333EA",
+  },
+  {
+    id: "workspace-settings",
+    label: "Unit Settings",
+    description: "Configure unit details and verticals",
+    route: "/core-modules/workspace-settings",
+    icon: SlidersHorizontal,
+    color: "#0284C7",
+  },
+  {
+    id: "workspace-management",
+    label: "Unit Management",
+    description: "Compare people, work, and performance",
+    route: "/core-modules/workspace-management",
+    icon: LayoutGrid,
+    color: "#0F766E",
+  },
+  {
+    id: "analytics",
+    label: "Analytics",
+    description: "Review enabled module activity",
+    route: "/core-modules/analytics",
+    icon: BarChart3,
+    color: "#C2410C",
+  },
+  {
+    id: "leads-management",
+    label: "Leads Management",
+    description: "Track and convert sales enquiries",
+    route: "/department-accesses/sales-department/leads-management",
+    icon: Magnet,
+    color: "#2563EB",
+  },
+  {
+    id: "tenant-companies-sales",
+    label: "Tenant Companies",
+    description: "Manage tenants and agreements",
+    route: "/department-accesses/sales-department/tenant-companies",
+    icon: Building2,
+    color: "#1E3D73",
+  },
+  {
+    id: "printout-management",
+    label: "Printout Management",
+    description: "Process unit printout requests",
+    route: "/department-accesses/administration-department/printouts",
+    icon: Printer,
+    color: "#7C3AED",
+  },
+];
+
+const VERTICAL_COMMON_MODULES: ProfessionalModuleCard[] = [
+  {
+    id: "meeting-room-system",
+    label: "Meeting Room Booking",
+    description: "Reserve and manage meeting rooms",
+    route: "/common-modules/meeting-room-booking",
+    icon: CalendarCheck,
+    color: "#4F46E5",
+    verticals: ["meeting-rooms"],
+  },
+  {
+    id: "cafe-orders",
+    label: "Cafe Orders",
+    description: "Take orders and manage service",
+    route: "/common-modules/cafe-orders",
+    icon: Coffee,
+    color: "#EA580C",
+    verticals: ["cafe"],
+  },
+  {
+    id: "hostel-booking",
+    label: "Hostel Booking",
+    description: "Check beds and create stays",
+    route: "/common-modules/hostel-booking",
+    icon: CalendarCheck,
+    color: "#0D9488",
+    verticals: ["hostel"],
+  },
+  {
+    id: "room-booking",
+    label: "Co-living Room Booking",
+    description: "Manage rooms and resident bookings",
+    route: "/common-modules/room-booking",
+    icon: CalendarCheck,
+    color: "#0891B2",
+    verticals: ["co-living"],
+  },
+];
 
 interface ProfessionalDashboardProps {
   onUpgradeClick?: () => void;
@@ -55,6 +252,10 @@ interface ProfessionalDashboardProps {
   enabledModuleIds: Set<string>;
   /** Per-member module grants — a denied module's card is never rendered. */
   grantedModuleIds: Set<string>;
+  /** Business verticals enabled through Unit Settings. */
+  verticalKeys: string[];
+  activeMembers: number;
+  totalMembers: number;
   /** Set only while this Professional plan is an active free trial. */
   trialDaysLeft?: number | null;
   isTrialExpiringSoon?: boolean;
@@ -153,6 +354,9 @@ const ProfessionalDashboard = ({
   onUpgradeClick,
   enabledModuleIds,
   grantedModuleIds,
+  verticalKeys,
+  activeMembers,
+  totalMembers,
   trialDaysLeft,
   isTrialExpiringSoon,
 }: ProfessionalDashboardProps) => {
@@ -171,9 +375,9 @@ const ProfessionalDashboard = ({
   const showBookings = canUse("meeting-room-system");
   const showTickets = canUse("tickets");
   const showVisitors = canUseAny(["visitors-management", "visitor-management"]);
-  const showWebsite = canUse("website-builder");
   const showOrg = canUse("organization-management");
   const showCalendar = canUse("calendar");
+  const showUnitSettings = canUse("workspace-settings");
 
   // Bookings are fetched per-workspace; resolve it the same way the meeting rooms page does.
   const storedUser = getStoredUser();
@@ -500,16 +704,34 @@ const ProfessionalDashboard = ({
       .replace(/_/g, " ")
       .replace(/\b\w/g, (c) => c.toUpperCase());
 
-  // Quick links — the Professional-tier essentials. Nomad listings is a
-  // niche side feature, not core to what this plan unlocks, so it's left
-  // off the dashboard (still reachable from the sidebar).
+  const professionalModuleCards = PROFESSIONAL_PLAN_MODULES.filter((module) =>
+    canUse(module.id),
+  );
+
+  const verticalModuleCards: ProfessionalModuleCard[] = [
+    ...VERTICAL_COMMON_MODULES,
+    ...SALES_DASHBOARD_MODULES.filter(
+      (module) => module.id !== "leads-management",
+    ),
+  ].filter((module) =>
+    isModuleUsable(
+      grantedModuleIds,
+      enabledModuleIds,
+      module.id,
+      module.verticals,
+      verticalKeys,
+    ),
+  );
+
+  // Keep this list action-oriented and short. The complete entitlement list
+  // is rendered in the module sections below.
   const quickLinks: QuickLinkItem[] = [
     ...(showTenants
       ? [
           {
             icon: Building2,
-            label: "Tenant Companies",
-            description: "Manage tenants & agreements",
+            label: "Add or Review Tenants",
+            description: "Open tenant companies and agreements",
             route: "/department-accesses/sales-department/tenant-companies",
             color: "#1E3D73",
           },
@@ -519,8 +741,8 @@ const ProfessionalDashboard = ({
       ? [
           {
             icon: CalendarCheck,
-            label: "Meeting Rooms",
-            description: "View & manage bookings",
+            label: "Book a Meeting Room",
+            description: "Check availability and create a booking",
             route: "/common-modules/meeting-room-booking",
             color: "#2563EB",
           },
@@ -530,8 +752,8 @@ const ProfessionalDashboard = ({
       ? [
           {
             icon: Ticket,
-            label: "Customer Support",
-            description: "Handle open tickets",
+            label: "Raise a Ticket",
+            description: "Report and track a unit issue",
             route: "/common-modules/customer-support",
             color: "#ef4444",
           },
@@ -541,21 +763,21 @@ const ProfessionalDashboard = ({
       ? [
           {
             icon: UserPlus,
-            label: "Visitor Management",
-            description: "Check-in / check-out",
-            route: "/visitors/visitor-management",
+            label: "New Frontdesk Action",
+            description: "Register a visitor or verify a booking",
+            route: "/visitors/dashboard",
             color: "#80bf01",
           },
         ]
       : []),
-    ...(showWebsite
+    ...(showUnitSettings
       ? [
           {
-            icon: Globe,
-            label: "Website Builder",
-            description: "Build & manage your site",
-            route: "/key-apps/website-builder",
-            color: "#7c3aed",
+            icon: SlidersHorizontal,
+            label: "Configure Unit",
+            description: "Update settings and business verticals",
+            route: "/core-modules/workspace-settings",
+            color: "#0284C7",
           },
         ]
       : []),
@@ -563,8 +785,8 @@ const ProfessionalDashboard = ({
       ? [
           {
             icon: LayoutGrid,
-            label: "Organization",
-            description: "Departments & members",
+            label: "Manage Team",
+            description: "Review departments and members",
             route: "/core-modules/organization-management",
             color: "#0891b2",
           },
@@ -574,14 +796,25 @@ const ProfessionalDashboard = ({
       ? [
           {
             icon: Calendar,
-            label: "Calendar",
-            description: "View events & schedules",
+            label: "Open Calendar",
+            description: "Review schedules and unit events",
             route: "/common-modules/calendar",
             color: "#059669",
           },
         ]
       : []),
-  ];
+    ...(!showBookings && verticalModuleCards.length > 0
+      ? [
+          {
+            icon: verticalModuleCards[0].icon,
+            label: `Open ${verticalModuleCards[0].label}`,
+            description: verticalModuleCards[0].description,
+            route: verticalModuleCards[0].route,
+            color: verticalModuleCards[0].color,
+          },
+        ]
+      : []),
+  ].slice(0, 6);
 
   const gettingStartedSteps = GETTING_STARTED_STEPS.filter((step) => {
     if (step.route.includes("tenant-companies")) return showTenants;
@@ -608,109 +841,218 @@ const ProfessionalDashboard = ({
     return <PlanDashboardSkeleton plan="professional" />;
   }
 
-  const overviewCardCount = [
-    showTenants,
-    showBookings,
-    showTickets,
-    showVisitors,
-  ].filter(Boolean).length;
-  const trendCardCount = [showBookings, showTickets, showTenants].filter(
-    Boolean,
-  ).length;
-  const trendGridClass =
-    trendCardCount <= 1
-      ? "grid-cols-1"
-      : trendCardCount === 2
-        ? "grid-cols-1 lg:grid-cols-2"
-        : "grid-cols-1 lg:grid-cols-2 xl:grid-cols-3";
-  const showCustomUpgradeNudge = trialDaysLeft == null && !isTrialExpiringSoon;
-
+  const activeModuleCount =
+    professionalModuleCards.length + verticalModuleCards.length;
   return (
     <div className="flex flex-col gap-5">
-      {/* Upgrade nudge — opens modal for Custom plan */}
-      {showCustomUpgradeNudge && (
-        <button
-          type="button"
-          data-tour="professional-plan"
-          className="flex w-full flex-wrap items-center gap-3 rounded-xl border-2 border-accent/30 bg-blue-50 p-4 text-left transition-colors hover:bg-blue-100 sm:flex-nowrap"
-          onClick={onUpgradeClick}
+      {/* Upgrade nudge — opens modal for Custom plan. Shown even during an
+          active/expiring trial: the only thing gated by trial state
+          elsewhere is a day-count callout near the plan badge, not an
+          upgrade-to-Custom offer, so there's nothing for this to stack
+          against. */}
+      <button
+        type="button"
+        data-tour="professional-plan"
+        className="flex w-full flex-wrap items-center gap-3 rounded-xl border-2 border-accent/30 bg-blue-50 p-4 text-left transition-colors hover:bg-blue-100 sm:flex-nowrap"
+        onClick={onUpgradeClick}
+      >
+        <Zap size={18} className="flex-shrink-0 text-accent" />
+        <p className="min-w-0 flex-1 text-content font-pmedium text-blue-800">
+          You're on the <strong>Professional Plan</strong> — upgrade to the{" "}
+          <strong>Custom Plan</strong> for Finance, HR, AI tools, Maintenance,
+          IT and more.
+        </p>
+        <span className="ml-7 flex-shrink-0 whitespace-nowrap rounded-full border border-accent bg-accent px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-white sm:ml-auto">
+          Upgrade
+        </span>
+        <ArrowRight size={14} className="flex-shrink-0 text-accent" />
+      </button>
+
+      {/* {trialDaysLeft != null && (
+        <a
+          href="/profile/plan-billing"
+          data-tour="professional-trial"
+          className={`flex w-full flex-wrap items-center gap-3 rounded-xl border-2 p-4 text-left transition-colors sm:flex-nowrap ${
+            isTrialExpiringSoon
+              ? "border-amber-400/40 bg-amber-50 hover:bg-amber-100"
+              : "border-accent/30 bg-blue-50 hover:bg-blue-100"
+          }`}
         >
-          <Zap size={18} className="flex-shrink-0 text-accent" />
-          <p className="min-w-0 flex-1 text-content font-pmedium text-blue-800">
-            You're on the <strong>Professional Plan</strong> — upgrade to the{" "}
-            <strong>Custom Plan</strong> for Finance, HR, AI tools, Maintenance,
-            IT and more.
+          <Clock
+            size={18}
+            className={`flex-shrink-0 ${isTrialExpiringSoon ? "text-amber-600" : "text-accent"}`}
+          />
+          <p
+            className={`min-w-0 flex-1 text-content font-pmedium ${
+              isTrialExpiringSoon ? "text-amber-800" : "text-blue-800"
+            }`}
+          >
+            {trialDaysLeft} day{trialDaysLeft === 1 ? "" : "s"} left in your free trial —
+            renew to keep the <strong>Professional Plan</strong>.
           </p>
-          <span className="ml-7 flex-shrink-0 whitespace-nowrap rounded-full border border-accent bg-accent px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-white sm:ml-auto">
-            Upgrade
+          <span
+            className={`ml-7 flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-white sm:ml-auto ${
+              isTrialExpiringSoon ? "border-amber-500 bg-amber-500" : "border-accent bg-accent"
+            }`}
+          >
+            Renew Now
           </span>
-          <ArrowRight size={14} className="flex-shrink-0 text-accent" />
-        </button>
-      )}
+          <ArrowRight
+            size={14}
+            className={`flex-shrink-0 ${isTrialExpiringSoon ? "text-amber-600" : "text-accent"}`}
+          />
+        </a>
+      )} */}
 
       <WonoListingsCard />
       <VerifiedBadgeNotice />
       <BonusTrialOfferNotice />
 
-      {overviewCardCount > 0 && (
-        <section
-          data-tour="professional-overview"
-          className="rounded-[1.75rem] border border-blue-100 bg-[#F8FAFD] p-5 shadow-[0_12px_34px_rgba(30,61,115,0.06)] sm:p-6"
-        >
-          <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#1E3D73] text-white shadow-sm">
-              <Activity size={18} />
-            </div>
-            <div>
-              <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
-                Live unit
-              </p>
-              <h3 className="mt-0.5 text-lg font-pmedium text-[#1E3D73]">
-                Unit Pulse
-              </h3>
-            </div>
+      <section
+        data-tour="professional-overview"
+        className="rounded-[1.75rem] border border-blue-100 bg-[#F8FAFD] p-5 shadow-[0_12px_34px_rgba(30,61,115,0.06)] sm:p-6"
+      >
+        <div className="mb-5 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#1E3D73] text-white shadow-sm">
+            <Activity size={18} />
           </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {showTenants && (
-              <MetricTile
-                icon={Building2}
-                label="Total Tenants"
-                value={tenantStats.total}
-                sub={`${tenantStats.active} active`}
-                color="#1E3D73"
-                route="/department-accesses/sales-department/tenant-companies"
-              />
-            )}
-            {showBookings && (
-              <MetricTile
-                icon={CalendarCheck}
-                label="Bookings Today"
-                value={bookingStats.todayCount}
-                sub={`${bookingStats.confirmed} confirmed overall`}
-                color="#2563EB"
-                route="/common-modules/meeting-room-booking"
-              />
-            )}
-            {showTickets && (
-              <MetricTile
-                icon={Ticket}
-                label="Open Tickets"
-                value={ticketStats.open}
-                sub={`${ticketStats.inProgress} in progress`}
-                color="#ef4444"
-                route="/common-modules/customer-support"
-              />
-            )}
-            {showVisitors && (
-              <MetricTile
-                icon={Eye}
-                label="Visitors Today"
-                value={visitorStats.todayCount}
-                sub={`${visitorStats.checkedIn} checked in`}
-                color="#80bf01"
-                route="/visitors/visitor-management"
-              />
-            )}
+          <div>
+            <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
+              Live unit
+            </p>
+            <h3 className="mt-0.5 text-lg font-pmedium text-[#1E3D73]">
+              Unit Pulse
+            </h3>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {showTenants && (
+            <MetricTile
+              icon={Building2}
+              label="Total Tenants"
+              value={tenantStats.total}
+              sub={`${tenantStats.active} active`}
+              color="#1E3D73"
+              route="/department-accesses/sales-department/tenant-companies"
+            />
+          )}
+          {showBookings && (
+            <MetricTile
+              icon={CalendarCheck}
+              label="Bookings Today"
+              value={bookingStats.todayCount}
+              sub={`${bookingStats.confirmed} confirmed overall`}
+              color="#2563EB"
+              route="/common-modules/meeting-room-booking"
+            />
+          )}
+          {showTickets && (
+            <MetricTile
+              icon={Ticket}
+              label="Open Tickets"
+              value={ticketStats.open}
+              sub={`${ticketStats.inProgress} in progress`}
+              color="#ef4444"
+              route="/common-modules/customer-support"
+            />
+          )}
+          {showVisitors && (
+            <MetricTile
+              icon={Eye}
+              label="Visitors Today"
+              value={visitorStats.todayCount}
+              sub={`${visitorStats.checkedIn} checked in`}
+              color="#80bf01"
+              route="/visitors/visitor-management"
+            />
+          )}
+          <MetricTile
+            icon={UsersRound}
+            label="Team Members"
+            value={activeMembers}
+            sub={`${totalMembers} total members`}
+            color="#0891B2"
+            route="/core-modules/organization-management"
+          />
+          <MetricTile
+            icon={Boxes}
+            label="Active Modules"
+            value={activeModuleCount}
+            sub={`${verticalModuleCards.length} from verticals`}
+            color="#7C3AED"
+            route="/core-modules/analytics"
+          />
+        </div>
+      </section>
+
+      {professionalModuleCards.length > 0 && (
+        <section className="rounded-[1.75rem] border border-blue-100 bg-white p-5 shadow-[0_12px_34px_rgba(30,61,115,0.06)] sm:p-6">
+          <div className="mb-5">
+            <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
+              Included with your plan
+            </p>
+            <h3 className="mt-1 text-lg font-pmedium text-[#1E3D73]">
+              Professional Modules
+            </h3>
+            <p className="mt-1 text-xs font-pmedium text-slate-500">
+              Only modules enabled by the Professional plan and granted to you
+              are shown.
+            </p>
+          </div>
+          <div className={getModuleGridClass(professionalModuleCards.length)}>
+            {professionalModuleCards.map((module) => {
+              const Icon = module.icon;
+              return (
+                <DashboardModuleCard
+                  key={module.id}
+                  icon={<Icon size={19} />}
+                  title={module.label}
+                  description={module.description}
+                  route={module.route}
+                  color={module.color}
+                />
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {verticalModuleCards.length > 0 && (
+        <section className="rounded-[1.75rem] border border-cyan-100 bg-gradient-to-br from-cyan-50/50 via-white to-white p-5 shadow-[0_12px_34px_rgba(8,145,178,0.07)] sm:p-6">
+          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-cyan-700">
+                Enabled through Unit Settings
+              </p>
+              <h3 className="mt-1 text-lg font-pmedium text-[#1E3D73]">
+                Vertical Additions
+              </h3>
+              <p className="mt-1 text-xs font-pmedium text-slate-500">
+                These tools follow the business verticals active for this unit.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate("/core-modules/workspace-settings")}
+              className="inline-flex w-fit items-center gap-2 rounded-full border border-cyan-200 bg-white px-3.5 py-2 text-[9px] font-pmedium uppercase tracking-widest text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-50"
+            >
+              <SlidersHorizontal size={13} /> Manage verticals
+            </button>
+          </div>
+          <div className={getModuleGridClass(verticalModuleCards.length)}>
+            {verticalModuleCards.map((module) => {
+              const Icon = module.icon;
+              return (
+                <DashboardModuleCard
+                  key={module.id}
+                  icon={<Icon size={19} />}
+                  title={module.label}
+                  description={module.description}
+                  route={module.route}
+                  color={module.color}
+                />
+              );
+            })}
           </div>
         </section>
       )}
@@ -1000,8 +1342,8 @@ const ProfessionalDashboard = ({
             </div>
           )}
 
-          {/* Monthly operational trends — side by side instead of stacked full-width */}
-          <div className={`grid gap-5 ${trendGridClass}`}>
+          {/* Monthly operational trends — each full-width, stacked */}
+          <div className="grid grid-cols-1 gap-5">
             {showBookings && (
               <div data-tour="professional-booking-trend">
                 <ActivityPanel eyebrow="Fiscal year" title="Monthly Bookings">

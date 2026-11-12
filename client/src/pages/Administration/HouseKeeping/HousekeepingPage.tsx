@@ -548,9 +548,42 @@ class HousekeepingErrorBoundary extends React.Component<ErrorBoundaryProps, Erro
 
 // -- Inner Page Component ---------------------------------------------------
 
-function HousekeepingPageInner() {
+// Titles and sub-text for the dedicated single-view routes opened from the
+// Housekeeping dashboard's module cards.
+const HOUSEKEEPING_VIEW_META: Record<
+  string,
+  { title: string; subtitle: string }
+> = {
+  staff: {
+    title: "Housekeeping Staff",
+    subtitle:
+      "Employee directory, daily attendance, and leave requests for your housekeeping team.",
+  },
+  scheduled: {
+    title: "Daily Scheduled Tasks",
+    subtitle:
+      "Plan, assign, and track recurring cleaning jobs by location and start time.",
+  },
+  auto: {
+    title: "Booking-Based Tasks",
+    subtitle:
+      "Cleaning tasks generated automatically from room and resource bookings.",
+  },
+  history: {
+    title: "Task History",
+    subtitle:
+      "Archived completed housekeeping work, searchable by month and year.",
+  },
+  performance: {
+    title: "Staff Performance",
+    subtitle:
+      "Assigned versus completed tasks, completion rate, and on-time performance.",
+  },
+};
+
+function HousekeepingPageInner({ lockedTab }: { lockedTab?: string }) {
   const [showExportModal, setShowExportModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('staff');
+  const [activeTab, setActiveTab] = useState(lockedTab || 'staff');
   const [staffSubTab, setStaffSubTab] = useState<'list' | 'attendance' | 'leave'>('list');
   const [employeeStatusFilter, setEmployeeStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -1346,9 +1379,16 @@ function HousekeepingPageInner() {
           {/* Header */}
           <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
-              <h1 className="text-title font-pmedium text-primary uppercase">Housekeeping</h1>
+              <h1 className="text-title font-pmedium text-primary uppercase">
+                {lockedTab
+                  ? HOUSEKEEPING_VIEW_META[lockedTab]?.title || "Housekeeping"
+                  : "Housekeeping"}
+              </h1>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
-                Core Module - Administration Manager
+                {lockedTab
+                  ? HOUSEKEEPING_VIEW_META[lockedTab]?.subtitle ||
+                    "Core Module - Administration Manager"
+                  : "Core Module - Administration Manager"}
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -1372,6 +1412,9 @@ function HousekeepingPageInner() {
           {bulkUploadMessage ? <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-pmedium text-emerald-700">{bulkUploadMessage}</div> : null}
 
           {/* ── Pill Tabs (DESIGN.md: pill-style with blue active bg) ── */}
+          {/* Hidden on the dedicated single-view routes — those pages are
+              locked to one tab, so the switcher would be noise. */}
+          {!lockedTab ? (
           <div data-tour="admin-housekeeping-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {[
               { key: 'staff', label: 'Housekeeping Staff' },
@@ -1399,29 +1442,11 @@ function HousekeepingPageInner() {
               </button>
             ))}
           </div>
-
-          {/* ── Stat Cards (DESIGN.md: border-l-4 accent per card) ── */}
-          <div data-tour="admin-housekeeping-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
-            {summaryCards.map((card, idx) => {
-              const Icon = card.icon;
-              const borderColors = ['', 'border-l-4 border-l-amber-500', 'border-l-4 border-l-red-500', 'border-l-4 border-l-blue-500', 'border-l-4 border-l-emerald-500'];
-              const iconClasses = ['bg-slate-50 text-slate-600', 'bg-amber-50 text-amber-600', 'bg-red-50 text-red-600', 'bg-blue-50 text-blue-600', 'bg-emerald-50 text-emerald-600'];
-              const labelToneClass = ['text-slate-400', 'text-amber-600', 'text-red-600', 'text-blue-600', 'text-emerald-600'][idx] || 'text-slate-400';
-              return (
-                <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
-                  <div className="min-w-0">
-                    <p className={`text-[10px] font-pmedium ${labelToneClass} uppercase tracking-widest mb-1`}>{card.label}</p>
-                    <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
-                  </div>
-                  <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>
-                    <Icon size={16} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          ) : null}
 
           {/* ── Sub-tabs for Housekeeping Staff: Employee List | Attendance | Leave Requests ── */}
+          {/* Placed above the summary cards — the cards re-count for whichever
+              sub-tab is open, so the switcher belongs directly above them. */}
           {activeTab === 'staff' ? (
             <div data-tour="admin-housekeeping-staff-subtabs" className="mb-3 flex bg-slate-100/60 p-1 rounded-xl border border-slate-200/50">
               {([
@@ -1444,6 +1469,27 @@ function HousekeepingPageInner() {
               ))}
             </div>
           ) : null}
+
+          {/* ── Stat Cards (DESIGN.md: border-l-4 accent per card) ── */}
+          <div data-tour="admin-housekeeping-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+            {summaryCards.map((card, idx) => {
+              const Icon = card.icon;
+              const borderColors = ['', 'border-l-4 border-l-amber-500', 'border-l-4 border-l-red-500', 'border-l-4 border-l-blue-500', 'border-l-4 border-l-emerald-500'];
+              const iconClasses = ['bg-slate-50 text-slate-600', 'bg-amber-50 text-amber-600', 'bg-red-50 text-red-600', 'bg-blue-50 text-blue-600', 'bg-emerald-50 text-emerald-600'];
+              const labelToneClass = ['text-slate-400', 'text-amber-600', 'text-red-600', 'text-blue-600', 'text-emerald-600'][idx] || 'text-slate-400';
+              return (
+                <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
+                  <div className="min-w-0">
+                    <p className={`text-[10px] font-pmedium ${labelToneClass} uppercase tracking-widest mb-1`}>{card.label}</p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
+                  </div>
+                  <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>
+                    <Icon size={16} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
 
           {/* ── Data Panel ── */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
@@ -3007,10 +3053,17 @@ function PerformanceTab({ rows }: PerformanceTabProps) {
 
 // -- Exported Page Component ------------------------------------------------
 
-export default function HousekeepingPage() {
+export default function HousekeepingPage({
+  lockedTab,
+}: {
+  // When set, the page renders a single view with the pill tabs hidden —
+  // used by the dedicated routes the Housekeeping dashboard's module cards
+  // open (staff / scheduled-tasks / booking-tasks / history / performance).
+  lockedTab?: string;
+}) {
   return (
     <HousekeepingErrorBoundary>
-      <HousekeepingPageInner />
+      <HousekeepingPageInner lockedTab={lockedTab} />
     </HousekeepingErrorBoundary>
   );
 }

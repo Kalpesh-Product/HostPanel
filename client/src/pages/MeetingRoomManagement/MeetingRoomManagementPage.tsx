@@ -289,8 +289,13 @@ function StatTile({
     success: "border-l-emerald-500 bg-emerald-50 text-emerald-700",
     attention: "border-l-amber-500 bg-amber-50 text-amber-700",
   };
+  const hoverBorders = {
+    default: "hover:border-blue-200 hover:border-l-blue-600",
+    success: "hover:border-emerald-200 hover:border-l-emerald-500",
+    attention: "hover:border-amber-200 hover:border-l-amber-500",
+  };
   return (
-    <div className="flex min-h-[112px] items-center gap-4 rounded-xl border border-slate-200 border-l-4 bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-blue-200 hover:border-l-blue-600 hover:shadow-md">
+    <div className={`flex min-h-[112px] items-center gap-4 rounded-xl border border-slate-200 border-l-4 border-l-transparent bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:shadow-md ${hoverBorders[status]}`}>
       <div
         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border-l-2 ${statuses[status]}`}
       >
@@ -864,10 +869,10 @@ export default function MeetingRoomManagementPage() {
                   "linear-gradient(to right, black 0%, black 76%, transparent 100%)",
               }}
             />
-            <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center gap-2.5 px-6 py-6 sm:w-[58%]">
-              <h1 className="text-[30px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[38px]">
-                <span className="text-primary">Meeting Room</span>{" "}
-                <span className="text-accent">Management</span>
+            <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center gap-2.5 px-6 py-6 sm:w-[80%]">
+              <h1 className="text-[22px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[28px]">
+                <span className="text-primary">Meeting Room Management</span>{" "}
+                <span className="text-accent">Dashboard</span>
               </h1>
               <p className="max-w-sm text-[11px] font-pmedium leading-5 text-slate-500">
                 Live room availability, booking demand, utilization, payments,

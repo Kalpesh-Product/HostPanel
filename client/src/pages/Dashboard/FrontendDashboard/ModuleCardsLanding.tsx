@@ -53,8 +53,9 @@ import {
 import type { ElementType, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import Card from "../../../components/Card";
+import DashboardModuleCard from "../../../components/DashboardModuleCard";
 import PageFrame from "../../../components/Pages/PageFrame";
+import PrimaryButton from "../../../components/PrimaryButton";
 import StartTrialConfirmModal from "../../../components/StartTrialConfirmModal";
 import useAuth from "../../../hooks/useAuth";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
@@ -434,35 +435,75 @@ const readWorkspaceSetup = (): WorkspaceSetupState => {
   }
 };
 
-const LockedCard = ({
+// Single accent color for every module tile — DashboardModuleCard's own
+// default blue, matching the other dashboards' module-card grids.
+const MODULE_CARD_COLOR = "#2563EB";
+
+// Locked variant styled like DashboardModuleCard so the grid doesn't mix two
+// different card families depending on access state.
+const LockedDashboardModuleCard = ({
   title,
   icon,
+  color,
   helperText,
   onClick,
 }: {
-  title: string;
+  title: ReactNode;
   icon?: ReactNode;
+  color: string;
   helperText?: string;
   onClick?: () => void;
 }) => (
   <button
     type="button"
     onClick={onClick}
-    className="relative flex h-60 w-full flex-col items-center justify-center rounded-2xl bg-white p-6 text-center shadow-md transition-all hover:shadow-lg"
+    className="group relative flex min-h-[154px] min-w-0 cursor-not-allowed flex-col items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white px-4 py-5 text-center opacity-80 shadow-[0_2px_8px_rgba(15,23,42,0.06)]"
   >
-    {icon ? (
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-3xl">
-        {icon}
-      </div>
+    <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 opacity-80" style={{ backgroundColor: color }} />
+    <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[9px] font-pmedium text-amber-700">
+      <Lock size={11} />
+      Locked
+    </span>
+    <span
+      className="mb-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+      style={{ backgroundColor: `${color}12`, color }}
+    >
+      {icon}
+    </span>
+    <span className="max-w-full text-[13px] font-pmedium leading-[1.35] text-slate-900 [overflow-wrap:anywhere]">
+      {title}
+    </span>
+    {helperText ? (
+      <span className="mt-1.5 line-clamp-2 max-w-[190px] text-[9px] font-pmedium leading-4 text-slate-400">
+        {helperText}
+      </span>
     ) : null}
-    <h3 className="text-base font-bold text-gray-700">{title}</h3>
-    <div className="mt-3 flex items-center gap-2 text-sm font-semibold text-[#1E3D73]">
-      <Lock size={14} />
-      <span>Locked</span>
-    </div>
-    {helperText ? <p className="mt-3 text-xs text-slate-500">{helperText}</p> : null}
-    <div className="pointer-events-none absolute inset-0 rounded-2xl bg-white/45" />
   </button>
+);
+
+// Static (enabled but non-navigable, e.g. no mapped route yet) variant,
+// same visual family minus the hover-lift/arrow affordance.
+const StaticDashboardModuleCard = ({
+  title,
+  icon,
+  color,
+}: {
+  title: ReactNode;
+  icon?: ReactNode;
+  color: string;
+}) => (
+  <div className="relative flex min-h-[154px] min-w-0 flex-col items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white px-4 py-5 text-center shadow-[0_2px_8px_rgba(15,23,42,0.06)]">
+    <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 opacity-80" style={{ backgroundColor: color }} />
+    <span
+      className="mb-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+      style={{ backgroundColor: `${color}12`, color }}
+    >
+      {icon}
+    </span>
+    <span className="max-w-full text-[13px] font-pmedium leading-[1.35] text-slate-900 [overflow-wrap:anywhere]">
+      {title}
+    </span>
+  </div>
 );
 
 const CompactAddOnCard = ({
@@ -878,109 +919,97 @@ export const UpgradePlanModal = ({
             </button>
           </div>
 
-          <div className="p-5 sm:p-7">
-            {upgradePlanCards.some((plan) => plan.key === "professional") ? (
-              <div className="mb-5 flex justify-center">
-                <PlanBillingCycleToggle
-                  value={upgradeBillingCycle}
-                  onChange={setUpgradeBillingCycle}
-                  savePercent={professionalPricing.savePercent}
-                />
-              </div>
-            ) : null}
+          {upgradePlanCards.some((plan) => plan.key === "professional") ? (
+            <PlanBillingCycleToggle
+              value={upgradeBillingCycle}
+              onChange={setUpgradeBillingCycle}
+              savePercent={professionalPricing.savePercent}
+            />
+          ) : null}
+          <div
+            className={`grid grid-cols-1 ${
+              upgradePlanCards.length > 1 ? "md:grid-cols-2" : ""
+            } gap-4 mx-auto ${
+              upgradePlanCards.length > 1 ? "max-w-[700px]" : "max-w-[320px]"
+            }`}
+          >
+            {upgradePlanCards.map((plan) => (
+              <div
+                key={plan.key}
+                className="w-full max-w-[300px] rounded-[30px] bg-[#eef2f7] p-4 border border-[#d9e1ec] shadow-[0_4px_18px_rgba(15,27,53,0.05)] flex flex-col"
+              >
+                <h3 className="text-[18px] font-bold text-[#0f1b35] text-center mt-1">
+                  {plan.title}
+                </h3>
+                <p className="text-[11px] text-[#667791] text-center mt-2 min-h-[30px]">
+                  {plan.subtitle}
+                </p>
+                <p className="text-center mt-3 mb-3 text-[#0f1b35] font-bold text-[18px]">
+                  {plan.key === "professional"
+                    ? formatProfessionalPriceLabel(upgradeBillingCycle, professionalPricing)
+                    : plan.priceLabel}
+                </p>
 
-            <div className={`grid grid-cols-1 gap-4 ${upgradePlanCards.length > 1 ? "lg:grid-cols-2" : "mx-auto max-w-xl"}`}>
-              {upgradePlanCards.map((plan) => {
-                const isProfessional = plan.key === "professional";
-                const canStartTrial =
-                  isProfessional &&
+                <div className="h-px bg-[#d8e0ea] mb-3" />
+
+                <div className="space-y-2 flex-1 rounded-2xl border border-[#dce4ee] bg-[#f7f9fc] px-3 py-2">
+                  {plan.moduleGroups.flatMap((group) => group.items || []).map((item) => (
+                    <div key={`${plan.key}-${item}`} className="flex items-start gap-2">
+                      <CheckCircle2 size={12} className="text-[#23c35c] mt-0.5" />
+                      <span className="text-[11px] text-[#4f627d]">{item}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="h-px bg-[#d8e0ea] mt-3 mb-2" />
+                <p className="text-[11px] text-[#9aa8bc] text-center mb-2">{plan.note}</p>
+
+                <div className="w-full space-y-2">
+                  {plan.key === "professional" &&
                   trialOffer.freeTrialEnabled &&
                   !trialOffer.hasUsedTrial &&
-                  !trialOffer.isTrialing;
-                const displayTitle = isProfessional ? "Professional" : "Custom";
-                const actionLabel =
-                  isUpgradeSubmitting && submittingPlanKey === plan.key
-                    ? isProfessional ? "Opening payment..." : "Sending request..."
-                    : plan.key === "custom" && requestedUpgradePlan === plan.key
-                      ? "Request again"
-                      : isProfessional ? "Choose Professional" : "Build your Custom plan";
-
-                return (
-                  <article
-                    key={plan.key}
-                    className={`flex min-w-0 flex-col overflow-hidden rounded-[1.75rem] border p-5 sm:p-6 ${
-                      isProfessional
-                        ? "border-blue-200 bg-gradient-to-br from-blue-50/80 via-white to-white shadow-[0_14px_35px_rgba(37,99,235,0.1)]"
-                        : "border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
+                  !trialOffer.isTrialing ? (
+                    <PrimaryButton
+                      title={
+                        isStartingTrial
+                          ? "Starting..."
+                          : trialOffer.freeTrialDurationDays
+                            ? `Start ${trialOffer.freeTrialDurationDays}-Day Free Trial`
+                            : "Start Free Trial"
+                      }
+                      handleSubmit={() => setIsTrialConfirmOpen(true)}
+                      disabled={isStartingTrial || isUpgradeSubmitting}
+                      className="w-full rounded-full"
+                      padding="py-2"
+                    />
+                  ) : null}
+                  <PrimaryButton
+                    title={
+                      isUpgradeSubmitting && submittingPlanKey === plan.key
+                        ? plan.key === "professional"
+                          ? "Redirecting..."
+                          : "Sending..."
+                        : plan.key === "custom" && requestedUpgradePlan === plan.key
+                          ? "Requested — Resend"
+                          : `Upgrade to ${plan.title}`
+                    }
+                    handleSubmit={() => {
+                      handlePlanCardAction(plan.key);
+                    }}
+                    disabled={isUpgradeSubmitting || isStartingTrial}
+                    className={`w-full rounded-full${
+                      plan.key === "professional" &&
+                      trialOffer.freeTrialEnabled &&
+                      !trialOffer.hasUsedTrial &&
+                      !trialOffer.isTrialing
+                        ? " !bg-transparent !text-[#2563eb] !border !border-[#2563eb]"
+                        : ""
                     }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className={`text-[9px] font-pmedium uppercase tracking-[0.2em] ${isProfessional ? "text-[#2563EB]" : "text-slate-400"}`}>
-                          {isProfessional ? "Best for growing units" : "Built around your unit"}
-                        </p>
-                        <h3 className="mt-1 text-xl font-pmedium text-[#1E3D73]">{displayTitle}</h3>
-                      </div>
-                      {isProfessional ? (
-                        <span className="rounded-full bg-[#2563EB] px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-white">
-                          Recommended
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <p className="mt-3 min-h-[40px] text-xs font-pmedium leading-relaxed text-slate-500">
-                      {plan.subtitle}
-                    </p>
-                    <p className="mt-4 text-xl font-pmedium text-[#1E3D73] sm:text-2xl">
-                      {isProfessional
-                        ? formatProfessionalPriceLabel(upgradeBillingCycle, professionalPricing)
-                        : "Personalised pricing"}
-                    </p>
-                    <p className="mt-1 text-[10px] font-pmedium text-slate-400">{plan.note}</p>
-
-                    <div className="my-5 h-px bg-blue-100/80" />
-                    <p className="mb-3 text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">What you get</p>
-                    <div className="grid flex-1 grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                      {plan.moduleGroups.flatMap((group) => group.items || []).map((item) => (
-                        <div key={`${plan.key}-${item}`} className="flex items-start gap-2">
-                          <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-[#2563EB]" />
-                          <span className="text-[11px] font-pmedium leading-relaxed text-slate-600">{item}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="mt-6 space-y-2">
-                      {canStartTrial ? (
-                        <button
-                          type="button"
-                          onClick={() => setIsTrialConfirmOpen(true)}
-                          disabled={isStartingTrial || isUpgradeSubmitting}
-                          className="w-full rounded-full bg-[#2563EB] px-4 py-3 text-[10px] font-pmedium uppercase tracking-widest text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {isStartingTrial
-                            ? "Starting trial..."
-                            : trialOffer.freeTrialDurationDays
-                              ? `Try Professional free for ${trialOffer.freeTrialDurationDays} days`
-                              : "Try Professional free"}
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        onClick={() => handlePlanCardAction(plan.key)}
-                        disabled={isUpgradeSubmitting || isStartingTrial}
-                        className={`w-full rounded-full px-4 py-3 text-[10px] font-pmedium uppercase tracking-widest transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                          canStartTrial || !isProfessional
-                            ? "border border-blue-200 bg-white text-[#2563EB] hover:bg-blue-50"
-                            : "bg-[#2563EB] text-white shadow-lg shadow-blue-200 hover:bg-blue-700"
-                        }`}
-                      >
-                        {actionLabel}
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
+                    padding="py-2"
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -1932,29 +1961,25 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
             </div>
           )
         ) : (
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {cards.map((card) => (
-              <div key={card.id}>
+              <div key={card.id} className="grid">
                 {card.isEnabled && card.route ? (
-                  <Card
-                    title={card.title}
+                  <DashboardModuleCard
                     icon={card.icon}
+                    title={card.title}
                     route={card.route}
-                    fullHeight
+                    description={card.helperText}
+                    color={MODULE_CARD_COLOR}
                     state={card.state || { fromSection: sectionId }}
                   />
                 ) : card.isEnabled ? (
-                  <Card
-                    title={card.title}
-                    icon={card.icon}
-                    route="#"
-                    fullHeight
-                    interactive={Boolean(card.isInteractive)}
-                  />
+                  <StaticDashboardModuleCard title={card.title} icon={card.icon} color={MODULE_CARD_COLOR} />
                 ) : (
-                  <LockedCard
+                  <LockedDashboardModuleCard
                     title={card.title}
                     icon={card.icon}
+                    color={MODULE_CARD_COLOR}
                     helperText={card.helperText}
                     onClick={
                       card.upgradeLocked && upgradePlanCards.length > 0

@@ -716,7 +716,10 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey
   const isActive = (() => {
     if (!item.route) return false;
     if (item.id === "website-builder") {
-      return pathname === "/key-apps/website-builder";
+      // The dashboard's module cards open create/edit, leads, reviews, and
+      // careers under this same prefix, so keep Website Builder highlighted
+      // on all of them, not only the landing dashboard.
+      return pathname.startsWith("/key-apps/website-builder");
     }
     if (item.id === "wono-nomad") {
       // The landing page's four cards open pages under their own routes, so
@@ -729,6 +732,15 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey
           "/key-apps/nomads-leads",
           "/key-apps/verify-business",
         ].some((route) => pathname.startsWith(route))
+      );
+    }
+    if (item.id === "visitor-management" || item.id === "visitors-management") {
+      // The dashboard's module cards all open /visitors/visitor-management
+      // (with a ?tab= query param), a different prefix than the dashboard's
+      // own /visitors/dashboard route, so keep this item highlighted there too.
+      return (
+        pathname.startsWith("/visitors/dashboard") ||
+        pathname.startsWith("/visitors/visitor-management")
       );
     }
     return pathname.startsWith(normalizeLegacyRoute(item.route));

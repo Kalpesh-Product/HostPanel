@@ -346,7 +346,7 @@ export const TeamLiveStatusCard = ({
                   <p className="mt-0.5 truncate text-[10px] text-slate-500">
                     {staff.role}
                   </p>
-                  <p className="mt-1 text-[9px] text-slate-400">
+                  <p className="mt-1 text-[9px] font-pmedium text-slate-400">
                     In {staff.checkInLabel}{" "}
                     {staff.checkOutLabel !== "--"
                       ? `• Out ${staff.checkOutLabel}`

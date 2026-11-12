@@ -9,28 +9,25 @@ import {
   Building2,
   ChevronDown,
   ChevronUp,
+  Clock10,
   Database,
+  Layers3,
   ListTodo,
   RefreshCw,
   ShieldAlert,
 } from "lucide-react";
+import analyticsBannerImage from "../../assets/finance-dashboard-banner.webp";
 import PageFrame from "../../components/Pages/PageFrame";
 import WidgetSection from "../../components/WidgetSection";
-import BarGraph from "../../components/graphs/BarGraph";
-import { BarDiagram, DistributionDonut } from "./charts";
-import type { ChartRow } from "./charts";
+import DonutChart from "../../components/graphs/DonutChart";
+import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
+import LineGraph from "../../components/graphs/LineGraph";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
 import { getAnalyticsOverview } from "../../services/analytics";
 import type { AnalyticsBreakdownSegment, AnalyticsModuleEntry } from "../../services/analytics";
 
 const formatNumber = (value: number | null | undefined) =>
   value === null || value === undefined ? "--" : Number(value).toLocaleString("en-IN");
-
-const activityTone = (score: number) => {
-  if (score >= 70) return { bar: "bg-[#80bf01]", text: "text-green-700" };
-  if (score >= 40) return { bar: "bg-amber-500", text: "text-amber-700" };
-  return { bar: "bg-rose-500", text: "text-rose-700" };
-};
 
 const planChipClass = (availability?: string) => {
   switch (availability) {
@@ -189,12 +186,46 @@ const BREAKDOWN_TITLES: Record<string, [string, string]> = {
   "workspace-management": ["Transfer Flow", "Members"],
 };
 
-const STAT_CARDS = [
-  { key: "modules", label: "Modules Tracked", color: "#1E3D73", borderClass: "" },
-  { key: "activity", label: "Avg Activity Score", color: "#80bf01", borderClass: "border-l-4 border-l-[#80bf01]" },
-  { key: "records", label: "Total Records", color: "#2563EB", borderClass: "border-l-4 border-l-blue-500" },
-  { key: "open", label: "Open Items", color: "#f59e0b", borderClass: "border-l-4 border-l-amber-500" },
-] as const;
+// Matches the StatTile pattern every other dashboard (Customer Support,
+// Nomad Listings, Website Builder, Access Grants, All Leads) uses — icon
+// chip, big number, and a plain-language sub-caption instead of a bare label.
+function StatTile({
+  icon,
+  label,
+  value,
+  sub,
+  status = "default",
+}: {
+  icon: ReactNode;
+  label: string;
+  value: number | string;
+  sub?: string;
+  status?: "default" | "success" | "attention";
+}) {
+  const statuses = {
+    default: "border-l-blue-600 bg-blue-50 text-blue-700",
+    success: "border-l-emerald-500 bg-emerald-50 text-emerald-700",
+    attention: "border-l-amber-500 bg-amber-50 text-amber-700",
+  };
+  const hoverBorders = {
+    default: "hover:border-blue-200 hover:border-l-blue-600",
+    success: "hover:border-emerald-200 hover:border-l-emerald-500",
+    attention: "hover:border-amber-200 hover:border-l-amber-500",
+  };
+
+  return (
+    <div className={`flex min-h-[112px] items-center gap-4 rounded-xl border border-slate-200 border-l-4 border-l-transparent bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:shadow-md ${hoverBorders[status]}`}>
+      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border-l-2 ${statuses[status]}`}>
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-slate-500">{label}</p>
+        <p className="mt-1 text-[22px] font-pmedium leading-none text-slate-900">{value}</p>
+        {sub ? <p className="mt-2 truncate text-[10px] text-slate-500">{sub}</p> : null}
+      </div>
+    </div>
+  );
+}
 
 const ANALYTICS_ID_ALIASES: Record<string, string[]> = {
   "visitor-management": ["visitors-management"],
@@ -240,13 +271,84 @@ const resolveAnalyticsEntry = (
 const MAX_DONUT_SEGMENTS = 5;
 
 // Caps a breakdown to the top N segments + an "Others" bucket, same rule the
-// old BreakdownDonut applied, before handing off to the shared DistributionDonut.
+// old BreakdownDonut applied, before handing off to the shared DonutChart.
 const capSegments = (segments: AnalyticsBreakdownSegment[]) => {
   const sorted = [...segments].sort((a, b) => b.value - a.value);
   const top = sorted.slice(0, MAX_DONUT_SEGMENTS);
   const restValue = sorted.slice(MAX_DONUT_SEGMENTS).reduce((sum, segment) => sum + segment.value, 0);
   return restValue > 0 ? [...top, { label: "Others", value: restValue }] : top;
 };
+
+// Same rotation used by the other module dashboards' donuts (Nomad
+// Listings, Website Builder, Visitor Management, All Leads).
+const DONUT_PALETTE = ["#2563EB", "#7C3AED", "#F59E0B", "#10B981", "#EF4444", "#64748B"];
+
+// Thin card chrome around each ApexCharts instance — same title/subtitle
+// header the module dashboards use, so a chart never renders "naked".
+function ChartCard({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <div className="border-b border-slate-100 px-4 py-3">
+        <h3 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">{title}</h3>
+        {subtitle ? <p className="mt-0.5 text-[10px] text-slate-500">{subtitle}</p> : null}
+      </div>
+      <div className="p-3">{children}</div>
+    </div>
+  );
+}
+
+const barChartOptions = (categories: string[], colors: string[] = ["#2563EB"]) => ({
+  chart: { toolbar: { show: false }, fontFamily: "Poppins-Regular" },
+  plotOptions: { bar: { borderRadius: 4, columnWidth: "50%" } },
+  dataLabels: { enabled: false },
+  grid: { borderColor: "#EEF2F7" },
+  xaxis: { categories, labels: { style: { fontSize: "10px" } } },
+  colors,
+  stroke: { show: true, width: 2, colors: ["transparent"] },
+  tooltip: { theme: "light" },
+});
+
+const horizontalBarChartOptions = (categories: string[]) => ({
+  chart: { toolbar: { show: false }, fontFamily: "Poppins-Regular" },
+  plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: "55%" } },
+  dataLabels: { enabled: true, style: { fontSize: "10px" } },
+  grid: { borderColor: "#EEF2F7" },
+  xaxis: { categories, labels: { style: { fontSize: "10px" } } },
+  colors: ["#2563EB"],
+  tooltip: { theme: "light", y: { formatter: (value: number) => `${value}/100` } },
+});
+
+const horizontalCountBarChartOptions = (categories: string[], colors: string[] = ["#EF4444"]) => ({
+  chart: { toolbar: { show: false }, fontFamily: "Poppins-Regular" },
+  plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: "55%" } },
+  dataLabels: { enabled: true, style: { fontSize: "10px" } },
+  grid: { borderColor: "#EEF2F7" },
+  xaxis: { categories, labels: { style: { fontSize: "10px" } } },
+  colors,
+  tooltip: { theme: "light" },
+});
+
+const horizontalGroupedBarChartOptions = (categories: string[]) => ({
+  chart: { toolbar: { show: false }, fontFamily: "Poppins-Regular" },
+  plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: "65%" } },
+  dataLabels: { enabled: false },
+  grid: { borderColor: "#EEF2F7" },
+  xaxis: { categories, labels: { style: { fontSize: "10px" } } },
+  colors: ["#94A3B8", "#2563EB"],
+  legend: { position: "top", fontSize: "11px" },
+  tooltip: { theme: "light" },
+});
+
+const lineChartOptions = (categories: string[]) => ({
+  chart: { toolbar: { show: false }, fontFamily: "Poppins-Regular" },
+  dataLabels: { enabled: false },
+  stroke: { curve: "smooth", width: 2.5 },
+  grid: { borderColor: "#EEF2F7" },
+  xaxis: { categories, labels: { style: { fontSize: "9px" } }, tickAmount: 8 },
+  colors: ["#2563EB"],
+  fill: { type: "gradient", gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0, stops: [0, 90, 100] } },
+  tooltip: { theme: "light" },
+});
 
 const DeepDiveCard = ({ entry }: { entry: AnalyticsModuleEntry }) => {
   const navigate = useNavigate();
@@ -270,13 +372,54 @@ const DeepDiveCard = ({ entry }: { entry: AnalyticsModuleEntry }) => {
     { label: "Open Items", value: formatNumber(stats?.openItems), icon: ListTodo, color: "#f59e0b", borderClass: "border-l-amber-500" },
     { label: stats?.completionRate === null || stats?.completionRate === undefined ? "Activity Score" : "Completion", value: completionValue, icon: BarChart3, color: "#7c3aed", borderClass: "border-l-violet-500" },
   ];
-  const tiles: { key: string; title: string; donut?: ChartRow[]; bars?: ChartRow[] }[] = [];
-  if (breakdown.length > 0) tiles.push({ key: "primary", title: titles[0] || "Distribution", donut: capSegments(breakdown) });
-  if (secondary.length > 0) tiles.push({ key: "secondary", title: titles[1] || "Breakdown", donut: capSegments(secondary) });
-  if (deptSplit.length > 0) tiles.push({ key: "dept", title: "Dept-wise", donut: capSegments(deptSplit) });
-  if (hasMonthly) tiles.push({ key: "monthly", title: "Monthly Trend", bars: monthly.map((point) => ({ label: point.label, value: point.count })) });
-  if ((insights?.byDay ?? []).some((point) => point.count > 0))
-    tiles.push({ key: "peakDay", title: "Peak Days (last 90d)", bars: insights!.byDay.map((point) => ({ label: point.label, value: point.count })) });
+  const hasPeakDay = (insights?.byDay ?? []).some((point) => point.count > 0);
+  const hasPeakHour = (insights?.byHour ?? []).some((point) => point.count > 0);
+  // Plain-language answer to "when is this module actually used" — pairs
+  // with the Peak Days / Peak Hours charts below instead of making someone
+  // read 7 bars or 24 points to find the answer themselves.
+  const usageHeadline =
+    hasPeakDay || hasPeakHour
+      ? [
+          hasPeakDay ? `Busiest day: ${insights!.peakDayLabel}` : null,
+          hasPeakHour ? `Busiest time: ${insights!.peakHourLabel}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : null;
+
+  type Tile =
+    | { key: string; title: string; type: "donut"; segments: AnalyticsBreakdownSegment[] }
+    | { key: string; title: string; type: "bars"; categories: string[]; values: number[] }
+    | { key: string; title: string; type: "line"; categories: string[]; values: number[] };
+
+  const tiles: Tile[] = [];
+  if (breakdown.length > 0) tiles.push({ key: "primary", title: titles[0] || "Distribution", type: "donut", segments: capSegments(breakdown) });
+  if (secondary.length > 0) tiles.push({ key: "secondary", title: titles[1] || "Breakdown", type: "donut", segments: capSegments(secondary) });
+  if (deptSplit.length > 0) tiles.push({ key: "dept", title: "Dept-wise", type: "donut", segments: capSegments(deptSplit) });
+  if (hasMonthly)
+    tiles.push({
+      key: "monthly",
+      title: "Monthly Trend",
+      type: "bars",
+      categories: monthly.map((point) => point.label),
+      values: monthly.map((point) => point.count),
+    });
+  if (hasPeakDay)
+    tiles.push({
+      key: "peakDay",
+      title: "Peak Days (last 90d)",
+      type: "bars",
+      categories: insights!.byDay.map((point) => point.label),
+      values: insights!.byDay.map((point) => point.count),
+    });
+  if (hasPeakHour)
+    tiles.push({
+      key: "peakHour",
+      title: "Peak Hours (last 90d)",
+      type: "line",
+      categories: insights!.byHour.map((point) => point.label),
+      values: insights!.byHour.map((point) => point.count),
+    });
 
   return (
     <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
@@ -337,7 +480,7 @@ const DeepDiveCard = ({ entry }: { entry: AnalyticsModuleEntry }) => {
         })}
       </div>
 
-      {kpis.length > 0 ? (
+      {kpis.length > 0 || usageHeadline ? (
         <div className="px-5 pt-3 pb-1 flex flex-wrap gap-2">
           {kpis.map((kpi) => (
             <div key={kpi.label} className="rounded-full bg-slate-50 border border-slate-100 px-3 py-1.5 flex items-baseline gap-1.5">
@@ -348,18 +491,54 @@ const DeepDiveCard = ({ entry }: { entry: AnalyticsModuleEntry }) => {
               </span>
             </div>
           ))}
+          {usageHeadline ? (
+            <div className="rounded-full bg-blue-50 border border-blue-100 px-3 py-1.5 flex items-center gap-1.5">
+              <Clock10 size={11} className="text-[#2563EB]" />
+              <span className="text-[11px] font-pmedium text-[#1E3D73]">{usageHeadline}</span>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
       {tiles.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 p-3">
-          {tiles.map((tile) =>
-            tile.donut ? (
-              <DistributionDonut key={`${entry.id}-${tile.key}`} data={tile.donut} title={tile.title} />
-            ) : (
-              <BarDiagram key={`${entry.id}-${tile.key}`} bars={tile.bars ?? []} title={tile.title} />
-            ),
-          )}
+        <div className="grid grid-cols-1 gap-3 p-3 lg:grid-cols-2">
+          {tiles.map((tile) => {
+            const key = `${entry.id}-${tile.key}`;
+            if (tile.type === "donut") {
+              return (
+                <ChartCard key={key} title={tile.title}>
+                  <DonutChart
+                    centerLabel={tile.title}
+                    labels={tile.segments.map((segment) => segment.label)}
+                    series={tile.segments.map((segment) => segment.value)}
+                    colors={DONUT_PALETTE.slice(0, tile.segments.length)}
+                    tooltipValue={tile.segments.map((segment) => `${segment.value}`)}
+                    wrapLabels
+                  />
+                </ChartCard>
+              );
+            }
+            if (tile.type === "line") {
+              return (
+                <div key={key} className="lg:col-span-2">
+                  <ChartCard title={tile.title}>
+                    <LineGraph
+                      options={lineChartOptions(tile.categories)}
+                      data={[{ name: tile.title, data: tile.values }]}
+                    />
+                  </ChartCard>
+                </div>
+              );
+            }
+            return (
+              <ChartCard key={key} title={tile.title}>
+                <GroupedBarGraph
+                  options={barChartOptions(tile.categories)}
+                  series={[{ name: tile.title, data: tile.values }]}
+                />
+              </ChartCard>
+            );
+          })}
         </div>
       ) : (
         <div className="h-40 flex items-center justify-center text-gray-400 text-content">No activity recorded yet</div>
@@ -495,15 +674,102 @@ const AnalyticsPage = () => {
     });
   };
 
+  // Every chart below should only ever describe what this workspace can
+  // actually use on its current plan — `entry.enabled` is the backend's
+  // authoritative "unlocked for this workspace" flag (plan defaults +
+  // whatever was toggled on), so locked/other-plan modules never leak into
+  // activity, backlog, or momentum rankings.
+  const enabledModules = useMemo(
+    () => modules.filter((entry) => entry.enabled !== false),
+    [modules],
+  );
+
   const activityBars = useMemo(() => {
-    const sorted = [...modules]
+    const sorted = [...enabledModules]
       .sort((a, b) => b.activityScore - a.activityScore)
       .slice(0, 10);
     return {
       categories: sorted.map((entry) => entry.label),
       values: sorted.map((entry) => entry.activityScore),
     };
-  }, [modules]);
+  }, [enabledModules]);
+
+  // How much of THIS workspace's own plan is actually in use — scoped to
+  // modules this plan unlocks, never compared against other plans' modules.
+  const planCoverage = useMemo(() => {
+    const inUse = enabledModules.filter((entry) => (Number(entry.stats?.totalRecords) || 0) > 0).length;
+    const notYetUsed = enabledModules.length - inUse;
+    return [
+      { label: "In use", value: inUse },
+      { label: "Not used yet", value: notYetUsed },
+    ].filter((entry) => entry.value > 0);
+  }, [enabledModules]);
+
+  // Quick links to enabled modules — each opens the module itself, not
+  // Analytics, so this card is a shortcut shelf rather than another report.
+  const quickLinkModules = useMemo(
+    () =>
+      enabledModules
+        .filter((entry) => entry.route)
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    [enabledModules],
+  );
+
+  // Tracked modules grouped by actual health, not just raw score — tells a
+  // founder where to focus instead of just ranking "most used".
+  const healthMix = useMemo(() => {
+    let healthy = 0;
+    let needsAttention = 0;
+    let dormant = 0;
+    enabledModules.forEach((entry) => {
+      const records = Number(entry.stats?.totalRecords) || 0;
+      if (records === 0) {
+        dormant += 1;
+        return;
+      }
+      if (entry.activityScore >= 70) healthy += 1;
+      else needsAttention += 1;
+    });
+    return [
+      { label: "Healthy", value: healthy },
+      { label: "Needs Attention", value: needsAttention },
+      { label: "Dormant (no records)", value: dormant },
+    ].filter((entry) => entry.value > 0);
+  }, [enabledModules]);
+
+  // Backlog ranking — which modules are piling up open/pending work, a
+  // different and more actionable lens than the activity-score leaderboard.
+  const openItemsBars = useMemo(() => {
+    const sorted = [...enabledModules]
+      .filter((entry) => Number(entry.stats?.openItems) > 0)
+      .sort((a, b) => (Number(b.stats?.openItems) || 0) - (Number(a.stats?.openItems) || 0))
+      .slice(0, 8);
+    return {
+      categories: sorted.map((entry) => entry.label),
+      values: sorted.map((entry) => Number(entry.stats?.openItems) || 0),
+    };
+  }, [enabledModules]);
+
+  // Momentum — this month vs last month per module, using each module's own
+  // monthly series, so growth/decline is visible module-by-module instead
+  // of only as one combined workspace-wide trend line.
+  const momentumBars = useMemo(() => {
+    const withMomentum = enabledModules
+      .map((entry) => {
+        const monthly = Array.isArray(entry.stats?.monthly) ? entry.stats!.monthly : [];
+        const thisMonth = monthly[monthly.length - 1]?.count ?? 0;
+        const lastMonth = monthly[monthly.length - 2]?.count ?? 0;
+        return { label: entry.label, thisMonth, lastMonth, total: thisMonth + lastMonth };
+      })
+      .filter((entry) => entry.total > 0)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 8);
+    return {
+      categories: withMomentum.map((entry) => entry.label),
+      thisMonth: withMomentum.map((entry) => entry.thisMonth),
+      lastMonth: withMomentum.map((entry) => entry.lastMonth),
+    };
+  }, [enabledModules]);
 
   const trendSummary = useMemo(() => {
     const counts = trend.map((point) => point.count ?? 0);
@@ -519,37 +785,23 @@ const AnalyticsPage = () => {
     };
   }, [trend]);
 
+  // Same ApexCharts options shape the module deep-dive cards below use, so
+  // the overview section and the detail section render with one consistent
+  // chart library instead of mixing two different renderers.
   const trendSeries = useMemo(
-    () => [{ name: "New records", data: trend.map((point) => point.count) }],
+    () => [{ name: "New records", data: trend.map((point) => point.count ?? 0) }],
     [trend],
   );
+  const trendChartOptions = useMemo(() => lineChartOptions(trend.map((point) => point.label)), [trend]);
 
-  const trendOptions = {
-    chart: { toolbar: { show: false }, fontFamily: "Poppins-Regular" },
-    colors: ["#80bf01"],
-    xaxis: { categories: trend.map((point) => point.label) },
-    plotOptions: { bar: { borderRadius: 4, columnWidth: "55%" } },
-    dataLabels: { enabled: false },
-    grid: { borderColor: "#f0f0f0" },
-    tooltip: { theme: "light" },
-  };
-
-  const activityOptions = {
-    chart: { toolbar: { show: false }, fontFamily: "Poppins-Regular" },
-    colors: ["#80bf01"],
-    xaxis: { categories: activityBars.categories },
-    plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: "55%" } },
-    dataLabels: { enabled: true },
-    grid: { borderColor: "#f0f0f0" },
-    tooltip: { theme: "light", y: { formatter: (value: number) => `${value}/100` } },
-  };
-
-  const statValues: Record<string, string | number> = {
-    modules: data?.totals?.trackedModules ?? 0,
-    activity: `${data?.totals?.avgActivityScore ?? 0}/100`,
-    records: formatNumber(data?.totals?.totalRecords ?? 0),
-    open: formatNumber(data?.totals?.openItems ?? 0),
-  };
+  const activitySeries = useMemo(
+    () => [{ name: "Activity score", data: activityBars.values }],
+    [activityBars],
+  );
+  const activityChartOptions = useMemo(
+    () => horizontalBarChartOptions(activityBars.categories),
+    [activityBars],
+  );
 
   if (!isAllowed && !isAccessLoading) {
     return (
@@ -581,40 +833,93 @@ const AnalyticsPage = () => {
 
   const requestFailed = Boolean(error);
   const units = Array.isArray(data?.units) ? data.units : [];
+  // Unit switching (viewing another owned unit's analytics) is a
+  // Professional/Custom perk, same as the department dropdown elsewhere —
+  // Basic workspaces only ever have the one unit anyway.
+  const canSwitchUnits = String(data?.plan || plan || "").trim().toLowerCase() !== "basic" && units.length > 1;
 
   return (
-    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+    <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
-        <div className="flex flex-col gap-4 text-slate-700 font-sans">
-      {/* 1. Page header */}
-      <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
-        <div>
-          <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-            <BarChart3 size={22} /> Analytics
-          </h2>
-          <p className="text-xs font-pmedium text-slate-500 mt-1">
-            Performance across every module enabled for{" "}
-            <span>{data?.workspaceName || "this workspace"}</span> on the{" "}
-            <span className="capitalize">{data?.plan || plan || "current"}</span> plan.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {units.length > 1 ? (
-            <label className="flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-3 py-2.5 shadow-sm cursor-pointer">
-              <Building2 size={13} className="text-primary shrink-0" />
-              <select
-                value={unitId || data?.workspaceId || ""}
-                onChange={(event) => setUnitId(event.target.value)}
-                className="bg-transparent font-pmedium text-[10px] uppercase tracking-widest text-slate-600 focus:outline-none cursor-pointer max-w-[180px]"
-              >
-                {units.map((unit) => (
-                  <option key={unit.id} value={unit.id}>
-                    {unit.name}
-                  </option>
+        {/* 1. Banner — same hero treatment as the other module dashboards. */}
+        <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+          <div className="relative h-44 w-full sm:h-[12rem]">
+            <img
+              src={analyticsBannerImage}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-y-0 right-0 h-full w-full object-cover object-center sm:w-[64%]"
+              style={{
+                WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+                maskImage: "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+              }}
+            />
+            <div
+              aria-hidden="true"
+              className="absolute inset-y-0 right-0 w-full bg-gradient-to-br from-[#2563EB]/55 via-[#3b82f6]/35 to-[#60a5fa]/20 sm:w-[64%]"
+              style={{
+                WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+                maskImage: "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+              }}
+            />
+            <div
+              aria-hidden="true"
+              className="absolute inset-y-0 left-0 w-full bg-white/90 sm:w-[66%]"
+              style={{
+                WebkitMaskImage: "linear-gradient(to right, black 0%, black 76%, transparent 100%)",
+                maskImage: "linear-gradient(to right, black 0%, black 76%, transparent 100%)",
+              }}
+            />
+            <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center gap-2.5 px-6 py-6 sm:w-[68%]">
+              <h1 className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[22px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[28px]">
+                <span className="text-primary">Analytics</span>
+                <span className="text-accent">Dashboard</span>
+              </h1>
+              <p className="max-w-sm text-[11px] font-pmedium leading-5 text-slate-500">
+                Performance across every module enabled for{" "}
+                <span className="text-slate-700">{data?.workspaceName || "this workspace"}</span> on the{" "}
+                <span className="capitalize text-slate-700">{data?.plan || plan || "current"}</span> plan.
+              </p>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {["Modules", "Activity", "Trends", "Usage Patterns"].map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-[0.06em] text-blue-600"
+                  >
+                    {tag}
+                  </span>
                 ))}
-              </select>
-            </label>
-          ) : null}
+              </div>
+            </div>
+            {canSwitchUnits ? (
+              <label className="absolute right-6 top-5 z-10 flex items-center gap-2 rounded-lg border border-white/25 bg-white/15 px-3 py-2 backdrop-blur-sm cursor-pointer">
+                <Building2 size={13} className="text-white/80 shrink-0" />
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-pmedium uppercase tracking-[0.1em] text-white/75">Unit</span>
+                  <select
+                    value={unitId || data?.workspaceId || ""}
+                    onChange={(event) => setUnitId(event.target.value)}
+                    className="-ml-0.5 bg-transparent font-pmedium text-[12px] text-white focus:outline-none cursor-pointer max-w-[160px]"
+                  >
+                    {units.map((unit) => (
+                      <option key={unit.id} value={unit.id} className="text-slate-900">
+                        {unit.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </label>
+            ) : (
+              <div className="absolute right-6 top-5 z-10 rounded-lg border border-white/25 bg-white/15 px-3 py-2 backdrop-blur-sm">
+                <p className="text-[9px] font-pmedium uppercase tracking-[0.1em] text-white/75">Avg activity score</p>
+                <p className="mt-0.5 text-[15px] font-pmedium text-white">{data?.totals?.avgActivityScore ?? 0}/100</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Controls — last-updated time, refresh. */}
+        {/* <div className="mb-6 flex flex-wrap items-center justify-end gap-2">
           {data?.generatedAt ? (
             <span className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
               Updated {new Date(data.generatedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
@@ -629,92 +934,196 @@ const AnalyticsPage = () => {
             <RefreshCw size={13} strokeWidth={3} className={isRefetching ? "animate-spin" : ""} />
             REFRESH
           </button>
-        </div>
-      </div>
+        </div> */}
 
-      {requestFailed ? (
-        <div className="mb-3 rounded-2xl border border-rose-200 bg-rose-50 p-5 text-content font-pmedium text-rose-700">
-          Unable to load analytics right now. Please try refreshing in a moment.
-        </div>
-      ) : null}
+        {requestFailed ? (
+          <div className="mb-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] font-pmedium text-amber-800">
+            <ShieldAlert size={16} />
+            Unable to load analytics right now. Please try refreshing in a moment.
+          </div>
+        ) : null}
 
-      {/* 2. Stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
-        {STAT_CARDS.map((card) => (
-          <div
-            key={card.key}
-            className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.borderClass}`}
-          >
-            <div className="min-w-0">
-              <p className="text-[10px] font-pmedium uppercase tracking-widest mb-1" style={{ color: card.color }}>{card.label}</p>
-              <p className="text-[15px] font-pmedium text-slate-900">{statValues[card.key]}</p>
+        {/* 2. Stat tiles */}
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <StatTile
+            icon={<Layers3 size={20} />}
+            label="Modules tracked"
+            value={data?.totals?.trackedModules ?? 0}
+            sub="Modules with real operational data"
+          />
+          <StatTile
+            icon={<Activity size={20} />}
+            label="Avg activity score"
+            value={`${data?.totals?.avgActivityScore ?? 0}/100`}
+            sub="How actively your team uses enabled modules"
+            status={(data?.totals?.avgActivityScore ?? 0) >= 40 ? "success" : "attention"}
+          />
+          <StatTile
+            icon={<Database size={20} />}
+            label="Total records"
+            value={formatNumber(data?.totals?.totalRecords ?? 0)}
+            sub="Every tracked record across all modules"
+          />
+          <StatTile
+            icon={<ListTodo size={20} />}
+            label="Open items"
+            value={formatNumber(data?.totals?.openItems ?? 0)}
+            sub="Still pending action somewhere in the workspace"
+            status={(data?.totals?.openItems ?? 0) > 0 ? "attention" : "success"}
+          />
+          <StatTile
+            icon={<Clock10 size={20} />}
+            label="Active in last 30 days"
+            value={formatNumber(data?.totals?.activeLast30Days ?? 0)}
+            sub="New records created workspace-wide this month"
+            status={(data?.totals?.activeLast30Days ?? 0) > 0 ? "success" : "attention"}
+          />
+        </div>
+
+        {/* 3. Overview charts — same ApexCharts-based components used by
+            every other module dashboard, so nothing overflows its card and
+            the whole page renders with one consistent chart library. */}
+        <div className="mb-6 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+          <div className="flex flex-col gap-3">
+            <ChartCard
+              title="Platform Activity Trend"
+              subtitle="How much new work your unit creates each month (last 6 months)."
+            >
+              <LineGraph options={trendChartOptions} data={trendSeries} />
+            </ChartCard>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[
+                { label: "This month", value: formatNumber(trendSummary.thisMonth) },
+                { label: "Last month", value: formatNumber(trendSummary.lastMonth) },
+                { label: "Best month", value: `${trendSummary.bestLabel} · ${formatNumber(trendSummary.bestValue)}` },
+                { label: "Monthly avg", value: formatNumber(trendSummary.avg) },
+              ].map((chip) => (
+                <div
+                  key={chip.label}
+                  className="rounded-xl bg-white border border-slate-100 px-3 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+                >
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{chip.label}</p>
+                  <p className="mt-0.5 text-[11px] font-pmedium text-slate-900">{chip.value}</p>
+                </div>
+              ))}
             </div>
-            <div className="p-2 rounded-2xl shrink-0" style={{ backgroundColor: `${card.color}18` }}>
-              {card.key === "modules" ? (
-                <BarChart3 size={18} style={{ color: card.color }} />
-              ) : card.key === "activity" ? (
-                <Activity size={18} style={{ color: card.color }} />
-              ) : card.key === "records" ? (
-                <Database size={18} style={{ color: card.color }} />
-              ) : (
-                <ListTodo size={18} style={{ color: card.color }} />
-              )}
-            </div>
           </div>
-        ))}
-      </div>
 
-      {/* 3. Overview charts — two per line */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-          <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50 uppercase">
-            <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">Platform Activity Trend</span>
-            <p className="text-small font-pmedium text-slate-400 normal-case mt-0.5">How much new work your unit creates each month (last 6 months)</p>
-          </div>
-          <div className="p-2">
-            <BarGraph chartId="analytics-trend" data={trendSeries} options={trendOptions} height={260} />
-          </div>
-          <div className="px-3 pb-3 grid grid-cols-2 gap-2">
-            {[
-              { label: "This month", value: formatNumber(trendSummary.thisMonth) },
-              { label: "Last month", value: formatNumber(trendSummary.lastMonth) },
-              { label: "Best month", value: `${trendSummary.bestLabel} · ${formatNumber(trendSummary.bestValue)}` },
-              { label: "Monthly avg", value: formatNumber(trendSummary.avg) },
-            ].map((chip) => (
-              <div
-                key={chip.label}
-                className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2 flex items-baseline justify-between gap-2"
-              >
-                <span className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{chip.label}</span>
-                <span className="text-[11px] font-pmedium text-slate-900">{chip.value}</span>
-              </div>
-            ))}
-          </div>
+          {activityBars.categories.length > 0 ? (
+            <ChartCard
+              title="Module Activity Scores"
+              subtitle="Which modules your team actually uses — score out of 100 (top 10)."
+            >
+              <GroupedBarGraph options={activityChartOptions} series={activitySeries} />
+            </ChartCard>
+          ) : (
+            <div className="flex h-full min-h-[280px] items-center justify-center rounded-xl border border-slate-200 bg-white text-[11px] text-slate-400">
+              No tracked modules yet
+            </div>
+          )}
         </div>
 
-        <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-          <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50 uppercase">
-            <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">Module Activity Scores</span>
-            <p className="text-small font-pmedium text-slate-400 normal-case mt-0.5">Which modules your team actually uses — score out of 100 (top 10)</p>
-          </div>
-          <div className="p-2">
-            {activityBars.categories.length > 0 ? (
-              <BarGraph
-                chartId="analytics-activity"
-                data={[{ name: "Activity score", data: activityBars.values }]}
-                options={activityOptions}
-                height={Math.max(260, activityBars.categories.length * 42)}
+        {/* 3b. This plan's own coverage — scoped entirely to modules this
+            workspace's plan actually unlocks, never mixed with other
+            plans' modules — plus a quick-link shelf to jump straight into
+            any enabled module instead of another report. */}
+        <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {planCoverage.length > 0 ? (
+            <ChartCard
+              title={`${String(data?.plan || plan || "Your").replace(/^\w/, (c) => c.toUpperCase())} Plan Coverage`}
+              subtitle="How many of the modules your plan unlocks are actually in use."
+            >
+              <DonutChart
+                centerLabel="Modules"
+                labels={planCoverage.map((item) => item.label)}
+                series={planCoverage.map((item) => item.value)}
+                colors={["#2563EB", "#CBD5E1"]}
+                tooltipValue={planCoverage.map((item) => `${item.value} modules`)}
+                wrapLabels
               />
-            ) : (
-              <div className="h-48 flex items-center justify-center text-gray-400 text-content">No tracked modules yet</div>
-            )}
-          </div>
-        </div>
-      </div>
+            </ChartCard>
+          ) : null}
 
-      {/* 4. Module-wise deep dive — section dropdowns with module tabs inside. */}
-      {moduleGroups.length > 0 ? (
-        <WidgetSection title="Module Wise Analytics" border normalCase layout={1}>
+          <ChartCard title="Quick Links" subtitle="Jump straight into any module enabled on your plan.">
+            {quickLinkModules.length > 0 ? (
+              <div className="flex max-h-[280px] flex-col gap-1.5 overflow-y-auto pr-1">
+                {quickLinkModules.map((module) => (
+                  <button
+                    key={module.id}
+                    type="button"
+                    onClick={() => navigate(module.route)}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2 text-left transition hover:border-blue-200 hover:bg-blue-50/40"
+                  >
+                    <span className="truncate text-[11px] font-pmedium text-slate-700">{module.label}</span>
+                    <ArrowUpRight size={13} className="shrink-0 text-slate-400" />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex h-[200px] items-center justify-center text-[11px] text-slate-400">
+                No enabled modules with a direct link yet.
+              </div>
+            )}
+          </ChartCard>
+        </div>
+
+        {/* 3c. Health, backlog, and momentum — all scoped to enabled
+            modules only, giving a founder three different, actionable
+            lenses beyond the plain activity-score leaderboard. */}
+        <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {healthMix.length > 0 ? (
+            <ChartCard title="Module Health" subtitle="Enabled modules grouped by whether they're actually being used.">
+              <DonutChart
+                centerLabel="Modules"
+                labels={healthMix.map((item) => item.label)}
+                series={healthMix.map((item) => item.value)}
+                colors={["#10B981", "#F59E0B", "#94A3B8"].slice(0, healthMix.length)}
+                tooltipValue={healthMix.map((item) => `${item.value} modules`)}
+                wrapLabels
+              />
+            </ChartCard>
+          ) : null}
+
+          {openItemsBars.categories.length > 0 ? (
+            <div className="lg:col-span-2">
+              <ChartCard title="Biggest Backlogs" subtitle="Enabled modules with the most open or pending items right now.">
+                <GroupedBarGraph
+                  options={horizontalCountBarChartOptions(openItemsBars.categories)}
+                  series={[{ name: "Open items", data: openItemsBars.values }]}
+                />
+              </ChartCard>
+            </div>
+          ) : null}
+        </div>
+
+        {momentumBars.categories.length > 0 ? (
+          <div className="mb-6">
+            <ChartCard
+              title="Module Momentum"
+              subtitle="This month versus last month, per enabled module — where activity is growing or slowing down."
+            >
+              <GroupedBarGraph
+                options={horizontalGroupedBarChartOptions(momentumBars.categories)}
+                series={[
+                  { name: "Last month", data: momentumBars.lastMonth },
+                  { name: "This month", data: momentumBars.thisMonth },
+                ]}
+              />
+            </ChartCard>
+          </div>
+        ) : null}
+
+        {/* 4. Module-wise deep dive — section dropdowns with module tabs inside. */}
+        {moduleGroups.length > 0 ? (
+          <div className="mb-3">
+            <p className="text-sm font-pmedium text-slate-900">All module details</p>
+            <p className="mt-1 text-[10px] font-pmedium text-slate-500">
+              Open any section below for the full breakdown, trend, and peak-usage charts for that module.
+            </p>
+          </div>
+        ) : null}
+        {moduleGroups.length > 0 ? (
+          <WidgetSection border normalCase layout={1}>
           <div className="flex flex-col gap-3">
             {moduleGroups.map((group) => {
               const isOpen = expandedModuleSections.has(group.key);
@@ -791,10 +1200,8 @@ const AnalyticsPage = () => {
               );
             })}
           </div>
-        </WidgetSection>
-      ) : null}
-
-        </div>
+          </WidgetSection>
+        ) : null}
       </PageFrame>
     </div>
   );

@@ -42,4 +42,42 @@ const noVerticalBasic = getEffectiveEnabledModuleIds({
 });
 assert.equal(noVerticalBasic.includes("cafe-management"), false);
 
+// meeting-room-system is meeting-rooms only now — co-working no longer gets
+// it bundled in (it has its own Co-working Management module instead).
+const professionalCoworking = getEffectiveEnabledModuleIds({
+    selectedPlan: "professional",
+    existingEnabledModuleIds: [],
+    verticalKeys: ["co-working"],
+});
+assert.equal(professionalCoworking.includes("meeting-room-system"), false);
+assert.equal(professionalCoworking.includes("virtual-office-sales"), true);
+
+const professionalMeetingRooms = getEffectiveEnabledModuleIds({
+    selectedPlan: "professional",
+    existingEnabledModuleIds: [],
+    verticalKeys: ["meeting-rooms"],
+});
+assert.equal(professionalMeetingRooms.includes("meeting-room-system"), true);
+
+// Single-vertical Professional workspaces don't get Bookings, Resource &
+// Pricing, or Sales Architecture — those need more than one vertical.
+assert.equal(professionalMeetingRooms.includes("bookings"), false);
+assert.equal(professionalMeetingRooms.includes("resource-pricing"), false);
+assert.equal(professionalMeetingRooms.includes("sales-architecture"), false);
+
+// Multi-vertical Professional workspaces get all three.
+const professionalMultiVertical = getEffectiveEnabledModuleIds({
+    selectedPlan: "professional",
+    existingEnabledModuleIds: [],
+    verticalKeys: ["hostel", "co-living"],
+});
+assert.equal(professionalMultiVertical.includes("bookings"), true);
+assert.equal(professionalMultiVertical.includes("resource-pricing"), true);
+assert.equal(professionalMultiVertical.includes("sales-architecture"), true);
+
+// Tenant Companies (admin) and Resource Management are parked — never
+// granted by default on any plan, single or multi-vertical.
+assert.equal(professionalMultiVertical.includes("tenant-companies-admin"), false);
+assert.equal(professionalMultiVertical.includes("resource-management"), false);
+
 console.log("Workspace module catalog plan-gating checks passed.");

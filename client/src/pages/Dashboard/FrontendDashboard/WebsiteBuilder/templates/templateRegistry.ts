@@ -23,6 +23,7 @@ import WorpaceTemplate from "./worpace/WorpaceTemplate";
 import WorkscapeTemplate from "./workscape/WorkscapeTemplate";
 import BrixspaceTemplate from "./brixspace/BrixspaceTemplate";
 import QerjaTemplate from "./qerja/QerjaTemplate";
+import CoboxTemplate from "./cobox/CoboxTemplate";
 import type { ServiceKind } from "./verticalProfiles";
 
 export interface TemplateDefinition {
@@ -372,6 +373,21 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       fg: "#003f3a",
       accent: "#f3c441",
       font: "'Manrope', sans-serif",
+    },
+    recommendedFor: ["workspace"],
+    supportsBooking: true,
+  },
+  cobox: {
+    id: "cobox",
+    name: "Cobox",
+    description:
+      "Bright co-working design — a floating navigation bar, oversized teal hero, lime accents, workspace storytelling, pricing plans and polished reservation flows.",
+    component: CoboxTemplate,
+    swatch: {
+      bg: "#ffffff",
+      fg: "#102b32",
+      accent: "#dff39e",
+      font: "'Sora', sans-serif",
     },
     recommendedFor: ["workspace"],
     supportsBooking: true,

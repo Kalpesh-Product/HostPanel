@@ -27,6 +27,7 @@ import { getWebsiteLeads } from "../../services/sales-leads";
 import { axiosPrivate } from "../../utils/axios";
 import { DepartmentVisitorsCard } from "../Dashboard/FrontendDashboard/dashboard/DepartmentVisitorsCard";
 import { TeamLiveStatusCard } from "../Dashboard/FrontendDashboard/dashboard/TeamLiveStatusCard";
+import { isModuleUsable } from "../Dashboard/FrontendDashboard/dashboard/dashboardUtils";
 
 type Row = Record<string, any>;
 type DashboardData = { leads: Row[]; reviews: Row[]; finance: Row | null };
@@ -170,8 +171,13 @@ function Stat({
     success: "border-l-emerald-500 bg-emerald-50 text-emerald-700",
     attention: "border-l-amber-500 bg-amber-50 text-amber-700",
   };
+  const hoverBorders = {
+    default: "hover:border-blue-200 hover:border-l-blue-600",
+    success: "hover:border-emerald-200 hover:border-l-emerald-500",
+    attention: "hover:border-amber-200 hover:border-l-amber-500",
+  };
   return (
-    <div className="flex min-h-[112px] items-center gap-4 rounded-xl border border-slate-200 border-l-4 bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-blue-200 hover:border-l-blue-600 hover:shadow-md">
+    <div className={`flex min-h-[112px] items-center gap-4 rounded-xl border border-slate-200 border-l-4 border-l-transparent bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:shadow-md ${hoverBorders[state]}`}>
       <span
         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border-l-2 ${styles[state]}`}
       >
@@ -323,10 +329,16 @@ export default function TechWorkspaceDashboardPage() {
 
   const modules = useMemo(() => {
     if (access.isLoading) return [...MODULES];
-    const enabled = MODULES.filter((module) =>
-      access.hasModule(module.accessId || module.id),
-    );
-    return enabled.length ? enabled : [...MODULES];
+    return MODULES.filter((module) => {
+      const m = module as { id: string; accessId?: string; verticals?: string[] };
+      return isModuleUsable(
+        access.grantedModuleIds,
+        access.enabledModuleIds,
+        m.accessId || m.id,
+        m.verticals,
+        access.verticalKeys,
+      );
+    });
   }, [access]);
   const stats = useMemo(() => {
     const newLeads = data.leads.filter((row) =>
@@ -515,7 +527,7 @@ export default function TechWorkspaceDashboardPage() {
               }}
             />
             <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center gap-2.5 px-6 py-6 sm:w-[58%]">
-              <h1 className="text-[30px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[38px]">
+              <h1 className="text-[22px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[28px]">
                 <span className="text-primary">Tech</span>{" "}
                 <span className="text-accent">Dashboard</span>
               </h1>

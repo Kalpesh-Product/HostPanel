@@ -227,23 +227,44 @@ function StatTile({
   label,
   value,
   sub,
-  status = "default",
+  tone = "blue",
 }: {
   icon: ReactNode;
   label: string;
   value: number | string;
   sub?: string;
-  status?: "default" | "success" | "attention";
+  tone?: "blue" | "amber" | "violet" | "emerald" | "orange";
 }) {
-  const statuses = {
-    default: "border-l-blue-600 bg-blue-50 text-blue-700",
-    success: "border-l-emerald-500 bg-emerald-50 text-emerald-700",
-    attention: "border-l-amber-500 bg-amber-50 text-amber-700",
+  // Sales-module KPI convention (CafeOrders/CafeManagement): the tile stays
+  // neutral at rest, and on hover the KPI's own colour shows on the left
+  // border — blue = volume, violet/amber = flow, emerald = healthy money,
+  // orange = balances due.
+  const tones = {
+    blue: {
+      card: "hover:border-l-blue-600",
+      icon: "border-l-blue-600 bg-blue-50 text-blue-700",
+    },
+    amber: {
+      card: "hover:border-l-amber-500",
+      icon: "border-l-amber-500 bg-amber-50 text-amber-700",
+    },
+    violet: {
+      card: "hover:border-l-violet-500",
+      icon: "border-l-violet-500 bg-violet-50 text-violet-700",
+    },
+    emerald: {
+      card: "hover:border-l-emerald-500",
+      icon: "border-l-emerald-500 bg-emerald-50 text-emerald-700",
+    },
+    orange: {
+      card: "hover:border-l-orange-500",
+      icon: "border-l-orange-500 bg-orange-50 text-orange-700",
+    },
   };
   return (
-    <div className="flex min-h-[112px] items-center gap-4 rounded-xl border border-slate-200 border-l-4 bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-blue-200 hover:border-l-blue-600 hover:shadow-md">
+    <div className={`flex min-h-[112px] items-center gap-4 rounded-xl border border-slate-200 border-l-4 border-l-transparent bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-blue-200 hover:shadow-md ${tones[tone].card}`}>
       <div
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border-l-2 ${statuses[status]}`}
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border-l-2 ${tones[tone].icon}`}
       >
         {icon}
       </div>
@@ -299,9 +320,10 @@ export default function RoomStayManagementDashboard({
   const unitLabelSingular = roomType === "Dorm" ? "bed" : "key";
   const nounLower = noun.toLowerCase();
   const nounPlural = `${nounLower}s`;
-  const headingParts = title.split(" ");
-  const headingAccent = headingParts.length > 1 ? headingParts.pop()! : "";
-  const headingPrimary = headingParts.join(" ");
+  // Banner reads "<Title> Dashboard" — the two-tone split every module
+  // dashboard uses (primary title + accent "Dashboard").
+  const headingPrimary = title;
+  const headingAccent = "Dashboard";
 
   useEffect(() => {
     let cancelled = false;
@@ -894,9 +916,9 @@ export default function RoomStayManagementDashboard({
                   "linear-gradient(to right, black 0%, black 76%, transparent 100%)",
               }}
             />
-            <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center gap-2.5 px-6 py-6 sm:w-[58%]">
-              <h1 className="text-[30px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[38px]">
-                <span className="text-primary">{headingPrimary}</span>{" "}
+            <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center gap-2.5 px-6 py-6 sm:w-[75%]">
+              <h1 className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[22px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[28px]">
+                <span className="text-primary">{headingPrimary}</span>
                 <span className="text-accent">{headingAccent}</span>
               </h1>
               <p className="max-w-sm text-[11px] font-pmedium leading-5 text-slate-500">
@@ -957,53 +979,56 @@ export default function RoomStayManagementDashboard({
               label={`Bookable ${nounPlural}`}
               value={stats.totalRooms}
               sub={`${stats.totalUnits} ${unitLabel} in the selected floor scope`}
+              tone="blue"
             />
             <StatTile
               icon={<BedDouble size={20} />}
               label={roomType === "Dorm" ? "Bed capacity" : "Room keys"}
               value={stats.totalUnits}
               sub={`Average ${stats.averageUnits} ${unitLabel} per ${nounLower}`}
+              tone="violet"
             />
             <StatTile
               icon={<CircleGauge size={20} />}
               label="Occupancy today"
               value={`${stats.occupancyToday}%`}
               sub={`${stats.occupiedUnits} of ${stats.totalUnits} ${unitLabel} occupied · ${stats.availableUnits} free`}
-              status="success"
+              tone="emerald"
             />
             <StatTile
               icon={<Users size={20} />}
               label="In-house guests"
               value={stats.inHouse.length}
               sub={`${stats.overdueCheckouts.length} overdue checkout${stats.overdueCheckouts.length === 1 ? "" : "s"}`}
-              status={stats.overdueCheckouts.length > 0 ? "attention" : "default"}
+              tone="amber"
             />
             <StatTile
               icon={<LogIn size={20} />}
               label="Arrivals today"
               value={stats.arrivalsToday.length}
               sub={`${stats.arrivalsToday.length} guests expected to check in`}
+              tone="blue"
             />
             <StatTile
               icon={<LogOut size={20} />}
               label="Departures today"
               value={stats.departuresToday.length}
               sub={`${stats.departuresToday.length} stays due to check out`}
+              tone="violet"
             />
             <StatTile
               icon={<IndianRupee size={20} />}
               label="Booked stay value"
               value={currency(commercial.revenueFiscalYear)}
               sub={`${fiscalYearLabel} · ${commercial.completedCount} completed stays`}
+              tone="emerald"
             />
             <StatTile
               icon={<Wallet size={20} />}
               label="Pending payments"
               value={currency(commercial.pendingPaymentAmount)}
               sub={`${commercial.pendingPaymentCount} stays with a balance due`}
-              status={
-                commercial.pendingPaymentCount > 0 ? "attention" : "success"
-              }
+              tone="orange"
             />
           </div>
         )}
@@ -1522,7 +1547,7 @@ export default function RoomStayManagementDashboard({
                           <p className="truncate text-[11px] font-pmedium text-slate-800">
                             {room.name}
                           </p>
-                          <p className="mt-0.5 text-[10px] text-slate-400">
+                          <p className="mt-0.5 text-[10px] font-pmedium text-slate-400">
                             {room.floor} · {room.capacity} {unitLabel} ·{" "}
                             {room.monthStays} stays this month
                           </p>

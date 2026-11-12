@@ -152,6 +152,12 @@ const DEFAULT_TEMPLATE_SETTINGS = {
       visible: true,
       allowedPlans: ["basic", "professional", "custom"],
     },
+    {
+      templateId: "cobox",
+      enabled: true,
+      visible: true,
+      allowedPlans: ["basic", "professional", "custom"],
+    },
   ],
 };
 

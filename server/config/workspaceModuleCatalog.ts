@@ -13,12 +13,15 @@ const MODULE_GROUPS = [
       { id: "tasks", label: "Tasks", route: "/extra-common-modules/tasks", implemented: true },
       { id: "tickets", label: "Tickets", route: "/tickets", implemented: true },
       { id: "leave-requests", label: "Leave Requests", implemented: false },
-      { id: "meeting-room-system", label: "Meeting Room Booking", route: "/meetings/meeting-rooms", implemented: true, verticals: ["meeting-rooms", "co-working"] },
+      // Co-working does NOT get this — it has its own Co-working Management
+      // module instead; this generic hourly-booking common module is
+      // meeting-rooms vertical only.
+      { id: "meeting-room-system", label: "Meeting Room Booking", route: "/meetings/meeting-rooms", implemented: true, verticals: ["meeting-rooms"] },
       { id: "printouts", label: "Printouts", route: "/common-modules/printouts", implemented: true },
       { id: "calendar", label: "Calendar", route: "/calendar", implemented: true },
       { id: "cafe-orders", label: "Cafe Orders", route: "/common-modules/cafe-orders", implemented: true, verticals: ["cafe"] },
       { id: "hostel-booking", label: "Hostel Booking", route: "/common-modules/hostel-booking", implemented: true, verticals: ["hostel"] },
-      { id: "room-booking", label: "Room Booking", route: "/common-modules/room-booking", implemented: true, verticals: ["co-living"] },
+      { id: "room-booking", label: "Co-living Room Booking", route: "/common-modules/room-booking", implemented: true, verticals: ["co-living"] },
     ],
   },
   {
@@ -128,12 +131,13 @@ const MODULE_GROUPS = [
         label: "Administration Department",
         isGroup: true,
         tabs: [
-          // Not every vertical leases space or takes room/desk bookings
-          // (hostel/co-living/cafe don't) — Co-working keeps real tenant
-          // companies but has no "Bookings" use (that's meeting-room-style
-          // hourly booking, which desks/cabins don't do).
-          { id: "tenant-companies-admin", label: "Tenant Companies", implemented: false, verticals: ["co-working", "meeting-rooms", "workation"] },
-          { id: "bookings", label: "Bookings", implemented: false, verticals: ["meeting-rooms", "workation"] },
+          // Tenant Companies and Resource Management here are deliberately
+          // not granted on any plan/vertical for now (parked for later).
+          { id: "tenant-companies-admin", label: "Tenant Companies", implemented: false },
+          // Bookings only makes sense once a workspace has more than one
+          // vertical selected — a single-vertical workspace already manages
+          // its bookings from within that vertical's own management page.
+          { id: "bookings", label: "Bookings", implemented: false, requiresMultipleVerticals: true },
           { id: "visitors-management", label: "Visitors Management", route: "/visitors/dashboard", implemented: true },
           { id: "resource-management", label: "Resource Management", implemented: false },
           { id: "house-keeping", label: "House Keeping", implemented: false },
@@ -158,9 +162,14 @@ const MODULE_GROUPS = [
           { id: "co-living-management", label: "Co-living Management", route: "/key-apps/co-living-management", implemented: true, verticals: ["co-living"] },
           { id: "co-working-management", label: "Co-working Management", route: "/key-apps/co-working-management", implemented: true, verticals: ["co-working"] },
           { id: "meeting-room-management", label: "Meeting Room Management", route: "/key-apps/meeting-room-management", implemented: true, verticals: ["meeting-rooms"] },
-          { id: "resource-pricing", label: "Resource & Pricing", route: "/sales-crm/resource-pricing", implemented: true },
+          // Resource & Pricing and Sales Architecture are only needed once a
+          // workspace spans more than one vertical — a single vertical
+          // already manages its own resources from within its own
+          // management page (e.g. Hostel Management's own Resource & Pricing
+          // card), so a separate cross-vertical view would just be redundant.
+          { id: "resource-pricing", label: "Resource & Pricing", route: "/sales-crm/resource-pricing", implemented: true, requiresMultipleVerticals: true },
           { id: "virtual-office-sales", label: "Virtual Offices", route: "/sales-crm/virtual-offices", implemented: true, verticals: ["co-working"] },
-          { id: "sales-architecture", label: "Sales Architecture", route: "/sales-crm/sales-architecture", implemented: true },
+          { id: "sales-architecture", label: "Sales Architecture", route: "/sales-crm/sales-architecture", implemented: true, requiresMultipleVerticals: true },
         ],
       },
       {
@@ -381,7 +390,9 @@ const PROFESSIONAL_DEFAULT_IDS = new Set([
   "visitors_standard_type_department",
   "visitors_standard_type_tenant",
   "tickets",
-  "meeting-room-system",
+  // NOT "meeting-room-system" — that's granted per-vertical now (see
+  // getVerticalModuleIds), not a flat Professional default, so it stops
+  // showing for verticals that don't use it.
   "printouts",
   // "printout-management" (the Administration Department admin console) is
   // a separate id from "printouts" (the common self-service module) so
@@ -393,16 +404,19 @@ const PROFESSIONAL_DEFAULT_IDS = new Set([
   "workspace-management",
   // Administration Department is granted by default at Professional (on top
   // of "printout-management" above, which already defaulted on here).
-  "tenant-companies-admin",
-  "bookings",
+  // NOT "tenant-companies-admin" / "resource-management" — parked, not
+  // granted on any plan for now.
+  // NOT "bookings" — requires more than one vertical selected (see
+  // requiresMultipleVerticals on its catalog entry).
   "visitors-management",
-  "resource-management",
   "house-keeping",
   "leads-management",
   "tenant-companies-sales",
-  "virtual-office-sales",
-  "resource-pricing",
-  "sales-architecture",
+  // NOT "virtual-office-sales" — co-working vertical only now (see
+  // getVerticalModuleIds).
+  // NOT "resource-pricing" / "sales-architecture" — require more than one
+  // vertical selected (see requiresMultipleVerticals on their catalog
+  // entries).
 ]);
 
 const VERTICAL_KEY_BY_BUSINESS_TYPE = {
@@ -424,14 +438,21 @@ export const getWorkspaceVerticalKeys = (businessTypes = []) => {
   return Array.from(keys);
 };
 
-const isVisibleForVerticals = (item, verticalKeys = []) =>
-  !Array.isArray(item?.verticals) || item.verticals.some((key) => verticalKeys.includes(key));
+// A module can be gated by specific named verticals ("verticals": [...]),
+// by needing more than one vertical selected at all ("requiresMultipleVerticals"),
+// or both. Either condition that's present on the item must be satisfied.
+const isVisibleForVerticals = (item, verticalKeys = []) => {
+  if (item?.requiresMultipleVerticals && verticalKeys.length <= 1) return false;
+  if (Array.isArray(item?.verticals) && !item.verticals.some((key) => verticalKeys.includes(key))) return false;
+  return true;
+};
 
 export const getVerticalModuleIds = (verticalKeys = []) => {
   const ids = new Set();
   for (const section of MODULE_GROUPS) {
     for (const module of collectLeafModules(section.items || [])) {
-      if (Array.isArray(module.verticals) && isVisibleForVerticals(module, verticalKeys)) {
+      const isGated = Array.isArray(module.verticals) || Boolean(module.requiresMultipleVerticals);
+      if (isGated && isVisibleForVerticals(module, verticalKeys)) {
         ids.add(module.id);
       }
     }

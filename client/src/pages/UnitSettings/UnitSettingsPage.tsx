@@ -8,8 +8,6 @@ import {
   Building2,
   CalendarDays,
   CheckCircle2,
-  ClipboardList,
-  Clock,
   CreditCard,
   Eye,
   Layers,
@@ -21,15 +19,12 @@ import {
   Plus,
   Power,
   PowerOff,
-  ReceiptText,
   RotateCcw,
-  Save,
   Trash2,
   Users,
   X,
 } from "lucide-react";
 import PageFrame from "../../components/Pages/PageFrame";
-import TimePicker12h, { formatTime12hLabel } from "../../components/ui/TimePicker12h";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useAuth from "../../hooks/useAuth";
 import {
@@ -40,42 +35,8 @@ import {
   requestWorkspaceRecovery,
 } from "../../services/unit-management";
 import { switchWorkspaceSession } from "../../services/workspace-session";
-import { getWorkspaceSettings, updateWorkspaceSettings } from "../../services/unit-settings";
-import {
-  PAYMENT_METHOD_CATALOG,
-  getCountryBillingDefaults,
-  normalizeBillingConfig,
-  type WorkspaceBillingConfig,
-} from "../../lib/workspaceBilling";
 import { getCountryIsoCode } from "../../utils/locationApi";
 import WorkspaceEditModal, { EMPTY_EDIT_FORM, type EditUnitForm } from "./WorkspaceEditModal";
-
-const TIMEZONE_OPTIONS: string[] = (() => {
-  try {
-    const supported = (Intl as any).supportedValuesOf?.("timeZone");
-    if (Array.isArray(supported) && supported.length > 0) return supported;
-  } catch {
-    // fall through to the curated list below
-  }
-  return [
-    "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
-    "America/Anchorage", "America/Adak", "Pacific/Honolulu",
-    "Asia/Kolkata", "Asia/Dubai", "Asia/Singapore", "Asia/Tokyo", "Asia/Shanghai",
-    "Europe/London", "Europe/Paris", "Europe/Berlin",
-    "Australia/Sydney", "UTC",
-  ];
-})();
-
-function formatTimeInZone(timeZone: string): string {
-  if (!timeZone) return "-";
-  try {
-    return new Intl.DateTimeFormat("en-US", {
-      timeZone, hour: "2-digit", minute: "2-digit", hour12: true,
-    }).format(new Date());
-  } catch {
-    return "-";
-  }
-}
 
 function unitStatusPillClass(workspace: WorkspaceItem): string {
   const base = "inline-flex px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider border";
@@ -91,16 +52,6 @@ function unitStatusLabel(workspace: WorkspaceItem): string {
   if (workspace.isDisabled) return "Disabled";
   return "Active";
 }
-
-const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
-// Fiscal-year start options shown as their full span, e.g. "April to March".
-// A January start wraps around to end in December of the same year.
-const FISCAL_YEAR_RANGE_OPTIONS = MONTH_NAMES.map((month, index) => {
-  const startMonth = index + 1;
-  const endMonth = startMonth === 1 ? 12 : startMonth - 1;
-  return { value: startMonth, label: `${month} to ${MONTH_NAMES[endMonth - 1]}` };
-});
 
 type WorkspaceItem = {
   id: string;
@@ -190,16 +141,6 @@ export default function WorkspaceSettingsPage() {
   const [editingWorkspace, setEditingWorkspace] = useState<WorkspaceItem | null>(null);
   const [editForm, setEditForm] = useState<EditUnitForm>(EMPTY_EDIT_FORM);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [businessStart, setBusinessStart] = useState("09:00");
-  const [businessEnd, setBusinessEnd] = useState("22:00");
-  const [is24Hours, setIs24Hours] = useState(false);
-  const [workspaceTimezone, setWorkspaceTimezone] = useState("Asia/Kolkata");
-  const [workspaceCurrency, setWorkspaceCurrency] = useState("INR");
-  const [fiscalYearStartMonth, setFiscalYearStartMonth] = useState(4);
-  const [billing, setBilling] = useState<WorkspaceBillingConfig>(() => getCountryBillingDefaults("IN"));
-  const [isSavingHours, setIsSavingHours] = useState(false);
-  const [isSavingFiscalYear, setIsSavingFiscalYear] = useState(false);
-  const [isSavingPreferences, setIsSavingPreferences] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -216,25 +157,6 @@ export default function WorkspaceSettingsPage() {
       }
     };
     void load();
-
-    (async () => {
-      try {
-        const res = await getWorkspaceSettings(axiosPrivate);
-        const preferences = res?.data?.data?.settings?.preferences;
-        const bh = preferences?.businessHours;
-        if (mounted && preferences) {
-          setBusinessStart(bh?.start || "09:00");
-          setBusinessEnd(bh?.end || "22:00");
-          setIs24Hours(Boolean(bh?.is24Hours));
-          setWorkspaceTimezone(preferences.timezone || "Asia/Kolkata");
-          setWorkspaceCurrency(preferences.currency || "INR");
-          setFiscalYearStartMonth(Number(preferences.fiscalYearStartMonth) || 4);
-          setBilling(normalizeBillingConfig(preferences.billing));
-        }
-      } catch {
-        // keep defaults
-      }
-    })();
 
     return () => {
       mounted = false;
@@ -376,82 +298,6 @@ export default function WorkspaceSettingsPage() {
     }
   };
 
-  const togglePaymentMethod = (code: string) => {
-    if (code === "cash") return;
-    setBilling((current) => {
-      const exists = current.paymentMethods.some((method) => method.code === code);
-      return {
-        ...current,
-        paymentMethods: exists
-          ? current.paymentMethods.filter((method) => method.code !== code)
-          : [...current.paymentMethods, PAYMENT_METHOD_CATALOG[code]].filter(Boolean),
-      };
-    });
-  };
-
-  const saveBusinessHours = async () => {
-    if (!is24Hours) {
-      if (!businessStart || !businessEnd) {
-        toast.error("Please set both start and end times.");
-        return;
-      }
-      if (businessStart >= businessEnd) {
-        toast.error("Start time must be before end time.");
-        return;
-      }
-    }
-    try {
-      setIsSavingHours(true);
-      await updateWorkspaceSettings(axiosPrivate, {
-        preferences: {
-          timezone: workspaceTimezone,
-          businessHours: { start: businessStart, end: businessEnd, is24Hours },
-        },
-      });
-      toast.success("Business hours updated successfully.");
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to update business hours.");
-    } finally {
-      setIsSavingHours(false);
-    }
-  };
-
-  const saveFiscalYear = async () => {
-    try {
-      setIsSavingFiscalYear(true);
-      await updateWorkspaceSettings(axiosPrivate, {
-        preferences: { fiscalYearStartMonth },
-      });
-      // Re-read persisted truth from the server so the form can never drift
-      // from what was actually stored — a silent save mismatch shows up here.
-      const refreshed = await getWorkspaceSettings(axiosPrivate);
-      const persisted = Number(refreshed?.data?.data?.settings?.preferences?.fiscalYearStartMonth);
-      const effectiveMonth = Number.isInteger(persisted) && persisted >= 1 && persisted <= 12
-        ? persisted
-        : fiscalYearStartMonth;
-      setFiscalYearStartMonth(effectiveMonth);
-      window.localStorage.setItem("workspaceFiscalYearStartMonth", String(effectiveMonth));
-      toast.success("Financial year updated successfully.");
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to update financial year.");
-    } finally {
-      setIsSavingFiscalYear(false);
-    }
-  };
-
-  const savePreferences = async () => {
-    try {
-      setIsSavingPreferences(true);
-      await updateWorkspaceSettings(axiosPrivate, {
-        preferences: { billing },
-      });
-      toast.success("Tax and payment preferences updated successfully.");
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to update tax and payment preferences.");
-    } finally {
-      setIsSavingPreferences(false);
-    }
-  };
 
   // Keep the header switcher + login selection in sync immediately after a
   // status/delete change: they read auth.user.accessibleWorkspaces, which must
@@ -923,276 +769,6 @@ export default function WorkspaceSettingsPage() {
                 )}
               </div>
             </section>
-
-            <section data-tour="unit-settings-business-hours" className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-              <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-                <div className="flex items-start gap-3">
-                  <span className="rounded-2xl bg-amber-50 p-2 text-amber-600 shrink-0">
-                    <Clock className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Business Hours</p>
-                    <p className="mt-1 text-[11px] font-pmedium leading-6 text-slate-500">
-                      Set operating hours for meeting rooms, walk-ins, and bookings. Applied across all resources.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={saveBusinessHours}
-                  disabled={isSavingHours}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl px-4 py-2.5 text-[10px] font-pmedium shadow-sm transition-all whitespace-nowrap bg-[#2563EB] text-white hover:bg-primary/95 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isSavingHours ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} strokeWidth={3} />}
-                  {isSavingHours ? "SAVING..." : "SAVE HOURS"}
-                </button>
-              </div>
-              <div className="p-3 sm:p-4 lg:p-5">
-                <div className="grid gap-3 sm:grid-cols-2 mb-4">
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 space-y-1">
-                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Workspace Timezone</label>
-                    <select
-                      value={workspaceTimezone}
-                      onChange={(e) => setWorkspaceTimezone(e.target.value)}
-                      className="w-full bg-transparent text-[12px] font-pmedium text-[#0F172A] outline-none cursor-pointer"
-                    >
-                      {!TIMEZONE_OPTIONS.includes(workspaceTimezone) && workspaceTimezone && (
-                        <option value={workspaceTimezone}>{workspaceTimezone}</option>
-                      )}
-                      {TIMEZONE_OPTIONS.map((tz) => (
-                        <option key={tz} value={tz}>{tz}</option>
-                      ))}
-                    </select>
-                    <p className="text-[10px] font-pmedium text-slate-400">Current time there: {formatTimeInZone(workspaceTimezone)}</p>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Workspace Currency</p>
-                    <p className="mt-1 text-[12px] font-pmedium text-[#0F172A]">{workspaceCurrency || "-"}</p>
-                  </div>
-                </div>
-                <label className="flex items-center gap-2.5 mb-4 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={is24Hours}
-                    onChange={(e) => setIs24Hours(e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]/30"
-                  />
-                  <span className="text-[11px] font-pmedium text-[#0F172A]">Open 24 hours</span>
-                </label>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Opening Time</label>
-                    <TimePicker12h
-                      value={businessStart}
-                      onChange={setBusinessStart}
-                      disabled={is24Hours}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Closing Time</label>
-                    <TimePicker12h
-                      value={businessEnd}
-                      onChange={setBusinessEnd}
-                      disabled={is24Hours}
-                    />
-                  </div>
-                </div>
-                <p className="mt-3 text-[10px] font-pmedium text-slate-400">
-                  Current: {is24Hours ? "Open 24 hours" : `${formatTime12hLabel(businessStart)} – ${formatTime12hLabel(businessEnd)}`}
-                </p>
-              </div>
-            </section>
-
-            <section data-tour="unit-settings-fiscal-year" className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-              <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-                <div className="flex items-start gap-3">
-                  <span className="rounded-2xl bg-indigo-50 p-2 text-indigo-600 shrink-0">
-                    <ClipboardList className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Financial Year</p>
-                    <p className="mt-1 text-[11px] font-pmedium leading-6 text-slate-500">
-                      Used by Finance, Accounting, budgets, and reports.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={saveFiscalYear}
-                  disabled={isSavingFiscalYear}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl px-4 py-2.5 text-[10px] font-pmedium shadow-sm transition-all whitespace-nowrap bg-[#2563EB] text-white hover:bg-primary/95 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isSavingFiscalYear ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} strokeWidth={3} />}
-                  {isSavingFiscalYear ? "SAVING..." : "SAVE FINANCIAL YEAR"}
-                </button>
-              </div>
-              <div className="p-3 sm:p-4 lg:p-5">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 sm:max-w-xs">
-                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Financial Year Starts</label>
-                  <select
-                    value={fiscalYearStartMonth}
-                    onChange={(event) => setFiscalYearStartMonth(Number(event.target.value))}
-                    className="mt-1 w-full bg-transparent text-[12px] font-pmedium text-[#0F172A] outline-none cursor-pointer"
-                  >
-                    {FISCAL_YEAR_RANGE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </section>
-
-            <section data-tour="unit-settings-billing" className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-              <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-                <div className="flex items-start gap-3">
-                  <span className="rounded-2xl bg-emerald-50 p-2 text-emerald-600 shrink-0">
-                    <ReceiptText className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Tax & Payment Preferences</p>
-                    <p className="mt-1 text-[11px] font-pmedium leading-6 text-slate-500">
-                      These location-level rules drive external and walk-in booking totals, payment evidence, details, and emails.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={savePreferences}
-                  disabled={isSavingPreferences}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl px-4 py-2.5 text-[10px] font-pmedium shadow-sm transition-all whitespace-nowrap bg-[#2563EB] text-white hover:bg-primary/95 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isSavingPreferences ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} strokeWidth={3} />}
-                  {isSavingPreferences ? "SAVING..." : "SAVE PREFERENCES"}
-                </button>
-              </div>
-              <div className="p-3 sm:p-4 lg:p-5 space-y-5">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <label className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <span>
-                      <span className="block text-xs font-pmedium uppercase tracking-widest text-slate-700">Apply tax</span>
-                      <span className="text-xs font-pmedium text-slate-400">Disable for tax-free or externally handled locations.</span>
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={billing.tax.enabled}
-                      onChange={(event) => setBilling((current) => ({ ...current, tax: { ...current.tax, enabled: event.target.checked } }))}
-                      className="h-4 w-4 rounded border-slate-300 text-blue-600"
-                    />
-                  </label>
-                  <label className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <span>
-                      <span className="block text-xs font-pmedium uppercase tracking-widest text-slate-700">Prices include tax</span>
-                      <span className="text-xs font-pmedium text-slate-400">Extract tax from the entered price instead of adding it.</span>
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={billing.tax.priceIncludesTax}
-                      onChange={(event) => setBilling((current) => ({ ...current, tax: { ...current.tax, priceIncludesTax: event.target.checked } }))}
-                      className="h-4 w-4 rounded border-slate-300 text-blue-600"
-                    />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Tax label</span>
-                    <input
-                      type="text"
-                      maxLength={40}
-                      value={billing.tax.label}
-                      onChange={(event) => setBilling((current) => ({ ...current, tax: { ...current.tax, label: event.target.value } }))}
-                      placeholder="VAT, GST, Sales Tax..."
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                    />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Tax rate (%)</span>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.01"
-                      value={billing.tax.ratePercent}
-                      onChange={(event) => setBilling((current) => ({ ...current, tax: { ...current.tax, ratePercent: Math.min(100, Math.max(0, Number(event.target.value) || 0)) } }))}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-                    />
-                  </label>
-                </div>
-
-                <div>
-                  <div className="mb-3 flex items-center gap-2">
-                    <CreditCard size={14} className="text-[#2563EB]" />
-                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Accepted payment methods</p>
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {Object.values(PAYMENT_METHOD_CATALOG).map((method) => {
-                      const checked = billing.paymentMethods.some((entry) => entry.code === method.code);
-                      return (
-                        <label key={method.code} className={`flex items-start gap-3 rounded-xl border px-3 py-3 transition ${checked ? 'border-blue-200 bg-blue-50/60' : 'border-slate-200 bg-white'} ${method.code === 'cash' ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            disabled={method.code === "cash"}
-                            onChange={() => togglePaymentMethod(method.code)}
-                            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600"
-                          />
-                          <span>
-                            <span className="block text-[11px] font-pmedium text-slate-800">{method.label}</span>
-                            <span className="text-[9px] font-pmedium text-slate-400">
-                              {method.requiresReference ? 'Reference required' : 'No reference required'} · {method.requiresProof ? 'Proof required' : 'No proof required'}
-                            </span>
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <p className="mt-2 text-xs font-pmedium text-slate-400">Cash remains available as the universal fallback. Local methods are preselected when a new location is created.</p>
-                </div>
-              </div>
-            </section>
-
-            {/* <section className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-              <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-                <div>
-                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Unit Snapshot</p>
-                  <p className="mt-1 text-[11px] font-pmedium leading-6 text-slate-500">
-                    Current founder-level view of active unit and shared totals.
-                  </p>
-                </div>
-                {overview?.workspaceManagement?.enabled && canOpenWorkspaceManagement ? (
-                  <button
-                    type="button"
-                    onClick={() => navigate("/core-modules/workspace-management")}
-                    className="inline-flex h-8.5 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-[10px] font-pmedium text-slate-700 transition hover:bg-slate-50 whitespace-nowrap"
-                  >
-                    <PanelsTopLeft className="h-4 w-4" />
-                    OPEN MANAGEMENT
-                  </button>
-                ) : null}
-              </div>
-
-              <div className="p-3 sm:p-4 lg:p-5">
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                    <p className="text-[11px] font-pmedium uppercase tracking-[0.16em] text-slate-400">Active unit</p>
-                    <p className="mt-1 text-[16px] leading-none font-pmedium text-slate-950">{activeWorkspaceName}</p>
-                    <p className="mt-1 text-[11px] font-pmedium text-slate-500">{activeWorkspaceLocation}</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                    <p className="text-[11px] font-pmedium uppercase tracking-[0.16em] text-slate-400">Total tasks</p>
-                    <p className="mt-1 text-[16px] leading-none font-pmedium text-slate-950">{overview?.summary?.totalTasks || 0}</p>
-                    <p className="mt-1 text-[11px] font-pmedium text-slate-500">Across Linked Units</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                    <p className="text-[11px] font-pmedium uppercase tracking-[0.16em] text-slate-400">Departments</p>
-                    <p className="mt-1 text-[16px] leading-none font-pmedium text-slate-950">{overview?.summary?.totalDepartments || 0}</p>
-                    <p className="mt-1 text-[11px] font-pmedium text-slate-500">Founder-wide active departments</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                    <p className="text-[11px] font-pmedium uppercase tracking-[0.16em] text-slate-400">Overall performance</p>
-                    <p className="mt-1 text-[16px] leading-none font-pmedium text-slate-950">{overview?.summary?.performance?.overallScore || 0}%</p>
-                    <p className="mt-1 text-[11px] font-pmedium text-slate-500">Tickets and tasks combined</p>
-                  </div>
-                </div>
-              </div>
-            </section> */}
         </div>
         </div>
         )}

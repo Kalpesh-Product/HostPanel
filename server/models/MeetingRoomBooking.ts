@@ -79,6 +79,20 @@ export interface IMeetingRoomBooking extends Document {
     discountType: "flat" | "percent";
     discountValue: number;
 
+    // Guest/visitor details — collected for walk-in bookings at the front
+    // desk, same fields as a Room/Dorm stay, kept common across booking types.
+    idProofType?: string;
+    idProofNumber?: string;
+    idProofFileUrl?: string;
+    guestAge?: number | null;
+    guestGender?: string;
+    guestCountry?: string;
+    guestState?: string;
+    guestCity?: string;
+    guestAddress?: string;
+    emergencyContactName?: string;
+    emergencyContactPhone?: string;
+
     // For recurring bookings (future extension)
     isRecurring?: boolean;
     recurrenceRule?: string; // e.g., "FREQ=WEEKLY;INTERVAL=1"
@@ -252,6 +266,18 @@ const meetingRoomBookingSchema = new Schema<IMeetingRoomBooking>(
             default: 0,
             min: 0,
         },
+
+        idProofType: { type: String, trim: true, default: "", maxlength: 60 },
+        idProofNumber: { type: String, trim: true, default: "", maxlength: 60 },
+        idProofFileUrl: { type: String, trim: true, default: "" },
+        guestAge: { type: Number, min: 1, max: 120, default: null },
+        guestGender: { type: String, trim: true, default: "", maxlength: 40 },
+        guestCountry: { type: String, trim: true, default: "", maxlength: 100 },
+        guestState: { type: String, trim: true, default: "", maxlength: 100 },
+        guestCity: { type: String, trim: true, default: "", maxlength: 100 },
+        guestAddress: { type: String, trim: true, default: "", maxlength: 300 },
+        emergencyContactName: { type: String, trim: true, default: "", maxlength: 160 },
+        emergencyContactPhone: { type: String, trim: true, default: "", maxlength: 40 },
     },
     { timestamps: true }
 );

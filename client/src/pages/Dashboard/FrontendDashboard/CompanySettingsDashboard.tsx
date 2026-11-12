@@ -354,12 +354,15 @@ const CompanySettingsDashboard = () => {
               onUpgradeClick={() => setShowUpgradeModal(true)}
               enabledModuleIds={access.enabledModuleIds}
               grantedModuleIds={access.grantedModuleIds}
+              verticalKeys={access.verticalKeys}
+              activeMembers={access.metrics.activeMembers}
+              totalMembers={access.metrics.totalMembers}
               trialDaysLeft={trialDaysLeft}
               isTrialExpiringSoon={planSummary?.planStatus === "expiring_soon"}
             />
           )}
           {access.plan === "custom" && <CustomDashboard access={access} />}
-          {access.plan !== "basic" && customDepartments.length > 0 && (
+          {access.plan === "custom" && customDepartments.length > 0 && (
             <ModuleAccessDashboard
               moduleMap={access.moduleMap}
               grantedModuleIds={customDepartmentGrantedModuleIds}

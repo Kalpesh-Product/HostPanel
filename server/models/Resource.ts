@@ -28,6 +28,8 @@ export interface IResource extends Document {
     credits: number;
     description: string;
     amenities: string[];
+    chargesSecurityDeposit: boolean;
+    securityDepositAmount: number;
     status: "Active" | "Under Maintenance" | "Disabled";
     isActive: boolean;
     sortOrder: number;
@@ -210,6 +212,17 @@ const resourceSchema = new Schema<IResource>(
         amenities: {
             type: [String],
             default: [],
+        },
+        // Nightly stays (Room/Dorm) only — whether this specific resource
+        // charges a refundable security deposit at booking time, and how much.
+        chargesSecurityDeposit: {
+            type: Boolean,
+            default: false,
+        },
+        securityDepositAmount: {
+            type: Number,
+            default: 0,
+            min: 0,
         },
         status: {
             type: String,

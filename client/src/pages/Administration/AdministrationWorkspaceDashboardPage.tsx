@@ -21,6 +21,7 @@ import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
 import PageFrame from "../../components/Pages/PageFrame";
 import { DepartmentVisitorsCard } from "../Dashboard/FrontendDashboard/dashboard/DepartmentVisitorsCard";
 import { TeamLiveStatusCard } from "../Dashboard/FrontendDashboard/dashboard/TeamLiveStatusCard";
+import { isModuleUsable } from "../Dashboard/FrontendDashboard/dashboard/dashboardUtils";
 import administrationBannerImage from "../../assets/administration-dashboard-banner.webp";
 import { DEFAULT_FISCAL_YEAR } from "../../features/finance/utils/fiscalYear";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
@@ -223,8 +224,13 @@ function StatTile({
     success: "border-l-emerald-500 bg-emerald-50 text-emerald-700",
     attention: "border-l-amber-500 bg-amber-50 text-amber-700",
   };
+  const hoverBorders = {
+    default: "hover:border-blue-200 hover:border-l-blue-600",
+    success: "hover:border-emerald-200 hover:border-l-emerald-500",
+    attention: "hover:border-amber-200 hover:border-l-amber-500",
+  };
   return (
-    <div className="flex min-h-[112px] items-center gap-4 rounded-xl border border-slate-200 border-l-4 bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-blue-200 hover:border-l-blue-600 hover:shadow-md">
+    <div className={`flex min-h-[112px] items-center gap-4 rounded-xl border border-slate-200 border-l-4 border-l-transparent bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:shadow-md ${hoverBorders[status]}`}>
       <span
         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border-l-2 ${tones[status]}`}
       >
@@ -450,10 +456,15 @@ export default function AdministrationWorkspaceDashboardPage() {
 
   const enabledModules = useMemo(() => {
     if (access.isLoading) return [...ADMINISTRATION_MODULES];
-    const filtered = ADMINISTRATION_MODULES.filter((module) =>
-      access.hasModule("accessId" in module ? module.accessId : module.id),
+    return ADMINISTRATION_MODULES.filter((module) =>
+      isModuleUsable(
+        access.grantedModuleIds,
+        access.enabledModuleIds,
+        "accessId" in module && module.accessId ? module.accessId : module.id,
+        (module as { verticals?: string[] }).verticals,
+        access.verticalKeys,
+      ),
     );
-    return filtered.length ? filtered : [...ADMINISTRATION_MODULES];
   }, [access]);
   const stats = useMemo(() => {
     const activeTenants = data.tenants.filter(
@@ -757,7 +768,7 @@ export default function AdministrationWorkspaceDashboardPage() {
               }}
             />
             <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center gap-2.5 px-6 py-6 sm:w-[58%]">
-              <h1 className="text-[30px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[38px]">
+              <h1 className="text-[22px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[28px]">
                 <span className="text-primary">Administration</span>{" "}
                 <span className="text-accent">Dashboard</span>
               </h1>

@@ -40,6 +40,7 @@ import PageFrame from "../../components/Pages/PageFrame";
 import { DEFAULT_FISCAL_YEAR } from "../../features/finance/utils/fiscalYear";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
 import { getDepartmentFinanceData } from "../../services/finance";
+import { isModuleUsable } from "./FrontendDashboard/dashboard/dashboardUtils";
 import salesBannerImage from "../../assets/coworking-banner.jpg";
 
 type DepartmentModule = {
@@ -50,6 +51,7 @@ type DepartmentModule = {
   icon: ElementType;
   route: string;
   color: string;
+  verticals?: string[];
 };
 
 type DepartmentDashboardConfig = {
@@ -236,10 +238,16 @@ export default function DepartmentWorkspaceDashboardPage({
   const enabledModules = useMemo(() => {
     if (!config) return [];
     if (access.isLoading) return config.modules;
-    const filtered = config.modules.filter((module) =>
-      access.hasModule(module.accessId || module.id),
-    );
-    return filtered.length ? filtered : config.modules;
+    return config.modules.filter((module) => {
+      const m = module as DepartmentModule;
+      return isModuleUsable(
+        access.grantedModuleIds,
+        access.enabledModuleIds,
+        m.accessId || m.id,
+        m.verticals,
+        access.verticalKeys,
+      );
+    });
   }, [access, config]);
 
   const budget = useMemo(() => {
