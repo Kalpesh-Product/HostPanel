@@ -75,6 +75,12 @@ const DEFAULT_TEMPLATE_SETTINGS = {
       allowedPlans: ["basic", "professional", "custom"],
     },
     {
+      templateId: "restobar",
+      enabled: true,
+      visible: true,
+      allowedPlans: ["basic", "professional", "custom"],
+    },
+    {
       templateId: "workscape",
       enabled: true,
       visible: true,
@@ -129,6 +135,12 @@ const DEFAULT_TEMPLATE_SETTINGS = {
       allowedPlans: ["basic", "professional", "custom"],
     },
     {
+      templateId: "tinyhome",
+      enabled: true,
+      visible: true,
+      allowedPlans: ["basic", "professional", "custom"],
+    },
+    {
       templateId: "tulum",
       enabled: true,
       visible: true,
@@ -148,6 +160,12 @@ const DEFAULT_TEMPLATE_SETTINGS = {
     },
     {
       templateId: "huddle",
+      enabled: true,
+      visible: true,
+      allowedPlans: ["basic", "professional", "custom"],
+    },
+    {
+      templateId: "coplace",
       enabled: true,
       visible: true,
       allowedPlans: ["basic", "professional", "custom"],

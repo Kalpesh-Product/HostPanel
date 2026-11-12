@@ -89,7 +89,10 @@ export const TemplatePicker = ({ onClose }: { onClose?: () => void }) => {
     : "/dashboard/website-builder";
 
   const handlePreview = (templateId: string) => {
-    const draft = buildDemoPreviewDraft(templateId, services);
+    // These previews show the template's own business, even with another
+    // primary service selected in the picker.
+    const usesOwnDemo = ["restobar", "tinyhome", "coplace"].includes(templateId);
+    const draft = buildDemoPreviewDraft(templateId, usesOwnDemo ? [] : services);
     localStorage.setItem(LIVE_PREVIEW_DRAFT_STORAGE_KEY, JSON.stringify(draft));
     window.open("/website-preview", "_blank", "noopener,noreferrer");
   };

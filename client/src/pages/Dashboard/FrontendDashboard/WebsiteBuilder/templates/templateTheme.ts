@@ -57,6 +57,7 @@ export const THEME_DEFAULTS: Record<string, ThemeDefaults> = {
     accent: "#e9a542",
     surfaceUp: true,
   },
+  restobar: { bg: "#101519", text: "#f5f0e9", accent: "#c29a77", surfaceUp: true },
   flowspace: {
     bg: "#fbfaeb",
     text: "#11110f",
@@ -108,6 +109,7 @@ export const THEME_DEFAULTS: Record<string, ThemeDefaults> = {
     accent: "#8a9a86",
     surfaceUp: true,
   },
+  tinyhome: { bg: "#ffffff", text: "#272724", accent: "#353932", surfaceUp: true },
   tulum: { bg: "#f1f1ed", text: "#4f5a53", accent: "#8a968f", surfaceUp: true },
   grindelwald: {
     bg: "#f8f8f8",
@@ -127,6 +129,7 @@ export const THEME_DEFAULTS: Record<string, ThemeDefaults> = {
     accent: "#3b6cf0",
     surfaceUp: true,
   },
+  coplace: { bg: "#ffffff", text: "#10292d", accent: "#0e3036", surfaceUp: true },
   cobox: {
     bg: "#ffffff",
     text: "#102b32",
