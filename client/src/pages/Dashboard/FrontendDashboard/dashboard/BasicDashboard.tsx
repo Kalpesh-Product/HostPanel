@@ -24,7 +24,7 @@ import {
   Sparkles,
   Check,
 } from "lucide-react";
-import { RecentItem } from "./DashboardShared";
+import { MetricTile, RecentItem } from "./DashboardShared";
 import type { QuickLinkItem } from "./DashboardShared";
 import DonutChart from "../../../../components/graphs/DonutChart";
 import BarGraph from "../../../../components/graphs/BarGraph";
@@ -246,52 +246,6 @@ const WorkspaceProgress = ({
         })}
       </div>
     </section>
-  );
-};
-
-type BasicMetricProps = {
-  icon: ElementType;
-  label: string;
-  value: string | number;
-  sub: string;
-  route: string;
-};
-
-const BasicMetric = ({
-  icon: Icon,
-  label,
-  value,
-  sub,
-  route,
-}: BasicMetricProps) => {
-  const navigate = useNavigate();
-  return (
-    <button
-      type="button"
-      onClick={() => navigate(route)}
-      className="group flex min-w-0 items-center gap-4 rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg"
-    >
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#2563EB] font-pmedium transition group-hover:bg-[#2563EB] group-hover:text-white">
-        <Icon size={19} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-[9px] font-pmedium uppercase tracking-[0.18em] text-slate-400">
-          {label}
-        </p>
-        <div className="mt-1 flex items-end gap-2">
-          <span className="text-2xl font-pmedium leading-none text-[#1E3D73]">
-            {value}
-          </span>
-          <span className="truncate pb-0.5 text-[10px] font-pmedium text-slate-500">
-            {sub}
-          </span>
-        </div>
-      </div>
-      <ArrowRight
-        size={13}
-        className="shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#2563EB]"
-      />
-    </button>
   );
 };
 
@@ -697,30 +651,33 @@ const BasicDashboard = ({
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             {showVisitors && (
-              <BasicMetric
+              <MetricTile
                 icon={Eye}
                 label="Visitors Today"
                 value={visitorStats.todayCount}
                 sub={`${visitorStats.checkedIn} on-site`}
                 route="/visitors/visitor-management"
+                color="#059669"
               />
             )}
             {showLeads && (
-              <BasicMetric
+              <MetricTile
                 icon={UserPlus}
                 label="Website Leads"
                 value={leadStats.total}
                 sub={`${leadStats.newLeads} need follow-up`}
                 route="/key-apps/website-builder/leads"
+                color="#EA580C"
               />
             )}
             {showOrg && (
-              <BasicMetric
+              <MetricTile
                 icon={Users}
                 label="Active Members"
                 value={orgStats.activeMembers}
                 sub={`${orgStats.totalMembers} total`}
                 route="/core-modules/organization-management"
+                color="#7C3AED"
               />
             )}
           </div>

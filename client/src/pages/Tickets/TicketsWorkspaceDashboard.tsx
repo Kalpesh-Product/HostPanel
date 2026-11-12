@@ -103,9 +103,17 @@ function StatTile({
     rose: "border-l-rose-500 bg-rose-50 text-rose-700",
     slate: "border-l-slate-500 bg-slate-100 text-slate-700",
   };
+  const hoverBorders = {
+    blue: "hover:border-blue-200 hover:border-l-blue-600",
+    amber: "hover:border-amber-200 hover:border-l-amber-500",
+    green: "hover:border-emerald-200 hover:border-l-emerald-500",
+    violet: "hover:border-violet-200 hover:border-l-violet-500",
+    rose: "hover:border-rose-200 hover:border-l-rose-500",
+    slate: "hover:border-slate-300 hover:border-l-slate-500",
+  };
 
   return (
-    <div className="flex min-h-[112px] items-center gap-4 rounded-xl border border-slate-200 border-l-4 bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-blue-200 hover:border-l-blue-600 hover:shadow-md">
+    <div className={`flex min-h-[112px] items-center gap-4 rounded-xl border border-slate-200 border-l-4 border-l-transparent bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:shadow-md ${hoverBorders[tone]}`}>
       <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border-l-2 ${tones[tone]}`}>
         {icon}
       </div>

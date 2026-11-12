@@ -226,9 +226,14 @@ function StatTile({
     success: "border-l-emerald-500 bg-emerald-50 text-emerald-700",
     attention: "border-l-amber-500 bg-amber-50 text-amber-700",
   };
+  const hoverBorders = {
+    default: "hover:border-blue-200 hover:border-l-blue-600",
+    success: "hover:border-emerald-200 hover:border-l-emerald-500",
+    attention: "hover:border-amber-200 hover:border-l-amber-500",
+  };
 
   return (
-    <div className="flex min-h-[112px] items-center gap-4 rounded-xl border border-slate-200 border-l-4 bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-blue-200 hover:border-l-blue-600 hover:shadow-md">
+    <div className={`flex min-h-[112px] items-center gap-4 rounded-xl border border-slate-200 border-l-4 border-l-transparent bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:shadow-md ${hoverBorders[status]}`}>
       <div
         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border-l-2 ${statuses[status]}`}
       >
