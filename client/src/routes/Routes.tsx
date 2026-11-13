@@ -28,6 +28,7 @@ import DashboardLayout from "../pages/Dashboard/DashboardLayout";
 import DashboardIndex from "../pages/Dashboard/DashboardIndex";
 // import Attendance from "../pages/Dashboard/Attendance/Attendance"; // OLD - moved to extra-common-modules
 import { AttendancePage } from "../pages/Attendance/AttendancePage";
+import AttendanceDashboard from "../pages/Attendance/AttendanceDashboard";
 import FrontendDashboard from "../pages/Dashboard/FrontendDashboard/FrontendDashboard";
 import { MeetingRoomsPage } from "../pages/Meetings/MeetingRoomsPage";
 import MeetingRoomBookingDashboard from "../pages/Meetings/MeetingRoomBookingDashboard";
@@ -196,7 +197,9 @@ import { FinancePage } from "../pages/Finance/FinancePage";
 import { DepartmentFinancePageV2 } from "../pages/Finance/DepartmentFinancePageV2";
 import { DepartmentMonthExpensesPage } from "../pages/Finance/DepartmentMonthExpensesPage";
 import { TasksPage } from "../pages/Tasks/TasksPage";
+import TasksWorkspaceDashboard from "../pages/Tasks/TasksWorkspaceDashboard";
 import { LeaveRequestsPage } from "../pages/LeaveRequests/LeaveRequestsPage";
+import LeaveRequestsDashboard from "../pages/LeaveRequests/LeaveRequestsDashboard";
 
 // Missing imports - added to fix ESLint errors
 import EditTemplate from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/EditTemplate";
@@ -906,6 +909,22 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "common-modules/attendance",
+                element: <AttendanceDashboard />,
+              },
+              {
+                path: "common-modules/attendance/manage",
+                element: <AttendancePage />,
+              },
+              {
+                path: "common-modules/attendance/my-attendance",
+                element: <AttendancePage />,
+              },
+              {
+                path: "common-modules/attendance/team-attendance",
+                element: <AttendancePage />,
+              },
+              {
+                path: "common-modules/attendance/corrections",
                 element: <AttendancePage />,
               },
               {
@@ -918,6 +937,26 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "common-modules/leave-requests",
+                element: <LeaveRequestsDashboard />,
+              },
+              {
+                path: "common-modules/leave-requests/manage",
+                element: <LeaveRequestsPage />,
+              },
+              {
+                path: "common-modules/leave-requests/my-leaves",
+                element: <LeaveRequestsPage />,
+              },
+              {
+                path: "common-modules/leave-requests/approval-queue",
+                element: <LeaveRequestsPage />,
+              },
+              {
+                path: "common-modules/leave-requests/assigned-department-leaves",
+                element: <LeaveRequestsPage />,
+              },
+              {
+                path: "common-modules/leave-requests/company-leaves",
                 element: <LeaveRequestsPage />,
               },
               {
@@ -966,7 +1005,9 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "key-apps/cafe-management/reports-settings",
-                element: <CafeManagementPage lockedTabs={["reports", "settings"]} />,
+                element: (
+                  <CafeManagementPage lockedTabs={["reports", "settings"]} />
+                ),
               },
               {
                 path: "key-apps/hostel-management",
@@ -1094,6 +1135,26 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "common-modules/tasks",
+                element: <TasksWorkspaceDashboard />,
+              },
+              {
+                path: "common-modules/tasks/company-tasks",
+                element: <TasksPage />,
+              },
+              {
+                path: "common-modules/tasks/my-tasks",
+                element: <TasksPage />,
+              },
+              {
+                path: "common-modules/tasks/my-assigned-tasks",
+                element: <TasksPage />,
+              },
+              {
+                path: "common-modules/tasks/assigned-department-tasks",
+                element: <TasksPage />,
+              },
+              {
+                path: "common-modules/tasks/department-tasks",
                 element: <TasksPage />,
               },
               {
@@ -1693,11 +1754,23 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/administration-department/bookings/hostel",
-                element: <VerticalRoomBookingsPage roomType="Dorm" title="Hostel Bookings" noun="Dorm" />,
+                element: (
+                  <VerticalRoomBookingsPage
+                    roomType="Dorm"
+                    title="Hostel Bookings"
+                    noun="Dorm"
+                  />
+                ),
               },
               {
                 path: "department-accesses/administration-department/bookings/co-living",
-                element: <VerticalRoomBookingsPage roomType="Room" title="Co-living Bookings" noun="Room" />,
+                element: (
+                  <VerticalRoomBookingsPage
+                    roomType="Room"
+                    title="Co-living Bookings"
+                    noun="Room"
+                  />
+                ),
               },
               {
                 path: "department-accesses/administration-department/bookings/cafe",
@@ -1725,7 +1798,9 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/administration-department/house-keeping/scheduled-tasks",
-                element: <AdministrationHousekeepingPage lockedTab="scheduled" />,
+                element: (
+                  <AdministrationHousekeepingPage lockedTab="scheduled" />
+                ),
               },
               {
                 path: "department-accesses/administration-department/house-keeping/booking-tasks",
@@ -1737,7 +1812,9 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/administration-department/house-keeping/performance",
-                element: <AdministrationHousekeepingPage lockedTab="performance" />,
+                element: (
+                  <AdministrationHousekeepingPage lockedTab="performance" />
+                ),
               },
               {
                 path: "department-accesses/administration-department/printouts",
