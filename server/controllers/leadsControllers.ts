@@ -181,7 +181,53 @@ const isStayVertical = (lead, room) => {
 const isNonBookingInquiry = (lead) => {
   const meta = readLeadMeta(lead);
   const inquiry = sanitizeValue(meta?.inquiryType || lead?.inquiryType).toLowerCase();
-  return inquiry.includes("tour") || inquiry.includes("visit") || sanitizeValue(meta?.stayType).toLowerCase() === "monthly";
+  const stayType = sanitizeValue(meta?.stayType).toLowerCase();
+
+  // Explicit tours, visits, or monthly stays are non-payable inquiries
+  if (inquiry.includes("tour") || inquiry.includes("visit") || stayType === "monthly") {
+    return true;
+  }
+
+  // Check all fields for day pass keywords (form can put it in roomType, packageName, productType, or url)
+  const allText = [
+    lead?.productType,
+    meta?.roomType,
+    meta?.packageName,
+    meta?.product,
+    meta?.inquiryType,
+    meta?.websiteUrl,
+  ].filter(Boolean).map(sanitizeValue).join(" ").toLowerCase();
+
+  // Day pass / daily hot desk is an instant payable booking
+  const isDayPass = allText.includes("day pass") || allText.includes("daypass");
+  if (isDayPass) {
+    return false;
+  }
+
+  // Explicit meeting rooms and short stays (hostel/coliving) are payable
+  const isMeetingOrStay =
+    allText.includes("meeting") ||
+    allText.includes("conference") ||
+    allText.includes("hostel") ||
+    allText.includes("coliving") ||
+    allText.includes("co-living");
+
+  // Private cabins, dedicated desks, virtual offices, or general coworking monthly leases
+  const vertical = sanitizeValue(lead?.vertical).toLowerCase();
+  if (
+    vertical === "co-working" ||
+    vertical === "coworking" ||
+    allText.includes("cabin") ||
+    allText.includes("dedicated") ||
+    allText.includes("office") ||
+    allText.includes("virtual")
+  ) {
+    if (!isMeetingOrStay) {
+      return true;
+    }
+  }
+
+  return false;
 };
 
 // Co-living/hostel version of resolveLeadSchedule — whole-day checkIn/
@@ -1199,6 +1245,25 @@ const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
 const NEW_HOST_PANEL_STATUSES = ["Accepted", "Rejected"];
 const ALL_HOST_PANEL_STATUSES = ["Pending", "Accepted", "Rejected", "Closed"];
 
+// Best-effort: push the host's Accept/Reject decision up to Nomads so Master
+// Panel (which reads hostPanelStatus live from Nomads) shows the real outcome
+// instead of staying stuck on "Pending". Never blocks the host's Accept/Reject
+// response — a Nomads sync failure is logged only.
+async function syncHostPanelStatusToNomads(leadId, hostWorkspaceId, status) {
+  try {
+    await axios.patch(nomadsApiUrl("/api/company/update-lead"), {
+      leadId,
+      workspaceId: hostWorkspaceId,
+      hostPanelStatus: status,
+    });
+  } catch (error) {
+    console.error(
+      "Failed to sync hostPanelStatus to Nomads:",
+      error?.response?.data?.message || error.message,
+    );
+  }
+}
+
 // WoNo platform fee (7% — folds in what used to be a separate 2% Stripe
 // processing fee) on top of whatever base amount is being charged —
 // host-entered or auto-calculated alike.
@@ -1852,6 +1917,34 @@ const computeLeadPayment = async (lead) => {
     };
   }
 
+  const dayPassText = [
+    lead?.productType,
+    meta?.roomType,
+    meta?.packageName,
+    meta?.product,
+    meta?.inquiryType,
+    meta?.websiteUrl,
+  ].filter(Boolean).map(sanitizeValue).join(" ").toLowerCase();
+
+  const isDayPass = dayPassText.includes("day pass") || dayPassText.includes("daypass");
+  if (isDayPass) {
+    const attendees = Math.max(1, Math.trunc(Number(parseMoney(meta?.attendees ?? meta?.noOfPeople ?? lead?.noOfPeople ?? 1))) || 1);
+    const dailyRate = Number(room?.pricePerDay) > 0 ? Number(room.pricePerDay) : (Number(room?.pricePerHour) > 0 ? Number(room.pricePerHour) * 8 : (Number(rate) > 0 ? Number(rate) : 500));
+    const dayPassBase = round2(dailyRate * attendees);
+    return {
+      currency: resolveLeadCurrency(meta),
+      ...applyFees(dayPassBase),
+      rate: dailyRate,
+      hours: 8,
+      attendees,
+      resourceId: room?._id ? String(room._id) : "day-pass",
+      roomName: room?.name || "Day pass",
+      location:
+        sanitizeValue(room?.location) ||
+        [sanitizeValue(room?.floor), sanitizeValue(room?.wing)].filter(Boolean).join(", "),
+    };
+  }
+
   if (room) {
     if (!Number.isFinite(rate) && room?.pricePerHour > 0) rate = Number(room.pricePerHour);
     if (!Number.isFinite(hours)) {
@@ -2333,10 +2426,11 @@ export const updateLeads = async (req, res, next) => {
       return res.status(400).json({ message: "A HostPanel workspace is required" });
     }
 
-    // Accept/Reject are HostPanel-local decisions. The configured Nomads lead
-    // service only persists the legacy "Pending"/"Closed" statuses, so these
-    // update the local WebsiteLead only (with the pricing snapshot computed
-    // below); the shared-sync block further down stays reserved for those.
+    // Accept/Reject carry HostPanel-only side effects (pricing snapshot,
+    // Stripe payment link, room/bed hold) so they're handled here on the
+    // local WebsiteLead, then best-effort synced up to Nomads via
+    // syncHostPanelStatusToNomads; the shared-sync block further down stays
+    // reserved for "Pending"/"Closed"/comment-only updates.
     if (NEW_HOST_PANEL_STATUSES.includes(normalizedHostStatus)) {
       const localLead = await resolveLocalLeadForWorkspace(leadId, hostWorkspaceId);
       if (!localLead) {
@@ -2356,17 +2450,16 @@ export const updateLeads = async (req, res, next) => {
       if (typeof comment === "string") localLead.comment = comment;
 
       if (normalizedHostStatus === "Accepted") {
-        // Co-working (and anything else with no bookable Meeting Room /
-        // Room / Dorm resource matched) isn't a payable, schedulable
-        // booking — it's a plain enquiry the host follows up on manually
-        // (tour, sign a tenancy, etc). Accept just marks it Accepted, no
-        // Stripe link, no conflict check, no fees.
-        const acceptRoomForTyping = isNonBookingInquiry(localLead) ? null : await resolveRoomForLead(localLead);
-        if (!acceptRoomForTyping) {
+        // Co-working (and anything else genuinely non-payable — tour,
+        // visit, monthly tenancy) is a plain enquiry the host follows up
+        // on manually. Accept just marks it Accepted, no Stripe link, no
+        // conflict check, no fees.
+        if (isNonBookingInquiry(localLead)) {
           localLead.hostPanelStatus = "Accepted";
           localLead.paymentStatus = "Not Required";
           localLead.paymentStatusUpdatedAt = new Date();
           await localLead.save();
+          await syncHostPanelStatusToNomads(leadId, hostWorkspaceId, "Accepted");
           return res.status(200).json({
             message: "Lead accepted — follow up with the client directly.",
             lead: {
@@ -2375,6 +2468,17 @@ export const updateLeads = async (req, res, next) => {
               ...leadPaymentSummary(localLead),
               ...readLeadMeta(localLead),
             },
+          });
+        }
+
+        // Payable inquiry type, but no matching Resource found — don't
+        // silently skip the charge. Host needs to name/create a Resource
+        // that matches this lead's roomType/productType.
+        const acceptRoomForTyping = await resolveRoomForLead(localLead);
+        if (!acceptRoomForTyping) {
+          return res.status(409).json({
+            message:
+              "No matching bookable resource found for this lead's room/product type. Create or rename a resource to match before accepting.",
           });
         }
 
@@ -2512,6 +2616,7 @@ export const updateLeads = async (req, res, next) => {
         localLead.stayHoldId = stayHold?.holdId || "";
         localLead.stayHoldExpiresAt = stayHold?.expiresAt || null;
         await localLead.save();
+        await syncHostPanelStatusToNomads(leadId, hostWorkspaceId, "Accepted");
         // Best-effort client notification ("Your Booking Is Accepted" with the
         // payment total); mail failures are logged, never fatal to the accept.
         sendLeadBookingAcceptedEmail(localLead, payment);
@@ -2534,6 +2639,7 @@ export const updateLeads = async (req, res, next) => {
       localLead.paymentStatus = "Rejected";
       localLead.paymentStatusUpdatedAt = new Date();
       await localLead.save();
+      await syncHostPanelStatusToNomads(leadId, hostWorkspaceId, "Rejected");
       sendLeadRejectedEmail(localLead);
       return res.status(200).json({
         message: "Lead rejected",

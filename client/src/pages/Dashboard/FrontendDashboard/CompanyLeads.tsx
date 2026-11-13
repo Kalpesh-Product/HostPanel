@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, CheckCircle2, Eye, Download, FileText, Globe, Search, Send, Sparkles, Target, Users, X, Wallet,
+  ArrowLeft, CalendarDays, CheckCircle2, Eye, Download, FileText, Globe, Printer, Search, Send, Sparkles, Target, Users, X, Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -59,6 +59,57 @@ function formatDateLabel(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
   return date.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+}
+
+function printBookingBadge(lead) {
+  const guestName = lead.fullName || "Guest";
+  const roomName = lead.roomType || lead.productType || "Room";
+  const bookingCode = lead.bookingCode || "--";
+  const dateTime = [formatDateLabel(lead.startDate), lead.timeSlot].filter(Boolean).join(" · ") || "--";
+  const printHtml = `
+    <html>
+      <head>
+        <title>Booking Badge</title>
+        <style>
+          * { box-sizing: border-box; }
+          body { font-family: Arial, sans-serif; padding: 24px; color: #0f172a; }
+          .badge { max-width: 360px; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; }
+          h1 { font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; margin: 0 0 16px; }
+          .row { margin-bottom: 12px; }
+          .label { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #94a3b8; margin: 0 0 2px; }
+          .value { font-size: 14px; font-weight: 600; margin: 0; }
+          .code { font-size: 18px; font-weight: 700; color: #047857; }
+        </style>
+      </head>
+      <body>
+        <div class="badge">
+          <h1>Booking Confirmed</h1>
+          <div class="row"><p class="label">Guest Name</p><p class="value">${guestName}</p></div>
+          <div class="row"><p class="label">Room Name</p><p class="value">${roomName}</p></div>
+          <div class="row"><p class="label">Booking Code</p><p class="value code">${bookingCode}</p></div>
+          <div class="row"><p class="label">Date / Time</p><p class="value">${dateTime}</p></div>
+        </div>
+        <script>window.onload = function () { window.focus(); window.print(); };</script>
+      </body>
+    </html>`;
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  document.body.appendChild(iframe);
+  const iframeDoc = iframe.contentWindow?.document;
+  if (!iframeDoc) {
+    toast.error("Unable to open print preview right now. Please try again.");
+    document.body.removeChild(iframe);
+    return;
+  }
+  iframeDoc.open();
+  iframeDoc.write(printHtml);
+  iframeDoc.close();
+  setTimeout(() => document.body.removeChild(iframe), 2000);
 }
 
 function getInitials(value) {
@@ -122,6 +173,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
   const [discountType, setDiscountType] = useState("amount"); // "amount" | "percent"
   const [discountValue, setDiscountValue] = useState("");
   const [availabilityInfo, setAvailabilityInfo] = useState(null); // { checked, available, conflictBookingCode } | null
+  const [showBookingBadge, setShowBookingBadge] = useState(false);
 
   const workspaceId = selectedCompany?.workspaceId || auth?.user?.primaryWorkspace || auth?.user?.workspaceMembership?.workspace || auth?.user?.workspaceId || "";
   const companyId = selectedCompany?.companyId || auth?.user?.companyId || "";
@@ -291,6 +343,24 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
   const handleStatusChange = (leadId, newStatus) => {
     updateLeadMutation.mutate({ leadId, hostPanelStatus: newStatus });
   };
+
+  // Safety-net/manual retry — handlePaymentWebhook already finalizes the
+  // booking the instant payment is confirmed, so this almost always finds
+  // the lead already has a bookingCode and just returns it. Runs in place,
+  // no redirect to Visitor Management.
+  const finalizeBookingMutation = useMutation({
+    mutationFn: async (leadId) => {
+      const res = await axiosPrivate.post("/api/leads/finalize-booking", { leadId });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data?.message || "Booking finalized");
+      queryClient.invalidateQueries({ queryKey: ["leadCompany"] });
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Unable to finalize the booking");
+    },
+  });
 
   const previewPaymentMutation = useMutation({
     mutationFn: async (leadId) => {
@@ -969,7 +1039,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                       </div>
                     </div>
                   </div>
-                  <button type="button" onClick={() => setSelectedLeadId(null)} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"><X size={16} /></button>
+                  <button type="button" onClick={() => { setSelectedLeadId(null); setShowBookingBadge(false); }} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"><X size={16} /></button>
                 </div>
 
                 {/* Body */}
@@ -1245,9 +1315,34 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                   (() => {
                     const hostStatus = selectedLead.hostPanelStatus || "Pending";
                     const paymentStatus = selectedLead.paymentStatus || "Pending";
-                    const isBusy = updateLeadMutation.isPending || previewPaymentMutation.isPending;
+                    const isBusy = updateLeadMutation.isPending || previewPaymentMutation.isPending || finalizeBookingMutation.isPending;
                     const openAccept = () => acceptLead(selectedLead._id);
                     const rejectLead = () => handleStatusChange(selectedLead._id, "Rejected");
+                    // Coworking / monthly-tenancy enquiries are accepted without a
+                    // payment link (the backend marks them "Not Required") — there is
+                    // no bookable room, so instead of creating a booking the host
+                    // onboards the client as a tenant company on the Sales page.
+                    // `vertical` alone isn't a reliable signal here — Day Pass is
+                    // also tagged vertical "Co-Working" on the website builder, but
+                    // IS payable, so only trust paymentStatus (set by the backend's
+                    // isNonBookingInquiry check).
+                    const isCoworkingInquiry = paymentStatus === "Not Required";
+                    const onboardAsTenant = () => {
+                      navigate("/department-accesses/sales-department/tenant-companies", {
+                        state: {
+                          openAddModal: true,
+                          prefillLead: {
+                            leadId: selectedLead._id,
+                            companyName: selectedLead.companyName || "",
+                            clientName: selectedLead.fullName || "",
+                            email: selectedLead.email || "",
+                            contactNumber: selectedLead.mobileNumber || "",
+                            startDate: selectedLead.startDate || "",
+                            openDesks: Number(selectedLead.noOfPeople) || 1,
+                          },
+                        },
+                      });
+                    };
                     const baseButton = "flex-1 py-2.5 rounded-xl font-pmedium text-[12px] transition-colors shadow-sm flex items-center justify-center gap-1.5 min-w-[110px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1";
                     if (hostStatus !== "Pending" && hostStatus !== "Accepted") return null;
                     return (
@@ -1266,22 +1361,27 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                           <>
                             <span className="flex-1 text-right text-[11px] font-pmedium text-slate-500 min-w-[180px]">
                               {selectedLead.bookingCode
-                                ? `Booking ${selectedLead.bookingCode}`
-                                : paymentStatus !== "Paid"
-                                  ? `Awaiting payment — ${formatMoney(selectedLead.paymentTotalAmount, selectedLead.paymentCurrency)} payable`
-                                  : "Payment received — ready to finalize"}
+                                ? `Booking Code: ${selectedLead.bookingCode}`
+                                : isCoworkingInquiry
+                                  ? "Coworking enquiry — ready to onboard as a tenant"
+                                  : paymentStatus !== "Paid"
+                                    ? `Awaiting payment — ${formatMoney(selectedLead.paymentTotalAmount, selectedLead.paymentCurrency)} payable`
+                                    : "Payment received — ready to finalize"}
                             </span>
-                            <button type="button"
-                              onClick={() => navigate(
-                                selectedLead.bookingCode
-                                  ? `/visitors/visitor-management/frontdesk-action?bookingCode=${selectedLead.bookingCode}`
-                                  : `/visitors/visitor-management/frontdesk-action?leadId=${selectedLead._id}`
-                              )}
-                              disabled={isBusy || paymentStatus !== "Paid"}
-                              className={selectedLead.bookingCode
-                                ? `${baseButton} bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-60`
-                                : `${baseButton} bg-[#2563EB] text-white hover:bg-blue-700 focus-visible:ring-[#2563EB]/40 disabled:opacity-60`}
-                            >{selectedLead.bookingCode ? <><CheckCircle2 size={14} /> Booking Created</> : <><CheckCircle2 size={14} /> Create Booking</>}</button>
+                            {selectedLead.bookingCode ? (
+                              <>
+                                <button type="button" onClick={() => setShowBookingBadge(true)} disabled={isBusy}
+                                  className={`${baseButton} bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-60`}
+                                ><Printer size={14} /> Print / View Badge</button>
+                                <button type="button" onClick={() => navigate("/key-apps/meeting-room-management")} disabled={isBusy}
+                                  className={`${baseButton} bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
+                                ><CalendarDays size={14} /> View in Calendar</button>
+                              </>
+                            ) : isCoworkingInquiry ? (
+                              <button type="button" onClick={onboardAsTenant} disabled={isBusy}
+                                className={`${baseButton} bg-[#2563EB] text-white hover:bg-blue-700 focus-visible:ring-[#2563EB]/40 disabled:opacity-60`}
+                              ><Users size={14} /> Onboard as Tenant</button>
+                            ) : null}
                           </>
                         )}
                       </div>
@@ -1294,6 +1394,54 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
 
         </div>
       </PageFrame>
+
+      {showBookingBadge && selectedLead && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-[#0F172A]/85 backdrop-blur-sm" onClick={() => setShowBookingBadge(false)}>
+          <div className="w-full max-w-lg overflow-hidden rounded-[32px] border border-emerald-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <div className="bg-emerald-50 px-6 py-5 border-b border-emerald-100 flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
+                  <CheckCircle2 size={20} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-600">Booking Confirmed</p>
+                  <h3 className="mt-0.5 text-lg font-pmedium text-emerald-950">Website booking confirmed</h3>
+                  <p className="mt-0.5 text-[12px] font-pmedium text-emerald-900/70">A confirmation email with this booking ID has been sent to the guest.</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setShowBookingBadge(false)} aria-label="Close badge preview"
+                className="w-9 h-9 rounded-full bg-white text-emerald-700 shadow-sm hover:bg-emerald-100 transition-all flex items-center justify-center"
+              ><X size={16} /></button>
+            </div>
+            <div className="p-6 space-y-3.5">
+              <div className="rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/60 p-4 text-center">
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">Booking Code</p>
+                <p className="mt-1 text-3xl font-pmedium tracking-[0.15em] text-emerald-700">{selectedLead.bookingCode}</p>
+                <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Saved and ready to verify at the front desk</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3.5">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Guest Name</p>
+                  <p className="mt-1 text-[13px] font-pmedium text-slate-900">{selectedLead.fullName || "Guest"}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3.5">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Room</p>
+                  <p className="mt-1 text-[13px] font-pmedium text-slate-900">{selectedLead.roomType || selectedLead.productType || "Room"}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3.5 sm:col-span-2">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Date / Time</p>
+                  <p className="mt-1 text-[13px] font-pmedium text-slate-900">
+                    {[formatDateLabel(selectedLead.startDate), selectedLead.timeSlot].filter(Boolean).join(" · ") || "--"}
+                  </p>
+                </div>
+              </div>
+              <button type="button" onClick={() => printBookingBadge(selectedLead)}
+                className="w-full rounded-2xl bg-emerald-600 px-5 py-3 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm shadow-emerald-200 transition-all hover:bg-emerald-700 active:scale-95 flex items-center justify-center gap-1.5"
+              ><Printer size={13} /> Print Badge</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ExportReportModal
         isOpen={showExportModal}

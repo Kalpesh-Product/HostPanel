@@ -30,7 +30,8 @@ const websiteLeadSchema = new mongoose.Schema(
       type: String,
       trim: true,
       // "Rejected" belongs here too: a rejected lead can never be paid.
-      enum: ["Pending", "Paid", "Failed", "Rejected"],
+      // "Not Required" applies to non-payable tenancy/coworking inquiries.
+      enum: ["Pending", "Paid", "Failed", "Rejected", "Not Required"],
       default: "Pending",
     },
     paymentCurrency: { type: String, trim: true, uppercase: true, default: "USD" },

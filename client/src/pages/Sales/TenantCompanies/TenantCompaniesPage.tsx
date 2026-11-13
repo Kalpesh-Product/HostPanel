@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import {
   Building, Search, Plus, Eye, Edit, CalendarDays, LayoutGrid,
@@ -31,6 +31,7 @@ import { getPricingPackages } from '../../../services/pricing-packages';
 import { getCountries, getStates, getCities } from '../../../utils/locationApi';
 import { toast } from 'sonner';
 import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
+import useAxiosPrivate from '../../../hooks/useAxiosPrivate';
 import useDashboardAccess from '../../../hooks/useDashboardAccess';
 import useWorkspacePreferences from '../../../hooks/useWorkspacePreferences';
 import { canExportReports } from '../../../utils/workspacePlanAccess';
@@ -1092,6 +1093,8 @@ export default function TenantCompaniesPage() {
   // for on that tier.
   const showReportExports = canExportReports(plan) || plan === 'professional';
   const navigate = useNavigate();
+  const location = useLocation();
+  const axiosPrivate = useAxiosPrivate();
   const workspacePreferences = useWorkspacePreferences();
   const formatCurrency = (value = 0) =>
     formatWorkspaceCurrency(Math.round(Number(value || 0)), workspacePreferences.currency, { maximumFractionDigits: 0 });
@@ -1703,6 +1706,7 @@ export default function TenantCompaniesPage() {
     },
     creditsUsed: 0,
     notes: '',
+    sourceLeadId: '',
   };
   const [companyForm, setCompanyForm] = useState(initialCompanyForm);
   const [employeeForm, setEmployeeForm] = useState({ name: '', email: '', phone: '', designation: '', role: '' });
@@ -1715,6 +1719,56 @@ export default function TenantCompaniesPage() {
     setFormError('');
     setHasAttemptedCompanySubmit(false);
   }, [activeModal]);
+
+  // Coworking / monthly-tenancy leads accepted in Company Leads can be
+  // onboarded straight into a tenant company: that page navigates here with
+  // the lead snapshot in router state. Open the Add modal pre-filled from the
+  // lead, then clear the state so a refresh doesn't re-open the modal.
+  useEffect(() => {
+    const state = location.state || {};
+    const prefill = state.prefillLead;
+    if (!state.openAddModal || !prefill) {
+      return;
+    }
+
+    const toDateInputValue = (value) => {
+      if (!value) return '';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '';
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${date.getFullYear()}-${month}-${day}`;
+    };
+
+    setSelectedTenant(null);
+    setAgreementFiles([]);
+    setFormError('');
+    setFieldErrors({});
+    setHasAttemptedCompanySubmit(false);
+    setCompanyForm({
+      ...initialCompanyForm,
+      companyName: String(prefill.companyName || ''),
+      contactName: String(prefill.clientName || ''),
+      email: String(prefill.email || ''),
+      phone: String(prefill.contactNumber || ''),
+      customerDetails: {
+        ...initialCompanyForm.customerDetails,
+        clientName: String(prefill.clientName || ''),
+      },
+      companyDetails: {
+        ...initialCompanyForm.companyDetails,
+        openDesks: Number(prefill.openDesks) > 0 ? Number(prefill.openDesks) : '',
+      },
+      agreementDetails: {
+        ...initialCompanyForm.agreementDetails,
+        startDate: toDateInputValue(prefill.startDate),
+      },
+      sourceLeadId: String(prefill.leadId || ''),
+    });
+    setActiveModal('add');
+
+    navigate(location.pathname + location.search, { replace: true, state: {} });
+  }, [location.state]); // eslint-disable-line react-hooks/exhaustive-deps
   const bulkUploadInputRef = useRef(null);
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   const [bulkUploadFileName, setBulkUploadFileName] = useState('');
@@ -2983,6 +3037,24 @@ export default function TenantCompaniesPage() {
           syncTenantCollections(uploadResponse?.data || {}, savedTenantId);
         } catch (uploadError) {
           toast.error(uploadError.message || 'Tenant saved, but agreement documents could not be uploaded.');
+        }
+      }
+
+      // A tenant onboarded from a coworking lead closes that lead so the
+      // leads list reflects the conversion — best-effort: the tenant stands
+      // even if the lead update can't be persisted upstream.
+      if (activeModal === 'add' && companyForm.sourceLeadId) {
+        try {
+          await axiosPrivate.patch('/api/leads/update-lead', {
+            leadId: companyForm.sourceLeadId,
+            hostPanelStatus: 'Closed',
+            comment: 'Converted to active tenant company',
+          });
+        } catch (leadUpdateError) {
+          toast.error(
+            leadUpdateError?.response?.data?.message
+              || 'Tenant saved, but the originating lead could not be marked Converted.',
+          );
         }
       }
 

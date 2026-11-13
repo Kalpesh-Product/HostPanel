@@ -4790,13 +4790,11 @@ export default function VisitorsManagementPage() {
                 onClick={() => { setVisitorMode('walkin_booking'); setWalkInTouched({}); setWalkInSubmitAttempted(false); }}
                 className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visitorMode === 'walkin_booking' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'} ${!visitorAccess.modes.walkin_booking ? 'cursor-not-allowed opacity-60' : ''}`}
               >{!visitorAccess.modes.walkin_booking ? <Lock size={14} /> : <CalendarDays size={14} />}Walk-in Booking</button>
-              <button
-                type="button"
-                disabled={!visitorAccess.modes.walkin_booking}
-                title={!visitorAccess.modes.walkin_booking ? 'You do not have permission for Walk-in Booking.' : undefined}
-                onClick={() => { setVisitorMode('website_booking'); setWebsiteBookingLead(null); setWebsiteBookingLoadError(''); }}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visitorMode === 'website_booking' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'} ${!visitorAccess.modes.walkin_booking ? 'cursor-not-allowed opacity-60' : ''}`}
-              >{!visitorAccess.modes.walkin_booking ? <Lock size={14} /> : <Globe size={14} />}Website Booking</button>
+              {/* Deprecated/Removed: Website Booking tab — website bookings now show
+                  their badge in place on the Company Leads lead modal, and the host
+                  verifies arrivals via the Verify Booking tab below. The underlying
+                  website_booking mode/state stays (still reached via the
+                  ?leadId= deep link for a lead whose booking isn't created yet). */}
               <button
                 type="button"
                 disabled={!visitorAccess.modes.verify_booking}
