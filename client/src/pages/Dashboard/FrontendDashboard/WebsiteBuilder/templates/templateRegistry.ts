@@ -19,6 +19,7 @@ import CaliHostelTemplate from "./caliHostel/CaliHostelTemplate";
 import TastycTemplate from "./tastyc/TastycTemplate";
 import GrandBarTemplate from "./grandbar/GrandBarTemplate";
 import AromaticaTemplate from "./aromatica/AromaticaTemplate";
+import ItalianoTemplate from "./italiano/ItalianoTemplate";
 import RestobarTemplate from "./restobar/RestobarTemplate";
 import FlowspaceTemplate from "./flowspace/FlowspaceTemplate";
 import WorpaceTemplate from "./worpace/WorpaceTemplate";
@@ -152,6 +153,15 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       accent: "#e9a542",
       font: "'Manrope', sans-serif",
     },
+    recommendedFor: ["menu"],
+    supportsBooking: true,
+  },
+  italiano: {
+    id: "italiano",
+    name: "Italiano",
+    description: "A dark Italian café template with a cinematic carousel, editorial story, and table reservations.",
+    component: ItalianoTemplate,
+    swatch: { bg: "#131211", fg: "#f5f0e9", accent: "#d4ae74", font: "'Cormorant Garamond', serif" },
     recommendedFor: ["menu"],
     supportsBooking: true,
   },

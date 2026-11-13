@@ -16,6 +16,7 @@ const TEMPLATE_KIND: Record<string, ServiceKind> = {
   tastyc: "menu",
   grandbar: "menu",
   aromatica: "menu",
+  italiano: "menu",
   restobar: "menu",
   flowspace: "meeting",
   workscape: "meeting",
@@ -1769,6 +1770,61 @@ const RESTOBAR_DEMO_BUSINESS: DemoBusiness = (() => {
   };
 })();
 
+const italianoDemo: DemoBusiness = (() => {
+  const base = DEMO_BUSINESSES.menu;
+  const room = "photo-1517248135467-4c7edcad34c4";
+  const pasta = "photo-1473093295043-cdd812d0e601";
+  const table = "photo-1528605248644-14dd04022da1";
+  const pizza = "photo-1574071318508-1cdbab80d002";
+  const coffee = "photo-1509042239860-f550ce710b93";
+  const dessert = "photo-1488477181946-6428a0291777";
+  const menu = [
+    ["From the kitchen", "Tagliatelle ai funghi", "$18", "Ribbon pasta, roasted mushrooms, thyme and parmesan.", pasta],
+    ["From the kitchen", "Margherita", "$15", "Tomato, mozzarella and basil on a blistered crust.", pizza],
+    ["From the kitchen", "Tomato & burrata", "$12", "Creamy burrata, ripe tomatoes, and grilled bread.", "photo-1547592180-85f173990554"],
+    ["Dolci", "Vanilla panna cotta", "$8", "Soft vanilla cream with seasonal fruit.", dessert],
+    ["Coffee", "Cappuccino", "$5", "Espresso topped with steamed milk and foam.", coffee],
+  ];
+  return {
+    ...base,
+    companyName: "Italiano",
+    title: "Italiano Ristorante",
+    subTitle: "Fresh pasta, good coffee, and a warm welcome at our Italian table.",
+    cta: "Learn more",
+    heroImages: [room, pasta, table].map((id) => photo(id, 1920)),
+    gallery: [pasta, pizza, room, table, coffee, dessert].map((id) => photo(id, 1200)),
+    aboutImages: [table, pasta, room].map((id) => photo(id, 1300)),
+    aboutTitle: "Our story",
+    aboutPageStory: "Italiano began with a family table and recipes passed from one kitchen to the next.",
+    aboutPageMission: "We roll our pasta by hand and build our menu around what is in season.",
+    aboutPageValues: "Come for a quick espresso or make an evening of it. There is always room at our table.",
+    about: ["A neighborhood café and dining room serving the Italian dishes we grew up with."],
+    founders: [
+      { name: "Elena Rossi", role: "Head chef", bio: "Elena brings the pasta and sauces she learned to make at home to the Italiano kitchen.", highlights: "", image: faceCrop("photo-1573497019236-17f8177b81e8") },
+    ],
+    testimonials: [
+      { name: "Sofia M.", jobPosition: "Guest", rating: 5, image: "", testimony: "We shared the mushroom pasta and stayed for another coffee. It felt like an evening at a friend's table." },
+      { name: "Daniel P.", jobPosition: "Guest", rating: 5, image: "", testimony: "The pizza came out crisp and hot, and the team made room for us on a busy evening." },
+    ],
+    address: "12 Museum Road, Bengaluru 560001",
+    page: {
+      ...base.page,
+      homeCardHeading: "Italiano menu",
+      homeCardSubText: "Fresh pasta, pizza, coffee and dolci.",
+      heroHeading: "Our menu",
+      heroSubHeading: "Explore the dishes and drinks served at Italiano.",
+      heroImage: photo(pasta, 1800),
+      cardImage: photo(pizza, 1100),
+    },
+    extra: {
+      ...base.extra,
+      menuItems: menu.map(([category, name, price, description, image]) => ({
+        category, name, price, description, image: photoValue(image), enabled: true,
+      })),
+    },
+  };
+})();
+
 const tinyHomeDemo: DemoBusiness = (() => {
   const base = DEMO_BUSINESSES.coLiving;
   const interior = photo("photo-1628394029749-ea3dcce4caa6", 1800);
@@ -1881,6 +1937,7 @@ const demoBusinessFor = (
   themeVariant: string,
 ): DemoBusiness => {
   if (themeVariant === "tinyhome" && kind === "coLiving") return tinyHomeDemo;
+  if (themeVariant === "italiano" && kind === "menu") return italianoDemo;
   if (themeVariant === "restobar" && kind === "menu") return RESTOBAR_DEMO_BUSINESS;
   if (themeVariant === "tastyc" && kind === "menu") return TASTYC_DEMO_BUSINESS;
   if (themeVariant === "grandbar" && kind === "menu")
