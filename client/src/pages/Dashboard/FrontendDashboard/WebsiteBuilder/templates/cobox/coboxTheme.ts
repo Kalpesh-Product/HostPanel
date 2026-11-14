@@ -3099,9 +3099,12 @@ export const COBOX_CSS = String.raw`
     display: none;
   }
 
+  .cbx-headend {
+    margin-inline-start: auto;
+  }
+
   .cbx-burger {
     display: grid;
-    margin-left: auto;
   }
 
   .cbx-headbar {
