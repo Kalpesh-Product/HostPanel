@@ -2695,6 +2695,14 @@ export const COBOX_CSS = String.raw`
   justify-content: center;
 }
 
+.cbx-career-detail .cbx-form-card button[type="submit"] {
+  width: 100%;
+}
+
+.cbx-career-detail .cbx-form-card form > * {
+  min-width: 0;
+}
+
 .cbx-center {
   text-align: center;
   margin-top: 34px;
