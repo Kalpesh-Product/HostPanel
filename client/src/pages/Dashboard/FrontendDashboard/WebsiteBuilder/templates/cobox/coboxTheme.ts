@@ -2521,17 +2521,16 @@ export const COBOX_CSS = String.raw`
   gap: 14px;
 }
 
-.cbx-gallery button {
+.cbx-gallery > div > button {
+  display: block;
+  width: 100%;
   border-radius: 16px;
   overflow: hidden;
   height: 240px;
 }
 
-.cbx-gallery button:nth-child(6n + 1) {
-  grid-column: span 2;
-}
-
-.cbx-gallery img {
+.cbx-gallery > div > button > img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -2689,6 +2688,19 @@ export const COBOX_CSS = String.raw`
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
   gap: 50px;
   align-items: start;
+}
+
+.cbx-career-detail--general {
+  grid-template-columns: minmax(0, 760px);
+  justify-content: center;
+}
+
+.cbx-career-detail .cbx-form-card button[type="submit"] {
+  width: 100%;
+}
+
+.cbx-career-detail .cbx-form-card form > * {
+  min-width: 0;
 }
 
 .cbx-center {
@@ -3081,7 +3093,7 @@ export const COBOX_CSS = String.raw`
 
   .cbx-detail,
   .cbx-about-story,
-  .cbx-career-detail {
+  .cbx-career-detail:not(.cbx-career-detail--general) {
     grid-template-columns: 1fr;
   }
 
@@ -3100,9 +3112,12 @@ export const COBOX_CSS = String.raw`
     display: none;
   }
 
+  .cbx-headend {
+    margin-inline-start: auto;
+  }
+
   .cbx-burger {
     display: grid;
-    margin-left: auto;
   }
 
   .cbx-headbar {
@@ -3251,10 +3266,6 @@ export const COBOX_CSS = String.raw`
 
   .cbx-gallery {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .cbx-gallery button:nth-child(6n + 1) {
-    grid-column: span 2;
   }
 
   .cbx-why-item {
@@ -3457,13 +3468,8 @@ export const COBOX_CSS = String.raw`
     gap: 10px;
   }
 
-  .cbx-gallery button {
+  .cbx-gallery > div > button {
     height: 160px;
-  }
-
-  .cbx-gallery button:nth-child(6n + 1) {
-    grid-column: span 2;
-    height: 190px;
   }
 
   .cbx-footer {
