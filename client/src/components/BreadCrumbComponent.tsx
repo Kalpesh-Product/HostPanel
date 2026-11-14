@@ -367,10 +367,34 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/extra-common-modules/assets/overall-assets",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
+      { label: "Assets", path: "/extra-common-modules/assets" },
+      { label: "Overall Assets" },
+    ],
+  },
+  {
+    pattern: "/extra-common-modules/assets/asset-requests",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
+      { label: "Assets", path: "/extra-common-modules/assets" },
+      { label: "Asset Requests" },
+    ],
+  },
+  {
     pattern: "/extra-common-modules/assets",
     crumbs: [
       { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
       { label: "Assets" },
+    ],
+  },
+  {
+    pattern: "/extra-common-modules/inventory/manage",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
+      { label: "Inventory", path: "/extra-common-modules/inventory" },
+      { label: "Inventory Management" },
     ],
   },
   {
@@ -428,6 +452,14 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
       },
       { label: "Annual Budget Review" },
       { label: "Monthly Expenses" },
+    ],
+  },
+  {
+    pattern: "/extra-common-modules/reports/manage",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
+      { label: "Reports", path: "/extra-common-modules/reports" },
+      { label: "Manage Reports" },
     ],
   },
   {

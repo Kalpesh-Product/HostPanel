@@ -6,6 +6,7 @@ import { Controller, useForm } from "react-hook-form";
 import { CheckCircle2, ChevronDown, Edit3, FileText, Loader2, Plus, Search, Share2, Trash2, Upload, Users, X, XCircle } from "lucide-react";
 import useAxiosPrivate from "@/hooks/useAxiosPrivate";
 import useManagedDepartment from "@/hooks/useManagedDepartment";
+import useDashboardAccess from "@/hooks/useDashboardAccess";
 import { getDepartments, getOrganizationOverview } from "@/services/organization";
 import { noOnlyWhitespace, isAlphanumeric } from "@/utils/validators";
 import humanDate from "@/utils/humanDateForamt";
@@ -133,8 +134,13 @@ function StatusBadge({ isActive }: { isActive: boolean }) {
 const DepartmentDocumentsTabBase = ({ docType, title }: DepartmentDocumentsTabBaseProps) => {
   const axiosPrivate = useAxiosPrivate();
   const queryClient = useQueryClient();
-  const { managedDepartment } = useManagedDepartment();
-  const departmentId = managedDepartment?.id || "";
+  const { managedDepartment, isOwnerOrSuperAdmin } = useManagedDepartment();
+  const { roleBand, departments: assignedDepartments } = useDashboardAccess();
+  const isAdmin = roleBand === "admin";
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
+  const departmentId = isOwnerOrSuperAdmin || isAdmin
+    ? selectedDepartmentId
+    : managedDepartment?.id || "";
 
   const [openModal, setOpenModal] = useState(false);
   const [modalType, setModalType] = useState<"add" | "edit" | "delete" | "visibility" | "">("");
@@ -164,9 +170,26 @@ const DepartmentDocumentsTabBase = ({ docType, title }: DepartmentDocumentsTabBa
     },
     staleTime: 5 * 60 * 1000,
   });
+
+  const accessibleDepartments = useMemo(() => {
+    if (isOwnerOrSuperAdmin) return allDepartments;
+    if (isAdmin) {
+      const assignedIds = new Set(assignedDepartments.map((item) => String(item.id)));
+      const assignedNames = new Set(assignedDepartments.map((item) => String(item.name || "").trim().toLowerCase()));
+      return allDepartments.filter((item: any) =>
+        assignedIds.has(String(item?.id)) || assignedNames.has(String(item?.name || "").trim().toLowerCase()),
+      );
+    }
+    return allDepartments.filter((item: any) => String(item?.id) === String(managedDepartment?.id || ""));
+  }, [allDepartments, assignedDepartments, isAdmin, isOwnerOrSuperAdmin, managedDepartment?.id]);
+
+  useEffect(() => {
+    if ((!isOwnerOrSuperAdmin && !isAdmin) || selectedDepartmentId || !accessibleDepartments.length) return;
+    setSelectedDepartmentId(String(accessibleDepartments[0]?.id || ""));
+  }, [accessibleDepartments, isAdmin, isOwnerOrSuperAdmin, selectedDepartmentId]);
   const otherDepartments = useMemo(
-    () => allDepartments.filter((d: any) => String(d.id) !== String(departmentId)).map((d: any) => ({ id: String(d.id), name: d.name })),
-    [allDepartments, departmentId],
+    () => accessibleDepartments.filter((d: any) => String(d.id) !== String(departmentId)).map((d: any) => ({ id: String(d.id), name: d.name })),
+    [accessibleDepartments, departmentId],
   );
 
   // Own department's employee roster — used both for "show to these
@@ -180,12 +203,14 @@ const DepartmentDocumentsTabBase = ({ docType, title }: DepartmentDocumentsTabBa
     enabled: Boolean(departmentId),
   });
   const ownDepartmentRoster = useMemo(() => {
-    const department = Array.isArray(overviewData?.departments) ? overviewData.departments[0] : null;
+    const department = Array.isArray(overviewData?.departments)
+      ? overviewData.departments.find((item: any) => String(item?.id) === String(departmentId))
+      : null;
     const roster = Array.isArray(department?.employees) ? department.employees : [];
     return roster
       .filter((member: any) => String(member?.roleBand || "").trim().toLowerCase() === "employee")
       .map((member: any) => ({ id: String(member.id), name: member.name }));
-  }, [overviewData]);
+  }, [departmentId, overviewData]);
   const rosterIdSet = useMemo(() => new Set(ownDepartmentRoster.map((m) => m.id)), [ownDepartmentRoster]);
 
   const {
@@ -273,7 +298,7 @@ const DepartmentDocumentsTabBase = ({ docType, title }: DepartmentDocumentsTabBa
     },
   });
 
-  const documents = Array.isArray(data) ? data : [];
+  const documents = useMemo(() => (Array.isArray(data) ? data : []), [data]);
 
   const stats = useMemo(() => {
     const total = documents.length;
@@ -344,6 +369,24 @@ const DepartmentDocumentsTabBase = ({ docType, title }: DepartmentDocumentsTabBa
           );
         })}
       </div>
+
+      {isOwnerOrSuperAdmin || isAdmin ? (
+        <div className="flex flex-col gap-2 rounded-xl border border-blue-100 bg-blue-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[10px] font-pmedium uppercase tracking-[0.12em] text-blue-700">Department filter</p>
+            <p className="mt-1 text-[11px] font-pmedium text-slate-600">
+              {isOwnerOrSuperAdmin ? `View ${title.toLowerCase()}s for any department.` : `View ${title.toLowerCase()}s for your assigned departments.`}
+            </p>
+          </div>
+          <select
+            value={selectedDepartmentId}
+            onChange={(event) => setSelectedDepartmentId(event.target.value)}
+            className="min-w-[240px] rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          >
+            {accessibleDepartments.map((item: any) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+        </div>
+      ) : null}
 
       <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
         <div className="flex flex-col items-start justify-between gap-3 border-b border-slate-100/60 bg-slate-50/50 p-3 sm:gap-4 sm:p-4 xl:flex-row xl:items-center lg:p-5">
