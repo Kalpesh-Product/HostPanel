@@ -181,8 +181,8 @@ export type CafeReservation = {
   createdAt: string;
 };
 
-export const getCafeReservations = async (date: string) =>
-  axiosPrivate.get("/api/v1/cafe/reservations", { params: { date } });
+export const getCafeReservations = async (date?: string) =>
+  axiosPrivate.get("/api/v1/cafe/reservations", { params: date ? { date } : {} });
 
 export const createCafeReservation = async (payload: {
   guestName: string;

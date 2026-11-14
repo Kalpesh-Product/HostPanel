@@ -156,6 +156,7 @@ import RoomStayManagementDashboard from "../pages/RoomManagement/RoomStayManagem
 import hostelBannerImage from "../assets/hostel-banner.jpg";
 import coLivingBannerImage from "../assets/co-living-banner.jpg";
 import CoworkingManagementPage from "../pages/CoworkingManagement/CoworkingManagementPage";
+import DayPassRegisterPage from "../pages/CoworkingManagement/DayPassRegisterPage";
 import MeetingRoomManagementPage from "../pages/MeetingRoomManagement/MeetingRoomManagementPage";
 import LeadsManagementPage from "../pages/Sales/LeadsManagement/LeadsManagementPage";
 import LeadsManagementDashboard from "../pages/Sales/LeadsManagement/LeadsManagementDashboard";
@@ -1049,6 +1050,10 @@ export const routes = createBrowserRouter([
                 ),
               },
               {
+                path: "key-apps/co-working-management/day-passes",
+                element: <DayPassRegisterPage />,
+              },
+              {
                 path: "key-apps/meeting-room-management",
                 element: <MeetingRoomManagementPage />,
               },
@@ -1580,6 +1585,10 @@ export const routes = createBrowserRouter([
                   {
                     path: "visitor-management/frontdesk-action",
                     element: <VisitorManagement />,
+                  },
+                  {
+                    path: "day-passes",
+                    element: <DayPassRegisterPage />,
                   },
                   {
                     path: "manage-visitors",

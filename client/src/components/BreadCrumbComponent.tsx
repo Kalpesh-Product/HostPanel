@@ -415,6 +415,14 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/visitors/day-passes",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Visitor Management", path: "/visitors/dashboard" },
+      { label: "Day Pass" },
+    ],
+  },
+  {
     pattern: "/key-apps/wono-nomad",
     crumbs: [
       { label: SECTION_LABELS.keyApps, path: "/key-apps" },

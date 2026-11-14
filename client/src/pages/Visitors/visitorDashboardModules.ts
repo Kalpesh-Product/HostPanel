@@ -1,5 +1,5 @@
 import type { ElementType } from "react";
-import { Building2, CalendarCheck, ContactRound, History } from "lucide-react";
+import { Building2, CalendarCheck, ContactRound, History, Ticket } from "lucide-react";
 import { PERMISSIONS } from "../../constants/permissions";
 
 // Same shape as NOMAD_DASHBOARD_MODULES in pages/Dashboard/FrontendDashboard —
@@ -17,6 +17,7 @@ export type VisitorDashboardModule = {
 
 export const VISITOR_DASHBOARD_MODULES: VisitorDashboardModule[] = [
   { id: "visitor-daily", label: "Daily Visitors", icon: ContactRound, route: "/visitors/visitor-management?tab=daily", description: "Manage today's arrivals, approvals, and check-ins", color: "#2563EB", permission: PERMISSIONS.VISITORS_TAB_DAILY.value },
+  { id: "visitor-day-pass", label: "Day Pass Walk-in", icon: Ticket, route: "/visitors/day-passes?action=day-pass", description: "Issue daily flexi desk passes & badges", color: "#0D9488", permission: PERMISSIONS.VISITORS_TAB_DAILY.value },
   { id: "visitor-history", label: "Visitor History", icon: History, route: "/visitors/visitor-management?tab=history", description: "Review completed and past visitor records", color: "#1E3D73", permission: PERMISSIONS.VISITORS_TAB_HISTORY.value },
   { id: "visitor-bookings", label: "Bookings", icon: CalendarCheck, route: "/visitors/visitor-management?tab=bookings", description: "Track upcoming and completed visitor bookings", color: "#F59E0B", permission: PERMISSIONS.VISITORS_TAB_BOOKINGS.value },
   { id: "visitor-clients", label: "Clients", icon: Building2, route: "/visitors/visitor-management?tab=clients", description: "Manage client records and visit activity", color: "#7C3AED", permission: PERMISSIONS.VISITORS_TAB_CLIENTS.value },

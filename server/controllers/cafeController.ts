@@ -898,18 +898,22 @@ const withLockStartsAt = (reservation: Record<string, any>) => ({
     lockStartsAt: new Date(new Date(reservation.reservationAt).getTime() - RESERVATION_LOCK_MINUTES * 60 * 1000),
 });
 
+// `date` is optional — omit it to get every reservation for the workspace
+// (so a reservation booked for a future date, e.g. from a website lead,
+// never hides until that date arrives). When given, scopes to that single day.
 export async function listCafeReservations(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
         const workspaceId = getWorkspaceObjectId(req);
         const dateInput = String(req.query.date || "").trim();
-        const date = combineDateAndTime(dateInput, "00:00");
-        if (!date) throw badRequest("Enter a valid date.");
-        const nextDay = new Date(date.getTime() + 24 * 60 * 60 * 1000);
+        const filter: Record<string, any> = { workspaceId };
+        if (dateInput) {
+            const date = combineDateAndTime(dateInput, "00:00");
+            if (!date) throw badRequest("Enter a valid date.");
+            const nextDay = new Date(date.getTime() + 24 * 60 * 60 * 1000);
+            filter.reservationAt = { $gte: date, $lt: nextDay };
+        }
 
-        const reservations = await CafeReservation.find({
-            workspaceId,
-            reservationAt: { $gte: date, $lt: nextDay },
-        })
+        const reservations = await CafeReservation.find(filter)
             .sort({ reservationAt: 1 })
             .lean();
 
@@ -919,6 +923,44 @@ export async function listCafeReservations(req: AuthenticatedRequest, res: Respo
     } catch (error) {
         next(error);
     }
+}
+
+// Shared by the front-desk "New Reservation" form and the website lead-accept
+// bridge (a Cafe lead is a free table reservation, never a Stripe payment —
+// see isCafeLeadText in leadsControllers.ts) — both just need a numbered
+// CafeReservation row, table optional.
+export async function createCafeReservationRecord(
+    workspaceId: mongoose.Types.ObjectId | string,
+    {
+        guestName,
+        guestPhone = "",
+        partySize,
+        reservationAt,
+        tableId = null,
+        notes = "",
+        createdBy = null,
+    }: {
+        guestName: string;
+        guestPhone?: string;
+        partySize: number;
+        reservationAt: Date;
+        tableId?: mongoose.Types.ObjectId | null;
+        notes?: string;
+        createdBy?: mongoose.Types.ObjectId | null;
+    },
+) {
+    const latest = await CafeReservation.findOne({ workspaceId }).sort({ reservationNumber: -1 }).select("reservationNumber").lean();
+    return CafeReservation.create({
+        workspaceId,
+        reservationNumber: (latest?.reservationNumber || 0) + 1,
+        guestName: String(guestName || "Cafe Guest").trim(),
+        guestPhone: String(guestPhone || "").trim(),
+        partySize: Math.max(1, Math.trunc(Number(partySize)) || 1),
+        reservationAt,
+        tableId,
+        notes: String(notes || "").trim(),
+        createdBy,
+    });
 }
 
 export async function createCafeReservation(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -950,17 +992,13 @@ export async function createCafeReservation(req: AuthenticatedRequest, res: Resp
             if (hasConflict) throw conflict("This table already has a reservation around that time.");
         }
 
-        const latest = await CafeReservation.findOne({ workspaceId }).sort({ reservationNumber: -1 }).select("reservationNumber").lean();
-
-        const reservation = await CafeReservation.create({
-            workspaceId,
-            reservationNumber: (latest?.reservationNumber || 0) + 1,
-            guestName: String(guestName).trim(),
-            guestPhone: String(guestPhone || "").trim(),
+        const reservation = await createCafeReservationRecord(workspaceId, {
+            guestName,
+            guestPhone,
             partySize: numericPartySize,
             reservationAt,
             tableId,
-            notes: String(notes || "").trim(),
+            notes,
             createdBy: getOptionalUserObjectId(req),
         });
 

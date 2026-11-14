@@ -49,6 +49,14 @@ const todayInput = () => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 };
 
+const dateKeyOf = (value: string | Date) => {
+  const date = new Date(value);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+};
+
+const DATE_PILLS = ["Today", "Upcoming", "All"] as const;
+type DatePill = (typeof DATE_PILLS)[number];
+
 const emptyRow = (colSpan: number, message: string) => (
   <tr>
     <td colSpan={colSpan} className="bg-slate-50/50 py-20 text-center text-slate-400">
@@ -77,9 +85,13 @@ export default function ReservationsPanel({
   onTakeOrder?: (reservation: CafeReservation, tableId: string) => void;
 }) {
   const { prompt } = useAppConfirm();
-  const [date, setDate] = useState(todayInput());
+  // Never date-scoped on the server — a reservation booked for a future date
+  // (e.g. accepted from a website lead) stays visible instead of hiding
+  // until that date arrives. Today/Upcoming/All below is a client-side
+  // filter over this same list.
   const [reservations, setReservations] = useState<CafeReservation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [datePill, setDatePill] = useState<DatePill>("All");
   const [showCreate, setShowCreate] = useState(false);
   const [seatPicker, setSeatPicker] = useState<CafeReservation | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -87,7 +99,7 @@ export default function ReservationsPanel({
   const load = async () => {
     setIsLoading(true);
     try {
-      const res = await getCafeReservations(date);
+      const res = await getCafeReservations();
       setReservations(Array.isArray(res?.data?.data) ? res.data.data : []);
     } catch (error) {
       toast.error(getErrorMessage(error, "Unable to load reservations."));
@@ -98,14 +110,20 @@ export default function ReservationsPanel({
 
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date]);
+  }, []);
 
   const tableName = (id: string | null) => tables.find((table) => table._id === id)?.name || "Any table";
 
-  const confirmedCount = reservations.filter((r) => r.status === "Confirmed").length;
-  const seatedCount = reservations.filter((r) => r.status === "Seated").length;
-  const closedCount = reservations.filter((r) => r.status === "No-show" || r.status === "Cancelled").length;
+  const visibleReservations = reservations.filter((reservation) => {
+    if (datePill === "All") return true;
+    const key = dateKeyOf(reservation.reservationAt);
+    const today = todayInput();
+    return datePill === "Today" ? key === today : key >= today;
+  });
+
+  const confirmedCount = visibleReservations.filter((r) => r.status === "Confirmed").length;
+  const seatedCount = visibleReservations.filter((r) => r.status === "Seated").length;
+  const closedCount = visibleReservations.filter((r) => r.status === "No-show" || r.status === "Cancelled").length;
 
   const seat = async (reservation: CafeReservation, tableId?: string) => {
     const finalTableId = reservation.tableId || tableId;
@@ -171,7 +189,7 @@ export default function ReservationsPanel({
     <>
       <div className="mb-3 mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
-          { key: "total", label: "Reservations", value: String(reservations.length), icon: CalendarClock, cardClass: baseCardClass, iconClass: "bg-blue-50 text-blue-600" },
+          { key: "total", label: "Reservations", value: String(visibleReservations.length), icon: CalendarClock, cardClass: baseCardClass, iconClass: "bg-blue-50 text-blue-600" },
           { key: "confirmed", label: "Upcoming", value: String(confirmedCount), icon: CalendarCheck, cardClass: `${baseCardClass} border-l-4 border-l-blue-500`, iconClass: "bg-blue-50 text-blue-600" },
           { key: "seated", label: "Seated", value: String(seatedCount), icon: LogIn, cardClass: `${baseCardClass} border-l-4 border-l-emerald-500`, iconClass: "bg-emerald-50 text-emerald-600" },
           { key: "closed", label: "No-show / Cancelled", value: String(closedCount), icon: XCircle, cardClass: `${baseCardClass} border-l-4 border-l-red-500`, iconClass: "bg-red-50 text-red-600" },
@@ -191,7 +209,20 @@ export default function ReservationsPanel({
 
       <div className="flex min-h-110 flex-col overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
         <div className={TOOLBAR}>
-          <input type="date" className={`${FIELD} w-auto`} value={date} onChange={(event) => setDate(event.target.value)} aria-label="Reservation date" />
+          <div className="flex gap-1">
+            {DATE_PILLS.map((pill) => (
+              <button
+                key={pill}
+                type="button"
+                onClick={() => setDatePill(pill)}
+                className={`rounded-2xl px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
+                  datePill === pill ? "bg-[#2563EB] text-white shadow-sm" : "bg-white text-slate-500 hover:bg-slate-100"
+                }`}
+              >
+                {pill}
+              </button>
+            ))}
+          </div>
           {allowCreate && (
             <button type="button" onClick={() => setShowCreate(true)} className={PRIMARY_BUTTON}>
               <Plus size={14} /> New Reservation
@@ -202,7 +233,7 @@ export default function ReservationsPanel({
           <table className="min-w-[900px] w-full text-left">
             <thead className="sticky top-0 z-10 text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100 bg-white">
               <tr>
-                <th className={TH}>Time</th>
+                <th className={TH}>Date &amp; Time</th>
                 <th className={TH}>Guest</th>
                 <th className={`${TH} text-center`}>Party</th>
                 <th className={TH}>Table</th>
@@ -213,12 +244,16 @@ export default function ReservationsPanel({
             <tbody className="divide-y divide-slate-50">
               {isLoading ? (
                 emptyRow(6, "Loading...")
-              ) : reservations.length === 0 ? (
-                emptyRow(6, "No reservations for this date.")
+              ) : visibleReservations.length === 0 ? (
+                emptyRow(6, `No ${datePill === "All" ? "" : datePill.toLowerCase() + " "}reservations.`)
               ) : (
-                reservations.map((reservation) => (
+                visibleReservations.map((reservation) => (
                   <tr key={reservation._id} className="transition-all hover:bg-blue-50/30">
-                    <td className={TD}>{new Date(reservation.reservationAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
+                    <td className={TD}>
+                      {new Date(reservation.reservationAt).toLocaleDateString([], { day: "2-digit", month: "short" })}{" "}
+                      ·{" "}
+                      {new Date(reservation.reservationAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </td>
                     <td className={TD}>
                       {reservation.guestName}
                       {reservation.guestPhone && <span className="block text-[10px] font-pmedium text-slate-400">{reservation.guestPhone}</span>}
@@ -256,7 +291,7 @@ export default function ReservationsPanel({
       {showCreate && (
         <CreateReservationDialog
           tables={tables}
-          defaultDate={date}
+          defaultDate={todayInput()}
           onClose={() => setShowCreate(false)}
           onCreated={async () => {
             setShowCreate(false);

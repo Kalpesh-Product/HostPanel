@@ -259,7 +259,7 @@ export default function VisitorsWorkspaceDashboard() {
   const isVisitorTabEnabled = (module: VisitorDashboardModule) => {
     if (
       access.plan === "basic" &&
-      !["visitor-daily", "visitor-history"].includes(module.id)
+      !["visitor-daily", "visitor-history", "visitor-day-pass"].includes(module.id)
     ) {
       return false;
     }
@@ -406,6 +406,7 @@ export default function VisitorsWorkspaceDashboard() {
 
   const moduleMetric = (moduleId: string) => {
     if (moduleId === "visitor-daily") return lists.liveVisitors.length;
+    if (moduleId === "visitor-day-pass") return "Flexi";
     if (moduleId === "visitor-history") return lists.visitorHistory.length;
     if (moduleId === "visitor-bookings") return bookings.length;
     if (moduleId === "visitor-clients") return lists.clients.length;
@@ -597,6 +598,7 @@ export default function VisitorsWorkspaceDashboard() {
                   color={module.color}
                   state={{
                     fromSection: "visitors-dashboard",
+                    openDayPassWalkIn: module.id === "visitor-day-pass",
                   }}
                 />
               );
