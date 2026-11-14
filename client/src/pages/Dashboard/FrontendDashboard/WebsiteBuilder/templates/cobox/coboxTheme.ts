@@ -2690,6 +2690,11 @@ export const COBOX_CSS = String.raw`
   align-items: start;
 }
 
+.cbx-career-detail--general {
+  grid-template-columns: minmax(0, 760px);
+  justify-content: center;
+}
+
 .cbx-center {
   text-align: center;
   margin-top: 34px;
@@ -3080,7 +3085,7 @@ export const COBOX_CSS = String.raw`
 
   .cbx-detail,
   .cbx-about-story,
-  .cbx-career-detail {
+  .cbx-career-detail:not(.cbx-career-detail--general) {
     grid-template-columns: 1fr;
   }
 

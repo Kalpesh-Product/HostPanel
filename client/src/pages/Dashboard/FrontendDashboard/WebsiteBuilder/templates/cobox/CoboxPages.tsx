@@ -634,7 +634,7 @@ export const CoboxCareers: React.FC = () => {
           eyebrow={t.careersDirectApply ? "Join our team" : getCareersJobMeta(job)}
         />
         <section className="cbx-page">
-          <div className="cbx-shell cbx-career-detail">
+          <div className={`cbx-shell cbx-career-detail${t.careersDirectApply ? " cbx-career-detail--general" : ""}`}>
             {!t.careersDirectApply ? (
               <div>
                 <RoleSection title="About this role" text={job.aboutTheJob} />
