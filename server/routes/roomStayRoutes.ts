@@ -1,6 +1,8 @@
 import express from "express";
 import upload from "../config/multerConfig.js";
 import {
+    checkInRoomStayBooking,
+    checkOutRoomStayBooking,
     createRoomBooking,
     extendRoomBooking,
     getRoomAvailability,
@@ -34,6 +36,15 @@ router.post(
 );
 router.post("/bookings/:bookingId/send-confirmation", sendRoomStayConfirmation);
 router.patch("/bookings/:bookingId/status", updateRoomBookingStatus);
+router.patch(
+    "/bookings/:bookingId/check-in",
+    upload.fields([
+        { name: "idProofFile", maxCount: 1 },
+        { name: "securityDepositProof", maxCount: 1 },
+    ]),
+    checkInRoomStayBooking
+);
+router.patch("/bookings/:bookingId/check-out", checkOutRoomStayBooking);
 router.patch("/bookings/:bookingId/extend", extendRoomBooking);
 
 export default router;

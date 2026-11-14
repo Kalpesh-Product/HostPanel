@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -26,8 +26,9 @@ import { useAppConfirm } from "../../components/app/AppConfirmProvider";
 import useWorkspacePreferences from "../../hooks/useWorkspacePreferences";
 import { formatWorkspaceCurrency } from "../../lib/workspaceLocalization";
 import { getCities, getCountries, getStates } from "../../utils/locationApi";
-import RoomReservationsPanel from "./RoomReservationsPanel";
+import RoomReservationsPanel, { CheckInDialog } from "./RoomReservationsPanel";
 import {
+  checkOutRoomStayBooking,
   createRoomBooking,
   extendRoomBooking,
   getRoomAvailability,
@@ -203,7 +204,6 @@ export default function RoomStayBookingPage({
     checkInTime: "09:00",
     checkOutTime: "22:00",
   });
-
   useEffect(() => {
     const nextTab = ROOM_STAY_TABS.includes(requestedTab as Tab)
       ? (requestedTab as Tab)
@@ -1596,22 +1596,8 @@ function CurrentGuestsTab({
   }, [roomType]);
 
   const [extending, setExtending] = useState<RoomStayBooking | null>(null);
-
-  const changeStatus = async (
-    booking: RoomStayBooking,
-    status: RoomStayStatus,
-  ) => {
-    setBusyId(booking._id);
-    try {
-      const res = await updateRoomBookingStatus(booking._id, status);
-      toast.success(res?.data?.message || `Marked ${status}.`);
-      await load();
-    } catch (error) {
-      toast.error(getErrorMessage(error, "Unable to update this booking."));
-    } finally {
-      setBusyId(null);
-    }
-  };
+  const [checkingIn, setCheckingIn] = useState<RoomStayBooking | null>(null);
+  const [checkingOut, setCheckingOut] = useState<RoomStayBooking | null>(null);
 
   const cancelBooking = async (booking: RoomStayBooking) => {
     const result = await prompt({
@@ -1746,7 +1732,7 @@ function CurrentGuestsTab({
                         {booking.status === "Booked" && (
                           <button
                             type="button"
-                            onClick={() => changeStatus(booking, "Checked-in")}
+                            onClick={() => setCheckingIn(booking)}
                             disabled={busyId === booking._id}
                             className={SECONDARY_BUTTON}
                             title="Check in"
@@ -1757,7 +1743,7 @@ function CurrentGuestsTab({
                         {booking.status === "Checked-in" && (
                           <button
                             type="button"
-                            onClick={() => changeStatus(booking, "Checked-out")}
+                            onClick={() => setCheckingOut(booking)}
                             disabled={busyId === booking._id}
                             className={SECONDARY_BUTTON}
                             title="Check out"
@@ -1807,7 +1793,157 @@ function CurrentGuestsTab({
           }}
         />
       )}
+
+      {checkingIn && (
+        <CheckInDialog
+          booking={checkingIn}
+          noun={noun}
+          formatCurrency={formatCurrency}
+          onClose={() => setCheckingIn(null)}
+          onCheckedIn={async () => {
+            setCheckingIn(null);
+            await load();
+          }}
+        />
+      )}
+
+      {checkingOut && (
+        <CheckOutDialog
+          booking={checkingOut}
+          formatCurrency={formatCurrency}
+          onClose={() => setCheckingOut(null)}
+          onCheckedOut={async () => {
+            setCheckingOut(null);
+            await load();
+          }}
+        />
+      )}
     </>
+  );
+}
+
+function CheckOutDialog({
+  booking,
+  formatCurrency,
+  onClose,
+  onCheckedOut,
+}: {
+  booking: RoomStayBooking;
+  formatCurrency: (value?: number) => string;
+  onClose: () => void;
+  onCheckedOut: () => Promise<void>;
+}) {
+  const [deductions, setDeductions] = useState("0");
+  const [deductionReason, setDeductionReason] = useState("");
+  const [refundMethod, setRefundMethod] = useState(PAYMENT_METHODS[0]);
+  const [refundTxn, setRefundTxn] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const collected = Number(booking.securityDepositCollected || 0);
+  const numericDeductions = Math.max(0, Math.min(collected, Number(deductions) || 0));
+  const refundAmount = Math.round((collected - numericDeductions) * 100) / 100;
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (numericDeductions > 0 && !deductionReason.trim()) {
+      return toast.error("A reason is required when deducting from the deposit.");
+    }
+    if (refundAmount > 0 && refundMethod !== "Cash" && !refundTxn.trim()) {
+      return toast.error("Transaction/refund reference is required for a non-cash refund.");
+    }
+    setBusy(true);
+    try {
+      const res = await checkOutRoomStayBooking(booking._id, {
+        deductions: numericDeductions,
+        deductionReason: numericDeductions > 0 ? deductionReason.trim() : "",
+        refundMethod: refundAmount > 0 ? refundMethod : undefined,
+        refundTxn: refundAmount > 0 ? refundTxn.trim() : undefined,
+      });
+      toast.success(res?.data?.message || "Guest checked out.");
+      await onCheckedOut();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Unable to check out this booking."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[10000] flex items-end justify-center sm:items-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="flex w-full flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-w-md sm:rounded-[2rem]">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <h3 className="text-[13px] font-pmedium uppercase tracking-widest text-slate-900">
+            Check-Out &amp; Deposit Settlement — #{booking.bookingNumber}
+          </h3>
+          <button type="button" onClick={onClose} aria-label="Close">
+            <X size={18} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="flex flex-col gap-4 p-6">
+            <div className="rounded-xl bg-slate-50 p-3 text-[12px] font-pmedium text-slate-600">
+              <p className="text-slate-900">{booking.guestName}</p>
+              <p className="mt-0.5">
+                {formatBedLabel(booking)} · {booking.checkIn.slice(0, 10)} → {booking.checkOut.slice(0, 10)}
+              </p>
+              <p className="mt-1.5">
+                {collected > 0
+                  ? `Security deposit collected: ${formatCurrency(collected)} via ${booking.securityDepositPaymentMethod || "—"}`
+                  : "No security deposit was held."}
+              </p>
+            </div>
+
+            {collected > 0 && (
+              <>
+                <div>
+                  <label className={LABEL}>Damage / penalty deductions</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={collected}
+                    className={FIELD}
+                    value={deductions}
+                    onChange={(event) => setDeductions(event.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>Deduction reason{numericDeductions > 0 ? "" : " (optional)"}</label>
+                  <input className={FIELD} value={deductionReason} onChange={(event) => setDeductionReason(event.target.value)} placeholder="e.g. Damaged towel" />
+                </div>
+                <div className="flex justify-between border-t border-slate-100 pt-3 text-[13px] font-pmedium text-slate-900">
+                  <span>Net refund amount</span>
+                  <span>{formatCurrency(refundAmount)}</span>
+                </div>
+                {refundAmount > 0 && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={LABEL}>Refund mode</label>
+                      <select className={FIELD} value={refundMethod} onChange={(event) => setRefundMethod(event.target.value)}>
+                        {PAYMENT_METHODS.filter((method) => method !== "Card").map((method) => (
+                          <option key={method} value={method}>{method}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={LABEL}>Transaction / refund ref</label>
+                      <input className={FIELD} value={refundTxn} onChange={(event) => setRefundTxn(event.target.value)} placeholder="UPI / bank ref" />
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          <div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
+            <button type="button" onClick={onClose} className={SECONDARY_BUTTON}>
+              Cancel
+            </button>
+            <button type="submit" disabled={busy} className={PRIMARY_BUTTON}>
+              Confirm Check-Out &amp; Refund
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 

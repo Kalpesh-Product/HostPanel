@@ -133,7 +133,7 @@ export default function DayPassRegisterPage() {
     return params.get("search") || "";
   });
   const [statusTab, setStatusTab] = useState<StatusTab>("All");
-  const [datePill, setDatePill] = useState<DatePill>("All");
+  const [datePill, setDatePill] = useState<DatePill>("Today");
   const [modalOpen, setModalOpen] = useState(false);
   const [actionId, setActionId] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);

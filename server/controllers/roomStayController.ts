@@ -506,7 +506,11 @@ export async function listRoomBookings(req: AuthenticatedRequest, res: Response,
         if (to) dateFilter.$lte = to;
         if (Object.keys(dateFilter).length) filter.createdAt = dateFilter;
 
-        const bookings = await RoomStayBooking.find(filter).sort({ bookingNumber: -1 }).limit(500).lean();
+        const bookings = await RoomStayBooking.find(filter)
+            .populate("roomId", "name capacity pricePerNight floor wing chargesSecurityDeposit securityDepositAmount")
+            .sort({ bookingNumber: -1 })
+            .limit(500)
+            .lean();
         res.status(200).json({ success: true, message: "Bookings loaded successfully.", data: bookings });
     } catch (error) {
         next(error);
@@ -857,6 +861,165 @@ export async function updateRoomBookingStatus(req: AuthenticatedRequest, res: Re
 
         booking.status = status;
         if (status === "Cancelled") booking.cancelReason = reason;
+        await booking.save();
+
+        res.status(200).json({ success: true, message, data: booking });
+    } catch (error) {
+        next(error);
+    }
+}
+
+// PATCH /api/v1/room-stays/bookings/:bookingId/check-in — the front-desk
+// moment ID verification and the security deposit actually get collected.
+// A website booking never had either; a walk-in booking already collected
+// them at creation, but check-in re-confirms them for every channel alike.
+export async function checkInRoomStayBooking(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+        const workspaceId = getWorkspaceObjectId(req);
+        const bookingId = parseObjectId(req.params.bookingId, "Invalid booking.");
+        const booking = await RoomStayBooking.findOne({ _id: bookingId, workspaceId });
+        if (!booking) throw notFound("Booking not found.");
+        if (booking.status !== "Booked") throw conflict("Only a booked stay can be checked in.");
+
+        const now = new Date();
+        if (now < booking.checkIn) throw conflict(`Check-in isn't allowed before ${booking.checkIn.toLocaleString()}.`);
+
+        const {
+            idProofType,
+            idProofNumber,
+            guestAge: rawGuestAge,
+            guestGender,
+            guestCountry,
+            guestState,
+            guestCity,
+            guestAddress,
+            emergencyContactName,
+            emergencyContactPhone,
+            securityDepositCollected: rawSecurityDepositCollected,
+            securityDepositPaymentMethod,
+            securityDepositTxn,
+        } = req.body || {};
+
+        if (!String(idProofType || "").trim()) throw badRequest("ID proof type is required.");
+        if (!String(idProofNumber || "").trim()) throw badRequest("ID proof number is required.");
+        const guestAge = Number(rawGuestAge);
+        if (!Number.isInteger(guestAge) || guestAge < 1 || guestAge > 120) throw badRequest("Enter a valid guest age.");
+        if (!String(guestGender || "").trim()) throw badRequest("Guest gender is required.");
+        if (!String(guestCountry || "").trim()) throw badRequest("Guest country is required.");
+        if (!String(guestState || "").trim()) throw badRequest("Guest state is required.");
+        if (!String(guestCity || "").trim()) throw badRequest("Guest city is required.");
+        if (!String(guestAddress || "").trim()) throw badRequest("Guest address is required.");
+        const hasEmergencyName = Boolean(String(emergencyContactName || "").trim());
+        const hasEmergencyPhone = Boolean(String(emergencyContactPhone || "").trim());
+        if (hasEmergencyName !== hasEmergencyPhone) {
+            throw badRequest("Enter both emergency contact name and phone, or leave both blank.");
+        }
+
+        // A walk-in booking already collected this at creation — only a
+        // website booking arrives with none, so only THEN is a fresh upload required.
+        const idProofFileInput = req.files?.idProofFile?.[0];
+        if (!idProofFileInput && !booking.idProofFile) throw badRequest("Attach the guest's ID proof document.");
+        const idProofFile = idProofFileInput
+            ? await uploadRoomStayAttachment("id-proof", workspaceId, idProofFileInput)
+            : booking.idProofFile;
+
+        // Re-resolved from the room's CURRENT configuration — a website
+        // booking's deposit fields were never set at creation.
+        const room = await Resource.findOne({ _id: booking.roomId, workspaceId })
+            .select("chargesSecurityDeposit securityDepositAmount")
+            .lean();
+        const securityDepositRequired = Boolean(room?.chargesSecurityDeposit);
+        const securityDepositAmount = securityDepositRequired ? roundMoney(Number(room?.securityDepositAmount) || 0) : 0;
+
+        let securityDepositCollected = 0;
+        if (securityDepositRequired && rawSecurityDepositCollected !== undefined) {
+            const numericSecurityDepositCollected = Number(rawSecurityDepositCollected);
+            if (!Number.isFinite(numericSecurityDepositCollected) || numericSecurityDepositCollected < 0 || numericSecurityDepositCollected > securityDepositAmount) {
+                throw badRequest("Enter a valid security deposit amount collected.");
+            }
+            securityDepositCollected = roundMoney(numericSecurityDepositCollected);
+        }
+        if (securityDepositCollected > 0 && !String(securityDepositPaymentMethod || "").trim()) {
+            throw badRequest("Select how the security deposit was collected.");
+        }
+
+        const securityDepositProofInput = req.files?.securityDepositProof?.[0];
+        const securityDepositProof = securityDepositProofInput
+            ? await uploadRoomStayAttachment("security-deposit", workspaceId, securityDepositProofInput)
+            : null;
+
+        booking.idProofType = String(idProofType).trim();
+        booking.idProofNumber = String(idProofNumber || "").trim();
+        booking.idProofFile = idProofFile;
+        booking.guestAge = guestAge;
+        booking.guestGender = String(guestGender).trim();
+        booking.guestCountry = String(guestCountry).trim();
+        booking.guestState = String(guestState).trim();
+        booking.guestCity = String(guestCity).trim();
+        booking.guestAddress = String(guestAddress).trim();
+        booking.emergencyContactName = String(emergencyContactName || "").trim();
+        booking.emergencyContactPhone = String(emergencyContactPhone || "").trim();
+        booking.securityDepositRequired = securityDepositRequired;
+        booking.securityDepositAmount = securityDepositAmount;
+        booking.securityDepositCollected = securityDepositCollected;
+        booking.securityDepositPaymentMethod = securityDepositCollected > 0 ? String(securityDepositPaymentMethod || "").trim() : "";
+        booking.securityDepositTxn = securityDepositCollected > 0 ? String(securityDepositTxn || "").trim() : "";
+        if (securityDepositProof) booking.securityDepositProof = securityDepositProof;
+        booking.status = "Checked-in";
+        booking.actualCheckInAt = now;
+        await booking.save();
+
+        res.status(200).json({
+            success: true,
+            message: `Guest checked in — booking ${booking.bookingCode || `#${booking.bookingNumber}`} marked Checked-in.`,
+            data: booking,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+// PATCH /api/v1/room-stays/bookings/:bookingId/check-out — damage inspection
+// and deposit settlement. refund = collected - deductions, never negative.
+export async function checkOutRoomStayBooking(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+        const workspaceId = getWorkspaceObjectId(req);
+        const bookingId = parseObjectId(req.params.bookingId, "Invalid booking.");
+        const booking = await RoomStayBooking.findOne({ _id: bookingId, workspaceId });
+        if (!booking) throw notFound("Booking not found.");
+        if (booking.status !== "Checked-in") throw conflict("Guest must be checked in before checking out.");
+
+        const { deductions: rawDeductions, deductionReason, refundMethod, refundTxn } = req.body || {};
+        const numericDeductions = rawDeductions === undefined ? 0 : Number(rawDeductions);
+        if (!Number.isFinite(numericDeductions) || numericDeductions < 0) throw badRequest("Enter a valid deduction amount.");
+        if (numericDeductions > Number(booking.securityDepositCollected || 0)) {
+            throw badRequest("Deductions cannot exceed the collected security deposit.");
+        }
+        if (numericDeductions > 0 && !String(deductionReason || "").trim()) {
+            throw badRequest("A reason is required when deducting from the deposit.");
+        }
+
+        const refundAmount = roundMoney(Math.max(0, Number(booking.securityDepositCollected || 0) - numericDeductions));
+        if (refundAmount > 0 && !String(refundMethod || "").trim()) throw badRequest("Select a refund method.");
+        if (refundAmount > 0 && String(refundMethod).trim() !== "Cash" && !String(refundTxn || "").trim()) {
+            throw badRequest("Transaction/refund reference is required for a non-cash refund.");
+        }
+
+        const now = new Date();
+        booking.actualCheckOutAt = now;
+        let message = "Booking marked Checked-out.";
+        if (now > booking.checkOut) {
+            booking.lateFeeAmount = roundMoney(Number(booking.ratePerNight) || 0);
+            booking.total = roundMoney(Number(booking.total) + booking.lateFeeAmount);
+            message = `Booking marked Checked-out. A late check-out fee of ${booking.lateFeeAmount} was added for checking out after ${booking.checkOut.toLocaleString()}.`;
+        }
+
+        booking.securityDepositDeductions = roundMoney(numericDeductions);
+        booking.securityDepositDeductionReason = numericDeductions > 0 ? String(deductionReason).trim() : "";
+        booking.securityDepositRefunded = refundAmount;
+        booking.securityDepositRefundMethod = refundAmount > 0 ? String(refundMethod || "").trim() : "";
+        booking.securityDepositRefundTxn = refundAmount > 0 ? String(refundTxn || "").trim() : "";
+        booking.status = "Checked-out";
         await booking.save();
 
         res.status(200).json({ success: true, message, data: booking });

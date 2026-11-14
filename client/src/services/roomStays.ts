@@ -42,10 +42,24 @@ export type RoomStayAdditionalGuest = {
   gender: string;
 };
 
+export type RoomStayBookingRoom = {
+  _id: string;
+  name: string;
+  capacity: number;
+  pricePerNight: number;
+  floor: string;
+  wing: string;
+  chargesSecurityDeposit: boolean;
+  securityDepositAmount: number;
+};
+
 export type RoomStayBooking = {
   _id: string;
   bookingNumber: number;
-  roomId: string;
+  bookingCode?: string;
+  // Populated by listRoomBookings — a plain id string only if that room was
+  // since deleted (Mongoose leaves the raw ObjectId when populate finds nothing).
+  roomId: RoomStayBookingRoom | string;
   roomType: GuestRoomType;
   bookingSource: RoomStayBookingSource;
   bedNumber: number | null;
@@ -91,8 +105,13 @@ export type RoomStayBooking = {
   securityDepositAmount: number;
   securityDepositCollected: number;
   securityDepositPaymentMethod: string;
+  securityDepositTxn: string;
   securityDepositProof: RoomStayFileAttachment | null;
-  securityDepositRefunded: boolean;
+  securityDepositDeductions: number;
+  securityDepositDeductionReason: string;
+  securityDepositRefunded: number;
+  securityDepositRefundMethod: string;
+  securityDepositRefundTxn: string;
   actualCheckInAt: string | null;
   actualCheckOutAt: string | null;
   lateFeeAmount: number;
@@ -168,6 +187,50 @@ export const createRoomBooking = async (payload: {
 
 export const updateRoomBookingStatus = async (bookingId: string, status: RoomStayStatus, reason?: string) =>
   axiosPrivate.patch(`/api/v1/room-stays/bookings/${bookingId}/status`, { status, reason });
+
+export const checkInRoomStayBooking = async (
+  bookingId: string,
+  payload: {
+    idProofType: string;
+    idProofNumber: string;
+    // Optional when the booking already has an ID proof file on record
+    // (a walk-in booking collects it at creation) — only a website booking
+    // needs one uploaded here.
+    idProofFile?: File | null;
+    guestAge: number;
+    guestGender: string;
+    guestCountry: string;
+    guestState: string;
+    guestCity: string;
+    guestAddress: string;
+    emergencyContactName?: string;
+    emergencyContactPhone?: string;
+    securityDepositCollected?: number;
+    securityDepositPaymentMethod?: string;
+    securityDepositTxn?: string;
+    securityDepositProof?: File | null;
+  },
+) => {
+  const formData = new FormData();
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    if (value instanceof File) formData.append(key, value);
+    else formData.append(key, String(value));
+  });
+  return axiosPrivate.patch(`/api/v1/room-stays/bookings/${bookingId}/check-in`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+};
+
+export const checkOutRoomStayBooking = async (
+  bookingId: string,
+  payload: {
+    deductions?: number;
+    deductionReason?: string;
+    refundMethod?: string;
+    refundTxn?: string;
+  },
+) => axiosPrivate.patch(`/api/v1/room-stays/bookings/${bookingId}/check-out`, payload);
 
 export const extendRoomBooking = async (bookingId: string, checkOut: string) =>
   axiosPrivate.patch(`/api/v1/room-stays/bookings/${bookingId}/extend`, { checkOut });

@@ -66,12 +66,19 @@ export interface IRoomStayBooking extends Document {
     securityDepositAmount: number;
     securityDepositCollected: number;
     securityDepositPaymentMethod: string;
+    securityDepositTxn: string;
     securityDepositProof?: {
         fileName: string;
         fileUrl: string;
         publicId: string;
     } | null;
-    securityDepositRefunded: boolean;
+    // Check-out settlement — how much of securityDepositCollected actually
+    // went back to the guest, after any damage/penalty deduction.
+    securityDepositDeductions: number;
+    securityDepositDeductionReason: string;
+    securityDepositRefunded: number;
+    securityDepositRefundMethod: string;
+    securityDepositRefundTxn: string;
     actualCheckInAt?: Date | null;
     actualCheckOutAt?: Date | null;
     lateFeeAmount: number;
@@ -172,6 +179,7 @@ const roomStayBookingSchema = new Schema<IRoomStayBooking>(
         securityDepositAmount: { type: Number, min: 0, default: 0 },
         securityDepositCollected: { type: Number, min: 0, default: 0 },
         securityDepositPaymentMethod: { type: String, trim: true, default: "", maxlength: 40 },
+        securityDepositTxn: { type: String, trim: true, default: "", maxlength: 120 },
         securityDepositProof: {
             type: new Schema(
                 {
@@ -183,7 +191,11 @@ const roomStayBookingSchema = new Schema<IRoomStayBooking>(
             ),
             default: null,
         },
-        securityDepositRefunded: { type: Boolean, default: false },
+        securityDepositDeductions: { type: Number, min: 0, default: 0 },
+        securityDepositDeductionReason: { type: String, trim: true, default: "", maxlength: 300 },
+        securityDepositRefunded: { type: Number, min: 0, default: 0 },
+        securityDepositRefundMethod: { type: String, trim: true, default: "", maxlength: 40 },
+        securityDepositRefundTxn: { type: String, trim: true, default: "", maxlength: 120 },
         actualCheckInAt: { type: Date, default: null },
         actualCheckOutAt: { type: Date, default: null },
         lateFeeAmount: { type: Number, min: 0, default: 0 },

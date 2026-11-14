@@ -91,7 +91,7 @@ export default function ReservationsPanel({
   // filter over this same list.
   const [reservations, setReservations] = useState<CafeReservation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [datePill, setDatePill] = useState<DatePill>("All");
+  const [datePill, setDatePill] = useState<DatePill>("Today");
   const [showCreate, setShowCreate] = useState(false);
   const [seatPicker, setSeatPicker] = useState<CafeReservation | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
