@@ -19,6 +19,8 @@ interface CardProps {
   onClick?: () => void;
   interactive?: boolean;
   state?: Record<string, unknown>;
+  // Optional one-line explainer rendered under the title (muted, small).
+  description?: string;
 }
 
 const Card = ({
@@ -35,6 +37,7 @@ const Card = ({
   onClick,
   interactive = true,
   state,
+  description,
 }: CardProps) => {
   const navigate = useNavigate();
 
@@ -104,6 +107,9 @@ const Card = ({
       >
         {title}
       </h3>
+      {description ? (
+        <p className="mt-1 text-[10px] font-pmedium leading-4 text-gray-400">{description}</p>
+      ) : null}
     </motion.div>
   );
 };

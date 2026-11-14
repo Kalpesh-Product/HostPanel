@@ -9,6 +9,10 @@ type DashboardModuleCardProps = {
   description?: string;
   color?: string;
   state?: Record<string, unknown>;
+  // When provided, clicking runs this instead of navigating to `route` —
+  // used by cards that act in place (e.g. scroll to a register on the same
+  // page) rather than routing away.
+  onClick?: () => void;
   // "compact" gives the smaller tile used on workspaces whose module grids
   // hold only a handful of cards (e.g. Nomad Listings) so they don't stretch
   // oversized like the dense sales grid does. Defaults to "default".
@@ -22,6 +26,7 @@ export default function DashboardModuleCard({
   description,
   color = "#2563EB",
   state,
+  onClick,
   size = "default",
 }: DashboardModuleCardProps) {
   const navigate = useNavigate();
@@ -30,7 +35,13 @@ export default function DashboardModuleCard({
   return (
     <button
       type="button"
-      onClick={() => navigate(route, state ? { state } : undefined)}
+      onClick={() => {
+        if (onClick) {
+          onClick();
+          return;
+        }
+        navigate(route, state ? { state } : undefined);
+      }}
       className={`group relative flex min-w-0 flex-col items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white text-center shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-[0_10px_24px_rgba(37,99,235,0.12)] ${
         isCompact
           ? "min-h-[118px] px-4 py-4"

@@ -1,6 +1,7 @@
 import { RiArchiveDrawerLine, RiPagesLine } from "react-icons/ri";
 import { MdFormatListBulleted } from "react-icons/md";
 import { CgProfile } from "react-icons/cg";
+import { Ticket } from "lucide-react";
 import Card from "../../components/Card";
 import DonutChart from "../../components/graphs/DonutChart";
 import WidgetSection from "../../components/WidgetSection";
@@ -714,17 +715,31 @@ const allowedVisitorsTodayTables = visitorsTodayTableConfigs.filter(
       ],
     },
     {
-      layout: cardsWithAccess.length || 1, // ✅ dynamic layout
-      widgets: cardsWithAccess.map((card) => (
+      layout: (cardsWithAccess.length || 1) + 1, // ✅ dynamic layout (+ the Day Pass walk-in card)
+      widgets: [
+        ...cardsWithAccess.map((card) => (
+          <Card
+            key={card.title}
+            route={card.route}
+            title={card.title}
+            icon={card.icon}
+            locked={card.locked}
+            lockReason="You don’t have permission for this page."
+          />
+        )),
+        // Front-desk shortcut: routes to the Visitor Management page where day
+        // passes (Daily Flexi Desk) are actually issued — creation lives
+        // inside the page, never as a form on the dashboard itself. The
+        // state flag lets that page auto-open its walk-in day-pass modal.
         <Card
-          key={card.title}
-          route={card.route}
-          title={card.title}
-          icon={card.icon}
-          locked={card.locked}
-          lockReason="You don’t have permission for this page."
-        />
-      )),
+          key="day-pass-walkin"
+          route="/app/visitors/visitor-management"
+          state={{ openDayPassWalkIn: true }}
+          title="Day Pass Walk-in"
+          icon={<Ticket size={28} />}
+          description="Issue daily flexi desk passes & badges"
+        />,
+      ],
     },
     {
       layout: 3,

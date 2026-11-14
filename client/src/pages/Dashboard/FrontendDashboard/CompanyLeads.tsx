@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, CalendarDays, CheckCircle2, Eye, Download, FileText, Globe, Printer, Search, Send, Sparkles, Target, Users, X, Wallet,
+  ArrowLeft, CalendarDays, CheckCircle2, Coffee, Eye, Download, FileText, Globe, Printer, Search, Send, Sparkles, Target, Users, X, Wallet, Ticket,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -63,13 +63,18 @@ function formatDateLabel(value) {
 
 function printBookingBadge(lead) {
   const guestName = lead.fullName || "Guest";
-  const roomName = lead.roomType || lead.productType || "Room";
   const bookingCode = lead.bookingCode || "--";
+  // DP- codes are Coworking Day Passes — the badge is titled "Day Pass" and
+  // names the flexi-desk product, never a meeting room.
+  const isDayPass = /^DP-/i.test(bookingCode);
+  const roomName = isDayPass
+    ? `${lead.roomType || lead.productType || "Day Pass"} — Coworking Flex Desk`
+    : lead.roomType || lead.productType || "Room";
   const dateTime = [formatDateLabel(lead.startDate), lead.timeSlot].filter(Boolean).join(" · ") || "--";
   const printHtml = `
     <html>
       <head>
-        <title>Booking Badge</title>
+        <title>${isDayPass ? "Day Pass" : "Booking"} Badge</title>
         <style>
           * { box-sizing: border-box; }
           body { font-family: Arial, sans-serif; padding: 24px; color: #0f172a; }
@@ -83,11 +88,11 @@ function printBookingBadge(lead) {
       </head>
       <body>
         <div class="badge">
-          <h1>Booking Confirmed</h1>
+          <h1>${isDayPass ? "Day Pass Confirmed" : "Booking Confirmed"}</h1>
           <div class="row"><p class="label">Guest Name</p><p class="value">${guestName}</p></div>
-          <div class="row"><p class="label">Room Name</p><p class="value">${roomName}</p></div>
-          <div class="row"><p class="label">Booking Code</p><p class="value code">${bookingCode}</p></div>
-          <div class="row"><p class="label">Date / Time</p><p class="value">${dateTime}</p></div>
+          <div class="row"><p class="label">${isDayPass ? "Pass" : "Room Name"}</p><p class="value">${roomName}</p></div>
+          <div class="row"><p class="label">${isDayPass ? "Day Pass Code" : "Booking Code"}</p><p class="value code">${bookingCode}</p></div>
+          <div class="row"><p class="label">${isDayPass ? "Date (09:00 AM - 07:00 PM)" : "Date / Time"}</p><p class="value">${dateTime}</p></div>
         </div>
         <script>window.onload = function () { window.focus(); window.print(); };</script>
       </body>
@@ -1266,7 +1271,9 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                               </div>
                               {selectedLead.bookingCode && (
                                 <div className="flex justify-between items-center gap-3 bg-emerald-50/60 border border-emerald-100 rounded-xl px-3.5 py-3">
-                                  <span className="text-[9px] uppercase font-pmedium tracking-widest text-emerald-600">Booking confirmed</span>
+                                  <span className="text-[9px] uppercase font-pmedium tracking-widest text-emerald-600">
+                                    {/^DP-/i.test(String(selectedLead.bookingCode || "")) ? "Day pass confirmed" : "Booking confirmed"}
+                                  </span>
                                   <span className="text-[13px] font-pmedium text-emerald-700">{selectedLead.bookingCode}</span>
                                 </div>
                               )}
@@ -1327,6 +1334,11 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                     // IS payable, so only trust paymentStatus (set by the backend's
                     // isNonBookingInquiry check).
                     const isCoworkingInquiry = paymentStatus === "Not Required";
+                    // DP- codes mark Coworking Day Passes — their modal shows a
+                    // day-pass register link instead of the meeting-room one.
+                    const isDayPassBooking = /^DP-/i.test(String(selectedLead.bookingCode || ""));
+                    // CR- codes mark a Cafe table reservation.
+                    const isCafeReservation = /^CR-/i.test(String(selectedLead.bookingCode || ""));
                     const onboardAsTenant = () => {
                       navigate("/department-accesses/sales-department/tenant-companies", {
                         state: {
@@ -1361,7 +1373,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                           <>
                             <span className="flex-1 text-right text-[11px] font-pmedium text-slate-500 min-w-[180px]">
                               {selectedLead.bookingCode
-                                ? `Booking Code: ${selectedLead.bookingCode}`
+                                ? `${isDayPassBooking ? "Day Pass Code" : isCafeReservation ? "Reservation Code" : "Booking Code"}: ${selectedLead.bookingCode}`
                                 : isCoworkingInquiry
                                   ? "Coworking enquiry — ready to onboard as a tenant"
                                   : paymentStatus !== "Paid"
@@ -1373,9 +1385,29 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                                 <button type="button" onClick={() => setShowBookingBadge(true)} disabled={isBusy}
                                   className={`${baseButton} bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-60`}
                                 ><Printer size={14} /> Print / View Badge</button>
-                                <button type="button" onClick={() => navigate("/key-apps/meeting-room-management")} disabled={isBusy}
+                                {isDayPassBooking && (
+                                  <button
+                                    type="button"
+                                    onClick={() => navigate("/key-apps/co-working-management/day-passes")}
+                                    disabled={isBusy}
+                                    className={`${baseButton} bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
+                                  >
+                                    <Ticket size={14} /> View in Coworking Register
+                                  </button>
+                                )}
+                                {isCafeReservation && (
+                                  <button
+                                    type="button"
+                                    onClick={() => navigate("/key-apps/cafe-management/reservations")}
+                                    disabled={isBusy}
+                                    className={`${baseButton} bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
+                                  >
+                                    <Coffee size={14} /> View in Cafe Reservations
+                                  </button>
+                                )}
+                                {/* <button type="button" onClick={() => navigate("/key-apps/meeting-room-management")} disabled={isBusy}
                                   className={`${baseButton} bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
-                                ><CalendarDays size={14} /> View in Calendar</button>
+                                ><CalendarDays size={14} /> View in Calendar</button> */}
                               </>
                             ) : isCoworkingInquiry ? (
                               <button type="button" onClick={onboardAsTenant} disabled={isBusy}
@@ -1395,7 +1427,9 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
         </div>
       </PageFrame>
 
-      {showBookingBadge && selectedLead && (
+      {showBookingBadge && selectedLead && (() => {
+        const isDayPassBadge = /^DP-/i.test(String(selectedLead.bookingCode || ""));
+        return (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-[#0F172A]/85 backdrop-blur-sm" onClick={() => setShowBookingBadge(false)}>
           <div className="w-full max-w-lg overflow-hidden rounded-[32px] border border-emerald-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
             <div className="bg-emerald-50 px-6 py-5 border-b border-emerald-100 flex items-start justify-between gap-4">
@@ -1404,8 +1438,8 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                   <CheckCircle2 size={20} />
                 </div>
                 <div>
-                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-600">Booking Confirmed</p>
-                  <h3 className="mt-0.5 text-lg font-pmedium text-emerald-950">Website booking confirmed</h3>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-600">{isDayPassBadge ? "Day Pass Confirmed" : "Booking Confirmed"}</p>
+                  <h3 className="mt-0.5 text-lg font-pmedium text-emerald-950">{isDayPassBadge ? "Coworking day pass confirmed" : "Website booking confirmed"}</h3>
                   <p className="mt-0.5 text-[12px] font-pmedium text-emerald-900/70">A confirmation email with this booking ID has been sent to the guest.</p>
                 </div>
               </div>
@@ -1415,7 +1449,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
             </div>
             <div className="p-6 space-y-3.5">
               <div className="rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/60 p-4 text-center">
-                <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">Booking Code</p>
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">{isDayPassBadge ? "Day Pass Code" : "Booking Code"}</p>
                 <p className="mt-1 text-3xl font-pmedium tracking-[0.15em] text-emerald-700">{selectedLead.bookingCode}</p>
                 <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Saved and ready to verify at the front desk</p>
               </div>
@@ -1425,13 +1459,17 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                   <p className="mt-1 text-[13px] font-pmedium text-slate-900">{selectedLead.fullName || "Guest"}</p>
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3.5">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Room</p>
-                  <p className="mt-1 text-[13px] font-pmedium text-slate-900">{selectedLead.roomType || selectedLead.productType || "Room"}</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{isDayPassBadge ? "Pass" : "Room"}</p>
+                  <p className="mt-1 text-[13px] font-pmedium text-slate-900">
+                    {isDayPassBadge
+                      ? `${selectedLead.roomType || selectedLead.productType || "Day Pass"} — Coworking Flex Desk`
+                      : selectedLead.roomType || selectedLead.productType || "Room"}
+                  </p>
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3.5 sm:col-span-2">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Date / Time</p>
                   <p className="mt-1 text-[13px] font-pmedium text-slate-900">
-                    {[formatDateLabel(selectedLead.startDate), selectedLead.timeSlot].filter(Boolean).join(" · ") || "--"}
+                    {[formatDateLabel(selectedLead.startDate), selectedLead.timeSlot || (isDayPassBadge ? "09:00 AM - 07:00 PM" : "")].filter(Boolean).join(" · ") || "--"}
                   </p>
                 </div>
               </div>
@@ -1441,7 +1479,8 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       <ExportReportModal
         isOpen={showExportModal}

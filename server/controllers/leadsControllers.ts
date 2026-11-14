@@ -14,6 +14,11 @@ import {
   sendExternalLifecycleEmail,
 } from "./meetingRoomBookingController.js";
 import {
+  createDayPassWithUniqueCode,
+  resolveDayPassAvailability,
+} from "./dayPassBookingController.js";
+import { createCafeReservationRecord } from "./cafeController.js";
+import {
   allocateDormBeds,
   createRoomStayAtomically,
   createRoomStayPaymentHold,
@@ -118,8 +123,38 @@ const filterEscalatedLeadsForWorkspace = (leads, workspaceId) => {
 // Shared by finalizeLeadBooking and previewLeadBookingPrefill: explicit
 // start/end win, otherwise the lead meta's date (startDate, falling back to
 // endDate) combined with the requested time slot (timeSlot "14:00", endTime
-// "17:00").
-const resolveLeadSchedule = (meta, bodyStart, bodyEnd) => {
+// "17:00"). Day Pass leads (4th `lead` arg) never prompt for a time slot —
+// their schedule is normalized to the workspace's standard full-day
+// business hours (09:00–19:00) so endDate > startDate always holds.
+const DAY_PASS_START_HOUR = 9;
+const DAY_PASS_END_HOUR = 19;
+const DAY_PASS_TEXT_RE = /day\s*pass/i;
+
+// All the free-text fields a website form may drop the "Day Pass" product
+// name into — productType on the lead itself, roomType/packageName/product/
+// inquiryType/websiteUrl inside leadMeta.
+const dayPassLeadText = (lead, meta = {}) =>
+  [
+    lead?.productType,
+    meta?.roomType,
+    meta?.packageName,
+    meta?.product,
+    meta?.inquiryType,
+    meta?.websiteUrl,
+  ]
+    .filter(Boolean)
+    .map(sanitizeValue)
+    .join(" ");
+
+const isDayPassLeadText = (lead, meta = {}) => DAY_PASS_TEXT_RE.test(dayPassLeadText(lead, meta));
+
+// A Cafe table reservation — the website sends inquiryType "Cafe" (see
+// useWebsiteTemplateData.ts). Free (no Stripe), so Accept creates the
+// CafeReservation row immediately instead of going through a payment step.
+const CAFE_TEXT_RE = /cafe/i;
+const isCafeLeadText = (lead, meta = {}) => CAFE_TEXT_RE.test(dayPassLeadText(lead, meta));
+
+const resolveLeadSchedule = (meta, bodyStart, bodyEnd, lead = null) => {
   const resolveDate = (raw) => {
     const value = sanitizeValue(raw);
     if (!value) return null;
@@ -155,6 +190,32 @@ const resolveLeadSchedule = (meta, bodyStart, bodyEnd) => {
           Math.round((endHour % 1) * 60),
         )
       : savedEndDate;
+  }
+  // Day Pass normalization — a day pass is an all-day open-desk pass, not an
+  // hourly slot booking. Whatever start/end came through (date-only, or a
+  // mismatched pair), collapse it onto 09:00 → 19:00 of the chosen day so
+  // the booking is always a valid, full-day range.
+  if (startDate && isDayPassLeadText(lead, meta)) {
+    if (startDate.getHours() === 0 && startDate.getMinutes() === 0) {
+      startDate = new Date(
+        startDate.getFullYear(),
+        startDate.getMonth(),
+        startDate.getDate(),
+        DAY_PASS_START_HOUR,
+        0,
+        0,
+      );
+    }
+    if (!endDate || endDate <= startDate) {
+      endDate = new Date(
+        startDate.getFullYear(),
+        startDate.getMonth(),
+        startDate.getDate(),
+        DAY_PASS_END_HOUR,
+        0,
+        0,
+      );
+    }
   }
   return { startDate, endDate };
 };
@@ -323,7 +384,7 @@ const checkLeadAvailability = async (lead, meta) => {
     };
   }
 
-  const { startDate, endDate } = resolveLeadSchedule(meta, null, null);
+  const { startDate, endDate } = resolveLeadSchedule(meta, null, null, lead);
   if (!startDate || !endDate || endDate <= startDate) {
     return { checked: false, available: true, conflictBookingCode: "" };
   }
@@ -566,9 +627,77 @@ const runFinalizeLeadBooking = async (lead, { roomId, bodyStart, bodyEnd, bodyAt
       };
     }
 
-    const { startDate, endDate } = resolveLeadSchedule(meta, bodyStart, bodyEnd);
+    const { startDate, endDate } = resolveLeadSchedule(meta, bodyStart, bodyEnd, lead);
     if (!startDate || !endDate || endDate <= startDate) {
       throw new FinalizeBookingError(400, "Could not resolve the booking start/end for this lead — pass start and end");
+    }
+
+    const attendeeCount = Math.max(
+      1,
+      Math.trunc(Number(parseMoney(bodyAttendees ?? meta.attendees ?? meta.noOfPeople ?? 1))) || 1,
+    );
+    const purpose = (sanitizeValue(meta.inquiryType) || "Meeting").slice(0, 1000);
+
+    // Day Pass leads finalize into the DEDICATED DayPassBooking collection
+    // with a DP- code — they are NOT meeting-room bookings and never touch
+    // MeetingRoomBooking. Signal: the lead text (productType/roomType/...)
+    // names a day pass, or the matched resource is actually an Open Desk.
+    const isDayPass = isDayPassLeadText(lead, meta) || room.type === "Open Desk";
+    if (isDayPass) {
+      // A day pass draws from the whole open coworking floor, not a single
+      // room — the per-room conflict query below does not apply. Enforce the
+      // real limit instead: daily open-desk capacity (minus tenant-assigned
+      // desks minus passes already issued) must still cover this party.
+      const availability = await resolveDayPassAvailability(lead.workspaceId, startDate);
+      if (!availability) {
+        throw new FinalizeBookingError(
+          400,
+          "No active Open Desk resource is configured for this workspace — add one before issuing day passes",
+        );
+      }
+      if (attendeeCount > availability.availableCount) {
+        throw new FinalizeBookingError(
+          409,
+          `Only ${availability.availableCount} day pass desk${availability.availableCount === 1 ? "" : "s"} left for that date`,
+        );
+      }
+      // Full-Day pass priced per guest off the Open Desk day rate; the
+      // online lead's payment fields carry the authoritative totals.
+      const ratePerPass = attendeeCount > 0 ? round2(baseAmount / attendeeCount) : baseAmount;
+      const dayPass = await createDayPassWithUniqueCode({
+        workspaceId: lead.workspaceId,
+        resourceId: availability.resourceId,
+        guestName: lead.fullName || "Day Pass Guest",
+        guestEmail: sanitizeValue(lead.email),
+        guestPhone: sanitizeValue(lead.mobileNumber),
+        company: sanitizeValue(lead.companyName),
+        date: new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 0, 0, 0),
+        passType: "Full-Day",
+        attendees: attendeeCount,
+        ratePerPass,
+        subtotal: baseAmount,
+        platformFeeAmount: Number(lead.paymentPlatformFeeAmount) || 0,
+        totalAmount: baseAmount,
+        currency: sanitizeValue(lead.paymentCurrency).toUpperCase() || "INR",
+        paymentStatus: "Paid",
+        paymentMode: "Stripe",
+        transactionId: sanitizeValue(lead.paymentTransactionId) || "",
+        status: "Booked",
+        source: "Website",
+      });
+
+      lead.bookingId = dayPass._id;
+      lead.bookingCode = dayPass.bookingCode;
+      await lead.save();
+
+      return {
+        alreadyFinalized: false,
+        body: {
+          message: `Day pass booked — confirmation code ${dayPass.bookingCode}`,
+          booking: dayPass.toObject(),
+          lead: { _id: String(lead._id), ...lead.toObject() },
+        },
+      };
     }
 
     const conflict = await MeetingRoomBooking.findOne({
@@ -583,12 +712,6 @@ const runFinalizeLeadBooking = async (lead, { roomId, bodyStart, bodyEnd, bodyAt
     if (conflict) {
       throw new FinalizeBookingError(409, `${room.name} is already booked (${conflict.bookingCode || ""}) for that time slot`);
     }
-
-    const attendeeCount = Math.max(
-      1,
-      Math.trunc(Number(parseMoney(bodyAttendees ?? meta.attendees ?? meta.noOfPeople ?? 1))) || 1,
-    );
-    const purpose = (sanitizeValue(meta.inquiryType) || "Meeting").slice(0, 1000);
 
     // bookingNumber/bookingCode are allocated globally (the model's
     // bookingCode index is unique across workspaces, not per-workspace) —
@@ -719,7 +842,7 @@ export const previewLeadBookingPrefill = async (req, res, next) => {
           const stay = resolveStaySchedule(meta, null, null);
           return { startDate: stay.checkIn, endDate: stay.checkOut };
         })()
-      : resolveLeadSchedule(meta, null, null);
+      : resolveLeadSchedule(meta, null, null, lead);
     const attendeeCount = Math.max(
       1,
       Math.trunc(Number(parseMoney(meta.attendees ?? meta.noOfPeople ?? lead.noOfPeople ?? 1))) || 1,
@@ -2140,7 +2263,7 @@ export const notifySlotUnavailable = async (req, res, next) => {
       const meta = readLeadMeta(localLead);
       const room = await resolveRoomForLead(localLead);
       if (!isStayVertical(localLead, room)) {
-        const { startDate, endDate } = resolveLeadSchedule(meta, null, null);
+        const { startDate, endDate } = resolveLeadSchedule(meta, null, null, localLead);
         if (room && startDate && endDate && endDate > startDate) {
           suggestedSlots = await findAvailableSlotsForDay(room._id, hostWorkspaceId, startDate, endDate - startDate);
         }
@@ -2192,7 +2315,7 @@ const resolveUnbilledLeadBundle = async (hostWorkspaceId, { leadId = "", leadIds
           const stay = resolveStaySchedule(meta, null, null);
           return { startDate: stay.checkIn, endDate: stay.checkOut };
         })()
-      : resolveLeadSchedule(meta, null, null);
+      : resolveLeadSchedule(meta, null, null, lead);
 
     const payment = {
       discountAmount: Number(lead.discountAmount) || 0,
@@ -2450,6 +2573,44 @@ export const updateLeads = async (req, res, next) => {
       if (typeof comment === "string") localLead.comment = comment;
 
       if (normalizedHostStatus === "Accepted") {
+        // Cafe table reservation — free, so Accept creates the real
+        // CafeReservation row right away instead of waiting on a payment
+        // webhook. Table stays unassigned until the host seats the guest
+        // (seatCafeReservation already supports that).
+        if (isCafeLeadText(localLead)) {
+          const cafeMeta = readLeadMeta(localLead);
+          const { startDate: reservationAt } = resolveLeadSchedule(cafeMeta, null, null, localLead);
+          if (!reservationAt) {
+            return res.status(400).json({
+              message: "Could not resolve this reservation's date/time — ask the client to resubmit with a date and time slot.",
+            });
+          }
+          const reservation = await createCafeReservationRecord(hostWorkspaceId, {
+            guestName: localLead.fullName,
+            guestPhone: localLead.mobileNumber,
+            partySize: Number(localLead.noOfPeople) || Number(cafeMeta.attendees) || 1,
+            reservationAt,
+            notes: localLead.comment || "",
+          });
+          localLead.hostPanelStatus = "Accepted";
+          localLead.paymentStatus = "Not Required";
+          localLead.paymentStatusUpdatedAt = new Date();
+          localLead.bookingId = reservation._id;
+          localLead.bookingCode = `CR-${reservation.reservationNumber}`;
+          await localLead.save();
+          await syncHostPanelStatusToNomads(leadId, hostWorkspaceId, "Accepted");
+          return res.status(200).json({
+            message: `Lead accepted — table reservation ${localLead.bookingCode} created.`,
+            lead: {
+              _id: String(localLead._id),
+              ...localLead.toObject(),
+              ...leadPaymentSummary(localLead),
+              ...readLeadMeta(localLead),
+            },
+            reservation: reservation.toObject(),
+          });
+        }
+
         // Co-working (and anything else genuinely non-payable — tour,
         // visit, monthly tenancy) is a plain enquiry the host follows up
         // on manually. Accept just marks it Accepted, no Stripe link, no

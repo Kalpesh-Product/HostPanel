@@ -16,6 +16,7 @@ import {
   PackageCheck,
   Users,
   ShieldCheck,
+  Ticket,
 } from "lucide-react";
 import PageFrame from "../../components/Pages/PageFrame";
 import DashboardModuleCard from "../../components/DashboardModuleCard";
@@ -25,6 +26,8 @@ import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
 import { getResources } from "../../services/resources";
 import { getAllTenantCompanies } from "../../services/tenant-companies";
 import { getPricingPackages } from "../../services/pricing-packages";
+import { getDayPassAvailability, type DayPassAvailability } from "../../services/day-passes";
+import useAuth from "../../hooks/useAuth";
 
 type SeatSummary = { total: number; assigned: number; vacant: number } | null;
 
@@ -116,6 +119,15 @@ const readableLabel = (value?: string) =>
     .replace(/_/g, " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
+// Today's date as YYYY-MM-DD, for the dashboard's day-pass availability tile.
+const dayPassDateKey = () => {
+  const date = new Date();
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
 function Empty({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-[320px] items-center justify-center px-6 text-center text-[11px] text-[#7B89A6]">
@@ -132,6 +144,7 @@ function ChartCard({
   action,
   footer,
   bodyClassName = "p-5",
+  id,
   children,
 }: {
   title: string;
@@ -139,10 +152,16 @@ function ChartCard({
   action?: ReactNode;
   footer?: ReactNode;
   bodyClassName?: string;
+  // Optional anchor for in-page navigation (e.g. a module card that scrolls
+  // down to this register).
+  id?: string;
   children: ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <div
+      id={id}
+      className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+    >
       <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
         <div className="min-w-0">
           <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">
@@ -214,6 +233,7 @@ function StatTile({
 }
 
 export default function CoworkingManagementPage() {
+  const { auth } = useAuth();
   const [resources, setResources] = useState<ResourceRecord[]>([]);
   const [tenants, setTenants] = useState<TenantRecord[]>([]);
   const [packages, setPackages] = useState<PackageRecord[]>([]);
@@ -222,6 +242,23 @@ export default function CoworkingManagementPage() {
   const [selectedFloor, setSelectedFloor] = useState("All floors");
   const [refreshKey, setRefreshKey] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  // Single day-pass availability tile — the full register now lives on its
+  // own subpage; this just needs today's stock snapshot.
+  const workspaceId = String(
+    auth?.user?.workspaceMembership?.workspaceId ||
+      auth?.user?.workspaceMembership?.workspace ||
+      auth?.user?.primaryWorkspace ||
+      auth?.user?.workspaceId ||
+      "",
+  ).trim();
+  const [dayPassAvailability, setDayPassAvailability] = useState<DayPassAvailability | null>(null);
+
+  useEffect(() => {
+    getDayPassAvailability({ workspaceId: workspaceId || undefined, date: dayPassDateKey() })
+      .then((result) => setDayPassAvailability(result || null))
+      .catch(() => setDayPassAvailability(null));
+  }, [workspaceId, refreshKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -763,21 +800,30 @@ export default function CoworkingManagementPage() {
                   : "attention"
               }
             />
+            <StatTile
+              icon={<Ticket size={20} />}
+              label="Day passes available today"
+              value={dayPassAvailability?.availableCount ?? "—"}
+              sub={`${dayPassAvailability?.bookedPassesCount ?? 0} booked of ${dayPassAvailability?.totalCapacity ?? 0} open desks`}
+              status={
+                dayPassAvailability?.isSoldOut || dayPassAvailability?.isLimited
+                  ? "attention"
+                  : "success"
+              }
+            />
           </div>
         )}
 
         <div className="mb-6">
-          <div className="mb-3 flex items-end justify-between gap-3">
-            <div>
-              <p className="text-sm font-pmedium text-slate-900">
-                Manage coworking operations
-              </p>
-              <p className="mt-1 text-[10px] font-pmedium text-slate-500">
-                Open the underlying records used by this dashboard.
-              </p>
-            </div>
+          <div className="mb-3">
+            <p className="text-sm font-pmedium text-slate-900">
+              Manage coworking operations
+            </p>
+            <p className="mt-1 text-[10px] font-pmedium text-slate-500">
+              Open the underlying records used by this dashboard.
+            </p>
           </div>
-          <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
             <DashboardModuleCard
               icon={<Tag />}
               title="Resource & Pricing"
@@ -808,6 +854,14 @@ export default function CoworkingManagementPage() {
               state={{ fromSection: "co-working-management" }}
               description="Coworking resource and space structure"
               color="#F59E0B"
+            />
+            <DashboardModuleCard
+              icon={<Ticket />}
+              title="Day Pass & Daily Flexi"
+              route="/key-apps/co-working-management/day-passes"
+              state={{ fromSection: "co-working-management" }}
+              description="Daily open desk passes, walk-ins, and bookings"
+              color="#0D9488"
             />
           </div>
         </div>
@@ -1563,6 +1617,7 @@ export default function CoworkingManagementPage() {
                 </div>
               )}
             </ChartCard>
+
           </div>
         )}
       </PageFrame>

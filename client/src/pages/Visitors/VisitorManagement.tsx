@@ -17,6 +17,7 @@ import {
   checkInVisitorLog,
   checkOutVisitorLog,
   getVisitorManagementOverview,
+  reviewVisitorDecision,
 } from '../../services/visitors';
 import { PERMISSIONS } from '../../constants/permissions';
 import {
@@ -46,6 +47,8 @@ import { statusPillClass } from '../../lib/status-pill';
 import { rowsToReportRows } from '../../utils/exportTable';
 import ExportReportModal, { type ExportParams } from '@/components/ExportReportModal';
 import ReportExportButton from '@/components/ReportExportButton';
+import DayPassBookingModal from '../../components/DayPassBookingModal';
+import { Ticket } from 'lucide-react';
 
 function formatTimeLabel(value, timeZone = DEFAULT_WORKSPACE_TIMEZONE) {
   if (!value) return '';
@@ -1542,6 +1545,73 @@ export default function VisitorsManagementPage() {
 
   const [visitorHistory, setVisitorHistory] = useState([]);
   const [visitorOverviewRefreshToken, setVisitorOverviewRefreshToken] = useState(0);
+
+  // ── Coworking Day Pass (Daily Flexi Desk) walk-in issuance ──────────────────
+  const [showDayPassModal, setShowDayPassModal] = useState(false);
+  // { name, phone, email, company, sourceVisitorId } | null — pre-filled from
+  // the visitor row when issuing from "Issue Day Pass", empty for the header
+  // "+ Walk-in Day Pass" action.
+  const [dayPassInitialData, setDayPassInitialData] = useState(null);
+
+  // markCheckedIn was removed: the walk-in endpoint ALWAYS issues the pass as
+  // "Checked-in" (the guest is standing at the desk), so there is nothing to
+  // toggle. Opening the modal is the only decision the front desk makes.
+  const openDayPassModal = ({ visitor = null } = {}) => {
+    setDayPassInitialData(
+      visitor
+        ? {
+            name: visitor?.name || visitor?.fullName || '',
+            phone: visitor?.phone || visitor?.pocPhone || '',
+            email: visitor?.email || visitor?.pocEmail || '',
+            company: visitor?.company || '',
+            sourceVisitorId: String(visitor?.recordId || visitor?.id || ''),
+          }
+        : null,
+    );
+    setShowDayPassModal(true);
+  };
+
+  // Arriving from the Visitor Dashboard "Day Pass Walk-in" card: the dashboard
+  // never hosts the creation form itself — it routes here with a state flag so
+  // the walk-in day-pass modal opens inside this page. The flag is cleared so
+  // a refresh or back-navigation doesn't pop the modal again.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const action = params.get('action');
+    if (location.state?.openDayPassWalkIn || action === 'day-pass') {
+      openDayPassModal({ visitor: null });
+      if (location.state?.openDayPassWalkIn) {
+        navigate(location.pathname + (location.search ? `?${location.search.replace(/^[?&]/, '').replace(/(?:^|&)action=day-pass/, '')}` : ''), { replace: true, state: null });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search, location.state]);
+
+  // After a pass is issued: refresh the roster, attach the DP- code to the
+  // visitor log, and check the guest in (approve first if still pending —
+  // a walk-in day-pass guest never waits in the approval queue).
+  const handleDayPassIssued = async (booking) => {
+    setVisitorOverviewRefreshToken((value) => value + 1);
+    const visitorId = String(dayPassInitialData?.sourceVisitorId || '');
+    if (!visitorId) return;
+    const noteText = `Day Pass ${booking?.bookingCode || ''} issued`;
+    const checkInWithNote = async () => {
+      await checkInVisitorLog(visitorId, { notes: noteText });
+      return true;
+    };
+    try {
+      await checkInWithNote();
+    } catch (checkInError) {
+      // Only approved visitors can check in — flip the approval then retry.
+      try {
+        await reviewVisitorDecision(visitorId, { decision: 'approved' });
+        await checkInWithNote();
+      } catch (retryError) {
+        console.warn('Day pass issued, but visitor check-in failed:', retryError?.response?.data?.message || retryError?.message || retryError);
+        toast.info(`Day pass issued (${booking?.bookingCode || ''}). Check-in the visitor manually from the register.`);
+      }
+    }
+  };
 
   const selectedHostEmployee = useMemo(
     () => {
@@ -4983,6 +5053,14 @@ export default function VisitorsManagementPage() {
               )}
               <button
                 type="button"
+                title="Issue a coworking day pass (daily flexi desk) at the front desk"
+                onClick={() => openDayPassModal({ visitor: null })}
+                className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-[10px] font-pmedium text-blue-700 shadow-sm transition-all hover:bg-blue-100 active:scale-95 whitespace-nowrap"
+              >
+                <Ticket size={13} strokeWidth={3} /> + WALK-IN DAY PASS
+              </button>
+              <button
+                type="button"
                 disabled={!canOpenFrontdeskAction}
                 title={!canOpenFrontdeskAction ? 'You do not have permission for frontdesk action tabs.' : undefined}
                 onClick={() => navigate('/visitors/visitor-management/frontdesk-action')}
@@ -5115,6 +5193,16 @@ export default function VisitorsManagementPage() {
                                 }`}
                               >
                                 <UserCheck size={11} /> Convert to Client
+                              </button>
+                            ) : null}
+                            {!isCheckedOut ? (
+                              <button
+                                type="button"
+                                title="Issue a coworking day pass (daily flexi desk) pre-filled with this visitor's details."
+                                onClick={() => openDayPassModal({ visitor: vis })}
+                                className="px-2.5 py-1 border rounded-lg text-[9px] font-pmedium uppercase transition-all inline-flex items-center gap-1 shadow-sm whitespace-nowrap bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100"
+                              >
+                                <Ticket size={11} /> Issue Day Pass
                               </button>
                             ) : null}
                           </div>
@@ -8794,6 +8882,17 @@ export default function VisitorsManagementPage() {
           </div>
         )}
       </div>
+      {/* MODAL: COWORKING DAY PASS (Daily Flexi Desk) — header "+ Walk-in Day
+          Pass" (blank form) and the per-row "Issue Day Pass" action (pre-filled
+          from the visitor) both land here. On success the pass's DP- badge
+          print preview pops up automatically (inside the modal). */}
+      <DayPassBookingModal
+        isOpen={showDayPassModal}
+        onClose={() => setShowDayPassModal(false)}
+        workspaceId={workspaceId}
+        initialData={dayPassInitialData || undefined}
+        onSuccess={handleDayPassIssued}
+      />
       <ExportReportModal
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
