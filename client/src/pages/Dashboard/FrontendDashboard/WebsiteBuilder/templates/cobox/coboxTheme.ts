@@ -2521,17 +2521,16 @@ export const COBOX_CSS = String.raw`
   gap: 14px;
 }
 
-.cbx-gallery button {
+.cbx-gallery > div > button {
+  display: block;
+  width: 100%;
   border-radius: 16px;
   overflow: hidden;
   height: 240px;
 }
 
-.cbx-gallery button:nth-child(6n + 1) {
-  grid-column: span 2;
-}
-
-.cbx-gallery img {
+.cbx-gallery > div > button > img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -3253,10 +3252,6 @@ export const COBOX_CSS = String.raw`
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .cbx-gallery button:nth-child(6n + 1) {
-    grid-column: span 2;
-  }
-
   .cbx-why-item {
     grid-template-columns: 44px 70px 1fr;
   }
@@ -3457,13 +3452,8 @@ export const COBOX_CSS = String.raw`
     gap: 10px;
   }
 
-  .cbx-gallery button {
+  .cbx-gallery > div > button {
     height: 160px;
-  }
-
-  .cbx-gallery button:nth-child(6n + 1) {
-    grid-column: span 2;
-    height: 190px;
   }
 
   .cbx-footer {
