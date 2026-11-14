@@ -18,6 +18,7 @@ export const SAMPLE_TEMPLATE_IDS = [
   "tastyc",
   "grandbar",
   "aromatica",
+  "italiano",
   "restobar",
   "flowspace",
   "workscape",
