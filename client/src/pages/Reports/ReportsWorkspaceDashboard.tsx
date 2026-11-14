@@ -451,7 +451,7 @@ export default function ReportsWorkspaceDashboard() {
           <p className="mt-1 text-[10px] text-slate-500">
             Open the report archive curated for your role and department scope.
           </p>
-          <div className="mt-3 grid grid-cols-1 gap-4 sm:max-w-[1000px]">
+          <div className="mt-3 grid grid-cols-1 gap-4 sm:max-w-[1120px]">
             <DashboardModuleCard
               icon={<LayoutList size={19} />}
               title="Manage Reports"

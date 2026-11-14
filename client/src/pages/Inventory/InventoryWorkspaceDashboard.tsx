@@ -545,7 +545,7 @@ export default function InventoryWorkspaceDashboard() {
             Open the inventory workspace curated for your role and department
             scope.
           </p>
-          <div className="mt-3 grid grid-cols-1 gap-4 sm:max-w-[1000px]">
+          <div className="mt-3 grid grid-cols-1 gap-4 sm:max-w-[1120px]">
             <DashboardModuleCard
               icon={<Warehouse size={19} />}
               title={moduleTitle}
