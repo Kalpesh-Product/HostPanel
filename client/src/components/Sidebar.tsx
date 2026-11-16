@@ -288,7 +288,7 @@ const departmentModules: NavNode[] = [
   },
   {
     id: "sales-department",
-    label: "Sales Dashboard",
+    label: "Sales Department",
     icon: BriefcaseBusiness,
     route: "/department-accesses/sales-department",
     defaultOpen: false,

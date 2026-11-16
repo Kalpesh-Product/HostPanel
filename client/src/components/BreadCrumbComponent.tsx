@@ -153,6 +153,14 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/common-modules/calendar/manage",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      { label: "Calendar", path: "/common-modules/calendar" },
+      { label: "Manage Calendar" },
+    ],
+  },
+  {
     pattern: "/common-modules/calendar",
     crumbs: [
       { label: SECTION_LABELS.common, path: "/common-modules" },
@@ -1293,12 +1301,23 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
   },
   {
     pattern:
-      "/department-accesses/administration-department/tenant-companies/:id",
+      "/department-accesses/administration-department/tenant-companies/manage",
     crumbs: [
       {
-        label: SECTION_LABELS.departmentAccesses,
-        path: "/department-accesses",
+        label: "Administration Department",
+        path: "/department-accesses/administration-department",
       },
+      {
+        label: "Tenant Companies",
+        path: "/department-accesses/administration-department/tenant-companies",
+      },
+      { label: "Manage Tenant Companies" },
+    ],
+  },
+  {
+    pattern:
+      "/department-accesses/administration-department/tenant-companies/:id",
+    crumbs: [
       {
         label: "Administration Department",
         path: "/department-accesses/administration-department",
@@ -1480,6 +1499,21 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
         path: "/department-accesses/administration-department/printouts",
       },
       { label: "Requests Console" },
+    ],
+  },
+  {
+    pattern:
+      "/department-accesses/administration-department/resource-management/manage",
+    crumbs: [
+      {
+        label: "Administration Department",
+        path: "/department-accesses/administration-department",
+      },
+      {
+        label: "Resource Management",
+        path: "/department-accesses/administration-department/resource-management",
+      },
+      { label: "Manage Resources" },
     ],
   },
   {
