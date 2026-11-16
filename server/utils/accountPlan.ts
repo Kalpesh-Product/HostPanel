@@ -4,6 +4,7 @@ import WorkspaceMember from "../models/WorkspaceMember.js";
 import {
   buildWorkspaceModulesStructure,
   getEffectiveEnabledModuleIds,
+  getWorkspaceVerticalKeys,
 } from "../config/workspaceModuleCatalog.js";
 
 // Plan tiers ordered low → high. This is the product's inherent plan hierarchy
@@ -162,6 +163,7 @@ export const syncAccountWorkspacePlans = async (userId: any): Promise<string> =>
       existingEnabledModuleIds: Array.isArray(workspace.enabledModuleIds)
         ? workspace.enabledModuleIds
         : [],
+      verticalKeys: getWorkspaceVerticalKeys(workspace.businessTypes),
     });
     workspace.selectedPlan = accountPlan;
     workspace.enabledModuleIds = enabledModuleIds;

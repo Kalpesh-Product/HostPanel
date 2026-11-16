@@ -125,7 +125,7 @@ const ADD_ON_GROUP_ORDER = [
 const ADD_ON_DEPARTMENT_ORDER = [
   "HR Department",
   "Administration Department",
-  "Sales Dashboard",
+  "Sales Department",
   "Finance Department",
   "Maintenance Department",
   "Tech Department",
@@ -397,7 +397,7 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
     items: [
       { id: "hr-department", label: "HR Department", tabs: [] },
       { id: "administration-department", label: "Administration Department", tabs: [] },
-      { id: "sales-department", label: "Sales Dashboard", tabs: [] },
+      { id: "sales-department", label: "Sales Department", tabs: [] },
       { id: "finance-department", label: "Finance Department", tabs: [] },
       { id: "maintenance-department", label: "Maintenance Department", tabs: [] },
       {
@@ -595,7 +595,7 @@ const normalizeModuleToken = (value = "") =>
 const DEPARTMENT_LABELS: Record<string, string> = {
   "hr-department": "HR Department",
   "administration-department": "Administration Department",
-  "sales-department": "Sales Dashboard",
+  "sales-department": "Sales Department",
   "finance-department": "Finance Department",
   "maintenance-department": "Maintenance Department",
   "tech-department": "Tech Department",
@@ -1331,6 +1331,11 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
 
   const selectedDepartmentItem = useMemo(() => {
     if (!departmentId || sectionId !== "department-accesses") return null;
+    const sectionItems = Array.isArray(sectionData?.items) ? sectionData.items : [];
+    const mappedDepartment = sectionItems.find(
+      (item) => String(item?.id || "").trim() === departmentId,
+    );
+    if (mappedDepartment) return mappedDepartment;
     const normalizedDynamicId = departmentId.startsWith("custom-department-")
       ? departmentId.slice("custom-department-".length)
       : departmentId;
@@ -1350,11 +1355,6 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
         })),
       };
     }
-    const sectionItems = Array.isArray(sectionData?.items) ? sectionData.items : [];
-    const mappedDepartment = sectionItems.find(
-      (item) => String(item?.id || "").trim() === departmentId,
-    );
-    if (mappedDepartment) return mappedDepartment;
     // The org-overview fetch that resolves custom department names hasn't
     // finished yet. If the click that got us here already knew the name
     // (sidebar, another card, a breadcrumb link), use it immediately instead

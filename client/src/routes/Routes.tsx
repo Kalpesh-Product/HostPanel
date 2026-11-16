@@ -20,6 +20,7 @@ import TeamManagementTab from "../pages/TeamManagement/TeamManagementTab";
 import DepartmentSopTab from "../pages/TeamManagement/DepartmentSopTab";
 import DepartmentPolicyTab from "../pages/TeamManagement/DepartmentPolicyTab";
 import { CalendarPage } from "../pages/Calendar/CalendarPage";
+import CalendarWorkspaceDashboard from "../pages/Calendar/CalendarWorkspaceDashboard";
 import Access from "../pages/Access/Access";
 import AccessProfile from "../pages/Access/AccessProfile";
 import Chat from "../pages/Chat";
@@ -168,6 +169,7 @@ import VirtualOfficesPage from "../pages/Sales/VirtualOffices/VirtualOfficesPage
 import VirtualOfficesDashboard from "../pages/Sales/VirtualOffices/VirtualOfficesDashboard";
 import VirtualOfficeDetailPage from "../pages/Sales/VirtualOffices/VirtualOfficeDetailPage";
 import AdministrationTenantCompaniesPage from "../pages/Administration/TenantCompanies/TenantCompaniesPage";
+import TenantCompaniesWorkspaceDashboard from "../pages/Administration/TenantCompanies/TenantCompaniesWorkspaceDashboard";
 import AdministrationTenantCompanyDetailPage from "../pages/Administration/TenantCompanies/TenantCompanyDetailPage";
 import AdministrationBookingsPage from "../pages/Administration/Bookings/BookingsPage";
 import BookingsDashboard from "../pages/Administration/Bookings/BookingsDashboard";
@@ -175,6 +177,7 @@ import VerticalRoomBookingsPage from "../pages/Administration/Bookings/VerticalR
 import CafeBookingsPage from "../pages/Administration/Bookings/CafeBookingsPage";
 import AllBookingHistoryPage from "../pages/Administration/Bookings/AllBookingHistoryPage";
 import AdministrationResourceManagementPage from "../pages/Administration/ResourceManagement/ResourceManagementPage";
+import ResourceManagementWorkspaceDashboard from "../pages/Administration/ResourceManagement/ResourceManagementWorkspaceDashboard";
 import AdministrationHousekeepingPage from "../pages/Administration/HouseKeeping/HousekeepingPage";
 import HousekeepingDashboard from "../pages/Administration/HouseKeeping/HousekeepingDashboard";
 import RepairLogsPage from "../pages/Maintenance/RepairLogsPage";
@@ -981,6 +984,10 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "common-modules/calendar",
+                element: <CalendarWorkspaceDashboard />,
+              },
+              {
+                path: "common-modules/calendar/manage",
                 element: <CalendarPage />,
               },
               {
@@ -1247,9 +1254,7 @@ export const routes = createBrowserRouter([
                     description="Choose a department, review its team, and control employee module access."
                   />
                 ),
-                children: [
-                  { index: true, element: <TeamManagementTab /> },
-                ],
+                children: [{ index: true, element: <TeamManagementTab /> }],
               },
               {
                 path: "extra-common-modules/team-management/sops",
@@ -1260,9 +1265,7 @@ export const routes = createBrowserRouter([
                     requiresCustomPlan
                   />
                 ),
-                children: [
-                  { index: true, element: <DepartmentSopTab /> },
-                ],
+                children: [{ index: true, element: <DepartmentSopTab /> }],
               },
               {
                 path: "extra-common-modules/team-management/policies",
@@ -1273,9 +1276,7 @@ export const routes = createBrowserRouter([
                     requiresCustomPlan
                   />
                 ),
-                children: [
-                  { index: true, element: <DepartmentPolicyTab /> },
-                ],
+                children: [{ index: true, element: <DepartmentPolicyTab /> }],
               },
               {
                 path: "extra-common-modules/reports",
@@ -1790,6 +1791,10 @@ export const routes = createBrowserRouter([
               // Department Access — Administration
               {
                 path: "department-accesses/administration-department/tenant-companies",
+                element: <TenantCompaniesWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/administration-department/tenant-companies/manage",
                 element: <AdministrationTenantCompaniesPage />,
               },
               {
@@ -1834,6 +1839,10 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/administration-department/resource-management",
+                element: <ResourceManagementWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/administration-department/resource-management/manage",
                 element: <AdministrationResourceManagementPage />,
               },
               {
