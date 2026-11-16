@@ -183,7 +183,26 @@ export const RESTOBAR_CSS = String.raw`
 .resto-job-list { padding: 0; list-style: none; margin-bottom: 28px; }
 .resto-job-list li { padding-block: 16px; border-bottom: 1px solid var(--rb-line); }
 .resto-job-list small { display: block; }
-.resto-job-list ~ .resto-button { margin-top: 20px; }
+.resto-career-cta > * { margin-top: 18px; }
+.resto-partner-form { margin-inline: auto; }
+.resto-related > h2 { text-align: center; }
+.resto-cards.resto-product-cards {
+  --product-card-gap: clamp(14px, 2.4vw, 32px);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--product-card-gap);
+}
+.resto-product-cards > * {
+  flex: 0 0 calc((100% - 2 * var(--product-card-gap)) / 3);
+  min-width: 0;
+}
+@media (max-width: 800px) {
+  .resto-product-cards > * { flex-basis: calc((100% - var(--product-card-gap)) / 2); }
+}
+@media (max-width: 480px) {
+  .resto-product-cards > * { flex-basis: 100%; }
+}
 
 .resto-dialog {
   position: fixed; inset: 0; margin: auto; width: min(570px, calc(100% - 28px));

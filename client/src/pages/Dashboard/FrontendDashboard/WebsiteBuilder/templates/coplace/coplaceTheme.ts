@@ -136,7 +136,26 @@ export const COPLACE_CSS = String.raw`
 .coplace-job-list { padding: 0; list-style: none; margin-bottom: 24px; }
 .coplace-job-list li { padding-block: 12px; border-bottom: 1px solid var(--cp-line); }
 .coplace-job-list small { display: block; }
-.coplace-job-list ~ .coplace-button { margin-top: 18px; }
+.coplace-career-cta > * { margin-top: 18px; }
+.coplace-partner-form { margin-inline: auto; }
+.coplace-related > h2 { text-align: center; }
+.coplace-cards.coplace-product-cards {
+  --product-card-gap: clamp(16px, 2.8vw, 38px);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--product-card-gap);
+}
+.coplace-product-cards > * {
+  flex: 0 0 calc((100% - 2 * var(--product-card-gap)) / 3);
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  .coplace-product-cards > * { flex-basis: calc((100% - var(--product-card-gap)) / 2); }
+}
+@media (max-width: 480px) {
+  .coplace-product-cards > * { flex-basis: 100%; }
+}
 
 .coplace-footer { background: var(--cp-surface); border-top: 1px solid var(--cp-line); }
 .coplace-newsletter { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 18px; padding-block: 34px; border-bottom: 1px solid var(--cp-line); }

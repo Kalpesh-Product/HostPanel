@@ -109,7 +109,7 @@ export function PartnerPage() {
     <>
       <TinyHomePageHero title={t.partnerPageHeading || navLabel("partner", "Partner with us")} body={t.partnerPageContent} image={t.heroImages[0]} />
       {draft.partnerEnableInquiryForm !== false ? <section className="tinyhome-section tinyhome-shell">
-        <div className="tinyhome-form tinyhome-narrow">
+        <div className="tinyhome-form tinyhome-narrow tinyhome-partner-form">
           <h2>{t.partnerFormTitle || "Start a conversation"}</h2>
           <MessageForm inquiryType="Partnership" submitLabel="Send enquiry" success={draft.partnerInquirySuccessMessage || "Thanks for your enquiry. We’ll be in touch."} />
         </div>
@@ -146,12 +146,14 @@ export function CareersPage() {
               </button>
             </li>)}
           </ul>
-        ) : <p>There are no open roles right now.</p>}
-        {draft.careersClosingHeading ? <h2>{draft.careersClosingHeading}</h2> : null}
-        {draft.careersClosingText ? <p>{draft.careersClosingText}</p> : null}
-        <button className="tinyhome-button" type="button" onClick={t.openCareersGeneralApply}>
-          {draft.careersApplyButtonText || "Send a general application"}
-        </button>
+        ) : <p className="tinyhome-center">There are no open roles right now.</p>}
+        <div className="tinyhome-career-cta tinyhome-center">
+          {draft.careersClosingHeading ? <h2>{draft.careersClosingHeading}</h2> : null}
+          {draft.careersClosingText ? <p>{draft.careersClosingText}</p> : null}
+          <button className="tinyhome-button" type="button" onClick={t.openCareersGeneralApply}>
+            {draft.careersApplyButtonText || "Send a general application"}
+          </button>
+        </div>
       </section>
     </>
   );
