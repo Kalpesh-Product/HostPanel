@@ -122,7 +122,7 @@ const AUTHORIZED_CHILD_PAGES: Array<{
   {
     parentModuleId: "team-management",
     title: "Team Roster",
-    route: "/extra-common-modules/team-management/roster",
+    route: "/extra-common-modules/team-management/access-control",
     section: "Team Management",
   },
   {

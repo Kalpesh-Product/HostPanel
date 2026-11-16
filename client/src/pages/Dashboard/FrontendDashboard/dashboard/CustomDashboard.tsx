@@ -7,9 +7,7 @@
  *
  *  1. Attendance clock in/out (if the founder has the attendance module)
  *  2. Overview stat cards — bespoke cards for tenants/bookings/tickets/
- *     visitors/leads/leave-requests/finance where real data exists, plus
- *     dynamic cards from useModuleStats for every other enabled module
- *     (resources, housekeeping, maintenance, IT, HR, recruitment, etc.)
+ *     visitors/leads/leave-requests/finance where real data exists
  *  3. Team Live Status (workspace-wide) + Recent Visitors + Visitor Type
  *  4. Quick Links — built from the workspace's module catalog, not hardcoded
  *  5. Profile shortcuts
@@ -72,7 +70,6 @@ import {
   getPayrollSnapshot,
 } from "../../../../services/finance";
 import { getLeaveRequests } from "../../../../services/leave-requests";
-import { useModuleStats } from "./moduleStatProviders";
 import TodayAttendanceCard from "./TodayAttendanceCard";
 import TeamLiveStatusCard from "./TeamLiveStatusCard";
 import WonoListingsCard from "./WonoListingsCard";
@@ -107,18 +104,7 @@ const BAR_BASE_OPTIONS = {
 };
 
 // Modules CustomDashboard fetches and renders bespoke (recent lists + donuts +
-// bar trends) — excluded from useModuleStats' input so it never re-fetches
-// the same data under a different query key.
-const BESPOKE_MODULE_IDS = new Set([
-  "tickets",
-  "meeting-room-system",
-  "bookings",
-  "tenant-companies-admin",
-  "tenant-companies-sales",
-  "visitors-management",
-  "visitor-management",
-]);
-
+// bar trends).
 const CUSTOM_MODULE_COPY: Record<string, string> = {
   "customer-support": "Raise and follow up workspace support requests",
   tickets: "Track raised, assigned and company tickets",
@@ -330,18 +316,6 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
     staleTime: 5 * 60 * 1000,
     enabled: showLeaveRequests,
   });
-
-  // Long-tail modules (resources, housekeeping, maintenance, IT, HR mgmt,
-  // recruitment, attendance review, pricing) get their overview cards from
-  // the same hook ModuleAccessDashboard uses — no bespoke fetch needed here.
-  const longTailModuleIds = useMemo(() => {
-    const ids = new Set<string>();
-    enabledModuleIds.forEach((id) => {
-      if (!BESPOKE_MODULE_IDS.has(id) && canUse(id)) ids.add(id);
-    });
-    return ids;
-  }, [enabledModuleIds, canUse]);
-  const { cards: longTailCards } = useModuleStats(longTailModuleIds);
 
   // ── Derived stats ──────────────────────────────────────────────────────────
 
@@ -1052,31 +1026,6 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
           <div className="relative grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {quickActions.map((action) => (
               <QuickActionTile key={action.route} {...action} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {longTailCards.length > 0 && (
-        <section
-          data-tour="custom-department-modules"
-          className="rounded-[1.75rem] border border-slate-100 bg-white p-5 shadow-[0_10px_30px_rgba(30,61,115,0.06)] sm:p-6"
-        >
-          <div className="mb-5">
-            <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
-              Department health
-            </p>
-            <h3 className="mt-1 text-lg font-pmedium text-[#1E3D73]">
-              Operational Snapshot
-            </h3>
-            <p className="mt-1 text-xs font-pmedium text-slate-500">
-              Live measures from the additional departments enabled for this
-              unit.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {longTailCards.map(({ moduleId, ...card }) => (
-              <MetricTile key={moduleId} {...card} />
             ))}
           </div>
         </section>

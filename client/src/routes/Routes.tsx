@@ -13,7 +13,9 @@ import PersistLogin from "../layouts/PersistLogin";
 
 // Import main pages
 import { ReportsPage } from "../pages/Reports";
+import ReportsWorkspaceDashboard from "../pages/Reports/ReportsWorkspaceDashboard";
 import TeamManagementPage from "../pages/TeamManagement/TeamManagementPage";
+import TeamManagementWorkspaceDashboard from "../pages/TeamManagement/TeamManagementWorkspaceDashboard";
 import TeamManagementTab from "../pages/TeamManagement/TeamManagementTab";
 import DepartmentSopTab from "../pages/TeamManagement/DepartmentSopTab";
 import DepartmentPolicyTab from "../pages/TeamManagement/DepartmentPolicyTab";
@@ -83,6 +85,7 @@ import VendorTable from "../components/Pages/VendorTable";
 import AssetsHome from "../pages/Assets/AssetsHome";
 import ManageAssetsHome from "../pages/Assets/ManageAssetsHome";
 import { AssetsPage } from "../pages/Assets/AssetsPage";
+import AssetsWorkspaceDashboard from "../pages/Assets/AssetsWorkspaceDashboard";
 import LogPage from "../pages/LogPage";
 import AccessPages from "../pages/Access/AccessPages";
 import ModulePermissions from "../pages/Access/ModulePermissions";
@@ -192,6 +195,7 @@ import TenantBuyCreditsPage from "../pages/tenant/TenantBuyCreditsPage";
 import TenantRentPaymentsPage from "../pages/tenant/TenantRentPaymentsPage";
 import TenantTicketsPage from "../pages/tenant/TenantTicketsPage";
 import { InventoryPage } from "../pages/Inventory/InventoryPage";
+import InventoryWorkspaceDashboard from "../pages/Inventory/InventoryWorkspaceDashboard";
 import { DepartmentInventoryPage } from "../pages/Inventory/DepartmentInventoryPage";
 import { FinancePage } from "../pages/Finance/FinancePage";
 import { DepartmentFinancePageV2 } from "../pages/Finance/DepartmentFinancePageV2";
@@ -1193,10 +1197,22 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "extra-common-modules/assets",
+                element: <AssetsWorkspaceDashboard />,
+              },
+              {
+                path: "extra-common-modules/assets/overall-assets",
+                element: <AssetsPage />,
+              },
+              {
+                path: "extra-common-modules/assets/asset-requests",
                 element: <AssetsPage />,
               },
               {
                 path: "extra-common-modules/inventory",
+                element: <InventoryWorkspaceDashboard />,
+              },
+              {
+                path: "extra-common-modules/inventory/manage",
                 element: <InventoryPage />,
               },
               {
@@ -1221,16 +1237,52 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "extra-common-modules/team-management",
-                element: <TeamManagementPage />,
+                element: <TeamManagementWorkspaceDashboard />,
+              },
+              {
+                path: "extra-common-modules/team-management/access-control",
+                element: (
+                  <TeamManagementPage
+                    title="Team Access Control"
+                    description="Choose a department, review its team, and control employee module access."
+                  />
+                ),
                 children: [
-                  { index: true, element: <Navigate to="roster" replace /> },
-                  { path: "roster", element: <TeamManagementTab /> },
-                  { path: "sops", element: <DepartmentSopTab /> },
-                  { path: "policies", element: <DepartmentPolicyTab /> },
+                  { index: true, element: <TeamManagementTab /> },
+                ],
+              },
+              {
+                path: "extra-common-modules/team-management/sops",
+                element: (
+                  <TeamManagementPage
+                    title="Department SOPs"
+                    description="Publish operating procedures and control their visibility by department."
+                    requiresCustomPlan
+                  />
+                ),
+                children: [
+                  { index: true, element: <DepartmentSopTab /> },
+                ],
+              },
+              {
+                path: "extra-common-modules/team-management/policies",
+                element: (
+                  <TeamManagementPage
+                    title="Department Policies"
+                    description="Maintain policy documents and assign them to the right departments and employees."
+                    requiresCustomPlan
+                  />
+                ),
+                children: [
+                  { index: true, element: <DepartmentPolicyTab /> },
                 ],
               },
               {
                 path: "extra-common-modules/reports",
+                element: <ReportsWorkspaceDashboard />,
+              },
+              {
+                path: "extra-common-modules/reports/manage",
                 element: <ReportsPage />,
               },
 

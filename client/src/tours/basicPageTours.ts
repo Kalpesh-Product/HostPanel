@@ -747,7 +747,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="reports-search"]', title: "Search reports", description: "Find a report by its title or who generated it. Results update as you type." },
       { selector: '[data-tour="reports-table"]', title: "Report list and downloads", description: "Open any report to preview its full contents including monthly data, then download it as PDF or Excel. The header buttons download filtered selections directly.", side: "top" },
     ],
-    matches: exact("/extra-common-modules/reports"),
+    matches: exact("/extra-common-modules/reports/manage"),
   },
   {
     id: "basic-team-management",
