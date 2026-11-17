@@ -414,16 +414,14 @@ export default function CustomerSupportDashboard() {
             <DashboardModuleCard
               icon={<Headphones size={19} />}
               title="Issues Raised"
-              route="/common-modules/customer-support/list"
-              state={{ tab: "raised" }}
+              route="/common-modules/customer-support/raised"
               description="Raise, edit, and track active support issues"
               color="#2563EB"
             />
             <DashboardModuleCard
               icon={<FileCheck2 size={19} />}
               title="Resolved Issues"
-              route="/common-modules/customer-support/list"
-              state={{ tab: "resolved" }}
+              route="/common-modules/customer-support/resolved"
               description="Review resolved and closed ticket history"
               color="#7C3AED"
             />

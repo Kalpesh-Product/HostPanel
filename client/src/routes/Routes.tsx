@@ -69,11 +69,14 @@ import MyTaskReports from "../pages/Tasks/TaskReports/MyTaskReports";
 import AssignedTaskReports from "../pages/Tasks/TaskReports/AssignedTaskReports";
 import DepartmentTaskReports from "../pages/Tasks/TaskReports/DepartmentTaskReports";
 import HREmployeeManagementPage from "../pages/HR/HREmployeeManagementPage";
+import CompanyManagementWorkspaceDashboard from "../pages/HR/CompanyManagementWorkspaceDashboard";
 import HRDocumentsPage from "../pages/HR/HRDocumentsPage";
+import HRDocumentsWorkspaceDashboard from "../pages/HR/HRDocumentsWorkspaceDashboard";
 import HRAttendanceReviewPage from "../pages/HR/HRAttendanceReviewPage";
 import HREmployeeAttendanceDetailPage from "../pages/HR/HREmployeeAttendanceDetailPage";
 import HRLeaveRequestsProcessingPage from "../pages/HR/HRLeaveRequestsProcessingPage";
 import HRRecruitmentPage from "../pages/HR/HRRecruitmentPage";
+import HRRecruitmentWorkspaceDashboard from "../pages/HR/HRRecruitmentWorkspaceDashboard";
 import HRPayrollPage from "../pages/HR/HRPayrollPage";
 import HRResignationManagementPage from "../pages/HR/HRResignationManagementPage";
 import { ExpensesBudgetPage } from "../pages/Finance/ExpensesBudgetPage";
@@ -913,6 +916,14 @@ export const routes = createBrowserRouter([
               {
                 path: "common-modules/customer-support/list",
                 element: <CustomerSupportPage />,
+              },
+              {
+                path: "common-modules/customer-support/raised",
+                element: <CustomerSupportPage modulePage="raised" />,
+              },
+              {
+                path: "common-modules/customer-support/resolved",
+                element: <CustomerSupportPage modulePage="resolved" />,
               },
               {
                 path: "common-modules/attendance",
@@ -1927,11 +1938,53 @@ export const routes = createBrowserRouter([
               // Department Access — HR
               {
                 path: "department-accesses/hr-department/company-management",
-                element: <HREmployeeManagementPage />,
+                element: <CompanyManagementWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/hr-department/company-management/list",
+                element: (
+                  <Navigate
+                    to="/department-accesses/hr-department/company-management/employee-management"
+                    replace
+                  />
+                ),
+              },
+              {
+                path: "department-accesses/hr-department/company-management/employee-management",
+                element: <HREmployeeManagementPage modulePage="employees" />,
+              },
+              {
+                path: "department-accesses/hr-department/company-management/company-sop",
+                element: <HREmployeeManagementPage modulePage="sop" />,
+              },
+              {
+                path: "department-accesses/hr-department/company-management/company-policies",
+                element: <HREmployeeManagementPage modulePage="policies" />,
+              },
+              {
+                path: "department-accesses/hr-department/company-management/birthdays",
+                element: <HREmployeeManagementPage modulePage="birthdays" />,
               },
               {
                 path: "department-accesses/hr-department/documents",
-                element: <HRDocumentsPage />,
+                element: <HRDocumentsWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/hr-department/documents/list",
+                element: (
+                  <Navigate
+                    to="/department-accesses/hr-department/documents/active-employees"
+                    replace
+                  />
+                ),
+              },
+              {
+                path: "department-accesses/hr-department/documents/active-employees",
+                element: <HRDocumentsPage modulePage="active" />,
+              },
+              {
+                path: "department-accesses/hr-department/documents/inactive-employees",
+                element: <HRDocumentsPage modulePage="inactive" />,
               },
               {
                 path: "department-accesses/hr-department/attendance-review",
@@ -1947,7 +2000,24 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/hr-department/recruitment",
-                element: <HRRecruitmentPage />,
+                element: <HRRecruitmentWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/hr-department/recruitment/list",
+                element: (
+                  <Navigate
+                    to="/department-accesses/hr-department/recruitment/job-openings"
+                    replace
+                  />
+                ),
+              },
+              {
+                path: "department-accesses/hr-department/recruitment/job-openings",
+                element: <HRRecruitmentPage modulePage="jobs" />,
+              },
+              {
+                path: "department-accesses/hr-department/recruitment/candidates",
+                element: <HRRecruitmentPage modulePage="candidates" />,
               },
               {
                 path: "department-accesses/hr-department/payroll-management",

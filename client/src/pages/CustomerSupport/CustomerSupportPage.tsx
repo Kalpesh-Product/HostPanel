@@ -175,14 +175,22 @@ const formatDate = (value?: string | null) => {
   });
 };
 
-export default function CustomerSupportPage() {
+export default function CustomerSupportPage({
+  modulePage,
+}: {
+  modulePage?: "raised" | "resolved";
+} = {}) {
   const axios = useAxiosPrivate();
   const location = useLocation();
   const { plan } = useDashboardAccess();
   const showReportExports = canExportReports(plan);
-  const [activeTab, setActiveTab] = useState<"raised" | "resolved">(() =>
-    location.state?.tab === "resolved" ? "resolved" : "raised",
+  const [activeTab, setActiveTab] = useState<"raised" | "resolved">(
+    () => modulePage || (location.state?.tab === "resolved" ? "resolved" : "raised"),
   );
+
+  useEffect(() => {
+    if (modulePage) setActiveTab(modulePage);
+  }, [modulePage]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -278,12 +286,25 @@ export default function CustomerSupportPage() {
     () => allTickets.filter((t) => t.status === "In Progress").length,
     [allTickets],
   );
-  const resolvedCount = useMemo(
-    () =>
-      allTickets.filter((t) => t.status === "Resolved" || t.status === "Closed")
-        .length,
-    [allTickets],
+  const resolvedOnlyCount = useMemo(
+    () => supportData.history.filter((t) => t.status === "Resolved").length,
+    [supportData.history],
   );
+  const closedOnlyCount = useMemo(
+    () => supportData.history.filter((t) => t.status === "Closed").length,
+    [supportData.history],
+  );
+  const resolvedThisMonthCount = useMemo(() => {
+    const now = new Date();
+    return supportData.history.filter((t) => {
+      const when = new Date(t.resolvedAt || t.closedByUserAt || "");
+      return (
+        !Number.isNaN(when.getTime()) &&
+        when.getFullYear() === now.getFullYear() &&
+        when.getMonth() === now.getMonth()
+      );
+    }).length;
+  }, [supportData.history]);
 
   const filteredList = useMemo(() => {
     let list = currentList;
@@ -712,11 +733,16 @@ export default function CustomerSupportPage() {
           <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                Customer Support
+                {modulePage
+                  ? activeTab === "raised"
+                    ? "Issues Raised"
+                    : "Resolved Issues"
+                  : "Customer Support"}
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
-                Raise issues to the WoNo Team — every ticket is sent to the WoNo
-                Team for reference and resolution.
+                {activeTab === "raised"
+                  ? "Raise issues to the WoNo Team — every ticket is sent to the WoNo Team for reference and resolution."
+                  : "Review resolved and closed ticket history."}
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
@@ -733,75 +759,43 @@ export default function CustomerSupportPage() {
           </div>
 
           {/* 2. STAT CARDS */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 shrink-0">
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
-              <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">
-                  Total Tickets
-                </p>
-                <p className="text-[15px] font-pmedium text-slate-900">
-                  {allTickets.length}
-                </p>
-              </div>
-              <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0">
-                <AlertCircle size={16} />
-              </div>
-            </div>
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
-              <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-amber-600 uppercase tracking-widest mb-1">
-                  Open (Raised)
-                </p>
-                <p className="text-[15px] font-pmedium text-slate-900">
-                  {openCount}
-                </p>
-              </div>
-              <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0">
-                <AlertTriangle size={16} />
-              </div>
-            </div>
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-violet-500">
-              <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-violet-600 uppercase tracking-widest mb-1">
-                  Accepted
-                </p>
-                <p className="text-[15px] font-pmedium text-slate-900">
-                  {acceptedCount}
-                </p>
-              </div>
-              <div className="p-2 rounded-2xl bg-violet-50 text-violet-600 shrink-0">
-                <UserCheck size={16} />
-              </div>
-            </div>
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
-              <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">
-                  In Progress
-                </p>
-                <p className="text-[15px] font-pmedium text-slate-900">
-                  {inProgressCount}
-                </p>
-              </div>
-              <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0">
-                <Clock size={16} />
-              </div>
-            </div>
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
-              <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-emerald-600 uppercase tracking-widest mb-1">
-                  Closed
-                </p>
-                <p className="text-[15px] font-pmedium text-slate-900">
-                  {resolvedCount}
-                </p>
-              </div>
-              <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0">
-                <CheckCircle2 size={16} />
-              </div>
-            </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+            {(activeTab === "raised"
+              ? [
+                  { label: "Total Raised", value: supportData.raised.length + (draftTicket ? 1 : 0), icon: AlertCircle, toneClass: "bg-slate-50 text-slate-600", accentClass: "" },
+                  { label: "Open (Raised)", value: openCount, icon: AlertTriangle, toneClass: "bg-amber-50 text-amber-600", accentClass: "border-l-4 border-l-amber-500", labelClass: "text-amber-600" },
+                  { label: "Accepted", value: acceptedCount, icon: UserCheck, toneClass: "bg-violet-50 text-violet-600", accentClass: "border-l-4 border-l-violet-500", labelClass: "text-violet-600" },
+                  { label: "In Progress", value: inProgressCount, icon: Clock, toneClass: "bg-blue-50 text-blue-600", accentClass: "border-l-4 border-l-blue-500", labelClass: "text-blue-600" },
+                ]
+              : [
+                  { label: "Total Resolved", value: supportData.history.length, icon: AlertCircle, toneClass: "bg-slate-50 text-slate-600", accentClass: "" },
+                  { label: "Resolved", value: resolvedOnlyCount, icon: CheckCircle2, toneClass: "bg-emerald-50 text-emerald-600", accentClass: "border-l-4 border-l-emerald-500", labelClass: "text-emerald-600" },
+                  { label: "Closed", value: closedOnlyCount, icon: FileText, toneClass: "bg-slate-100 text-slate-500", accentClass: "border-l-4 border-l-slate-400", labelClass: "text-slate-500" },
+                  { label: "Resolved This Month", value: resolvedThisMonthCount, icon: Clock, toneClass: "bg-blue-50 text-blue-600", accentClass: "border-l-4 border-l-blue-500", labelClass: "text-blue-600" },
+                ]
+            ).map((card) => {
+              const CardIcon = card.icon;
+              return (
+                <div
+                  key={card.label}
+                  className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.accentClass}`}
+                >
+                  <div className="min-w-0">
+                    <p className={`text-[10px] font-pmedium ${card.labelClass || "text-slate-400"} uppercase tracking-widest mb-1`}>
+                      {card.label}
+                    </p>
+                    <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
+                  </div>
+                  <div className={`p-2 rounded-2xl ${card.toneClass} shrink-0`}>
+                    <CardIcon size={16} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* 3. MAIN TABS */}
+          {!modulePage ? (
           <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             <button
               type="button"
@@ -826,6 +820,7 @@ export default function CustomerSupportPage() {
               Issue Resolved
             </button>
           </div>
+          ) : null}
 
           {/* 4. DATA PANEL */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
@@ -838,8 +833,6 @@ export default function CustomerSupportPage() {
                     "Draft",
                     "Open",
                     "In Progress",
-                    "Resolved",
-                    "Closed",
                   ].map((status) => (
                     <button
                       key={status}
@@ -855,7 +848,7 @@ export default function CustomerSupportPage() {
                   ))}
                 </div>
               ) : (
-                <div className="relative w-full xl:w-96 shrink-0 ml-auto">
+                <div className="relative w-full">
                   <Search
                     className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                     size={15}

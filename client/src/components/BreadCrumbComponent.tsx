@@ -281,6 +281,22 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/common-modules/customer-support/raised",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      { label: "Customer Support", path: "/common-modules/customer-support" },
+      { label: "Issues Raised" },
+    ],
+  },
+  {
+    pattern: "/common-modules/customer-support/resolved",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      { label: "Customer Support", path: "/common-modules/customer-support" },
+      { label: "Resolved Issues" },
+    ],
+  },
+  {
     pattern: "/common-modules/attendance/my-attendance",
     crumbs: [
       { label: SECTION_LABELS.common, path: "/common-modules" },
@@ -2005,6 +2021,61 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern:
+      "/department-accesses/hr-department/company-management/employee-management",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      { label: "Company Management", path: "/department-accesses/hr-department/company-management" },
+      { label: "Employee Management" },
+    ],
+  },
+  {
+    pattern:
+      "/department-accesses/hr-department/company-management/company-sop",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      { label: "Company Management", path: "/department-accesses/hr-department/company-management" },
+      { label: "Company SOP" },
+    ],
+  },
+  {
+    pattern:
+      "/department-accesses/hr-department/company-management/company-policies",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      { label: "Company Management", path: "/department-accesses/hr-department/company-management" },
+      { label: "Company Policies" },
+    ],
+  },
+  {
+    pattern:
+      "/department-accesses/hr-department/company-management/birthdays",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      { label: "Company Management", path: "/department-accesses/hr-department/company-management" },
+      { label: "Month-wise Birthdays" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/hr-department/company-management/list",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      {
+        label: "Company Management",
+        path: "/department-accesses/hr-department/company-management",
+      },
+      { label: "Manage Employees" },
+    ],
+  },
+  {
     pattern: "/department-accesses/hr-department/company-management",
     crumbs: [
       {
@@ -2013,6 +2084,39 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
       },
       { label: "HR Department", path: "/department-accesses/hr-department" },
       { label: "Company Management" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/hr-department/documents/active-employees",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      { label: "Documents", path: "/department-accesses/hr-department/documents" },
+      { label: "Active Employee Documents" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/hr-department/documents/inactive-employees",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      { label: "Documents", path: "/department-accesses/hr-department/documents" },
+      { label: "Inactive Employee Documents" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/hr-department/documents/list",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      {
+        label: "Documents",
+        path: "/department-accesses/hr-department/documents",
+      },
+      { label: "Document Vault" },
     ],
   },
   {
@@ -2061,6 +2165,39 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
       },
       { label: "HR Department", path: "/department-accesses/hr-department" },
       { label: "Leave Request Processing" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/hr-department/recruitment/job-openings",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      { label: "Recruitment", path: "/department-accesses/hr-department/recruitment" },
+      { label: "Job Openings" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/hr-department/recruitment/candidates",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      { label: "Recruitment", path: "/department-accesses/hr-department/recruitment" },
+      { label: "Candidates Tracking" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/hr-department/recruitment/list",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      {
+        label: "Recruitment",
+        path: "/department-accesses/hr-department/recruitment",
+      },
+      { label: "Manage Recruitment" },
     ],
   },
   {
