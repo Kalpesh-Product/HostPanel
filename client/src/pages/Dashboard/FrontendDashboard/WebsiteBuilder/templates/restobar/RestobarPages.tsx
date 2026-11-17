@@ -14,7 +14,7 @@ export function MenusPage() {
       <RestobarPageHero title={t.draft?.productPageHeading || navLabel("products", "Our menus")} image={t.heroImages[0]} />
       <section className="resto-section resto-shell">
         {services.length ? (
-          <div className="resto-cards">
+          <div className="resto-cards resto-product-cards">
             {services.map((service) => (
               <article className="resto-menu-card" key={service.key}>
                 <RestobarImage src={service.cardImage || service.heroImage} />
@@ -78,7 +78,7 @@ export function MenuItemPage({ service, item }: { service: Service; item: Servic
       </div>
       {related.length ? <div className="resto-related">
         <h2>From the same menu</h2>
-        <div className="resto-cards">
+        <div className="resto-cards resto-product-cards">
           {related.map((entry) => <article key={entry.key}><button type="button" onClick={() => goToItem(service, entry)}>
             <RestobarImage src={entry.image} /><span>{entry.title}</span>
           </button></article>)}
@@ -194,7 +194,7 @@ export function PartnerPage() {
     <>
       <RestobarPageHero title={t.partnerPageHeading || navLabel("partner", "Partner with us")} body={t.partnerPageContent} image={t.heroImages[0]} />
       {draft.partnerEnableInquiryForm !== false ? <section className="resto-section resto-shell">
-        <div className="resto-form resto-narrow">
+        <div className="resto-form resto-narrow resto-partner-form">
           <h2>{t.partnerFormTitle || "Start a conversation"}</h2>
           <MessageForm inquiryType="Partnership" submitLabel="Send enquiry" success={draft.partnerInquirySuccessMessage || "Thanks for your enquiry. We’ll be in touch."} />
         </div>
@@ -231,12 +231,14 @@ export function CareersPage() {
               </button>
             </li>)}
           </ul>
-        ) : <p>There are no open roles right now.</p>}
-        {draft.careersClosingHeading ? <h2>{draft.careersClosingHeading}</h2> : null}
-        {draft.careersClosingText ? <p>{draft.careersClosingText}</p> : null}
-        <button className="resto-button" type="button" onClick={t.openCareersGeneralApply}>
-          {draft.careersApplyButtonText || "Send a general application"}
-        </button>
+        ) : <p className="resto-center">There are no open roles right now.</p>}
+        <div className="resto-career-cta resto-center">
+          {draft.careersClosingHeading ? <h2>{draft.careersClosingHeading}</h2> : null}
+          {draft.careersClosingText ? <p>{draft.careersClosingText}</p> : null}
+          <button className="resto-button" type="button" onClick={t.openCareersGeneralApply}>
+            {draft.careersApplyButtonText || "Send a general application"}
+          </button>
+        </div>
       </section>
     </>
   );

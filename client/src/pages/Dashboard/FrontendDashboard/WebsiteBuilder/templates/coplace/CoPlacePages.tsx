@@ -109,7 +109,7 @@ export function PartnerPage() {
     <>
       <CoPlacePageHero title={t.partnerPageHeading || navLabel("partner", "Partner with us")} body={t.partnerPageContent} image={t.heroImages[0]} />
       {draft.partnerEnableInquiryForm !== false ? <section className="coplace-section coplace-shell">
-        <div className="coplace-form coplace-narrow">
+        <div className="coplace-form coplace-narrow coplace-partner-form">
           <h2>{t.partnerFormTitle || "Start a conversation"}</h2>
           <MessageForm inquiryType="Partnership" submitLabel="Send enquiry" success={draft.partnerInquirySuccessMessage || "Thanks for your enquiry. We’ll be in touch."} />
         </div>
@@ -146,12 +146,14 @@ export function CareersPage() {
               </button>
             </li>)}
           </ul>
-        ) : <p>There are no open roles right now.</p>}
-        {draft.careersClosingHeading ? <h2>{draft.careersClosingHeading}</h2> : null}
-        {draft.careersClosingText ? <p>{draft.careersClosingText}</p> : null}
-        <button className="coplace-button" type="button" onClick={t.openCareersGeneralApply}>
-          {draft.careersApplyButtonText || "Send a general application"}
-        </button>
+        ) : <p className="coplace-center">There are no open roles right now.</p>}
+        <div className="coplace-career-cta coplace-center">
+          {draft.careersClosingHeading ? <h2>{draft.careersClosingHeading}</h2> : null}
+          {draft.careersClosingText ? <p>{draft.careersClosingText}</p> : null}
+          <button className="coplace-button" type="button" onClick={t.openCareersGeneralApply}>
+            {draft.careersApplyButtonText || "Send a general application"}
+          </button>
+        </div>
       </section>
     </>
   );

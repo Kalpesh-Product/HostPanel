@@ -129,7 +129,26 @@ export const TINY_HOME_CSS = String.raw`
 .tinyhome-job-list { padding: 0; list-style: none; margin-bottom: 24px; }
 .tinyhome-job-list li { padding-block: 12px; border-bottom: 1px solid var(--th-line); }
 .tinyhome-job-list small { display: block; }
-.tinyhome-job-list ~ .tinyhome-button { margin-top: 18px; }
+.tinyhome-career-cta > * { margin-top: 18px; }
+.tinyhome-partner-form { margin-inline: auto; }
+.tinyhome-related > h2 { text-align: center; }
+.tinyhome-cards.tinyhome-product-cards {
+  --product-card-gap: clamp(16px, 2.8vw, 38px);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--product-card-gap);
+}
+.tinyhome-product-cards > * {
+  flex: 0 0 calc((100% - 2 * var(--product-card-gap)) / 3);
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  .tinyhome-product-cards > * { flex-basis: calc((100% - var(--product-card-gap)) / 2); }
+}
+@media (max-width: 480px) {
+  .tinyhome-product-cards > * { flex-basis: 100%; }
+}
 
 .tinyhome-footer { background: var(--th-surface); border-top: 1px solid var(--th-line); }
 .tinyhome-footer-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 28px; padding-block: 54px; align-items: start; }

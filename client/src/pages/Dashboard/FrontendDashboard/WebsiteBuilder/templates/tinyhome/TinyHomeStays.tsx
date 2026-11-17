@@ -12,7 +12,7 @@ export function StaysPage() {
       <TinyHomePageHero title={draft.productPageHeading || navLabel("products", "Our stays")} image={t.heroImages[0]} />
       <section className="tinyhome-section tinyhome-shell">
         {services.length ? (
-          <div className="tinyhome-cards">
+          <div className="tinyhome-cards tinyhome-product-cards">
             {services.map((service) => (
               <article key={service.key}>
                 <TinyHomeImage src={service.cardImage || service.heroImage} />
@@ -39,7 +39,7 @@ export function StayServicePage({ service }: { service: Service }) {
         image={service.heroImage || service.cardImage || t.heroImages[0]} />
       <section className="tinyhome-section tinyhome-shell">
         {service.items.length ? (
-          <div className="tinyhome-cards">
+          <div className="tinyhome-cards tinyhome-product-cards">
             {service.items.map((item) => {
               const price = priceWithUnit(item.price, item.priceUnit);
               return (
@@ -107,7 +107,7 @@ export function StayDetailPage({ service, item }: { service: Service; item: Serv
       ) : null}
       {related.length ? <div className="tinyhome-related">
         <h2>More places to stay</h2>
-        <div className="tinyhome-cards">
+        <div className="tinyhome-cards tinyhome-product-cards">
           {related.map((entry) => <article key={entry.key}>
             <TinyHomeImage src={entry.image} />
             <div><h3>{entry.title}</h3>
