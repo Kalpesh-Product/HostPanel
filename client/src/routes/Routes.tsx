@@ -116,6 +116,7 @@ import ResetPassword from "../pages/LoginPage/ResetPassword";
 import RegisterPage from "../pages/LoginPage/RegisterPage";
 import RegisterOtpVerification from "../pages/LoginPage/RegisterOtpVerification";
 import PaymentSuccessPage from "../pages/LoginPage/PaymentSuccessPage";
+import TrialSuccessPage from "../pages/LoginPage/TrialSuccessPage";
 import StaffViewPage from "../pages/StaffView/StaffViewPage";
 import FounderWorkspaceSelectionPage from "../pages/LoginPage/FounderWorkspaceSelectionPage";
 import CompanyReviews from "../pages/Dashboard/FrontendDashboard/CompanyReviews";
@@ -371,6 +372,12 @@ export const routes = createBrowserRouter([
     // Public — Stripe redirects a first-time payer here before they have an account.
     path: "/payment-success",
     element: <PaymentSuccessPage />,
+  },
+  {
+    // Public, same reasoning as /payment-success — Stripe's startTrialCheckout
+    // success_url redirects here.
+    path: "/trial-success",
+    element: <TrialSuccessPage />,
   },
   {
     path: "/signup/:token",

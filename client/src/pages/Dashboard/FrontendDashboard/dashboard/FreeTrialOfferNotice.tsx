@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowRight, Gift, Sparkles, Zap } from "lucide-react";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
-import StartTrialConfirmModal from "../../../../components/StartTrialConfirmModal";
 
 type FreeTrialOfferNoticeProps = {
   onUpgradeClick: () => void;
@@ -17,7 +16,6 @@ const FreeTrialOfferNotice = ({
   downgradedPlanLabel,
 }: FreeTrialOfferNoticeProps) => {
   const axiosPrivate = useAxiosPrivate();
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
 
   const { data: offer } = useQuery({
@@ -65,9 +63,17 @@ const FreeTrialOfferNotice = ({
   const handleStartTrial = async () => {
     try {
       setIsStarting(true);
-      await axiosPrivate.post("/api/plan-billing/start-trial");
-      toast.success("Your Professional trial has started!");
-      window.location.reload();
+      // Card-backed trial: redirect to Stripe's own hosted page (card +
+      // optional promo code, $0 due now, auto-charges when the trial
+      // ends) — the plan only flips to active once MasterPanel's webhook
+      // confirms the checkout, not here.
+      const { data } = await axiosPrivate.post("/api/plan-billing/start-trial-checkout");
+      if (data?.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+      toast.error("Could not start checkout — please try again.");
+      setIsStarting(false);
     } catch (error: any) {
       toast.error(
         error?.response?.data?.message || "Failed to start the free trial.",
@@ -97,7 +103,7 @@ const FreeTrialOfferNotice = ({
                   <Sparkles size={11} /> Limited-time offer
                 </span>
                 <span className="text-[10px] font-pmedium uppercase tracking-widest text-blue-100">
-                  No payment needed
+                  Payment Required
                 </span>
               </div>
               <p className="text-lg font-pmedium sm:text-xl">
@@ -120,10 +126,11 @@ const FreeTrialOfferNotice = ({
               </button>
               <button
                 type="button"
-                onClick={() => setIsConfirmOpen(true)}
-                className="group inline-flex items-center justify-center gap-2 rounded-full bg-white px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-lg transition hover:bg-blue-50"
+                onClick={handleStartTrial}
+                disabled={isStarting}
+                className="group inline-flex items-center justify-center gap-2 rounded-full bg-white px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-lg transition hover:bg-blue-50 disabled:opacity-60"
               >
-                Claim {offerLabel}
+                {isStarting ? "Starting..." : `Claim ${offerLabel}`}
                 <ArrowRight
                   size={14}
                   className="transition group-hover:translate-x-0.5"
@@ -174,18 +181,6 @@ const FreeTrialOfferNotice = ({
           </div>
         </button>
       )}
-
-      <StartTrialConfirmModal
-        open={isConfirmOpen}
-        durationDays={days}
-        isStarting={isStarting}
-        onConfirm={handleStartTrial}
-        onLater={() => !isStarting && setIsConfirmOpen(false)}
-        title={`Claim your ${days ? `${days}-day ` : ""}Professional trial?`}
-        subtitle="Explore the Professional plan free — no payment needed to begin."
-        confirmLabel="Claim free trial"
-        confirmingLabel="Starting trial..."
-      />
     </>
   );
 };

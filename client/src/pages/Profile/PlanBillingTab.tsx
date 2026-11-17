@@ -5,6 +5,7 @@ import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import PlanRenewModal from "../../components/PlanRenewModal";
 import {
   CalendarClock,
+  CreditCard,
   Eye,
   FileText,
   Layers,
@@ -41,6 +42,28 @@ const formatAmount = (amount?: number | string | null, currency = "USD") => {
     currency,
     maximumFractionDigits: 0,
   }).format(numeric);
+};
+
+// Same visual order the Sidebar shows its sections in — mirrors the
+// server's PLAN_BILLING_SECTION_ORDER (planBillingControllers.ts), which
+// in turn mirrors workspaceModuleCatalog.ts's MODULE_GROUPS array order.
+// Anything not listed here sorts to the end instead of breaking the page.
+const SECTION_ORDER = [
+  "Common Modules",
+  "Extra Common Modules",
+  "Key Apps",
+  "Core Modules",
+  "HR Department",
+  "Administration Department",
+  "Sales Department",
+  "Finance Department",
+  "Maintenance Department",
+  "Tech Department",
+  "IT Department",
+];
+const sectionOrderIndex = (section: string) => {
+  const index = SECTION_ORDER.indexOf(section);
+  return index === -1 ? SECTION_ORDER.length : index;
 };
 
 const STATUS_TONE: Record<string, string> = {
@@ -95,6 +118,26 @@ const PlanBillingTab = () => {
   const [paymentFilter, setPaymentFilter] = useState("All");
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
+  const [isOpeningBillingPortal, setIsOpeningBillingPortal] = useState(false);
+
+  // Stripe's own hosted page for updating the card or canceling — only
+  // available for a company that started its trial through the
+  // card-backed checkout flow (see hasBillingPortal, planBillingControllers.ts).
+  const handleManageSubscription = async () => {
+    try {
+      setIsOpeningBillingPortal(true);
+      const { data } = await axios.post("/api/plan-billing/billing-portal");
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+      toast.error("Could not open billing portal — please try again.");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to open billing portal.");
+    } finally {
+      setIsOpeningBillingPortal(false);
+    }
+  };
 
   const { data: summary, isLoading } = useQuery({
     queryKey: ["planBillingSummary"],
@@ -128,7 +171,7 @@ const PlanBillingTab = () => {
       if (!unique.has(key)) unique.set(key, module);
     });
     return Array.from(unique.values()).sort((a, b) =>
-      String(a.section || "Other").localeCompare(String(b.section || "Other")) ||
+      sectionOrderIndex(String(a.section || "Other")) - sectionOrderIndex(String(b.section || "Other")) ||
       String(a.label || "").localeCompare(String(b.label || "")),
     );
   }, [includedModules]);
@@ -192,16 +235,29 @@ const PlanBillingTab = () => {
             Your current plan, included modules, and payment history.
           </p>
         </div>
-        {planId !== "basic" ? (
-          <button
-            type="button"
-            onClick={() => setIsRenewModalOpen(true)}
-            className="inline-flex items-center gap-2 rounded-full bg-[#2563EB] px-4 py-2 text-[11px] font-pmedium text-white transition hover:bg-blue-700"
-          >
-            <RefreshCw size={13} />
-            Renew Now
-          </button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {summary?.hasBillingPortal ? (
+            <button
+              type="button"
+              onClick={handleManageSubscription}
+              disabled={isOpeningBillingPortal}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[11px] font-pmedium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+            >
+              <CreditCard size={13} />
+              {isOpeningBillingPortal ? "Opening..." : "Manage Subscription"}
+            </button>
+          ) : null}
+          {planId !== "basic" ? (
+            <button
+              type="button"
+              onClick={() => setIsRenewModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-full bg-[#2563EB] px-4 py-2 text-[11px] font-pmedium text-white transition hover:bg-blue-700"
+            >
+              <RefreshCw size={13} />
+              Renew Now
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-1 shrink-0">
@@ -280,7 +336,9 @@ const PlanBillingTab = () => {
       {isTrialing && planStatus !== "expiring_soon" && (
         <div className="rounded-2xl bg-blue-50 border border-blue-200 px-4 py-3 text-[12px] text-blue-800">
           You're on a free trial of the {planLabel}, active until <b>{formatDate(summary?.planExpiryDate)}</b>.
-          Renew now to continue on this plan after the trial ends.
+          {summary?.hasBillingPortal
+            ? " Your card will be charged automatically when the trial ends — cancel anytime from Manage Subscription if you don't want to continue."
+            : " Renew now to continue on this plan after the trial ends."}
         </div>
       )}
       {planStatus === "expired_downgraded" && (
