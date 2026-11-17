@@ -191,6 +191,13 @@ export const updateRoomBookingStatus = async (bookingId: string, status: RoomSta
 export const checkInRoomStayBooking = async (
   bookingId: string,
   payload: {
+    // Front desk can correct/complete the primary guest's contact details at
+    // check-in (a website booking arrives with minimal data).
+    guestName: string;
+    guestPhone: string;
+    guestEmail?: string;
+    additionalGuests?: RoomStayAdditionalGuest[];
+    notes?: string;
     idProofType: string;
     idProofNumber: string;
     // Optional when the booking already has an ID proof file on record
@@ -215,6 +222,9 @@ export const checkInRoomStayBooking = async (
   Object.entries(payload).forEach(([key, value]) => {
     if (value === undefined || value === null) return;
     if (value instanceof File) formData.append(key, value);
+    // Multipart carries no structured types — arrays (additionalGuests) go
+    // through as stringified JSON, the same way createRoomBooking sends them.
+    else if (Array.isArray(value) || typeof value === "object") formData.append(key, JSON.stringify(value));
     else formData.append(key, String(value));
   });
   return axiosPrivate.patch(`/api/v1/room-stays/bookings/${bookingId}/check-in`, formData, {

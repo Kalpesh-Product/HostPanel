@@ -290,8 +290,23 @@ export function CheckInDialog({
   const room = roomOf(booking);
   const requiresDeposit = Boolean(room?.chargesSecurityDeposit);
   const expectedDeposit = requiresDeposit ? Number(room?.securityDepositAmount || 0) : 0;
+  // A multi-bed dorm booking holds one occupant per bed — the primary guest
+  // fills bed 1, so one input row is needed for every additional bed.
+  const extraGuestCount = Math.max(0, Math.max(Number(booking.bedCount) || 1, booking.bedNumbers?.length || 1) - 1);
+  const additionalGuestRows = Math.max(extraGuestCount, booking.additionalGuests?.length || 0);
   // Prefetch every field the booking already has (walk-ins collect this at
   // creation; a website booking won't) so the receptionist only fills gaps.
+  const [guestName, setGuestName] = useState(booking.guestName || "");
+  const [guestPhone, setGuestPhone] = useState(booking.guestPhone || "");
+  const [guestEmail, setGuestEmail] = useState(booking.guestEmail || "");
+  const [additionalGuests, setAdditionalGuests] = useState(() => {
+    const rows = Array.from({ length: additionalGuestRows }, () => ({ name: "", age: "", gender: "" }));
+    (booking.additionalGuests || []).forEach((guest, index) => {
+      if (rows[index]) rows[index] = { name: guest.name || "", age: guest.age ? String(guest.age) : "", gender: guest.gender || "" };
+    });
+    return rows;
+  });
+  const [notes, setNotes] = useState(booking.notes || "");
   const [idProofType, setIdProofType] = useState(booking.idProofType || ID_PROOF_TYPES[0]);
   const [idProofNumber, setIdProofNumber] = useState(booking.idProofNumber || "");
   const [idProofFile, setIdProofFile] = useState<File | null>(null);
@@ -304,6 +319,8 @@ export function CheckInDialog({
   const [countryOptions, setCountryOptions] = useState<string[]>([]);
   const [stateOptions, setStateOptions] = useState<string[]>([]);
   const [cityOptions, setCityOptions] = useState<string[]>([]);
+  const [isLoadingStates, setIsLoadingStates] = useState(false);
+  const [isLoadingCities, setIsLoadingCities] = useState(false);
   const [emergencyContactName, setEmergencyContactName] = useState(booking.emergencyContactName || "");
   const [emergencyContactPhone, setEmergencyContactPhone] = useState(booking.emergencyContactPhone || "");
   const [collectDeposit, setCollectDeposit] = useState(Number(booking.securityDepositCollected || 0) > 0);
@@ -325,10 +342,13 @@ export function CheckInDialog({
       setGuestState("");
       return;
     }
-    getStates(guestCountry).then((result) => {
-      setStateOptions(result);
-      setGuestState((current) => (result.includes(current) ? current : ""));
-    });
+    setIsLoadingStates(true);
+    getStates(guestCountry)
+      .then((result) => {
+        setStateOptions(result);
+        setGuestState((current) => (result.includes(current) ? current : ""));
+      })
+      .finally(() => setIsLoadingStates(false));
   }, [guestCountry]);
 
   useEffect(() => {
@@ -337,14 +357,19 @@ export function CheckInDialog({
       setGuestCity("");
       return;
     }
-    getCities(guestCountry, guestState).then((result) => {
-      setCityOptions(result);
-      setGuestCity((current) => (result.includes(current) ? current : ""));
-    });
+    setIsLoadingCities(true);
+    getCities(guestCountry, guestState)
+      .then((result) => {
+        setCityOptions(result);
+        setGuestCity((current) => (result.includes(current) ? current : ""));
+      })
+      .finally(() => setIsLoadingCities(false));
   }, [guestCountry, guestState]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (!guestName.trim()) return toast.error("Guest name is required.");
+    if (!guestPhone.trim()) return toast.error("Guest phone number is required.");
     if (!idProofNumber.trim()) return toast.error("ID proof number is required.");
     if (!idProofFile && !booking.idProofFile) return toast.error("Attach the guest's ID proof document.");
     const numericAge = Number(guestAge);
@@ -354,6 +379,13 @@ export function CheckInDialog({
     if (!guestState.trim()) return toast.error("Guest state is required.");
     if (!guestCity.trim()) return toast.error("Guest city is required.");
     if (!guestAddress.trim()) return toast.error("Guest address is required.");
+    const invalidAdditionalGuest = additionalGuests.some((guest) => {
+      const age = Number(guest.age);
+      return !guest.name.trim() || !Number.isInteger(age) || age < 1 || age > 120 || !guest.gender;
+    });
+    if (additionalGuests.length > 0 && invalidAdditionalGuest) {
+      return toast.error("Complete the name, age and gender for every additional guest.");
+    }
     if (Boolean(emergencyContactName.trim()) !== Boolean(emergencyContactPhone.trim())) {
       return toast.error("Enter both emergency contact name and phone, or leave both blank.");
     }
@@ -364,6 +396,15 @@ export function CheckInDialog({
     setBusy(true);
     try {
       const res = await checkInRoomStayBooking(booking._id, {
+        guestName: guestName.trim(),
+        guestPhone: guestPhone.trim(),
+        guestEmail: guestEmail.trim(),
+        additionalGuests: additionalGuests.map((guest) => ({
+          name: guest.name.trim(),
+          age: Number(guest.age),
+          gender: guest.gender,
+        })),
+        notes: notes.trim(),
         idProofType,
         idProofNumber: idProofNumber.trim(),
         idProofFile,
@@ -395,29 +436,44 @@ export function CheckInDialog({
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-end justify-center sm:items-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-w-lg sm:rounded-[2rem]">
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4">
-          <h3 className="text-[13px] font-pmedium uppercase tracking-widest text-slate-900">Guest Check-In — #{booking.bookingNumber}</h3>
+      <div className="flex max-h-[94vh] w-full flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-w-xl sm:rounded-[2rem]">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <div>
+            <p className="text-[9px] font-pmedium uppercase tracking-[0.1em] text-blue-600">
+              Front desk · {booking.bookingSource}
+            </p>
+            <h3 className="mt-1 text-[13px] font-pmedium uppercase tracking-widest text-slate-900">Guest Check-In — #{booking.bookingNumber}</h3>
+          </div>
           <button type="button" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </div>
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
           <div className="flex flex-col gap-4 overflow-y-auto p-6">
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="mb-3 text-[10px] font-pmedium uppercase tracking-[0.08em] text-slate-500">Booking summary</p>
+              <p className="mb-3 text-[10px] font-pmedium uppercase tracking-[0.08em] text-slate-500">Stay summary — dates &amp; pricing locked</p>
               <div className="grid gap-3 text-[12px] font-pmedium text-slate-600 sm:grid-cols-2">
-                <ReviewItem label="Guest" value={booking.guestName} />
-                <ReviewItem label="Phone / email" value={[booking.guestPhone, booking.guestEmail].filter(Boolean).join(" · ") || "No contact recorded"} />
-                <ReviewItem label={noun} value={`${room?.name || "—"}${booking.bedNumber ? ` · Bed ${booking.bedNumber}` : ""}`} />
-                <ReviewItem label="Stay dates" value={`${booking.checkIn.slice(0, 10)} → ${booking.checkOut.slice(0, 10)} (${booking.nights}n)`} />
+                <ReviewItem label="Stay dates" value={`${booking.checkIn.slice(0, 10)} → ${booking.checkOut.slice(0, 10)} (${booking.nights} night${booking.nights === 1 ? "" : "s"})`} />
+                <ReviewItem label={noun} value={`${room?.name || "—"}${booking.bedNumbers && booking.bedNumbers.length > 1 ? ` · Beds ${booking.bedNumbers.join(", ")}` : booking.bedNumber ? ` · Bed ${booking.bedNumber}` : ""}`} />
               </div>
               <span className="mt-3 inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-pmedium text-emerald-700">
-                {formatCurrency(booking.total)} — {booking.paymentMethod || "Paid"}
+                Total: {formatCurrency(booking.total)} — Paid via {booking.bookingSource}
               </span>
             </div>
 
             <div className="rounded-xl border border-slate-200 p-4">
-              <p className="mb-3 text-[10px] font-pmedium uppercase tracking-[0.08em] text-slate-500">Guest profile</p>
+              <p className="mb-3 text-[10px] font-pmedium uppercase tracking-[0.08em] text-slate-500">Primary guest details</p>
               <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className={LABEL}>Full name</label>
+                  <input className={FIELD} value={guestName} onChange={(event) => setGuestName(event.target.value)} placeholder="As shown on ID proof" />
+                </div>
+                <div>
+                  <label className={LABEL}>Phone number</label>
+                  <input type="tel" className={FIELD} value={guestPhone} onChange={(event) => setGuestPhone(event.target.value)} placeholder="Guest contact number" />
+                </div>
+                <div>
+                  <label className={LABEL}>Email address</label>
+                  <input type="email" className={FIELD} value={guestEmail} onChange={(event) => setGuestEmail(event.target.value)} placeholder="guest@example.com" />
+                </div>
                 <div>
                   <label className={LABEL}>Age</label>
                   <input type="number" min={1} max={120} className={FIELD} value={guestAge} onChange={(event) => setGuestAge(event.target.value)} placeholder="Guest age" />
@@ -442,8 +498,14 @@ export function CheckInDialog({
                 </div>
                 <div>
                   <label className={LABEL}>State</label>
-                  <select className={FIELD} value={guestState} onChange={(event) => setGuestState(event.target.value)} disabled={!guestCountry || !stateOptions.length}>
-                    <option value="">{!guestCountry ? "Select country first" : "Select state"}</option>
+                  <select className={FIELD} value={guestState} onChange={(event) => setGuestState(event.target.value)} disabled={!guestCountry || isLoadingStates}>
+                    <option value="">
+                      {!guestCountry
+                        ? "Select country first"
+                        : isLoadingStates
+                          ? "Loading states..."
+                          : "Select state"}
+                    </option>
                     {stateOptions.map((state) => (
                       <option key={state} value={state}>{state}</option>
                     ))}
@@ -451,8 +513,14 @@ export function CheckInDialog({
                 </div>
                 <div>
                   <label className={LABEL}>City</label>
-                  <select className={FIELD} value={guestCity} onChange={(event) => setGuestCity(event.target.value)} disabled={!guestState || !cityOptions.length}>
-                    <option value="">{!guestState ? "Select state first" : "Select city"}</option>
+                  <select className={FIELD} value={guestCity} onChange={(event) => setGuestCity(event.target.value)} disabled={!guestCountry || !guestState || isLoadingCities}>
+                    <option value="">
+                      {!guestCountry || !guestState
+                        ? "Select state first"
+                        : isLoadingCities
+                          ? "Loading cities..."
+                          : "Select city"}
+                    </option>
                     {cityOptions.map((city) => (
                       <option key={city} value={city}>{city}</option>
                     ))}
@@ -464,6 +532,75 @@ export function CheckInDialog({
                 </div>
               </div>
             </div>
+
+            {additionalGuests.length > 0 && (
+              <div className="rounded-xl border border-blue-100 bg-blue-50/30 p-4">
+                <p className="text-[10px] font-pmedium uppercase tracking-[0.08em] text-blue-700">Additional guests</p>
+                <p className="mb-3 mt-1 font-pmedium text-[10px] text-slate-500">
+                  One occupant for each additional bed in this {noun.toLowerCase()} booking.
+                </p>
+                <div className="space-y-3">
+                  {additionalGuests.map((guest, index) => (
+                    <div
+                      key={`additional-guest-${index + 2}`}
+                      className="grid gap-3 border-t border-blue-100 pt-3 first:border-t-0 first:pt-0 sm:grid-cols-[1fr_110px_160px]"
+                    >
+                      <div>
+                        <label className={LABEL}>Guest {index + 2} name</label>
+                        <input
+                          className={FIELD}
+                          value={guest.name}
+                          onChange={(event) =>
+                            setAdditionalGuests((current) =>
+                              current.map((entry, guestIndex) =>
+                                guestIndex === index ? { ...entry, name: event.target.value } : entry,
+                              ),
+                            )
+                          }
+                          placeholder="Full name"
+                        />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Age</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={120}
+                          className={FIELD}
+                          value={guest.age}
+                          onChange={(event) =>
+                            setAdditionalGuests((current) =>
+                              current.map((entry, guestIndex) =>
+                                guestIndex === index ? { ...entry, age: event.target.value } : entry,
+                              ),
+                            )
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Gender</label>
+                        <select
+                          className={FIELD}
+                          value={guest.gender}
+                          onChange={(event) =>
+                            setAdditionalGuests((current) =>
+                              current.map((entry, guestIndex) =>
+                                guestIndex === index ? { ...entry, gender: event.target.value } : entry,
+                              ),
+                            )
+                          }
+                        >
+                          <option value="">Select</option>
+                          {GENDERS.map((gender) => (
+                            <option key={gender} value={gender}>{gender}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="rounded-xl border border-slate-200 p-4">
               <p className="mb-3 text-[10px] font-pmedium uppercase tracking-[0.08em] text-slate-500">Identity and emergency contact</p>
@@ -565,6 +702,17 @@ export function CheckInDialog({
                 )}
               </div>
             )}
+
+            <div className="rounded-xl border border-slate-200 p-4">
+              <p className="mb-3 text-[10px] font-pmedium uppercase tracking-[0.08em] text-slate-500">Notes</p>
+              <textarea
+                className={FIELD}
+                rows={2}
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                placeholder="Arrival time, special requests, anything the front desk should know"
+              />
+            </div>
           </div>
           <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-6 py-4">
             <button type="button" onClick={onClose} className={SECONDARY_BUTTON}>Cancel</button>

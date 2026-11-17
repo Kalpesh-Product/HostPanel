@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, CalendarDays, CheckCircle2, Coffee, Eye, Download, FileText, Globe, Printer, Search, Send, Sparkles, Target, Users, X, Wallet, Ticket,
+  ArrowLeft, Bed, Building2, CalendarDays, CheckCircle2, Coffee, Eye, Download, FileText, Globe, Printer, Search, Send, Sparkles, Target, Users, X, Wallet, Ticket,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -1315,7 +1315,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                       <button type="button" onClick={submitManualAmount}
                         disabled={updateLeadMutation.isPending}
                         className="flex-1 py-2.5 rounded-xl text-[12px] font-pmedium bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60"
-                      >{updateLeadMutation.isPending ? "Accepting..." : "Accept"}</button>
+                      >{updateLeadMutation.isPending ? "confirming..." : "confirm"}</button>
                     )}
                   </div>
                 ) : (
@@ -1339,6 +1339,13 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                     const isDayPassBooking = /^DP-/i.test(String(selectedLead.bookingCode || ""));
                     // CR- codes mark a Cafe table reservation.
                     const isCafeReservation = /^CR-/i.test(String(selectedLead.bookingCode || ""));
+                    // HS- codes mark a hostel dorm stay, CL- codes a co-living
+                    // room stay — each deep-links to its own booking page's
+                    // Reservations tab where the check-in row is waiting. Any
+                    // other booking code falls back to the meeting-room page.
+                    const isHostelBooking = /^HS-/i.test(String(selectedLead.bookingCode || ""));
+                    const isCoLivingBooking = /^CL-/i.test(String(selectedLead.bookingCode || ""));
+                    const isMeetingRoomBooking = Boolean(selectedLead.bookingCode) && !isDayPassBooking && !isCafeReservation && !isHostelBooking && !isCoLivingBooking;
                     const onboardAsTenant = () => {
                       navigate("/department-accesses/sales-department/tenant-companies", {
                         state: {
@@ -1383,7 +1390,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                             {selectedLead.bookingCode ? (
                               <>
                                 <button type="button" onClick={() => setShowBookingBadge(true)} disabled={isBusy}
-                                  className={`${baseButton} bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-60`}
+                                  className={`${baseButton} bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-60`}
                                 ><Printer size={14} /> Print / View Badge</button>
                                 {isDayPassBooking && (
                                   <button
@@ -1405,9 +1412,40 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                                     <Coffee size={14} /> View in Cafe Reservations
                                   </button>
                                 )}
-                                {/* <button type="button" onClick={() => navigate("/key-apps/meeting-room-management")} disabled={isBusy}
-                                  className={`${baseButton} bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
-                                ><CalendarDays size={14} /> View in Calendar</button> */}
+                                {/* Hostel dorm stay — lands straight on the
+                                    Reservations tab where the check-in row is. */}
+                                {isHostelBooking && (
+                                  <button
+                                    type="button"
+                                    onClick={() => navigate("/common-modules/hostel-booking/list?tab=reservations")}
+                                    disabled={isBusy}
+                                    className={`${baseButton} bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
+                                  >
+                                    <Bed size={14} /> View in Hostel Bookings
+                                  </button>
+                                )}
+                                {/* Co-living room stay. */}
+                                {isCoLivingBooking && (
+                                  <button
+                                    type="button"
+                                    onClick={() => navigate("/common-modules/room-booking/list?tab=reservations")}
+                                    disabled={isBusy}
+                                    className={`${baseButton} bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
+                                  >
+                                    <Building2 size={14} /> View in Room Bookings
+                                  </button>
+                                )}
+                                {/* Any other booking code is a meeting-room booking. */}
+                                {isMeetingRoomBooking && (
+                                  <button
+                                    type="button"
+                                    onClick={() => navigate("/common-modules/meeting-room-booking/list?module=external_booking")}
+                                    disabled={isBusy}
+                                    className={`${baseButton} bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
+                                  >
+                                    <CalendarDays size={14} /> View in Meeting Rooms
+                                  </button>
+                                )}
                               </>
                             ) : isCoworkingInquiry ? (
                               <button type="button" onClick={onboardAsTenant} disabled={isBusy}
@@ -1474,7 +1512,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                 </div>
               </div>
               <button type="button" onClick={() => printBookingBadge(selectedLead)}
-                className="w-full rounded-2xl bg-emerald-600 px-5 py-3 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm shadow-emerald-200 transition-all hover:bg-emerald-700 active:scale-95 flex items-center justify-center gap-1.5"
+                className="w-full rounded-2xl bg-[#2563EB] px-5 py-3 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 flex items-center justify-center gap-1.5"
               ><Printer size={13} /> Print Badge</button>
             </div>
           </div>

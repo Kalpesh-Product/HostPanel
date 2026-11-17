@@ -1563,6 +1563,28 @@ export const checkPublicBookingAvailability = async (req, res) => {
       });
     }
 
+    // Day Pass draws from the shared Open Desk floor, not a single named
+    // resource — looking it up by exact room name (below) 404s because no
+    // resource is literally named "Day Pass". Check real floor capacity via
+    // the same resolveDayPassAvailability the finalize step enforces, so the
+    // site can't let a guest pay for a desk that's already sold out.
+    if (DAY_PASS_TEXT_RE.test(roomName)) {
+      const dayPassDate = req.body?.startDate || req.body?.date || req.query?.startDate || req.query?.date;
+      const availability = await resolveDayPassAvailability(workspaceId, dayPassDate || new Date());
+      if (!availability) {
+        return res.status(404).json({ message: "No active Open Desk resource is configured for this workspace" });
+      }
+      const requestedDesks = Math.max(1, Math.trunc(Number(req.body?.attendees || req.body?.people || req.body?.noOfPeople || 1)) || 1);
+      return res.status(200).json({
+        available: requestedDesks <= availability.availableCount,
+        availableCount: availability.availableCount,
+        isLimited: availability.isLimited,
+        isSoldOut: availability.isSoldOut,
+        roomName: availability.resourceName,
+        pricePerDay: availability.pricePerDay,
+      });
+    }
+
     const room = await Resource.findOne({
       workspaceId,
       status: "Active",

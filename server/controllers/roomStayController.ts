@@ -885,6 +885,11 @@ export async function checkInRoomStayBooking(req: AuthenticatedRequest, res: Res
         if (now < booking.checkIn) throw conflict(`Check-in isn't allowed before ${booking.checkIn.toLocaleString()}.`);
 
         const {
+            guestName,
+            guestPhone,
+            guestEmail,
+            additionalGuests: rawAdditionalGuests,
+            notes,
             idProofType,
             idProofNumber,
             guestAge: rawGuestAge,
@@ -899,6 +904,34 @@ export async function checkInRoomStayBooking(req: AuthenticatedRequest, res: Res
             securityDepositPaymentMethod,
             securityDepositTxn,
         } = req.body || {};
+
+        // A website booking arrives with only a name (often a partial one) —
+        // check-in is the front desk's chance to correct and complete the
+        // primary guest's contact details before they're locked into the stay.
+        if (!String(guestName || "").trim()) throw badRequest("Guest name is required.");
+        if (!String(guestPhone || "").trim()) throw badRequest("Guest phone number is required.");
+        const normalizedGuestEmail = String(guestEmail || "").trim().toLowerCase();
+
+        // Additional guests (multi-bed dorm bookings) can arrive as a
+        // stringified array through multipart, or as a real array on JSON.
+        let parsedAdditionalGuests: Array<{ name: string; age: number; gender: string }> | null = null;
+        if (rawAdditionalGuests) {
+            try {
+                const parsed = typeof rawAdditionalGuests === "string" ? JSON.parse(String(rawAdditionalGuests)) : rawAdditionalGuests;
+                if (!Array.isArray(parsed)) throw new Error("Additional guests must be an array.");
+                parsedAdditionalGuests = parsed.map((guest) => ({
+                    name: String(guest?.name || "").trim(),
+                    age: Number(guest?.age),
+                    gender: String(guest?.gender || "").trim(),
+                }));
+            } catch {
+                throw badRequest("Enter valid details for the additional guests.");
+            }
+            const invalidGuest = parsedAdditionalGuests.some(
+                (guest) => !guest.name || !Number.isInteger(guest.age) || guest.age < 1 || guest.age > 120 || !guest.gender
+            );
+            if (invalidGuest) throw badRequest("Complete the name, age and gender for every additional guest.");
+        }
 
         if (!String(idProofType || "").trim()) throw badRequest("ID proof type is required.");
         if (!String(idProofNumber || "").trim()) throw badRequest("ID proof number is required.");
@@ -951,6 +984,11 @@ export async function checkInRoomStayBooking(req: AuthenticatedRequest, res: Res
         booking.idProofType = String(idProofType).trim();
         booking.idProofNumber = String(idProofNumber || "").trim();
         booking.idProofFile = idProofFile;
+        booking.guestName = String(guestName).trim();
+        booking.guestPhone = String(guestPhone || "").trim();
+        if (guestEmail !== undefined) booking.guestEmail = normalizedGuestEmail;
+        if (parsedAdditionalGuests) booking.additionalGuests = parsedAdditionalGuests;
+        if (notes !== undefined) booking.notes = String(notes || "").trim();
         booking.guestAge = guestAge;
         booking.guestGender = String(guestGender).trim();
         booking.guestCountry = String(guestCountry).trim();
