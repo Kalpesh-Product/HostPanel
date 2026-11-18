@@ -10,6 +10,7 @@ type BackToTopSpec = {
 };
 
 const BACK_TO_TOP_SPECS: Record<string, BackToTopSpec> = {
+  cabin: { bg: "#181916", fg: "#ffffff", border: "#ffffff", radius: "50%", shadow: "none", font: "'DM Sans', sans-serif" },
   default: { bg: "#ffffff", fg: "#1f2937", border: "#dbe3ef", radius: "14px", shadow: "0 14px 34px rgba(30,64,175,.16)", font: "'Poppins', sans-serif" },
   "minimal-swiss": { bg: "#050505", fg: "#ffffff", border: "#050505", radius: "0", shadow: "6px 6px 0 #d7263d", font: "'Inter', sans-serif" },
   "fresh-studio": { bg: "#0e0e0e", fg: "#ffffff", border: "#d94b4b", radius: "5px", shadow: "0 14px 32px rgba(14,14,14,.24)", font: "'Inter', sans-serif" },

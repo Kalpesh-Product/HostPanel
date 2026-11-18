@@ -111,6 +111,7 @@ export const THEME_DEFAULTS: Record<string, ThemeDefaults> = {
     surfaceUp: true,
   },
   tinyhome: { bg: "#ffffff", text: "#272724", accent: "#353932", surfaceUp: true },
+  cabin: { bg: "#ffffff", text: "#181916", accent: "#181916", surfaceUp: false },
   tulum: { bg: "#f1f1ed", text: "#4f5a53", accent: "#8a968f", surfaceUp: true },
   grindelwald: {
     bg: "#f8f8f8",

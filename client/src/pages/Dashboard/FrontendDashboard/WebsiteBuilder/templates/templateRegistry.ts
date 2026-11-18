@@ -13,6 +13,7 @@ import HuddleTemplate from "./huddle/HuddleTemplate";
 import TravigoTemplate from "./travigo/TravigoTemplate";
 import TulumTemplate from "./tulum/TulumTemplate";
 import TinyHomeTemplate from "./tinyhome/TinyHomeTemplate";
+import CabinTemplate from "./cabin/CabinTemplate";
 import GrindelwaldTemplate from "./grindelwald/GrindelwaldTemplate";
 import LodgeTemplate from "./lodge/LodgeTemplate";
 import CaliHostelTemplate from "./caliHostel/CaliHostelTemplate";
@@ -207,6 +208,15 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       font: "'Manrope', sans-serif",
     },
     recommendedFor: ["hostel"],
+    supportsBooking: true,
+  },
+  cabin: {
+    id: "cabin",
+    name: "Cabin",
+    description: "Nature-led co-living with an oversized serif hero, a tilted photo collage, rounded home cards and stay enquiries.",
+    component: CabinTemplate,
+    swatch: { bg: "#ffffff", fg: "#181916", accent: "#181916", font: "'Instrument Serif', serif" },
+    recommendedFor: ["coLiving"],
     supportsBooking: true,
   },
   tinyhome: {
