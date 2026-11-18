@@ -291,7 +291,19 @@ function buildResignationRequestExportRows(request: ResignationRequest): Array<{
 /*  Main Page Component                                              */
 /* ──────────────────────────────────────────────────────────────── */
 
-export function HRResignationManagementPage() {
+type ResignationManagementModulePage = "requests" | "notice" | "history";
+
+const RESIGNATION_MODULE_TABS: Array<{ key: ResignationManagementModulePage; label: string }> = [
+  { key: "requests", label: "Resignation Requests" },
+  { key: "notice", label: "Active Notice" },
+  { key: "history", label: "Resignation History" },
+];
+
+export function HRResignationManagementPage({
+  modulePage,
+}: {
+  modulePage?: ResignationManagementModulePage;
+}) {
   const currentUser = getStoredUser();
   const managerProfile: ManagerProfile = {
     name: currentUser?.fullName || currentUser?.firstName || "HR Manager",
@@ -304,7 +316,7 @@ export function HRResignationManagementPage() {
   const [isExportingReport, setIsExportingReport] = useState("");
   const [showExportModal, setShowExportModal] = useState(false);
   const [overview, setOverview] = useState<ResignationManagementOverview>(defaultOverview);
-  const [activeTab, setActiveTab] = useState("requests");
+  const [activeTab, setActiveTab] = useState<ResignationManagementModulePage>(modulePage || "requests");
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("All Departments");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -316,6 +328,13 @@ export function HRResignationManagementPage() {
   const [rejectingRequest, setRejectingRequest] = useState<ResignationRequest | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [isSavingDecision, setIsSavingDecision] = useState(false);
+
+  useEffect(() => {
+    if (!modulePage) return;
+    setActiveTab(modulePage);
+    setStatusFilter("all");
+    setSearchQuery("");
+  }, [modulePage]);
 
   const loadOverview = useCallback(async () => {
     try {
@@ -483,7 +502,7 @@ export function HRResignationManagementPage() {
       const updatedRequest: ResignationRequest | null = response?.exitRequest || null;
       setViewingRequest(null);
       if (updatedRequest) {
-        setActiveTab("notice");
+        if (!modulePage) setActiveTab("notice");
         setDraftChecklist((updatedRequest.checklist || []).map((item) => ({ ...item })));
         setExtendNoticeDate(nextDayDateString(updatedRequest.noticeEndAt));
         setManagingResignation(updatedRequest);
@@ -644,9 +663,15 @@ export function HRResignationManagementPage() {
           <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                Resignation Management
+                {modulePage
+                  ? RESIGNATION_MODULE_TABS.find((tab) => tab.key === activeTab)?.label
+                  : "Resignation Management"}
               </h2>
-              <p className="text-xs font-pmedium text-slate-500 mt-1">Core Module | Review & manage employee offboarding</p>
+              <p className="text-xs font-pmedium text-slate-500 mt-1">
+                {activeTab === "requests" && "Review and process employee resignation requests."}
+                {activeTab === "notice" && "Manage notice periods, handover checklists, and exit completion."}
+                {activeTab === "history" && "Review completed and rejected employee exit records."}
+              </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <ReportExportButton onClick={() => setShowExportModal(true)} />
@@ -654,26 +679,24 @@ export function HRResignationManagementPage() {
           </div>
 
           {/* ── Main Tabs (pill-style, before stat cards) ── */}
-          <div data-tour="hr-resignation-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-            {[
-              { key: "requests", label: "Requests" },
-              { key: "notice", label: "Active Notice" },
-              { key: "history", label: "History" },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => { setActiveTab(tab.key); setStatusFilter("all"); }}
-                className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-pmedium uppercase tracking-widest transition-all ${
-                  activeTab === tab.key
-                    ? "bg-[#2563EB] text-white shadow-sm"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          {!modulePage ? (
+            <div data-tour="hr-resignation-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+              {RESIGNATION_MODULE_TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => { setActiveTab(tab.key); setStatusFilter("all"); }}
+                  className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-pmedium uppercase tracking-widest transition-all ${
+                    activeTab === tab.key
+                      ? "bg-[#2563EB] text-white shadow-sm"
+                      : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           {/* ── Stat Cards (tab-specific, total first) ── */}
           <div data-tour="hr-resignation-summary" className={`grid grid-cols-1 gap-3 mb-3 shrink-0 ${tabStatCards.length >= 4 ? "md:grid-cols-4" : "md:grid-cols-3"}`}>

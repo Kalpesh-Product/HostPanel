@@ -482,14 +482,6 @@ export default function VisitorsWorkspaceDashboard() {
                 ))}
               </div>
             </div>
-            <div className="absolute right-6 top-5 z-10 rounded-lg border border-white/25 bg-white/15 px-3 py-2 backdrop-blur-sm">
-              <p className="text-[9px] font-pmedium uppercase tracking-[0.1em] text-white/75">
-                Active modules
-              </p>
-              <p className="mt-0.5 text-[15px] font-pmedium text-white">
-                {enabledVisitorModules.length}
-              </p>
-            </div>
           </div>
         </div>
 
