@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import { useEffect, useId, useMemo, useState } from "react";
 import type { ElementType } from "react";
+import { canAccessCompanyProfile } from "../pages/Profile/profileAccess";
 import {
   ChevronDown,
   ChevronUp,
@@ -355,6 +356,17 @@ const generalData: NavNode[] = [
   { id: "profile", label: "Profile", icon: User, route: "/profile/my-profile" },
   { id: "logout", label: "Sign Out", icon: LogOut, isRed: true, route: "/sign-out" },
 ];
+// Billing deep-links straight to the Plan & Billing tab, same pattern
+// "Profile" already uses (it skips the cards landing page and goes
+// straight to My Profile) — one click instead of Profile -> card -> click.
+// Gated by the same canAccessCompanyProfile check the Plan & Billing card
+// itself uses, so it's not shown to someone who couldn't open it anyway.
+const BILLING_NAV_ITEM: NavNode = {
+  id: "billing",
+  label: "Billing",
+  icon: CreditCard,
+  route: "/profile/plan-billing",
+};
 
 const SECTION_ABBR: Record<string, string> = {
   "common-modules": "COM",
@@ -900,6 +912,19 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   });
   const [workspaceDepartments, setWorkspaceDepartments] = useState<WorkspaceDepartmentAccess[]>([]);
   const workspaceSetup = readWorkspaceSetup();
+
+  // A plain link right after Profile — same "Profile"/"Sign Out" style (no
+  // expand/collapse dropdown), gated the same way the Plan & Billing card
+  // itself is (founder/super_admin, or an HR department manager).
+  const sidebarGeneralItems = useMemo(() => {
+    const canSeeBilling = canAccessCompanyProfile({
+      roleBand: roleAccessContext.role,
+      departmentNames: roleAccessContext.departments,
+    });
+    return canSeeBilling
+      ? [generalData[0], BILLING_NAV_ITEM, ...generalData.slice(1)]
+      : generalData;
+  }, [roleAccessContext.role, roleAccessContext.departments]);
 
 const authUserId = String(
   (auth.user as { id?: string; _id?: string } | null)?.id ||
@@ -2069,7 +2094,7 @@ useEffect(() => {
         {isSidebarHydrated && (
           <div className="px-4 pt-2">
             <div className="border-t border-black/10 pt-2 space-y-1">
-              {generalData.map((item) => (
+              {sidebarGeneralItems.map((item) => (
                 <NavGroup
                   key={item.id}
                   item={item}
