@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Archive, CheckCircle2, FileCheck2, Files, FolderOpen, UserCheck, UserMinus, Users } from "lucide-react";
+import ReactApexChart from "react-apexcharts";
 import DashboardModuleCard from "@/components/DashboardModuleCard";
 import DonutChart from "@/components/graphs/DonutChart";
 import PageFrame from "@/components/Pages/PageFrame";
@@ -21,6 +22,7 @@ const documentType = (document: DocumentRecord) => {
   if (type.includes("sheet") || /\.(xlsx?|csv)$/i.test(name)) return "Spreadsheet";
   return pretty(type);
 };
+const dateValue = (value: unknown) => { const date = new Date(String(value || "")); return Number.isNaN(date.getTime()) ? null : date; };
 
 export default function HRDocumentsWorkspaceDashboard() {
   const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
@@ -79,6 +81,26 @@ export default function HRDocumentsWorkspaceDashboard() {
     return [...groups.entries()].sort((left, right) => right[1] - left[1]);
   }, [documents]);
 
+  const monthlyUploads = useMemo(() => {
+    const now = new Date();
+    const months = Array.from({ length: 6 }, (_, index) => { const date = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1); return { key: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`, label: date.toLocaleDateString("en-IN", { month: "short", year: "2-digit" }), uploads: 0 }; });
+    const byMonth = new Map(months.map((month) => [month.key, month]));
+    documents.forEach((document) => { const date = dateValue(document.uploadedAt || document.createdAt || document.uploadDate); if (!date) return; const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`; const month = byMonth.get(key); if (month) month.uploads += 1; });
+    return months;
+  }, [documents]);
+
+  const departmentCoverage = useMemo(() => {
+    const groups = new Map<string, { total: number; covered: number }>();
+    employees.forEach((employee) => { const department = String(employee.department || "Not assigned"); const values = groups.get(department) || { total: 0, covered: 0 }; values.total += 1; if (Array.isArray(employee.documents) && employee.documents.length > 0) values.covered += 1; groups.set(department, values); });
+    return [...groups.entries()].map(([department, values]) => ({ department, coverage: values.total ? Math.round((values.covered / values.total) * 100) : 0 })).sort((left, right) => right.coverage - left.coverage).slice(0, 8);
+  }, [employees]);
+
+  const missingFileEmployees = useMemo(() => employees.filter((employee) => !inactiveStatuses.has(String(employee.statusKey || employee.status || "").toLowerCase()) && (!Array.isArray(employee.documents) || employee.documents.length === 0)).slice(0, 8), [employees]);
+
+  const uploadChartOptions = useMemo(() => ({ chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: "Poppins, sans-serif" }, colors: ["#7C3AED"], dataLabels: { enabled: false }, stroke: { curve: "smooth" as const, width: 3 }, fill: { type: "gradient", gradient: { opacityFrom: 0.28, opacityTo: 0.04, stops: [0, 95, 100] } }, grid: { borderColor: "#E2E8F0", strokeDashArray: 4 }, xaxis: { categories: monthlyUploads.map((month) => month.label), labels: { style: { colors: "#64748B", fontSize: "10px" } }, axisBorder: { show: false }, axisTicks: { show: false } }, yaxis: { min: 0, forceNiceScale: true, labels: { style: { colors: "#64748B", fontSize: "10px" }, formatter: (value: number) => String(Math.round(value)) } }, tooltip: { y: { formatter: (value: number) => `${value} documents uploaded` } } }), [monthlyUploads]);
+
+  const coverageChartOptions = useMemo(() => ({ chart: { toolbar: { show: false }, fontFamily: "Poppins, sans-serif" }, colors: ["#2563EB"], plotOptions: { bar: { horizontal: true, borderRadius: 5, barHeight: "48%" } }, dataLabels: { enabled: true, formatter: (value: number) => `${Math.round(value)}%`, style: { colors: ["#FFFFFF"], fontSize: "10px", fontWeight: 500 } }, grid: { borderColor: "#E2E8F0", strokeDashArray: 4 }, xaxis: { categories: departmentCoverage.map((row) => row.department), min: 0, max: 100, tickAmount: 4, labels: { style: { colors: "#64748B", fontSize: "10px" }, formatter: (value: string) => `${Math.round(Number(value))}%` } }, yaxis: { labels: { maxWidth: 135, style: { colors: "#475569", fontSize: "10px" } } }, tooltip: { y: { formatter: (value: number) => `${Math.round(value)}% employees covered` } } }), [departmentCoverage]);
+
   const recentDocuments = useMemo(() => [...documents].sort((left, right) => new Date(right.uploadedAt || right.createdAt || 0).getTime() - new Date(left.uploadedAt || left.createdAt || 0).getTime()).slice(0, 10), [documents]);
 
   return (
@@ -103,7 +125,7 @@ export default function HRDocumentsWorkspaceDashboard() {
           <p className="text-sm font-pmedium text-slate-900">Document vault modules</p>
           <p className="mt-1 text-[10px] text-slate-500">Open the active or archived employee record set directly.</p>
           <div className="mt-3 grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
-            <DashboardModuleCard icon={<UserCheck size={19} />} title="Active Employee Documents" route="/department-accesses/hr-department/documents/active-employees" description="Review files for employees currently active in the workspace" color="#10B981" />
+            <DashboardModuleCard icon={<UserCheck size={19} />} title="Active Employee Documents" route="/department-accesses/hr-department/documents/active-employees" description="Review files for employees currently active in the unit" color="#10B981" />
             <DashboardModuleCard icon={<UserMinus size={19} />} title="Inactive Employee Documents" route="/department-accesses/hr-department/documents/inactive-employees" description="Access document records for inactive and terminated employees" color="#7C3AED" />
           </div>
         </div>
@@ -113,11 +135,24 @@ export default function HRDocumentsWorkspaceDashboard() {
             <DashboardSection title="Documents by type" subtitle="File-format and document-category mix across the vault.">{typeRows.length ? <DonutChart centerLabel="Documents" labels={typeRows.map(([name]) => name)} series={typeRows.map(([, value]) => value)} colors={["#7C3AED", "#2563EB", "#10B981", "#F59E0B", "#06B6D4", "#94A3B8"]} tooltipValue={typeRows.map(([, value]) => `${value} documents`)} wrapLabels /> : <div className="flex h-[280px] items-center justify-center text-[11px] text-slate-500">No documents uploaded yet.</div>}</DashboardSection>
             <DashboardSection title="Documents by department" subtitle="Vault coverage across company departments.">{departmentRows.length ? <DonutChart centerLabel="Documents" labels={departmentRows.map(([name]) => name)} series={departmentRows.map(([, value]) => value)} colors={["#2563EB", "#0D9488", "#7C3AED", "#F59E0B", "#EF4444", "#94A3B8"]} tooltipValue={departmentRows.map(([, value]) => `${value} documents`)} wrapLabels /> : <div className="flex h-[280px] items-center justify-center text-[11px] text-slate-500">No department document data recorded yet.</div>}</DashboardSection>
           </div>
+          <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <DashboardSection title="Six-month upload activity" subtitle="Employee documents added to the vault by month.">
+              <ReactApexChart type="area" height={310} options={uploadChartOptions} series={[{ name: "Documents uploaded", data: monthlyUploads.map((month) => month.uploads) }]} />
+            </DashboardSection>
+            <DashboardSection title="Employee file coverage by department" subtitle="Share of employees with at least one document on record.">
+              {departmentCoverage.length ? <ReactApexChart type="bar" height={310} options={coverageChartOptions} series={[{ name: "Employee coverage", data: departmentCoverage.map((row) => row.coverage) }]} /> : <div className="flex h-[310px] items-center justify-center text-[11px] text-slate-500">No department file coverage is available yet.</div>}
+            </DashboardSection>
+          </div>
+          <DashboardSection title="Missing-file attention" subtitle="Employee records without any uploaded documents." bodyClassName="p-0">
+            {missingFileEmployees.length ? <div className="divide-y divide-slate-100">{missingFileEmployees.map((employee, index) => <div key={employee.id || employee._id || index} className="grid gap-3 px-5 py-4 transition-colors hover:bg-slate-50/70 sm:grid-cols-[minmax(0,1fr)_190px_130px] sm:items-center"><div className="min-w-0"><p className="truncate text-[11px] font-pmedium text-slate-900">{employee.fullName || employee.name || "Employee"}</p><p className="mt-1 truncate text-[9px] text-slate-500">{employee.employeeId || employee.email || "Employee record"}</p></div><p className="truncate text-[10px] text-slate-600">{employee.department || "Not assigned"}</p><div className="sm:text-right"><span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-[9px] font-pmedium uppercase text-amber-700">Files missing</span></div></div>)}</div> : <div className="flex min-h-[145px] items-center justify-center px-5 py-10 text-[11px] text-slate-500">Every employee currently has at least one document on record.</div>}
+          </DashboardSection>
+          <div className="mt-4">
           <DashboardSection title="Recent documents" subtitle="Latest files added to employee records." bodyClassName="max-h-[420px] overflow-auto p-0">
             <table className="w-full min-w-[760px] table-fixed border-collapse text-left"><thead className="sticky top-0 z-10 bg-slate-50 text-[9px] uppercase tracking-[0.08em] text-slate-500"><tr><th className="w-[32%] px-5 py-3 font-pmedium">Document</th><th className="w-[25%] px-3 py-3 font-pmedium">Employee</th><th className="w-[18%] px-3 py-3 font-pmedium">Department</th><th className="w-[15%] px-3 py-3 font-pmedium">Type</th><th className="w-[10%] px-3 py-3 text-center font-pmedium">Source</th></tr></thead><tbody className="divide-y divide-slate-100">
               {recentDocuments.length ? recentDocuments.map((document, index) => <tr key={document.id || document.publicId || index} className="bg-white text-[11px] text-slate-600"><td className="px-5 py-3"><p className="truncate font-pmedium text-slate-900">{document.name || "Employee Document"}</p><p className="mt-0.5 truncate text-[9px] text-slate-400">{document.uploadDate || "Stored in document vault"}</p></td><td className="truncate px-3 py-3">{document.employeeName || "Employee"}</td><td className="truncate px-3 py-3">{document.employeeDepartment || "Not assigned"}</td><td className="px-3 py-3">{documentType(document)}</td><td className="px-3 py-3 text-center"><span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-pmedium uppercase text-slate-600">{document.source || "Vault"}</span></td></tr>) : <tr><td colSpan={5} className="px-5 py-12 text-center text-[11px] text-slate-500">No documents uploaded yet.</td></tr>}
             </tbody></table>
           </DashboardSection>
+          </div>
         </> : null}
       </PageFrame>
     </div>

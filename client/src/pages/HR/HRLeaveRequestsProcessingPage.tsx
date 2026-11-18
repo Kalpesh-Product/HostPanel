@@ -105,7 +105,9 @@ interface HolidayEntry {
   recurring: boolean; isActive: boolean; entryKind: "holiday" | "event"; source?: string;
 }
 
-const MAIN_TABS = [
+type LeaveProcessingModulePage = "requests" | "current" | "master" | "quotas" | "holidays";
+
+const MAIN_TABS: Array<{ key: LeaveProcessingModulePage; label: string }> = [
   { key: "requests", label: "Leave Requests" },
   { key: "current", label: "Currently On Leave" },
   { key: "master", label: "Leave Master" },
@@ -351,9 +353,13 @@ function buildEmployeeLeaveExportRows(employee: Record<string, unknown>) {
 
 /* ───────────────────────────── Main Component ───────────────────────────── */
 
-export default function HRLeaveRequestsProcessingPage() {
+export default function HRLeaveRequestsProcessingPage({
+  modulePage,
+}: {
+  modulePage?: LeaveProcessingModulePage;
+}) {
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("requests");
+  const [activeTab, setActiveTab] = useState<LeaveProcessingModulePage>(modulePage || "requests");
   const [showExportModal, setShowExportModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("All Departments");
@@ -398,6 +404,13 @@ export default function HRLeaveRequestsProcessingPage() {
   const [isExportingReport, setIsExportingReport] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!modulePage) return;
+    setActiveTab(modulePage);
+    setStatusFilter("all");
+    setSearchQuery("");
+  }, [modulePage]);
 
   const currentUser = getStoredUser() as Record<string, unknown> | null;
   const managerProfile = {
@@ -1103,10 +1116,14 @@ export default function HRLeaveRequestsProcessingPage() {
           <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                Leave Request Processing
+                {modulePage ? MAIN_TABS.find((tab) => tab.key === activeTab)?.label : "Leave Request Processing"}
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
-                Review, approve or reject employee leave requests efficiently.
+                {activeTab === "requests" && "Review, approve, reject, and export employee leave requests."}
+                {activeTab === "current" && "Review employees whose approved leave is currently active."}
+                {activeTab === "master" && "Configure leave types and leave-policy definitions."}
+                {activeTab === "quotas" && "Manage employee leave balances, cycles, and carry-forward rules."}
+                {activeTab === "holidays" && "Manage company holidays, public holidays, and calendar events."}
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -1121,21 +1138,23 @@ export default function HRLeaveRequestsProcessingPage() {
           )}
 
           {/* ── Main Pill Tabs (DESIGN.md §4) ── */}
-          <div data-tour="hr-leave-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-            {MAIN_TABS.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => { setActiveTab(tab.key); setStatusFilter("all"); setSearchQuery(""); }}
-                className={`flex-1 min-w-[120px] rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
-                  activeTab === tab.key
-                    ? "bg-[#2563EB] text-white shadow-sm"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          {!modulePage ? (
+            <div data-tour="hr-leave-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+              {MAIN_TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => { setActiveTab(tab.key); setStatusFilter("all"); setSearchQuery(""); }}
+                  className={`flex-1 min-w-[120px] rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
+                    activeTab === tab.key
+                      ? "bg-[#2563EB] text-white shadow-sm"
+                      : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           {/* ── Stat Cards (tab-specific) ── */}
           <div data-tour="hr-leave-summary" className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3 shrink-0">

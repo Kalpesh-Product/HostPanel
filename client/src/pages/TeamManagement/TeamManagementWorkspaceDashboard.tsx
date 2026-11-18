@@ -145,10 +145,6 @@ export default function TeamManagementWorkspaceDashboard() {
               {[scopeLabel, "Access Control", "SOPs", "Policies"].map((label) => <span key={label} className="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-[0.06em] text-blue-600">{label}</span>)}
             </div>
           </div>
-          <div className="absolute right-6 top-5 z-10 rounded-lg border border-white/25 bg-white/15 px-3 py-2 backdrop-blur-sm">
-            <p className="text-[9px] font-pmedium uppercase tracking-[0.1em] text-white/75">Departments in scope</p>
-            <p className="mt-0.5 text-[15px] font-pmedium text-white">{departments.length}</p>
-          </div>
         </section>
 
         {isLoading ? <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">{Array.from({ length: 8 }).map((_, index) => <div key={index} className="h-[112px] animate-pulse rounded-xl bg-slate-100" />)}</div> : (

@@ -286,7 +286,7 @@ export default function UnitManagementDashboard() {
             />
             <div
               aria-hidden="true"
-              className="absolute inset-y-0 right-0 w-full bg-gradient-to-br from-[#2563EB]/55 via-[#3B82F6]/35 to-[#60A5FA]/20 sm:w-[64%]"
+              className="absolute inset-y-0 right-0 w-full bg-gradient-to-br from-[#2563EB]/45 via-[#3B82F6]/25 to-[#60A5FA]/15 sm:w-[64%]"
               style={{
                 WebkitMaskImage:
                   "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
@@ -323,14 +323,6 @@ export default function UnitManagementDashboard() {
                   </span>
                 ))}
               </div>
-            </div>
-            <div className="absolute right-6 top-5 z-10 rounded-lg border border-white/25 bg-white/15 px-3 py-2 backdrop-blur-sm">
-              <p className="text-[9px] font-pmedium uppercase tracking-[0.1em] text-white/75">
-                Managed units
-              </p>
-              <p className="mt-0.5 text-[15px] font-pmedium text-white">
-                {activeUnits.length}
-              </p>
             </div>
           </div>
         </div>

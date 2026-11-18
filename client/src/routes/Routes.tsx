@@ -73,12 +73,15 @@ import CompanyManagementWorkspaceDashboard from "../pages/HR/CompanyManagementWo
 import HRDocumentsPage from "../pages/HR/HRDocumentsPage";
 import HRDocumentsWorkspaceDashboard from "../pages/HR/HRDocumentsWorkspaceDashboard";
 import HRAttendanceReviewPage from "../pages/HR/HRAttendanceReviewPage";
+import HRAttendanceReviewWorkspaceDashboard from "../pages/HR/HRAttendanceReviewWorkspaceDashboard";
 import HREmployeeAttendanceDetailPage from "../pages/HR/HREmployeeAttendanceDetailPage";
 import HRLeaveRequestsProcessingPage from "../pages/HR/HRLeaveRequestsProcessingPage";
+import HRLeaveRequestsProcessingWorkspaceDashboard from "../pages/HR/HRLeaveRequestsProcessingWorkspaceDashboard";
 import HRRecruitmentPage from "../pages/HR/HRRecruitmentPage";
 import HRRecruitmentWorkspaceDashboard from "../pages/HR/HRRecruitmentWorkspaceDashboard";
 import HRPayrollPage from "../pages/HR/HRPayrollPage";
 import HRResignationManagementPage from "../pages/HR/HRResignationManagementPage";
+import HRResignationManagementWorkspaceDashboard from "../pages/HR/HRResignationManagementWorkspaceDashboard";
 import { ExpensesBudgetPage } from "../pages/Finance/ExpensesBudgetPage";
 import { FinanceBudgetReviewPage } from "../pages/Finance/FinanceBudgetReviewPage";
 import { FinanceMonthExpensesPage } from "../pages/Finance/FinanceMonthExpensesPage";
@@ -1988,7 +1991,15 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/hr-department/attendance-review",
-                element: <HRAttendanceReviewPage />,
+                element: <HRAttendanceReviewWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/hr-department/attendance-review/attendance-master",
+                element: <HRAttendanceReviewPage modulePage="attendance-master" />,
+              },
+              {
+                path: "department-accesses/hr-department/attendance-review/correction-requests",
+                element: <HRAttendanceReviewPage modulePage="correction-requests" />,
               },
               {
                 path: "department-accesses/hr-department/attendance-review/:userId",
@@ -1996,7 +2007,27 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/hr-department/leave-request-processing",
-                element: <HRLeaveRequestsProcessingPage />,
+                element: <HRLeaveRequestsProcessingWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/hr-department/leave-request-processing/requests",
+                element: <HRLeaveRequestsProcessingPage modulePage="requests" />,
+              },
+              {
+                path: "department-accesses/hr-department/leave-request-processing/current",
+                element: <HRLeaveRequestsProcessingPage modulePage="current" />,
+              },
+              {
+                path: "department-accesses/hr-department/leave-request-processing/master",
+                element: <HRLeaveRequestsProcessingPage modulePage="master" />,
+              },
+              {
+                path: "department-accesses/hr-department/leave-request-processing/quotas",
+                element: <HRLeaveRequestsProcessingPage modulePage="quotas" />,
+              },
+              {
+                path: "department-accesses/hr-department/leave-request-processing/holidays",
+                element: <HRLeaveRequestsProcessingPage modulePage="holidays" />,
               },
               {
                 path: "department-accesses/hr-department/recruitment",
@@ -2025,7 +2056,19 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/hr-department/resignation-management",
-                element: <HRResignationManagementPage />,
+                element: <HRResignationManagementWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/hr-department/resignation-management/requests",
+                element: <HRResignationManagementPage modulePage="requests" />,
+              },
+              {
+                path: "department-accesses/hr-department/resignation-management/notice",
+                element: <HRResignationManagementPage modulePage="notice" />,
+              },
+              {
+                path: "department-accesses/hr-department/resignation-management/history",
+                element: <HRResignationManagementPage modulePage="history" />,
               },
               {
                 path: "department-accesses/hr-department/exit-management",

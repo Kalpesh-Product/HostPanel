@@ -8,7 +8,6 @@ export function DashboardBanner({
   description,
   tags,
   image,
-  moduleCount = 1,
 }: {
   title: string;
   description: string;
@@ -24,6 +23,10 @@ export function DashboardBanner({
           alt=""
           aria-hidden="true"
           className="absolute inset-0 h-full w-full object-cover object-center"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-gradient-to-br from-[#2563EB]/45 via-[#3b82f6]/25 to-[#60a5fa]/15"
         />
         <div
           aria-hidden="true"
@@ -53,14 +56,6 @@ export function DashboardBanner({
               </span>
             ))}
           </div>
-        </div>
-        <div className="absolute right-6 top-5 z-10 rounded-lg border border-white/25 bg-white/15 px-3 py-2 backdrop-blur-sm">
-          <p className="text-[9px] font-pmedium uppercase tracking-[0.1em] text-slate-600">
-            Active modules
-          </p>
-          <p className="mt-0.5 text-[15px] font-pmedium text-slate-900">
-            {moduleCount}
-          </p>
         </div>
       </div>
     </div>

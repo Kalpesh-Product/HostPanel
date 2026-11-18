@@ -12,6 +12,7 @@ import {
   Users,
   UserSquare,
 } from "lucide-react";
+import ReactApexChart from "react-apexcharts";
 import DashboardModuleCard from "@/components/DashboardModuleCard";
 import DonutChart from "@/components/graphs/DonutChart";
 import PageFrame from "@/components/Pages/PageFrame";
@@ -36,6 +37,11 @@ const label = (value: unknown, fallback = "Not assigned") => {
 
 const employeeStatus = (employee: EmployeeRecord) =>
   String(employee.statusKey || employee.status || "pending").toLowerCase();
+
+const dateValue = (value: unknown) => {
+  const date = new Date(String(value || ""));
+  return Number.isNaN(date.getTime()) ? null : date;
+};
 
 export default function CompanyManagementWorkspaceDashboard() {
   const { plan } = useDashboardAccess();
@@ -140,6 +146,101 @@ export default function CompanyManagementWorkspaceDashboard() {
     return [...groups.entries()].sort((left, right) => right[1] - left[1]);
   }, [employees]);
 
+  const monthlyGrowth = useMemo(() => {
+    const now = new Date();
+    const months = Array.from({ length: 6 }, (_, index) => {
+      const date = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
+      return {
+        key: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`,
+        label: date.toLocaleDateString("en-IN", { month: "short", year: "2-digit" }),
+        joined: 0,
+      };
+    });
+    const byMonth = new Map(months.map((month) => [month.key, month]));
+    employees.forEach((employee) => {
+      const date = dateValue(employee.joiningDate || employee.createdAt);
+      if (!date) return;
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      const month = byMonth.get(key);
+      if (month) month.joined += 1;
+    });
+    return months;
+  }, [employees]);
+
+  const departmentCoverage = useMemo(() => {
+    const groups = new Map<string, { total: number; active: number }>();
+    employees.forEach((employee) => {
+      const names = Array.isArray(employee.departments)
+        ? employee.departments.map((department: any) => department?.name || department).filter(Boolean)
+        : [employee.department].filter(Boolean);
+      (names.length ? names : ["Not assigned"]).forEach((name) => {
+        const key = label(name);
+        const values = groups.get(key) || { total: 0, active: 0 };
+        values.total += 1;
+        if (employeeStatus(employee) === "active") values.active += 1;
+        groups.set(key, values);
+      });
+    });
+    return [...groups.entries()]
+      .map(([department, values]) => ({
+        department,
+        coverage: values.total ? Math.round((values.active / values.total) * 100) : 0,
+      }))
+      .sort((left, right) => right.coverage - left.coverage)
+      .slice(0, 8);
+  }, [employees]);
+
+  const attentionEmployees = useMemo(
+    () =>
+      employees
+        .filter((employee) => {
+          const status = employeeStatus(employee);
+          if (["inactive", "terminated", "disabled"].includes(status)) return false;
+          const hasDocuments = Array.isArray(employee.documents) && employee.documents.length > 0;
+          return ["pending", "invite_sent", "probation"].includes(status) || !hasDocuments;
+        })
+        .sort((left, right) => {
+          const priority = (employee: EmployeeRecord) => {
+            const status = employeeStatus(employee);
+            if (["pending", "invite_sent"].includes(status)) return 0;
+            if (status === "probation") return 1;
+            return 2;
+          };
+          return priority(left) - priority(right);
+        })
+        .slice(0, 6),
+    [employees],
+  );
+
+  const growthChartOptions = useMemo(
+    () => ({
+      chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: "Poppins, sans-serif" },
+      colors: ["#2563EB"],
+      dataLabels: { enabled: false },
+      stroke: { curve: "smooth" as const, width: 3 },
+      fill: { type: "gradient", gradient: { opacityFrom: 0.28, opacityTo: 0.04, stops: [0, 95, 100] } },
+      grid: { borderColor: "#E2E8F0", strokeDashArray: 4 },
+      xaxis: { categories: monthlyGrowth.map((month) => month.label), labels: { style: { colors: "#64748B", fontSize: "10px" } }, axisBorder: { show: false }, axisTicks: { show: false } },
+      yaxis: { min: 0, forceNiceScale: true, labels: { style: { colors: "#64748B", fontSize: "10px" }, formatter: (value: number) => String(Math.round(value)) } },
+      tooltip: { y: { formatter: (value: number) => `${value} employees joined` } },
+    }),
+    [monthlyGrowth],
+  );
+
+  const coverageChartOptions = useMemo(
+    () => ({
+      chart: { toolbar: { show: false }, fontFamily: "Poppins, sans-serif" },
+      colors: ["#0D9488"],
+      plotOptions: { bar: { horizontal: true, borderRadius: 5, barHeight: "48%" } },
+      dataLabels: { enabled: true, formatter: (value: number) => `${Math.round(value)}%`, style: { colors: ["#FFFFFF"], fontSize: "10px", fontWeight: 500 } },
+      grid: { borderColor: "#E2E8F0", strokeDashArray: 4 },
+      xaxis: { categories: departmentCoverage.map((row) => row.department), min: 0, max: 100, tickAmount: 4, labels: { style: { colors: "#64748B", fontSize: "10px" }, formatter: (value: string) => `${Math.round(Number(value))}%` } },
+      yaxis: { labels: { maxWidth: 135, style: { colors: "#475569", fontSize: "10px" } } },
+      tooltip: { y: { formatter: (value: number) => `${Math.round(value)}% active` } },
+    }),
+    [departmentCoverage],
+  );
+
   const recentEmployees = useMemo(
     () =>
       [...employees]
@@ -180,7 +281,7 @@ export default function CompanyManagementWorkspaceDashboard() {
             <DashboardStatTile icon={<Users size={20} />} label="Total Employees" value={stats.total} sub="People in the company directory" tone="blue" />
             <DashboardStatTile icon={<CheckCircle2 size={20} />} label="Active" value={stats.active} sub="Employees currently active" tone="green" />
             <DashboardStatTile icon={<CircleDashed size={20} />} label="Pending / Invited" value={stats.pending} sub="Onboarding still in progress" tone="amber" />
-            <DashboardStatTile icon={<ShieldCheck size={20} />} label="Leadership" value={stats.managers} sub="Managers and workspace leaders" tone="violet" />
+            <DashboardStatTile icon={<ShieldCheck size={20} />} label="Leadership" value={stats.managers} sub="Managers and unit leaders" tone="violet" />
             <DashboardStatTile icon={<Building2 size={20} />} label="Departments" value={stats.departments} sub="Active company departments" tone="cyan" />
             <DashboardStatTile icon={<UserSquare size={20} />} label="Probation" value={stats.probation} sub="Employees in probation" tone="amber" />
             <DashboardStatTile icon={<UserMinus size={20} />} label="Inactive" value={stats.inactive} sub="Inactive or terminated records" tone="rose" />
@@ -242,6 +343,29 @@ export default function CompanyManagementWorkspaceDashboard() {
               </DashboardSection>
             </div>
 
+            <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <DashboardSection title="Six-month workforce growth" subtitle="Employees added to the company directory by joining month.">
+                <ReactApexChart type="area" height={310} options={growthChartOptions} series={[{ name: "Employees joined", data: monthlyGrowth.map((month) => month.joined) }]} />
+              </DashboardSection>
+              <DashboardSection title="Active coverage by department" subtitle="Share of department records currently marked active.">
+                {departmentCoverage.length ? <ReactApexChart type="bar" height={310} options={coverageChartOptions} series={[{ name: "Active coverage", data: departmentCoverage.map((row) => row.coverage) }]} /> : <div className="flex h-[310px] items-center justify-center text-[11px] text-slate-500">No department coverage data is available yet.</div>}
+              </DashboardSection>
+            </div>
+
+            <DashboardSection title="Onboarding attention" subtitle="Employee records still awaiting activation, probation completion, or document coverage." bodyClassName="p-0">
+              {attentionEmployees.length ? <div className="divide-y divide-slate-100">{attentionEmployees.map((employee, index) => {
+                const status = employeeStatus(employee);
+                const hasDocuments = Array.isArray(employee.documents) && employee.documents.length > 0;
+                const attention = ["pending", "invite_sent"].includes(status) ? "Activation pending" : status === "probation" ? "In probation" : "Documents missing";
+                return <div key={employee.id || employee._id || index} className="grid gap-3 px-5 py-4 transition-colors hover:bg-slate-50/70 sm:grid-cols-[minmax(0,1fr)_190px_150px] sm:items-center">
+                  <div className="min-w-0"><p className="truncate text-[11px] font-pmedium text-slate-900">{employee.fullName || employee.name || "Employee"}</p><p className="mt-1 truncate text-[9px] text-slate-500">{employee.department || "Not assigned"} · {label(employee.jobTitle || employee.workspaceRole || employee.role, "Employee")}</p></div>
+                  <p className="text-[10px] text-slate-600">{hasDocuments ? `${employee.documents.length} files on record` : "No files on record"}</p>
+                  <div className="sm:text-right"><span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-[9px] font-pmedium uppercase text-amber-700">{attention}</span></div>
+                </div>;
+              })}</div> : <div className="flex min-h-[145px] items-center justify-center px-5 py-10 text-[11px] text-slate-500">No workforce records currently require onboarding attention.</div>}
+            </DashboardSection>
+
+            <div className="mt-4">
             <DashboardSection title="Recent workforce records" subtitle="Latest employees added to the company directory." bodyClassName="max-h-[420px] overflow-auto p-0">
               <table className="w-full min-w-[760px] table-fixed border-collapse text-left">
                 <thead className="sticky top-0 z-10 bg-slate-50 text-[9px] uppercase tracking-[0.08em] text-slate-500"><tr><th className="w-[30%] px-5 py-3 font-pmedium">Employee</th><th className="w-[20%] px-3 py-3 font-pmedium">Department</th><th className="w-[20%] px-3 py-3 font-pmedium">Role</th><th className="w-[15%] px-3 py-3 font-pmedium">Work Mode</th><th className="w-[15%] px-3 py-3 text-center font-pmedium">Status</th></tr></thead>
@@ -258,6 +382,7 @@ export default function CompanyManagementWorkspaceDashboard() {
                 </tbody>
               </table>
             </DashboardSection>
+            </div>
           </>
         ) : null}
       </PageFrame>

@@ -510,7 +510,7 @@ export default function FinanceWorkspaceDashboardPage() {
             />
             <div
               aria-hidden="true"
-              className="absolute inset-y-0 right-0 w-full overflow-hidden bg-gradient-to-br from-[#2563EB]/55 via-[#3b82f6]/35 to-[#60a5fa]/20 sm:w-[64%]"
+              className="absolute inset-y-0 right-0 w-full overflow-hidden bg-gradient-to-br from-[#2563EB]/45 via-[#3b82f6]/25 to-[#60a5fa]/15 sm:w-[64%]"
               style={{
                 WebkitMaskImage:
                   "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
@@ -551,14 +551,6 @@ export default function FinanceWorkspaceDashboardPage() {
                   ),
                 )}
               </div>
-            </div>
-            <div className="absolute right-6 top-5 z-10 rounded-lg border border-white/25 bg-white/15 px-3 py-2 backdrop-blur-sm">
-              <p className="text-[9px] font-pmedium uppercase tracking-[0.1em] text-white/75">
-                Active modules
-              </p>
-              <p className="mt-0.5 text-[15px] font-pmedium text-white">
-                {modules.length}
-              </p>
             </div>
           </div>
         </div>

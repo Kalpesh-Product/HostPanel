@@ -2863,7 +2863,7 @@ export default function HREmployeeManagementPage({
                       shifts={attendanceShifts}
                       error={addFormErrors.shiftId}
                       onChange={(value) => handleAddFieldChange("shiftId", value)}
-                      onConfigureShifts={() => navigate("/department-accesses/hr-department/attendance-review?openAttendanceSettings=1")}
+                      onConfigureShifts={() => navigate("/department-accesses/hr-department/attendance-review/attendance-master?openAttendanceSettings=1")}
                     />
                   </div>
 
@@ -3729,7 +3729,7 @@ export default function HREmployeeManagementPage({
                     shifts={attendanceShifts}
                     error={editFormErrors.shiftId}
                     onChange={(value) => setEditForm((previous) => ({ ...previous, shiftId: value }))}
-                    onConfigureShifts={() => navigate("/department-accesses/hr-department/attendance-review?openAttendanceSettings=1")}
+                  onConfigureShifts={() => navigate("/department-accesses/hr-department/attendance-review/attendance-master?openAttendanceSettings=1")}
                   />
                 </div>
               </FormSection>
@@ -4188,7 +4188,7 @@ export default function HREmployeeManagementPage({
                       shifts={attendanceShifts}
                       error={addFormErrors.shiftId}
                       onChange={(value) => handleAddFieldChange("shiftId", value)}
-                      onConfigureShifts={() => navigate("/department-accesses/hr-department/attendance-review?openAttendanceSettings=1")}
+                      onConfigureShifts={() => navigate("/department-accesses/hr-department/attendance-review/attendance-master?openAttendanceSettings=1")}
                     />
                 </div>
               </FormSection>
