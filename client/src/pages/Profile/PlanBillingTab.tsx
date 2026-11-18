@@ -334,11 +334,19 @@ const PlanBillingTab = () => {
         </div>
       )} */}
       {isTrialing && planStatus !== "expiring_soon" && (
-        <div className="rounded-2xl bg-blue-50 border border-blue-200 px-4 py-3 text-[12px] text-blue-800">
+        <div
+          className={`rounded-2xl border px-4 py-3 text-[12px] ${
+            summary?.subscriptionStatus === "canceling"
+              ? "bg-amber-50 border-amber-200 text-amber-800"
+              : "bg-blue-50 border-blue-200 text-blue-800"
+          }`}
+        >
           You're on a free trial of the {planLabel}, active until <b>{formatDate(summary?.planExpiryDate)}</b>.
-          {summary?.hasBillingPortal
-            ? " Your card will be charged automatically when the trial ends — cancel anytime from Manage Subscription if you don't want to continue."
-            : " Renew now to continue on this plan after the trial ends."}
+          {summary?.subscriptionStatus === "canceling"
+            ? " Your subscription is set to cancel and won't be charged — after that date your workspace moves to the Basic plan. Changed your mind? You can resume anytime from Manage Subscription."
+            : summary?.hasBillingPortal
+              ? " Your card will be charged automatically when the trial ends — cancel anytime from Manage Subscription if you don't want to continue."
+              : " Renew now to continue on this plan after the trial ends."}
         </div>
       )}
       {planStatus === "expired_downgraded" && (

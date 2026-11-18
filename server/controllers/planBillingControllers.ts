@@ -175,6 +175,11 @@ export const getPlanBillingSummary = async (req, res, next) => {
         // startTrialCheckout flow has a Stripe customer — the billing
         // portal (manage card / cancel) only works for those.
         hasBillingPortal: Boolean(leadCompany?.stripeCustomerId),
+        // Stripe's real subscription lifecycle state ("trialing", "active",
+        // "past_due", "canceling", "canceled") — lets the trial banner say
+        // the right thing once a cancellation is scheduled instead of
+        // always claiming the card will auto-charge.
+        subscriptionStatus: leadCompany?.subscriptionStatus || "",
         // A staff-granted extra trial window for THIS company specifically
         // (Plan Pricing > trial companies, MasterPanel) — drives the
         // dashboard's BonusTrialOfferNotice banner. Only meaningful while
