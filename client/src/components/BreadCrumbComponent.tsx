@@ -2248,6 +2248,15 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/department-accesses/finance-department/expenses-budget/:section",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Finance Department", path: "/department-accesses/finance-department" },
+      { label: "Expenses & Budget", path: "/department-accesses/finance-department/expenses-budget" },
+      { label: "Manage" },
+    ],
+  },
+  {
     pattern:
       "/department-accesses/finance-department/expenses-budget/review/annual/:requestId",
     crumbs: [
@@ -2301,6 +2310,15 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/department-accesses/finance-department/billing-payments/:section",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Finance Department", path: "/department-accesses/finance-department" },
+      { label: "Billing & Payments", path: "/department-accesses/finance-department/billing-payments" },
+      { label: "Manage" },
+    ],
+  },
+  {
     pattern: "/department-accesses/finance-department/accounting",
     crumbs: [
       {
@@ -2312,6 +2330,15 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
         path: "/department-accesses/finance-department",
       },
       { label: "Accounting" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/finance-department/accounting/:section",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Finance Department", path: "/department-accesses/finance-department" },
+      { label: "Accounting", path: "/department-accesses/finance-department/accounting" },
+      { label: "Manage" },
     ],
   },
   {
@@ -2750,6 +2777,38 @@ const BreadCrumbComponent = () => {
       { label: SECTION_LABELS.addOns, path: "/module-sections/add-ons" },
       { label: breadcrumbs[breadcrumbs.length - 1].label },
     ];
+  }
+
+  const financeSectionLabels: Record<string, Record<string, string>> = {
+    "/department-accesses/finance-department/expenses-budget": {
+      estimated: "Projected Annual Budget",
+      extra: "Extra Budget Requests",
+      ledger: "Expense History & Invoices",
+    },
+    "/department-accesses/finance-department/billing-payments": {
+      tenant: "Tenant Security Deposits",
+      rent: "Tenant Rent",
+      virtualOffice: "Virtual Office",
+      workation: "Workation Revenue",
+      alternateRevenue: "Alternate Revenue",
+      bookings: "Meeting Room Bookings",
+      payroll: "Payroll",
+      extraCredits: "Extra Credit Requests",
+      history: "Transaction History",
+    },
+    "/department-accesses/finance-department/accounting": {
+      ledger: "General Ledger",
+      departments: "Department Review",
+      pnl: "Profit & Loss",
+    },
+  };
+  for (const [base, labels] of Object.entries(financeSectionLabels)) {
+    const sectionMatch = matchPath({ path: `${base}/:section`, end: true }, location.pathname);
+    const sectionLabel = sectionMatch?.params.section ? labels[sectionMatch.params.section] : undefined;
+    if (sectionLabel && breadcrumbs.length > 0) {
+      breadcrumbs = breadcrumbs.map((crumb, index) => index === breadcrumbs.length - 1 ? { ...crumb, label: sectionLabel } : crumb);
+      break;
+    }
   }
 
   const breadcrumbsToRender = breadcrumbs.map((crumb, index) => {

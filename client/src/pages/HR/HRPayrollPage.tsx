@@ -1308,7 +1308,7 @@ export default function HRPayrollPage() {
       const currentUser = getStoredUser();
       if (currentUser && canAccessFinanceDashboard(currentUser)) {
         navigate(
-          `/dashboard/department-accesses/finance-department/billing-payments?tab=payroll&month=${encodeURIComponent(selectedMonth)}&year=${encodeURIComponent(selectedYear)}`,
+          `/dashboard/department-accesses/finance-department/billing-payments/payroll?month=${encodeURIComponent(selectedMonth)}&year=${encodeURIComponent(selectedYear)}`,
           { replace: true },
         );
       } else if (currentUser) {

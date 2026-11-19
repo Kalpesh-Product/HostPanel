@@ -83,11 +83,14 @@ import HRPayrollPage from "../pages/HR/HRPayrollPage";
 import HRResignationManagementPage from "../pages/HR/HRResignationManagementPage";
 import HRResignationManagementWorkspaceDashboard from "../pages/HR/HRResignationManagementWorkspaceDashboard";
 import { ExpensesBudgetPage } from "../pages/Finance/ExpensesBudgetPage";
+import ExpensesBudgetWorkspaceDashboard from "../pages/Finance/ExpensesBudgetWorkspaceDashboard";
 import { FinanceBudgetReviewPage } from "../pages/Finance/FinanceBudgetReviewPage";
 import { FinanceMonthExpensesPage } from "../pages/Finance/FinanceMonthExpensesPage";
 import { FinanceDepartmentOverviewPage } from "../pages/Finance/FinanceDepartmentOverviewPage";
 import { BillingPaymentsPage } from "../pages/Finance/BillingPaymentsPage";
+import BillingPaymentsWorkspaceDashboard from "../pages/Finance/BillingPaymentsWorkspaceDashboard";
 import AccountingPage from "../pages/Finance/AccountingPage";
+import AccountingWorkspaceDashboard from "../pages/Finance/AccountingWorkspaceDashboard";
 import VendorTable from "../components/Pages/VendorTable";
 import AssetsHome from "../pages/Assets/AssetsHome";
 import ManageAssetsHome from "../pages/Assets/ManageAssetsHome";
@@ -2089,6 +2092,10 @@ export const routes = createBrowserRouter([
               // Department Access — Finance
               {
                 path: "department-accesses/finance-department/expenses-budget",
+                element: <ExpensesBudgetWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/finance-department/expenses-budget/:section",
                 element: <ExpensesBudgetPage />,
               },
               {
@@ -2101,10 +2108,18 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/finance-department/billing-payments",
+                element: <BillingPaymentsWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/finance-department/billing-payments/:section",
                 element: <BillingPaymentsPage />,
               },
               {
                 path: "department-accesses/finance-department/accounting",
+                element: <AccountingWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/finance-department/accounting/:section",
                 element: <AccountingPage />,
               },
               {
