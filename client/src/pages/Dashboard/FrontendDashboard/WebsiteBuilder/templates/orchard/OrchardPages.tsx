@@ -273,8 +273,8 @@ export const OrchardCareers: React.FC = () => {
           text={getCareersJobMeta(job)}
           image={t.galleryItems?.[2]}
         />
-        <section className="ol-shell ol-job">
-          <div>
+        <section className="ol-shell ol-job ol-job-apply">
+          <div className="ol-job-details">
             <RoleSection title="About this role" text={job.aboutTheJob} />
             <RoleSection
               title="Key responsibilities"
@@ -283,14 +283,16 @@ export const OrchardCareers: React.FC = () => {
             />
             <RoleSection title="Requirements" text={job.requirements} asList />
           </div>
-          <aside className="ol-tour-panel">
-            <OrchardTextLink onClick={t.closeCareersJob}>
-              {c("careers.back", "All roles")}
-            </OrchardTextLink>
-            <h2 className="mt-6">
-              {c("careers.apply.title", "Apply to join us")}
-            </h2>
-            <ApplyForm />
+          <aside className="ol-tour-panel ol-apply-panel">
+            <div className="ol-apply-panel-inner">
+              <OrchardTextLink onClick={t.closeCareersJob}>
+                {c("careers.back", "All roles")}
+              </OrchardTextLink>
+              <h2 className="mt-6">
+                {c("careers.apply.title", "Apply to join us")}
+              </h2>
+              <ApplyForm />
+            </div>
           </aside>
         </section>
       </>

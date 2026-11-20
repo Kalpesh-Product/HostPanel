@@ -232,9 +232,13 @@ ${WAYFARER_CSS}
   overflow: hidden;
   background: #d8d5cf;
 }
-.ol-hero-media {
+.ol-hero-frame {
   position: absolute;
   inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.ol-hero-media {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -276,6 +280,8 @@ ${WAYFARER_CSS}
   line-height: .94;
   letter-spacing: -0.055em;
 }
+/* The global .ol h1 rule is more specific than .ol-hero-title on its own. */
+.ol .ol-hero-title { color: #fff; }
 .ol-hero-copy {
   max-width: 520px;
   margin: 30px 0 0;
@@ -493,9 +499,13 @@ ${WAYFARER_CSS}
   overflow: hidden;
   background: #353b41;
 }
-.ol-banner img {
+.ol-banner-frame {
   position: absolute;
   inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.ol-banner img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -509,6 +519,8 @@ ${WAYFARER_CSS}
   font-weight: 500;
   line-height: .98;
 }
+/* Keep inverted-section headings white despite the global .ol h2 colour. */
+.ol .ol-banner-content h2 { color: #fff; }
 .ol-banner-content p { margin: 20px auto 0; max-width: 600px; color: rgba(255,255,255,.82); font-size: 17px; }
 
 /* ── spaces slider ────────────────────────────────────────── */
@@ -822,6 +834,14 @@ ${WAYFARER_CSS}
 
 .ol-job { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, .8fr); gap: clamp(28px, 5vw, 74px); padding-top: 34px; padding-bottom: 40px; }
 .ol-job h2 { margin: 0 0 24px; font-size: clamp(30px, 3.4vw, 46px); }
+.ol-job-apply { grid-template-columns: minmax(0, 1fr); justify-items: center; row-gap: 48px; }
+.ol-job-apply > div:first-child { width: 100%; max-width: 820px; margin-inline: auto; }
+.ol-apply-panel { width: 100%; max-width: 720px; margin-inline: auto; text-align: center; }
+.ol-apply-panel-inner { max-width: 620px; margin-inline: auto; }
+.ol-apply-panel .ol-textlink { margin-bottom: 16px; }
+.ol-apply-panel h2 { text-align: center; }
+.ol-apply-panel form { max-width: 620px; margin-inline: auto; text-align: left; }
+.ol-apply-panel form > div:last-child { display: flex; justify-content: center; }
 .ol-role-list { display: grid; gap: 12px; margin-top: 40px; }
 .ol-role-list button {
   display: grid;

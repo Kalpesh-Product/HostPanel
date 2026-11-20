@@ -118,15 +118,17 @@ export const OrchardHome: React.FC = () => {
   return (
     <>
       <section className="ol-hero">
-        <motion.img
-          src={hero}
-          alt=""
-          className="ol-hero-media"
-          initial={{ scale: 1.1 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1] }}
-        />
-        <div className="ol-hero-shade" />
+        <div className="ol-shell ol-hero-frame" aria-hidden="true">
+          <motion.img
+            src={hero}
+            alt=""
+            className="ol-hero-media"
+            initial={{ scale: 1.1 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1] }}
+          />
+          <div className="ol-hero-shade" />
+        </div>
         <div className="ol-shell ol-hero-content">
           <motion.p
             className="ol-hero-kicker"
@@ -335,8 +337,10 @@ export const OrchardHome: React.FC = () => {
       </section>
 
       <section className="ol-banner">
-        <img src={photo("home.banner.image", gallery[6] || hero)} alt="" loading="lazy" />
-        <div className="ol-banner-content">
+        <div className="ol-shell ol-banner-frame" aria-hidden="true">
+          <img src={photo("home.banner.image", gallery[6] || hero)} alt="" loading="lazy" />
+        </div>
+        <div className="ol-shell ol-banner-content">
           <OrchardEyebrowInverted>
             {c("home.banner.eyebrow", "Live well, stay awhile")}
           </OrchardEyebrowInverted>
