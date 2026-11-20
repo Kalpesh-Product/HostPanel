@@ -2530,6 +2530,10 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
       { label: "Resignation Request" },
     ],
   },
+  {
+    pattern: "/plan-billing",
+    crumbs: [{ label: "Plan & Billing" }],
+  },
 ];
 
 const toTitleCase = (value: string) => {

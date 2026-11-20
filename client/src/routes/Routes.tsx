@@ -1361,6 +1361,19 @@ export const routes = createBrowserRouter([
                 element: <Chat />,
               },
               {
+                // Standalone Plan & Billing page — same component that used to
+                // live only as a Profile tab, now reachable straight from the
+                // sidebar without the Profile tab bar.
+                path: "plan-billing",
+                element: (
+                  <div className="p-4">
+                    <CompanyProfileAccessGuard>
+                      <PlanBillingTab />
+                    </CompanyProfileAccessGuard>
+                  </div>
+                ),
+              },
+              {
                 path: "profile",
                 element: <ProfileLayout />,
                 children: [
@@ -1381,20 +1394,18 @@ export const routes = createBrowserRouter([
                     ),
                   },
                   {
+                    // Plan & Billing now lives on its own page. Keep the old
+                    // profile URL working for saved links / existing redirects.
                     path: "plan-billing",
-                    element: (
-                      <CompanyProfileAccessGuard>
-                        <PlanBillingTab />
-                      </CompanyProfileAccessGuard>
-                    ),
+                    element: <Navigate to="/plan-billing" replace />,
                   },
                   {
                     // Stripe's payment-link redirect target (see
                     // planPaymentControllers.js createAndSendPlanPaymentLink)
                     // — webhook processing may still be in flight, so just
-                    // land the host back on the tab that reflects it.
+                    // land the host back on the page that reflects it.
                     path: "plan-billing/payment-result",
-                    element: <Navigate to="/profile/plan-billing" replace />,
+                    element: <Navigate to="/plan-billing" replace />,
                   },
                   {
                     path: "change-password",

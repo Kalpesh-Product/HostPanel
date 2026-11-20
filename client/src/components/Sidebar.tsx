@@ -356,16 +356,14 @@ const generalData: NavNode[] = [
   { id: "profile", label: "Profile", icon: User, route: "/profile/my-profile" },
   { id: "logout", label: "Sign Out", icon: LogOut, isRed: true, route: "/sign-out" },
 ];
-// Billing deep-links straight to the Plan & Billing tab, same pattern
-// "Profile" already uses (it skips the cards landing page and goes
-// straight to My Profile) — one click instead of Profile -> card -> click.
-// Gated by the same canAccessCompanyProfile check the Plan & Billing card
-// itself uses, so it's not shown to someone who couldn't open it anyway.
+// Plan & Billing has its own standalone page (no Profile tab bar), using the
+// same PlanBillingTab component it did when it lived under Profile. Gated by
+// the same canAccessCompanyProfile check the tab itself uses.
 const BILLING_NAV_ITEM: NavNode = {
   id: "billing",
-  label: "Billing",
+  label: "Plan & Billing",
   icon: CreditCard,
-  route: "/profile/plan-billing",
+  route: "/plan-billing",
 };
 
 const SECTION_ABBR: Record<string, string> = {

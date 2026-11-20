@@ -62,12 +62,6 @@ export const PROFILE_TAB_ITEMS: ProfileTabItem[] = [
     route: "/profile/resignation-request",
     unlocked: false,
   },
-  {
-    id: "plan-billing",
-    label: "Plan & Billing",
-    route: "/profile/plan-billing",
-    unlocked: true,
-  },
 ];
 
 export const canAccessCompanyProfile = ({
