@@ -619,13 +619,7 @@ export default function CoworkingManagementPage() {
             />
             <div
               aria-hidden="true"
-              className="absolute inset-y-0 right-0 w-full overflow-hidden bg-gradient-to-br from-[#2563EB]/45 via-[#3b82f6]/25 to-[#60a5fa]/15 sm:w-[64%]"
-              style={{
-                WebkitMaskImage:
-                  "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
-                maskImage:
-                  "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
-              }}
+              className="absolute inset-0 overflow-hidden bg-gradient-to-br from-[#2563EB]/45 via-[#3b82f6]/25 to-[#60a5fa]/15"
             >
               <div className="absolute -right-10 -top-10 h-44 w-44 rounded-full bg-white/15 blur-3xl" />
             </div>

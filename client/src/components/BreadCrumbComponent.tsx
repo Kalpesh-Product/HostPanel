@@ -2534,6 +2534,10 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     pattern: "/plan-billing",
     crumbs: [{ label: "Plan & Billing" }],
   },
+  {
+    pattern: "/plan-billing/:section",
+    crumbs: [{ label: "Plan & Billing", path: "/plan-billing" }, { label: "Manage" }],
+  },
 ];
 
 const toTitleCase = (value: string) => {
@@ -2869,6 +2873,10 @@ const BreadCrumbComponent = () => {
       active: "Active Logs",
       "my-work": "My Work",
       history: "History",
+    },
+    "/plan-billing": {
+      modules: "Included Modules",
+      payments: "Payment History",
     },
   };
   for (const [base, labels] of Object.entries(moduleSectionLabels)) {

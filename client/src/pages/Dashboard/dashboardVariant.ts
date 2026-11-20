@@ -49,6 +49,17 @@ const DEPARTMENT_ROUTES: {
   { slug: "it", matches: (department) => departmentSlugMatches("it", department), canAccess: canAccessITDashboard },
 ];
 
+const PLAIN_EMPLOYEE_ROLES = new Set(["employee", "member", "staff", "user", "intern"]);
+
+/**
+ * True when the auth user holds a department-manager role (e.g. "tech_manager",
+ * "tech") rather than merely belonging to a department as an employee.
+ * Department dashboards are reserved for these roles.
+ */
+export function hasDepartmentManagerRole(user: unknown): boolean {
+  return DEPARTMENT_ROUTES.some((route) => route.canAccess(user));
+}
+
 /**
  * The synchronous half of dashboard-variant resolution: owner/super_admin
  * status and department routing are both read straight off the auth user
@@ -60,6 +71,11 @@ const DEPARTMENT_ROUTES: {
 export function resolveSyncDashboardVariant(user: unknown): "founder" | DeptSlug | null {
   const ownRoleBand = getOwnRoleBand(user);
   if (ownRoleBand === "owner" || ownRoleBand === "super_admin") return "founder";
+
+  // A plain employee always gets the personal employee dashboard, even when
+  // assigned to a department. Department dashboards stay with managers.
+  // Returning null hands control to DashboardIndex's async role-band fallback.
+  if (PLAIN_EMPLOYEE_ROLES.has(ownRoleBand)) return null;
 
   const departments = [
     (user as any)?.workspaceMembership?.department,

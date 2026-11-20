@@ -353,7 +353,7 @@ const DEFAULT_WORKSPACE_DEPARTMENT_NAMES = new Set([
   "it",
 ]);
 const generalData: NavNode[] = [
-  { id: "profile", label: "Profile", icon: User, route: "/profile/my-profile" },
+  { id: "profile", label: "Profile", icon: User, route: "/profile" },
   { id: "logout", label: "Sign Out", icon: LogOut, isRed: true, route: "/sign-out" },
 ];
 // Plan & Billing has its own standalone page (no Profile tab bar), using the
@@ -431,7 +431,7 @@ export const ROUTE_BY_ID: Record<string, string> = {
   "tenant-rent-payments": "/dashboard/tenant/rent-payments",
   "tenant-tickets": "/dashboard/tenant/tickets",
   "tenant-profile": "/profile/my-profile",
-  profile: "/profile/my-profile",
+  profile: "/profile",
   "employee-management": "/department-accesses/hr-department/company-management",
   "hr-documents": "/department-accesses/hr-department/documents",
   "attendance-review": "/department-accesses/hr-department/attendance-review",

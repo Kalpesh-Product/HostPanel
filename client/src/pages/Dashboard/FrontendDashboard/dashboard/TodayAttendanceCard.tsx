@@ -530,7 +530,7 @@ const TodayAttendanceCard = ({
       {isHero ? (
         <div
           data-tour="attendance-clock-card"
-          className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[1.45fr_0.9fr]"
+          className="grid grid-cols-1 items-stretch gap-5 xl:grid-cols-[1.45fr_0.9fr]"
         >
           <section className="overflow-hidden rounded-[1.75rem] border border-blue-100 bg-white shadow-[0_12px_34px_rgba(30,61,115,0.07)]">
             <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
@@ -664,7 +664,7 @@ const TodayAttendanceCard = ({
             )}
           </section>
 
-          <section className="overflow-hidden rounded-[1.75rem] border border-blue-100 bg-white shadow-[0_12px_34px_rgba(30,61,115,0.07)]">
+          <section className="flex flex-col overflow-hidden rounded-[1.75rem] border border-blue-100 bg-white shadow-[0_12px_34px_rgba(30,61,115,0.07)]">
             <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-[#2563EB]">
                 <List size={18} />
@@ -751,6 +751,10 @@ const TodayAttendanceCard = ({
                 </div>
               )}
             </div>
+            {/* Absorbs whatever extra height the stretched grid cell gives this
+                section, as blank space below the fixed-size timeline box,
+                instead of resizing the box itself. */}
+            <div className="flex-1" />
           </section>
         </div>
       ) : (

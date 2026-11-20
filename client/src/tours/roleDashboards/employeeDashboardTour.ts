@@ -3,7 +3,7 @@ import type { BasicPageTour } from "../basicPageTours";
 export const employeeDashboardTour: BasicPageTour = {
   id: "employee-dashboard",
   version: 1,
-  title: "My dashboard",
+  title: "Dashboard",
   description: "Review your personal work queue — tasks, tickets, leave, and assets — from one overview.",
   steps: [
     { selector: '[data-tour="sidebar"]', title: "Your workspace navigation", description: "Use the sidebar to move between the modules available to you. Other page tours will focus only on their own functionality." },

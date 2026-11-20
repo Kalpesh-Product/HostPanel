@@ -235,10 +235,12 @@ import PolicyUpload from "../components/Pages/PolicyUpload";
 import AccessGrant from "../pages/Profile/AccessGrant";
 import AccessGrantsDashboard from "../pages/Profile/AccessGrantsDashboard";
 import ProfileLayout from "../pages/Profile/ProfileLayout";
+import ProfileDashboard from "../pages/Profile/ProfileDashboard";
 import UserDetails from "../pages/Profile/UserDetails";
 import CompanyProfile from "../pages/Profile/CompanyProfile";
 import CompanyProfileAccessGuard from "../pages/Profile/CompanyProfileAccessGuard";
 import PlanBillingTab from "../pages/Profile/PlanBillingTab";
+import PlanBillingWorkspaceDashboard from "../pages/Profile/PlanBillingWorkspaceDashboard";
 import ChangePassword from "../pages/Profile/ChangePassword";
 import { AssignedAssetsTab } from "../pages/Profile/AssignedAssetsTab";
 import { PayslipsTab } from "../pages/Profile/PayslipsTab";
@@ -1361,14 +1363,31 @@ export const routes = createBrowserRouter([
                 element: <Chat />,
               },
               {
-                // Standalone Plan & Billing page — same component that used to
-                // live only as a Profile tab, now reachable straight from the
-                // sidebar without the Profile tab bar.
+                // Standalone Plan & Billing dashboard — reachable straight
+                // from the sidebar without the Profile tab bar.
                 path: "plan-billing",
+                element: (
+                  <CompanyProfileAccessGuard>
+                    <PlanBillingWorkspaceDashboard />
+                  </CompanyProfileAccessGuard>
+                ),
+              },
+              {
+                path: "plan-billing/modules",
                 element: (
                   <div className="p-4">
                     <CompanyProfileAccessGuard>
-                      <PlanBillingTab />
+                      <PlanBillingTab modulePage="modules" />
+                    </CompanyProfileAccessGuard>
+                  </div>
+                ),
+              },
+              {
+                path: "plan-billing/payments",
+                element: (
+                  <div className="p-4">
+                    <CompanyProfileAccessGuard>
+                      <PlanBillingTab modulePage="payments" />
                     </CompanyProfileAccessGuard>
                   </div>
                 ),
@@ -1379,7 +1398,7 @@ export const routes = createBrowserRouter([
                 children: [
                   {
                     index: true,
-                    element: <ModuleCardsLanding section="profile" />,
+                    element: <ProfileDashboard />,
                   },
                   {
                     path: "my-profile",
