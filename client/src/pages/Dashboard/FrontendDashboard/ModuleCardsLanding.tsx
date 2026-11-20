@@ -30,6 +30,7 @@ import {
   NotebookText,
   Package,
   Receipt,
+  ReceiptText,
   LogOut,
   ScanSearch,
   Settings,
@@ -37,6 +38,8 @@ import {
   ShoppingCart,
   Tag,
   Ticket,
+  UtensilsCrossed,
+  Home,
   X,
   UserCog,
   UserMinus,
@@ -50,7 +53,7 @@ import {
 import type { ElementType, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import Card from "../../../components/Card";
+import DashboardModuleCard from "../../../components/DashboardModuleCard";
 import PageFrame from "../../../components/Pages/PageFrame";
 import PrimaryButton from "../../../components/PrimaryButton";
 import StartTrialConfirmModal from "../../../components/StartTrialConfirmModal";
@@ -231,7 +234,7 @@ export const DEFAULT_SECTION_ROUTES: Record<string, string> = {
   "exit-management": "/department-accesses/hr-department/resignation-management",
   "tenant-companies-admin": "/department-accesses/administration-department/tenant-companies",
   bookings: "/department-accesses/administration-department/bookings",
-  "visitors-management": "/visitors/visitor-management",
+  "visitors-management": "/visitors/dashboard",
   "resource-management": "/department-accesses/administration-department/resource-management",
   "house-keeping": "/department-accesses/administration-department/house-keeping",
   "printout-management": "/department-accesses/administration-department/printouts",
@@ -318,6 +321,14 @@ export const ICON_BY_ID: Record<string, ElementType> = {
   "amc-maintenance-scheduler": CalendarClock,
   "tech-website-builder": Globe,
   "it-repair-logs": FileSearch,
+  "co-working-management": BriefcaseBusiness,
+  "meeting-room-management": Users,
+  "cafe-management": UtensilsCrossed,
+  "hostel-management": Bed,
+  "co-living-management": Home,
+  "cafe-orders": ReceiptText,
+  "hostel-booking": Bed,
+  "room-booking": Home,
 };
 
 const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
@@ -354,7 +365,7 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
       { id: "website-builder", label: "Website Builder", route: "/key-apps/website-builder", implemented: true, unlockedInWorkspace: true },
       { id: "wono-nomad", label: "Nomad Listings", route: "/key-apps/wono-nomad", implemented: true, unlockedInWorkspace: true },
       { id: "website-leads", label: "All Leads", route: "/key-apps/all-leads", implemented: true, unlockedInWorkspace: true },
-      { id: "visitor-management", label: "Visitor Management", route: "/visitors/visitor-management", implemented: true, unlockedInWorkspace: true },
+      { id: "visitor-management", label: "Visitor Management", route: "/visitors/dashboard", implemented: true, unlockedInWorkspace: true },
     ],
   },
   "profile": {
@@ -424,35 +435,75 @@ const readWorkspaceSetup = (): WorkspaceSetupState => {
   }
 };
 
-const LockedCard = ({
+// Single accent color for every module tile — DashboardModuleCard's own
+// default blue, matching the other dashboards' module-card grids.
+const MODULE_CARD_COLOR = "#2563EB";
+
+// Locked variant styled like DashboardModuleCard so the grid doesn't mix two
+// different card families depending on access state.
+const LockedDashboardModuleCard = ({
   title,
   icon,
+  color,
   helperText,
   onClick,
 }: {
-  title: string;
+  title: ReactNode;
   icon?: ReactNode;
+  color: string;
   helperText?: string;
   onClick?: () => void;
 }) => (
   <button
     type="button"
     onClick={onClick}
-    className="relative flex h-60 w-full flex-col items-center justify-center rounded-2xl bg-white p-6 text-center shadow-md transition-all hover:shadow-lg"
+    className="group relative flex min-h-[154px] min-w-0 cursor-not-allowed flex-col items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white px-4 py-5 text-center opacity-80 shadow-[0_2px_8px_rgba(15,23,42,0.06)]"
   >
-    {icon ? (
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-3xl">
-        {icon}
-      </div>
+    <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 opacity-80" style={{ backgroundColor: color }} />
+    <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[9px] font-pmedium text-amber-700">
+      <Lock size={11} />
+      Locked
+    </span>
+    <span
+      className="mb-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+      style={{ backgroundColor: `${color}12`, color }}
+    >
+      {icon}
+    </span>
+    <span className="max-w-full text-[13px] font-pmedium leading-[1.35] text-slate-900 [overflow-wrap:anywhere]">
+      {title}
+    </span>
+    {helperText ? (
+      <span className="mt-1.5 line-clamp-2 max-w-[190px] text-[9px] font-pmedium leading-4 text-slate-400">
+        {helperText}
+      </span>
     ) : null}
-    <h3 className="text-base font-bold text-gray-700">{title}</h3>
-    <div className="mt-3 flex items-center gap-2 text-sm font-semibold text-[#1E3D73]">
-      <Lock size={14} />
-      <span>Locked</span>
-    </div>
-    {helperText ? <p className="mt-3 text-xs text-slate-500">{helperText}</p> : null}
-    <div className="pointer-events-none absolute inset-0 rounded-2xl bg-white/45" />
   </button>
+);
+
+// Static (enabled but non-navigable, e.g. no mapped route yet) variant,
+// same visual family minus the hover-lift/arrow affordance.
+const StaticDashboardModuleCard = ({
+  title,
+  icon,
+  color,
+}: {
+  title: ReactNode;
+  icon?: ReactNode;
+  color: string;
+}) => (
+  <div className="relative flex min-h-[154px] min-w-0 flex-col items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white px-4 py-5 text-center shadow-[0_2px_8px_rgba(15,23,42,0.06)]">
+    <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1 opacity-80" style={{ backgroundColor: color }} />
+    <span
+      className="mb-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+      style={{ backgroundColor: `${color}12`, color }}
+    >
+      {icon}
+    </span>
+    <span className="max-w-full text-[13px] font-pmedium leading-[1.35] text-slate-900 [overflow-wrap:anywhere]">
+      {title}
+    </span>
+  </div>
 );
 
 const CompactAddOnCard = ({
@@ -1280,6 +1331,11 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
 
   const selectedDepartmentItem = useMemo(() => {
     if (!departmentId || sectionId !== "department-accesses") return null;
+    const sectionItems = Array.isArray(sectionData?.items) ? sectionData.items : [];
+    const mappedDepartment = sectionItems.find(
+      (item) => String(item?.id || "").trim() === departmentId,
+    );
+    if (mappedDepartment) return mappedDepartment;
     const normalizedDynamicId = departmentId.startsWith("custom-department-")
       ? departmentId.slice("custom-department-".length)
       : departmentId;
@@ -1299,11 +1355,6 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
         })),
       };
     }
-    const sectionItems = Array.isArray(sectionData?.items) ? sectionData.items : [];
-    const mappedDepartment = sectionItems.find(
-      (item) => String(item?.id || "").trim() === departmentId,
-    );
-    if (mappedDepartment) return mappedDepartment;
     // The org-overview fetch that resolves custom department names hasn't
     // finished yet. If the click that got us here already knew the name
     // (sidebar, another card, a breadcrumb link), use it immediately instead
@@ -1910,29 +1961,25 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
             </div>
           )
         ) : (
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {cards.map((card) => (
-              <div key={card.id}>
+              <div key={card.id} className="grid">
                 {card.isEnabled && card.route ? (
-                  <Card
-                    title={card.title}
+                  <DashboardModuleCard
                     icon={card.icon}
+                    title={card.title}
                     route={card.route}
-                    fullHeight
+                    description={card.helperText}
+                    color={MODULE_CARD_COLOR}
                     state={card.state || { fromSection: sectionId }}
                   />
                 ) : card.isEnabled ? (
-                  <Card
-                    title={card.title}
-                    icon={card.icon}
-                    route="#"
-                    fullHeight
-                    interactive={Boolean(card.isInteractive)}
-                  />
+                  <StaticDashboardModuleCard title={card.title} icon={card.icon} color={MODULE_CARD_COLOR} />
                 ) : (
-                  <LockedCard
+                  <LockedDashboardModuleCard
                     title={card.title}
                     icon={card.icon}
+                    color={MODULE_CARD_COLOR}
                     helperText={card.helperText}
                     onClick={
                       card.upgradeLocked && upgradePlanCards.length > 0

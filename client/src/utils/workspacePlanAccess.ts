@@ -40,7 +40,6 @@ const PROFESSIONAL_EXTRA_IDS = [
   "org_departments_assign_acting_manager",
   "org_departments_remove_acting_manager",
   "tickets",
-  "meeting-room-system",
   "printouts",
   // "printout-management" (Administration Department admin console) is a
   // separate id from "printouts" (common self-service module) so master
@@ -48,18 +47,14 @@ const PROFESSIONAL_EXTRA_IDS = [
   "printout-management",
   "calendar",
   "workspace-settings",
-  // Administration Department is a Professional+ default — see the matching
-  // note in server/config/workspaceModuleCatalog.ts.
-  "tenant-companies-admin",
-  "bookings",
+  // Administration Department is a Professional+ default. Modules tied to a
+  // business vertical (bookings, room/cafe/hostel operations, pricing and
+  // architecture) arrive through the workspace access map instead of being
+  // treated as Professional defaults here.
   "visitors-management",
-  "resource-management",
   "house-keeping",
   "leads-management",
   "tenant-companies-sales",
-  "virtual-office-sales",
-  "resource-pricing",
-  "sales-architecture",
 ] as const;
 
 const WORKSPACE_MANAGEMENT_ID = "workspace-management";
@@ -67,7 +62,10 @@ const WORKSPACE_MANAGEMENT_ID = "workspace-management";
 // otherwise enable "workspace-management" once workspaceCount >= 1. Kept in
 // sync with the BASIC_PLAN_HARD_LOCK_IDS duplicates in ModuleCardsLanding.tsx
 // and AddModulesPage.tsx.
-const BASIC_LOCKED_MODULE_IDS = ["workspace-settings", "workspace-management"] as const;
+const BASIC_LOCKED_MODULE_IDS = [
+  "workspace-settings",
+  "workspace-management",
+] as const;
 
 export const getWorkspaceCount = (value: unknown): number => {
   const parsed = Number(value);
@@ -100,9 +98,14 @@ export const getEnabledModuleIdsForPlan = (
   return [...enabled];
 };
 
-export const isModuleLockedForPlan = (plan: PlanType, moduleId: string): boolean => {
+export const isModuleLockedForPlan = (
+  plan: PlanType,
+  moduleId: string,
+): boolean => {
   if (plan !== "basic") return false;
-  return BASIC_LOCKED_MODULE_IDS.includes(moduleId as (typeof BASIC_LOCKED_MODULE_IDS)[number]);
+  return BASIC_LOCKED_MODULE_IDS.includes(
+    moduleId as (typeof BASIC_LOCKED_MODULE_IDS)[number],
+  );
 };
 
 // PDF / Excel report exports are a Custom-plan capability only. On pages that
@@ -115,14 +118,20 @@ export const canExportReports = (plan: PlanType): boolean => plan === "custom";
 // in (auth context user, storedUser from localStorage, organization overview payload).
 export const getWorkspacePlan = (user: unknown): PlanType => {
   const raw = String(
-    (user as { workspace?: { selectedPlan?: string }; selectedPlan?: string } | null | undefined)
-      ?.workspace?.selectedPlan ||
+    (
+      user as
+        | { workspace?: { selectedPlan?: string }; selectedPlan?: string }
+        | null
+        | undefined
+    )?.workspace?.selectedPlan ||
       (user as { selectedPlan?: string } | null | undefined)?.selectedPlan ||
       "basic",
   )
     .trim()
     .toLowerCase();
-  return raw === "professional" || raw === "custom" ? (raw as PlanType) : "basic";
+  return raw === "professional" || raw === "custom"
+    ? (raw as PlanType)
+    : "basic";
 };
 
 // Real department catalog keys/names (case-insensitive) allowed per plan on the
@@ -143,21 +152,35 @@ const DEFAULT_DEPARTMENT_NAMES = new Set([
   "it",
 ]);
 
-const PROFESSIONAL_DEPARTMENT_NAMES = new Set(["sales", "administration", "technology"]);
+const PROFESSIONAL_DEPARTMENT_NAMES = new Set([
+  "sales",
+  "administration",
+  "technology",
+]);
 
-export const getPlanAllowedDepartmentNames = (plan: PlanType): Set<string> | null => {
+export const getPlanAllowedDepartmentNames = (
+  plan: PlanType,
+): Set<string> | null => {
   if (plan === "basic") return new Set();
   if (plan === "professional") return PROFESSIONAL_DEPARTMENT_NAMES;
   return null; // custom / unrestricted
 };
 
-export const isDepartmentAllowedForPlan = (plan: PlanType, departmentName: unknown = ""): boolean => {
-  const normalizedName = String(departmentName || "").trim().toLowerCase();
+export const isDepartmentAllowedForPlan = (
+  plan: PlanType,
+  departmentName: unknown = "",
+): boolean => {
+  const normalizedName = String(departmentName || "")
+    .trim()
+    .toLowerCase();
   const allowed = getPlanAllowedDepartmentNames(plan);
   if (plan !== "custom" && !normalizedName) return false;
   if (allowed === null) return true;
   if (plan === "professional") {
-    return allowed.has(normalizedName) || !DEFAULT_DEPARTMENT_NAMES.has(normalizedName);
+    return (
+      allowed.has(normalizedName) ||
+      !DEFAULT_DEPARTMENT_NAMES.has(normalizedName)
+    );
   }
   return allowed.has(normalizedName);
 };

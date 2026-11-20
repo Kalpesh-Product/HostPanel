@@ -154,6 +154,8 @@ export const getProfessionalPlanPrice = async (req, res, next) => {
     return res.status(200).json({
       professionalPlanPriceUsd: data?.professionalPlanPriceUsd ?? null,
       professionalAnnualPlanPriceUsd: data?.professionalAnnualPlanPriceUsd ?? null,
+      basicPlanPriceUsd: data?.basicPlanPriceUsd ?? null,
+      basicPlanAnnualPriceUsd: data?.basicPlanAnnualPriceUsd ?? null,
       freeTrialEnabled: Boolean(data?.freeTrialEnabled),
       freeTrialDurationDays: data?.freeTrialDurationDays ?? null,
     });
@@ -161,6 +163,8 @@ export const getProfessionalPlanPrice = async (req, res, next) => {
     return res.status(200).json({
       professionalPlanPriceUsd: null,
       professionalAnnualPlanPriceUsd: null,
+      basicPlanPriceUsd: null,
+      basicPlanAnnualPriceUsd: null,
       freeTrialEnabled: false,
       freeTrialDurationDays: null,
     });

@@ -1,4 +1,10 @@
-import { createBrowserRouter, Navigate, Outlet, useLocation, useParams } from "react-router-dom";
+import {
+  createBrowserRouter,
+  Navigate,
+  Outlet,
+  useLocation,
+  useParams,
+} from "react-router-dom";
 import { getStoredUser } from "../lib/auth-session";
 import MainLayout from "../layouts/MainLayout";
 import AuthLayout from "../layouts/AuthLayout";
@@ -7,11 +13,14 @@ import PersistLogin from "../layouts/PersistLogin";
 
 // Import main pages
 import { ReportsPage } from "../pages/Reports";
+import ReportsWorkspaceDashboard from "../pages/Reports/ReportsWorkspaceDashboard";
 import TeamManagementPage from "../pages/TeamManagement/TeamManagementPage";
+import TeamManagementWorkspaceDashboard from "../pages/TeamManagement/TeamManagementWorkspaceDashboard";
 import TeamManagementTab from "../pages/TeamManagement/TeamManagementTab";
 import DepartmentSopTab from "../pages/TeamManagement/DepartmentSopTab";
 import DepartmentPolicyTab from "../pages/TeamManagement/DepartmentPolicyTab";
 import { CalendarPage } from "../pages/Calendar/CalendarPage";
+import CalendarWorkspaceDashboard from "../pages/Calendar/CalendarWorkspaceDashboard";
 import Access from "../pages/Access/Access";
 import AccessProfile from "../pages/Access/AccessProfile";
 import Chat from "../pages/Chat";
@@ -22,8 +31,10 @@ import DashboardLayout from "../pages/Dashboard/DashboardLayout";
 import DashboardIndex from "../pages/Dashboard/DashboardIndex";
 // import Attendance from "../pages/Dashboard/Attendance/Attendance"; // OLD - moved to extra-common-modules
 import { AttendancePage } from "../pages/Attendance/AttendancePage";
+import AttendanceDashboard from "../pages/Attendance/AttendanceDashboard";
 import FrontendDashboard from "../pages/Dashboard/FrontendDashboard/FrontendDashboard";
 import { MeetingRoomsPage } from "../pages/Meetings/MeetingRoomsPage";
+import MeetingRoomBookingDashboard from "../pages/Meetings/MeetingRoomBookingDashboard";
 import FrontendLayout from "../pages/Dashboard/FrontendDashboard/FrontendLayout";
 import FrontendData from "../pages/Dashboard/FrontendDashboard/Data/FrontendData";
 import FrontendLeads from "../pages/Dashboard/FrontendDashboard/Data/FrontendLeads";
@@ -58,23 +69,33 @@ import MyTaskReports from "../pages/Tasks/TaskReports/MyTaskReports";
 import AssignedTaskReports from "../pages/Tasks/TaskReports/AssignedTaskReports";
 import DepartmentTaskReports from "../pages/Tasks/TaskReports/DepartmentTaskReports";
 import HREmployeeManagementPage from "../pages/HR/HREmployeeManagementPage";
+import CompanyManagementWorkspaceDashboard from "../pages/HR/CompanyManagementWorkspaceDashboard";
 import HRDocumentsPage from "../pages/HR/HRDocumentsPage";
+import HRDocumentsWorkspaceDashboard from "../pages/HR/HRDocumentsWorkspaceDashboard";
 import HRAttendanceReviewPage from "../pages/HR/HRAttendanceReviewPage";
+import HRAttendanceReviewWorkspaceDashboard from "../pages/HR/HRAttendanceReviewWorkspaceDashboard";
 import HREmployeeAttendanceDetailPage from "../pages/HR/HREmployeeAttendanceDetailPage";
 import HRLeaveRequestsProcessingPage from "../pages/HR/HRLeaveRequestsProcessingPage";
+import HRLeaveRequestsProcessingWorkspaceDashboard from "../pages/HR/HRLeaveRequestsProcessingWorkspaceDashboard";
 import HRRecruitmentPage from "../pages/HR/HRRecruitmentPage";
+import HRRecruitmentWorkspaceDashboard from "../pages/HR/HRRecruitmentWorkspaceDashboard";
 import HRPayrollPage from "../pages/HR/HRPayrollPage";
 import HRResignationManagementPage from "../pages/HR/HRResignationManagementPage";
+import HRResignationManagementWorkspaceDashboard from "../pages/HR/HRResignationManagementWorkspaceDashboard";
 import { ExpensesBudgetPage } from "../pages/Finance/ExpensesBudgetPage";
+import ExpensesBudgetWorkspaceDashboard from "../pages/Finance/ExpensesBudgetWorkspaceDashboard";
 import { FinanceBudgetReviewPage } from "../pages/Finance/FinanceBudgetReviewPage";
 import { FinanceMonthExpensesPage } from "../pages/Finance/FinanceMonthExpensesPage";
 import { FinanceDepartmentOverviewPage } from "../pages/Finance/FinanceDepartmentOverviewPage";
 import { BillingPaymentsPage } from "../pages/Finance/BillingPaymentsPage";
+import BillingPaymentsWorkspaceDashboard from "../pages/Finance/BillingPaymentsWorkspaceDashboard";
 import AccountingPage from "../pages/Finance/AccountingPage";
+import AccountingWorkspaceDashboard from "../pages/Finance/AccountingWorkspaceDashboard";
 import VendorTable from "../components/Pages/VendorTable";
 import AssetsHome from "../pages/Assets/AssetsHome";
 import ManageAssetsHome from "../pages/Assets/ManageAssetsHome";
 import { AssetsPage } from "../pages/Assets/AssetsPage";
+import AssetsWorkspaceDashboard from "../pages/Assets/AssetsWorkspaceDashboard";
 import LogPage from "../pages/LogPage";
 import AccessPages from "../pages/Access/AccessPages";
 import ModulePermissions from "../pages/Access/ModulePermissions";
@@ -85,6 +106,7 @@ import Websites from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/Websit
 import WebsitesLayout from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/WebsitesLayout";
 import InActiveWebsites from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/InActiveWebsites";
 import WebsiteBuilderTypeActions from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/WebsiteBuilderTypeActions";
+import WebsiteBuilderDashboard from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/WebsiteBuilderDashboard";
 import WebsiteBuilderReviews from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/WebsiteBuilderReviews";
 import WebsiteBuilderCareers from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/WebsiteBuilderCareers";
 import VerticalPicker from "../components/VerticalPicker";
@@ -108,36 +130,75 @@ import FounderWorkspaceSelectionPage from "../pages/LoginPage/FounderWorkspaceSe
 import CompanyReviews from "../pages/Dashboard/FrontendDashboard/CompanyReviews";
 import NomadsLeads from "../pages/Dashboard/FrontendDashboard/NomadsLeads";
 import AllLeads from "../pages/Dashboard/FrontendDashboard/AllLeads";
+import AllLeadsDashboard from "../pages/Dashboard/FrontendDashboard/AllLeadsDashboard";
 import WonoNomad from "../pages/Dashboard/FrontendDashboard/WonoNomad";
 import ModuleCardsLanding from "../pages/Dashboard/FrontendDashboard/ModuleCardsLanding";
+import DepartmentDashboardRoute from "../pages/Dashboard/DepartmentDashboardRoute";
 import AddModulesPage from "../pages/Dashboard/FrontendDashboard/AddModulesPage";
 import CreateWorkspacePage from "../pages/WorkspaceSetup/CreateWorkspacePage";
 import SetupModulesPage from "../pages/WorkspaceSetup/SetupModulesPage";
 import FinalizeSetupPage from "../pages/WorkspaceSetup/FinalizeSetupPage";
 import OrganizationPage from "../pages/Organization/OrganizationPage";
+import OrganizationWorkspaceDashboard from "../pages/Organization/OrganizationWorkspaceDashboard";
 import UnitSettingsPage from "../pages/UnitSettings/UnitSettingsPage";
+import UnitSettingsDashboard from "../pages/UnitSettings/UnitSettingsDashboard";
+import UnitBusinessHoursPage from "../pages/UnitSettings/UnitBusinessHoursPage";
+import UnitFiscalYearPage from "../pages/UnitSettings/UnitFiscalYearPage";
+import UnitBillingPage from "../pages/UnitSettings/UnitBillingPage";
 import UnitManagementPage from "../pages/UnitSettings/UnitManagementPage";
+import UnitManagementDashboard from "../pages/UnitSettings/UnitManagementDashboard";
+import UnitEmployeesPage from "../pages/UnitSettings/UnitEmployeesPage";
+import UnitRolesPage from "../pages/UnitSettings/UnitRolesPage";
+import UnitWorkItemsPage from "../pages/UnitSettings/UnitWorkItemsPage";
+import UnitDepartmentsPage from "../pages/UnitSettings/UnitDepartmentsPage";
 import CustomerSupportPage from "../pages/CustomerSupport/CustomerSupportPage";
+import CustomerSupportDashboard from "../pages/CustomerSupport/CustomerSupportDashboard";
 import AnalyticsPage from "../pages/Analytics/AnalyticsPage";
 import TenantCompaniesPage from "../pages/Sales/TenantCompanies/TenantCompaniesPage";
 import TenantCompanyDetailPage from "../pages/Sales/TenantCompanies/TenantCompanyDetailPage";
 import ResourcePricingPage from "../pages/Sales/ResourcePricing/Resource&Pricing";
+import ResourcePricingDashboard from "../pages/Sales/ResourcePricing/ResourcePricingDashboard";
+import CafeManagementPage from "../pages/Sales/CafeManagement/CafeManagementPage";
+import CafeManagementDashboard from "../pages/Sales/CafeManagement/CafeManagementDashboard";
+import CafeOrdersDashboard from "../pages/Sales/CafeOrders/CafeOrdersDashboard";
+import CafeOrdersPage from "../pages/Sales/CafeOrders/CafeOrdersPage";
+import CoLivingRoomBookingDashboard from "../pages/RoomStays/CoLivingRoomBookingDashboard";
+import HostelBookingDashboard from "../pages/RoomStays/HostelBookingDashboard";
+import RoomStayBookingPage from "../pages/RoomStays/RoomStayBookingPage";
+import RoomManagementPage from "../pages/RoomManagement/RoomManagementPage";
+import RoomStayManagementDashboard from "../pages/RoomManagement/RoomStayManagementDashboard";
+import hostelBannerImage from "../assets/hostel-banner.jpg";
+import coLivingBannerImage from "../assets/co-living-banner.jpg";
+import CoworkingManagementPage from "../pages/CoworkingManagement/CoworkingManagementPage";
+import MeetingRoomManagementPage from "../pages/MeetingRoomManagement/MeetingRoomManagementPage";
 import LeadsManagementPage from "../pages/Sales/LeadsManagement/LeadsManagementPage";
+import LeadsManagementDashboard from "../pages/Sales/LeadsManagement/LeadsManagementDashboard";
 import SalesArchitecturePage from "../pages/Sales/SalesArchitecture/SalesArchitecturePage";
 import VirtualOfficesPage from "../pages/Sales/VirtualOffices/VirtualOfficesPage";
+import VirtualOfficesDashboard from "../pages/Sales/VirtualOffices/VirtualOfficesDashboard";
 import VirtualOfficeDetailPage from "../pages/Sales/VirtualOffices/VirtualOfficeDetailPage";
 import AdministrationTenantCompaniesPage from "../pages/Administration/TenantCompanies/TenantCompaniesPage";
+import TenantCompaniesWorkspaceDashboard from "../pages/Administration/TenantCompanies/TenantCompaniesWorkspaceDashboard";
 import AdministrationTenantCompanyDetailPage from "../pages/Administration/TenantCompanies/TenantCompanyDetailPage";
 import AdministrationBookingsPage from "../pages/Administration/Bookings/BookingsPage";
+import BookingsDashboard from "../pages/Administration/Bookings/BookingsDashboard";
+import VerticalRoomBookingsPage from "../pages/Administration/Bookings/VerticalRoomBookingsPage";
+import CafeBookingsPage from "../pages/Administration/Bookings/CafeBookingsPage";
+import AllBookingHistoryPage from "../pages/Administration/Bookings/AllBookingHistoryPage";
 import AdministrationResourceManagementPage from "../pages/Administration/ResourceManagement/ResourceManagementPage";
+import ResourceManagementWorkspaceDashboard from "../pages/Administration/ResourceManagement/ResourceManagementWorkspaceDashboard";
 import AdministrationHousekeepingPage from "../pages/Administration/HouseKeeping/HousekeepingPage";
+import HousekeepingDashboard from "../pages/Administration/HouseKeeping/HousekeepingDashboard";
 import RepairLogsPage from "../pages/Maintenance/RepairLogsPage";
 import AMCMaintenanceSchedulerPage from "../pages/Maintenance/AMCMaintenanceSchedulerPage";
 import ITRepairLogsPage from "../pages/IT/ITRepairLogsPage";
 import SystemAccessManagementPage from "../pages/IT/SystemAccessManagementPage";
 import { TicketsPage } from "../pages/Tickets/TicketsPage";
+import TicketsWorkspaceDashboard from "../pages/Tickets/TicketsWorkspaceDashboard";
 import PrintoutsPage from "../pages/Printouts/PrintoutsPage";
+import PrintoutsDashboard from "../pages/Printouts/PrintoutsDashboard";
 import PrintoutManagementPage from "../pages/Administration/Printouts/PrintoutManagementPage";
+import PrintoutManagementDashboard from "../pages/Administration/Printouts/PrintoutManagementDashboard";
 import TenantDashboardPage from "../pages/tenant/TenantDashboardPage";
 import TenantMeetingRoomBookingPage from "../pages/tenant/TenantMeetingRoomBookingPage";
 import TenantPrintoutsPage from "../pages/tenant/TenantPrintoutsPage";
@@ -146,12 +207,15 @@ import TenantBuyCreditsPage from "../pages/tenant/TenantBuyCreditsPage";
 import TenantRentPaymentsPage from "../pages/tenant/TenantRentPaymentsPage";
 import TenantTicketsPage from "../pages/tenant/TenantTicketsPage";
 import { InventoryPage } from "../pages/Inventory/InventoryPage";
+import InventoryWorkspaceDashboard from "../pages/Inventory/InventoryWorkspaceDashboard";
 import { DepartmentInventoryPage } from "../pages/Inventory/DepartmentInventoryPage";
 import { FinancePage } from "../pages/Finance/FinancePage";
 import { DepartmentFinancePageV2 } from "../pages/Finance/DepartmentFinancePageV2";
 import { DepartmentMonthExpensesPage } from "../pages/Finance/DepartmentMonthExpensesPage";
 import { TasksPage } from "../pages/Tasks/TasksPage";
+import TasksWorkspaceDashboard from "../pages/Tasks/TasksWorkspaceDashboard";
 import { LeaveRequestsPage } from "../pages/LeaveRequests/LeaveRequestsPage";
+import LeaveRequestsDashboard from "../pages/LeaveRequests/LeaveRequestsDashboard";
 
 // Missing imports - added to fix ESLint errors
 import EditTemplate from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/EditTemplate";
@@ -165,6 +229,7 @@ import BudgetPage from "../components/Pages/BudgetPage";
 import SopUpload from "../components/Pages/SopUpload";
 import PolicyUpload from "../components/Pages/PolicyUpload";
 import AccessGrant from "../pages/Profile/AccessGrant";
+import AccessGrantsDashboard from "../pages/Profile/AccessGrantsDashboard";
 import ProfileLayout from "../pages/Profile/ProfileLayout";
 import UserDetails from "../pages/Profile/UserDetails";
 import CompanyProfile from "../pages/Profile/CompanyProfile";
@@ -186,7 +251,7 @@ import TasksDepartmentLayout from "../pages/Tasks/DepartmentTasks/TasksDepartmen
 import TasksViewDepartment from "../pages/Tasks/DepartmentTasks/TasksViewDepartment";
 import VisitorLayout from "../pages/Visitors/VisitorLayout";
 import VisitorManagement from "../pages/Visitors/VisitorManagement";
-import VisitorDashboard from "../pages/Visitors/VisitorDashboard";
+import VisitorsWorkspaceDashboard from "../pages/Visitors/VisitorsWorkspaceDashboard";
 import AddVisitor from "../pages/Visitors/Forms/AddVisitor";
 import AddClient from "../pages/Visitors/Forms/AddClient";
 import ManageVisitorLayout from "../pages/Visitors/ManageVisitorLayout";
@@ -201,18 +266,27 @@ import Unauthorized from "../pages/Unauthorized";
 import NotFoundPage from "../pages/NotFoundPage";
 
 // Placeholder for DepartmentWiseBulkUpload (does not exist yet)
-const DepartmentWiseBulkUpload = () => <div>DepartmentWiseBulkUpload - Coming Soon</div>;
+const DepartmentWiseBulkUpload = () => (
+  <div>DepartmentWiseBulkUpload - Coming Soon</div>
+);
 
 function FinanceRoute() {
   const user = getStoredUser();
-  const role = String(user?.workspaceMembership?.role || user?.role || '').trim().toLowerCase();
-  const isFounderOrSuperAdmin = role === 'owner' || role === 'super_admin' || role === 'super-admin' || role === 'founder';
+  const role = String(user?.workspaceMembership?.role || user?.role || "")
+    .trim()
+    .toLowerCase();
+  const isFounderOrSuperAdmin =
+    role === "owner" ||
+    role === "super_admin" ||
+    role === "super-admin" ||
+    role === "founder";
   return isFounderOrSuperAdmin ? <FinancePage /> : <DepartmentFinancePageV2 />;
 }
 
 function VerticalPickerRoute() {
   const location = useLocation();
-  const workspaceId = new URLSearchParams(location.search).get("workspaceId") || "";
+  const workspaceId =
+    new URLSearchParams(location.search).get("workspaceId") || "";
   return <VerticalPicker workspaceId={workspaceId} />;
 }
 
@@ -220,7 +294,9 @@ function VerticalPickerRoute() {
 // from the old route (e.g. "/key-apps/nomad-listings/:listingId").
 function ParamRedirect({ to }: { to: string }) {
   const params = useParams();
-  const resolved = to.replace(/:([A-Za-z0-9_]+)/g, (_match, key) => encodeURIComponent(params[key] ?? ""));
+  const resolved = to.replace(/:([A-Za-z0-9_]+)/g, (_match, key) =>
+    encodeURIComponent(params[key] ?? ""),
+  );
   return <Navigate to={resolved} replace />;
 }
 
@@ -249,7 +325,12 @@ function ModuleSectionRedirect() {
   const { sectionId, departmentId } = useParams();
   const prefix = sectionId ? MOVED_SECTION_URL_PREFIX[sectionId] : undefined;
   if (prefix) {
-    return <Navigate to={departmentId ? `${prefix}/${departmentId}` : prefix} replace />;
+    return (
+      <Navigate
+        to={departmentId ? `${prefix}/${departmentId}` : prefix}
+        replace
+      />
+    );
   }
   return <ModuleCardsLanding />;
 }
@@ -287,14 +368,14 @@ export const routes = createBrowserRouter([
     path: "/register/:token/verify",
     element: <RegisterOtpVerification />,
   },
-          {
-            path: "/register/verify",
-            element: <RegisterOtpVerification />,
-          },
-          {
-            path: "/select-workspace",
-            element: <FounderWorkspaceSelectionPage />,
-          },
+  {
+    path: "/register/verify",
+    element: <RegisterOtpVerification />,
+  },
+  {
+    path: "/select-workspace",
+    element: <FounderWorkspaceSelectionPage />,
+  },
   {
     // Public — Stripe redirects a first-time payer here before they have an account.
     path: "/payment-success",
@@ -372,7 +453,10 @@ export const routes = createBrowserRouter([
                     path: "website-builder",
                     element: <FrontendLayout />,
                     children: [
-                      { index: true, element: <WebsiteBuilderTypeActions type="dynamic" /> },
+                      {
+                        index: true,
+                        element: <WebsiteBuilderDashboard />,
+                      },
                       { path: "select-theme", element: <ThemeGrid /> },
                       { path: "view-theme", element: <ViewTheme /> },
                       { path: "leads", element: <CompanyLeads /> },
@@ -382,12 +466,27 @@ export const routes = createBrowserRouter([
                         path: "edit-website/:website",
                         element: <EditWebsite />,
                       }, // with param
-                      { path: "dynamic", element: <WebsiteBuilderTypeActions type="dynamic" /> },
-                      { path: "dynamic/select-template", element: <SelectWebsiteTemplate /> },
-                      { path: "dynamic/create-website", element: <CreateWebsite /> },
+                      {
+                        path: "dynamic",
+                        element: <WebsiteBuilderTypeActions type="dynamic" />,
+                      },
+                      {
+                        path: "dynamic/select-template",
+                        element: <SelectWebsiteTemplate />,
+                      },
+                      {
+                        path: "dynamic/create-website",
+                        element: <CreateWebsite />,
+                      },
                       { path: "dynamic/leads", element: <CompanyLeads /> },
-                      { path: "dynamic/reviews", element: <WebsiteBuilderReviews /> },
-                      { path: "dynamic/careers", element: <WebsiteBuilderCareers /> },
+                      {
+                        path: "dynamic/reviews",
+                        element: <WebsiteBuilderReviews />,
+                      },
+                      {
+                        path: "dynamic/careers",
+                        element: <WebsiteBuilderCareers />,
+                      },
                       // Dynamic-only mode:
                       // { path: "static", element: <WebsiteBuilderTypeActions type="static" /> },
                       // { path: "static/select-vertical", element: <VerticalPickerRoute /> },
@@ -465,13 +564,28 @@ export const routes = createBrowserRouter([
                     path: "tenant",
                     children: [
                       { index: true, element: <TenantDashboardPage /> },
-                      { path: "meeting-room-booking", element: <TenantMeetingRoomBookingPage /> },
+                      {
+                        path: "meeting-room-booking",
+                        element: <TenantMeetingRoomBookingPage />,
+                      },
                       { path: "printouts", element: <TenantPrintoutsPage /> },
-                      { path: "booking-history", element: <TenantBookingHistoryPage /> },
-                      { path: "buy-credits", element: <TenantBuyCreditsPage /> },
-                      { path: "rent-payments", element: <TenantRentPaymentsPage /> },
+                      {
+                        path: "booking-history",
+                        element: <TenantBookingHistoryPage />,
+                      },
+                      {
+                        path: "buy-credits",
+                        element: <TenantBuyCreditsPage />,
+                      },
+                      {
+                        path: "rent-payments",
+                        element: <TenantRentPaymentsPage />,
+                      },
                       { path: "tickets", element: <TenantTicketsPage /> },
-                      { path: "profile", element: <Navigate to="/profile/my-profile" replace /> },
+                      {
+                        path: "profile",
+                        element: <Navigate to="/profile/my-profile" replace />,
+                      },
                     ],
                   },
                 ],
@@ -503,7 +617,9 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "company-settings/nomad-listings/:listingId",
-                element: <ParamRedirect to="/key-apps/nomad-listings/:listingId" />,
+                element: (
+                  <ParamRedirect to="/key-apps/nomad-listings/:listingId" />
+                ),
               },
               {
                 path: "company-settings/reviews",
@@ -519,7 +635,9 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "company-settings/website-builder/*",
-                element: <ParamWildcardRedirect to="/key-apps/website-builder" />,
+                element: (
+                  <ParamWildcardRedirect to="/key-apps/website-builder" />
+                ),
               },
               {
                 path: "company-settings/website-builder",
@@ -527,7 +645,12 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "company-settings/organization-management",
-                element: <Navigate to="/core-modules/organization-management" replace />,
+                element: (
+                  <Navigate
+                    to="/core-modules/organization-management"
+                    replace
+                  />
+                ),
               },
               {
                 path: "company-settings/access-grants",
@@ -535,11 +658,15 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "company-settings/workspace-settings",
-                element: <Navigate to="/core-modules/workspace-settings" replace />,
+                element: (
+                  <Navigate to="/core-modules/workspace-settings" replace />
+                ),
               },
               {
                 path: "company-settings/workspace-management",
-                element: <Navigate to="/core-modules/workspace-management" replace />,
+                element: (
+                  <Navigate to="/core-modules/workspace-management" replace />
+                ),
               },
               {
                 path: "company-settings/analytics",
@@ -547,7 +674,9 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "company-settings/customer-support",
-                element: <Navigate to="/common-modules/customer-support" replace />,
+                element: (
+                  <Navigate to="/common-modules/customer-support" replace />
+                ),
               },
               {
                 path: "company-settings",
@@ -573,6 +702,10 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "key-apps/all-leads",
+                element: <AllLeadsDashboard />,
+              },
+              {
+                path: "key-apps/all-leads/list",
                 element: <AllLeads />,
               },
               {
@@ -603,7 +736,10 @@ export const routes = createBrowserRouter([
                 path: "key-apps/website-builder",
                 element: <FrontendLayout />,
                 children: [
-                  { index: true, element: <WebsiteBuilderTypeActions type="dynamic" /> },
+                  {
+                    index: true,
+                    element: <WebsiteBuilderDashboard />,
+                  },
                   { path: "select-theme", element: <ThemeGrid /> },
                   { path: "view-theme", element: <ViewTheme /> },
                   { path: "leads", element: <CompanyLeads /> },
@@ -613,12 +749,27 @@ export const routes = createBrowserRouter([
                     path: "edit-website/:website",
                     element: <EditWebsite />,
                   }, // with param
-                  { path: "dynamic", element: <WebsiteBuilderTypeActions type="dynamic" /> },
-                  { path: "dynamic/select-template", element: <SelectWebsiteTemplate /> },
-                  { path: "dynamic/create-website", element: <CreateWebsite /> },
+                  {
+                    path: "dynamic",
+                    element: <WebsiteBuilderTypeActions type="dynamic" />,
+                  },
+                  {
+                    path: "dynamic/select-template",
+                    element: <SelectWebsiteTemplate />,
+                  },
+                  {
+                    path: "dynamic/create-website",
+                    element: <CreateWebsite />,
+                  },
                   { path: "dynamic/leads", element: <CompanyLeads /> },
-                  { path: "dynamic/reviews", element: <WebsiteBuilderReviews /> },
-                  { path: "dynamic/careers", element: <WebsiteBuilderCareers /> },
+                  {
+                    path: "dynamic/reviews",
+                    element: <WebsiteBuilderReviews />,
+                  },
+                  {
+                    path: "dynamic/careers",
+                    element: <WebsiteBuilderCareers />,
+                  },
                   // Dynamic-only mode:
                   // { path: "static", element: <WebsiteBuilderTypeActions type="static" /> },
                   // { path: "static/select-vertical", element: <VerticalPickerRoute /> },
@@ -696,19 +847,63 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "core-modules/organization-management",
+                element: <OrganizationWorkspaceDashboard />,
+              },
+              {
+                path: "core-modules/organization-management/list",
                 element: <OrganizationPage />,
               },
               {
                 path: "core-modules/access-grants",
+                element: <AccessGrantsDashboard />,
+              },
+              {
+                path: "core-modules/access-grants/list",
                 element: <AccessGrant />,
               },
               {
                 path: "core-modules/workspace-settings",
+                element: <UnitSettingsDashboard />,
+              },
+              {
+                path: "core-modules/workspace-settings/list",
                 element: <UnitSettingsPage />,
               },
               {
+                path: "core-modules/workspace-settings/business-hours",
+                element: <UnitBusinessHoursPage />,
+              },
+              {
+                path: "core-modules/workspace-settings/fiscal-year",
+                element: <UnitFiscalYearPage />,
+              },
+              {
+                path: "core-modules/workspace-settings/billing",
+                element: <UnitBillingPage />,
+              },
+              {
                 path: "core-modules/workspace-management",
+                element: <UnitManagementDashboard />,
+              },
+              {
+                path: "core-modules/workspace-management/list",
                 element: <UnitManagementPage />,
+              },
+              {
+                path: "core-modules/workspace-management/employees",
+                element: <UnitEmployeesPage />,
+              },
+              {
+                path: "core-modules/workspace-management/roles",
+                element: <UnitRolesPage />,
+              },
+              {
+                path: "core-modules/workspace-management/work-items",
+                element: <UnitWorkItemsPage />,
+              },
+              {
+                path: "core-modules/workspace-management/departments",
+                element: <UnitDepartmentsPage />,
               },
               {
                 path: "core-modules/analytics",
@@ -722,34 +917,272 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "common-modules/customer-support",
+                element: <CustomerSupportDashboard />,
+              },
+              {
+                path: "common-modules/customer-support/list",
                 element: <CustomerSupportPage />,
               },
               {
+                path: "common-modules/customer-support/raised",
+                element: <CustomerSupportPage modulePage="raised" />,
+              },
+              {
+                path: "common-modules/customer-support/resolved",
+                element: <CustomerSupportPage modulePage="resolved" />,
+              },
+              {
                 path: "common-modules/attendance",
+                element: <AttendanceDashboard />,
+              },
+              {
+                path: "common-modules/attendance/manage",
+                element: <AttendancePage />,
+              },
+              {
+                path: "common-modules/attendance/my-attendance",
+                element: <AttendancePage />,
+              },
+              {
+                path: "common-modules/attendance/team-attendance",
+                element: <AttendancePage />,
+              },
+              {
+                path: "common-modules/attendance/corrections",
                 element: <AttendancePage />,
               },
               {
                 path: "common-modules/tickets",
+                element: <TicketsWorkspaceDashboard />,
+              },
+              {
+                path: "common-modules/tickets/list",
                 element: <TicketsPage />,
               },
               {
                 path: "common-modules/leave-requests",
+                element: <LeaveRequestsDashboard />,
+              },
+              {
+                path: "common-modules/leave-requests/manage",
+                element: <LeaveRequestsPage />,
+              },
+              {
+                path: "common-modules/leave-requests/my-leaves",
+                element: <LeaveRequestsPage />,
+              },
+              {
+                path: "common-modules/leave-requests/approval-queue",
+                element: <LeaveRequestsPage />,
+              },
+              {
+                path: "common-modules/leave-requests/assigned-department-leaves",
+                element: <LeaveRequestsPage />,
+              },
+              {
+                path: "common-modules/leave-requests/company-leaves",
                 element: <LeaveRequestsPage />,
               },
               {
                 path: "common-modules/meeting-room-booking",
+                element: <MeetingRoomBookingDashboard />,
+              },
+              {
+                path: "common-modules/meeting-room-booking/list",
                 element: <MeetingRoomsPage />,
               },
               {
                 path: "common-modules/printouts",
+                element: <PrintoutsDashboard />,
+              },
+              {
+                path: "common-modules/printouts/list",
                 element: <PrintoutsPage />,
               },
               {
                 path: "common-modules/calendar",
+                element: <CalendarWorkspaceDashboard />,
+              },
+              {
+                path: "common-modules/calendar/manage",
                 element: <CalendarPage />,
               },
               {
+                path: "key-apps/cafe-management",
+                element: <CafeManagementDashboard />,
+              },
+              {
+                path: "key-apps/cafe-management/dashboard",
+                element: <CafeManagementPage />,
+              },
+              {
+                path: "key-apps/cafe-management/reservations",
+                element: <CafeManagementPage lockedTabs={["reservations"]} />,
+              },
+              {
+                path: "key-apps/cafe-management/orders",
+                element: <CafeManagementPage lockedTabs={["orders"]} />,
+              },
+              {
+                path: "key-apps/cafe-management/tables-menu",
+                element: <CafeManagementPage lockedTabs={["tables", "menu"]} />,
+              },
+              {
+                path: "key-apps/cafe-management/order-history",
+                element: <CafeManagementPage lockedTabs={["history"]} />,
+              },
+              {
+                path: "key-apps/cafe-management/reports-settings",
+                element: (
+                  <CafeManagementPage lockedTabs={["reports", "settings"]} />
+                ),
+              },
+              {
+                path: "key-apps/hostel-management",
+                element: (
+                  <RoomStayManagementDashboard
+                    roomType="Dorm"
+                    title="Hostel Management"
+                    noun="Dorm"
+                    bannerImage={hostelBannerImage}
+                    description="Live bed availability, guest movement, occupancy, collections, and revenue across every dorm."
+                    tags={["Dorms", "Beds", "Guests", "Revenue"]}
+                    managementRoute="/key-apps/hostel-management/dashboard"
+                    bookingRoute="/common-modules/hostel-booking"
+                    resourcePricingRoute="/key-apps/hostel-management/resource-pricing"
+                  />
+                ),
+              },
+              {
+                path: "key-apps/hostel-management/dashboard",
+                element: (
+                  <RoomManagementPage
+                    roomType="Dorm"
+                    title="Hostel Management"
+                    noun="Dorm"
+                  />
+                ),
+              },
+              {
+                path: "key-apps/hostel-management/resource-pricing",
+                element: <ResourcePricingPage allowedCategories={["dorm"]} />,
+              },
+              {
+                path: "key-apps/co-living-management",
+                element: (
+                  <RoomStayManagementDashboard
+                    roomType="Room"
+                    title="Co-living Management"
+                    noun="Room"
+                    bannerImage={coLivingBannerImage}
+                    description="Live room availability, resident movement, occupancy, collections, and revenue across every co-living room."
+                    tags={["Rooms", "Keys", "Residents", "Revenue"]}
+                    managementRoute="/key-apps/co-living-management/dashboard"
+                    bookingRoute="/common-modules/room-booking"
+                    resourcePricingRoute="/key-apps/co-living-management/resource-pricing"
+                  />
+                ),
+              },
+              {
+                path: "key-apps/co-living-management/dashboard",
+                element: (
+                  <RoomManagementPage
+                    roomType="Room"
+                    title="Co-living Management"
+                    noun="Room"
+                  />
+                ),
+              },
+              {
+                path: "key-apps/co-living-management/resource-pricing",
+                element: <ResourcePricingPage allowedCategories={["room"]} />,
+              },
+              {
+                path: "key-apps/co-working-management",
+                element: <CoworkingManagementPage />,
+              },
+              {
+                path: "key-apps/co-working-management/resource-pricing",
+                element: (
+                  <ResourcePricingPage
+                    allowedCategories={[
+                      "open_desk",
+                      "cabin_desk",
+                      "virtual_office",
+                    ]}
+                  />
+                ),
+              },
+              {
+                path: "key-apps/meeting-room-management",
+                element: <MeetingRoomManagementPage />,
+              },
+              {
+                path: "key-apps/meeting-room-management/resource-pricing",
+                element: (
+                  <ResourcePricingPage
+                    allowedCategories={["meeting_room", "conference_room"]}
+                  />
+                ),
+              },
+              {
+                path: "common-modules/cafe-orders",
+                element: <CafeOrdersDashboard />,
+              },
+              {
+                path: "common-modules/cafe-orders/list",
+                element: <CafeOrdersPage />,
+              },
+              {
+                path: "common-modules/hostel-booking",
+                element: <HostelBookingDashboard />,
+              },
+              {
+                path: "common-modules/hostel-booking/list",
+                element: (
+                  <RoomStayBookingPage
+                    roomType="Dorm"
+                    title="Hostel Booking"
+                    noun="Dorm"
+                  />
+                ),
+              },
+              {
+                path: "common-modules/room-booking",
+                element: <CoLivingRoomBookingDashboard />,
+              },
+              {
+                path: "common-modules/room-booking/list",
+                element: (
+                  <RoomStayBookingPage
+                    roomType="Room"
+                    title="Co-living Room Booking"
+                    noun="Room"
+                  />
+                ),
+              },
+              {
                 path: "common-modules/tasks",
+                element: <TasksWorkspaceDashboard />,
+              },
+              {
+                path: "common-modules/tasks/company-tasks",
+                element: <TasksPage />,
+              },
+              {
+                path: "common-modules/tasks/my-tasks",
+                element: <TasksPage />,
+              },
+              {
+                path: "common-modules/tasks/my-assigned-tasks",
+                element: <TasksPage />,
+              },
+              {
+                path: "common-modules/tasks/assigned-department-tasks",
+                element: <TasksPage />,
+              },
+              {
+                path: "common-modules/tasks/department-tasks",
                 element: <TasksPage />,
               },
               {
@@ -762,7 +1195,9 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "leave-requests",
-                element: <Navigate to="/common-modules/leave-requests" replace />,
+                element: (
+                  <Navigate to="/common-modules/leave-requests" replace />
+                ),
               },
               {
                 path: "tickets",
@@ -774,7 +1209,9 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "meetings/meeting-rooms",
-                element: <Navigate to="/common-modules/meeting-room-booking" replace />,
+                element: (
+                  <Navigate to="/common-modules/meeting-room-booking" replace />
+                ),
               },
 
               // Extra Common Modules
@@ -784,10 +1221,22 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "extra-common-modules/assets",
+                element: <AssetsWorkspaceDashboard />,
+              },
+              {
+                path: "extra-common-modules/assets/overall-assets",
+                element: <AssetsPage />,
+              },
+              {
+                path: "extra-common-modules/assets/asset-requests",
                 element: <AssetsPage />,
               },
               {
                 path: "extra-common-modules/inventory",
+                element: <InventoryWorkspaceDashboard />,
+              },
+              {
+                path: "extra-common-modules/inventory/manage",
                 element: <InventoryPage />,
               },
               {
@@ -812,16 +1261,46 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "extra-common-modules/team-management",
-                element: <TeamManagementPage />,
-                children: [
-                  { index: true, element: <Navigate to="roster" replace /> },
-                  { path: "roster", element: <TeamManagementTab /> },
-                  { path: "sops", element: <DepartmentSopTab /> },
-                  { path: "policies", element: <DepartmentPolicyTab /> },
-                ],
+                element: <TeamManagementWorkspaceDashboard />,
+              },
+              {
+                path: "extra-common-modules/team-management/access-control",
+                element: (
+                  <TeamManagementPage
+                    title="Team Access Control"
+                    description="Choose a department, review its team, and control employee module access."
+                  />
+                ),
+                children: [{ index: true, element: <TeamManagementTab /> }],
+              },
+              {
+                path: "extra-common-modules/team-management/sops",
+                element: (
+                  <TeamManagementPage
+                    title="Department SOPs"
+                    description="Publish operating procedures and control their visibility by department."
+                    requiresCustomPlan
+                  />
+                ),
+                children: [{ index: true, element: <DepartmentSopTab /> }],
+              },
+              {
+                path: "extra-common-modules/team-management/policies",
+                element: (
+                  <TeamManagementPage
+                    title="Department Policies"
+                    description="Maintain policy documents and assign them to the right departments and employees."
+                    requiresCustomPlan
+                  />
+                ),
+                children: [{ index: true, element: <DepartmentPolicyTab /> }],
               },
               {
                 path: "extra-common-modules/reports",
+                element: <ReportsWorkspaceDashboard />,
+              },
+              {
+                path: "extra-common-modules/reports/manage",
                 element: <ReportsPage />,
               },
 
@@ -832,7 +1311,7 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/:departmentId",
-                element: <ModuleCardsLanding section="department-accesses" />,
+                element: <DepartmentDashboardRoute />,
               },
               {
                 path: "module-sections/:sectionId/:departmentId",
@@ -885,11 +1364,19 @@ export const routes = createBrowserRouter([
                   },
                   {
                     path: "company-profile",
-                    element: <CompanyProfileAccessGuard><CompanyProfile /></CompanyProfileAccessGuard>,
+                    element: (
+                      <CompanyProfileAccessGuard>
+                        <CompanyProfile />
+                      </CompanyProfileAccessGuard>
+                    ),
                   },
                   {
                     path: "plan-billing",
-                    element: <CompanyProfileAccessGuard><PlanBillingTab /></CompanyProfileAccessGuard>,
+                    element: (
+                      <CompanyProfileAccessGuard>
+                        <PlanBillingTab />
+                      </CompanyProfileAccessGuard>
+                    ),
                   },
                   {
                     // Stripe's payment-link redirect target (see
@@ -917,7 +1404,9 @@ export const routes = createBrowserRouter([
                   },
                   {
                     path: "exit-request",
-                    element: <Navigate to="/profile/resignation-request" replace />,
+                    element: (
+                      <Navigate to="/profile/resignation-request" replace />
+                    ),
                   },
                   // {
                   //   path: "permissions",
@@ -957,7 +1446,7 @@ export const routes = createBrowserRouter([
                   //     },
                   //   ],
                   // },
-              // {
+                  // {
                   //   path: "my-assets",
                   //   element: <MyAssets />,
                   // },
@@ -1201,7 +1690,7 @@ export const routes = createBrowserRouter([
                   },
                   {
                     path: "dashboard",
-                    element: <VisitorDashboard />,
+                    element: <VisitorsWorkspaceDashboard />,
                   },
                   {
                     path: "add-visitor", // Page with form to Add a new Visitor
@@ -1271,6 +1760,10 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/sales-department/virtual-offices",
+                element: <VirtualOfficesDashboard />,
+              },
+              {
+                path: "department-accesses/sales-department/virtual-offices/list",
                 element: <VirtualOfficesPage />,
               },
               {
@@ -1279,11 +1772,27 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/sales-department/resource-pricing",
+                element: <ResourcePricingDashboard />,
+              },
+              {
+                path: "department-accesses/sales-department/resource-pricing/list",
                 element: <ResourcePricingPage />,
               },
               {
                 path: "department-accesses/sales-department/leads-management",
+                element: <LeadsManagementDashboard />,
+              },
+              {
+                path: "department-accesses/sales-department/leads-management/list",
                 element: <LeadsManagementPage />,
+              },
+              {
+                path: "department-accesses/sales-department/leads-management/website-leads",
+                element: <LeadsManagementPage lockedTab="website-leads" />,
+              },
+              {
+                path: "department-accesses/sales-department/leads-management/unit-tour-leads",
+                element: <LeadsManagementPage lockedTab="unit-tour" />,
               },
               {
                 path: "department-accesses/sales-department/sales-architecture",
@@ -1291,12 +1800,18 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "sales-crm/*",
-                element: <ParamWildcardRedirect to="/department-accesses/sales-department" />,
+                element: (
+                  <ParamWildcardRedirect to="/department-accesses/sales-department" />
+                ),
               },
 
               // Department Access — Administration
               {
                 path: "department-accesses/administration-department/tenant-companies",
+                element: <TenantCompaniesWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/administration-department/tenant-companies/manage",
                 element: <AdministrationTenantCompaniesPage />,
               },
               {
@@ -1305,23 +1820,93 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/administration-department/bookings",
+                element: <BookingsDashboard />,
+              },
+              {
+                path: "department-accesses/administration-department/bookings/meeting-rooms",
                 element: <AdministrationBookingsPage />,
               },
               {
+                path: "department-accesses/administration-department/bookings/hostel",
+                element: (
+                  <VerticalRoomBookingsPage
+                    roomType="Dorm"
+                    title="Hostel Bookings"
+                    noun="Dorm"
+                  />
+                ),
+              },
+              {
+                path: "department-accesses/administration-department/bookings/co-living",
+                element: (
+                  <VerticalRoomBookingsPage
+                    roomType="Room"
+                    title="Co-living Bookings"
+                    noun="Room"
+                  />
+                ),
+              },
+              {
+                path: "department-accesses/administration-department/bookings/cafe",
+                element: <CafeBookingsPage />,
+              },
+              {
+                path: "department-accesses/administration-department/bookings/history",
+                element: <AllBookingHistoryPage />,
+              },
+              {
                 path: "department-accesses/administration-department/resource-management",
+                element: <ResourceManagementWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/administration-department/resource-management/manage",
                 element: <AdministrationResourceManagementPage />,
               },
               {
                 path: "department-accesses/administration-department/house-keeping",
+                element: <HousekeepingDashboard />,
+              },
+              {
+                path: "department-accesses/administration-department/house-keeping/dashboard",
                 element: <AdministrationHousekeepingPage />,
               },
               {
+                path: "department-accesses/administration-department/house-keeping/staff",
+                element: <AdministrationHousekeepingPage lockedTab="staff" />,
+              },
+              {
+                path: "department-accesses/administration-department/house-keeping/scheduled-tasks",
+                element: (
+                  <AdministrationHousekeepingPage lockedTab="scheduled" />
+                ),
+              },
+              {
+                path: "department-accesses/administration-department/house-keeping/booking-tasks",
+                element: <AdministrationHousekeepingPage lockedTab="auto" />,
+              },
+              {
+                path: "department-accesses/administration-department/house-keeping/history",
+                element: <AdministrationHousekeepingPage lockedTab="history" />,
+              },
+              {
+                path: "department-accesses/administration-department/house-keeping/performance",
+                element: (
+                  <AdministrationHousekeepingPage lockedTab="performance" />
+                ),
+              },
+              {
                 path: "department-accesses/administration-department/printouts",
+                element: <PrintoutManagementDashboard />,
+              },
+              {
+                path: "department-accesses/administration-department/printouts/dashboard",
                 element: <PrintoutManagementPage />,
               },
               {
                 path: "administration/*",
-                element: <ParamWildcardRedirect to="/department-accesses/administration-department" />,
+                element: (
+                  <ParamWildcardRedirect to="/department-accesses/administration-department" />
+                ),
               },
 
               // Department Access — Maintenance
@@ -1335,7 +1920,9 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "maintenance/*",
-                element: <ParamWildcardRedirect to="/department-accesses/maintenance-department" />,
+                element: (
+                  <ParamWildcardRedirect to="/department-accesses/maintenance-department" />
+                ),
               },
 
               // Department Access — IT
@@ -1349,21 +1936,73 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "it/*",
-                element: <ParamWildcardRedirect to="/department-accesses/it-department" />,
+                element: (
+                  <ParamWildcardRedirect to="/department-accesses/it-department" />
+                ),
               },
 
               // Department Access — HR
               {
                 path: "department-accesses/hr-department/company-management",
-                element: <HREmployeeManagementPage />,
+                element: <CompanyManagementWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/hr-department/company-management/list",
+                element: (
+                  <Navigate
+                    to="/department-accesses/hr-department/company-management/employee-management"
+                    replace
+                  />
+                ),
+              },
+              {
+                path: "department-accesses/hr-department/company-management/employee-management",
+                element: <HREmployeeManagementPage modulePage="employees" />,
+              },
+              {
+                path: "department-accesses/hr-department/company-management/company-sop",
+                element: <HREmployeeManagementPage modulePage="sop" />,
+              },
+              {
+                path: "department-accesses/hr-department/company-management/company-policies",
+                element: <HREmployeeManagementPage modulePage="policies" />,
+              },
+              {
+                path: "department-accesses/hr-department/company-management/birthdays",
+                element: <HREmployeeManagementPage modulePage="birthdays" />,
               },
               {
                 path: "department-accesses/hr-department/documents",
-                element: <HRDocumentsPage />,
+                element: <HRDocumentsWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/hr-department/documents/list",
+                element: (
+                  <Navigate
+                    to="/department-accesses/hr-department/documents/active-employees"
+                    replace
+                  />
+                ),
+              },
+              {
+                path: "department-accesses/hr-department/documents/active-employees",
+                element: <HRDocumentsPage modulePage="active" />,
+              },
+              {
+                path: "department-accesses/hr-department/documents/inactive-employees",
+                element: <HRDocumentsPage modulePage="inactive" />,
               },
               {
                 path: "department-accesses/hr-department/attendance-review",
-                element: <HRAttendanceReviewPage />,
+                element: <HRAttendanceReviewWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/hr-department/attendance-review/attendance-master",
+                element: <HRAttendanceReviewPage modulePage="attendance-master" />,
+              },
+              {
+                path: "department-accesses/hr-department/attendance-review/correction-requests",
+                element: <HRAttendanceReviewPage modulePage="correction-requests" />,
               },
               {
                 path: "department-accesses/hr-department/attendance-review/:userId",
@@ -1371,11 +2010,48 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/hr-department/leave-request-processing",
-                element: <HRLeaveRequestsProcessingPage />,
+                element: <HRLeaveRequestsProcessingWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/hr-department/leave-request-processing/requests",
+                element: <HRLeaveRequestsProcessingPage modulePage="requests" />,
+              },
+              {
+                path: "department-accesses/hr-department/leave-request-processing/current",
+                element: <HRLeaveRequestsProcessingPage modulePage="current" />,
+              },
+              {
+                path: "department-accesses/hr-department/leave-request-processing/master",
+                element: <HRLeaveRequestsProcessingPage modulePage="master" />,
+              },
+              {
+                path: "department-accesses/hr-department/leave-request-processing/quotas",
+                element: <HRLeaveRequestsProcessingPage modulePage="quotas" />,
+              },
+              {
+                path: "department-accesses/hr-department/leave-request-processing/holidays",
+                element: <HRLeaveRequestsProcessingPage modulePage="holidays" />,
               },
               {
                 path: "department-accesses/hr-department/recruitment",
-                element: <HRRecruitmentPage />,
+                element: <HRRecruitmentWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/hr-department/recruitment/list",
+                element: (
+                  <Navigate
+                    to="/department-accesses/hr-department/recruitment/job-openings"
+                    replace
+                  />
+                ),
+              },
+              {
+                path: "department-accesses/hr-department/recruitment/job-openings",
+                element: <HRRecruitmentPage modulePage="jobs" />,
+              },
+              {
+                path: "department-accesses/hr-department/recruitment/candidates",
+                element: <HRRecruitmentPage modulePage="candidates" />,
               },
               {
                 path: "department-accesses/hr-department/payroll-management",
@@ -1383,20 +2059,43 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/hr-department/resignation-management",
-                element: <HRResignationManagementPage />,
+                element: <HRResignationManagementWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/hr-department/resignation-management/requests",
+                element: <HRResignationManagementPage modulePage="requests" />,
+              },
+              {
+                path: "department-accesses/hr-department/resignation-management/notice",
+                element: <HRResignationManagementPage modulePage="notice" />,
+              },
+              {
+                path: "department-accesses/hr-department/resignation-management/history",
+                element: <HRResignationManagementPage modulePage="history" />,
               },
               {
                 path: "department-accesses/hr-department/exit-management",
-                element: <Navigate to="/department-accesses/hr-department/resignation-management" replace />,
+                element: (
+                  <Navigate
+                    to="/department-accesses/hr-department/resignation-management"
+                    replace
+                  />
+                ),
               },
               {
                 path: "hr/*",
-                element: <ParamWildcardRedirect to="/department-accesses/hr-department" />,
+                element: (
+                  <ParamWildcardRedirect to="/department-accesses/hr-department" />
+                ),
               },
 
               // Department Access — Finance
               {
                 path: "department-accesses/finance-department/expenses-budget",
+                element: <ExpensesBudgetWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/finance-department/expenses-budget/:section",
                 element: <ExpensesBudgetPage />,
               },
               {
@@ -1409,15 +2108,25 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/finance-department/billing-payments",
+                element: <BillingPaymentsWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/finance-department/billing-payments/:section",
                 element: <BillingPaymentsPage />,
               },
               {
                 path: "department-accesses/finance-department/accounting",
+                element: <AccountingWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/finance-department/accounting/:section",
                 element: <AccountingPage />,
               },
               {
                 path: "finance/*",
-                element: <ParamWildcardRedirect to="/department-accesses/finance-department" />,
+                element: (
+                  <ParamWildcardRedirect to="/department-accesses/finance-department" />
+                ),
               },
             ],
           },
@@ -1438,4 +2147,3 @@ export const routes = createBrowserRouter([
     element: <NotFoundPage />,
   },
 ]);
-

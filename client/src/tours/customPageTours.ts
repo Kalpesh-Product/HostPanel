@@ -32,7 +32,7 @@ const CUSTOM_PAGE_TOURS: CustomTourRoute[] = [
       { selector: '[data-tour="organization-add-user"]', title: "Add a platform user", description: "Open the member form, choose an available role and department access, then send the invitation." },
       { selector: '[data-tour="organization-members-table"]', title: "Member records and access", description: "Review identity, role, departments, status, and access. Authorized users can toggle account access and open View Details for the complete member record.", side: "top" },
     ],
-    matches: exact("/core-modules/organization-management"),
+    matches: exact("/core-modules/organization-management/list"),
   },
   {
     id: "custom-calendar",
@@ -76,7 +76,6 @@ const CUSTOM_PAGE_TOURS: CustomTourRoute[] = [
       { selector: '[data-notification-trigger]', title: "Unit notifications", description: "Open notifications to review recent activity and updates requiring attention." },
       { selector: '[data-tour="custom-attendance"]', title: "Clock in and out", description: "Log your attendance for the day directly from the dashboard." },
       { selector: '[data-tour="custom-overview"]', title: "Founder overview", description: "Live, actionable numbers for the core modules your workspace uses most — tenants, bookings, tickets, visitors, leads, and leave requests. Select a card to open its complete module." },
-      { selector: '[data-tour="custom-department-modules"]', title: "Department modules", description: "Every other enabled module — resources, housekeeping, maintenance, IT, HR, recruitment, and more — surfaces here as its own overview card and doubles as your entry point into that department's page." },
       { selector: '[data-tour="custom-finance-snapshot"]', title: "Financial snapshot", description: "Booking revenue, security deposits, and payroll or booking status in one row, linking straight into Billing & Payments." },
       { selector: '[data-tour="custom-team-status"]', title: "Team status and visitors", description: "Team Live Status shows who is currently working, and Recent Visitors with Visitor Type summarizes today's foot traffic." },
       { selector: '[data-tour="custom-quick-links"]', title: "Quick Links", description: "Direct shortcuts into every module enabled for your workspace, built automatically from your actual module access." },

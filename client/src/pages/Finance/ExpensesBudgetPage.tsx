@@ -28,7 +28,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { applyFinanceApprovalDecision, getFinanceSnapshot, importFinanceSnapshot, updateMonthlyExpenseStatus } from '@/services/finance';
 import { getDepartments as getAllWorkspaceDepartments } from '@/services/assets';
@@ -42,6 +42,13 @@ import ReportExportButton from '@/components/ReportExportButton';
 import { isDateInExportPeriod, isMonthInExportPeriod } from '@/utils/export-period';
 import { formatFinancePaymentStatus } from '@/features/finance/utils/paymentStatus';
 import { ApprovalFlowBadges, hasApprovalProgress } from '@/components/finance/ApprovalFlowBadges';
+
+// Page header per dedicated section route — mirrors the dashboard module card titles.
+const EXPENSES_BUDGET_SECTION_META: Record<string, { title: string; subtitle: string }> = {
+  estimated: { title: 'Projected Annual Budget', subtitle: 'Review department annual plans and monthly projections.' },
+  extra: { title: 'Extra Budget Requests', subtitle: 'Approve or return additional funding requests.' },
+  ledger: { title: 'Expense History & Invoices', subtitle: 'Track actual spend, payment state, and invoices.' },
+};
 
 /* ───────────────────── Types ───────────────────── */
 
@@ -862,6 +869,7 @@ const isActionableForFinance = (approvalFlow: any, status: string): boolean =>
 
 export function ExpensesBudgetPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLoadingFinance, setIsLoadingFinance] = useState(true);
   const [hasLoadedFinanceSnapshot, setHasLoadedFinanceSnapshot] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -960,7 +968,19 @@ export function ExpensesBudgetPage() {
     return () => { mounted = false; };
   }, []);
 
-  const [activeTab, setActiveTab] = useState('estimated');
+  // Routed here directly as its own page (e.g. /expenses-budget/ledger), so the
+  // top-level tab bar is hidden and the tab is locked to the URL segment.
+  const { section: routeSection } = useParams<{ section?: string }>();
+  const isDedicatedRoute = Boolean(routeSection && ['estimated', 'extra', 'ledger'].includes(routeSection));
+  const [activeTab, setActiveTab] = useState(isDedicatedRoute ? routeSection! : 'estimated');
+  useEffect(() => {
+    if (isDedicatedRoute) {
+      setActiveTab(routeSection!);
+      return;
+    }
+    const tab = new URLSearchParams(location.search).get('tab');
+    if (tab && ['estimated', 'extra', 'ledger'].includes(tab)) setActiveTab(tab);
+  }, [location.search, isDedicatedRoute, routeSection]);
   const [showExportModal, setShowExportModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [deptFilter, setDeptFilter] = useState('All');
@@ -1477,9 +1497,11 @@ export function ExpensesBudgetPage() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                Expenses & Budget
+                {isDedicatedRoute ? EXPENSES_BUDGET_SECTION_META[routeSection!].title : 'Expenses & Budget'}
               </h2>
-              <p className="text-xs font-pmedium text-slate-500 mt-1">Core Module | Budget planning & expense tracking</p>
+              <p className="text-xs font-pmedium text-slate-500 mt-1">
+                {isDedicatedRoute ? EXPENSES_BUDGET_SECTION_META[routeSection!].subtitle : 'Core Module | Budget planning & expense tracking'}
+              </p>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="flex items-center gap-2 bg-white border border-slate-200 px-4 py-2.5 rounded-xl shadow-sm">
@@ -1527,27 +1549,29 @@ export function ExpensesBudgetPage() {
             </div>
           )}
 
-          {/* ── Pill Tabs (DESIGN.md: pill-style with blue active bg) ── */}
-          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-            {[
-              { key: "estimated", label: "PROJECTED ANNUAL BUDGET" },
-              { key: "extra", label: "EXTRA BUDGET REQUESTS" },
-              { key: "ledger", label: "EXPENSE HISTORY & INVOICES" },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => { setActiveTab(tab.key); setStatusFilter('all'); }}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
-                  activeTab === tab.key
-                    ? "bg-[#2563EB] text-white shadow-sm"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          {/* ── Pill Tabs (DESIGN.md: pill-style with blue active bg) — only when reached without a dedicated section route ── */}
+          {!isDedicatedRoute && (
+            <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+              {[
+                { key: "estimated", label: "PROJECTED ANNUAL BUDGET" },
+                { key: "extra", label: "EXTRA BUDGET REQUESTS" },
+                { key: "ledger", label: "EXPENSE HISTORY & INVOICES" },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => { setActiveTab(tab.key); setStatusFilter('all'); }}
+                  className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
+                    activeTab === tab.key
+                      ? "bg-[#2563EB] text-white shadow-sm"
+                      : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* ── Stat Cards (DESIGN.md: border-l-4 accent per card, tab-aware) ── */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">

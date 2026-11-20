@@ -6,7 +6,7 @@ import {
   Briefcase, DollarSign, Home, Clock, Tag, Download,
   FileText, Users, XCircle, History,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useFreshCurrentUser } from "../../../hooks/useFreshCurrentUser";
 import useDashboardAccess from "../../../hooks/useDashboardAccess";
@@ -110,6 +110,8 @@ function visitorToLead(visitor) {
     priority: visitor.budgetRange?.includes("5L+") || visitor.budgetRange?.includes("3L") ? "High" : visitor.budgetRange ? "Medium" : "Low",
     dateAdded,
     lastContact,
+    contactedOn: visitor.followUpDate ? formatDateLabel(visitor.followUpDate) : "",
+    convertedOn: visitor.convertedAt ? formatDateLabel(visitor.convertedAt) : "",
     checkInAt: visitor.checkInAt || null,
     checkOutAt: visitor.checkOutAt || null,
     qualification: {
@@ -126,6 +128,12 @@ function visitorToLead(visitor) {
         date: formatDateLabel(visitor.checkInAt || visitor.createdAt),
         note: `Visitor checked in at frontdesk for a workspace tour. ${visitor.tourNotes ? `Notes: ${visitor.tourNotes}` : ""}`.trim(),
       },
+      ...(visitor.followUpDate
+        ? [{ type: "Contacted", date: formatDateLabel(visitor.followUpDate), note: "Lead marked Contacted by Sales." }]
+        : []),
+      ...(visitor.convertedAt
+        ? [{ type: "Converted", date: formatDateLabel(visitor.convertedAt), note: "Lead marked Converted by Sales." }]
+        : []),
     ],
   };
 }
@@ -151,7 +159,28 @@ function TablePageSkeleton({ rows = 6, columns = 6 }) {
   );
 }
 
-export default function LeadsManagementPage() {
+// Titles and sub-text for the dedicated single-view routes opened from the
+// Leads Management dashboard's module cards.
+const LEADS_VIEW_META: Record<string, { title: string; subtitle: string }> = {
+  "website-leads": {
+    title: "Website & Nomad Leads",
+    subtitle:
+      "Review and update enquiries from Website Builder and Nomad, with stage tracking.",
+  },
+  "unit-tour": {
+    title: "Unit Tour Leads",
+    subtitle:
+      "Follow up walk-in tour leads synced from Visitor Management through the sales pipeline.",
+  },
+};
+
+export default function LeadsManagementPage({
+  lockedTab,
+}: {
+  // When set, the page renders a single view with the main tab strip hidden —
+  // used by the dedicated routes the Leads dashboard's module cards open.
+  lockedTab?: string;
+}) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -163,7 +192,13 @@ export default function LeadsManagementPage() {
   const [selectedLeadId, setSelectedLeadId] = useState(null);
   const [isExportingReport, setIsExportingReport] = useState("");
   const [showExportModal, setShowExportModal] = useState(false);
-  const [mainTab, setMainTab] = useState("website-leads");
+  const location = useLocation();
+  const requestedTab = (location.state as { tab?: string } | null)?.tab;
+  const [mainTab, setMainTab] = useState(
+    lockedTab === "unit-tour" || (!lockedTab && requestedTab === "unit-tour")
+      ? "unit-tour"
+      : "website-leads",
+  );
   const [websiteLeads, setWebsiteLeads] = useState([]);
   const [websiteLeadStages, setWebsiteLeadStages] = useState({});
   const [selectedWebsiteLeadId, setSelectedWebsiteLeadId] = useState(null);
@@ -336,7 +371,7 @@ export default function LeadsManagementPage() {
 
   const qualificationEntries = useMemo(
     () => Object.entries(selectedLead?.qualification || {}).filter(([, v]) => Boolean(String(v || "").trim())).map(([label, value]) => ({
-      label: { pocName: "POC Name", pocDesignation: "POC Designation", pocPhone: "POC Phone", pocEmail: "POC Email", preferredContactMethod: "Preferred Contact", followUpDate: "Follow-up Date" }[label] || label.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()),
+      label: { pocName: "POC Name", pocDesignation: "POC Designation", pocPhone: "POC Phone", pocEmail: "POC Email", preferredContactMethod: "Preferred Contact", followUpDate: "Contacted On" }[label] || label.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()),
       value,
     })),
     [selectedLead],
@@ -349,7 +384,15 @@ export default function LeadsManagementPage() {
     pendingStageIds.current.add(leadId);
     setSavingStages((current) => ({ ...current, [leadId]: true }));
     try {
-      await updateUnitTourLeadStatus(leadId, nextStage);
+      const result = await updateUnitTourLeadStatus(leadId, nextStage);
+      // The PATCH response carries the freshly stamped followUpDate/convertedAt —
+      // re-derive the full lead from it so the Activity Timeline and the
+      // Contacted on/Converted on labels update immediately instead of staying
+      // frozen at whatever they were when the list first loaded.
+      if (result?.visitor) {
+        const updatedLead = visitorToLead(result.visitor);
+        setLeads((current) => current.map((item) => (item.id === leadId ? updatedLead : item)));
+      }
       setLeadStages((current) => ({ ...current, [leadId]: nextStage }));
       toast.success("Lead status updated");
     } catch (updateError) {
@@ -419,10 +462,15 @@ export default function LeadsManagementPage() {
         <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
           <div>
             <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-              Leads Management
+              {lockedTab
+                ? LEADS_VIEW_META[lockedTab]?.title || "Leads Management"
+                : "Leads Management"}
             </h2>
             <p className="text-xs font-pmedium text-slate-500 mt-1">
-              Sales synced from Visitor Management and Website Builder.
+              {lockedTab
+                ? LEADS_VIEW_META[lockedTab]?.subtitle ||
+                  "Sales synced from Visitor Management and Website Builder."
+                : "Sales synced from Visitor Management and Website Builder."}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
@@ -450,6 +498,9 @@ export default function LeadsManagementPage() {
         
 
         {/* 2. MAIN TABS (Website & Nomad Leads | Unit Tour List) */}
+        {/* Hidden on the dedicated single-view routes — those pages are
+            locked to one tab, so the switcher would be noise. */}
+        {!lockedTab ? (
         <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
           {[
             { key: "website-leads", label: "All Website & Nomad Leads" },
@@ -460,6 +511,7 @@ export default function LeadsManagementPage() {
             >{tab.label}</button>
           ))}
         </div>
+        ) : null}
 
         {/* 3. STAT CARDS (DESIGN.md 4-col grid with border-left accents) */}
         {mainTab === "unit-tour" ? (
@@ -720,6 +772,12 @@ export default function LeadsManagementPage() {
                     <span className={statusPillClass(selectedLead.priority)}>{selectedLead.priority} Priority</span>
                     <span className="text-[10px] font-pmedium text-slate-500 truncate">{selectedLead.company || "Individual"} {selectedLead.visitorCode || selectedLead.id}</span>
                   </div>
+                  {(selectedLead.contactedOn || selectedLead.convertedOn) && (
+                    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                      {selectedLead.contactedOn ? <span className="text-[10px] font-pmedium text-slate-500">Contacted on {selectedLead.contactedOn}</span> : null}
+                      {selectedLead.convertedOn ? <span className="text-[10px] font-pmedium text-emerald-600">Converted on {selectedLead.convertedOn}</span> : null}
+                    </div>
+                  )}
                 </div>
               </div>
               <button type="button" onClick={() => setSelectedLeadId(null)} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"><X size={16} /></button>

@@ -12,17 +12,23 @@ import CommonsTemplate from "./commons/CommonsTemplate";
 import HuddleTemplate from "./huddle/HuddleTemplate";
 import TravigoTemplate from "./travigo/TravigoTemplate";
 import TulumTemplate from "./tulum/TulumTemplate";
+import TinyHomeTemplate from "./tinyhome/TinyHomeTemplate";
+import CabinTemplate from "./cabin/CabinTemplate";
 import GrindelwaldTemplate from "./grindelwald/GrindelwaldTemplate";
 import LodgeTemplate from "./lodge/LodgeTemplate";
 import CaliHostelTemplate from "./caliHostel/CaliHostelTemplate";
 import TastycTemplate from "./tastyc/TastycTemplate";
 import GrandBarTemplate from "./grandbar/GrandBarTemplate";
 import AromaticaTemplate from "./aromatica/AromaticaTemplate";
+import ItalianoTemplate from "./italiano/ItalianoTemplate";
+import RestobarTemplate from "./restobar/RestobarTemplate";
 import FlowspaceTemplate from "./flowspace/FlowspaceTemplate";
 import WorpaceTemplate from "./worpace/WorpaceTemplate";
 import WorkscapeTemplate from "./workscape/WorkscapeTemplate";
 import BrixspaceTemplate from "./brixspace/BrixspaceTemplate";
 import QerjaTemplate from "./qerja/QerjaTemplate";
+import CoboxTemplate from "./cobox/CoboxTemplate";
+import CoPlaceTemplate from "./coplace/CoPlaceTemplate";
 import type { ServiceKind } from "./verticalProfiles";
 
 export interface TemplateDefinition {
@@ -151,6 +157,29 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
     recommendedFor: ["menu"],
     supportsBooking: true,
   },
+  italiano: {
+    id: "italiano",
+    name: "Italiano",
+    description: "A dark Italian café template with a cinematic carousel, editorial story, and table reservations.",
+    component: ItalianoTemplate,
+    swatch: { bg: "#131211", fg: "#f5f0e9", accent: "#d4ae74", font: "'Cormorant Garamond', serif" },
+    recommendedFor: ["menu"],
+    supportsBooking: true,
+  },
+  restobar: {
+    id: "restobar",
+    name: "Restobar",
+    description: "A dark café and bistro theme with a four-panel photo hero, category menus, and table reservations.",
+    component: RestobarTemplate,
+    swatch: {
+      bg: "#101519",
+      fg: "#f5f0e9",
+      accent: "#c29a77",
+      font: "'Merriweather', Georgia, serif",
+    },
+    recommendedFor: ["menu"],
+    supportsBooking: true,
+  },
   wayfarer: {
     id: "wayfarer",
     name: "Wayfarer",
@@ -179,6 +208,24 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       font: "'Manrope', sans-serif",
     },
     recommendedFor: ["hostel"],
+    supportsBooking: true,
+  },
+  cabin: {
+    id: "cabin",
+    name: "Cabin",
+    description: "Nature-led co-living with an oversized serif hero, a tilted photo collage, rounded home cards and stay enquiries.",
+    component: CabinTemplate,
+    swatch: { bg: "#ffffff", fg: "#181916", accent: "#181916", font: "'Instrument Serif', serif" },
+    recommendedFor: ["coLiving"],
+    supportsBooking: true,
+  },
+  tinyhome: {
+    id: "tinyhome",
+    name: "Tiny Home",
+    description: "A minimalist cabin theme with a full-bleed photo hero, a compact stays catalog, and an enquiry form.",
+    component: TinyHomeTemplate,
+    swatch: { bg: "#ffffff", fg: "#272724", accent: "#353932", font: "'Spinnaker', sans-serif" },
+    recommendedFor: ["coLiving"],
     supportsBooking: true,
   },
   tulum: {
@@ -372,6 +419,30 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       fg: "#003f3a",
       accent: "#f3c441",
       font: "'Manrope', sans-serif",
+    },
+    recommendedFor: ["workspace"],
+    supportsBooking: true,
+  },
+  coplace: {
+    id: "coplace",
+    name: "CoPlace",
+    description: "A mint-accented coworking template with a circular photo hero, workspace plans, and tour enquiries.",
+    component: CoPlaceTemplate,
+    swatch: { bg: "#edf8fa", fg: "#10292d", accent: "#28c49a", font: "'Raleway', sans-serif" },
+    recommendedFor: ["workspace"],
+    supportsBooking: true,
+  },
+  cobox: {
+    id: "cobox",
+    name: "Cobox",
+    description:
+      "Bright co-working design — a floating navigation bar, oversized teal hero, lime accents, workspace storytelling, pricing plans and polished reservation flows.",
+    component: CoboxTemplate,
+    swatch: {
+      bg: "#ffffff",
+      fg: "#102b32",
+      accent: "#dff39e",
+      font: "'Sora', sans-serif",
     },
     recommendedFor: ["workspace"],
     supportsBooking: true,

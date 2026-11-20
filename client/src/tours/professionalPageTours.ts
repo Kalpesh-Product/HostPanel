@@ -29,7 +29,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="organization-add-user"]', title: "Add a platform user", description: "Open the member form, choose an available Professional role and department access, then send the invitation. The button is disabled when the five-user plan limit is reached." },
       { selector: '[data-tour="organization-members-table"]', title: "Member records and access", description: "Review identity, role, departments, status, and access. Authorized users can toggle account access and open View Details for the complete member record.", side: "top" },
     ],
-    matches: exact("/core-modules/organization-management"),
+    matches: exact("/core-modules/organization-management/list"),
   },
   {
     id: "professional-access-grants",
@@ -92,7 +92,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="tickets-raise-btn"]', title: "Raise a new ticket", description: "Click this to open the ticket form. Choose the target department, set a priority (Low, Medium, or High), write a clear title and description, set a due date, and optionally assign it to a specific person." },
       { selector: '[data-tour="tickets-table"]', title: "Ticket list and actions", description: "Each row shows the ticket ID, title, who raised it, which department it is routed to, its priority, status, and when it was last updated. Click the eye icon on any row to open the full ticket detail." },
     ],
-    matches: exact("/common-modules/tickets"),
+    matches: exact("/common-modules/tickets/list"),
   },
   {
     id: "professional-attendance",
@@ -134,11 +134,6 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
     description: "Reserve meeting rooms, manage bookings, and track invitations from one place. Book for yourself, for team members, for walk-in clients, or for tenant companies.",
     recordsDescription: "Booking records show the room, host or client, schedule, invite state, payment information when applicable, and available actions.",
     steps: [
-      { selector: '[data-tour="meetings-main-tabs"]', title: "Booking tabs", description: "These four tabs organize all meeting-room activity. My Bookings is your personal hub. Internal, External, and Tenant tabs handle other booking types with their own workflows." },
-      { selector: '[data-tour="meetings-tab-my-bookings"]', title: "My Bookings tab", description: "Your personal booking hub. See your own reservations, manage invites from others, and create new room bookings. This is where you start." },
-      { selector: '[data-tour="meetings-tab-internal"]', title: "Internal Booking tab", description: "Book a meeting room on behalf of a team member or colleague. Use this when someone asks you to reserve a room for them." },
-      { selector: '[data-tour="meetings-tab-external"]', title: "External Booking tab", description: "Handle walk-in or client bookings. These are external visitors who need a meeting room — you can track their payment status, schedule, and reservations." },
-      { selector: '[data-tour="meetings-tab-tenant"]', title: "Tenant Bookings tab", description: "Bookings made by or for tenant companies sharing your workspace. Monitor their reservations and manage any issues." },
       { selector: '[data-tour="meetings-summary"]', title: "Booking counts at a glance", description: "These four cards show booking stats that change with each tab — for example, Upcoming, In Progress, Completed, and Cancelled counts for your current view." },
       { selector: '[data-tour="meetings-scope-tabs"]', title: "Scope tabs within My Bookings", description: "Within My Bookings, additional scope tabs let you switch between your own bookings, company-wide bookings (if you have access), and invitations you have received." },
       { selector: '[data-tour="meetings-scope-dept"]', title: "Company or Department scope", description: "Shows all bookings for your company or department. Only visible to Owners, Super Admins, Admins, and Managers — not available to Employees." },
@@ -150,7 +145,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="meetings-table"]', title: "Booking list and actions", description: "Each row shows the room, host or client, schedule, status, and available actions. Click the eye icon to view full details, or use reschedule, extend, or cancel buttons as available." },
       { selector: '[data-tour="meetings-calendar"]', title: "Room availability calendar", description: "Check room availability by date. Select a room and month to see which days are free (green), partially booked (amber), or fully booked (red)." },
     ],
-    matches: startsWith("/common-modules/meeting-room-booking"),
+    matches: startsWith("/common-modules/meeting-room-booking/list"),
   },
   {
     id: "professional-calendar",
@@ -209,7 +204,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="page-content"] table', title: "Lead records", description: "The table shows contact details, requirements, stage, source, and timeline. Select View details to inspect the complete lead." },
       { selector: 'button[aria-label^="View details for"]', title: "Lead details and conversion", description: "Review the lead before updating it. Suitable visitor leads can be converted; website leads can be closed after follow-up is complete." },
     ],
-    matches: exact("/department-accesses/sales-department/leads-management"),
+    matches: exact("/department-accesses/sales-department/leads-management/list"),
   },
   {
     id: "professional-tenant-company-detail",
@@ -272,7 +267,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="vod-space-details"]', tabPage: "space-allocation", title: "Assigned space breakdown", description: "The assigned floor and the individual desks given to this company, alongside any location labels carried from its package." },
       { selector: '[data-tour="vod-space-seats"]', tabPage: "space-allocation", title: "Assigned seats by area", description: "When individual seats are assigned within the space, they're listed here by area." },
     ],
-    matches: (path) => /^\/department-accesses\/sales-department\/virtual-offices\/[^/]+$/.test(path),
+    matches: (path) => /^\/department-accesses\/sales-department\/virtual-offices\/(?!list$)[^/]+$/.test(path),
   },
   {
     id: "professional-virtual-offices",
@@ -294,7 +289,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="vo-record-payment-btn"]', tabPage: "collections", title: "Record a payment", description: "Opens the payment form for any company — month, amount, period, payment method, transaction ID, status, and notes." },
       { selector: '[data-tour="vo-collections-table"]', tabPage: "collections", title: "Payment records", description: "Each row shows monthly rent, how many payments are on file, and current rent status. View rent details opens the full payment history and Record payment logs a new one.", side: "top" },
     ],
-    matches: exact("/department-accesses/sales-department/virtual-offices"),
+    matches: exact("/department-accesses/sales-department/virtual-offices/list"),
   },
   {
     id: "professional-resource-pricing",
@@ -319,7 +314,7 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="resource-pricing-export-btns"]', tabPage: "tenant", title: "Export packages", description: "Download the current filtered package list as a PDF report or Excel file saved to Reports." },
       { selector: '[data-tour="resource-pricing-table"]', tabPage: "tenant", title: "Package list and actions", description: "Each row shows coverage by floor and wing with open, cabin, and total seats, monthly credits that expire monthly, duration, and contract value. Recommended, Custom, and Locked badges explain each package's state. Use the eye action to review details and the pencil to edit; locked packages cannot be edited or deleted while assigned to a tenant.", side: "top" },
     ],
-    matches: exact("/department-accesses/sales-department/resource-pricing"),
+    matches: exact("/department-accesses/sales-department/resource-pricing/list"),
   },
   {
     id: "professional-frontdesk-action",

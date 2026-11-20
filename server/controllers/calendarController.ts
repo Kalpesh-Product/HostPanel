@@ -1,10 +1,17 @@
 // @ts-nocheck
 import { Request, Response, NextFunction } from "express";
 import { MeetingRoomBooking } from "../models/MeetingRoomBooking.js";
+import { CalendarEvent } from "../models/CalendarEvent.js";
 import Workspace from "../models/Workspace.js";
 import Holiday from "../models/Holiday.js";
 import LeaveRequest from "../models/LeaveRequest.js";
+import HostUser from "../models/HostUser.js";
 import { getZonedDateTimeParts, normalizeTimeZone } from "../utils/workspaceLocalization.js";
+import { resolveInvites } from "./meetingRoomBookingController.js";
+import { createNotification } from "../utils/notify.js";
+
+const EMAIL_FONT = "'Poppins','Segoe UI',Arial,sans-serif";
+const EMAIL_FORMAT_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface AuthenticatedRequest extends Request {
     user?: string;
@@ -144,7 +151,30 @@ export const getMyCalendar = async (
             };
         });
 
-        const events = [...holidayEvents, ...leaveEvents, ...bookingEvents];
+        const calendarEventDocs = await CalendarEvent.find({
+            workspaceId,
+            status: "active",
+            $or: [{ ownerId: req.user }, { "invites.invitedUserId": req.user }],
+        }).sort({ date: 1 }).lean().exec();
+        const userCalendarEvents = calendarEventDocs.map((event: any) => ({
+            id: `calendar-event-${String(event._id)}`,
+            type: "personal",
+            title: event.title,
+            description: event.description || "",
+            date: event.date,
+            endDate: event.date,
+            startTime: event.startTime || "",
+            time: event.startTime ? `${event.startTime}${event.endTime ? ` - ${event.endTime}` : ""}` : "All day",
+            location: "",
+            reference: "",
+            attendees: (event.invites || []).map((invite: any) => invite.invitedName).filter(Boolean),
+            details: {
+                organizerName: event.ownerName,
+                invites: event.invites || [],
+            },
+        }));
+
+        const events = [...holidayEvents, ...leaveEvents, ...bookingEvents, ...userCalendarEvents];
 
         return res.status(200).json({
             data: {
@@ -156,10 +186,203 @@ export const getMyCalendar = async (
                     leaveRequests: leaveEvents.length,
                     holidays: holidayEvents.filter((event) => event.type === "holiday").length,
                     events: holidayEvents.filter((event) => event.type === "event").length,
+                    personalEvents: userCalendarEvents.length,
                     bookings: bookingEvents.length,
                 },
             },
         });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const createCalendarEvent = async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+) => {
+    try {
+        const workspaceId = req.workspaceMembership?.workspace;
+        if (!req.user || !workspaceId) {
+            return res.status(401).json({ message: "An active workspace is required" });
+        }
+
+        const title = String(req.body?.title || "").trim();
+        const date = String(req.body?.date || "").trim();
+        if (!title) return res.status(400).json({ message: "A title is required" });
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ message: "A valid date is required" });
+
+        const startTime = String(req.body?.startTime || "").trim();
+        const endTime = String(req.body?.endTime || "").trim();
+        const description = String(req.body?.description || "").trim();
+
+        // A backdated slot can never be booked — checked in the workspace's own
+        // timezone, not the server's or the caller's, so it matches what the
+        // calendar UI already filtered out.
+        const workspaceTimeZone = await getWorkspaceTimeZone(workspaceId);
+        const nowParts = dateParts(new Date(), workspaceTimeZone);
+        if (date < nowParts.date || (date === nowParts.date && startTime && startTime < nowParts.time)) {
+            return res.status(400).json({ message: "A past date or time cannot be booked" });
+        }
+
+        const owner = await HostUser.findById(req.user).select("name email").lean().exec();
+        const ownerName = owner?.name || owner?.email || "Someone";
+        const ownerEmail = String(owner?.email || "").trim().toLowerCase();
+
+        const rawInvites = await resolveInvites(req.body?.inviteeUserIds);
+        const memberInvites = rawInvites.filter(
+            (invite: any) => String(invite.invitedUserId || "") !== String(req.user),
+        );
+        const memberInviteEmails = new Set(
+            memberInvites.map((invite: any) => String(invite.invitedEmail || "").toLowerCase()).filter(Boolean),
+        );
+
+        const uniqueGuestEmails = [
+            ...new Set(
+                (Array.isArray(req.body?.guestEmails) ? req.body.guestEmails : [])
+                    .map((email: any) => String(email || "").trim().toLowerCase())
+                    .filter((email: string) => EMAIL_FORMAT_RE.test(email)),
+            ),
+        ];
+        const guestInvites = uniqueGuestEmails
+            .filter((email) => email !== ownerEmail && !memberInviteEmails.has(email))
+            .map((email) => ({
+                invitedName: email.split("@")[0] || "Guest",
+                invitedEmail: email,
+                status: "pending" as const,
+            }));
+
+        const invites = [...memberInvites, ...guestInvites];
+
+        const event = await CalendarEvent.create({
+            workspaceId,
+            ownerId: req.user,
+            ownerName,
+            title,
+            description,
+            date,
+            startTime,
+            endTime,
+            invites,
+        });
+
+        if (invites.length > 0) {
+            const { sendMail } = await import("../config/mailer.js");
+            const timeLabel = startTime ? `${startTime}${endTime ? ` - ${endTime}` : ""}` : "All day";
+
+            for (const invite of invites) {
+                if (invite.invitedUserId && String(invite.invitedUserId) !== String(req.user)) {
+                    createNotification({
+                        workspaceId,
+                        recipientUserId: String(invite.invitedUserId),
+                        actorUserId: req.user,
+                        type: "calendar_event_invitation",
+                        category: "calendar",
+                        title: "Calendar Invitation",
+                        description: `${ownerName} invited you to "${title}" on ${date}${startTime ? ` at ${startTime}` : ""}.`,
+                        entityType: "calendar_event",
+                        entityId: String(event._id),
+                        targetUrl: "/common-modules/calendar",
+                        data: { title, date, startTime, endTime },
+                        priority: "normal",
+                        isActionRequired: true,
+                        dedupeKey: `calendar-event-invite:${event._id}:${invite.invitedUserId}`,
+                    });
+                }
+
+                if (invite.invitedEmail) {
+                    const html = `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:${EMAIL_FONT};">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);font-family:${EMAIL_FONT};">
+        <tr><td style="background:#2563EB;padding:32px 40px;">
+          <p style="margin:0;font-size:22px;font-weight:600;color:#ffffff;font-family:${EMAIL_FONT};">Calendar Invitation</p>
+          <p style="margin:8px 0 0;font-size:13px;font-weight:500;color:#dbeafe;font-family:${EMAIL_FONT};">${ownerName} invited you to an event</p>
+        </td></tr>
+        <tr><td style="padding:32px 40px;">
+          <p style="margin:0 0 24px;font-size:15px;font-weight:500;color:#334155;font-family:${EMAIL_FONT};">Hi <strong>${invite.invitedName || "there"}</strong>, you've been invited to the event below.</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:24px;">
+            <tr><td style="padding:10px 16px;font-size:13px;font-weight:500;color:#64748b;font-family:${EMAIL_FONT};">Title</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#0f172a;text-align:right;font-family:${EMAIL_FONT};">${title}</td></tr>
+            <tr style="border-top:1px solid #f1f5f9;background:#f8fafc;"><td style="padding:10px 16px;font-size:13px;font-weight:500;color:#64748b;font-family:${EMAIL_FONT};">Date</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#0f172a;text-align:right;font-family:${EMAIL_FONT};">${date}</td></tr>
+            <tr style="border-top:1px solid #f1f5f9;"><td style="padding:10px 16px;font-size:13px;font-weight:500;color:#64748b;font-family:${EMAIL_FONT};">Time</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#0f172a;text-align:right;font-family:${EMAIL_FONT};">${timeLabel}</td></tr>
+            ${description ? `<tr style="border-top:1px solid #f1f5f9;background:#f8fafc;"><td style="padding:10px 16px;font-size:13px;font-weight:500;color:#64748b;font-family:${EMAIL_FONT};">Agenda</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#0f172a;text-align:right;font-family:${EMAIL_FONT};">${description}</td></tr>` : ""}
+          </table>
+          <p style="margin:0;font-size:13px;font-weight:500;color:#94a3b8;line-height:1.6;font-family:${EMAIL_FONT};">Open the WoNo app to view this on your calendar.</p>
+        </td></tr>
+        <tr><td style="background:#f1f5f9;padding:20px 40px;border-top:1px solid #e2e8f0;">
+          <p style="margin:0;font-size:11px;font-weight:500;color:#94a3b8;font-family:${EMAIL_FONT};">This is an automated notice. Please do not reply to this email.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+                    sendMail({
+                        to: invite.invitedEmail,
+                        subject: `Calendar Invitation — ${title} on ${date}`,
+                        html,
+                        text: `${ownerName} invited you to "${title}" on ${date}${startTime ? ` at ${timeLabel}` : ""}.${description ? ` Agenda: ${description}.` : ""}`,
+                    }).catch((err: any) => console.error("Calendar event invite email failed:", err?.message || err));
+                }
+            }
+        }
+
+        return res.status(201).json({ message: "Event created successfully", data: event });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const respondToCalendarEvent = async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+) => {
+    try {
+        const workspaceId = req.workspaceMembership?.workspace;
+        if (!req.user || !workspaceId) {
+            return res.status(401).json({ message: "An active workspace is required" });
+        }
+
+        const status = req.body?.status === "declined" ? "rejected" : req.body?.status;
+        if (!["accepted", "rejected"].includes(status)) {
+            return res.status(400).json({ message: "A valid response is required" });
+        }
+
+        const event: any = await CalendarEvent.findOne({
+            _id: req.params.id,
+            workspaceId,
+            "invites.invitedUserId": req.user,
+        });
+        if (!event) return res.status(404).json({ message: "Invite not found" });
+
+        const invite = event.invites.find((item: any) => String(item.invitedUserId) === String(req.user));
+        invite.status = status;
+        await event.save();
+
+        if (event.ownerId && String(event.ownerId) !== String(req.user)) {
+            const responder = await HostUser.findById(req.user).select("name email").lean().exec();
+            const responderName = responder?.name || responder?.email || "Someone";
+            createNotification({
+                workspaceId,
+                recipientUserId: String(event.ownerId),
+                actorUserId: req.user,
+                type: "calendar_event_response",
+                category: "calendar",
+                title: `Calendar Invite ${status === "accepted" ? "Accepted" : "Declined"}`,
+                description: `${responderName} has ${status === "accepted" ? "accepted" : "declined"} your invitation to "${event.title}".`,
+                entityType: "calendar_event",
+                entityId: String(event._id),
+                targetUrl: "/common-modules/calendar",
+                data: { title: event.title, response: status },
+                priority: "normal",
+                dedupeKey: `calendar-event-response:${event._id}:${req.user}:${Date.now()}`,
+            });
+        }
+
+        return res.status(200).json({ message: "Invite response saved", data: event });
     } catch (error) {
         next(error);
     }

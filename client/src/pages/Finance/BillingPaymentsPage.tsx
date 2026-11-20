@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   Receipt, Building2, Calendar, CreditCard, CheckCircle2,
@@ -44,6 +44,19 @@ import PageFrame from '@/components/Pages/PageFrame';
 import ExportReportModal, { type ExportParams } from '@/components/ExportReportModal';
 import ReportExportButton from '@/components/ReportExportButton';
 import { isDateInExportPeriod } from '@/utils/export-period';
+
+// Page header per dedicated section route — mirrors the dashboard module card titles.
+const BILLING_SECTION_META: Record<string, { title: string; subtitle: string }> = {
+  tenant: { title: 'Tenant Security Deposits', subtitle: 'Issue invoices and verify company security deposits.' },
+  rent: { title: 'Tenant Rent', subtitle: 'Review due cycles, proofs, and rent collections.' },
+  virtualOffice: { title: 'Virtual Office', subtitle: 'Track virtual-office rent and payment history.' },
+  workation: { title: 'Workation Revenue', subtitle: 'Record workation packages and received revenue.' },
+  alternateRevenue: { title: 'Alternate Revenue', subtitle: 'Manage café, printing, parking, and other income.' },
+  bookings: { title: 'Meeting Room Bookings', subtitle: 'Generate booking invoices and track payment state.' },
+  payroll: { title: 'Payroll', subtitle: 'Review salary payable and process employee payments.' },
+  extraCredits: { title: 'Extra Credit Requests', subtitle: 'Invoice and verify tenant credit top-ups.' },
+  history: { title: 'Transaction History', subtitle: 'Review consolidated billing and payment activity.' },
+};
 
 /* ───────────────────── Types ───────────────────── */
 
@@ -729,7 +742,20 @@ export function BillingPaymentsPage() {
     'Finance Team',
   ).trim();
 
-  const [activeTab, setActiveTab] = useState('tenant');
+  // Routed here directly as its own page (e.g. /billing-payments/rent), so the
+  // top-level tab bar is hidden and the tab is locked to the URL segment.
+  const { section: routeSection } = useParams<{ section?: string }>();
+  const BILLING_TABS = ['tenant', 'rent', 'virtualOffice', 'workation', 'alternateRevenue', 'bookings', 'payroll', 'extraCredits', 'history'];
+  const isDedicatedRoute = Boolean(routeSection && BILLING_TABS.includes(routeSection));
+  const [activeTab, setActiveTab] = useState(isDedicatedRoute ? routeSection! : 'tenant');
+  useEffect(() => {
+    if (isDedicatedRoute) {
+      setActiveTab(routeSection!);
+      return;
+    }
+    const tab = new URLSearchParams(location.search).get('tab');
+    if (tab && BILLING_TABS.includes(tab)) setActiveTab(tab);
+  }, [location.search, isDedicatedRoute, routeSection]);
   const [showExportModal, setShowExportModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -1603,9 +1629,11 @@ export function BillingPaymentsPage() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                Billing & Payments
+                {isDedicatedRoute ? BILLING_SECTION_META[routeSection!].title : 'Billing & Payments'}
               </h2>
-              <p className="text-xs font-pmedium text-slate-500 mt-1">Core Module | Invoicing, payroll & payment management</p>
+              <p className="text-xs font-pmedium text-slate-500 mt-1">
+                {isDedicatedRoute ? BILLING_SECTION_META[routeSection!].subtitle : 'Core Module | Invoicing, payroll & payment management'}
+              </p>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="flex items-center gap-2 bg-white border border-slate-200 px-4 py-2.5 rounded-xl shadow-sm">
@@ -1646,31 +1674,33 @@ export function BillingPaymentsPage() {
             </div>
           )}
 
-          {/* ── Pill Tabs (DESIGN.md: pill-style with blue active bg) ── */}
-          <div className="mb-3 overflow-x-auto overscroll-x-contain rounded-2xl border border-slate-100 bg-white p-1 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div className="flex min-w-max flex-nowrap gap-1.5" role="tablist" aria-label="Billing and payment sections">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    role="tab"
-                    aria-selected={activeTab === tab.key}
-                    onClick={() => { setActiveTab(tab.key); setStatusFilter('All'); }}
-                    className={`flex min-w-[8.5rem] flex-none items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all sm:min-w-[10rem] ${
-                      activeTab === tab.key
-                        ? 'bg-[#2563EB] text-white shadow-sm'
-                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-                    }`}
-                  >
-                    <Icon size={14} className="shrink-0" />
-                    {tab.label}
-                  </button>
-                );
-              })}
+          {/* ── Pill Tabs (DESIGN.md: pill-style with blue active bg) — only when reached without a dedicated section route ── */}
+          {!isDedicatedRoute && (
+            <div className="mb-3 overflow-x-auto overscroll-x-contain rounded-2xl border border-slate-100 bg-white p-1 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex min-w-max flex-nowrap gap-1.5" role="tablist" aria-label="Billing and payment sections">
+                {tabs.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeTab === tab.key}
+                      onClick={() => { setActiveTab(tab.key); setStatusFilter('All'); }}
+                      className={`flex min-w-[8.5rem] flex-none items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all sm:min-w-[10rem] ${
+                        activeTab === tab.key
+                          ? 'bg-[#2563EB] text-white shadow-sm'
+                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
+                    >
+                      <Icon size={14} className="shrink-0" />
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* ── Stat Cards (DESIGN.md: border-l-4 accent per card, tab-aware) ── */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
@@ -2891,7 +2921,7 @@ export function BillingPaymentsPage() {
                         Apply {taxLabel} ({taxRatePercent}%){applyVoTax && ` — Tax: ${formatCurrency(computeTaxPreview(Number(voPaymentAmount) || getVoTargetPeriod(viewingVo)?.dueAmount || 0).tax)} · Total: ${formatCurrency(computeTaxPreview(Number(voPaymentAmount) || getVoTargetPeriod(viewingVo)?.dueAmount || 0).total)}`}
                       </label>
                     )}
-                    <p className="text-[10px] text-slate-400">Pay in full or in installments — a partial amount keeps the period Overdue until the balance clears.</p>
+                    <p className="text-[10px] font-pmedium text-slate-400">Pay in full or in installments — a partial amount keeps the period Overdue until the balance clears.</p>
                     <div className="pt-1">
                       <label className="block text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-1">Attach receipt (optional)</label>
                       <input

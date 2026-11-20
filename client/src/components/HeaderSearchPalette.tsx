@@ -122,7 +122,7 @@ const AUTHORIZED_CHILD_PAGES: Array<{
   {
     parentModuleId: "team-management",
     title: "Team Roster",
-    route: "/extra-common-modules/team-management/roster",
+    route: "/extra-common-modules/team-management/access-control",
     section: "Team Management",
   },
   {
@@ -410,7 +410,7 @@ const HeaderSearchPalette = ({ compact = false }: { compact?: boolean }) => {
               results.push({
                 title: lead.fullName || "Lead",
                 description: [lead.companyName, lead.email || lead.mobileNumber, lead.source].filter(Boolean).join(" · "),
-                route: `/key-apps/all-leads?globalSearch=${encodeURIComponent(debouncedSearch)}&recordId=${encodeURIComponent(id)}`,
+                route: `/key-apps/all-leads/list?globalSearch=${encodeURIComponent(debouncedSearch)}&recordId=${encodeURIComponent(id)}`,
                 moduleId: "website-leads",
                 section: "Leads",
                 searchText: "",
@@ -430,7 +430,7 @@ const HeaderSearchPalette = ({ compact = false }: { compact?: boolean }) => {
               results.push({
                 title: member.fullName || member.name || member.email || "User",
                 description: [member.role, member.email].filter(Boolean).join(" · "),
-                route: `/core-modules/organization-management?globalSearch=${encodeURIComponent(debouncedSearch)}&recordId=${encodeURIComponent(id)}`,
+                route: `/core-modules/organization-management/list?tab=users&globalSearch=${encodeURIComponent(debouncedSearch)}&recordId=${encodeURIComponent(id)}`,
                 moduleId: "organization-management",
                 section: "Users",
                 searchText: "",

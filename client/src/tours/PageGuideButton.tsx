@@ -45,7 +45,12 @@ export default function PageGuideButton({ available, onStart }: PageGuideButtonP
 
       host = document.createElement("span");
       host.dataset.pageGuideAnchor = "true";
-      host.className = "ml-2 inline-flex align-middle normal-case";
+      // Heading rows across the app are flex containers (often with
+      // items-baseline for multi-span titles), where `align-middle` has no
+      // effect. `self-center` is what actually recenters the pill against
+      // the oversized heading text instead of sitting high/low off its
+      // baseline.
+      host.className = "ml-2 inline-flex self-center normal-case";
       heading.appendChild(host);
       setPortalHost(host);
     };

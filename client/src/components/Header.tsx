@@ -2,20 +2,12 @@
 import { useState, useEffect, type MouseEvent } from "react";
 import {
   Avatar,
-  Divider,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
   Popover,
   useMediaQuery,
 } from "@mui/material";
 import { IoIosArrowForward } from "react-icons/io";
 import { GiHamburgerMenu } from "react-icons/gi";
-import { FaUserTie } from "react-icons/fa6";
-import { FiLogOut } from "react-icons/fi";
-import { BellRing } from "lucide-react";
+import { BellRing, LogOut, UserRound } from "lucide-react";
 import { useSidebar } from "../context/SideBarContext";
 import useAuth from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
@@ -359,35 +351,61 @@ const Header = ({
           vertical: "top",
           horizontal: "center",
         }}
+        slotProps={{
+          paper: {
+            elevation: 0,
+            className:
+              "mt-1.5 !rounded-2xl bg-white !shadow-[0_25px_60px_rgba(15,23,42,0.18),0_0_0_1px_rgba(15,23,42,0.04)] overflow-hidden",
+          },
+        }}
       >
-        <div className="p-4 w-48">
-          <List>
-            <ListItem disablePadding>
-              <ListItemButton
-                onClick={handleProfileClick}
-                className="hover:text-primary transition-all duration-100 text-gray-500 cursor-pointer"
-              >
-                <ListItemIcon>
-                  <FaUserTie className="text-gray-500" />
-                </ListItemIcon>
-                <ListItemText primary="Profile" />
-              </ListItemButton>
-            </ListItem>
-
-            <Divider />
-
-            <ListItem disablePadding>
-              <ListItemButton
-                onClick={handleSignOut}
-                className="hover:text-red-600 transition-all duration-100 text-gray-500 cursor-pointer"
-              >
-                <ListItemIcon>
-                  <FiLogOut className="text-gray-500" />
-                </ListItemIcon>
-                <ListItemText primary="Sign Out" />
-              </ListItemButton>
-            </ListItem>
-          </List>
+        {/* Profile dropdown — identity row mirrors the navbar's user block
+            (rounded-full avatar, same name/role type), then the two pill
+            actions on the app palette. */}
+        <div className="w-52">
+          {/* <div className="flex items-center gap-2.5 px-4 py-3 border-b border-slate-100">
+            <div className="w-9 h-9 rounded-full overflow-hidden bg-slate-200 text-slate-700 flex items-center justify-center font-pmedium text-[14px] shrink-0">
+              {auth?.user?.profilePicture?.url ? (
+                <img
+                  src={auth?.user?.profilePicture?.url}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                auth?.user?.name?.charAt(0) || "—"
+              )}
+            </div>
+            <div className="min-w-0 leading-tight">
+              <p className="text-[14px] font-semibold text-slate-900 truncate">
+                {auth?.user?.name || "—"}
+              </p>
+              <p className="text-[11px] font-semibold text-slate-500 mt-0.5 truncate">
+                {roleLabel || "\u2014"}
+              </p>
+            </div>
+          </div> */}
+          <div className="p-1.5">
+            <button
+              type="button"
+              onClick={handleProfileClick}
+              className="group w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[12px] font-pmedium text-slate-600 transition-colors hover:bg-blue-50 hover:text-[#2563EB]"
+            >
+              <span className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center transition-colors group-hover:bg-blue-100">
+                <UserRound size={15} />
+              </span>
+              Profile
+            </button>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="group w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[12px] font-pmedium text-slate-600 transition-colors hover:bg-red-50 hover:text-red-600"
+            >
+              <span className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center transition-colors group-hover:bg-red-100">
+                <LogOut size={15} />
+              </span>
+              Sign Out
+            </button>
+          </div>
         </div>
       </Popover>
 

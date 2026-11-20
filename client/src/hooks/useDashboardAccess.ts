@@ -40,6 +40,12 @@ export interface DashboardAccessResult {
    *  plan defaults, so it is the exact set a module must belong to before it
    *  can be unlocked for any role. */
   workspaceEnabledModuleIds: string[];
+  /** Business-type/vertical keys enabled for this workspace (e.g. "cafe",
+   *  "hostel", "co-living", "co-working", "meeting-rooms"), edited via Unit
+   *  Settings. Modules tagged with their own `verticals` list (see
+   *  salesDashboardModules.ts) are only usable when one of their tags is in
+   *  this set — same source Sidebar.tsx already reads. */
+  verticalKeys: string[];
   workspaceName: string;
   /** Normalized role band for the current member — drives which dashboard renders */
   roleBand: RoleBand;
@@ -208,6 +214,9 @@ export default function useDashboardAccess(): DashboardAccessResult {
       hasModule: (id: string) => hasEquivalentModuleId(allIds, id),
       enabledModuleIds: allIds,
       workspaceEnabledModuleIds,
+      verticalKeys: Array.isArray(data?.verticalKeys)
+        ? data.verticalKeys.map((key: any) => String(key || "").trim()).filter(Boolean)
+        : [],
       workspaceName: String(data?.workspaceName || ""),
       roleBand: normalizedRoleBand,
       departmentNames: Array.isArray(me?.departmentNames) ? me.departmentNames : [],

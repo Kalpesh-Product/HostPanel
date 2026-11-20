@@ -36,7 +36,8 @@ export const getMyBookings = async () => {
 
 export const createMeetingRoomBooking = async (payload: Record<string, any>) => {
   const paymentProof = payload?.paymentProof;
-  if (paymentProof instanceof File) {
+  const idProofFile = payload?.idProofFile;
+  if (paymentProof instanceof File || idProofFile instanceof File) {
     const formData = new FormData();
     Object.entries(payload).forEach(([key, value]) => {
       if (value === undefined || value === null || value === '') return;
