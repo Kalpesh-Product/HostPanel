@@ -230,7 +230,7 @@ ${WAYFARER_CSS}
   display: flex;
   align-items: center;
   overflow: hidden;
-  background: #d8d5cf;
+  background: var(--t-bg, #fafaf9);
 }
 .ol-hero-frame {
   position: absolute;
@@ -251,8 +251,7 @@ ${WAYFARER_CSS}
 .ol-hero-content {
   position: relative;
   z-index: 1;
-  width: 100%;
-  padding: 110px 0 90px;
+  padding: 110px clamp(24px, 5vw, 88px) 90px;
   color: #fff;
 }
 .ol-hero-kicker {
@@ -511,7 +510,13 @@ ${WAYFARER_CSS}
   object-fit: cover;
   opacity: .72;
 }
-.ol-banner-content { position: relative; z-index: 1; max-width: 900px; text-align: center; color: #fff; padding: 60px 0; }
+.ol-banner-content {
+  position: relative;
+  z-index: 1;
+  text-align: left;
+  color: #fff;
+  padding: 60px clamp(24px, 5vw, 88px);
+}
 .ol-banner-content h2 {
   margin: 0;
   color: #fff;
@@ -521,7 +526,7 @@ ${WAYFARER_CSS}
 }
 /* Keep inverted-section headings white despite the global .ol h2 colour. */
 .ol .ol-banner-content h2 { color: #fff; }
-.ol-banner-content p { margin: 20px auto 0; max-width: 600px; color: rgba(255,255,255,.82); font-size: 17px; }
+.ol-banner-content p { margin: 20px 0 0; max-width: 700px; color: rgba(255,255,255,.82); font-size: 17px; }
 
 /* ── spaces slider ────────────────────────────────────────── */
 
@@ -894,7 +899,7 @@ ${WAYFARER_CSS}
   .ol-brand { font-size: 17px; }
   .ol-header-cta { display: none; }
   .ol-hero { min-height: 620px; }
-  .ol-hero-content { padding: 80px 0 92px; }
+  .ol-hero-content { padding: 80px clamp(24px, 5vw, 88px) 92px; }
   .ol-hero-title { font-size: clamp(46px, 13vw, 72px); }
   .ol-hero-copy { font-size: 16px; }
   .ol-welcome-photo-small { margin-left: 0; width: 100%; }
