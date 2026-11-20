@@ -339,6 +339,7 @@ export const OrchardHome: React.FC = () => {
       <section className="ol-banner">
         <div className="ol-shell ol-banner-frame" aria-hidden="true">
           <img src={photo("home.banner.image", gallery[6] || hero)} alt="" loading="lazy" />
+          <div className="ol-banner-shade" />
         </div>
         <div className="ol-shell ol-banner-content">
           <OrchardEyebrowInverted>

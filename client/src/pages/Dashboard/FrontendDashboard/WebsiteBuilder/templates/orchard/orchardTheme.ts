@@ -496,7 +496,7 @@ ${WAYFARER_CSS}
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: #353b41;
+  background: var(--t-bg, #fafaf9);
 }
 .ol-banner-frame {
   position: absolute;
@@ -508,7 +508,12 @@ ${WAYFARER_CSS}
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: .72;
+}
+/* Keep the photo readable now that the section gutters match the page background. */
+.ol-banner-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(20,22,23,.18) 0%, rgba(20,22,23,.28) 100%);
 }
 .ol-banner-content {
   position: relative;
