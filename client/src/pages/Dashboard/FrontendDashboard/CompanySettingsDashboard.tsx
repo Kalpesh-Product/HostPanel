@@ -188,10 +188,7 @@ const CompanySettingsDashboard = () => {
   // Only founder/super_admin see the plan-tier dashboard and the upgrade nudge.
   const isFounderOrSuperAdmin =
     access.roleBand === "owner" || access.roleBand === "super_admin";
-  const isStandardPlanDashboardHome =
-    !isCompanySettings &&
-    isFounderOrSuperAdmin &&
-    (access.plan === "basic" || access.plan === "professional");
+  const isPlanDashboardHome = !isCompanySettings && isFounderOrSuperAdmin;
   const customDepartments = useMemo(
     () =>
       access.departments.filter(
@@ -225,9 +222,22 @@ const CompanySettingsDashboard = () => {
   }
 
   return (
-    <div className="p-4 flex flex-col gap-5">
-      {/* Basic and Professional share the same plan-dashboard masthead system. */}
-      {isStandardPlanDashboardHome ? (
+    <div
+      className={
+        isPlanDashboardHome
+          ? "min-h-full bg-slate-50/40 p-2 lg:p-2.5"
+          : "flex flex-col gap-5 p-4"
+      }
+    >
+      <div
+        className={
+          isPlanDashboardHome
+            ? "flex flex-col gap-5 rounded-xl border-default p-4"
+            : "contents"
+        }
+      >
+      {/* Every founder plan dashboard shares the same masthead system. */}
+      {isPlanDashboardHome ? (
         <section className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white p-5 shadow-[0_12px_34px_rgba(37,99,235,0.08)] sm:p-6">
           <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/70" />
           <div className="pointer-events-none absolute -bottom-24 right-40 h-56 w-56 rounded-full bg-blue-50/70" />
@@ -239,14 +249,18 @@ const CompanySettingsDashboard = () => {
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-[9px] font-pmedium uppercase tracking-[0.22em] text-[#2563EB]">
-                    {access.plan === "professional"
-                      ? "Professional Unit dashboard"
-                      : "Basic Unit dashboard"}
+                    {access.plan === "custom"
+                      ? "Custom Unit dashboard"
+                      : access.plan === "professional"
+                        ? "Professional Unit dashboard"
+                        : "Basic Unit dashboard"}
                   </p>
                   <span className="rounded-full border border-blue-100 bg-white px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-[#2563EB] shadow-sm">
-                    {access.plan === "professional"
-                      ? "Professional Plan"
-                      : "Basic Plan"}
+                    {access.plan === "custom"
+                      ? "Custom Plan"
+                      : access.plan === "professional"
+                        ? "Professional Plan"
+                        : "Basic Plan"}
                   </span>
                 </div>
                 <h2 className="mt-2 text-xl font-pmedium text-[#1E3D73] sm:text-2xl">
@@ -380,6 +394,7 @@ const CompanySettingsDashboard = () => {
           departments={access.departments}
         />
       )}
+      </div>
 
       {/* Upgrade plan modal */}
       {showUpgradeModal && canUpgrade && (

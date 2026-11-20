@@ -12,7 +12,7 @@ import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { getMeetingRoomBookings } from '@/services/meeting-room-bookings';
 import { getRoomBookings } from '@/services/roomStays';
 import { getCafeOrders } from '@/services/cafe';
-import administrationBanner from '@/assets/administration-dashboard-banner.webp';
+import administrationBanner from '@/assets/module-banners/bookings-management-banner.png';
 
 const VERTICAL_COLORS: Record<string, string> = {
   'Meeting Rooms': '#2563EB',
@@ -289,7 +289,7 @@ export default function BookingsDashboard() {
             />
             <div
               aria-hidden="true"
-              className="absolute inset-y-0 right-0 w-full bg-gradient-to-br from-[#2563EB]/55 via-[#3b82f6]/35 to-[#60a5fa]/20 sm:w-[64%]"
+              className="absolute inset-y-0 right-0 w-full bg-gradient-to-br from-[#2563EB]/45 via-[#3b82f6]/25 to-[#60a5fa]/15 sm:w-[64%]"
               style={{
                 WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 22%, black 100%)',
                 maskImage: 'linear-gradient(to right, transparent 0%, black 22%, black 100%)',
@@ -311,6 +311,16 @@ export default function BookingsDashboard() {
               <p className="max-w-sm text-[11px] font-pmedium leading-5 text-slate-500">
                 Every vertical's bookings in one place — open the one you need to see its full list and history.
               </p>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {["Meeting Rooms", "Coworking", "Room Stays", "History"].map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-[0.06em] text-blue-600"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>

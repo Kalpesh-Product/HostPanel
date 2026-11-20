@@ -12,7 +12,7 @@ import PageFrame from "../../components/Pages/PageFrame";
 import DashboardModuleCard from "../../components/DashboardModuleCard";
 import DonutChart from "../../components/graphs/DonutChart";
 import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
-import supportBannerImage from "../../assets/administration-dashboard-banner.webp";
+import printoutBannerImage from "../../assets/module-banners/printout-management-banner.webp";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import { statusPillClass } from "../../lib/status-pill";
 
@@ -248,25 +248,25 @@ export default function PrintoutsDashboard() {
         <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img
-              src={supportBannerImage}
+              src={printoutBannerImage}
               alt=""
               aria-hidden="true"
-              className="absolute inset-y-0 right-0 h-full w-full object-cover object-center sm:w-[64%]"
+              className="absolute inset-0 h-full w-full object-cover object-center"
               style={{
                 WebkitMaskImage:
-                  "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+                  "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
                 maskImage:
-                  "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+                  "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
               }}
             />
             <div
               aria-hidden="true"
-              className="absolute inset-y-0 right-0 w-full overflow-hidden bg-gradient-to-br from-[#2563EB]/55 via-[#3b82f6]/35 to-[#60a5fa]/20 sm:w-[64%]"
+              className="absolute inset-0 overflow-hidden bg-gradient-to-br from-[#2563EB]/45 via-[#3b82f6]/25 to-[#60a5fa]/15"
               style={{
                 WebkitMaskImage:
-                  "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+                  "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
                 maskImage:
-                  "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+                  "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
               }}
             >
               <div className="absolute -right-10 -top-10 h-44 w-44 rounded-full bg-white/15 blur-3xl" />
@@ -302,14 +302,6 @@ export default function PrintoutsDashboard() {
                   ),
                 )}
               </div>
-            </div>
-            <div className="absolute right-6 top-5 z-10 rounded-lg border border-white/25 bg-white/15 px-3 py-2 backdrop-blur-sm">
-              <p className="text-[9px] font-pmedium uppercase tracking-[0.1em] text-white/75">
-                Total requests
-              </p>
-              <p className="mt-0.5 text-[15px] font-pmedium text-white">
-                {stats.total}
-              </p>
             </div>
           </div>
         </div>

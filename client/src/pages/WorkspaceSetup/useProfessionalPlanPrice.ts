@@ -5,6 +5,8 @@ import { PLAN_UI_DATA, type PlanCardData } from "./workspaceSetupPlans";
 type PlanPricingResponse = {
   professionalPlanPriceUsd: number | null;
   professionalAnnualPlanPriceUsd: number | null;
+  basicPlanPriceUsd: number | null;
+  basicPlanAnnualPriceUsd: number | null;
 };
 
 // Live Professional plan price from MasterPanel's Plan Pricing settings —
@@ -40,6 +42,33 @@ export const useProfessionalPlanPriceLabel = (billingCycle?: string): string => 
 
   // 0 / null / undefined all mean "unset or unreachable" — never render them
   // as a real price; keep the static fallback instead.
+  if (rate == null || rate <= 0) return staticLabel;
+  return isAnnual
+    ? `$${Number(rate).toLocaleString("en-US")} /year `
+    : `$${rate} /month`;
+};
+
+// Basic's equivalent of useProfessionalPlanPriceLabel. 0/null/undefined keep
+// the static "FREE*" copy — Basic has no real price until staff sets one
+// above $0 on MasterPanel's Plan Pricing settings page.
+export const useBasicPlanPriceLabel = (billingCycle?: string): string => {
+  const axios = useAxiosPrivate();
+  const isAnnual = String(billingCycle || "").toLowerCase() === "annual";
+  const staticLabel = PLAN_UI_DATA.find((plan) => plan.key === "basic")?.priceLabel || "FREE*";
+
+  const { data } = useQuery({
+    queryKey: ["professionalPlanPrice"],
+    queryFn: async () => {
+      const res = await axios.get<PlanPricingResponse>(
+        "/api/plan-billing/professional-price",
+      );
+      return res?.data ?? null;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const rate = isAnnual ? data?.basicPlanAnnualPriceUsd : data?.basicPlanPriceUsd;
+
   if (rate == null || rate <= 0) return staticLabel;
   return isAnnual
     ? `$${Number(rate).toLocaleString("en-US")} /year `
@@ -90,7 +119,10 @@ export const usePlanUiDataWithLivePricing = (
   billingCycle?: string,
 ): PlanCardData[] => {
   const professionalPriceLabel = useProfessionalPlanPriceLabel(billingCycle);
-  return PLAN_UI_DATA.map((plan) =>
-    plan.key === "professional" ? { ...plan, priceLabel: professionalPriceLabel } : plan,
-  );
+  const basicPriceLabel = useBasicPlanPriceLabel(billingCycle);
+  return PLAN_UI_DATA.map((plan) => {
+    if (plan.key === "professional") return { ...plan, priceLabel: professionalPriceLabel };
+    if (plan.key === "basic") return { ...plan, priceLabel: basicPriceLabel };
+    return plan;
+  });
 };

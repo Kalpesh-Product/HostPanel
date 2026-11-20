@@ -15,7 +15,7 @@ import PageFrame from "../../../components/Pages/PageFrame";
 import DashboardModuleCard from "../../../components/DashboardModuleCard";
 import DonutChart from "../../../components/graphs/DonutChart";
 import GroupedBarGraph from "../../../components/graphs/GroupedBarGraph";
-import administrationBannerImage from "../../../assets/administration-dashboard-banner.webp";
+import administrationBannerImage from "../../../assets/module-banners/housekeeping-management-banner.png";
 import {
   getHousekeepingOverview,
   getHousekeepingStaffPerformance,
@@ -427,7 +427,7 @@ export default function HousekeepingDashboard() {
             />
             <div
               aria-hidden="true"
-              className="absolute inset-y-0 right-0 w-full overflow-hidden bg-gradient-to-br from-[#2563EB]/55 via-[#3b82f6]/35 to-[#60a5fa]/20 sm:w-[64%]"
+              className="absolute inset-y-0 right-0 w-full overflow-hidden bg-gradient-to-br from-[#2563EB]/45 via-[#3b82f6]/25 to-[#60a5fa]/15 sm:w-[64%]"
               style={{
                 WebkitMaskImage:
                   "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
@@ -468,14 +468,6 @@ export default function HousekeepingDashboard() {
                   ),
                 )}
               </div>
-            </div>
-            <div className="absolute right-6 top-5 z-10 rounded-lg border border-white/25 bg-white/15 px-3 py-2 backdrop-blur-sm">
-              <p className="text-[9px] font-pmedium uppercase tracking-[0.1em] text-white/75">
-                Completed today
-              </p>
-              <p className="mt-0.5 text-[15px] font-pmedium text-white">
-                {stats.completedToday}
-              </p>
             </div>
           </div>
         </div>

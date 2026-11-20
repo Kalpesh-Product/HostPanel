@@ -54,16 +54,16 @@ const MODULE_GROUPS = [
       // { id: "visitor-management", label: "Visitor Management", route: "/visitors/visitor-management", implemented: true },
       { id: "website-builder", label: "Website Builder", route: "/company-settings/website-builder", implemented: true },
       { id: "wono-nomad", label: "Wono Nomads", route: "/company-settings/wono-nomad", implemented: true },
-      { id: "website-leads", label: "Website Leads", route: "/company-settings/website-builder/leads", implemented: true },
+      { id: "website-leads", label: "All Leads", route: "/company-settings/all-leads", implemented: true },
       { id: "website-review", label: "Website Review", route: "/company-settings/website-builder/dynamic/reviews", implemented: true },
       { id: "organization-management", label: "Organization Management", route: "/company-settings/organization-management", implemented: true },
       { id: "access-grants", label: "Access Grants", route: "/company-settings/access-grants", implemented: true },
       { id: "workspace-settings", label: "Unit Settings", route: "/company-settings/workspace-settings", implemented: true },
       { id: "workspace-management", label: "Unit Management", route: "/company-settings/workspace-management", implemented: true },
       { id: "analytics", label: "Analytics", implemented: false },
-      { id: "employee-management", label: "Company Management", implemented: false },
-      { id: "hr-documents", label: "Documents", implemented: false },
-      { id: "recruitment", label: "Recruitment", implemented: false },
+      { id: "employee-management", label: "Company Management", route: "/department-accesses/hr-department/company-management", implemented: true },
+      { id: "hr-documents", label: "Documents", route: "/department-accesses/hr-department/documents", implemented: true },
+      { id: "recruitment", label: "Recruitment", route: "/department-accesses/hr-department/recruitment", implemented: true },
       { id: "leave-request-processing", label: "Leave Request Processing", implemented: false },
       { id: "attendance-review", label: "Attendance Review", implemented: false },
       { id: "payroll-management", label: "Payroll Management", implemented: false },
@@ -71,7 +71,7 @@ const MODULE_GROUPS = [
       { id: "tenant-companies-admin", label: "Tenant Companies", implemented: false },
       { id: "bookings", label: "Bookings", implemented: false },
       { id: "visitors-management", label: "Visitors Management", route: "/visitors/dashboard", implemented: true },
-      { id: "resource-management", label: "Resource Management", implemented: false },
+      { id: "resource-management", label: "Resource Management", route: "/department-accesses/administration-department/resource-management", implemented: true },
       { id: "house-keeping", label: "House Keeping", implemented: false },
       { id: "leads-management", label: "Leads Management", route: "/sales-crm/leads-management", implemented: true },
       { id: "tenant-companies-sales", label: "Tenant Companies", route: "/sales-crm/tenant-companies", implemented: true },
@@ -117,9 +117,9 @@ const MODULE_GROUPS = [
         label: "HR Department",
         isGroup: true,
         tabs: [
-          { id: "employee-management", label: "Company Management", implemented: false },
-          { id: "hr-documents", label: "Documents", implemented: false },
-          { id: "recruitment", label: "Recruitment", implemented: false },
+          { id: "employee-management", label: "Company Management", route: "/department-accesses/hr-department/company-management", implemented: true },
+          { id: "hr-documents", label: "Documents", route: "/department-accesses/hr-department/documents", implemented: true },
+          { id: "recruitment", label: "Recruitment", route: "/department-accesses/hr-department/recruitment", implemented: true },
           { id: "leave-request-processing", label: "Leave Request Processing", implemented: false },
           { id: "attendance-review", label: "Attendance Review", implemented: false },
           { id: "payroll-management", label: "Payroll Management", implemented: false },
@@ -131,15 +131,14 @@ const MODULE_GROUPS = [
         label: "Administration Department",
         isGroup: true,
         tabs: [
-          // Tenant Companies and Resource Management here are deliberately
-          // not granted on any plan/vertical for now (parked for later).
-          { id: "tenant-companies-admin", label: "Tenant Companies", implemented: false },
+          // Tenant Companies is part of the Professional+ co-working setup.
+          { id: "tenant-companies-admin", label: "Tenant Companies", implemented: false, verticals: ["co-working"] },
           // Bookings only makes sense once a workspace has more than one
           // vertical selected — a single-vertical workspace already manages
           // its bookings from within that vertical's own management page.
           { id: "bookings", label: "Bookings", implemented: false, requiresMultipleVerticals: true },
           { id: "visitors-management", label: "Visitors Management", route: "/visitors/dashboard", implemented: true },
-          { id: "resource-management", label: "Resource Management", implemented: false },
+          { id: "resource-management", label: "Resource Management", route: "/department-accesses/administration-department/resource-management", implemented: true, verticals: ["hostel", "co-living", "co-working"] },
           { id: "house-keeping", label: "House Keeping", implemented: false },
           { id: "printout-management", label: "Printout Management", route: "/department-accesses/administration-department/printouts", implemented: true },
 
@@ -162,11 +161,8 @@ const MODULE_GROUPS = [
           { id: "co-living-management", label: "Co-living Management", route: "/key-apps/co-living-management", implemented: true, verticals: ["co-living"] },
           { id: "co-working-management", label: "Co-working Management", route: "/key-apps/co-working-management", implemented: true, verticals: ["co-working"] },
           { id: "meeting-room-management", label: "Meeting Room Management", route: "/key-apps/meeting-room-management", implemented: true, verticals: ["meeting-rooms"] },
-          // Resource & Pricing and Sales Architecture are only needed once a
-          // workspace spans more than one vertical — a single vertical
-          // already manages its own resources from within its own
-          // management page (e.g. Hostel Management's own Resource & Pricing
-          // card), so a separate cross-vertical view would just be redundant.
+          // Resource & Pricing remains the cross-vertical Sales view and is
+          // only needed once a workspace spans more than one vertical.
           { id: "resource-pricing", label: "Resource & Pricing", route: "/sales-crm/resource-pricing", implemented: true, requiresMultipleVerticals: true },
           { id: "virtual-office-sales", label: "Virtual Offices", route: "/sales-crm/virtual-offices", implemented: true, verticals: ["co-working"] },
           { id: "sales-architecture", label: "Sales Architecture", route: "/sales-crm/sales-architecture", implemented: true, requiresMultipleVerticals: true },
@@ -404,8 +400,9 @@ const PROFESSIONAL_DEFAULT_IDS = new Set([
   "workspace-management",
   // Administration Department is granted by default at Professional (on top
   // of "printout-management" above, which already defaulted on here).
-  // NOT "tenant-companies-admin" / "resource-management" — parked, not
-  // granted on any plan for now.
+  // NOT "tenant-companies-admin" — granted only for the co-working vertical.
+  // NOT "resource-management" — granted only for hostel, co-living, or
+  // co-working verticals.
   // NOT "bookings" — requires more than one vertical selected (see
   // requiresMultipleVerticals on its catalog entry).
   "visitors-management",
@@ -414,9 +411,8 @@ const PROFESSIONAL_DEFAULT_IDS = new Set([
   "tenant-companies-sales",
   // NOT "virtual-office-sales" — co-working vertical only now (see
   // getVerticalModuleIds).
-  // NOT "resource-pricing" / "sales-architecture" — require more than one
-  // vertical selected (see requiresMultipleVerticals on their catalog
-  // entries).
+  // NOT "resource-pricing" / "sales-architecture" — both require more than
+  // one vertical (see requiresMultipleVerticals on their catalog entries).
 ]);
 
 const VERTICAL_KEY_BY_BUSINESS_TYPE = {
@@ -489,6 +485,10 @@ export const buildWorkspaceModuleCatalog = ({
       ? enabledModuleIds.map((item) => String(item || "").trim()).filter(Boolean)
       : [],
   );
+  const effectiveWorkspaceEnabledIds = new Set([
+    ...workspaceEnabledIds,
+    ...(normalizedPlan === "basic" ? [] : getVerticalModuleIds(verticalKeys)),
+  ]);
 
   // Custom (non-default) departments get their own dynamic group in
   // "Department Accesses", named after the actual department, instead of
@@ -515,7 +515,7 @@ export const buildWorkspaceModuleCatalog = ({
           accessibleByPlan: canPlanAccess(normalizedPlan, moduleId),
           unlockedInWorkspace: resolveIsUnlocked({
             selectedPlan: normalizedPlan,
-            workspaceEnabledIds,
+            workspaceEnabledIds: effectiveWorkspaceEnabledIds,
             moduleId,
           }),
         })),
@@ -523,7 +523,7 @@ export const buildWorkspaceModuleCatalog = ({
     });
 
   const isShown = (node) =>
-    isVisibleForVerticals(node, verticalKeys) || workspaceEnabledIds.has(node.id);
+    isVisibleForVerticals(node, verticalKeys) || effectiveWorkspaceEnabledIds.has(node.id);
 
   const sections = MODULE_GROUPS.map((section) => {
     const items = (section.items || []).filter(isShown).map((item) => {
@@ -535,7 +535,7 @@ export const buildWorkspaceModuleCatalog = ({
             accessibleByPlan: canPlanAccess(normalizedPlan, tab.id),
             unlockedInWorkspace: resolveIsUnlocked({
               selectedPlan: normalizedPlan,
-              workspaceEnabledIds,
+              workspaceEnabledIds: effectiveWorkspaceEnabledIds,
               moduleId: tab.id,
             }),
           })),
@@ -547,7 +547,7 @@ export const buildWorkspaceModuleCatalog = ({
         accessibleByPlan: canPlanAccess(normalizedPlan, item.id),
         unlockedInWorkspace: resolveIsUnlocked({
           selectedPlan: normalizedPlan,
-          workspaceEnabledIds,
+          workspaceEnabledIds: effectiveWorkspaceEnabledIds,
           moduleId: item.id,
         }),
       };

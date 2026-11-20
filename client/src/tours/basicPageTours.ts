@@ -747,7 +747,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="reports-search"]', title: "Search reports", description: "Find a report by its title or who generated it. Results update as you type." },
       { selector: '[data-tour="reports-table"]', title: "Report list and downloads", description: "Open any report to preview its full contents including monthly data, then download it as PDF or Excel. The header buttons download filtered selections directly.", side: "top" },
     ],
-    matches: exact("/extra-common-modules/reports"),
+    matches: exact("/extra-common-modules/reports/manage"),
   },
   {
     id: "basic-team-management",
@@ -792,7 +792,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { tabPage: "birthdays", selector: '[data-tour="hr-birthdays-search"]', title: "Search birthdays", description: "Find employees by name, email, employee ID, or department inside the selected month." },
       { tabPage: "birthdays", selector: '[data-tour="hr-birthdays-table"]', title: "Birthday list", description: "Each row shows employee details, date of birth, age, birthday date, and whether the celebration is today, upcoming, or completed.", side: "top" },
     ],
-    matches: exact("/department-accesses/hr-department/company-management"),
+    matches: startsWith("/department-accesses/hr-department/company-management/"),
   },
   {
     id: "basic-hr-documents",
@@ -806,7 +806,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { selector: '[data-tour="hr-docs-search"]', title: "Search and filter", description: "Find a person or a named document, and narrow the list to one department." },
       { selector: '[data-tour="hr-docs-table"]', title: "Employee documents", description: "Each row lists the employee with their stored files. Open any document in a new tab, or view everything a person has on file in one place.", side: "top" },
     ],
-    matches: exact("/department-accesses/hr-department/documents"),
+    matches: startsWith("/department-accesses/hr-department/documents/"),
   },
   {
     id: "basic-hr-attendance-review",
@@ -901,7 +901,7 @@ const BASIC_PAGE_TOURS: TourRoute[] = [
       { tabPage: "candidates", selector: '[data-tour="hr-recruit-add-btn"]', title: "Add a candidate manually", description: "Register walk-ins, referrals, or offline applicants. Enter their name, email, phone, and the position applied for.", side: "left" },
       { tabPage: "candidates", selector: '[data-tour="hr-recruit-table"]', title: "Candidate rows and actions", description: "Each row shows the candidate's name and email, position applied for, source, and a pipeline status dropdown to advance them through Screening, Interview Scheduled, Interviewed, or Selected. The eye button opens full details and the convert button appears once a candidate is marked Selected.", side: "top" },
     ],
-    matches: exact("/department-accesses/hr-department/recruitment"),
+    matches: startsWith("/department-accesses/hr-department/recruitment/"),
   },
   {
     id: "basic-hr-payroll",

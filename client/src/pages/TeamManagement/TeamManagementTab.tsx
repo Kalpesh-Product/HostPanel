@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clock3, Loader2, Search, Shield, UserCheck, Users, UserX, X } from "lucide-react";
 import { toast } from "sonner";
 import useAxiosPrivate from "@/hooks/useAxiosPrivate";
 import useDashboardAccess from "@/hooks/useDashboardAccess";
+import useManagedDepartment from "@/hooks/useManagedDepartment";
 import { TeamManagementContentSkeleton } from "@/components/ui/Skeleton";
 import { formatTime12h } from "@/utils/time";
 import { getOrganizationOverview } from "@/services/organization";
@@ -62,7 +63,15 @@ const formatDepartmentLabel = (departmentNames?: string[]): string =>
 
 const TeamManagementTab = () => {
   const axiosPrivate = useAxiosPrivate();
-  const { moduleMap, enabledModuleIds, grantedModuleIds } = useDashboardAccess();
+  const { isOwnerOrSuperAdmin, managedDepartment } = useManagedDepartment();
+  const {
+    moduleMap,
+    enabledModuleIds,
+    grantedModuleIds,
+    roleBand,
+    departments: assignedDepartments,
+  } = useDashboardAccess();
+  const isAdmin = roleBand === "admin";
   const queryClient = useQueryClient();
   const [selectedMember, setSelectedMember] = useState<ManageSidebarAccessMember | null>(null);
   const [shiftMember, setShiftMember] = useState<ShiftMember | null>(null);
@@ -70,6 +79,7 @@ const TeamManagementTab = () => {
   const [isShiftSaving, setIsShiftSaving] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["team-management-overview"],
@@ -97,11 +107,36 @@ const TeamManagementTab = () => {
     [moduleMap],
   );
 
-  // getOrganizationOverview already scopes `departments` down to the manager's
-  // own department server-side (organizationControllers.ts), so the first
-  // (only) entry here IS the manager's department — no separate department
-  // lookup/name-matching needed.
-  const department = Array.isArray(data?.departments) ? data.departments[0] : null;
+  const overviewDepartments = useMemo(
+    () => (Array.isArray(data?.departments) ? data.departments : []),
+    [data],
+  );
+  const departments = useMemo(() => {
+    if (isOwnerOrSuperAdmin) return overviewDepartments;
+    if (isAdmin) {
+      const assignedIds = new Set(assignedDepartments.map((item) => String(item.id)));
+      const assignedNames = new Set(assignedDepartments.map((item) => String(item.name || "").trim().toLowerCase()));
+      return overviewDepartments.filter((item: any) =>
+        assignedIds.has(String(item?.id)) || assignedNames.has(String(item?.name || "").trim().toLowerCase()),
+      );
+    }
+    const managerId = String(managedDepartment?.id || "");
+    return overviewDepartments.filter((item: any) => String(item?.id) === managerId);
+  }, [assignedDepartments, isAdmin, isOwnerOrSuperAdmin, managedDepartment?.id, overviewDepartments]);
+
+  useEffect(() => {
+    if (!departments.length) return;
+    const managerDepartmentId = managedDepartment?.id || "";
+    const nextId = isOwnerOrSuperAdmin || isAdmin
+      ? selectedDepartmentId || String(departments[0]?.id || "")
+      : managerDepartmentId || String(departments[0]?.id || "");
+    if (nextId !== selectedDepartmentId) setSelectedDepartmentId(nextId);
+  }, [departments, isAdmin, isOwnerOrSuperAdmin, managedDepartment?.id, selectedDepartmentId]);
+
+  const department = useMemo(
+    () => departments.find((item: any) => String(item?.id) === String(selectedDepartmentId)) || null,
+    [departments, selectedDepartmentId],
+  );
 
   // A manager may delegate only modules they can currently access: the
   // workspace-enabled Common and Extra Common baseline, plus the Core
@@ -234,6 +269,24 @@ const TeamManagementTab = () => {
           );
         })}
       </div>
+
+      {isOwnerOrSuperAdmin || isAdmin ? (
+        <div className="flex flex-col gap-2 rounded-xl border border-blue-100 bg-blue-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[10px] font-pmedium uppercase tracking-[0.12em] text-blue-700">Department filter</p>
+            <p className="mt-1 text-[11px] font-pmedium text-slate-600">
+              {isOwnerOrSuperAdmin ? "View and manage any department." : "View and manage departments assigned to your admin account."}
+            </p>
+          </div>
+          <select
+            value={selectedDepartmentId}
+            onChange={(event) => setSelectedDepartmentId(event.target.value)}
+            className="min-w-[240px] rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-[12px] font-pmedium text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          >
+            {departments.map((item: any) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+        </div>
+      ) : null}
 
       <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
         <div className="flex flex-col items-start justify-between gap-3 border-b border-slate-100/60 bg-slate-50/50 p-3 sm:gap-4 sm:p-4 xl:flex-row xl:items-center lg:p-5">

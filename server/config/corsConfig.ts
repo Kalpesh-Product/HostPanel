@@ -12,7 +12,11 @@ export const allowedOrigins = [
   "https://wono.co",
 ];
 
-const regexAllowedOrigins = [/\.wono\.co$/, /^https:\/\/wono\.co$/];
+const regexAllowedOrigins = [
+  /\.wono\.co$/,
+  /^https:\/\/wono\.co$/,
+  /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/, // Cloudflare quick tunnels (dev sharing)
+];
 
 export const corsConfig = {
   origin: function (origin, callback) {

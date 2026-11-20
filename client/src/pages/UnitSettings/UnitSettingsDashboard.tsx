@@ -11,7 +11,7 @@ import {
   Settings2,
   Users,
 } from "lucide-react";
-import unitSettingsBanner from "../../assets/coworking-banner.jpg";
+import unitSettingsBanner from "../../assets/module-banners/unit-operations-banner.webp";
 import { formatTime12hLabel } from "../../components/ui/TimePicker12h";
 import DashboardModuleCard from "../../components/DashboardModuleCard";
 import DonutChart from "../../components/graphs/DonutChart";
@@ -339,22 +339,22 @@ export default function UnitSettingsDashboard() {
               src={unitSettingsBanner}
               alt=""
               aria-hidden="true"
-              className="absolute inset-y-0 right-0 h-full w-full object-cover object-center sm:w-[64%]"
+              className="absolute inset-0 h-full w-full object-cover object-center"
               style={{
                 WebkitMaskImage:
-                  "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+                  "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
                 maskImage:
-                  "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+                  "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
               }}
             />
             <div
               aria-hidden="true"
-              className="absolute inset-y-0 right-0 w-full bg-gradient-to-br from-[#2563EB]/55 via-[#3B82F6]/35 to-[#60A5FA]/20 sm:w-[64%]"
+              className="absolute inset-0 bg-gradient-to-br from-[#2563EB]/45 via-[#3B82F6]/25 to-[#60A5FA]/15"
               style={{
                 WebkitMaskImage:
-                  "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+                  "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
                 maskImage:
-                  "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
+                  "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
               }}
             />
             <div
@@ -386,14 +386,6 @@ export default function UnitSettingsDashboard() {
                   </span>
                 ))}
               </div>
-            </div>
-            <div className="absolute right-6 top-5 z-10 rounded-lg border border-white/25 bg-white/15 px-3 py-2 backdrop-blur-sm">
-              <p className="text-[9px] font-pmedium uppercase tracking-[0.1em] text-white/75">
-                Active units
-              </p>
-              <p className="mt-0.5 text-[15px] font-pmedium text-white">
-                {activeUnits.length}
-              </p>
             </div>
           </div>
         </div>

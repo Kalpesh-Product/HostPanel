@@ -1640,7 +1640,15 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
       .trim()
       .toLowerCase();
     const verticalKeys = getWorkspaceVerticalKeys(workspace.businessTypes);
-    const enabledModuleIds = Array.isArray(workspace.enabledModuleIds) ? workspace.enabledModuleIds : [];
+    const storedEnabledModuleIds = Array.isArray(workspace.enabledModuleIds) ? workspace.enabledModuleIds : [];
+    const enabledModuleIds = Array.from(new Set([
+      ...storedEnabledModuleIds,
+      ...getEffectiveEnabledModuleIds({
+        selectedPlan,
+        existingEnabledModuleIds: storedEnabledModuleIds,
+        verticalKeys,
+      }),
+    ]));
     const modules =
       Array.isArray(workspace.modules) && workspace.modules.length > 0
         ? workspace.modules
@@ -1898,6 +1906,7 @@ export const backfillWorkspaceModules = async (req, res, next) => {
       const nextEnabled = getEffectiveEnabledModuleIds({
         selectedPlan,
         existingEnabledModuleIds: existingEnabled,
+        verticalKeys: getWorkspaceVerticalKeys(workspace.businessTypes),
       });
       const nextModules = buildWorkspaceModulesStructure({
         selectedPlan,

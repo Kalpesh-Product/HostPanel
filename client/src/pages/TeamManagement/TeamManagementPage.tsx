@@ -1,4 +1,4 @@
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { UsersRound } from "lucide-react";
 import PageFrame from "@/components/Pages/PageFrame";
@@ -6,46 +6,37 @@ import { TeamManagementSkeleton } from "@/components/ui/Skeleton";
 import useManagedDepartment from "@/hooks/useManagedDepartment";
 import useDashboardAccess from "@/hooks/useDashboardAccess";
 
-const TABS = [
-  { key: "roster", label: "Access Control" },
-  { key: "sops", label: "Department SOP" },
-  { key: "policies", label: "Department Policies" },
-];
+type TeamManagementPageProps = {
+  title: string;
+  description: string;
+  requiresCustomPlan?: boolean;
+};
 
-const TeamManagementPage = () => {
+const TeamManagementPage = ({ title, description, requiresCustomPlan = false }: TeamManagementPageProps) => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { isLoading, isManager, isOwnerOrSuperAdmin, managedDepartment } = useManagedDepartment();
-  const { plan } = useDashboardAccess();
+  const { plan, roleBand } = useDashboardAccess();
+  const isAdmin = roleBand === "admin";
   const isCustomPlan = String(plan || "basic").trim().toLowerCase() === "custom";
-  const visibleTabs = TABS.filter((tab) => !["sops", "policies"].includes(tab.key) || isCustomPlan);
 
   useEffect(() => {
-    if (!isCustomPlan && ["/sops", "/policies"].some((path) => location.pathname.endsWith(path))) {
-      navigate("roster", { replace: true });
+    if (requiresCustomPlan && !isCustomPlan) {
+      navigate("/extra-common-modules/team-management", { replace: true });
     }
-  }, [isCustomPlan, location.pathname, navigate]);
-
-  const activeTabKey = visibleTabs.find((tab) => location.pathname.endsWith("/" + tab.key))?.key || "roster";
+  }, [isCustomPlan, navigate, requiresCustomPlan]);
 
   if (isLoading) {
-    return (
-      <div className="p-2 lg:p-2.5 min-h-full">
-        <PageFrame>
-          <TeamManagementSkeleton />
-        </PageFrame>
-      </div>
-    );
+    return <div className="min-h-full p-2 lg:p-2.5"><PageFrame><TeamManagementSkeleton /></PageFrame></div>;
   }
 
-  if (!isManager && !isOwnerOrSuperAdmin) {
+  if (!isManager && !isOwnerOrSuperAdmin && !isAdmin) {
     return (
-      <div className="p-2 lg:p-2.5 min-h-full">
+      <div className="min-h-full p-2 lg:p-2.5">
         <PageFrame>
-          <div className="py-16 flex flex-col items-center gap-2 text-center">
+          <div className="flex flex-col items-center gap-2 py-16 text-center">
             <UsersRound className="text-slate-300" size={28} />
             <p className="text-[12px] font-pmedium text-slate-500">
-              Team Management is only available to department managers.
+              Team Management is available to founders, super admins, admins, and department managers with access.
             </p>
           </div>
         </PageFrame>
@@ -55,9 +46,9 @@ const TeamManagementPage = () => {
 
   if (isManager && !managedDepartment) {
     return (
-      <div className="p-2 lg:p-2.5 min-h-full">
+      <div className="min-h-full p-2 lg:p-2.5">
         <PageFrame>
-          <div className="py-16 flex flex-col items-center gap-2 text-center">
+          <div className="flex flex-col items-center gap-2 py-16 text-center">
             <UsersRound className="text-slate-300" size={28} />
             <p className="text-[12px] font-pmedium text-slate-500">
               You are not currently assigned as the manager of a department.
@@ -69,38 +60,15 @@ const TeamManagementPage = () => {
   }
 
   return (
-    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+    <div className="min-h-full p-2 font-sans text-[12px] text-[#0F172A] lg:p-2.5">
       <PageFrame>
         <div className="flex flex-col gap-4">
-          <div className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
-            <div>
-              <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                Team Management
-              </h2>
-              <p className="text-xs font-pmedium text-slate-500 mt-1">
-                Manage your team's sidebar access, SOPs, and policies.
-                {managedDepartment?.name ? ` — ${managedDepartment.name}` : ""}
-              </p>
-            </div>
+          <div>
+            <h2 className="text-title flex items-center gap-1.5 font-pmedium uppercase text-primary">{title}</h2>
+            <p className="mt-1 text-xs font-pmedium text-slate-500">
+              {description}{isManager && managedDepartment?.name ? ` — ${managedDepartment.name}` : ""}
+            </p>
           </div>
-
-          <div data-tour="team-mgmt-tabs" className="mb-1 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0">
-            {visibleTabs.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => navigate(tab.key)}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
-                  activeTabKey === tab.key
-                    ? "bg-[#2563EB] text-white shadow-sm"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
           <Outlet />
         </div>
       </PageFrame>

@@ -153,6 +153,14 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/common-modules/calendar/manage",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      { label: "Calendar", path: "/common-modules/calendar" },
+      { label: "Manage Calendar" },
+    ],
+  },
+  {
     pattern: "/common-modules/calendar",
     crumbs: [
       { label: SECTION_LABELS.common, path: "/common-modules" },
@@ -273,10 +281,98 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/common-modules/customer-support/raised",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      { label: "Customer Support", path: "/common-modules/customer-support" },
+      { label: "Issues Raised" },
+    ],
+  },
+  {
+    pattern: "/common-modules/customer-support/resolved",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      { label: "Customer Support", path: "/common-modules/customer-support" },
+      { label: "Resolved Issues" },
+    ],
+  },
+  {
+    pattern: "/common-modules/attendance/my-attendance",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      { label: "Attendance", path: "/common-modules/attendance" },
+      { label: "My Attendance" },
+    ],
+  },
+  {
+    pattern: "/common-modules/attendance/team-attendance",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      { label: "Attendance", path: "/common-modules/attendance" },
+      { label: "Team Attendance" },
+    ],
+  },
+  {
+    pattern: "/common-modules/attendance/corrections",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      { label: "Attendance", path: "/common-modules/attendance" },
+      { label: "Attendance Corrections" },
+    ],
+  },
+  {
+    pattern: "/common-modules/attendance/manage",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      { label: "Attendance", path: "/common-modules/attendance" },
+      { label: "My Attendance" },
+    ],
+  },
+  {
     pattern: "/common-modules/attendance",
     crumbs: [
       { label: SECTION_LABELS.common, path: "/common-modules" },
       { label: "Attendance" },
+    ],
+  },
+  {
+    pattern: "/common-modules/tasks/company-tasks",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      { label: "Tasks", path: "/common-modules/tasks" },
+      { label: "Company Tasks" },
+    ],
+  },
+  {
+    pattern: "/common-modules/tasks/my-tasks",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      { label: "Tasks", path: "/common-modules/tasks" },
+      { label: "My Tasks" },
+    ],
+  },
+  {
+    pattern: "/common-modules/tasks/my-assigned-tasks",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      { label: "Tasks", path: "/common-modules/tasks" },
+      { label: "My Assigned Tasks" },
+    ],
+  },
+  {
+    pattern: "/common-modules/tasks/assigned-department-tasks",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      { label: "Tasks", path: "/common-modules/tasks" },
+      { label: "Assigned Department Tasks" },
+    ],
+  },
+  {
+    pattern: "/common-modules/tasks/department-tasks",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      { label: "Tasks", path: "/common-modules/tasks" },
+      { label: "Department Tasks" },
     ],
   },
   {
@@ -295,10 +391,34 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/extra-common-modules/assets/overall-assets",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
+      { label: "Assets", path: "/extra-common-modules/assets" },
+      { label: "Overall Assets" },
+    ],
+  },
+  {
+    pattern: "/extra-common-modules/assets/asset-requests",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
+      { label: "Assets", path: "/extra-common-modules/assets" },
+      { label: "Asset Requests" },
+    ],
+  },
+  {
     pattern: "/extra-common-modules/assets",
     crumbs: [
       { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
       { label: "Assets" },
+    ],
+  },
+  {
+    pattern: "/extra-common-modules/inventory/manage",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
+      { label: "Inventory", path: "/extra-common-modules/inventory" },
+      { label: "Inventory Management" },
     ],
   },
   {
@@ -359,10 +479,73 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/extra-common-modules/reports/manage",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
+      { label: "Reports", path: "/extra-common-modules/reports" },
+      { label: "Manage Reports" },
+    ],
+  },
+  {
     pattern: "/extra-common-modules/reports",
     crumbs: [
       { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
       { label: "Reports" },
+    ],
+  },
+  {
+    pattern: "/common-modules/leave-requests/my-leaves",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      {
+        label: "Leave Requests",
+        path: "/common-modules/leave-requests",
+      },
+      { label: "My Leaves" },
+    ],
+  },
+  {
+    pattern: "/common-modules/leave-requests/approval-queue",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      {
+        label: "Leave Requests",
+        path: "/common-modules/leave-requests",
+      },
+      { label: "Approval Queue" },
+    ],
+  },
+  {
+    pattern: "/common-modules/leave-requests/assigned-department-leaves",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      {
+        label: "Leave Requests",
+        path: "/common-modules/leave-requests",
+      },
+      { label: "Assigned Department Leaves" },
+    ],
+  },
+  {
+    pattern: "/common-modules/leave-requests/company-leaves",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      {
+        label: "Leave Requests",
+        path: "/common-modules/leave-requests",
+      },
+      { label: "Company Leaves" },
+    ],
+  },
+  {
+    pattern: "/common-modules/leave-requests/manage",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/common-modules" },
+      {
+        label: "Leave Requests",
+        path: "/common-modules/leave-requests",
+      },
+      { label: "My Leaves" },
     ],
   },
   {
@@ -1150,12 +1333,23 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
   },
   {
     pattern:
-      "/department-accesses/administration-department/tenant-companies/:id",
+      "/department-accesses/administration-department/tenant-companies/manage",
     crumbs: [
       {
-        label: SECTION_LABELS.departmentAccesses,
-        path: "/department-accesses",
+        label: "Administration Department",
+        path: "/department-accesses/administration-department",
       },
+      {
+        label: "Tenant Companies",
+        path: "/department-accesses/administration-department/tenant-companies",
+      },
+      { label: "Manage Tenant Companies" },
+    ],
+  },
+  {
+    pattern:
+      "/department-accesses/administration-department/tenant-companies/:id",
+    crumbs: [
       {
         label: "Administration Department",
         path: "/department-accesses/administration-department",
@@ -1215,47 +1409,94 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
-    pattern: "/department-accesses/administration-department/bookings/meeting-rooms",
+    pattern:
+      "/department-accesses/administration-department/bookings/meeting-rooms",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
-      { label: "Administration Department", path: "/department-accesses/administration-department" },
-      { label: "Bookings", path: "/department-accesses/administration-department/bookings" },
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      {
+        label: "Administration Department",
+        path: "/department-accesses/administration-department",
+      },
+      {
+        label: "Bookings",
+        path: "/department-accesses/administration-department/bookings",
+      },
       { label: "Meeting Room Bookings" },
     ],
   },
   {
     pattern: "/department-accesses/administration-department/bookings/hostel",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
-      { label: "Administration Department", path: "/department-accesses/administration-department" },
-      { label: "Bookings", path: "/department-accesses/administration-department/bookings" },
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      {
+        label: "Administration Department",
+        path: "/department-accesses/administration-department",
+      },
+      {
+        label: "Bookings",
+        path: "/department-accesses/administration-department/bookings",
+      },
       { label: "Hostel Bookings" },
     ],
   },
   {
-    pattern: "/department-accesses/administration-department/bookings/co-living",
+    pattern:
+      "/department-accesses/administration-department/bookings/co-living",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
-      { label: "Administration Department", path: "/department-accesses/administration-department" },
-      { label: "Bookings", path: "/department-accesses/administration-department/bookings" },
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      {
+        label: "Administration Department",
+        path: "/department-accesses/administration-department",
+      },
+      {
+        label: "Bookings",
+        path: "/department-accesses/administration-department/bookings",
+      },
       { label: "Co-living Bookings" },
     ],
   },
   {
     pattern: "/department-accesses/administration-department/bookings/cafe",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
-      { label: "Administration Department", path: "/department-accesses/administration-department" },
-      { label: "Bookings", path: "/department-accesses/administration-department/bookings" },
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      {
+        label: "Administration Department",
+        path: "/department-accesses/administration-department",
+      },
+      {
+        label: "Bookings",
+        path: "/department-accesses/administration-department/bookings",
+      },
       { label: "Cafe Orders" },
     ],
   },
   {
     pattern: "/department-accesses/administration-department/bookings/history",
     crumbs: [
-      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
-      { label: "Administration Department", path: "/department-accesses/administration-department" },
-      { label: "Bookings", path: "/department-accesses/administration-department/bookings" },
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      {
+        label: "Administration Department",
+        path: "/department-accesses/administration-department",
+      },
+      {
+        label: "Bookings",
+        path: "/department-accesses/administration-department/bookings",
+      },
       { label: "All Booking History" },
     ],
   },
@@ -1274,7 +1515,8 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
-    pattern: "/department-accesses/administration-department/printouts/dashboard",
+    pattern:
+      "/department-accesses/administration-department/printouts/dashboard",
     crumbs: [
       {
         label: SECTION_LABELS.departmentAccesses,
@@ -1289,6 +1531,21 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
         path: "/department-accesses/administration-department/printouts",
       },
       { label: "Requests Console" },
+    ],
+  },
+  {
+    pattern:
+      "/department-accesses/administration-department/resource-management/manage",
+    crumbs: [
+      {
+        label: "Administration Department",
+        path: "/department-accesses/administration-department",
+      },
+      {
+        label: "Resource Management",
+        path: "/department-accesses/administration-department/resource-management",
+      },
+      { label: "Manage Resources" },
     ],
   },
   {
@@ -1321,7 +1578,8 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
-    pattern: "/department-accesses/administration-department/house-keeping/dashboard",
+    pattern:
+      "/department-accesses/administration-department/house-keeping/dashboard",
     crumbs: [
       {
         label: SECTION_LABELS.departmentAccesses,
@@ -1339,7 +1597,8 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
-    pattern: "/department-accesses/administration-department/house-keeping/staff",
+    pattern:
+      "/department-accesses/administration-department/house-keeping/staff",
     crumbs: [
       {
         label: SECTION_LABELS.departmentAccesses,
@@ -1357,7 +1616,8 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
-    pattern: "/department-accesses/administration-department/house-keeping/scheduled-tasks",
+    pattern:
+      "/department-accesses/administration-department/house-keeping/scheduled-tasks",
     crumbs: [
       {
         label: SECTION_LABELS.departmentAccesses,
@@ -1375,7 +1635,8 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
-    pattern: "/department-accesses/administration-department/house-keeping/booking-tasks",
+    pattern:
+      "/department-accesses/administration-department/house-keeping/booking-tasks",
     crumbs: [
       {
         label: SECTION_LABELS.departmentAccesses,
@@ -1393,7 +1654,8 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
-    pattern: "/department-accesses/administration-department/house-keeping/history",
+    pattern:
+      "/department-accesses/administration-department/house-keeping/history",
     crumbs: [
       {
         label: SECTION_LABELS.departmentAccesses,
@@ -1411,7 +1673,8 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
-    pattern: "/department-accesses/administration-department/house-keeping/performance",
+    pattern:
+      "/department-accesses/administration-department/house-keeping/performance",
     crumbs: [
       {
         label: SECTION_LABELS.departmentAccesses,
@@ -1461,7 +1724,8 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
-    pattern: "/department-accesses/sales-department/leads-management/website-leads",
+    pattern:
+      "/department-accesses/sales-department/leads-management/website-leads",
     crumbs: [
       {
         label: SECTION_LABELS.departmentAccesses,
@@ -1479,7 +1743,8 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
-    pattern: "/department-accesses/sales-department/leads-management/unit-tour-leads",
+    pattern:
+      "/department-accesses/sales-department/leads-management/unit-tour-leads",
     crumbs: [
       {
         label: SECTION_LABELS.departmentAccesses,
@@ -1772,6 +2037,61 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern:
+      "/department-accesses/hr-department/company-management/employee-management",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      { label: "Company Management", path: "/department-accesses/hr-department/company-management" },
+      { label: "Employee Management" },
+    ],
+  },
+  {
+    pattern:
+      "/department-accesses/hr-department/company-management/company-sop",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      { label: "Company Management", path: "/department-accesses/hr-department/company-management" },
+      { label: "Company SOP" },
+    ],
+  },
+  {
+    pattern:
+      "/department-accesses/hr-department/company-management/company-policies",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      { label: "Company Management", path: "/department-accesses/hr-department/company-management" },
+      { label: "Company Policies" },
+    ],
+  },
+  {
+    pattern:
+      "/department-accesses/hr-department/company-management/birthdays",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      { label: "Company Management", path: "/department-accesses/hr-department/company-management" },
+      { label: "Month-wise Birthdays" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/hr-department/company-management/list",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      {
+        label: "Company Management",
+        path: "/department-accesses/hr-department/company-management",
+      },
+      { label: "Manage Employees" },
+    ],
+  },
+  {
     pattern: "/department-accesses/hr-department/company-management",
     crumbs: [
       {
@@ -1780,6 +2100,39 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
       },
       { label: "HR Department", path: "/department-accesses/hr-department" },
       { label: "Company Management" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/hr-department/documents/active-employees",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      { label: "Documents", path: "/department-accesses/hr-department/documents" },
+      { label: "Active Employee Documents" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/hr-department/documents/inactive-employees",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      { label: "Documents", path: "/department-accesses/hr-department/documents" },
+      { label: "Inactive Employee Documents" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/hr-department/documents/list",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      {
+        label: "Documents",
+        path: "/department-accesses/hr-department/documents",
+      },
+      { label: "Document Vault" },
     ],
   },
   {
@@ -1831,6 +2184,39 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/department-accesses/hr-department/recruitment/job-openings",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      { label: "Recruitment", path: "/department-accesses/hr-department/recruitment" },
+      { label: "Job Openings" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/hr-department/recruitment/candidates",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      { label: "Recruitment", path: "/department-accesses/hr-department/recruitment" },
+      { label: "Candidates Tracking" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/hr-department/recruitment/list",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      {
+        label: "Recruitment",
+        path: "/department-accesses/hr-department/recruitment",
+      },
+      { label: "Manage Recruitment" },
+    ],
+  },
+  {
     pattern: "/department-accesses/hr-department/recruitment",
     crumbs: [
       {
@@ -1875,6 +2261,15 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
         path: "/department-accesses/finance-department",
       },
       { label: "Expenses & Budget" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/finance-department/expenses-budget/:section",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Finance Department", path: "/department-accesses/finance-department" },
+      { label: "Expenses & Budget", path: "/department-accesses/finance-department/expenses-budget" },
+      { label: "Manage" },
     ],
   },
   {
@@ -1931,6 +2326,15 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/department-accesses/finance-department/billing-payments/:section",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Finance Department", path: "/department-accesses/finance-department" },
+      { label: "Billing & Payments", path: "/department-accesses/finance-department/billing-payments" },
+      { label: "Manage" },
+    ],
+  },
+  {
     pattern: "/department-accesses/finance-department/accounting",
     crumbs: [
       {
@@ -1942,6 +2346,15 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
         path: "/department-accesses/finance-department",
       },
       { label: "Accounting" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/finance-department/accounting/:section",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Finance Department", path: "/department-accesses/finance-department" },
+      { label: "Accounting", path: "/department-accesses/finance-department/accounting" },
+      { label: "Manage" },
     ],
   },
   {
@@ -2181,6 +2594,41 @@ const BreadCrumbComponent = () => {
   }
 
   if (
+    location.pathname === "/common-modules/attendance/manage" &&
+    breadcrumbs.length > 0
+  ) {
+    const attendanceLabels: Record<string, string> = {
+      "my-attendance": "My Attendance",
+      "team-attendance": "Team Attendance",
+      corrections: "Attendance Corrections",
+    };
+    const label =
+      attendanceLabels[String(searchParams.get("tab") || "my-attendance")] ||
+      "My Attendance";
+    breadcrumbs = breadcrumbs.map((crumb, index) =>
+      index === breadcrumbs.length - 1 ? { ...crumb, label } : crumb,
+    );
+  }
+
+  if (
+    location.pathname === "/common-modules/leave-requests/manage" &&
+    breadcrumbs.length > 0
+  ) {
+    const leaveLabels: Record<string, string> = {
+      "my-leaves": "My Leaves",
+      "leave-requests": "Approval Queue",
+      "assigned-dept-leaves": "Assigned Department Leaves",
+      "company-leaves": "Company Leaves",
+    };
+    const label =
+      leaveLabels[String(searchParams.get("tab") || "my-leaves")] ||
+      "My Leaves";
+    breadcrumbs = breadcrumbs.map((crumb, index) =>
+      index === breadcrumbs.length - 1 ? { ...crumb, label } : crumb,
+    );
+  }
+
+  if (
     routeState.fromSection === "department-accesses" &&
     dynamicDepartmentLabel &&
     breadcrumbs.length > 0 &&
@@ -2347,6 +2795,38 @@ const BreadCrumbComponent = () => {
     ];
   }
 
+  const financeSectionLabels: Record<string, Record<string, string>> = {
+    "/department-accesses/finance-department/expenses-budget": {
+      estimated: "Projected Annual Budget",
+      extra: "Extra Budget Requests",
+      ledger: "Expense History & Invoices",
+    },
+    "/department-accesses/finance-department/billing-payments": {
+      tenant: "Tenant Security Deposits",
+      rent: "Tenant Rent",
+      virtualOffice: "Virtual Office",
+      workation: "Workation Revenue",
+      alternateRevenue: "Alternate Revenue",
+      bookings: "Meeting Room Bookings",
+      payroll: "Payroll",
+      extraCredits: "Extra Credit Requests",
+      history: "Transaction History",
+    },
+    "/department-accesses/finance-department/accounting": {
+      ledger: "General Ledger",
+      departments: "Department Review",
+      pnl: "Profit & Loss",
+    },
+  };
+  for (const [base, labels] of Object.entries(financeSectionLabels)) {
+    const sectionMatch = matchPath({ path: `${base}/:section`, end: true }, location.pathname);
+    const sectionLabel = sectionMatch?.params.section ? labels[sectionMatch.params.section] : undefined;
+    if (sectionLabel && breadcrumbs.length > 0) {
+      breadcrumbs = breadcrumbs.map((crumb, index) => index === breadcrumbs.length - 1 ? { ...crumb, label: sectionLabel } : crumb);
+      break;
+    }
+  }
+
   const breadcrumbsToRender = breadcrumbs.map((crumb, index) => {
     const isLast = index === breadcrumbs.length - 1 || !crumb.path;
 
@@ -2380,7 +2860,9 @@ const BreadCrumbComponent = () => {
     if (
       (key === "tab" &&
         (isVisitorManagementListPath ||
-          location.pathname === "/common-modules/tickets/list")) ||
+          location.pathname === "/common-modules/tickets/list" ||
+          location.pathname === "/common-modules/attendance/manage" ||
+          location.pathname === "/common-modules/leave-requests/manage")) ||
       (key === "module" &&
         location.pathname === "/common-modules/meeting-room-booking/list") ||
       (key === "tab" &&

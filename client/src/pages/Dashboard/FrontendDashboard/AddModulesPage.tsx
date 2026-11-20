@@ -128,7 +128,7 @@ const ADD_ON_TOP_LEVEL_ORDER = [
 const DEPARTMENT_ORDER = [
   "HR Department",
   "Administration Department",
-  "Sales Dashboard",
+  "Sales Department",
   "Finance Department",
   "Maintenance Department",
   "Tech Department",
@@ -179,7 +179,7 @@ const DEFAULT_SECTION_ROUTES: Record<string, string> = {
 const DEPARTMENT_LABELS: Record<string, string> = {
   "hr-department": "HR Department",
   "administration-department": "Administration Department",
-  "sales-department": "Sales Dashboard",
+  "sales-department": "Sales Department",
   "finance-department": "Finance Department",
   "maintenance-department": "Maintenance Department",
   "tech-department": "Tech Department",
@@ -869,7 +869,15 @@ const AddModulesPage = () => {
 
     const keyAppsSection = findSection("key-apps");
     const keyAppCards = (Array.isArray(keyAppsSection?.items) ? keyAppsSection.items : [])
-      .map((item) => buildCard(item, "key-apps", "Key Apps"))
+      .map((item) =>
+        buildCard(
+          String(item?.id || "").trim() === "website-leads"
+            ? { ...item, label: "All Leads", route: "/key-apps/all-leads" }
+            : item,
+          "key-apps",
+          "Key Apps",
+        ),
+      )
       .filter(Boolean) as AddOnModuleCard[];
     if (keyAppCards.length) groups.push({ key: "key-apps", label: "Key Apps", roman: "III", cards: keyAppCards });
 
@@ -883,7 +891,11 @@ const AddModulesPage = () => {
     const departmentItems = Array.isArray(deptSection?.items) ? deptSection.items : [];
     const deptGroups = DEPARTMENT_ORDER.map((deptLabel) => {
       const dept = departmentItems.find(
-        (item) => String(item?.label || DEPARTMENT_LABELS[String(item?.id || "").trim()] || "").trim() === deptLabel,
+        (item) => {
+          const itemId = String(item?.id || "").trim();
+          const normalizedLabel = DEPARTMENT_LABELS[itemId] || String(item?.label || "").trim();
+          return normalizedLabel === deptLabel;
+        },
       );
       if (!dept) return null;
       const deptKey = String(dept?.id || deptLabel).trim();

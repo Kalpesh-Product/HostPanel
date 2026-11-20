@@ -656,7 +656,7 @@ export default function CoworkingManagementPage() {
             />
             <div
               aria-hidden="true"
-              className="absolute inset-y-0 right-0 w-full overflow-hidden bg-gradient-to-br from-[#2563EB]/55 via-[#3b82f6]/35 to-[#60a5fa]/20 sm:w-[64%]"
+              className="absolute inset-y-0 right-0 w-full overflow-hidden bg-gradient-to-br from-[#2563EB]/45 via-[#3b82f6]/25 to-[#60a5fa]/15 sm:w-[64%]"
               style={{
                 WebkitMaskImage:
                   "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
