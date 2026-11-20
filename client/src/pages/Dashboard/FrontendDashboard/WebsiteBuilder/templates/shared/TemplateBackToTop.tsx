@@ -31,6 +31,7 @@ const BACK_TO_TOP_SPECS: Record<string, BackToTopSpec> = {
   "warm-organic": { bg: "#2b211a", fg: "#f1e6d3", border: "#b85c38", radius: "62% 38% 58% 42%", shadow: "0 16px 34px rgba(43,33,26,.25)", font: "Georgia, serif" },
   "emerald-studio": { bg: "rgba(54,87,127,.9)", fg: "#ffffff", border: "rgba(255,255,255,.45)", radius: "16px", shadow: "0 18px 38px rgba(24,44,70,.3)", font: "'Fraunces', Georgia, serif" },
   "figma-make": { bg: "rgba(54,87,127,.9)", fg: "#ffffff", border: "rgba(255,255,255,.45)", radius: "16px", shadow: "0 18px 38px rgba(24,44,70,.3)", font: "'Fraunces', Georgia, serif" },
+  orchard: { bg: "#fafaf9", fg: "#353b41", border: "#9aa88f", radius: "50%", shadow: "0 16px 34px rgba(53,59,65,.16)", font: "'Outfit', sans-serif" },
 };
 
 const TEMPLATES_WITH_OWN_BUTTON = new Set([

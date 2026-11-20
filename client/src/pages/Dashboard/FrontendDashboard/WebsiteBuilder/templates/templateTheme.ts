@@ -103,6 +103,12 @@ export const THEME_DEFAULTS: Record<string, ThemeDefaults> = {
     accent: "#e86d43",
     surfaceUp: true,
   },
+  orchard: {
+    bg: "#fafaf9",
+    text: "#6e6b68",
+    accent: "#353b41",
+    surfaceUp: true,
+  },
   haven: { bg: "#f4f1ea", text: "#26312b", accent: "#5b7f6a", surfaceUp: true },
   camelia: {
     bg: "#f6f3ec",

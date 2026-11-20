@@ -31,6 +31,7 @@ export const SAMPLE_TEMPLATE_IDS = [
   "travigo",
   "lodge",
   "cali-hostel",
+  "orchard",
   "tulum",
   "tinyhome",
   "cabin",
