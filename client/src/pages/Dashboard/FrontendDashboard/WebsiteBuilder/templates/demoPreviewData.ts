@@ -29,6 +29,8 @@ const TEMPLATE_KIND: Record<string, ServiceKind> = {
   travigo: "hostel",
   lodge: "hostel",
   "cali-hostel": "hostel",
+  orchard: "hostel",
+  destinflow: "hostel",
   haven: "coLiving",
   camelia: "coLiving",
   tulum: "coLiving",
@@ -54,6 +56,13 @@ const photoValue = (id: string, width = 1000) => ({ url: photo(id, width) });
 // Portrait crops centred on the face, for team photos (4:5, matching the team cards).
 const faceCrop = (id: string) =>
   `https://images.unsplash.com/${id}?auto=format&fit=crop&crop=faces&w=700&h=875&q=78`;
+
+// DestinFlow previews with the reference site's own mark and hero photograph so the
+// template's transparent navigation and centered banner read the way they were designed.
+const DESTINFLOW_ASSETS = {
+  logo: "https://cdn.prod.website-files.com/646c59363e244b8b05ff0d1c/64c8f0e8ad1c8a6f73e9a4fe_destinflow-logo.svg",
+  hero: "https://cdn.prod.website-files.com/646c59363e244b8b05ff0d1c/646dad4d11883642cfe0ec1f_home-banner-image.jpg",
+};
 
 // Travigo intentionally has its own photo direction instead of inheriting Wayfarer's
 // hostel library. These images lean into tropical rooms, real traveller moments and
@@ -565,6 +574,17 @@ const LODGE_DEMO_BUSINESS: DemoBusiness = {
       ),
     })),
   },
+};
+
+const DESTINFLOW_DEMO_BUSINESS: DemoBusiness = {
+  ...hostelDemo,
+  companyName: "DestinFlow",
+  companyLogo: DESTINFLOW_ASSETS.logo,
+  title: "Explore With Experts",
+  subTitle: "Perfect travel partner with experience.",
+  cta: "Book Now",
+  heroImages: [DESTINFLOW_ASSETS.hero],
+  aboutTitle: "Stay well, travel further",
 };
 
 // Tastyc has a separate coffee-house photo direction so its preview never looks like Savor.
@@ -1560,6 +1580,137 @@ const CALI_HOSTEL_DEMO_BUSINESS: DemoBusiness = (() => {
   };
 })();
 
+// Orchard takes its visual cues from a calm residential editorial: generous interiors, warm
+// neutrals and real shared spaces rather than party-hostel imagery.
+const ORCHARD_PHOTOS = {
+  hero: [
+    "photo-1774186184495-dc059ef40c75",
+    "photo-1657040899606-b22f17a6afd5",
+    "photo-1632119289059-793dd347950f",
+  ],
+  rooms: [
+    "photo-1727706572437-4fcda0cbd66f",
+    "photo-1611892440504-42a792e24d32",
+    "photo-1635247049915-dff57098ea0f",
+    "photo-1630827807282-6be2a754361d",
+    "photo-1632119289059-793dd347950f",
+    "photo-1679939153964-2b9bd027f6e3",
+  ],
+  spaces: [
+    "photo-1651407825801-eec2dcbd86bd",
+    "photo-1615876234886-fd9a39fda97f",
+    "photo-1579609702289-ecbad32c2cf6",
+    "photo-1721614664523-5e0d3fc786d0",
+    "photo-1516197067152-381321bc78e1",
+    "photo-1764006195843-e6f9a5781500",
+  ],
+  neighbourhood: [
+    "photo-1521335751419-603f61523713",
+    "photo-1464198016405-33fd4527b89d",
+    "photo-1539635278303-d4002c07eae3",
+  ],
+};
+
+const ORCHARD_DEMO_BUSINESS: DemoBusiness = (() => {
+  const base = DEMO_BUSINESSES.hostel;
+  const rooms = ((base.extra as any).dorms || []) as any[];
+  const roomNames = [
+    "The Orchard Studio",
+    "The Garden Room",
+    "The Courtyard Twin",
+    "The Resident Suite",
+  ];
+  const roomCopy = [
+    "A light-filled studio with a calm palette, a proper desk and everything you need for a longer stay.",
+    "A generous room overlooking the garden, with soft linens and a quiet corner for slow mornings.",
+    "Two comfortable beds, thoughtful storage and an easy, social feel in the heart of the house.",
+    "Our most spacious option, with a separate sitting area and the best light in the building.",
+  ];
+  return {
+    ...base,
+    companyName: "Orchard House",
+    title: "Designed for distinction. Built for belonging.",
+    subTitle:
+      "Considered rooms, generous shared spaces and a neighbourhood that feels like yours from day one.",
+    cta: "Schedule a Tour",
+    heroImages: ORCHARD_PHOTOS.hero.map((id) => photo(id, 2000)),
+    gallery: [
+      ...ORCHARD_PHOTOS.spaces,
+      ...ORCHARD_PHOTOS.rooms,
+      ...ORCHARD_PHOTOS.neighbourhood,
+    ].map((id) => photo(id, 1500)),
+    aboutImages: [
+      ORCHARD_PHOTOS.spaces[0],
+      ORCHARD_PHOTOS.spaces[2],
+      ORCHARD_PHOTOS.rooms[1],
+    ].map((id) => photo(id, 1300)),
+    address: "18 Orchard Lane, Indiranagar, Bengaluru 560038",
+    aboutTitle: "A considered home in the middle of it all",
+    aboutPageStory:
+      "Orchard House began with a simple idea: a place to stay should feel as thoughtful as a place to live. We took a quiet lane-side building, gave it warm materials and honest finishes, and filled it with the spaces that make everyday life easier.",
+    about: [
+      "The rooms are calm, comfortable and full of practical details—good light, proper storage and beds made for real rest.",
+      "Downstairs, the lounge, garden kitchen and rooftop give you room to work, cook, meet people or simply take an afternoon for yourself.",
+    ],
+    founders: [
+      {
+        name: "Ananya Rao",
+        role: "Founder & Host",
+        bio: "Ananya designed Orchard around the things she always looked for in a long stay: quiet, light and a good kitchen.",
+        highlights: "Local design · Slow mornings",
+        image: faceCrop("photo-1573497019236-17f8177b81e8"),
+      },
+      {
+        name: "Dev Menon",
+        role: "House Manager",
+        bio: "Dev knows every coffee stop, grocery run and shortcut in the neighbourhood, and is happy to share them.",
+        highlights: "Neighbourhood guide · Always helpful",
+        image: faceCrop("photo-1576558656222-ba66febe3dec"),
+      },
+    ],
+    page: {
+      ...base.page,
+      heroHeading: "Rooms designed for real life",
+      heroSubHeading:
+        "Studios, twins and suites with warm interiors, practical storage and the same attention to detail throughout.",
+      heroImage: photo(ORCHARD_PHOTOS.rooms[0], 1900),
+      cardImage: photo(ORCHARD_PHOTOS.spaces[0], 1200),
+    },
+    extra: {
+      ...base.extra,
+      dorms: rooms.slice(0, 4).map((room, index) => ({
+        ...room,
+        title: roomNames[index],
+        description: roomCopy[index],
+        price: ["3,200", "3,800", "2,650", "5,400"][index],
+        priceUnit: "night",
+        badge: index === 3 ? "Most spacious" : index === 0 ? "Popular" : "",
+        images: [0, 1, 2, 3].map((offset) =>
+          photoValue(
+            ORCHARD_PHOTOS.rooms[
+              (index * 2 + offset) % ORCHARD_PHOTOS.rooms.length
+            ],
+            1200,
+          ),
+        ),
+        features: [
+          "Quality linen",
+          "Fast Wi-Fi",
+          "Personal storage",
+          "Reading light",
+          "Weekly housekeeping",
+          index === 3 ? "Separate sitting area" : "Shared kitchen access",
+        ],
+        roomKind: index >= 2 ? "private" : "dorm",
+        genderPolicy: "mixed",
+        capacity: [1, 1, 2, 2][index],
+        bedType: index === 2 ? "twin" : "queen",
+        bathroom: index === 3 ? "ensuite" : "shared",
+      })),
+    },
+  };
+})();
+
 const AROMATICA_PHOTOS = {
   hero: [
     "photo-1528605248644-14dd04022da1",
@@ -2008,8 +2159,12 @@ const demoBusinessFor = (
   if (themeVariant === "travigo" && kind === "hostel")
     return TRAVIGO_DEMO_BUSINESS;
   if (themeVariant === "lodge" && kind === "hostel") return LODGE_DEMO_BUSINESS;
+  if (themeVariant === "destinflow" && kind === "hostel")
+    return DESTINFLOW_DEMO_BUSINESS;
   if (themeVariant === "cali-hostel" && kind === "hostel")
     return CALI_HOSTEL_DEMO_BUSINESS;
+  if (themeVariant === "orchard" && kind === "hostel")
+    return ORCHARD_DEMO_BUSINESS;
   if (themeVariant === "tulum" && kind === "coLiving") return tulumDemo;
   if (themeVariant === "grindelwald" && kind === "coLiving")
     return grindelwaldDemo;
@@ -2113,6 +2268,7 @@ export const buildDemoPreviewDraft = (
     sectionOverrides: {},
     vertical: primary.vertical,
     companyName: primary.companyName,
+    companyLogo: primary.companyLogo || "",
     registeredCompanyName: `${primary.companyName} Pvt Ltd`,
     copyrightText: `© ${primary.companyName}`,
     title: primary.title,

@@ -149,6 +149,8 @@ const testimonials = (list: Testimonial[]) => list.map((t, i) => ({ name: t.name
 export interface DemoBusiness {
   vertical: string;
   companyName: string;
+  /** Optional brand mark used by previews that mirror a reference site. */
+  companyLogo?: string;
   title: string;
   subTitle: string;
   cta: string;

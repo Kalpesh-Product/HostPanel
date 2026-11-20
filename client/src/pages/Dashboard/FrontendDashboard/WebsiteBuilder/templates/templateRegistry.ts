@@ -17,6 +17,8 @@ import CabinTemplate from "./cabin/CabinTemplate";
 import GrindelwaldTemplate from "./grindelwald/GrindelwaldTemplate";
 import LodgeTemplate from "./lodge/LodgeTemplate";
 import CaliHostelTemplate from "./caliHostel/CaliHostelTemplate";
+import OrchardTemplate from "./orchard/OrchardTemplate";
+import DestinflowTemplate from "./destinflow/DestinflowTemplate";
 import TastycTemplate from "./tastyc/TastycTemplate";
 import GrandBarTemplate from "./grandbar/GrandBarTemplate";
 import AromaticaTemplate from "./aromatica/AromaticaTemplate";
@@ -284,6 +286,36 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       fg: "#171711",
       accent: "#e86d43",
       font: "'Instrument Serif', Georgia, serif",
+    },
+    recommendedFor: ["hostel"],
+    supportsBooking: true,
+  },
+  orchard: {
+    id: "orchard",
+    name: "Orchard Living",
+    description:
+      "Residential-editorial hostel style — oversized Outfit type, warm off-white canvas, roomy amenity galleries, floor-plan cards and a calm tour request. Inspired by Orchard Living, works for any service.",
+    component: OrchardTemplate,
+    swatch: {
+      bg: "#fafaf9",
+      fg: "#353b41",
+      accent: "#9aa88f",
+      font: "'Outfit', ui-sans-serif, sans-serif",
+    },
+    recommendedFor: ["hostel"],
+    supportsBooking: true,
+  },
+  destinflow: {
+    id: "destinflow",
+    name: "DestinFlow",
+    description:
+      "Editorial hostel style — a centered photographic hero, square dark buttons, pale-blue facilities and a dark gallery strip. Inspired by DestinFlow, works for any service.",
+    component: DestinflowTemplate,
+    swatch: {
+      bg: "#ffffff",
+      fg: "#666b73",
+      accent: "#3ba7da",
+      font: "'Cormorant Garamond', Georgia, serif",
     },
     recommendedFor: ["hostel"],
     supportsBooking: true,
