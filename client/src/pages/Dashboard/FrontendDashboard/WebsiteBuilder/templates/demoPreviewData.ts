@@ -33,6 +33,7 @@ const TEMPLATE_KIND: Record<string, ServiceKind> = {
   camelia: "coLiving",
   tulum: "coLiving",
   tinyhome: "coLiving",
+  cabin: "coLiving",
   grindelwald: "coLiving",
   commons: "workspace",
   huddle: "meeting",
@@ -1885,6 +1886,52 @@ const tinyHomeDemo: DemoBusiness = (() => {
   };
 })();
 
+const cabinDemo: DemoBusiness = (() => {
+  const base = DEMO_BUSINESSES.coLiving;
+  const cdn = "https://cdn.prod.website-files.com/66fef51bb2a32743f5bfff90/";
+  const exterior = cdn + "66fef51bb2a32743f5bfffe9_clay-banks-UEhjiKh63Ek-unsplash.jpg";
+  const living = photo("photo-1543806053-7f9ac02e6631", 1200);
+  const kitchen = photo("photo-1586753701871-07e025659129", 1200);
+  const bedroom = photo("photo-1628394029749-ea3dcce4caa6", 1200);
+  const porch = photo("photo-1510798831971-661eb04b3739", 1200);
+  const rooms = [
+    { title: "Woodland Studio", price: "$1,250", priceUnit: "per month", description: "A furnished studio for independent living, with a private kitchenette and a quiet view of the trees.", images: [bedroom, kitchen, exterior].map((url) => ({ url })), occupancy: "single", bathroom: "ensuite", furnished: true, featured: true, enabled: true, features: ["Private kitchenette", "Wi-Fi", "Ensuite bathroom", "Garden access"] },
+    { title: "Garden Room", price: "$950", priceUnit: "per month", description: "Your own peaceful room, with a shared kitchen, welcoming common spaces, and a garden to enjoy.", images: [living, bedroom].map((url) => ({ url })), occupancy: "single", bathroom: "shared", furnished: true, enabled: true, features: ["Furnished room", "Shared kitchen", "Housekeeping", "Wi-Fi"] },
+    { title: "Forest Cabin", price: "$1,650", priceUnit: "per month", description: "A home for two with a private kitchen, a covered porch, and access to our community spaces.", images: [porch, bedroom, kitchen].map((url) => ({ url })), occupancy: "double", bathroom: "ensuite", furnished: true, enabled: true, features: ["Private kitchen", "Covered porch", "Wi-Fi", "Community spaces"] },
+  ];
+  return {
+    ...base,
+    companyName: "Cabin",
+    title: "Escape",
+    subTitle: "Find your place among the trees. Furnished homes, shared moments, and space to breathe.",
+    cta: "Book a stay",
+    heroImages: [exterior, porch, bedroom],
+    gallery: [living, kitchen, bedroom, porch, exterior, photo("photo-1543806053-7f9ac02e6631", 1200)],
+    aboutImages: [living, porch, bedroom],
+    aboutTitle: "A place to slow down, settle in, and feel a little closer to nature.",
+    about: ["Make room for slow mornings, new friendships, and a home that feels like yours from the first day.", "Our furnished homes bring private space and shared living together, with nature on your doorstep."],
+    aboutPageStory: "Cabin grew from a simple idea. Create comfortable homes where people can live independently, find community, and enjoy more time outside.",
+    aboutPageMission: "Make settling into a new home feel simple, thoughtful, and welcoming.",
+    aboutPageValues: "Respect for shared spaces, care for our surroundings, and a warm welcome for every resident.",
+    partnerHeading: "Grow with Cabin",
+    partnerContent: "Tell us about your property or community idea. We welcome thoughtful partnerships that bring people and places together.",
+    address: "Main Street, Catskill, NY 12414",
+    testimonials: [
+      { name: "Maya Chen", jobPosition: "Resident", rating: 5, image: "", testimony: "Having my own space and a friendly community nearby made moving here feel easy. The quiet mornings are my favourite part." },
+      { name: "Leo Martin", jobPosition: "Resident", rating: 5, image: "", testimony: "A comfortable home, a proper place to work, and a garden to switch off in. I settled in much faster than I expected." },
+    ],
+    faqs: [
+      { question: "What is included in my stay?", answer: "Each home is furnished. The room listing shows its amenities and shared facilities. Ask our team about utilities and services before confirming your stay." },
+      { question: "Can I arrange a viewing?", answer: "Yes. Send us your preferred dates through the stay enquiry form and our team will help arrange a visit." },
+      { question: "How long can I stay?", answer: "Tell us your planned move-in date and length of stay. We will share the available homes and current terms." },
+      { question: "Where are you located?", answer: "Our homes are in Catskill, New York, close to woodland walks and local cafés. Contact us for directions." },
+    ],
+    page: { ...base.page, homeCardHeading: "Cabin homes", homeCardSubText: "Thoughtfully furnished homes, close to nature.", heroHeading: "Find your home", heroSubHeading: "Private rooms, studios, and cabins with a community to come home to.", heroImage: exterior, cardImage: porch },
+    extra: { ...base.extra, coLivingRooms: rooms },
+    settings: { ...base.settings, tourBooking: { enabled: false }, stayPolicy: { checkInTime: "15:00", checkOutTime: "11:00", houseRules: ["Quiet hours after 10 PM", "No smoking indoors", "Leave shared spaces ready for the next resident"] } },
+  };
+})();
+
 const coPlaceDemo: DemoBusiness = (() => {
   const base = DEMO_BUSINESSES.workspace;
   const shared = "photo-1524758631624-e2822e304c36";
@@ -1937,6 +1984,7 @@ const demoBusinessFor = (
   themeVariant: string,
 ): DemoBusiness => {
   if (themeVariant === "tinyhome" && kind === "coLiving") return tinyHomeDemo;
+  if (themeVariant === "cabin" && kind === "coLiving") return cabinDemo;
   if (themeVariant === "italiano" && kind === "menu") return italianoDemo;
   if (themeVariant === "restobar" && kind === "menu") return RESTOBAR_DEMO_BUSINESS;
   if (themeVariant === "tastyc" && kind === "menu") return TASTYC_DEMO_BUSINESS;

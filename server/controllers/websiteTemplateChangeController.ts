@@ -141,6 +141,12 @@ const DEFAULT_TEMPLATE_SETTINGS = {
       allowedPlans: ["basic", "professional", "custom"],
     },
     {
+      templateId: "cabin",
+      enabled: true,
+      visible: true,
+      allowedPlans: ["basic", "professional", "custom"],
+    },
+    {
       templateId: "tinyhome",
       enabled: true,
       visible: true,
