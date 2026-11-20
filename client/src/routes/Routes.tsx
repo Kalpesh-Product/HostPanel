@@ -190,8 +190,11 @@ import ResourceManagementWorkspaceDashboard from "../pages/Administration/Resour
 import AdministrationHousekeepingPage from "../pages/Administration/HouseKeeping/HousekeepingPage";
 import HousekeepingDashboard from "../pages/Administration/HouseKeeping/HousekeepingDashboard";
 import RepairLogsPage from "../pages/Maintenance/RepairLogsPage";
+import RepairLogsWorkspaceDashboard from "../pages/Maintenance/RepairLogsWorkspaceDashboard";
 import AMCMaintenanceSchedulerPage from "../pages/Maintenance/AMCMaintenanceSchedulerPage";
+import AMCMaintenanceSchedulerWorkspaceDashboard from "../pages/Maintenance/AMCMaintenanceSchedulerWorkspaceDashboard";
 import ITRepairLogsPage from "../pages/IT/ITRepairLogsPage";
+import ITRepairLogsWorkspaceDashboard from "../pages/IT/ITRepairLogsWorkspaceDashboard";
 import SystemAccessManagementPage from "../pages/IT/SystemAccessManagementPage";
 import { TicketsPage } from "../pages/Tickets/TicketsPage";
 import TicketsWorkspaceDashboard from "../pages/Tickets/TicketsWorkspaceDashboard";
@@ -1912,11 +1915,31 @@ export const routes = createBrowserRouter([
               // Department Access — Maintenance
               {
                 path: "department-accesses/maintenance-department/repair-logs",
-                element: <RepairLogsPage />,
+                element: <RepairLogsWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/maintenance-department/repair-logs/team-active",
+                element: <RepairLogsPage modulePage="team-active" />,
+              },
+              {
+                path: "department-accesses/maintenance-department/repair-logs/my-work",
+                element: <RepairLogsPage modulePage="my-work" />,
+              },
+              {
+                path: "department-accesses/maintenance-department/repair-logs/history",
+                element: <RepairLogsPage modulePage="history" />,
               },
               {
                 path: "department-accesses/maintenance-department/amc-scheduler",
-                element: <AMCMaintenanceSchedulerPage />,
+                element: <AMCMaintenanceSchedulerWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/maintenance-department/amc-scheduler/schedules",
+                element: <AMCMaintenanceSchedulerPage modulePage="schedules" />,
+              },
+              {
+                path: "department-accesses/maintenance-department/amc-scheduler/alerts",
+                element: <AMCMaintenanceSchedulerPage modulePage="alerts" />,
               },
               {
                 path: "maintenance/*",
@@ -1928,7 +1951,19 @@ export const routes = createBrowserRouter([
               // Department Access — IT
               {
                 path: "department-accesses/it-department/repair-logs",
-                element: <ITRepairLogsPage />,
+                element: <ITRepairLogsWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/it-department/repair-logs/active",
+                element: <ITRepairLogsPage modulePage="active" />,
+              },
+              {
+                path: "department-accesses/it-department/repair-logs/my-work",
+                element: <ITRepairLogsPage modulePage="my-work" />,
+              },
+              {
+                path: "department-accesses/it-department/repair-logs/history",
+                element: <ITRepairLogsPage modulePage="history" />,
               },
               {
                 path: "department-accesses/it-department/system-access",

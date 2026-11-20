@@ -71,6 +71,13 @@ function formatDateDisplay(dateStr?: string) {
 
 const STATUSES = ["Scheduled", "Due Soon", "Overdue", "Completed"] as const;
 
+export type AmcModulePage = "schedules" | "alerts";
+
+const MODULE_PAGE_LABELS: Record<AmcModulePage, string> = {
+  schedules: "Master AMC Schedule",
+  alerts: "Upcoming Alerts",
+};
+
 function getStatusBadge(status?: string) {
   const s = status || "Scheduled";
   const base =
@@ -136,11 +143,15 @@ const initialFormData: FormData = {
   enableReminders: true,
 };
 
-export default function AMCMaintenanceSchedulerPage() {
+export default function AMCMaintenanceSchedulerPage({
+  modulePage,
+}: {
+  modulePage?: AmcModulePage;
+}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [activeTab, setActiveTab] = useState<"schedules" | "alerts">("schedules");
+  const [activeTab, setActiveTab] = useState<AmcModulePage>(modulePage || "schedules");
   const [searchQuery, setSearchQuery] = useState("");
   const [deptFilter, setDeptFilter] = useState("All Departments");
   const [statusFilter, setStatusFilter] = useState("All Statuses");
@@ -155,6 +166,10 @@ export default function AMCMaintenanceSchedulerPage() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [formOptions, setFormOptions] = useState<{ assets: any[]; members: any[] }>({ assets: [], members: [] });
   const [loadingOptions, setLoadingOptions] = useState(false);
+
+  useEffect(() => {
+    if (modulePage) setActiveTab(modulePage);
+  }, [modulePage]);
 
   useEffect(() => {
     let active = true;
@@ -328,7 +343,9 @@ export default function AMCMaintenanceSchedulerPage() {
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-title font-pmedium text-primary uppercase">AMC Maintenance Scheduler</h1>
+              <h1 className="text-title font-pmedium text-primary uppercase">
+                {modulePage ? MODULE_PAGE_LABELS[modulePage] : "AMC Maintenance Scheduler"}
+              </h1>
               <p className="text-xs font-pmedium text-slate-500 mt-1">Preventive Servicing & Alerts</p>
             </div>
           </div>
@@ -341,35 +358,37 @@ export default function AMCMaintenanceSchedulerPage() {
           ) : null}
 
           {/* Pill Tabs */}
-          <div data-tour="amc-scheduler-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-            <button
-              type="button"
-              onClick={() => setActiveTab("schedules")}
-              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
-                activeTab === "schedules"
-                  ? "bg-[#2563EB] text-white shadow-sm"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              Master AMC Schedule
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("alerts")}
-              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
-                activeTab === "alerts"
-                  ? "bg-[#2563EB] text-white shadow-sm"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              Upcoming Alerts
-              {stats.dueSoon + stats.overdue > 0 ? (
-                <span className="ml-2 bg-red-500 text-white px-2 py-0.5 rounded-full text-[9px] font-pmedium">
-                  {stats.dueSoon + stats.overdue}
-                </span>
-              ) : null}
-            </button>
-          </div>
+          {!modulePage ? (
+            <div data-tour="amc-scheduler-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setActiveTab("schedules")}
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  activeTab === "schedules"
+                    ? "bg-[#2563EB] text-white shadow-sm"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                }`}
+              >
+                Master AMC Schedule
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("alerts")}
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  activeTab === "alerts"
+                    ? "bg-[#2563EB] text-white shadow-sm"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                }`}
+              >
+                Upcoming Alerts
+                {stats.dueSoon + stats.overdue > 0 ? (
+                  <span className="ml-2 bg-red-500 text-white px-2 py-0.5 rounded-full text-[9px] font-pmedium">
+                    {stats.dueSoon + stats.overdue}
+                  </span>
+                ) : null}
+              </button>
+            </div>
+          ) : null}
 
           {/* Stat Cards */}
           <div data-tour="amc-scheduler-stats" className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 shrink-0">

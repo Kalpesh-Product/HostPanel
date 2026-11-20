@@ -956,6 +956,11 @@ const formatRecordForFrontend = async (record, membership = null) => {
         };
       })
       : [],
+    // The auto-checkout sweep closes forgotten clock-outs so reports/payroll
+    // never see a day stuck open, but the employee still owes the real time —
+    // flag it until they file a correction (cleared the moment one exists,
+    // pending or decided, so the prompt doesn't nag after they've acted).
+    needsClockOutConfirmation: Boolean(plain?.autoCheckoutAt && !plain?.correctionRequest),
     correction: plain?.correctionRequest
       ? {
         requestedAt: plain.correctionRequest.requestedAt || "",
@@ -2230,6 +2235,19 @@ export async function getMyAttendanceHistory(userId, query = {}) {
     .exec();
   const holidayByDateKey = new Map(holidays.map((holiday) => [holiday.dateKey, holiday]));
   const dailyWorkingSeconds = computeDailyWorkingSeconds(workspace, assignment.shift);
+  // Only a leave that covers the whole shift blocks the day outright — a
+  // half-day or hour-based leave under the full shift length still leaves
+  // working hours open, so it must not get the all-day "on_leave" status.
+  const isLeaveFullDay = (leave: any): boolean => {
+    if (!leave) return false;
+    const mode = String(leave.leaveMode || "full_day");
+    if (mode === "full_day") return true;
+    if (mode === "hours") {
+      const leaveHours = Number(leave.leaveHours || 0);
+      return leaveHours >= dailyWorkingSeconds / 3600 - 0.001;
+    }
+    return false;
+  };
   const leaveByDateKey = new Map();
   for (const leave of approvedLeaves) {
     const startKey = (leave.startDate ? new Date(leave.startDate) : new Date()).toISOString().slice(0, 10);
@@ -2283,7 +2301,7 @@ export async function getMyAttendanceHistory(userId, query = {}) {
       });
       continue;
     }
-    const isFullDayLeave = activeLeave && String(activeLeave.leaveMode || "full_day") === "full_day";
+    const isFullDayLeave = isLeaveFullDay(activeLeave);
     if (isFullDayLeave) {
       rows.push({
         recordId: `leave-${user._id}-${dateKey}`,
@@ -2360,7 +2378,9 @@ export async function getMyAttendanceHistory(userId, query = {}) {
       continue;
     }
     const date = new Date(`${dateKey}T12:00:00.000Z`);
-    const isOnLeave = Boolean(activeLeave);
+    // A partial (half-day/hour-based) leave with no clock-in yet still has
+    // working hours open today — only a full-day leave takes over the status.
+    const isOnLeave = isLeaveFullDay(activeLeave);
     rows.push({
       recordId: isOnLeave ? `leave-${user._id}-${dateKey}` : `absent-${user._id}-${dateKey}`,
       id: isOnLeave ? `leave-${user._id}-${dateKey}` : `absent-${user._id}-${dateKey}`,
@@ -2388,6 +2408,7 @@ export async function getMyAttendanceHistory(userId, query = {}) {
       earlyMinutes: 0,
       breaks: [],
       correction: null,
+      activeLeave,
     });
   }
 

@@ -2356,6 +2356,24 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/department-accesses/maintenance-department/repair-logs/:section",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      {
+        label: "Maintenance Department",
+        path: "/department-accesses/maintenance-department",
+      },
+      {
+        label: "Repair Logs",
+        path: "/department-accesses/maintenance-department/repair-logs",
+      },
+      { label: "Manage" },
+    ],
+  },
+  {
     pattern: "/department-accesses/maintenance-department/amc-scheduler",
     crumbs: [
       {
@@ -2370,6 +2388,24 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/department-accesses/maintenance-department/amc-scheduler/:section",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      {
+        label: "Maintenance Department",
+        path: "/department-accesses/maintenance-department",
+      },
+      {
+        label: "AMC Scheduler",
+        path: "/department-accesses/maintenance-department/amc-scheduler",
+      },
+      { label: "Manage" },
+    ],
+  },
+  {
     pattern: "/department-accesses/it-department/repair-logs",
     crumbs: [
       {
@@ -2378,6 +2414,21 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
       },
       { label: "IT Department", path: "/department-accesses/it-department" },
       { label: "Repair Logs" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/it-department/repair-logs/:section",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      { label: "IT Department", path: "/department-accesses/it-department" },
+      {
+        label: "Repair Logs",
+        path: "/department-accesses/it-department/repair-logs",
+      },
+      { label: "Manage" },
     ],
   },
   {
@@ -2779,7 +2830,7 @@ const BreadCrumbComponent = () => {
     ];
   }
 
-  const financeSectionLabels: Record<string, Record<string, string>> = {
+  const moduleSectionLabels: Record<string, Record<string, string>> = {
     "/department-accesses/finance-department/expenses-budget": {
       estimated: "Projected Annual Budget",
       extra: "Extra Budget Requests",
@@ -2801,8 +2852,22 @@ const BreadCrumbComponent = () => {
       departments: "Department Review",
       pnl: "Profit & Loss",
     },
+    "/department-accesses/maintenance-department/repair-logs": {
+      "team-active": "Team Active Logs",
+      "my-work": "My Work",
+      history: "History",
+    },
+    "/department-accesses/maintenance-department/amc-scheduler": {
+      schedules: "Master AMC Schedule",
+      alerts: "Upcoming Alerts",
+    },
+    "/department-accesses/it-department/repair-logs": {
+      active: "Active Logs",
+      "my-work": "My Work",
+      history: "History",
+    },
   };
-  for (const [base, labels] of Object.entries(financeSectionLabels)) {
+  for (const [base, labels] of Object.entries(moduleSectionLabels)) {
     const sectionMatch = matchPath({ path: `${base}/:section`, end: true }, location.pathname);
     const sectionLabel = sectionMatch?.params.section ? labels[sectionMatch.params.section] : undefined;
     if (sectionLabel && breadcrumbs.length > 0) {
