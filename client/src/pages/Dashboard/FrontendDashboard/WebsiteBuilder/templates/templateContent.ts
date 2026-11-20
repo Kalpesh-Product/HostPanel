@@ -5197,8 +5197,6 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContentDef> = {
   destinflow: {
     slots: [
       text("header.cta", HOME, "Header: main button", "Book Now"),
-      text("header.rooms", HOME, "Header: rooms link", "Rooms"),
-      text("header.pages", HOME, "Header: extra pages menu", "Pages"),
       image("home.hero.image", HOME, "Hero: full-screen photo"),
       text("home.hero.subtitle1", HOME, "Hero: first pill label", "Perfect Travel Partner"),
       text("home.hero.subtitle2", HOME, "Hero: second pill label", "With Experience"),

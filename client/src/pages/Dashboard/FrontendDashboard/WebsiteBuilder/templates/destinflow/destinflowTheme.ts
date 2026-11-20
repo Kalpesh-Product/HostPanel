@@ -236,52 +236,7 @@ ${WAYFARER_CSS}
   background: #fff;
   color: var(--df-heading);
 }
-.df-nav-dropdown { position: relative; }
-.df-nav-dropdown-toggle { display: inline-flex; align-items: center; gap: 6px; }
-.df-nav-star { display: inline-flex; color: var(--df-blue); line-height: 0; }
-.df-nav-dropdown-list {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 70;
-  min-width: 180px;
-  padding: 8px 0;
-  border: 1px solid var(--df-line);
-  background: #fff;
-  box-shadow: 0 18px 40px rgba(21, 24, 25, .12);
-  opacity: 0;
-  transform: translateY(6px);
-  visibility: hidden;
-  transition: opacity .2s ease, transform .2s ease, visibility .2s ease;
-}
-.df-nav-dropdown:hover .df-nav-dropdown-list,
-.df-nav-dropdown.is-open .df-nav-dropdown-list {
-  opacity: 1;
-  transform: none;
-  visibility: visible;
-}
-.df-nav-dropdown-link {
-  display: block;
-  width: 100%;
-  border: 0;
-  background: transparent;
-  color: var(--df-heading);
-  cursor: pointer;
-  font-size: 15px;
-  font-weight: 400;
-  padding: 10px 18px;
-  text-align: left;
-  white-space: nowrap;
-}
-.df-nav-dropdown-link:hover { background: var(--df-soft); }
 .df-header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
-.df-header-phone {
-  color: var(--df-heading);
-  font-size: 14px;
-  font-weight: 700;
-  text-decoration: none;
-  white-space: nowrap;
-}
 .df .df-header-cta {
   min-width: 155px;
   min-height: 60px;
@@ -890,11 +845,24 @@ ${WAYFARER_CSS}
 .df-gallery-page img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s ease; }
 .df-gallery-page button:hover img { transform: scale(1.07); }
 
+.df-contact-form-centered {
+  width: 100%;
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+}
 .df-service-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(280px, .7fr);
   gap: 46px;
   align-items: start;
+}
+.df-career-apply-centered {
+  grid-column: 1 / -1;
+  width: 100%;
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
 }
 .df-sticky { position: sticky; top: 110px; }
 .df-service-list { display: grid; gap: 20px; }
@@ -941,7 +909,6 @@ ${WAYFARER_CSS}
 
 @media (max-width: 991px) {
   .df-nav,
-  .df-header-phone,
   .df-header-cta,
   .df-brand-line { display: none; }
   .df-header-inner { grid-template-columns: 1fr auto; min-height: 72px; }

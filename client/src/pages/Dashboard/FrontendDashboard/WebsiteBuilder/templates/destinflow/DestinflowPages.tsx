@@ -1,7 +1,6 @@
 import React from "react";
 import { Reveal, Stagger } from "../motion";
-import { formatTime12h } from "../leadForms";
-import { groupOpeningHours, highlightLines } from "../templateKit";
+import { highlightLines } from "../templateKit";
 import {
   getCareersJobMeta,
   getCareersJobTitle,
@@ -12,7 +11,6 @@ import { FaqSection } from "../shared/TplParts";
 import { useTpl } from "../shared/TplContext";
 import { Icon, Placeholder } from "../shared/TplUI";
 import {
-  DfContactItems,
   DfPageHero,
   DfReviewCard,
   DfSectionHead,
@@ -245,12 +243,9 @@ export const DestinflowTestimonials: React.FC = () => {
 /* ───────────────────────── contact ───────────────────────── */
 
 export const DestinflowContact: React.FC = () => {
-  const { t, draft, primary, navLabel, c } = useTpl();
-  const hours = groupOpeningHours(draft?.openingHours);
-  const policy = draft?.stayPolicy || {};
+  const { draft, primary, navLabel, c } = useTpl();
   const showForm = draft?.contactEnableInquiryForm !== false;
   const usePrimary = Boolean(primary?.leadEnabled);
-  const person = [draft?.contactPersonName, draft?.contactPersonRole].filter(Boolean).join(" · ");
 
   return (
     <>
@@ -260,55 +255,25 @@ export const DestinflowContact: React.FC = () => {
         text={draft?.contactPageIntro}
       />
       <section className="df-shell" style={{ paddingBottom: 80 }}>
-        <div className="df-service-layout">
-          {showForm ? (
-            <Reveal>
-              <div className="df-panel">
-                <p className="df-eyebrow">{c("contact.form.eyebrow", "Send a message")}</p>
-                <h2 className="df-h3">{usePrimary ? c("contact.form.title", "Book your stay") : c("contact.form.general", "Talk to our team")}</h2>
-                <div style={{ marginTop: 26 }}>
-                  {usePrimary && primary ? (
-                    <LeadFormPanel service={primary} />
-                  ) : (
-                    <MessageForm
-                      inquiryType="General Enquiry"
-                      submitLabel={c("contact.form.submit", "Send message")}
-                      success={draft?.contactInquirySuccessMessage || "Thank you. Your inquiry has been submitted successfully."}
-                    />
-                  )}
-                </div>
-              </div>
-            </Reveal>
-          ) : null}
-          <Reveal delay={0.08}>
+        {showForm ? (
+          <Reveal className="df-contact-form-centered">
             <div className="df-panel">
-              <p className="df-eyebrow">Details</p>
-              <h2 className="df-h3">Reach us directly</h2>
-              <DfContactItems />
-              {person ? <p style={{ marginTop: 22 }}><strong>{person}</strong></p> : null}
-              {draft?.contactPersonEmail ? <p><a href={`mailto:${draft.contactPersonEmail}`}>{draft.contactPersonEmail}</a></p> : null}
-              {hours.length ? (
-                <div style={{ marginTop: 24 }}>
-                  <h3 className="df-h3" style={{ fontSize: 22 }}>Opening hours</h3>
-                  <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                    {hours.map((row) => (
-                      <li key={row.days} style={{ display: "flex", justifyContent: "space-between", gap: 18, padding: "8px 0", borderBottom: "1px solid var(--df-line)" }}>
-                        <span>{row.days}</span>
-                        <strong>{row.hours}</strong>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : draft?.contactBusinessHours ? <p style={{ marginTop: 22 }}>{draft.contactBusinessHours}</p> : null}
-              {policy.checkInTime || policy.checkOutTime ? (
-                <div className="df-contact-grid" style={{ marginTop: 26 }}>
-                  {policy.checkInTime ? <div className="df-contact-item"><span>Check-in</span><p>{formatTime12h(policy.checkInTime)}</p></div> : null}
-                  {policy.checkOutTime ? <div className="df-contact-item"><span>Check-out</span><p>{formatTime12h(policy.checkOutTime)}</p></div> : null}
-                </div>
-              ) : null}
+              <p className="df-eyebrow">{c("contact.form.eyebrow", "Send a message")}</p>
+              <h2 className="df-h3">{usePrimary ? c("contact.form.title", "Book your stay") : c("contact.form.general", "Talk to our team")}</h2>
+              <div style={{ marginTop: 26 }}>
+                {usePrimary && primary ? (
+                  <LeadFormPanel service={primary} />
+                ) : (
+                  <MessageForm
+                    inquiryType="General Enquiry"
+                    submitLabel={c("contact.form.submit", "Send message")}
+                    success={draft?.contactInquirySuccessMessage || "Thank you. Your inquiry has been submitted successfully."}
+                  />
+                )}
+              </div>
             </div>
           </Reveal>
-        </div>
+        ) : null}
       </section>
       {draft?.mapUrl ? (
         <div className="df-shell" style={{ paddingBottom: 80 }}>
@@ -385,8 +350,8 @@ export const DestinflowCareers: React.FC = () => {
               </div>
             </Reveal>
           ) : null}
-          <Reveal delay={0.06}>
-            <div className="df-panel df-sticky">
+          <Reveal delay={0.06} className={applyOnly ? "df-career-apply-centered" : undefined}>
+            <div className={`df-panel${applyOnly ? "" : " df-sticky"}`}>
               <h2 className="df-h3">{c("careers.apply.title", "Apply now")}</h2>
               <div style={{ marginTop: 22 }}><ApplyForm /></div>
             </div>

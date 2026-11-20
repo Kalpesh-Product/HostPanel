@@ -7,57 +7,37 @@ import { useTpl } from "../shared/TplContext";
 
 const navItems = (t: any): any[] => (t.navItems || []) as any[];
 
-// The reference header shows Home / About / Rooms / Pages / Contact. HostPanel's
-// navigation is data-driven, so the extra pages stay reachable from the Pages menu.
-const headerNav = (t: any, c: (key: string, fallback: string) => string) => {
-  const items = navItems(t).map((item) => ({
-    ...item,
-    section: resolveSectionFromSlug(item.slug),
-  }));
-  const primary = items.filter((item) =>
-    ["home", "about", "products", "contact"].includes(item.section),
-  );
-  const pages = items.filter(
-    (item) => !["home", "about", "products", "contact"].includes(item.section),
-  );
-  const find = (section: string) => primary.find((item) => item.section === section);
-  const rooms = find("products");
-  const links = [
-    find("home"),
-    find("about"),
-    rooms
-      ? {
-          ...rooms,
-          name: c("header.rooms", rooms.name === "Services" ? "Rooms" : rooms.name),
-        }
-      : null,
-    pages.length ? { slug: "pages", name: c("header.pages", "Pages"), section: "pages" } : null,
-    find("contact"),
-  ].filter(Boolean) as any[];
-  return { links, pages };
-};
-
 export const DestinflowHeader: React.FC = () => {
-  const { t, draft, primary, services, c } = useTpl();
+  const { t, draft, primary, services, openLead, c } = useTpl();
   const ctaLabel = draft?.CTAButtonText || c("header.cta", "Book Now");
+  const hasLead = Boolean(primary?.leadEnabled);
   const isHome = t.currentSection === "home" || !t.currentSection;
-  const { links, pages } = headerNav(t, c);
-  const [pagesOpen, setPagesOpen] = useState(false);
 
+  // Navigation stays data-driven, exactly like the other HostPanel templates.
   const cta = () => {
     t.setMobileMenuOpen(false);
-    if (primary) t.goToProductPage(primary.slug);
+    if (hasLead && primary) openLead(primary);
     else t.goToSection("contact");
   };
 
   const openNav = (item: any) => {
     t.setMobileMenuOpen(false);
-    setPagesOpen(false);
-    if (item.section === "pages") return;
-    const section = resolveSectionFromSlug(item.slug);
-    if (section === "products" && services.length === 1) t.goToProductPage(services[0].slug);
+    if (resolveSectionFromSlug(item.slug) === "products" && services.length === 1)
+      t.goToProductPage(services[0].slug);
     else t.goToSection(item.slug);
   };
+
+  const navButton = (item: any) => (
+    <button
+      key={item.slug}
+      type="button"
+      className="df-navlink"
+      aria-current={t.currentSection === resolveSectionFromSlug(item.slug) ? "page" : undefined}
+      onClick={() => openNav(item)}
+    >
+      {item.name}
+    </button>
+  );
 
   return (
     <header className={`df-header${isHome ? " df-header-overlay" : ""}`}>
@@ -74,51 +54,10 @@ export const DestinflowHeader: React.FC = () => {
         </div>
 
         <nav className="df-nav" aria-label="Main navigation">
-          {links.map((item) =>
-            item.section === "pages" ? (
-              <div key="pages" className={`df-nav-dropdown${pagesOpen ? " is-open" : ""}`}>
-                <button
-                  type="button"
-                  className="df-navlink df-nav-dropdown-toggle"
-                  aria-expanded={pagesOpen}
-                  onClick={() => setPagesOpen((open: boolean) => !open)}
-                >
-                  {item.name}
-                  <span className="df-nav-star" aria-hidden="true">{Icon.star(12)}</span>
-                </button>
-                <div className="df-nav-dropdown-list">
-                  {pages.map((page) => (
-                    <button
-                      key={page.slug}
-                      type="button"
-                      className="df-nav-dropdown-link"
-                      onClick={() => openNav(page)}
-                    >
-                      {page.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <button
-                key={item.slug}
-                type="button"
-                className="df-navlink"
-                aria-current={t.currentSection === item.section ? "page" : undefined}
-                onClick={() => openNav(item)}
-              >
-                {item.name}
-              </button>
-            ),
-          )}
+          {navItems(t).map(navButton)}
         </nav>
 
         <div className="df-header-actions">
-          {!isHome && t.contactPhone ? (
-            <a className="df-header-phone" href={`tel:${String(t.contactPhone).replace(/[^\d+]/g, "")}`}>
-              {t.contactPhone}
-            </a>
-          ) : null}
           <button type="button" className="df-btn df-btn-light df-header-cta" onClick={cta}>
             {ctaLabel}
             <span aria-hidden="true">{Icon.arrow(16)}</span>
