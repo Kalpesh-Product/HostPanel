@@ -18,6 +18,7 @@ import GrindelwaldTemplate from "./grindelwald/GrindelwaldTemplate";
 import LodgeTemplate from "./lodge/LodgeTemplate";
 import CaliHostelTemplate from "./caliHostel/CaliHostelTemplate";
 import OrchardTemplate from "./orchard/OrchardTemplate";
+import DestinflowTemplate from "./destinflow/DestinflowTemplate";
 import TastycTemplate from "./tastyc/TastycTemplate";
 import GrandBarTemplate from "./grandbar/GrandBarTemplate";
 import AromaticaTemplate from "./aromatica/AromaticaTemplate";
@@ -300,6 +301,21 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       fg: "#353b41",
       accent: "#9aa88f",
       font: "'Outfit', ui-sans-serif, sans-serif",
+    },
+    recommendedFor: ["hostel"],
+    supportsBooking: true,
+  },
+  destinflow: {
+    id: "destinflow",
+    name: "DestinFlow",
+    description:
+      "Editorial hostel style — a centered photographic hero, square dark buttons, pale-blue facilities and a dark gallery strip. Inspired by DestinFlow, works for any service.",
+    component: DestinflowTemplate,
+    swatch: {
+      bg: "#ffffff",
+      fg: "#666b73",
+      accent: "#3ba7da",
+      font: "'Cormorant Garamond', Georgia, serif",
     },
     recommendedFor: ["hostel"],
     supportsBooking: true,

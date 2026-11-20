@@ -135,6 +135,12 @@ const DEFAULT_TEMPLATE_SETTINGS = {
       allowedPlans: ["basic", "professional", "custom"],
     },
     {
+      templateId: "destinflow",
+      enabled: true,
+      visible: true,
+      allowedPlans: ["basic", "professional", "custom"],
+    },
+    {
       templateId: "haven",
       enabled: true,
       visible: true,

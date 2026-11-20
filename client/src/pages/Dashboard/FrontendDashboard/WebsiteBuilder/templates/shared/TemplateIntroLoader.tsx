@@ -27,6 +27,7 @@ const LOADER_SPECS: Record<string, LoaderSpec> = {
   lodge: { label: "Lodge", kicker: "Settle in", motif: "lodge", bg: "#f5f3ee", fg: "#1c1f21", accent: "#7fa388", font: "'Inter', sans-serif" },
   "cali-hostel": { label: "Cali Hostel", kicker: "Checking in", motif: "cali", bg: "#f2eadb", fg: "#171711", accent: "#e86d43", font: "'Instrument Serif', Georgia, serif" },
   orchard: { label: "Orchard Living", kicker: "Welcome home", motif: "lodge", bg: "#fafaf9", fg: "#353b41", accent: "#9aa88f", font: "'Outfit', sans-serif" },
+  destinflow: { label: "DestinFlow", kicker: "Your stay is waiting", motif: "lodge", bg: "#ffffff", fg: "#666b73", accent: "#3ba7da", font: "'Cormorant Garamond', Georgia, serif" },
 };
 
 const playedLoaders = new Set<string>();

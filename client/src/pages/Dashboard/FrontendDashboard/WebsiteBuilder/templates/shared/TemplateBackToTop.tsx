@@ -32,6 +32,7 @@ const BACK_TO_TOP_SPECS: Record<string, BackToTopSpec> = {
   "emerald-studio": { bg: "rgba(54,87,127,.9)", fg: "#ffffff", border: "rgba(255,255,255,.45)", radius: "16px", shadow: "0 18px 38px rgba(24,44,70,.3)", font: "'Fraunces', Georgia, serif" },
   "figma-make": { bg: "rgba(54,87,127,.9)", fg: "#ffffff", border: "rgba(255,255,255,.45)", radius: "16px", shadow: "0 18px 38px rgba(24,44,70,.3)", font: "'Fraunces', Georgia, serif" },
   orchard: { bg: "#fafaf9", fg: "#353b41", border: "#9aa88f", radius: "50%", shadow: "0 16px 34px rgba(53,59,65,.16)", font: "'Outfit', sans-serif" },
+  destinflow: { bg: "#151819", fg: "#ffffff", border: "#3ba7da", radius: "0", shadow: "0 16px 34px rgba(21,24,25,.28)", font: "'Alegreya Sans', sans-serif" },
 };
 
 const TEMPLATES_WITH_OWN_BUTTON = new Set([
