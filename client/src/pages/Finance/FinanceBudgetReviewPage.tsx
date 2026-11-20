@@ -34,7 +34,10 @@ import {
 type ReviewerVariant = 'owner' | 'financeManager';
 
 const FOUNDER_LIST_PATH = '/extra-common-modules/finance-management';
-const FM_LIST_PATH = '/department-accesses/finance-department/expenses-budget';
+const FM_LIST_PATH = '/department-accesses/finance-department/expenses-budget/estimated';
+// Base path for nested review/month routes — must stay query-free, since FM_LIST_PATH's
+// "?tab=estimated" would otherwise swallow any path segments appended after it.
+const FM_REVIEW_BASE = '/department-accesses/finance-department/expenses-budget';
 
 const MONTH_STATUS_FILTERS = [
   { key: 'all', label: 'All' },
@@ -59,6 +62,7 @@ export function FinanceBudgetReviewPage() {
   const routeState: { request?: any; fiscalYear?: string; returnTab?: 'overview' } = (location.state || {}) as any;
   const reviewer: ReviewerVariant = location.pathname.startsWith(FOUNDER_LIST_PATH) ? 'owner' : 'financeManager';
   const listPath = reviewer === 'owner' ? FOUNDER_LIST_PATH : FM_LIST_PATH;
+  const reviewBasePath = reviewer === 'owner' ? FOUNDER_LIST_PATH : FM_REVIEW_BASE;
 
   const currentUser: any = getStoredUser();
   const currentApproverUserId = String(currentUser?._id || currentUser?.id || '');
@@ -525,7 +529,7 @@ export function FinanceBudgetReviewPage() {
                           <td className="px-5 py-4 text-center">
                             <button
                               type="button"
-                              onClick={() => navigate(`${listPath}/review/annual/${encodeURIComponent(requestId)}/month/${encodeURIComponent(month.key)}`, {
+                              onClick={() => navigate(`${reviewBasePath}/review/annual/${encodeURIComponent(requestId)}/month/${encodeURIComponent(month.key)}`, {
                                 state: { month, request, reviewer, revealPaymentColumns, extraRequests, fiscalYear, requestId },
                               })}
                               className="mx-auto flex items-center justify-center p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm"

@@ -31,6 +31,14 @@ import { isDateInExportPeriod } from '@/utils/export-period';
 
 const IT_ISSUE_TYPES = ["Hardware", "Software", "Network", "Peripheral", "Infrastructure", "Security", "Other"];
 
+export type ITRepairLogModulePage = "active" | "my-work" | "history";
+
+const MODULE_PAGE_LABELS: Record<ITRepairLogModulePage, string> = {
+  active: "Active Logs",
+  "my-work": "My Work",
+  history: "History",
+};
+
 function formatDate(dateStr?: string) {
   if (!dateStr) return "--";
   const d = new Date(dateStr);
@@ -74,17 +82,35 @@ type RepairLog = {
 
 const initialForm = { assetId: "", assetName: "", assetCode: "", issueType: "", issueDescription: "", assignedTo: "", requestedBy: "", notes: "" };
 
-export default function ITRepairLogsPage() {
+export default function ITRepairLogsPage({
+  modulePage,
+}: {
+  modulePage?: ITRepairLogModulePage;
+}) {
   const axiosPrivate = useAxiosPrivate();
   const { auth } = useAuth();
   const currentUser: any = auth?.user;
+  const isManager = [
+    "owner",
+    "super_admin",
+    "admin",
+    "it_manager",
+    "it-manager",
+    "it",
+  ].includes(
+    String(
+      currentUser?.workspaceMembership?.role || currentUser?.role || "",
+    ).toLowerCase(),
+  );
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [logs, setLogs] = useState<RepairLog[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [activeTab, setActiveTab] = useState<"active" | "my-work" | "history">("active");
+  const [activeTab, setActiveTab] = useState<ITRepairLogModulePage>(
+    modulePage || (isManager ? "active" : "my-work"),
+  );
   const [showExportModal, setShowExportModal] = useState(false);
 
   const [selectedLog, setSelectedLog] = useState<RepairLog | null>(null);
@@ -116,6 +142,10 @@ export default function ITRepairLogsPage() {
     void load();
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (modulePage) setActiveTab(modulePage);
+  }, [modulePage]);
 
   const filteredLogs = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -164,7 +194,7 @@ export default function ITRepairLogsPage() {
         period: period || "Current view",
         generatedBy: myName || "IT Manager",
         format: reportFormat,
-        description: `IT repair logs for the current view (${activeTab}).`,
+        description: `IT repair logs for the current view (${activeTabLabel}).`,
         sourceType: "custom",
         sourceRef: "it-repair-logs",
         reportRows: exportRows,
@@ -181,6 +211,18 @@ export default function ITRepairLogsPage() {
   const myName = `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim();
   const myEmail = currentUser?.email || "";
   const myId = currentUser?._id || currentUser?.id || "";
+
+  const tabs: Array<{ id: ITRepairLogModulePage; label: string }> = isManager
+    ? [
+        { id: "active", label: "Active Logs" },
+        { id: "my-work", label: "My Work" },
+        { id: "history", label: "History" },
+      ]
+    : [
+        { id: "my-work", label: "My Work" },
+        { id: "history", label: "History" },
+      ];
+  const activeTabLabel = MODULE_PAGE_LABELS[activeTab] || "Logs";
 
   const isMyLog = (log: RepairLog) => {
     const name = `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim();
@@ -345,8 +387,14 @@ export default function ITRepairLogsPage() {
           {/* Header */}
           <div data-tour="it-repair-header" className="flex items-center justify-between">
             <div>
-              <h1 className="text-title font-pmedium text-primary uppercase">IT Repair Logs</h1>
-              <p className="text-xs font-pmedium text-slate-500 mt-1">Track network, device, and system repairs for IT</p>
+              <h1 className="text-title font-pmedium text-primary uppercase">
+                {modulePage ? activeTabLabel : "IT Repair Logs"}
+              </h1>
+              <p className="text-xs font-pmedium text-slate-500 mt-1">
+                {modulePage
+                  ? `IT Department • ${activeTabLabel}`
+                  : "Track network, device, and system repairs for IT"}
+              </p>
             </div>
             <ReportExportButton onClick={() => setShowExportModal(true)} />
           </div>
@@ -359,22 +407,24 @@ export default function ITRepairLogsPage() {
           ) : null}
 
           {/* Pill Tabs */}
-          <div data-tour="it-repair-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-            {(["active", "my-work", "history"] as const).map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setActiveTab(tab)}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
-                  activeTab === tab
-                    ? "bg-[#2563EB] text-white shadow-sm"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                }`}
-              >
-                {tab === "active" ? "Active Logs" : tab === "my-work" ? "My Work" : "History"}
-              </button>
-            ))}
-          </div>
+          {!modulePage ? (
+            <div data-tour="it-repair-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? "bg-[#2563EB] text-white shadow-sm"
+                      : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           {/* Stat Cards */}
           <div data-tour="it-repair-stats" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">

@@ -1108,7 +1108,17 @@ function DepartmentCheckboxDropdown({
 
 /* -------------------- Main Component -------------------- */
 
-export default function HREmployeeManagementPage(): React.ReactElement {
+type CompanyManagementModulePage =
+  | "employees"
+  | "sop"
+  | "policies"
+  | "birthdays";
+
+export default function HREmployeeManagementPage({
+  modulePage,
+}: {
+  modulePage?: CompanyManagementModulePage;
+} = {}): React.ReactElement {
   const isMountedRef = useRef(true);
   const navigate = useNavigate();
   const location = useLocation();
@@ -1161,7 +1171,8 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   /* --------------------- Company Management Tabs --------------------- */
-  const [activeCompanyTab, setActiveCompanyTab] = useState<"employees" | "sop" | "policies" | "birthdays">("employees");
+  const [activeCompanyTab, setActiveCompanyTab] =
+    useState<CompanyManagementModulePage>(modulePage || "employees");
   const companyTabList = useMemo(
     () => [
       { key: "employees" as const, label: "Employee Management" },
@@ -1177,6 +1188,43 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       setActiveCompanyTab("employees");
     }
   }, [activeCompanyTab, isCustomPlan]);
+
+  useEffect(() => {
+    if (modulePage) {
+      setActiveCompanyTab(modulePage);
+      return;
+    }
+    const requestedTab = new URLSearchParams(location.search).get("tab");
+    if (!requestedTab) return;
+    if (!["employees", "sop", "policies", "birthdays"].includes(requestedTab)) return;
+    if (!isCustomPlan && ["sop", "policies"].includes(requestedTab)) return;
+    setActiveCompanyTab(
+      requestedTab as "employees" | "sop" | "policies" | "birthdays",
+    );
+  }, [isCustomPlan, location.search, modulePage]);
+
+  const modulePageHeader = {
+    employees: {
+      title: "Employee Management",
+      description:
+        "Onboard employees, maintain workforce records, and manage access.",
+    },
+    sop: {
+      title: "Company SOP",
+      description:
+        "Publish and maintain company-wide standard operating procedures.",
+    },
+    policies: {
+      title: "Company Policies",
+      description:
+        "Maintain active and archived policies for the entire workforce.",
+    },
+    birthdays: {
+      title: "Month-wise Birthdays",
+      description:
+        "Review employee birthdays and upcoming celebrations by month.",
+    },
+  }[activeCompanyTab];
 
   /* --------------------- Inline Add Employee Form State --------------------- */
   const [addForm, setAddForm] = useState<EmployeeFormState>(() => createEmployeeFormState());
@@ -2501,19 +2549,25 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
-        <div className="flex flex-col gap-4">
+        <div
+          className="flex flex-col gap-4"
+          data-active-tab={activeCompanyTab}
+        >
 
           {/* --- HEADER --- */}
           <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                Company Management
+                {modulePage ? modulePageHeader.title : "Company Management"}
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
-                Manage employees, company SOPs, policies and month-wise birthday lists.
+                {modulePage
+                  ? modulePageHeader.description
+                  : "Manage employees, company SOPs, policies and month-wise birthday lists."}
               </p>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
+            {activeCompanyTab === "employees" ? (
+              <div className="flex items-center gap-2 flex-wrap">
               <button
                 type="button"
                 onClick={handleBulkUploadClick}
@@ -2524,10 +2578,12 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-pmedium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-[#2563EB] text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
               </button>
               <ReportExportButton onClick={() => setShowExportModal(true)} />
-            </div>
+              </div>
+            ) : null}
           </div>
 
           {/* --- COMPANY MANAGEMENT TABS --- */}
+          {!modulePage ? (
           <div data-tour="hr-emp-tabs" data-active-tab={activeCompanyTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {companyTabList.map((tab) => (
               <button
@@ -2543,6 +2599,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
               </button>
             ))}
           </div>
+          ) : null}
 
           {/* --- EMPLOYEES TAB CONTENT --- */}
           {activeCompanyTab === "employees" && (
@@ -2806,7 +2863,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       shifts={attendanceShifts}
                       error={addFormErrors.shiftId}
                       onChange={(value) => handleAddFieldChange("shiftId", value)}
-                      onConfigureShifts={() => navigate("/department-accesses/hr-department/attendance-review?openAttendanceSettings=1")}
+                      onConfigureShifts={() => navigate("/department-accesses/hr-department/attendance-review/attendance-master?openAttendanceSettings=1")}
                     />
                   </div>
 
@@ -3672,7 +3729,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     shifts={attendanceShifts}
                     error={editFormErrors.shiftId}
                     onChange={(value) => setEditForm((previous) => ({ ...previous, shiftId: value }))}
-                    onConfigureShifts={() => navigate("/department-accesses/hr-department/attendance-review?openAttendanceSettings=1")}
+                  onConfigureShifts={() => navigate("/department-accesses/hr-department/attendance-review/attendance-master?openAttendanceSettings=1")}
                   />
                 </div>
               </FormSection>
@@ -4131,7 +4188,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       shifts={attendanceShifts}
                       error={addFormErrors.shiftId}
                       onChange={(value) => handleAddFieldChange("shiftId", value)}
-                      onConfigureShifts={() => navigate("/department-accesses/hr-department/attendance-review?openAttendanceSettings=1")}
+                      onConfigureShifts={() => navigate("/department-accesses/hr-department/attendance-review/attendance-master?openAttendanceSettings=1")}
                     />
                 </div>
               </FormSection>

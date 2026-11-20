@@ -25,7 +25,10 @@ import {
 type ReviewerVariant = 'owner' | 'financeManager';
 
 const FOUNDER_LIST_PATH = '/extra-common-modules/finance-management';
-const FM_LIST_PATH = '/department-accesses/finance-department/expenses-budget';
+const FM_LIST_PATH = '/department-accesses/finance-department/expenses-budget/estimated';
+// Base path for nested review/month routes — must stay query-free, since FM_LIST_PATH's
+// "?tab=estimated" would otherwise swallow any path segments appended after it.
+const FM_REVIEW_BASE = '/department-accesses/finance-department/expenses-budget';
 
 const EXPENSE_STATUS_FILTERS = [
   { key: 'all', label: 'All' },
@@ -66,6 +69,7 @@ export function FinanceMonthExpensesPage() {
   const reviewer: ReviewerVariant = routeState.reviewer
     || (location.pathname.startsWith(FOUNDER_LIST_PATH) ? 'owner' : 'financeManager');
   const listPath = reviewer === 'owner' ? FOUNDER_LIST_PATH : FM_LIST_PATH;
+  const reviewBasePath = reviewer === 'owner' ? FOUNDER_LIST_PATH : FM_REVIEW_BASE;
   const fiscalYear = routeState.fiscalYear || DEFAULT_FISCAL_YEAR;
 
   const [month, setMonth] = useState<MonthEntry | null>(routeState.month || null);
@@ -169,7 +173,7 @@ export function FinanceMonthExpensesPage() {
   const exitToBack = () => {
     const historyState: any = window.history?.state || {};
     if (typeof historyState.idx === 'number' && historyState.idx > 0) navigate(-1);
-    else navigate(`${listPath}/review/annual/${encodeURIComponent(requestId)}`, { replace: true, state: { fiscalYear } });
+    else navigate(`${reviewBasePath}/review/annual/${encodeURIComponent(requestId)}`, { replace: true, state: { fiscalYear } });
   };
 
   if (isLoading) {

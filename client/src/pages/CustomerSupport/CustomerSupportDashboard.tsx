@@ -329,14 +329,6 @@ export default function CustomerSupportDashboard() {
                 )}
               </div>
             </div>
-            <div className="absolute right-6 top-5 z-10 rounded-lg border border-white/25 bg-white/15 px-3 py-2 backdrop-blur-sm">
-              <p className="text-[9px] font-pmedium uppercase tracking-[0.1em] text-white/75">
-                Total tickets
-              </p>
-              <p className="mt-0.5 text-[15px] font-pmedium text-white">
-                {stats.total}
-              </p>
-            </div>
           </div>
         </div>
 
@@ -414,16 +406,14 @@ export default function CustomerSupportDashboard() {
             <DashboardModuleCard
               icon={<Headphones size={19} />}
               title="Issues Raised"
-              route="/common-modules/customer-support/list"
-              state={{ tab: "raised" }}
+              route="/common-modules/customer-support/raised"
               description="Raise, edit, and track active support issues"
               color="#2563EB"
             />
             <DashboardModuleCard
               icon={<FileCheck2 size={19} />}
               title="Resolved Issues"
-              route="/common-modules/customer-support/list"
-              state={{ tab: "resolved" }}
+              route="/common-modules/customer-support/resolved"
               description="Review resolved and closed ticket history"
               color="#7C3AED"
             />

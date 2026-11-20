@@ -178,7 +178,26 @@ export const ITALIANO_CSS = String.raw`
 .italiano-job-list { padding: 0; list-style: none; margin-bottom: 28px; }
 .italiano-job-list li { padding-block: 16px; border-bottom: 1px solid var(--it-line); }
 .italiano-job-list small { display: block; }
-.italiano-job-list ~ .italiano-button { margin-top: 20px; }
+.italiano-career-cta > * { margin-top: 18px; }
+.italiano-partner-form { margin-inline: auto; }
+.italiano-related > h2 { text-align: center; }
+.italiano-cards.italiano-product-cards {
+  --product-card-gap: clamp(14px, 2.4vw, 32px);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--product-card-gap);
+}
+.italiano-product-cards > * {
+  flex: 0 0 calc((100% - 2 * var(--product-card-gap)) / 3);
+  min-width: 0;
+}
+@media (max-width: 800px) {
+  .italiano-product-cards > * { flex-basis: calc((100% - var(--product-card-gap)) / 2); }
+}
+@media (max-width: 480px) {
+  .italiano-product-cards > * { flex-basis: 100%; }
+}
 
 .italiano-dialog {
   position: fixed; inset: 0; margin: auto; width: min(570px, calc(100% - 28px));

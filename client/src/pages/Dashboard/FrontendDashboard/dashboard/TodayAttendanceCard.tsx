@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
   Camera,
+  CalendarOff,
   Check,
   Clock,
   Coffee,
@@ -35,6 +36,18 @@ import { useShouldShowDashboardAttendance } from "./useDashboardAttendanceVisibi
 type ClockMode = "in" | "out";
 type TodayAttendanceCardProps = {
   variant?: "default" | "hero";
+  // Lets a host page (e.g. the full Attendance page, which has its own
+  // config/leave/holiday/pending-correction checks) block the Clock In
+  // button without forking this component's camera/selfie logic.
+  disableClockIn?: boolean;
+  disabledReason?: string;
+  showViewDetailsLink?: boolean;
+  onChanged?: () => void;
+};
+
+const formatHoursLabel = (seconds: number) => {
+  const hours = Math.max(0, Number(seconds) || 0) / 3600;
+  return `${Number.isInteger(hours) ? hours : hours.toFixed(1)}h`;
 };
 
 const formatDurationClock = (seconds: number) => {
@@ -68,6 +81,10 @@ export const DashboardAttendanceCard = () => {
 
 const TodayAttendanceCard = ({
   variant = "default",
+  disableClockIn = false,
+  disabledReason = "",
+  showViewDetailsLink = true,
+  onChanged,
 }: TodayAttendanceCardProps) => {
   const workspacePreferences = useWorkspacePreferences();
   const access = useDashboardAccess();
@@ -116,14 +133,23 @@ const TodayAttendanceCard = ({
     [data, todayKey],
   );
   const isCompleted = Boolean(todayRecord?.checkOut);
-  const status: "checked_out" | "checked_in" | "on_break" = isCompleted
-    ? "checked_out"
-    : todayRecord?.checkIn
-      ? todayRecord?.isActiveBreak
-        ? "on_break"
-        : "checked_in"
-      : "checked_out";
+  // "on_leave" here only ever means a full-day (or full-shift hour-based)
+  // leave — the attendance service already keeps partial leave out of this
+  // status so the day still has open working hours.
+  const isOnLeaveToday = todayRecord?.status === "on_leave";
+  const status: "checked_out" | "checked_in" | "on_break" | "on_leave" =
+    isOnLeaveToday
+      ? "on_leave"
+      : isCompleted
+        ? "checked_out"
+        : todayRecord?.checkIn
+          ? todayRecord?.isActiveBreak
+            ? "on_break"
+            : "checked_in"
+          : "checked_out";
   const liveTimes = useLiveTimes(todayRecord || undefined);
+  const activeLeave = todayRecord?.activeLeave || null;
+  const leaveSeconds = Math.max(0, Number(activeLeave?.leaveHours || 0) * 3600);
 
   const stopCamera = useCallback(() => {
     const stream =
@@ -245,6 +271,7 @@ const TodayAttendanceCard = ({
       setCaptureOpenedAt(null);
       setShowClockModal(false);
       await refetch();
+      onChanged?.();
     } catch (error: any) {
       setErrorMessage(
         error?.response?.data?.message ||
@@ -263,6 +290,7 @@ const TodayAttendanceCard = ({
       if (status === "on_break") await endBreakAttendance();
       else await startBreakAttendance();
       await refetch();
+      onChanged?.();
     } catch (error: any) {
       setErrorMessage(
         error?.response?.data?.message ||
@@ -292,6 +320,12 @@ const TodayAttendanceCard = ({
       icon: todayRecord?.checkIn ? LogOut : Clock,
       color: "text-slate-600",
       bg: "bg-slate-100",
+    },
+    on_leave: {
+      label: "On Leave",
+      icon: CalendarOff,
+      color: "text-sky-600",
+      bg: "bg-sky-100",
     },
   }[status];
   const StatusIcon = statusConfig.icon;
@@ -411,15 +445,29 @@ const TodayAttendanceCard = ({
 
   const attendanceActions = (
     <div className="flex flex-wrap items-center gap-2">
-      {!todayRecord?.checkIn && (
-        <button
-          type="button"
-          onClick={() => void openClockModal("in")}
-          disabled={isActionLoading}
-          className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-3 text-xs font-pmedium uppercase tracking-wider text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md disabled:opacity-50"
-        >
-          <LogIn size={15} /> Clock In
-        </button>
+      {status === "on_leave" ? (
+        <span className="text-small font-pmedium text-sky-700">
+          You're on approved {activeLeave?.leaveType || "leave"} today — clock-in
+          is disabled.
+        </span>
+      ) : (
+        !todayRecord?.checkIn && (
+          <div className="flex flex-col items-start gap-1.5">
+            <button
+              type="button"
+              onClick={() => void openClockModal("in")}
+              disabled={isActionLoading || disableClockIn}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-3 text-xs font-pmedium uppercase tracking-wider text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md disabled:opacity-50"
+            >
+              <LogIn size={15} /> Clock In
+            </button>
+            {disableClockIn && disabledReason && (
+              <p className="max-w-xs text-[10px] font-pmedium text-amber-700">
+                {disabledReason}
+              </p>
+            )}
+          </div>
+        )
       )}
       {status === "checked_in" && (
         <>
@@ -466,7 +514,7 @@ const TodayAttendanceCard = ({
           Attendance completed for today
         </span>
       )}
-      {access.hasModule("attendance") && !isHero && (
+      {access.hasModule("attendance") && !isHero && showViewDetailsLink && (
         <a
           href="/common-modules/attendance"
           className="inline-flex items-center gap-1.5 rounded-xl px-2 py-2 text-small font-pmedium text-[#2563EB] transition hover:bg-blue-50"
@@ -480,7 +528,10 @@ const TodayAttendanceCard = ({
   return (
     <>
       {isHero ? (
-        <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[1.45fr_0.9fr]">
+        <div
+          data-tour="attendance-clock-card"
+          className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[1.45fr_0.9fr]"
+        >
           <section className="overflow-hidden rounded-[1.75rem] border border-blue-100 bg-white shadow-[0_12px_34px_rgba(30,61,115,0.07)]">
             <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <div className="flex items-center gap-3">
@@ -497,7 +548,7 @@ const TodayAttendanceCard = ({
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                {access.hasModule("attendance") && (
+                {access.hasModule("attendance") && showViewDetailsLink && (
                   <a
                     href="/common-modules/attendance"
                     className="inline-flex items-center gap-1 text-[9px] font-pmedium uppercase tracking-widest text-[#2563EB] hover:underline"
@@ -520,7 +571,20 @@ const TodayAttendanceCard = ({
               <p className="mt-2 text-[10px] font-pmedium uppercase tracking-[0.18em] text-slate-400">
                 Total time since clock in
               </p>
-              <div className="mt-6 flex justify-center">
+              {activeLeave && status !== "on_leave" && (
+                <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1 text-[10px] font-pmedium uppercase tracking-widest text-sky-700">
+                  <CalendarOff size={12} />
+                  {formatHoursLabel(leaveSeconds)} approved{" "}
+                  {activeLeave.leaveType || "leave"}
+                  {activeLeave.halfDaySession
+                    ? ` (${activeLeave.halfDaySession})`
+                    : ""}
+                </span>
+              )}
+              <div
+                data-tour="attendance-clock-actions"
+                className="mt-6 flex justify-center"
+              >
                 {attendanceActions}
               </div>
               <p className="mt-3 text-[10px] font-pmedium text-slate-500">
@@ -534,7 +598,10 @@ const TodayAttendanceCard = ({
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-px border-t border-slate-100 bg-slate-100 sm:grid-cols-4">
+            <div
+              data-tour="attendance-calculations"
+              className="grid grid-cols-2 gap-px border-t border-slate-100 bg-slate-100 sm:grid-cols-4"
+            >
               {[
                 {
                   label: "Clock-in Time",
@@ -545,7 +612,9 @@ const TodayAttendanceCard = ({
                 },
                 {
                   label: "Worked Hours",
-                  value: formatDurationClock(liveTimes.workedSeconds),
+                  value: formatDurationClock(
+                    liveTimes.workedSeconds + leaveSeconds,
+                  ),
                   icon: Clock,
                   color: "text-[#2563EB]",
                   iconBg: "bg-blue-50",
@@ -725,7 +794,7 @@ const TodayAttendanceCard = ({
                   Working Hours
                 </p>
                 <p className="text-content font-pmedium text-emerald-600">
-                  {formatSeconds(liveTimes.workedSeconds)}
+                  {formatSeconds(liveTimes.workedSeconds + leaveSeconds)}
                 </p>
               </div>
             </div>

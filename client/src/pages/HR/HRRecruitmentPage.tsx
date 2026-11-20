@@ -8,7 +8,7 @@ import {
   Target, Award, Clock, Loader2, Globe, UploadCloud, Pencil,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Country } from "country-state-city";
 import { toast } from "sonner";
 import PageFrame from "@/components/Pages/PageFrame";
@@ -1009,10 +1009,17 @@ function HistoryModal({ open, onClose, data }: HistoryModalProps) {
 /*  Main Page Component                                              */
 /* ──────────────────────────────────────────────────────────────── */
 
-export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "careers" } = {}) {
+export default function HRRecruitmentPage({
+  mode = "hr",
+  modulePage,
+}: {
+  mode?: "hr" | "careers";
+  modulePage?: "jobs" | "candidates";
+} = {}) {
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [activeTab, setActiveTab] = useState("jobs");
+  const [activeTab, setActiveTab] = useState(modulePage || "jobs");
   const [showExportModal, setShowExportModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -1042,6 +1049,17 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
   const [newJob, setNewJob] = useState<NewJobForm>(EMPTY_JOB);
   const [editingJobCode, setEditingJobCode] = useState("");
   const bulkUploadInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (modulePage) {
+      setActiveTab(modulePage);
+      return;
+    }
+    const requestedTab = new URLSearchParams(location.search).get("tab");
+    if (requestedTab === "jobs" || requestedTab === "candidates") {
+      setActiveTab(requestedTab);
+    }
+  }, [location.search, modulePage]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1515,16 +1533,26 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4" data-active-tab={activeTab}>
 
           {/* ── Header ── */}
           <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                {mode === "careers" ? "Careers" : "Recruitment Management"}
+                {mode === "careers"
+                  ? "Careers"
+                  : modulePage
+                    ? activeTab === "jobs"
+                      ? "Job Openings"
+                      : "Candidates Tracking"
+                    : "Recruitment Management"}
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
-                {mode === "careers" ? "Job openings & applications from your website." : "Core Module | Applicant Tracking System"}
+                {mode === "careers"
+                  ? "Job openings & applications from your website."
+                  : activeTab === "jobs"
+                    ? "Publish roles, manage vacancies, and control careers-page visibility."
+                    : "Review applicants, update hiring stages, and convert selected candidates."}
               </p>
             </div>
             {activeTab === "jobs" && (
@@ -1560,6 +1588,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
           )}
 
           {/* ── Main Pill Tabs ── */}
+          {!modulePage ? (
           <div data-tour="hr-recruit-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             <button
               onClick={() => { setActiveTab("jobs"); setSearchQuery(""); setStatusFilter("all"); }}
@@ -1582,6 +1611,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
               {mode === "careers" ? "APPLICATIONS" : "CANDIDATES TRACKING"}
             </button>
           </div>
+          ) : null}
 
           {/* ── Stat Cards ── */}
           <div data-tour="hr-recruit-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">

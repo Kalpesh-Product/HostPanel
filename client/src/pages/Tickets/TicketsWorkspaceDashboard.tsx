@@ -4,6 +4,8 @@ import {
   AlertTriangle,
   Building2,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   Inbox,
   Lock,
@@ -12,6 +14,7 @@ import {
   UserCheck,
   Users,
 } from "lucide-react";
+import ReactApexChart from "react-apexcharts";
 import DashboardModuleCard from "../../components/DashboardModuleCard";
 import DonutChart from "../../components/graphs/DonutChart";
 import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
@@ -33,6 +36,7 @@ import { getTenantCompanies } from "../../services/tenant-companies";
 import { getTickets } from "../../services/tickets";
 
 type TicketRecord = Record<string, any>;
+type ActivityPeriod = "Yearly" | "Monthly" | "Weekly";
 
 const normalize = (value: unknown) =>
   String(value || "")
@@ -56,6 +60,26 @@ const dateLabel = (value: unknown) => {
     month: "short",
     year: "numeric",
   });
+};
+
+const indiaDateKey = (value: unknown = new Date()) => {
+  const date = new Date(String(value || ""));
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+};
+
+const isCompletedStatus = (status: unknown) =>
+  ["resolved", "closed"].includes(normalize(status));
+
+const ticketAgeDays = (ticket: TicketRecord) => {
+  const createdAt = new Date(String(ticket.createdAt || ticket.requestedAt || ""));
+  if (Number.isNaN(createdAt.getTime())) return 0;
+  return Math.max(0, Math.floor((Date.now() - createdAt.getTime()) / 86400000));
 };
 
 function SectionCard({
@@ -156,6 +180,8 @@ export default function TicketsWorkspaceDashboard() {
   const [tenantCompanyCount, setTenantCompanyCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [activityPeriod, setActivityPeriod] = useState<ActivityPeriod>("Yearly");
+  const [activityAnchor, setActivityAnchor] = useState(() => new Date());
   const user = useMemo(() => getStoredUser(), []);
 
   const normalizedRole = normalize(user?.workspaceMembership?.role || user?.role || "owner");
@@ -198,7 +224,7 @@ export default function TicketsWorkspaceDashboard() {
     let cancelled = false;
     setIsLoading(true);
     Promise.allSettled([
-      getTickets({ page: 1, limit: 100 }),
+      getTickets({ page: 1, limit: 500 }),
       getTenantCompanies({ page: 1, limit: 1 }),
     ])
       .then(([ticketsResult, tenantCompaniesResult]) => {
@@ -286,39 +312,180 @@ export default function TicketsWorkspaceDashboard() {
     return [...groups.entries()].sort((left, right) => right[1] - left[1]);
   }, [tickets]);
 
-  const monthLabels = useMemo(() => {
-    const anchor = new Date();
-    return Array.from({ length: 12 }, (_, index) => {
-      const date = new Date(anchor.getFullYear(), anchor.getMonth() - (11 - index), 1);
-      return date.toLocaleDateString("en-US", { month: "short" });
-    });
-  }, []);
+  const activityData = useMemo(() => {
+    let start: Date;
+    let end: Date;
+    let categories: string[];
 
-  const monthlyActivity = useMemo(() => {
-    const anchor = new Date();
-    const raised = new Array(12).fill(0);
-    const completed = new Array(12).fill(0);
-    const monthIndex = (value: unknown) => {
-      const date = new Date(String(value || ""));
-      if (Number.isNaN(date.getTime())) return -1;
-      const difference =
-        (anchor.getFullYear() - date.getFullYear()) * 12 +
-        anchor.getMonth() -
-        date.getMonth();
-      const index = 11 - difference;
-      return index >= 0 && index < 12 ? index : -1;
+    if (activityPeriod === "Yearly") {
+      const fiscalStartYear = activityAnchor.getMonth() < 3
+        ? activityAnchor.getFullYear() - 1
+        : activityAnchor.getFullYear();
+      start = new Date(fiscalStartYear, 3, 1, 0, 0, 0, 0);
+      end = new Date(fiscalStartYear + 1, 2, 31, 23, 59, 59, 999);
+      categories = Array.from({ length: 12 }, (_, index) => {
+        const month = new Date(fiscalStartYear, 3 + index, 1);
+        return month.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
+      });
+    } else if (activityPeriod === "Monthly") {
+      start = new Date(activityAnchor.getFullYear(), activityAnchor.getMonth(), 1, 0, 0, 0, 0);
+      end = new Date(activityAnchor.getFullYear(), activityAnchor.getMonth() + 1, 0, 23, 59, 59, 999);
+      categories = Array.from({ length: end.getDate() }, (_, index) =>
+        String(index + 1).padStart(2, "0"),
+      );
+    } else {
+      const day = activityAnchor.getDay();
+      const mondayOffset = day === 0 ? -6 : 1 - day;
+      start = new Date(activityAnchor);
+      start.setDate(activityAnchor.getDate() + mondayOffset);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      end.setHours(23, 59, 59, 999);
+      categories = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    }
+
+    const series = {
+      total: new Array(categories.length).fill(0),
+      completed: new Array(categories.length).fill(0),
+      open: new Array(categories.length).fill(0),
+      inProgress: new Array(categories.length).fill(0),
     };
 
     tickets.forEach((ticket) => {
-      const raisedIndex = monthIndex(ticket.createdAt || ticket.requestedAt);
-      if (raisedIndex >= 0) raised[raisedIndex] += 1;
-      if (["resolved", "closed"].includes(normalize(ticket.status))) {
-        const completedIndex = monthIndex(ticket.resolvedAt || ticket.closedAt || ticket.updatedAt);
-        if (completedIndex >= 0) completed[completedIndex] += 1;
+      const createdAt = new Date(String(ticket.createdAt || ticket.requestedAt || ""));
+      if (Number.isNaN(createdAt.getTime()) || createdAt < start || createdAt > end) return;
+
+      let index = 0;
+      if (activityPeriod === "Yearly") {
+        index = (createdAt.getMonth() - 3 + 12) % 12;
+      } else if (activityPeriod === "Monthly") {
+        index = createdAt.getDate() - 1;
+      } else {
+        index = Math.floor((createdAt.getTime() - start.getTime()) / 86400000);
       }
+
+      if (index < 0 || index >= categories.length) return;
+      series.total[index] += 1;
+      const status = normalize(ticket.status).replace("_", " ");
+      if (isCompletedStatus(status)) series.completed[index] += 1;
+      else if (status === "open") series.open[index] += 1;
+      else if (status === "in progress") series.inProgress[index] += 1;
     });
-    return { raised, completed };
+
+    const total = series.total.reduce((sum, value) => sum + value, 0);
+    let periodLabel = "";
+    if (activityPeriod === "Yearly") {
+      periodLabel = `FY ${start.getFullYear()}-${String(end.getFullYear()).slice(-2)}`;
+    } else if (activityPeriod === "Monthly") {
+      periodLabel = activityAnchor.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+    } else {
+      periodLabel = `${start.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })} – ${end.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}`;
+    }
+
+    return { categories, series, total, periodLabel };
+  }, [activityAnchor, activityPeriod, tickets]);
+
+  const todaySnapshot = useMemo(() => {
+    const today = indiaDateKey();
+    const todayTickets = tickets.filter(
+      (ticket) => indiaDateKey(ticket.createdAt || ticket.requestedAt) === today,
+    );
+    const completedToday = tickets.filter(
+      (ticket) =>
+        isCompletedStatus(ticket.status) &&
+        indiaDateKey(ticket.resolvedAt || ticket.closedAt || ticket.updatedAt) === today,
+    ).length;
+
+    return {
+      raised: todayTickets.length,
+      completed: completedToday,
+      open: todayTickets.filter((ticket) => normalize(ticket.status) === "open").length,
+      high: todayTickets.filter((ticket) =>
+        ["high", "urgent", "critical"].includes(normalize(ticket.priority)),
+      ).length,
+      medium: todayTickets.filter((ticket) => normalize(ticket.priority) === "medium").length,
+      low: todayTickets.filter((ticket) => normalize(ticket.priority) === "low").length,
+      assigned: tickets.filter(
+        (ticket) =>
+          indiaDateKey(ticket.assignedAt) === today &&
+          (ticket.assigneeUserId || ticket.assignedTo || ticket.assignee),
+      ).length,
+      unassigned: todayTickets.filter(
+        (ticket) => !ticket.assigneeUserId && !ticket.assignedTo && !ticket.assignee,
+      ).length,
+      inProgress: tickets.filter(
+        (ticket) => normalize(ticket.status).replace("_", " ") === "in progress",
+      ).length,
+    };
   }, [tickets]);
+
+  const agingRows = useMemo(() => {
+    const openTickets = tickets.filter((ticket) => !isCompletedStatus(ticket.status));
+    const buckets = [
+      { label: "0–1 days", value: 0 },
+      { label: "2–3 days", value: 0 },
+      { label: "4–7 days", value: 0 },
+      { label: "8+ days", value: 0 },
+    ];
+    openTickets.forEach((ticket) => {
+      const age = ticketAgeDays(ticket);
+      if (age <= 1) buckets[0].value += 1;
+      else if (age <= 3) buckets[1].value += 1;
+      else if (age <= 7) buckets[2].value += 1;
+      else buckets[3].value += 1;
+    });
+    return buckets;
+  }, [tickets]);
+
+  const departmentHealth = useMemo(() => {
+    const groups = new Map<string, { total: number; completed: number }>();
+    tickets.forEach((ticket) => {
+      const department = readable(ticket.department, "Unassigned");
+      const values = groups.get(department) || { total: 0, completed: 0 };
+      values.total += 1;
+      if (isCompletedStatus(ticket.status)) values.completed += 1;
+      groups.set(department, values);
+    });
+    return [...groups.entries()]
+      .map(([department, values]) => ({
+        department,
+        resolutionRate: values.total
+          ? Math.round((values.completed / values.total) * 100)
+          : 0,
+      }))
+      .sort((left, right) => right.resolutionRate - left.resolutionRate)
+      .slice(0, 8);
+  }, [tickets]);
+
+  const attentionTickets = useMemo(
+    () =>
+      tickets
+        .filter((ticket) => {
+          if (isCompletedStatus(ticket.status)) return false;
+          const isHigh = ["high", "urgent", "critical"].includes(
+            normalize(ticket.priority),
+          );
+          const isUnassigned =
+            !ticket.assigneeUserId && !ticket.assignedTo && !ticket.assignee;
+          const dueDate = new Date(String(ticket.dueDate || ""));
+          const isOverdue =
+            !Number.isNaN(dueDate.getTime()) && dueDate.getTime() < Date.now();
+          return isHigh || isUnassigned || isOverdue || ticketAgeDays(ticket) >= 4;
+        })
+        .sort((left, right) => {
+          const score = (ticket: TicketRecord) => {
+            const dueDate = new Date(String(ticket.dueDate || ""));
+            const overdue = !Number.isNaN(dueDate.getTime()) && dueDate.getTime() < Date.now();
+            const unassigned = !ticket.assigneeUserId && !ticket.assignedTo && !ticket.assignee;
+            const high = ["high", "urgent", "critical"].includes(normalize(ticket.priority));
+            return Number(overdue) * 100 + Number(unassigned) * 50 + Number(high) * 25 + ticketAgeDays(ticket);
+          };
+          return score(right) - score(left);
+        })
+        .slice(0, 8),
+    [tickets],
+  );
 
   const recentTickets = useMemo(
     () =>
@@ -390,14 +557,49 @@ export default function TicketsWorkspaceDashboard() {
   };
 
   const activityChartOptions = {
-    chart: { toolbar: { show: false }, fontFamily: "Poppins-Regular" },
-    plotOptions: { bar: { borderRadius: 4, columnWidth: "52%" } },
+    chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: "Poppins, sans-serif" },
     dataLabels: { enabled: false },
-    grid: { borderColor: "#EEF2F7" },
-    xaxis: { categories: monthLabels },
-    colors: ["#2563EB", "#10B981"],
-    stroke: { show: true, width: 2, colors: ["transparent"] },
-    tooltip: { theme: "light" },
+    stroke: { curve: "smooth" as const, width: 3 },
+    fill: { type: "gradient", gradient: { opacityFrom: 0.26, opacityTo: 0.04, stops: [0, 95, 100] } },
+    grid: { borderColor: "#E2E8F0", strokeDashArray: 4 },
+    legend: { position: "top" as const, horizontalAlign: "right" as const },
+    xaxis: { categories: activityData.categories, labels: { style: { colors: "#64748B", fontSize: "10px" } }, axisBorder: { show: false }, axisTicks: { show: false } },
+    yaxis: { min: 0, forceNiceScale: true, labels: { style: { colors: "#64748B", fontSize: "10px" }, formatter: (value: number) => String(Math.round(value)) } },
+    colors: ["#2563EB", "#10B981", "#EF4444", "#F59E0B"],
+    tooltip: { shared: true, intersect: false },
+  };
+
+  const agingChartOptions = {
+    chart: { toolbar: { show: false }, fontFamily: "Poppins, sans-serif" },
+    colors: ["#2563EB", "#0D9488", "#F59E0B", "#EF4444"],
+    plotOptions: { bar: { borderRadius: 5, columnWidth: "48%", distributed: true } },
+    dataLabels: { enabled: false },
+    legend: { show: false },
+    grid: { borderColor: "#E2E8F0", strokeDashArray: 4 },
+    xaxis: { categories: agingRows.map((row) => row.label), labels: { style: { colors: "#64748B", fontSize: "10px" } }, axisBorder: { show: false }, axisTicks: { show: false } },
+    yaxis: { min: 0, forceNiceScale: true, labels: { style: { colors: "#64748B", fontSize: "10px" }, formatter: (value: number) => String(Math.round(value)) } },
+    tooltip: { y: { formatter: (value: number) => `${value} open tickets` } },
+  };
+
+  const departmentHealthOptions = {
+    chart: { toolbar: { show: false }, fontFamily: "Poppins, sans-serif" },
+    colors: ["#10B981"],
+    plotOptions: { bar: { horizontal: true, borderRadius: 5, barHeight: "48%" } },
+    dataLabels: { enabled: true, formatter: (value: number) => `${Math.round(value)}%`, style: { colors: ["#FFFFFF"], fontSize: "10px", fontWeight: 500 } },
+    grid: { borderColor: "#E2E8F0", strokeDashArray: 4 },
+    xaxis: { categories: departmentHealth.map((row) => row.department), min: 0, max: 100, tickAmount: 4, labels: { style: { colors: "#64748B", fontSize: "10px" }, formatter: (value: string) => `${Math.round(Number(value))}%` } },
+    yaxis: { labels: { maxWidth: 135, style: { colors: "#475569", fontSize: "10px" } } },
+    tooltip: { y: { formatter: (value: number) => `${Math.round(value)}% resolved or closed` } },
+  };
+
+  const moveActivityPeriod = (direction: -1 | 1) => {
+    setActivityAnchor((current) => {
+      const next = new Date(current);
+      if (activityPeriod === "Yearly") next.setFullYear(current.getFullYear() + direction);
+      else if (activityPeriod === "Monthly") next.setMonth(current.getMonth() + direction);
+      else next.setDate(current.getDate() + direction * 7);
+      return next;
+    });
   };
 
   return (
@@ -447,10 +649,6 @@ export default function TicketsWorkspaceDashboard() {
                 ))}
               </div>
             </div>
-            <div className="absolute right-6 top-5 z-10 rounded-lg border border-white/25 bg-white/15 px-3 py-2 backdrop-blur-sm">
-              <p className="text-[9px] font-pmedium uppercase tracking-[0.1em] text-white/75">Open tickets</p>
-              <p className="mt-0.5 text-[15px] font-pmedium text-white">{stats.open}</p>
-            </div>
           </div>
         </div>
 
@@ -468,7 +666,7 @@ export default function TicketsWorkspaceDashboard() {
           </div>
         ) : (
           <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatTile icon={<TicketCheck size={20} />} label="Total tickets" value={stats.total} sub="All tickets visible in this workspace" />
+            <StatTile icon={<TicketCheck size={20} />} label="Total tickets" value={stats.total} sub="All tickets visible in this unit" />
             <StatTile icon={<AlertCircle size={20} />} label="Open" value={stats.open} sub="Raised tickets awaiting action" tone="amber" />
             <StatTile icon={<Clock3 size={20} />} label="In progress" value={stats.inProgress} sub="Tickets currently being worked" tone="blue" />
             <StatTile icon={<CheckCircle2 size={20} />} label="Resolved" value={stats.resolved} sub="Issues marked as resolved" tone="green" />
@@ -512,15 +710,72 @@ export default function TicketsWorkspaceDashboard() {
         {!isLoading ? (
           <>
             <div className="mb-4">
-              <SectionCard title="Ticket activity" subtitle="Tickets raised versus completed across the last 12 calendar months.">
+              <SectionCard title="Today's ticket operations" subtitle="Live priority, workflow, and ownership signals for tickets raised or completed today." bodyClassName="p-0">
+                <div className="grid grid-cols-1 divide-y divide-slate-100 md:grid-cols-3 md:divide-x md:divide-y-0">
+                  {[
+                    { title: "Priority today", rows: [["High", todaySnapshot.high, "text-rose-600"], ["Medium", todaySnapshot.medium, "text-amber-600"], ["Low", todaySnapshot.low, "text-emerald-600"]] },
+                    { title: "Ticket flow", rows: [["Raised", todaySnapshot.raised, "text-blue-600"], ["Open", todaySnapshot.open, "text-amber-600"], ["Completed", todaySnapshot.completed, "text-emerald-600"]] },
+                    { title: "Ownership health", rows: [["Assigned today", todaySnapshot.assigned, "text-blue-600"], ["Unassigned today", todaySnapshot.unassigned, "text-rose-600"], ["In progress now", todaySnapshot.inProgress, "text-violet-600"]] },
+                  ].map((group) => (
+                    <div key={group.title} className="px-5 py-4">
+                      <p className="text-[10px] font-pmedium uppercase tracking-[0.08em] text-slate-500">{group.title}</p>
+                      <div className="mt-3 space-y-2.5">
+                        {group.rows.map(([rowLabel, value, valueClass]) => (
+                          <div key={String(rowLabel)} className="flex items-center justify-between rounded-lg bg-slate-50/80 px-3 py-2.5">
+                            <span className="text-[10px] text-slate-600">{rowLabel}</span>
+                            <span className={`text-[14px] font-pmedium ${valueClass}`}>{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            </div>
+
+            <div className="mb-4">
+              <SectionCard title="Ticket activity" subtitle="Switch between fiscal-year, month, and week views to understand when tickets were raised and their current outcome.">
                 {tickets.length ? (
-                  <GroupedBarGraph
+                  <div>
+                    <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="inline-flex w-fit rounded-lg border border-slate-200 bg-slate-50 p-1">
+                        {(["Yearly", "Monthly", "Weekly"] as ActivityPeriod[]).map((period) => (
+                          <button
+                            key={period}
+                            type="button"
+                            onClick={() => setActivityPeriod(period)}
+                            className={`rounded-md px-3.5 py-2 text-[10px] font-pmedium transition ${activityPeriod === period ? "bg-[#2563EB] text-white shadow-sm" : "text-slate-600 hover:bg-white hover:text-slate-900"}`}
+                          >
+                            {period}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                        <span className="rounded-full bg-blue-50 px-2.5 py-1 font-pmedium text-blue-700">{activityData.total} tickets</span>
+                        <span>in selected period</span>
+                      </div>
+                    </div>
+                  <ReactApexChart
+                    type="area"
+                    height={350}
                     options={activityChartOptions}
                     series={[
-                      { name: "Raised", data: monthlyActivity.raised },
-                      { name: "Resolved / Closed", data: monthlyActivity.completed },
+                      { name: "Total Tickets", data: activityData.series.total },
+                      { name: "Resolved / Closed", data: activityData.series.completed },
+                      { name: "Open", data: activityData.series.open },
+                      { name: "In Progress", data: activityData.series.inProgress },
                     ]}
                   />
+                    <div className="mt-2 flex items-center justify-center gap-4">
+                      <button type="button" onClick={() => moveActivityPeriod(-1)} aria-label="Previous ticket activity period" className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
+                        <ChevronLeft size={16} />
+                      </button>
+                      <span className="min-w-[160px] text-center text-[10px] font-pmedium text-[#1E3D73]">{activityData.periodLabel}</span>
+                      <button type="button" onClick={() => moveActivityPeriod(1)} aria-label="Next ticket activity period" className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <div className="flex h-[280px] items-center justify-center text-[11px] text-slate-500">No ticket activity recorded yet.</div>
                 )}
@@ -558,6 +813,15 @@ export default function TicketsWorkspaceDashboard() {
               </SectionCard>
             </div>
 
+            <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <SectionCard title="Open-ticket aging" subtitle="Unresolved workload grouped by how long each ticket has remained open.">
+                {tickets.length ? <ReactApexChart type="bar" height={310} options={agingChartOptions} series={[{ name: "Open tickets", data: agingRows.map((row) => row.value) }]} /> : <div className="flex h-[310px] items-center justify-center text-[11px] text-slate-500">No ticket-aging data is available yet.</div>}
+              </SectionCard>
+              <SectionCard title="Department resolution health" subtitle="Resolved or closed share of visible tickets by responsible department.">
+                {departmentHealth.length ? <ReactApexChart type="bar" height={310} options={departmentHealthOptions} series={[{ name: "Resolution rate", data: departmentHealth.map((row) => row.resolutionRate) }]} /> : <div className="flex h-[310px] items-center justify-center text-[11px] text-slate-500">No department resolution data is available yet.</div>}
+              </SectionCard>
+            </div>
+
             <div className="mb-4">
               <SectionCard title="Tickets by department" subtitle="Ticket volume grouped by the department responsible for the issue.">
                 {departmentBreakdown.length ? (
@@ -571,7 +835,21 @@ export default function TicketsWorkspaceDashboard() {
               </SectionCard>
             </div>
 
-            <SectionCard title="Recent tickets" subtitle="The latest ticket activity visible in this workspace." bodyClassName="">
+            <div className="mb-4">
+              <SectionCard title="Ticket attention queue" subtitle="High-priority, unassigned, overdue, or aging tickets that need operational follow-up." bodyClassName="p-0">
+                {attentionTickets.length ? <div className="divide-y divide-slate-100">{attentionTickets.map((ticket, index) => {
+                  const dueDate = new Date(String(ticket.dueDate || ""));
+                  const overdue = !Number.isNaN(dueDate.getTime()) && dueDate.getTime() < Date.now();
+                  const unassigned = !ticket.assigneeUserId && !ticket.assignedTo && !ticket.assignee;
+                  const high = ["high", "urgent", "critical"].includes(normalize(ticket.priority));
+                  const reason = overdue ? "Overdue" : unassigned ? "Unassigned" : high ? "High priority" : `${ticketAgeDays(ticket)} days open`;
+                  const reasonClass = overdue || high ? "bg-rose-50 text-rose-700" : unassigned ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700";
+                  return <div key={ticket._id || ticket.recordId || ticket.ticketCode || index} className="grid gap-3 px-5 py-4 transition-colors hover:bg-slate-50/70 md:grid-cols-[150px_minmax(0,1fr)_170px_120px] md:items-center"><p className="truncate text-[10px] font-pmedium text-slate-900">{ticket.ticketCode || ticket.id || "Ticket"}</p><div className="min-w-0"><p className="truncate text-[11px] font-pmedium text-slate-800">{ticket.title || "Untitled issue"}</p><p className="mt-1 truncate text-[9px] text-slate-500">{readable(ticket.department, "Unassigned department")} · {ticket.assignedTo || ticket.assigneeUserId?.name || "No owner"}</p></div><p className="text-[10px] text-slate-600">{ticketAgeDays(ticket)} days open</p><div className="md:text-right"><span className={`inline-flex rounded-full px-2.5 py-1 text-[9px] font-pmedium uppercase ${reasonClass}`}>{reason}</span></div></div>;
+                })}</div> : <div className="flex min-h-[145px] items-center justify-center px-5 py-10 text-[11px] text-slate-500">No visible tickets currently require priority attention.</div>}
+              </SectionCard>
+            </div>
+
+            <SectionCard title="Recent tickets" subtitle="The latest ticket activity visible in this unit." bodyClassName="">
               {recentTickets.length ? (
                 <div className="max-h-[360px] min-h-[240px] overflow-y-auto overflow-x-hidden">
                   <table className="w-full table-fixed border-collapse text-left">

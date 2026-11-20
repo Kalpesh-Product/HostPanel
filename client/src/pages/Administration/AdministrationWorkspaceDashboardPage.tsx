@@ -22,7 +22,7 @@ import PageFrame from "../../components/Pages/PageFrame";
 import { DepartmentVisitorsCard } from "../Dashboard/FrontendDashboard/dashboard/DepartmentVisitorsCard";
 import { TeamLiveStatusCard } from "../Dashboard/FrontendDashboard/dashboard/TeamLiveStatusCard";
 import { isModuleUsable } from "../Dashboard/FrontendDashboard/dashboard/dashboardUtils";
-import administrationBannerImage from "../../assets/administration-dashboard-banner.webp";
+import administrationBannerImage from "../../assets/module-banners/administration-operations-banner.png";
 import { DEFAULT_FISCAL_YEAR } from "../../features/finance/utils/fiscalYear";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
 import { getStoredUser } from "../../lib/auth-session";
@@ -749,7 +749,7 @@ export default function AdministrationWorkspaceDashboardPage() {
             />
             <div
               aria-hidden="true"
-              className="absolute inset-y-0 right-0 w-full bg-gradient-to-br from-[#2563EB]/55 via-[#3b82f6]/35 to-[#60a5fa]/20 sm:w-[64%]"
+              className="absolute inset-y-0 right-0 w-full bg-gradient-to-br from-[#2563EB]/45 via-[#3b82f6]/25 to-[#60a5fa]/15 sm:w-[64%]"
               style={{
                 WebkitMaskImage:
                   "linear-gradient(to right, transparent 0%, black 22%, black 100%)",
@@ -788,14 +788,6 @@ export default function AdministrationWorkspaceDashboardPage() {
                   ),
                 )}
               </div>
-            </div>
-            <div className="absolute right-6 top-5 z-10 rounded-lg border border-white/25 bg-white/15 px-3 py-2 backdrop-blur-sm">
-              <p className="text-[9px] uppercase tracking-[0.1em] text-white/75">
-                Active modules
-              </p>
-              <p className="mt-0.5 text-[15px] text-white">
-                {enabledModules.length}
-              </p>
             </div>
           </div>
         </header>

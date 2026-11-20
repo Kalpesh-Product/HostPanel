@@ -222,7 +222,20 @@ const CompanySettingsDashboard = () => {
   }
 
   return (
-    <div className="p-4 flex flex-col gap-5">
+    <div
+      className={
+        isPlanDashboardHome
+          ? "min-h-full bg-slate-50/40 p-2 lg:p-2.5"
+          : "flex flex-col gap-5 p-4"
+      }
+    >
+      <div
+        className={
+          isPlanDashboardHome
+            ? "flex flex-col gap-5 rounded-xl border-default p-4"
+            : "contents"
+        }
+      >
       {/* Every founder plan dashboard shares the same masthead system. */}
       {isPlanDashboardHome ? (
         <section className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white p-5 shadow-[0_12px_34px_rgba(37,99,235,0.08)] sm:p-6">
@@ -381,6 +394,7 @@ const CompanySettingsDashboard = () => {
           departments={access.departments}
         />
       )}
+      </div>
 
       {/* Upgrade plan modal */}
       {showUpgradeModal && canUpgrade && (

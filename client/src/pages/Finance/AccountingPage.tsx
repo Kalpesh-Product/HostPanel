@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useLocation, useParams } from 'react-router-dom';
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { createReport } from '@/services/reports';
 import { getFinanceSnapshot, getPayrollSnapshot, getTenantBillingSnapshot, getFinanceIncomeLedger } from '@/services/finance';
@@ -34,6 +35,13 @@ import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
 
 const MONTH_SHORT_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const FISCAL_YEAR_OPTIONS = getFiscalYearOptions();
+
+// Page header per dedicated section route — mirrors the dashboard module card titles.
+const ACCOUNTING_SECTION_META: Record<string, { title: string; subtitle: string }> = {
+  ledger: { title: 'General Ledger', subtitle: 'Review income and expense entries with source references.' },
+  departments: { title: 'Department Review', subtitle: 'Compare allocated budgets, spend, and utilisation.' },
+  pnl: { title: 'Profit & Loss', subtitle: 'Understand revenue, COGS, OPEX, margin, and net profit.' },
+};
 
 const money = (value: number = 0, currency = 'INR') =>
   formatWorkspaceCurrency(Number(value || 0), currency, { maximumFractionDigits: 0 });
@@ -302,13 +310,26 @@ function PnlSection({ title, tone, icon: Icon, rows, totalLabel, totalValue, cur
 }
 
 export default function AccountingPage(): React.ReactElement {
+  const location = useLocation();
+  // Routed here directly as its own page (e.g. /accounting/ledger), so the
+  // top-level tab bar is hidden and the tab is locked to the URL segment.
+  const { section: routeSection } = useParams<{ section?: string }>();
+  const isDedicatedRoute = Boolean(routeSection && ['ledger', 'departments', 'pnl'].includes(routeSection));
   const workspacePreferences = useWorkspacePreferences();
   const currency = workspacePreferences.currency;
   const money = (value: number = 0) => formatWorkspaceCurrency(Number(value || 0), currency, { maximumFractionDigits: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState('');
-  const [activeTab, setActiveTab] = useState('ledger');
+  const [activeTab, setActiveTab] = useState(isDedicatedRoute ? routeSection! : 'ledger');
+  useEffect(() => {
+    if (isDedicatedRoute) {
+      setActiveTab(routeSection!);
+      return;
+    }
+    const tab = new URLSearchParams(location.search).get('tab');
+    if (tab && ['ledger', 'departments', 'pnl'].includes(tab)) setActiveTab(tab);
+  }, [location.search, isDedicatedRoute, routeSection]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFiscalYear, setSelectedFiscalYear] = useState(DEFAULT_FISCAL_YEAR);
   const [showExportModal, setShowExportModal] = useState(false);
@@ -806,9 +827,11 @@ export default function AccountingPage(): React.ReactElement {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                Accounting
+                {isDedicatedRoute ? ACCOUNTING_SECTION_META[routeSection!].title : 'Accounting'}
               </h2>
-              <p className="text-xs font-pmedium text-slate-500 mt-1">Core Module | Ledger, department budgets & P&amp;L reports</p>
+              <p className="text-xs font-pmedium text-slate-500 mt-1">
+                {isDedicatedRoute ? ACCOUNTING_SECTION_META[routeSection!].subtitle : 'Core Module | Ledger, department budgets & P&L reports'}
+              </p>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50/50 px-4 py-2.5 text-[#2563EB] shadow-sm">
@@ -834,31 +857,33 @@ export default function AccountingPage(): React.ReactElement {
             </div>
           )}
 
-          {/* ═══ PILL TABS (DESIGN.md: pill-style with blue active bg) ═══ */}
-          <div className="mb-3 flex w-full gap-1.5 overflow-x-auto rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0 [&::-webkit-scrollbar]:hidden">
-            {([
-              ['ledger', Receipt, 'Ledger'],
-              ['departments', Building2, 'Departments'],
-              ['pnl', BarChart3, 'P&L'],
-            ] as const).map(([id, Icon, label]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setActiveTab(id)}
-                className={`relative z-10 flex flex-1 min-w-[150px] items-center justify-center gap-2 rounded-full px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${
-                  activeTab === id
-                    ? 'text-white'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                {activeTab === id && (
-                  <motion.div layoutId="accountingTabs" className="absolute inset-0 z-[-1] rounded-full bg-[#2563EB] shadow-sm" />
-                )}
-                <Icon size={14} className="shrink-0" />
-                {label}
-              </button>
-            ))}
-          </div>
+          {/* ═══ PILL TABS (DESIGN.md: pill-style with blue active bg) — only when reached without a dedicated section route ═══ */}
+          {!isDedicatedRoute && (
+            <div className="mb-3 flex w-full gap-1.5 overflow-x-auto rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0 [&::-webkit-scrollbar]:hidden">
+              {([
+                ['ledger', Receipt, 'Ledger'],
+                ['departments', Building2, 'Departments'],
+                ['pnl', BarChart3, 'P&L'],
+              ] as const).map(([id, Icon, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setActiveTab(id)}
+                  className={`relative z-10 flex flex-1 min-w-[150px] items-center justify-center gap-2 rounded-full px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all whitespace-nowrap ${
+                    activeTab === id
+                      ? 'text-white'
+                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  {activeTab === id && (
+                    <motion.div layoutId="accountingTabs" className="absolute inset-0 z-[-1] rounded-full bg-[#2563EB] shadow-sm" />
+                  )}
+                  <Icon size={14} className="shrink-0" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {(activeTab === 'ledger' || activeTab === 'departments') && (
             <div className="mb-3 flex w-full gap-1.5 overflow-x-auto rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0 [&::-webkit-scrollbar]:hidden">

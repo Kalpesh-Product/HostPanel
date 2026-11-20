@@ -14,7 +14,7 @@ export function MenusPage() {
       <ItalianoPageHero title={t.draft?.productPageHeading || navLabel("products", "Our menus")} image={t.heroImages[0]} />
       <section className="italiano-section italiano-shell">
         {services.length ? (
-          <div className="italiano-cards">
+          <div className="italiano-cards italiano-product-cards">
             {services.map((service) => (
               <article className="italiano-menu-card" key={service.key}>
                 <ItalianoImage src={service.cardImage || service.heroImage} />
@@ -78,7 +78,7 @@ export function MenuItemPage({ service, item }: { service: Service; item: Servic
       </div>
       {related.length ? <div className="italiano-related">
         <h2>From the same menu</h2>
-        <div className="italiano-cards">
+        <div className="italiano-cards italiano-product-cards">
           {related.map((entry) => <article key={entry.key}><button type="button" onClick={() => goToItem(service, entry)}>
             <ItalianoImage src={entry.image} /><span>{entry.title}</span>
           </button></article>)}
@@ -194,7 +194,7 @@ export function PartnerPage() {
     <>
       <ItalianoPageHero title={t.partnerPageHeading || navLabel("partner", "Partner with us")} body={t.partnerPageContent} image={t.heroImages[0]} />
       {draft.partnerEnableInquiryForm !== false ? <section className="italiano-section italiano-shell">
-        <div className="italiano-form italiano-narrow">
+        <div className="italiano-form italiano-narrow italiano-partner-form">
           <h2>{t.partnerFormTitle || "Start a conversation"}</h2>
           <MessageForm inquiryType="Partnership" submitLabel="Send enquiry" success={draft.partnerInquirySuccessMessage || "Thanks for your enquiry. We’ll be in touch."} />
         </div>
@@ -231,12 +231,14 @@ export function CareersPage() {
               </button>
             </li>)}
           </ul>
-        ) : <p>There are no open roles right now.</p>}
-        {draft.careersClosingHeading ? <h2>{draft.careersClosingHeading}</h2> : null}
-        {draft.careersClosingText ? <p>{draft.careersClosingText}</p> : null}
-        <button className="italiano-button" type="button" onClick={t.openCareersGeneralApply}>
-          {draft.careersApplyButtonText || "Send a general application"}
-        </button>
+        ) : <p className="italiano-center">There are no open roles right now.</p>}
+        <div className="italiano-career-cta italiano-center">
+          {draft.careersClosingHeading ? <h2>{draft.careersClosingHeading}</h2> : null}
+          {draft.careersClosingText ? <p>{draft.careersClosingText}</p> : null}
+          <button className="italiano-button" type="button" onClick={t.openCareersGeneralApply}>
+            {draft.careersApplyButtonText || "Send a general application"}
+          </button>
+        </div>
       </section>
     </>
   );

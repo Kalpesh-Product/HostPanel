@@ -1,11 +1,4 @@
-import {
-  useState,
-  useMemo,
-  useEffect,
-  useRef,
-  useCallback,
-  type FormEvent,
-} from "react";
+import { useState, useMemo, useEffect, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Search,
@@ -16,16 +9,11 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
-  Camera,
   User,
   Building2,
   ChevronDown,
-  Coffee,
-  LogIn,
-  LogOut,
   RefreshCw,
   Edit3,
-  Check,
   AlertTriangle,
   Circle,
   Users,
@@ -35,10 +23,6 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import PageFrame from "@/components/Pages/PageFrame";
 import {
-  checkInAttendance,
-  checkOutAttendance,
-  startBreakAttendance,
-  endBreakAttendance,
   getMyAttendance,
   getTeamAttendance,
   requestAttendanceCorrection,
@@ -63,6 +47,7 @@ import {
 } from "@/utils/user-helpers";
 import { formatTime12h } from "@/utils/time";
 import { AttendanceSkeleton } from "@/components/ui/Skeleton";
+import TodayAttendanceCard from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
 import AttendanceDayTimeline from "@/components/attendance/AttendanceDayTimeline";
 import {
   useLiveTimes,
@@ -111,10 +96,18 @@ interface AttendanceRecord {
   earlyMinutes?: number;
   breaks?: BreakEntry[];
   correction?: CorrectionEntry;
+  needsClockOutConfirmation?: boolean;
   activeHoliday?: {
     name?: string;
     type?: "public" | "company";
     description?: string;
+  } | null;
+  activeLeave?: {
+    leaveCode?: string;
+    leaveType?: string;
+    leaveMode?: "full_day" | "half_day" | "hours";
+    leaveHours?: number;
+    halfDaySession?: "" | "morning" | "evening";
   } | null;
 }
 
@@ -178,6 +171,7 @@ type CorrectionTab = "all" | "checkin" | "checkout" | "break";
 
 interface CorrectionForm {
   recordId: string;
+  date: string;
   reason: string;
   correctionTab: CorrectionTab;
   includeCheckIn: boolean;
@@ -365,26 +359,6 @@ const getStatusBadge = (status?: string) => {
   return <span className={statusPillClass(label)}>{label}</span>;
 };
 
-const getCurrentLocation = (): Promise<{ lat: number; lng: number } | null> => {
-  return new Promise((resolve) => {
-    if (!navigator.geolocation) return resolve(null);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => resolve(null),
-      { timeout: 10000, enableHighAccuracy: true },
-    );
-  });
-};
-
-const blobToDataUrl = (blob: Blob): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("Failed to read captured image."));
-    reader.readAsDataURL(blob);
-  });
-};
-
 const normalizeRole = (role?: string) =>
   String(role || "")
     .trim()
@@ -431,6 +405,7 @@ const getManagedDepartments = (currentUser: any): string[] => {
 
 const INITIAL_CORRECTION_FORM: CorrectionForm = {
   recordId: "",
+  date: "",
   reason: "",
   correctionTab: "all",
   includeCheckIn: true,
@@ -546,25 +521,6 @@ export function AttendancePage() {
     getLocalDateString(new Date(), workspacePreferences.timezone),
   );
   const [clockWindowNow, setClockWindowNow] = useState(() => new Date());
-  const [captureOpenedAt, setCaptureOpenedAt] = useState<Date | null>(null);
-  const [isClockLoading, setIsClockLoading] = useState(false);
-  const [showClockModal, setShowClockModal] = useState(false);
-  const [clockMode, setClockMode] = useState<"in" | "out">("in");
-  const [capturedSelfie, setCapturedSelfie] = useState<string | null>(null);
-  const [capturedSelfieBlob, setCapturedSelfieBlob] = useState<Blob | null>(
-    null,
-  );
-  const [capturedLocation, setCapturedLocation] = useState<{
-    lat: number;
-    lng: number;
-  } | null>(null);
-  const [cameraReady, setCameraReady] = useState(false);
-  const [isCapturing, setIsCapturing] = useState(false);
-  const [clockErrorMessage, setClockErrorMessage] = useState("");
-  const [cameraStreamActive, setCameraStreamActive] = useState(false);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const cameraStreamRef = useRef<MediaStream | null>(null);
 
   /* ── Data State ── */
   const [activeTab, setActiveTab] = useState(requestedAttendanceTab);
@@ -618,38 +574,16 @@ export function AttendancePage() {
     INITIAL_CORRECTION_FORM,
   );
   const [isSubmittingCorrection, setIsSubmittingCorrection] = useState(false);
+  // Set when the correction form was opened automatically for a day the
+  // auto-checkout sweep closed (forgotten clock-out), rather than by the
+  // employee clicking "Request Correction" themselves — shows an explainer
+  // banner instead of silently reusing the same generic form.
+  const [isForcedClockOutCorrection, setIsForcedClockOutCorrection] =
+    useState(false);
 
   const [isSavingDecision, setIsSavingDecision] = useState(false);
 
   const todayKey = todayDate;
-
-  const stopClockCamera = useCallback(() => {
-    const stream =
-      cameraStreamRef.current ||
-      (videoRef.current?.srcObject as MediaStream | null);
-    stream?.getTracks().forEach((track) => track.stop());
-    cameraStreamRef.current = null;
-    if (videoRef.current) videoRef.current.srcObject = null;
-    setCameraReady(false);
-    setCameraStreamActive(false);
-  }, []);
-
-  const closeClockModal = useCallback(() => {
-    if (isClockLoading) return;
-    stopClockCamera();
-    setCapturedSelfie(null);
-    setCapturedSelfieBlob(null);
-    setCapturedLocation(null);
-    setCaptureOpenedAt(null);
-    setShowClockModal(false);
-  }, [isClockLoading, stopClockCamera]);
-
-  useEffect(() => () => stopClockCamera(), [stopClockCamera]);
-
-  useEffect(() => {
-    if (showClockModal) return;
-    stopClockCamera();
-  }, [showClockModal, stopClockCamera]);
 
   /* ── Derived ── */
   const monthDates = useMemo(
@@ -701,18 +635,6 @@ export function AttendancePage() {
   const isTodayInProgress = Boolean(
     todayRecord?.checkIn && !todayRecord?.checkOut,
   );
-
-  // Derived directly from the fetched record (not local state) so the clock
-  // card can never show a stale status after a reload/refetch — there is no
-  // separate "clockStatus" state to fall out of sync with todayRecord.
-  const clockStatus: "checked_out" | "checked_in" | "on_break" =
-    isTodayCompleted
-      ? "checked_out"
-      : isTodayInProgress
-        ? todayRecord?.isActiveBreak
-          ? "on_break"
-          : "checked_in"
-        : "checked_out";
 
   // Only completed clock-ins belong in the history table — a day with no
   // check-in never happened, and today stays in the live clock-in card
@@ -794,6 +716,30 @@ export function AttendancePage() {
     todayRecord?.activeHoliday?.type === "public"
       ? "Public Holiday"
       : "Company Holiday";
+
+  // A forgotten clock-out from a previous day gets auto-closed (see the
+  // auto-checkout sweep) but still owes a real time — clocking in again
+  // before that's resolved would just create another day needing the same
+  // fix, so block it until the forced correction form (below) is submitted.
+  const hasUnresolvedClockOut = useMemo(
+    () =>
+      myRecords.some(
+        (record) => record.needsClockOutConfirmation && record.date !== todayDate,
+      ),
+    [myRecords, todayDate],
+  );
+
+  const clockInDisabledReason = isClockDisabledByConfig
+    ? attendanceLockMessage
+    : hasUnresolvedClockOut
+      ? "Submit your missed clock-out time below before clocking in again."
+      : isOnLeaveToday
+        ? "You're on approved leave today, so clock-in is disabled."
+        : isHolidayToday
+          ? `${holidayLabel}${todayRecord?.activeHoliday?.name ? `: ${todayRecord.activeHoliday.name}` : ""} — clock-in is disabled today.`
+          : isClockInTooEarly
+            ? `Clock-in opens at ${formatTime12h(clockInWindow.opensAt)}, one hour before ${assignedShiftName || "your shift"}.`
+            : "";
 
   /* ── Effects ── */
   useEffect(() => {
@@ -942,216 +888,24 @@ export function AttendancePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, selectedMonth]);
 
-  const handleClockAction = async (mode: "in" | "out") => {
-    if (isClockDisabledByConfig) {
-      setClockErrorMessage(
-        "Attendance is not configured for this workspace yet. Ask HR to set working hours and the geofence.",
-      );
-      return;
-    }
-    if (mode === "in" && isClockInTooEarly) {
-      setClockErrorMessage(
-        `Clock-in opens at ${formatTime12h(clockInWindow.opensAt)}, one hour before your assigned shift.`,
-      );
-      return;
-    }
-    if (mode === "in" && isOnLeaveToday) {
-      setClockErrorMessage(
-        "You're on approved leave today, so clock-in is disabled.",
-      );
-      return;
-    }
-    if (mode === "in" && isHolidayToday) {
-      setClockErrorMessage(
-        `Today is a ${holidayLabel.toLowerCase()}${todayRecord?.activeHoliday?.name ? ` (${todayRecord.activeHoliday.name})` : ""}, so clock-in is disabled.`,
-      );
-      return;
-    }
-    setClockMode(mode);
-    setShowClockModal(true);
-    setCaptureOpenedAt(new Date());
-    setCapturedSelfie(null);
-    setCapturedSelfieBlob(null);
-    setCapturedLocation(null);
-    setClockErrorMessage("");
-    setCameraReady(false);
-
-    setIsCapturing(true);
-    try {
-      const [location, stream] = await Promise.all([
-        getCurrentLocation(),
-        navigator.mediaDevices?.getUserMedia
-          ? navigator.mediaDevices.getUserMedia({
-              video: {
-                facingMode: "user",
-              },
-              audio: false,
-            })
-          : Promise.reject(
-              new Error("Camera access is not available on this device."),
-            ),
-      ]);
-
-      if (location) {
-        setCapturedLocation(location);
-      } else {
-        setClockErrorMessage(
-          "Location access is required. You can still capture the selfie and try proceed.",
-        );
-      }
-      cameraStreamRef.current = stream;
-      setCameraStreamActive(true);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => undefined);
-      }
-      setCameraReady(true);
-    } catch {
-      setClockErrorMessage(
-        "Failed to capture selfie or location. Please try again.",
-      );
-    } finally {
-      setIsCapturing(false);
-    }
-  };
-
-  const handleCaptureSelfie = async () => {
-    if (!videoRef.current || !canvasRef.current) {
-      setClockErrorMessage("Camera is not ready.");
-      return;
-    }
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    canvas.width = video.videoWidth || 720;
-    canvas.height = video.videoHeight || 1280;
-    const context = canvas.getContext("2d");
-    if (!context) {
-      setClockErrorMessage("Unable to capture selfie.");
-      return;
-    }
-
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const selfieBlob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.92);
-    });
-
-    if (!selfieBlob) {
-      setClockErrorMessage("Unable to capture selfie.");
-      return;
-    }
-
-    const dataUrl = await blobToDataUrl(selfieBlob);
-    setCapturedSelfieBlob(selfieBlob);
-    setCapturedSelfie(dataUrl);
-  };
-
-  const handleRetakeSelfie = () => {
-    setCapturedSelfie(null);
-    setCapturedSelfieBlob(null);
-    setClockErrorMessage("");
-  };
-
-  const handleSubmitClock = async () => {
-    setIsClockLoading(true);
-    setClockErrorMessage("");
-    try {
-      const formData = new FormData();
-      const selfieBlob =
-        capturedSelfieBlob ||
-        (await (async () => {
-          if (!videoRef.current || !canvasRef.current) {
-            throw new Error("Camera is not ready.");
-          }
-          const video = videoRef.current;
-          const canvas = canvasRef.current;
-          canvas.width = video.videoWidth || 720;
-          canvas.height = video.videoHeight || 1280;
-          const context = canvas.getContext("2d");
-          if (!context) {
-            throw new Error("Unable to capture selfie.");
-          }
-          context.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const blob = await new Promise<Blob | null>((resolve) => {
-            canvas.toBlob(
-              (blobValue) => resolve(blobValue),
-              "image/jpeg",
-              0.92,
-            );
-          });
-          if (!blob) {
-            throw new Error("Unable to capture selfie.");
-          }
-          const dataUrl = await blobToDataUrl(blob);
-          setCapturedSelfieBlob(blob);
-          setCapturedSelfie(dataUrl);
-          return blob;
-        })());
-      formData.append("selfie", selfieBlob, "selfie.jpg");
-      if (capturedLocation) {
-        formData.append("latitude", String(capturedLocation.lat));
-        formData.append("longitude", String(capturedLocation.lng));
-      }
-      formData.append("date", todayDate);
-      formData.append("timestamp", new Date().toISOString());
-
-      if (clockMode === "in") {
-        await checkInAttendance(formData);
-      } else {
-        await checkOutAttendance(formData);
-      }
-      stopClockCamera();
-      setCaptureOpenedAt(null);
-      setCapturedSelfie(null);
-      setCapturedSelfieBlob(null);
-      setCapturedLocation(null);
-      setShowClockModal(false);
-      await reloadMyAttendance();
-    } catch (err: any) {
-      setClockErrorMessage(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Failed to record attendance.",
-      );
-    } finally {
-      setIsClockLoading(false);
-    }
-  };
-
-  const handleStartBreak = async () => {
-    setIsClockLoading(true);
-    setClockErrorMessage("");
-    try {
-      await startBreakAttendance();
-      await reloadMyAttendance();
-    } catch (err: any) {
-      setClockErrorMessage(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Failed to start break.",
-      );
-    } finally {
-      setIsClockLoading(false);
-    }
-  };
-
-  const handleEndBreak = async () => {
-    setIsClockLoading(true);
-    setClockErrorMessage("");
-    try {
-      await endBreakAttendance();
-      await reloadMyAttendance();
-    } catch (err: any) {
-      setClockErrorMessage(
-        err?.response?.data?.message || err?.message || "Failed to end break.",
-      );
-    } finally {
-      setIsClockLoading(false);
-    }
-  };
+  // A forgotten clock-out gets auto-closed by the server so reports/payroll
+  // never see an open day, but the employee still owes the real time — force
+  // the correction form open (instead of leaving it to a "Request Correction"
+  // click they might never make) until they've filed one.
+  useEffect(() => {
+    if (showCorrectionForm) return;
+    const unresolved = myRecords.find(
+      (record) => record.needsClockOutConfirmation,
+    );
+    if (unresolved) handleOpenCorrectionForm(unresolved, { forcedClockOut: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myRecords, showCorrectionForm]);
 
   /* ── Correction Handlers ── */
-  const handleOpenCorrectionForm = (record: AttendanceRecord) => {
+  const handleOpenCorrectionForm = (
+    record: AttendanceRecord,
+    options?: { forcedClockOut?: boolean },
+  ) => {
     // <input type="time"> requires a bare 24-hour "HH:MM" value — record.checkIn/
     // checkOut are already formatted as 12-hour labels (e.g. "10:30 AM") for
     // display, so re-derive from the ISO timestamps here instead.
@@ -1161,11 +915,14 @@ export function AttendancePage() {
     const checkOutValue = record.checkOutAt
       ? getWorkspaceTime(record.checkOutAt, workspacePreferences.timezone)
       : "";
+    const forcedClockOut = Boolean(options?.forcedClockOut);
+    setIsForcedClockOutCorrection(forcedClockOut);
     setCorrectionForm({
       recordId: record.recordId || record.id || "",
-      reason: "",
-      correctionTab: "all",
-      includeCheckIn: true,
+      date: record.date || "",
+      reason: forcedClockOut ? "Forgot to clock out." : "",
+      correctionTab: forcedClockOut ? "checkout" : "all",
+      includeCheckIn: !forcedClockOut,
       includeCheckOut: true,
       includeBreaks: false,
       originalCheckIn: checkInValue,
@@ -1512,36 +1269,6 @@ export function AttendancePage() {
     return formatTime12h(time) || time;
   };
 
-  const clockStatusLabel =
-    clockStatus === "checked_in"
-      ? "Clocked In"
-      : clockStatus === "on_break"
-        ? "On Break"
-        : isTodayCompleted
-          ? "Clocked Out"
-          : isOnLeaveToday
-            ? "On Leave"
-            : isHolidayToday
-              ? holidayLabel
-              : "Not Clocked In";
-
-  const activeBreakEntry = useMemo(
-    () =>
-      Array.isArray(todayRecord?.breaks)
-        ? todayRecord.breaks.find((b) => !b.endAt)
-        : undefined,
-    [todayRecord],
-  );
-
-  const clockStatusTime =
-    clockStatus === "checked_in"
-      ? `Since ${getTimeDisplay(todayRecord?.checkIn)}`
-      : clockStatus === "on_break"
-        ? `Since ${activeBreakEntry?.startTime ? formatTime12b(activeBreakEntry.startTime) : "--"}`
-        : isTodayCompleted
-          ? `At ${getTimeDisplay(todayRecord?.checkOut)}`
-          : "Clock in to start tracking your day.";
-
   const parseHHMM = (value?: string): number | null => {
     if (!value) return null;
     const match = String(value)
@@ -1563,13 +1290,20 @@ export function AttendancePage() {
   }, [attendanceSettings]);
 
   const liveTimes = useLiveTimes(todayRecord || undefined);
-  const { totalSeconds, breakSeconds, currentBreakSeconds, workedSeconds } =
-    liveTimes;
+  const { workedSeconds } = liveTimes;
+  // Approved leave hours for today count toward the target too — the hour
+  // isn't physically worked, but it's covered, same as how payroll apps like
+  // SumoPayroll credit it.
+  const todayLeaveSeconds = Math.max(
+    0,
+    Number(todayRecord?.activeLeave?.leaveHours || 0) * 3600,
+  );
+  const effectiveWorkedSeconds = workedSeconds + todayLeaveSeconds;
   const targetPercentage = Math.min(
     100,
-    Math.round((workedSeconds / Math.max(1, dailyTargetSeconds)) * 100),
+    Math.round((effectiveWorkedSeconds / Math.max(1, dailyTargetSeconds)) * 100),
   );
-  const targetReached = workedSeconds >= dailyTargetSeconds;
+  const targetReached = effectiveWorkedSeconds >= dailyTargetSeconds;
 
   /* ── Loading ── */
   if (isLoading) {
@@ -1603,10 +1337,10 @@ export function AttendancePage() {
             </div>
           </div>
 
-          {errorMessage || clockErrorMessage ? (
+          {errorMessage ? (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-pmedium text-red-600 flex items-center gap-2">
               <AlertTriangle size={14} />
-              {errorMessage || clockErrorMessage}
+              {errorMessage}
             </div>
           ) : null}
 
@@ -1654,6 +1388,14 @@ export function AttendancePage() {
                 ? `: ${todayRecord.activeHoliday.name}`
                 : ""}{" "}
               — clock-in is disabled today.
+            </div>
+          ) : null}
+
+          {!isClockDisabledByConfig && hasUnresolvedClockOut ? (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-[12px] font-pmedium text-rose-700 flex items-center gap-2">
+              <AlertTriangle size={14} />
+              You have a missed clock-out from a previous day. Submit the
+              correct time in the form below before clocking in again.
             </div>
           ) : null}
 
@@ -1725,282 +1467,48 @@ export function AttendancePage() {
 
           {/* CLOCK IN/OUT CARD — my attendance only; team/corrections don't clock anyone in */}
           {activeTab === "my-attendance" && (
-            <div
-              data-tour="attendance-clock-card"
-              className="bg-gradient-to-r from-[#2563EB]/5 to-blue-50/50 border border-blue-100 rounded-2xl p-4 lg:p-5 shadow-sm"
-            >
-              {isClockInTooEarly && clockStatus === "checked_out" && (
-                <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-pmedium text-amber-700">
-                  <Clock size={13} /> Clock-in opens at{" "}
-                  {formatTime12h(clockInWindow.opensAt)}, one hour before{" "}
-                  {assignedShiftName || "your shift"}.
-                </div>
-              )}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                <div className="flex items-center gap-4">
-                  <div className="relative shrink-0">
-                    {(clockStatus === "checked_in" ||
-                      clockStatus === "on_break") && (
-                      <span
-                        className={`absolute inset-0 rounded-2xl animate-ping opacity-40 ${clockStatus === "checked_in" ? "bg-emerald-400" : "bg-amber-400"}`}
-                      />
-                    )}
-                    <div
-                      className={`relative p-3 rounded-2xl ${clockStatus === "checked_in" ? "bg-emerald-100 text-emerald-600" : clockStatus === "on_break" ? "bg-amber-100 text-amber-600" : "bg-slate-100 text-slate-600"}`}
-                    >
-                      {clockStatus === "checked_in" ? (
-                        <LogIn size={22} />
-                      ) : clockStatus === "on_break" ? (
-                        <Coffee size={22} />
-                      ) : isTodayCompleted ? (
-                        <LogOut size={22} />
-                      ) : (
-                        <Clock size={22} />
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">
-                      Current Status
-                    </p>
-                    <p className="text-lg font-pbold text-slate-900 flex items-center gap-2">
-                      {clockStatusLabel}
-                      {(clockStatus === "checked_in" ||
-                        clockStatus === "on_break") && (
-                        <span
-                          className={`inline-flex h-2 w-2 rounded-full ${clockStatus === "checked_in" ? "bg-emerald-500" : "bg-amber-500"} animate-pulse`}
-                        />
-                      )}
-                    </p>
-                    <p className="text-xs font-pmedium text-slate-500 mt-0.5">
-                      {clockStatusTime}
-                    </p>
-                  </div>
-                </div>
-                <div
-                  data-tour="attendance-clock-actions"
-                  className="flex items-center gap-2"
-                >
-                  {clockStatus === "checked_out" && (
-                    <button
-                      onClick={() => handleClockAction("in")}
-                      disabled={
-                        isClockLoading ||
-                        isCapturing ||
-                        isTodayCompleted ||
-                        isClockDisabledByConfig ||
-                        isClockInTooEarly ||
-                        isOnLeaveToday ||
-                        isHolidayToday
-                      }
-                      className="px-5 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-xs uppercase hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
-                    >
-                      {isCapturing ? (
-                        <>
-                          <Camera size={14} className="animate-pulse" /> Opening
-                          camera...
-                        </>
-                      ) : isClockLoading ? (
-                        <>
-                          <RefreshCw size={14} className="animate-spin" />{" "}
-                          Processing...
-                        </>
-                      ) : isOnLeaveToday ? (
-                        <>
-                          <LogIn size={14} /> On Leave
-                        </>
-                      ) : isHolidayToday ? (
-                        <>
-                          <LogIn size={14} /> Holiday
-                        </>
-                      ) : (
-                        <>
-                          <LogIn size={14} /> Clock In
-                        </>
-                      )}
-                    </button>
-                  )}
-                  {clockStatus === "checked_in" && (
-                    <>
-                      <button
-                        onClick={handleStartBreak}
-                        disabled={
-                          isClockLoading ||
-                          isTodayCompleted ||
-                          isClockDisabledByConfig
-                        }
-                        className="px-4 py-2.5 bg-amber-100 text-amber-700 rounded-xl font-pmedium text-xs uppercase hover:bg-amber-200 transition-colors disabled:opacity-50 flex items-center gap-2"
-                      >
-                        {isClockLoading ? (
-                          <RefreshCw size={14} className="animate-spin" />
-                        ) : (
-                          <Coffee size={14} />
-                        )}
-                        Start Break
-                      </button>
-                      <button
-                        onClick={() => handleClockAction("out")}
-                        disabled={
-                          isClockLoading ||
-                          isCapturing ||
-                          isTodayCompleted ||
-                          isClockDisabledByConfig
-                        }
-                        className="px-4 py-2.5 bg-rose-100 text-rose-700 rounded-xl font-pmedium text-xs uppercase hover:bg-rose-200 transition-colors disabled:opacity-50 flex items-center gap-2"
-                      >
-                        {isCapturing ? (
-                          <Camera size={14} className="animate-pulse" />
-                        ) : isClockLoading ? (
-                          <RefreshCw size={14} className="animate-spin" />
-                        ) : (
-                          <LogOut size={14} />
-                        )}
-                        Clock Out
-                      </button>
-                    </>
-                  )}
-                  {clockStatus === "on_break" && (
-                    <button
-                      onClick={handleEndBreak}
-                      disabled={
-                        isClockLoading ||
-                        isTodayCompleted ||
-                        isClockDisabledByConfig
-                      }
-                      className="px-4 py-2.5 bg-emerald-100 text-emerald-700 rounded-xl font-pmedium text-xs uppercase hover:bg-emerald-200 transition-colors disabled:opacity-50 flex items-center gap-2"
-                    >
-                      {isClockLoading ? (
-                        <RefreshCw size={14} className="animate-spin" />
-                      ) : (
-                        <Check size={14} />
-                      )}
-                      End Break
-                    </button>
-                  )}
-                </div>
-              </div>
+            <div className="flex flex-col gap-3">
+              <TodayAttendanceCard
+                variant="hero"
+                disableClockIn={Boolean(clockInDisabledReason)}
+                disabledReason={clockInDisabledReason}
+                showViewDetailsLink={false}
+                onChanged={reloadMyAttendance}
+              />
 
-              {/* Live calculations */}
+              {/* Daily target — kept as its own strip since the dashboard card doesn't carry a shift target */}
               <div
-                data-tour="attendance-calculations"
-                className="mt-4 pt-4 border-t border-blue-100/70"
+                data-tour="attendance-daily-target"
+                className="rounded-2xl border border-slate-100 bg-white px-4 py-3"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-[10px] font-pmedium uppercase tracking-[0.18em] text-slate-500">
-                    Today's Calculations
-                  </p>
-                  {clockStatus === "on_break" && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-widest text-amber-700">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />{" "}
-                      Current Break Running
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
+                    Daily Target{" "}
+                    <span className="text-slate-700 font-pbold normal-case tracking-normal">
+                      {formatSeconds(dailyTargetSeconds)}
                     </span>
-                  )}
-                </div>
-                <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-                  <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
-                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
-                      Total Time
-                    </p>
-                    <p className="mt-1 text-lg font-pbold text-slate-900">
-                      {formatSeconds(totalSeconds)}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
-                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
-                      Total Break
-                    </p>
-                    <p className="mt-1 text-lg font-pbold text-amber-600">
-                      {formatSeconds(breakSeconds)}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
-                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
-                      Current Break
-                    </p>
-                    <p className="mt-1 text-lg font-pbold text-amber-600">
-                      {!isTodayInProgress && !isTodayCompleted
-                        ? "--"
-                        : clockStatus === "on_break"
-                          ? formatSeconds(currentBreakSeconds)
-                          : "0m"}
-                    </p>
-                  </div>
-                  <div
-                    className={`rounded-2xl border px-4 py-3 ${targetReached ? "border-emerald-200 bg-emerald-50/60" : "border-slate-100 bg-white"}`}
-                  >
-                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
-                      Working Hours
-                    </p>
-                    <p
-                      className={`mt-1 text-lg font-pbold ${targetReached ? "text-emerald-600" : "text-emerald-600"}`}
-                    >
-                      {formatSeconds(workedSeconds)}
-                      {targetReached && (
-                        <span className="ml-1.5 align-middle text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">
-                          Done
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Daily target */}
-                <div
-                  data-tour="attendance-daily-target"
-                  className="mt-3 rounded-2xl border border-slate-100 bg-white px-4 py-3"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
-                      Daily Target{" "}
-                      <span className="text-slate-700 font-pbold normal-case tracking-normal">
-                        {formatSeconds(dailyTargetSeconds)}
+                    {assignedShiftName && (
+                      <span className="ml-2 text-blue-600">
+                        • {assignedShiftName} (
+                        {formatTime12h(attendanceSettings.workingHoursStart)}{" "}
+                        – {formatTime12h(attendanceSettings.workingHoursEnd)})
                       </span>
-                      {assignedShiftName && (
-                        <span className="ml-2 text-blue-600">
-                          • {assignedShiftName} (
-                          {formatTime12h(attendanceSettings.workingHoursStart)}{" "}
-                          – {formatTime12h(attendanceSettings.workingHoursEnd)})
-                        </span>
-                      )}
-                    </p>
-                    <p
-                      className={`text-[10px] font-pmedium uppercase tracking-widest ${targetReached ? "text-emerald-600" : "text-blue-600"}`}
-                    >
-                      {targetReached
-                        ? "Target completed"
-                        : `${targetPercentage}% complete`}
-                    </p>
-                  </div>
-                  <div className="mt-2 h-2 rounded-full bg-slate-100 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${targetReached ? "bg-emerald-500" : "bg-[#2563EB]"}`}
-                      style={{ width: `${targetPercentage}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Today's timeline — folded into this card instead of a separate one below, since everything here is already scoped to today */}
-                {(isTodayInProgress || isTodayCompleted) && (
-                  <div className="mt-3 rounded-2xl border border-slate-100 bg-white px-4 py-3">
-                    {/* <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Today's Timeline</p>
-                    <span className={`rounded-full px-3 py-1 text-[10px] font-pmedium uppercase tracking-[0.24em] ${clockStatus === 'on_break' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
-                      {clockStatusLabel}
-                    </span>
-                  </div> */}
-                    <AttendanceDayTimeline
-                      record={todayRecord || undefined}
-                      hideSummary
-                      compact
-                    />
-                    {isTodayCompleted && (
-                      <p className="mt-3 text-[11px] font-pmedium text-emerald-700">
-                        Attendance is locked for today. The summary will reset
-                        after midnight.
-                      </p>
                     )}
-                  </div>
-                )}
+                  </p>
+                  <p
+                    className={`text-[10px] font-pmedium uppercase tracking-widest ${targetReached ? "text-emerald-600" : "text-blue-600"}`}
+                  >
+                    {targetReached
+                      ? "Target completed"
+                      : `${targetPercentage}% complete`}
+                  </p>
+                </div>
+                <div className="mt-2 h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${targetReached ? "bg-emerald-500" : "bg-[#2563EB]"}`}
+                    style={{ width: `${targetPercentage}%` }}
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -2368,163 +1876,6 @@ export function AttendancePage() {
 
       {/* ── MODALS ── */}
 
-      {/* Clock Modal */}
-      <AnimatePresence>
-        {showClockModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-md flex items-center justify-center z-[100] p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-[1.75rem] w-full max-w-[420px] shadow-2xl overflow-hidden max-h-[calc(100vh-1.5rem)] flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                <div>
-                  <h2 className="text-lg font-pmedium text-primary flex items-center gap-2">
-                    <Camera size={18} className="text-[#2563EB]" />
-                    Capture Selfie
-                  </h2>
-                  <p className="mt-1 text-[10px] font-pmedium uppercase tracking-[0.24em] text-slate-400">
-                    {clockMode === "in" ? "Check In" : "Check Out"} verification
-                  </p>
-                </div>
-                <button
-                  onClick={closeClockModal}
-                  disabled={isClockLoading}
-                  className="p-2 bg-white rounded-full shadow-sm hover:scale-110 transition-transform disabled:opacity-50"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto px-5 py-5">
-                <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-slate-950 shadow-inner">
-                  <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-                    <p className="text-[10px] font-pmedium uppercase tracking-[0.28em] text-slate-300">
-                      Selfie Preview
-                    </p>
-                    <div className="text-[10px] font-pmedium text-slate-400">
-                      {cameraReady
-                        ? "Ready to capture"
-                        : isCapturing
-                          ? "Requesting access..."
-                          : "Waiting for access"}
-                    </div>
-                  </div>
-                  <div className="p-2.5">
-                    <div className="relative min-h-[380px] overflow-hidden rounded-[1.35rem] bg-black">
-                      <video
-                        ref={videoRef}
-                        className="absolute inset-0 h-full w-full object-cover object-center"
-                        playsInline
-                        muted
-                        autoPlay
-                      />
-                      {capturedSelfie && (
-                        <img
-                          src={capturedSelfie}
-                          alt="Captured selfie"
-                          className="absolute inset-0 h-full w-full object-cover object-center"
-                        />
-                      )}
-                      {!cameraReady && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80">
-                          <div className="text-center">
-                            <Camera
-                              size={28}
-                              className="mx-auto text-slate-400"
-                            />
-                            <p className="mt-3 text-xs font-pmedium text-slate-300">
-                              Camera preview will appear here
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-                    <p className="text-xs font-pmedium uppercase text-slate-500">
-                      Date
-                    </p>
-                    <p className="mt-1 text-xs font-pbold text-slate-700">
-                      {captureOpenedAt
-                        ? captureOpenedAt.toLocaleDateString()
-                        : new Date().toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-                    <p className="text-xs font-pmedium uppercase text-slate-500">
-                      Time
-                    </p>
-                    <p className="mt-1 text-xs font-pbold text-slate-700">
-                      {captureOpenedAt
-                        ? captureOpenedAt.toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        : new Date().toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                    </p>
-                  </div>
-                </div>
-                <canvas ref={canvasRef} className="hidden" />
-              </div>
-
-              <div className="shrink-0 border-t border-slate-100 bg-slate-50 px-5 py-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={
-                      capturedSelfie ? handleRetakeSelfie : closeClockModal
-                    }
-                    disabled={isClockLoading}
-                    className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 text-xs font-pmedium uppercase text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50"
-                  >
-                    <X size={14} />
-                    {capturedSelfie ? "Retake" : "Cancel"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={
-                      capturedSelfie ? handleSubmitClock : handleCaptureSelfie
-                    }
-                    disabled={
-                      isClockLoading || !cameraReady || !capturedLocation
-                    }
-                    className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] py-3 text-xs font-pmedium uppercase text-white shadow-sm transition-colors hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {isClockLoading ? (
-                      <>
-                        <RefreshCw size={14} className="animate-spin" />{" "}
-                        Processing...
-                      </>
-                    ) : capturedSelfie ? (
-                      <>
-                        <Check size={14} /> Proceed
-                      </>
-                    ) : (
-                      <>
-                        <Camera size={14} /> Capture
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Correction Form Modal */}
       <AnimatePresence>
         {showCorrectionForm && (
@@ -2557,6 +1908,17 @@ export function AttendancePage() {
                 className="flex flex-col overflow-hidden flex-1"
               >
                 <div className="p-6 space-y-4 overflow-y-auto flex-1">
+                  {isForcedClockOutCorrection && (
+                    <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[12px] font-pmedium text-amber-700">
+                      <AlertTriangle size={15} className="shrink-0 mt-0.5" />
+                      <span>
+                        You didn't clock out on{" "}
+                        {formatDateDMY(correctionForm.date)}, so it was
+                        auto-closed. Enter the actual clock-out time below —
+                        HR will review and approve it.
+                      </span>
+                    </div>
+                  )}
                   <div>
                     <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">
                       Correct

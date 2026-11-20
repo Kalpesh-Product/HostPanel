@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Calendar, CheckCircle2, Clock, Download, Eye, FileText,
-  FolderClosed, Search, UserCheck, X, XCircle,
+  FolderClosed, Search, UserCheck, UserMinus, UserX, X, XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { getEmployeeDocumentsVault } from "@/services/hr";
@@ -11,6 +11,7 @@ import { createReport } from "@/services/reports";
 import { downloadReportFile } from "@/utils/report-download";
 import ExportReportModal, { type ExportParams } from "@/components/ExportReportModal";
 import ReportExportButton from "@/components/ReportExportButton";
+import { useLocation } from "react-router-dom";
 
 /* ───────────────────────────── Types ───────────────────────────── */
 
@@ -25,6 +26,7 @@ interface VaultEmployee {
   department: string; departments: string[]; role: string;
   status: string; statusKey: string;
   documents: VaultDocument[]; documentCount: number;
+  updatedAt: Date | null;
 }
 
 interface SummaryData {
@@ -142,6 +144,7 @@ function normalizeEmployee(employee: Record<string, unknown> = {}): VaultEmploye
     statusKey: String(employee.statusKey || employee.status || "").toLowerCase(),
     documents,
     documentCount: documents.length,
+    updatedAt: employee.updatedAt ? new Date(employee.updatedAt as string) : null,
   };
 }
 
@@ -163,6 +166,7 @@ function groupDocumentsIntoEmployees(documents: Record<string, unknown>[] = []):
       status: String(doc.employeeStatus || "Invite Sent"),
       statusKey: String(doc.employeeStatusKey || "").toLowerCase(),
       documents: [],
+      updatedAt: null,
     };
     current.documents.push(normalizeDocument(doc, current));
     groups.set(groupKey, current);
@@ -186,10 +190,17 @@ function TableRowSkeleton({ columns }: { columns: number }) {
 
 /* ───────────────────── Main Component ───────────────────── */
 
-export default function HRDocumentsPage(): React.ReactElement {
+export default function HRDocumentsPage({
+  modulePage,
+}: {
+  modulePage?: "active" | "inactive";
+} = {}): React.ReactElement {
+  const location = useLocation();
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
-  const [activeTab, setActiveTab] = useState<"active" | "inactive">("active");
+  const [activeTab, setActiveTab] = useState<"active" | "inactive">(
+    modulePage || "active",
+  );
   const [showExportModal, setShowExportModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("All Departments");
@@ -199,6 +210,17 @@ export default function HRDocumentsPage(): React.ReactElement {
   const [summary, setSummary] = useState<SummaryData>({
     totalEmployees: 0, activeEmployees: 0, inactiveEmployees: 0, totalDocuments: 0,
   });
+
+  useEffect(() => {
+    if (modulePage) {
+      setActiveTab(modulePage);
+      return;
+    }
+    const requestedTab = new URLSearchParams(location.search).get("tab");
+    if (requestedTab === "active" || requestedTab === "inactive") {
+      setActiveTab(requestedTab);
+    }
+  }, [location.search, modulePage]);
 
   useEffect(() => {
     let isMounted = true;
@@ -298,19 +320,31 @@ export default function HRDocumentsPage(): React.ReactElement {
   };
 
   const cardValues = useMemo(() => {
-    const inactiveCount = documentRecords.filter((e) => INACTIVE_STATUSES.has(e.statusKey)).length;
+    const activeEmployees = documentRecords.filter((e) => !INACTIVE_STATUSES.has(e.statusKey));
+    const inactiveEmployees = documentRecords.filter((e) => INACTIVE_STATUSES.has(e.statusKey));
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
     return {
       totalDocuments: documentRecords.reduce((sum, e) => sum + e.documentCount, 0),
-      activeEmployees: documentRecords.length - inactiveCount,
-      inactiveEmployees: inactiveCount,
+      activeTotalDocuments: activeEmployees.reduce((sum, e) => sum + e.documentCount, 0),
+      inactiveTotalDocuments: inactiveEmployees.reduce((sum, e) => sum + e.documentCount, 0),
+      activeEmployees: activeEmployees.length,
+      inactiveEmployees: inactiveEmployees.length,
+      activeMissingDocs: activeEmployees.filter((e) => e.documentCount === 0).length,
+      recentlyOffboarded: inactiveEmployees.filter((e) => (e.updatedAt?.getTime() || 0) >= thirtyDaysAgo).length,
     };
   }, [documentRecords]);
 
-  const statCards = [
-    { label: "Total Vault Files", value: cardValues.totalDocuments, icon: FolderClosed, toneClass: "bg-blue-50 text-blue-600", accentClass: "", labelClass: "text-slate-400" },
-    { label: "Active Employee Folders", value: cardValues.activeEmployees, icon: CheckCircle2, toneClass: "bg-emerald-50 text-emerald-600", accentClass: "border-l-4 border-l-emerald-500", labelClass: "text-emerald-600" },
-    { label: "Inactive / Ex-Employees", value: cardValues.inactiveEmployees, icon: XCircle, toneClass: "bg-slate-100 text-slate-500", accentClass: "border-l-4 border-l-slate-400", labelClass: "text-slate-400" },
-  ];
+  const statCards = activeTab === "active"
+    ? [
+      { label: "Total Vault Files", value: cardValues.activeTotalDocuments, icon: FolderClosed, toneClass: "bg-blue-50 text-blue-600", accentClass: "", labelClass: "text-slate-400" },
+      { label: "Active Employee Folders", value: cardValues.activeEmployees, icon: CheckCircle2, toneClass: "bg-emerald-50 text-emerald-600", accentClass: "border-l-4 border-l-emerald-500", labelClass: "text-emerald-600" },
+      { label: "Employees With No Docs", value: cardValues.activeMissingDocs, icon: UserX, toneClass: "bg-amber-50 text-amber-600", accentClass: "border-l-4 border-l-amber-400", labelClass: "text-amber-600" },
+    ]
+    : [
+      { label: "Total Archived Files", value: cardValues.inactiveTotalDocuments, icon: FolderClosed, toneClass: "bg-blue-50 text-blue-600", accentClass: "", labelClass: "text-slate-400" },
+      { label: "Inactive / Ex-Employees", value: cardValues.inactiveEmployees, icon: XCircle, toneClass: "bg-slate-100 text-slate-500", accentClass: "border-l-4 border-l-slate-400", labelClass: "text-slate-400" },
+      { label: "Recently Offboarded (30d)", value: cardValues.recentlyOffboarded, icon: UserMinus, toneClass: "bg-rose-50 text-rose-600", accentClass: "border-l-4 border-l-rose-400", labelClass: "text-rose-600" },
+    ];
 
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
@@ -318,16 +352,22 @@ export default function HRDocumentsPage(): React.ReactElement {
         <HRDocumentsSkeleton />
       ) : (
       <PageFrame>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4" data-active-tab={activeTab}>
 
           {/* ═══ HEADER ═══ */}
           <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                Document Vault
+                {modulePage
+                  ? activeTab === "active"
+                    ? "Active Employee Documents"
+                    : "Inactive Employee Documents"
+                  : "Document Vault"}
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
-                Manage and view employee documents securely.
+                {activeTab === "active"
+                  ? "Review and manage documents for active employees."
+                  : "Review archived documents for inactive and former employees."}
               </p>
             </div>
             <ReportExportButton onClick={() => setShowExportModal(true)} />
@@ -340,6 +380,7 @@ export default function HRDocumentsPage(): React.ReactElement {
           )}
 
           {/* ═══ MAIN PILL TABS ═══ */}
+{!modulePage ? (
 <div data-tour="hr-docs-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
   {([
     { key: "active" as const, label: "Active Employees" },
@@ -358,6 +399,7 @@ export default function HRDocumentsPage(): React.ReactElement {
     </button>
   ))}
 </div>
+) : null}
 
 
           {/* ═══ STAT CARDS (3-col) ═══ */}

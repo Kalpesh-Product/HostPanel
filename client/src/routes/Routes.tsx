@@ -69,19 +69,28 @@ import MyTaskReports from "../pages/Tasks/TaskReports/MyTaskReports";
 import AssignedTaskReports from "../pages/Tasks/TaskReports/AssignedTaskReports";
 import DepartmentTaskReports from "../pages/Tasks/TaskReports/DepartmentTaskReports";
 import HREmployeeManagementPage from "../pages/HR/HREmployeeManagementPage";
+import CompanyManagementWorkspaceDashboard from "../pages/HR/CompanyManagementWorkspaceDashboard";
 import HRDocumentsPage from "../pages/HR/HRDocumentsPage";
+import HRDocumentsWorkspaceDashboard from "../pages/HR/HRDocumentsWorkspaceDashboard";
 import HRAttendanceReviewPage from "../pages/HR/HRAttendanceReviewPage";
+import HRAttendanceReviewWorkspaceDashboard from "../pages/HR/HRAttendanceReviewWorkspaceDashboard";
 import HREmployeeAttendanceDetailPage from "../pages/HR/HREmployeeAttendanceDetailPage";
 import HRLeaveRequestsProcessingPage from "../pages/HR/HRLeaveRequestsProcessingPage";
+import HRLeaveRequestsProcessingWorkspaceDashboard from "../pages/HR/HRLeaveRequestsProcessingWorkspaceDashboard";
 import HRRecruitmentPage from "../pages/HR/HRRecruitmentPage";
+import HRRecruitmentWorkspaceDashboard from "../pages/HR/HRRecruitmentWorkspaceDashboard";
 import HRPayrollPage from "../pages/HR/HRPayrollPage";
 import HRResignationManagementPage from "../pages/HR/HRResignationManagementPage";
+import HRResignationManagementWorkspaceDashboard from "../pages/HR/HRResignationManagementWorkspaceDashboard";
 import { ExpensesBudgetPage } from "../pages/Finance/ExpensesBudgetPage";
+import ExpensesBudgetWorkspaceDashboard from "../pages/Finance/ExpensesBudgetWorkspaceDashboard";
 import { FinanceBudgetReviewPage } from "../pages/Finance/FinanceBudgetReviewPage";
 import { FinanceMonthExpensesPage } from "../pages/Finance/FinanceMonthExpensesPage";
 import { FinanceDepartmentOverviewPage } from "../pages/Finance/FinanceDepartmentOverviewPage";
 import { BillingPaymentsPage } from "../pages/Finance/BillingPaymentsPage";
+import BillingPaymentsWorkspaceDashboard from "../pages/Finance/BillingPaymentsWorkspaceDashboard";
 import AccountingPage from "../pages/Finance/AccountingPage";
+import AccountingWorkspaceDashboard from "../pages/Finance/AccountingWorkspaceDashboard";
 import VendorTable from "../components/Pages/VendorTable";
 import AssetsHome from "../pages/Assets/AssetsHome";
 import ManageAssetsHome from "../pages/Assets/ManageAssetsHome";
@@ -182,8 +191,11 @@ import ResourceManagementWorkspaceDashboard from "../pages/Administration/Resour
 import AdministrationHousekeepingPage from "../pages/Administration/HouseKeeping/HousekeepingPage";
 import HousekeepingDashboard from "../pages/Administration/HouseKeeping/HousekeepingDashboard";
 import RepairLogsPage from "../pages/Maintenance/RepairLogsPage";
+import RepairLogsWorkspaceDashboard from "../pages/Maintenance/RepairLogsWorkspaceDashboard";
 import AMCMaintenanceSchedulerPage from "../pages/Maintenance/AMCMaintenanceSchedulerPage";
+import AMCMaintenanceSchedulerWorkspaceDashboard from "../pages/Maintenance/AMCMaintenanceSchedulerWorkspaceDashboard";
 import ITRepairLogsPage from "../pages/IT/ITRepairLogsPage";
+import ITRepairLogsWorkspaceDashboard from "../pages/IT/ITRepairLogsWorkspaceDashboard";
 import SystemAccessManagementPage from "../pages/IT/SystemAccessManagementPage";
 import { TicketsPage } from "../pages/Tickets/TicketsPage";
 import TicketsWorkspaceDashboard from "../pages/Tickets/TicketsWorkspaceDashboard";
@@ -920,6 +932,14 @@ export const routes = createBrowserRouter([
               {
                 path: "common-modules/customer-support/list",
                 element: <CustomerSupportPage />,
+              },
+              {
+                path: "common-modules/customer-support/raised",
+                element: <CustomerSupportPage modulePage="raised" />,
+              },
+              {
+                path: "common-modules/customer-support/resolved",
+                element: <CustomerSupportPage modulePage="resolved" />,
               },
               {
                 path: "common-modules/attendance",
@@ -1902,11 +1922,31 @@ export const routes = createBrowserRouter([
               // Department Access — Maintenance
               {
                 path: "department-accesses/maintenance-department/repair-logs",
-                element: <RepairLogsPage />,
+                element: <RepairLogsWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/maintenance-department/repair-logs/team-active",
+                element: <RepairLogsPage modulePage="team-active" />,
+              },
+              {
+                path: "department-accesses/maintenance-department/repair-logs/my-work",
+                element: <RepairLogsPage modulePage="my-work" />,
+              },
+              {
+                path: "department-accesses/maintenance-department/repair-logs/history",
+                element: <RepairLogsPage modulePage="history" />,
               },
               {
                 path: "department-accesses/maintenance-department/amc-scheduler",
-                element: <AMCMaintenanceSchedulerPage />,
+                element: <AMCMaintenanceSchedulerWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/maintenance-department/amc-scheduler/schedules",
+                element: <AMCMaintenanceSchedulerPage modulePage="schedules" />,
+              },
+              {
+                path: "department-accesses/maintenance-department/amc-scheduler/alerts",
+                element: <AMCMaintenanceSchedulerPage modulePage="alerts" />,
               },
               {
                 path: "maintenance/*",
@@ -1918,7 +1958,19 @@ export const routes = createBrowserRouter([
               // Department Access — IT
               {
                 path: "department-accesses/it-department/repair-logs",
-                element: <ITRepairLogsPage />,
+                element: <ITRepairLogsWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/it-department/repair-logs/active",
+                element: <ITRepairLogsPage modulePage="active" />,
+              },
+              {
+                path: "department-accesses/it-department/repair-logs/my-work",
+                element: <ITRepairLogsPage modulePage="my-work" />,
+              },
+              {
+                path: "department-accesses/it-department/repair-logs/history",
+                element: <ITRepairLogsPage modulePage="history" />,
               },
               {
                 path: "department-accesses/it-department/system-access",
@@ -1934,15 +1986,65 @@ export const routes = createBrowserRouter([
               // Department Access — HR
               {
                 path: "department-accesses/hr-department/company-management",
-                element: <HREmployeeManagementPage />,
+                element: <CompanyManagementWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/hr-department/company-management/list",
+                element: (
+                  <Navigate
+                    to="/department-accesses/hr-department/company-management/employee-management"
+                    replace
+                  />
+                ),
+              },
+              {
+                path: "department-accesses/hr-department/company-management/employee-management",
+                element: <HREmployeeManagementPage modulePage="employees" />,
+              },
+              {
+                path: "department-accesses/hr-department/company-management/company-sop",
+                element: <HREmployeeManagementPage modulePage="sop" />,
+              },
+              {
+                path: "department-accesses/hr-department/company-management/company-policies",
+                element: <HREmployeeManagementPage modulePage="policies" />,
+              },
+              {
+                path: "department-accesses/hr-department/company-management/birthdays",
+                element: <HREmployeeManagementPage modulePage="birthdays" />,
               },
               {
                 path: "department-accesses/hr-department/documents",
-                element: <HRDocumentsPage />,
+                element: <HRDocumentsWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/hr-department/documents/list",
+                element: (
+                  <Navigate
+                    to="/department-accesses/hr-department/documents/active-employees"
+                    replace
+                  />
+                ),
+              },
+              {
+                path: "department-accesses/hr-department/documents/active-employees",
+                element: <HRDocumentsPage modulePage="active" />,
+              },
+              {
+                path: "department-accesses/hr-department/documents/inactive-employees",
+                element: <HRDocumentsPage modulePage="inactive" />,
               },
               {
                 path: "department-accesses/hr-department/attendance-review",
-                element: <HRAttendanceReviewPage />,
+                element: <HRAttendanceReviewWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/hr-department/attendance-review/attendance-master",
+                element: <HRAttendanceReviewPage modulePage="attendance-master" />,
+              },
+              {
+                path: "department-accesses/hr-department/attendance-review/correction-requests",
+                element: <HRAttendanceReviewPage modulePage="correction-requests" />,
               },
               {
                 path: "department-accesses/hr-department/attendance-review/:userId",
@@ -1950,11 +2052,48 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/hr-department/leave-request-processing",
-                element: <HRLeaveRequestsProcessingPage />,
+                element: <HRLeaveRequestsProcessingWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/hr-department/leave-request-processing/requests",
+                element: <HRLeaveRequestsProcessingPage modulePage="requests" />,
+              },
+              {
+                path: "department-accesses/hr-department/leave-request-processing/current",
+                element: <HRLeaveRequestsProcessingPage modulePage="current" />,
+              },
+              {
+                path: "department-accesses/hr-department/leave-request-processing/master",
+                element: <HRLeaveRequestsProcessingPage modulePage="master" />,
+              },
+              {
+                path: "department-accesses/hr-department/leave-request-processing/quotas",
+                element: <HRLeaveRequestsProcessingPage modulePage="quotas" />,
+              },
+              {
+                path: "department-accesses/hr-department/leave-request-processing/holidays",
+                element: <HRLeaveRequestsProcessingPage modulePage="holidays" />,
               },
               {
                 path: "department-accesses/hr-department/recruitment",
-                element: <HRRecruitmentPage />,
+                element: <HRRecruitmentWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/hr-department/recruitment/list",
+                element: (
+                  <Navigate
+                    to="/department-accesses/hr-department/recruitment/job-openings"
+                    replace
+                  />
+                ),
+              },
+              {
+                path: "department-accesses/hr-department/recruitment/job-openings",
+                element: <HRRecruitmentPage modulePage="jobs" />,
+              },
+              {
+                path: "department-accesses/hr-department/recruitment/candidates",
+                element: <HRRecruitmentPage modulePage="candidates" />,
               },
               {
                 path: "department-accesses/hr-department/payroll-management",
@@ -1962,7 +2101,19 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/hr-department/resignation-management",
-                element: <HRResignationManagementPage />,
+                element: <HRResignationManagementWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/hr-department/resignation-management/requests",
+                element: <HRResignationManagementPage modulePage="requests" />,
+              },
+              {
+                path: "department-accesses/hr-department/resignation-management/notice",
+                element: <HRResignationManagementPage modulePage="notice" />,
+              },
+              {
+                path: "department-accesses/hr-department/resignation-management/history",
+                element: <HRResignationManagementPage modulePage="history" />,
               },
               {
                 path: "department-accesses/hr-department/exit-management",
@@ -1983,6 +2134,10 @@ export const routes = createBrowserRouter([
               // Department Access — Finance
               {
                 path: "department-accesses/finance-department/expenses-budget",
+                element: <ExpensesBudgetWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/finance-department/expenses-budget/:section",
                 element: <ExpensesBudgetPage />,
               },
               {
@@ -1995,10 +2150,18 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/finance-department/billing-payments",
+                element: <BillingPaymentsWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/finance-department/billing-payments/:section",
                 element: <BillingPaymentsPage />,
               },
               {
                 path: "department-accesses/finance-department/accounting",
+                element: <AccountingWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/finance-department/accounting/:section",
                 element: <AccountingPage />,
               },
               {

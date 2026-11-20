@@ -97,8 +97,10 @@ interface AttendanceStats {
   rejectedCorrections: number;
 }
 
+type AttendanceReviewModulePage = "attendance-master" | "correction-requests";
+
 interface TabOption {
-  key: string;
+  key: AttendanceReviewModulePage;
   label: string;
 }
 
@@ -534,11 +536,17 @@ function CorrectionDetailModal({ record, open, onClose, onAction, acting }: Corr
 /*  Main Page Component                                            */
 /* ──────────────────────────────────────────────────────────────── */
 
-export default function HRAttendanceReviewPage() {
+export default function HRAttendanceReviewPage({
+  modulePage,
+}: {
+  modulePage?: AttendanceReviewModulePage;
+}) {
   const navigate = useNavigate();
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState("attendance-master");
+  const [activeTab, setActiveTab] = useState<AttendanceReviewModulePage>(
+    modulePage || "attendance-master",
+  );
   const [showExportModal, setShowExportModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -622,6 +630,14 @@ export default function HRAttendanceReviewPage() {
     halfDayMarkAfter: null,
     shifts: [],
   });
+
+  useEffect(() => {
+    if (!modulePage) return;
+    setActiveTab(modulePage);
+    setStatusFilter("all");
+    setSearchQuery("");
+    setShowCustomRangePopup(false);
+  }, [modulePage]);
 
   useEffect(() => {
     if (searchParams.get("openAttendanceSettings") !== "1") return;
@@ -1231,30 +1247,38 @@ export default function HRAttendanceReviewPage() {
           <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                Attendance Review
+                {modulePage
+                  ? activeTab === "attendance-master"
+                    ? "Attendance Master"
+                    : "Correction Requests"
+                  : "Attendance Review"}
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
-                Monitor employee attendance and manage correction requests.
+                {activeTab === "attendance-master"
+                  ? "Monitor employee attendance, punches, working hours, and daily status."
+                  : "Review, approve, or reject employee attendance correction requests."}
               </p>
             </div>
             <ReportExportButton onClick={() => setShowExportModal(true)} />
           </div>
 
-          <div data-tour="hr-attendance-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-            {MAIN_TABS.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => { setActiveTab(tab.key); setStatusFilter("all"); setSearchQuery(""); setShowCustomRangePopup(false); }}
-                className={`flex-1 min-w-[120px] rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
-                  activeTab === tab.key
-                    ? "bg-[#2563EB] text-white shadow-sm"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          {!modulePage ? (
+            <div data-tour="hr-attendance-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+              {MAIN_TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => { setActiveTab(tab.key); setStatusFilter("all"); setSearchQuery(""); setShowCustomRangePopup(false); }}
+                  className={`flex-1 min-w-[120px] rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
+                    activeTab === tab.key
+                      ? "bg-[#2563EB] text-white shadow-sm"
+                      : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           {/* ── Stat Cards ── */}
           <div data-tour="hr-attendance-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
