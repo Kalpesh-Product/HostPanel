@@ -1410,28 +1410,30 @@ export const WORKHUB_CSS = `
 
 .wh-facility-grid {
   display: grid;
-  grid-template-columns: 1.2fr .8fr .8fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(14px, 2vw, 24px);
+  align-items: stretch;
 }
 
-.wh-facility-grid article {
+.wh-facility-card {
+  display: flex;
+  min-width: 0;
+}
+
+.wh-facility-card article {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
   overflow: hidden;
-}
-
-.wh-facility-grid > div:first-child {
-  grid-row: span 2;
 }
 
 .wh-facility-figure {
   width: 100%;
-  height: clamp(180px, 24vw, 320px);
+  aspect-ratio: 4 / 3;
   border-radius: 20px;
   overflow: hidden;
   background: var(--wh-pale);
-}
-
-.wh-facility-grid > div:first-child .wh-facility-figure {
-  height: clamp(280px, 40vw, 560px);
 }
 
 .wh-facility-figure img,
@@ -1442,9 +1444,13 @@ export const WORKHUB_CSS = `
 }
 
 .wh-facility-grid h3 {
-  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  margin-top: 14px;
   font-size: 16px;
   font-weight: 600;
+  line-height: 1.35;
 }
 
 .wh-glimpse-grid {
@@ -2301,12 +2307,7 @@ export const WORKHUB_CSS = `
   }
 
   .wh-facility-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .wh-facility-grid > div:first-child {
-    grid-row: auto;
-    grid-column: span 2;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -2444,10 +2445,6 @@ export const WORKHUB_CSS = `
   .wh-facility-grid,
   .wh-inline-form > div {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .wh-facility-grid > div:first-child {
-    grid-column: auto;
   }
 
   .wh-service-directory > div > button {

@@ -116,7 +116,11 @@ export const WorkhubAbout: React.FC = () => {
               [images[2] || image, "Comfortable Lounge Areas"],
               [images[3] || image, "Gourmet Coffee Bar"],
             ].map(([src, title], index) => (
-              <WhReveal key={title as string} delay={index * 0.06}>
+              <WhReveal
+                className="wh-facility-card"
+                key={title as string}
+                delay={index * 0.06}
+              >
                 <article>
                   <div className="wh-facility-figure">
                     <WhImage src={src} alt={title as string} />
