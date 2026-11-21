@@ -20,6 +20,7 @@ const TEMPLATE_KIND: Record<string, ServiceKind> = {
   restobar: "menu",
   flowspace: "meeting",
   workscape: "meeting",
+  wavex: "meeting",
   workhub: "meeting",
   brixspace: "meeting",
   worpace: "workspace",
@@ -1043,6 +1044,99 @@ const WORKSCAPE_DEMO_BUSINESS: DemoBusiness = (() => {
       meetingRooms: rooms.map((room, index) => ({
         ...room,
         images: WORKSCAPE_PHOTOS.rooms
+          .slice(index * 3, index * 3 + 3)
+          .map((id) => photoValue(id)),
+      })),
+    },
+  };
+})();
+
+// WaveX previews with a warm, editorial daylight photo set and coral-led tone, distinct from
+// Workscape's architectural library. No reference-site CDN is used — every image is replaceable.
+const WAVEX_PHOTOS = {
+  hero: [
+    "photo-1524758631624-e2822e304c36",
+    "photo-1497366754035-f200968a6e72",
+    "photo-1521737711867-e3b97375f902",
+  ],
+  rooms: [
+    "photo-1497215842964-222b430dc094",
+    "photo-1517502884422-41eaead166d4",
+    "photo-1556761175-b413da4baf72",
+    "photo-1497366216548-37526070297c",
+    "photo-1568992687947-868a62a9f521",
+    "photo-1600508774634-4e11d34730e2",
+    "photo-1551836022-d5d88e9218df",
+    "photo-1556761175-4b46a572b786",
+    "photo-1504384308090-c894fdcc538d",
+    "photo-1542744173-8e7e53415bb0",
+    "photo-1552664730-d307ca884978",
+    "photo-1522071820081-009f0129c71c",
+  ],
+};
+const WAVEX_DEMO_BUSINESS: DemoBusiness = (() => {
+  const base = DEMO_BUSINESSES.meeting;
+  const rooms = ((base.extra as any).meetingRooms || []) as any[];
+  return {
+    ...base,
+    companyName: "WaveX Rooms",
+    title: "Your future workspace awaits you",
+    subTitle:
+      "Bright, thoughtfully designed rooms for focused meetings, workshops and everyday work.",
+    cta: "Book a room",
+    heroImages: WAVEX_PHOTOS.hero.map((id) => photo(id, 1900)),
+    gallery: [...WAVEX_PHOTOS.hero, ...WAVEX_PHOTOS.rooms].map((id) =>
+      photo(id, 1450),
+    ),
+    aboutImages: [
+      WAVEX_PHOTOS.hero[1],
+      WAVEX_PHOTOS.rooms[2],
+      WAVEX_PHOTOS.rooms[6],
+    ].map((id) => photo(id, 1200)),
+    aboutTitle: "A homegrown meeting space in Jaipur",
+    aboutPageStory:
+      "WaveX Rooms brings bright, fully furnished meeting spaces and a welcoming professional community together in Jaipur.",
+    about: [
+      "WaveX Rooms started with a simple idea: a meeting room should feel calm, bright and ready before you arrive.",
+      "Our spaces mix natural light, modern decor and quiet corners with practical technology, so focused work and good conversations both have room to happen.",
+    ],
+    founders: [
+      {
+        name: "Riya Malhotra",
+        role: "Founder & Space Director",
+        bio: "Riya designed WaveX Rooms around the way people actually meet, think and work together.",
+        image: photoValue("photo-1494790108377-be9c29b29330", 900),
+      },
+      {
+        name: "Kabir Sharma",
+        role: "Community Lead",
+        bio: "Kabir looks after the rooms, the members and the small details that make every visit easy.",
+        image: photoValue("photo-1500648767791-00dcc994a43e", 900),
+      },
+      {
+        name: "Ananya Mehta",
+        role: "Experience Manager",
+        bio: "Ananya makes sure every guest finds the right room and feels at home from the moment they arrive.",
+        image: photoValue("photo-1544005313-94ddf0286df2", 900),
+      },
+    ],
+    address:
+      "Airport Plaza, Plot No. 15, 1st & 2nd floor, Tonk Rd, next to Cocoon Hospital, Jaipur, Rajasthan 302016",
+    contactPersonName: "WaveX Rooms team",
+    contactPersonRole: "Bookings",
+    page: {
+      ...base.page,
+      heroHeading: "Our Space & memberships",
+      heroSubHeading:
+        "Pick the setup that fits your day, from a single desk to a private room for the whole team.",
+      heroImage: photo(WAVEX_PHOTOS.hero[0], 1900),
+      cardImage: photo(WAVEX_PHOTOS.hero[1], 1100),
+    },
+    extra: {
+      ...base.extra,
+      meetingRooms: rooms.map((room, index) => ({
+        ...room,
+        images: WAVEX_PHOTOS.rooms
           .slice(index * 3, index * 3 + 3)
           .map((id) => photoValue(id)),
       })),
@@ -2231,6 +2325,8 @@ const demoBusinessFor = (
     return FLOWSPACE_DEMO_BUSINESS;
   if (themeVariant === "workscape" && kind === "meeting")
     return WORKSCAPE_DEMO_BUSINESS;
+  if (themeVariant === "wavex" && kind === "meeting")
+    return WAVEX_DEMO_BUSINESS;
   if (themeVariant === "workhub" && kind === "meeting")
     return WORKHUB_DEMO_BUSINESS;
   if (themeVariant === "brixspace" && kind === "meeting")
