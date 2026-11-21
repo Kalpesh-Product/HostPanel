@@ -2,7 +2,7 @@ import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, Camera, CheckCircle2, Loader2, MapPin, Pencil, Save, ShieldCheck, X } from "lucide-react";
+import { Building2, Camera, CheckCircle2, Loader2, MapPin, Pencil, Save, ShieldCheck, Trash2, X } from "lucide-react";
 import { Country } from "country-state-city";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import { payForProfessionalUpgrade } from "../../utils/planUpgradePayment";
@@ -40,6 +40,7 @@ const CompanyProfile = () => {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [removingLogo, setRemovingLogo] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isUpgradeSubmitting, setIsUpgradeSubmitting] = useState(false);
   const [submittingPlanKey, setSubmittingPlanKey] = useState("");
@@ -410,6 +411,29 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
     }
   };
 
+  const handleRemoveLogo = async () => {
+    setRemovingLogo(true);
+    try {
+      await axios.delete("/api/profile/company-logo");
+      setAuth((prev) => ({
+        ...prev,
+        user: {
+          ...(prev?.user || {}),
+          logo: null,
+        },
+      }));
+      setPreviewUrl(null);
+      setFile(null);
+      setIsLogoPreviewOpen(false);
+      toast.success("Company logo removed successfully.");
+      await refetchProfile();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to remove company logo.");
+    } finally {
+      setRemovingLogo(false);
+    }
+  };
+
   const getUpgradeRequestStorageKey = (companyId: string) =>
     `hostpanel_upgrade_request_status_${companyId}`;
 
@@ -637,13 +661,23 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
                     alt="Company logo preview"
                     className="max-h-80 w-full rounded-xl border border-slate-100 object-contain p-4"
                   />
-                  <button
-                    type="button"
-                    onClick={openLogoPicker}
-                    className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-[#2563EB] px-4 py-2 text-[12px] font-pmedium text-white transition hover:bg-blue-700"
-                  >
-                    <Camera size={14} /> Change Logo
-                  </button>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={openLogoPicker}
+                      className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-[#2563EB] px-4 py-2 text-[12px] font-pmedium text-white transition hover:bg-blue-700"
+                    >
+                      <Camera size={14} /> Change Logo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRemoveLogo}
+                      disabled={removingLogo}
+                      className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-[12px] font-pmedium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <Trash2 size={14} /> {removingLogo ? "Removing..." : "Remove Logo"}
+                    </button>
+                  </div>
                 </div>
               </MuiModal>
 

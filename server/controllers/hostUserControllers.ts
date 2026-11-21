@@ -512,6 +512,108 @@ export const updateCompanyLogo = async (req, res) => {
   }
 };
 
+export const removeCompanyLogo = async (req, res) => {
+  try {
+    const userId = req.user;
+    const user = await HostUser.findById(userId).lean().exec();
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    let workspace = null;
+    if (user.primaryWorkspace) {
+      workspace = await Workspace.findById(user.primaryWorkspace).lean().exec();
+    }
+    if (!workspace) {
+      workspace = await Workspace.findOne({ owner: user._id, isActive: true })
+        .sort({ createdAt: -1 })
+        .lean()
+        .exec();
+    }
+    if (!workspace) {
+      const membershipWorkspace = await WorkspaceMember.findOne({
+        user: user._id,
+        isActive: true,
+      })
+        .sort({ isPrimary: -1, createdAt: 1 })
+        .populate("workspace")
+        .lean()
+        .exec();
+      workspace = membershipWorkspace?.workspace || null;
+    }
+
+    const workspaceBusinessName = String(workspace?.businessName || "")
+      .trim()
+      .toLowerCase();
+
+    const linkedCompanyId =
+      typeof user?.company === "string"
+        ? user.company
+        : user?.company?._id || user?.company?.id || null;
+
+    let company =
+      (user?.companyId
+        ? await HostCompany.findOne({ companyId: user.companyId }).exec()
+        : null) ||
+      (linkedCompanyId ? await HostCompany.findById(linkedCompanyId).exec() : null);
+
+    if (workspaceBusinessName) {
+      const companyName = String(company?.companyName || "").trim().toLowerCase();
+      if (!company || (companyName && companyName !== workspaceBusinessName)) {
+        const workspaceMatchedCompany = await HostCompany.findOne({
+          companyName: new RegExp(`^${workspaceBusinessName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+        }).exec();
+        if (workspaceMatchedCompany) {
+          company = workspaceMatchedCompany;
+        }
+      }
+    }
+
+    if (!company) {
+      return res.status(404).json({
+        success: false,
+        message: "Company not found.",
+      });
+    }
+
+    const previousLogoUrl = company?.logo?.url;
+    company.logo = undefined;
+    await company.save();
+
+    if (workspace?._id) {
+      await Workspace.findByIdAndUpdate(workspace._id, {
+        "branding.logoUrl": "",
+      }).exec();
+    }
+
+    if (previousLogoUrl) {
+      try {
+        await deleteFileFromS3ByUrl(previousLogoUrl);
+      } catch {
+        // keep request successful even if old cleanup fails
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Company logo removed successfully.",
+      data: {
+        logo: null,
+      },
+    });
+  } catch (error) {
+    console.error("Remove Company Logo Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to remove company logo.",
+    });
+  }
+};
+
 export const deleteMyAccount = async (req, res) => {
   try {
     const userId = req.user;

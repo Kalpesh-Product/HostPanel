@@ -5,6 +5,7 @@ import {
   deleteMyAccount,
   getMyProfile,
   updateCompanyLogo,
+  removeCompanyLogo,
   updateProfile,
   verifyPassword,
 } from "../controllers/hostUserControllers.js";
@@ -15,6 +16,7 @@ const router = Router();
 router.get("/me", getMyProfile);
 router.patch("/update-profile/:userId", updateProfile);
 router.patch("/company-logo", upload.single("logo"), updateCompanyLogo);
+router.delete("/company-logo", removeCompanyLogo);
 router.patch("/verify-password/:userId", verifyPassword);
 router.patch("/change-password/:userId", changePassword);
 router.post("/delete-account", deleteMyAccount);

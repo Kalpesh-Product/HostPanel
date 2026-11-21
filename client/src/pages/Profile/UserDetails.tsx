@@ -28,13 +28,14 @@ import {
   Save,
   ShieldCheck,
   User,
+  Trash2,
   UserRound,
   X,
 } from "lucide-react";
 import useAuth from "../../hooks/useAuth";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
-import { updateMyEmployeeProfile, updateMyProfilePicture } from "../../services/hr";
+import { removeMyProfilePicture, updateMyEmployeeProfile, updateMyProfilePicture } from "../../services/hr";
 import { formatTime12h } from "../../utils/time";
 import { getCompanyDocuments, getDepartmentDocuments, getAllDepartmentDocuments, downloadDepartmentDocumentFile, type DepartmentDocumentType } from "../../services/departmentDocuments";
 import { getCities, getCountries, getStates } from "../../utils/locationApi";
@@ -523,6 +524,7 @@ export default function UserDetails() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
   const [isAvatarUploading, setIsAvatarUploading] = useState(false);
+  const [isAvatarRemoving, setIsAvatarRemoving] = useState(false);
   const [isAvatarPreviewOpen, setIsAvatarPreviewOpen] = useState(false);
   const [cropSourceUrl, setCropSourceUrl] = useState<string | null>(null);
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
@@ -853,6 +855,32 @@ export default function UserDetails() {
     }
   };
 
+  const handleAvatarRemove = async () => {
+    setIsAvatarRemoving(true);
+    try {
+      await removeMyProfilePicture();
+      setEmployee((prev) => (prev ? { ...prev, profilePictureUrl: "" } : prev));
+      setAuth((prev) => ({
+        ...prev,
+        user: {
+          ...(prev?.user || {}),
+          profilePicture: null,
+        },
+      }));
+      setAvatarFile(null);
+      setAvatarPreviewUrl(null);
+      setIsAvatarPreviewOpen(false);
+      toast.success("Profile photo removed successfully.");
+    } catch (err: unknown) {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        || (err as Error)?.message
+        || "Failed to remove profile photo";
+      toast.error(message);
+    } finally {
+      setIsAvatarRemoving(false);
+    }
+  };
+
   const handleSaveProfile = async () => {
     const validatedPhone = validatePhoneNumber(editForm.phone, editForm.phoneCountryIso);
     if (!validatedPhone.valid) {
@@ -1004,13 +1032,23 @@ export default function UserDetails() {
                     alt="Profile preview"
                     className="max-h-80 w-full rounded-xl border border-slate-100 object-contain p-4"
                   />
-                  <button
-                    type="button"
-                    onClick={openAvatarPicker}
-                    className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-[#2563EB] px-4 py-2 text-[12px] font-pmedium text-white transition hover:bg-blue-700"
-                  >
-                    <Camera size={14} /> Change Image
-                  </button>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={openAvatarPicker}
+                      className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-[#2563EB] px-4 py-2 text-[12px] font-pmedium text-white transition hover:bg-blue-700"
+                    >
+                      <Camera size={14} /> Change Image
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAvatarRemove}
+                      disabled={isAvatarRemoving}
+                      className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-[12px] font-pmedium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <Trash2 size={14} /> {isAvatarRemoving ? "Removing..." : "Remove Photo"}
+                    </button>
+                  </div>
                 </div>
               </MuiModal>
 

@@ -1351,6 +1351,58 @@ const updateOwnProfilePicture = async (workspace: any, userId: string, file: any
   return respondWithSavedProfile(profile._id);
 };
 
+const removeOwnProfilePicture = async (workspace: any, userId: string) => {
+  let profile = null;
+  try {
+    profile = await findOwnEmployeeProfile(workspace, userId);
+  } catch (error: any) {
+    if (Number(error?.statusCode || 0) !== 404) throw error;
+  }
+
+  if (!profile) {
+    const tenantEmployee = await TenantEmployee.findOne({
+      userId,
+      workspaceId: workspace._id,
+      status: "Active",
+    }).lean().exec();
+    if (!tenantEmployee) {
+      throw Object.assign(new Error("Employee record not found."), { statusCode: 404 });
+    }
+
+    const user = await HostUser.findById(userId).select("profilePicture").lean().exec();
+    const previousUrl = user?.profilePicture?.url;
+
+    await HostUser.findByIdAndUpdate(userId, { profilePicture: null }).exec();
+
+    if (previousUrl) {
+      await deleteFileFromS3ByUrl(previousUrl).catch(() => {});
+    }
+
+    return {
+      fullName: tenantEmployee.name || "",
+      email: tenantEmployee.email || "",
+      phone: tenantEmployee.phone || "",
+      jobTitle: tenantEmployee.designation || "",
+      role: tenantEmployee.role || "Employee",
+      profilePictureUrl: "",
+    };
+  }
+
+  const previousUrl = profile?.profilePicture?.url;
+  profile.profilePicture = null;
+  profile.updatedBy = userId;
+  await profile.save();
+
+  // Keep the HostUser avatar (shown in the global header/nav) in sync.
+  await HostUser.findByIdAndUpdate(userId, { profilePicture: null }).exec();
+
+  if (previousUrl) {
+    await deleteFileFromS3ByUrl(previousUrl).catch(() => {});
+  }
+
+  return respondWithSavedProfile(profile._id);
+};
+
 export {
   ensureEmployeeProfileForMember,
   ensureEmployeeProfilesForWorkspace,
@@ -1360,6 +1412,7 @@ export {
   updateEmployeeProfile,
   updateOwnEmployeeProfile,
   updateOwnProfilePicture,
+  removeOwnProfilePicture,
   toggleEmployeeProfileStatus,
   resendEmployeeInvite,
   mapEmployeeProfileToResponse,
