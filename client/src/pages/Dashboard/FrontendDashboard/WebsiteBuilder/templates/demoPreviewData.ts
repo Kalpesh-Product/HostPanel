@@ -20,6 +20,7 @@ const TEMPLATE_KIND: Record<string, ServiceKind> = {
   restobar: "menu",
   flowspace: "meeting",
   workscape: "meeting",
+  workhub: "meeting",
   brixspace: "meeting",
   worpace: "workspace",
   qerja: "workspace",
@@ -1042,6 +1043,89 @@ const WORKSCAPE_DEMO_BUSINESS: DemoBusiness = (() => {
       meetingRooms: rooms.map((room, index) => ({
         ...room,
         images: WORKSCAPE_PHOTOS.rooms
+          .slice(index * 3, index * 3 + 3)
+          .map((id) => photoValue(id)),
+      })),
+    },
+  };
+})();
+
+// WorkHub previews with a bright, modern office photo set and blue-led corporate tone,
+// distinct from the architectural Workscape and people-first Brixspace libraries.
+const WORKHUB_PHOTOS = {
+  hero: [
+    "photo-1524758631624-e2822e304c36",
+    "photo-1497366811353-6870744d04b2",
+    "photo-1600508774634-4e11d34730e2",
+  ],
+  rooms: [
+    "photo-1497366216548-37526070297c",
+    "photo-1497366754035-f200968a6e72",
+    "photo-1556761175-b413da4baf72",
+    "photo-1568992687947-868a62a9f521",
+    "photo-1521737711867-e3b97375f902",
+    "photo-1552664730-d307ca884978",
+    "photo-1517502884422-41eaead166d4",
+    "photo-1551836022-d5d88e9218df",
+    "photo-1556761175-4b46a572b786",
+    "photo-1504384308090-c894fdcc538d",
+    "photo-1542744173-8e7e53415bb0",
+    "photo-1522071820081-009f0129c71c",
+  ],
+};
+const WORKHUB_DEMO_BUSINESS: DemoBusiness = (() => {
+  const base = DEMO_BUSINESSES.meeting;
+  const rooms = ((base.extra as any).meetingRooms || []) as any[];
+  return {
+    ...base,
+    companyName: "Northline Rooms",
+    title: "Curate your office space with Northline Rooms",
+    subTitle: "Empowering professionals with innovative workspaces",
+    cta: "Book a Room",
+    heroImages: WORKHUB_PHOTOS.hero.map((id) => photo(id, 1900)),
+    gallery: [...WORKHUB_PHOTOS.hero, ...WORKHUB_PHOTOS.rooms].map((id) =>
+      photo(id, 1450),
+    ),
+    aboutImages: [
+      WORKHUB_PHOTOS.hero[1],
+      WORKHUB_PHOTOS.rooms[2],
+      WORKHUB_PHOTOS.rooms[7],
+    ].map((id) => photo(id, 1200)),
+    aboutTitle: "About Northline Rooms",
+    aboutPageStory:
+      "Northline Rooms brings together flexible layouts, reliable technology and a calm welcome, so every meeting has the best chance of succeeding.",
+    about: [
+      "We believe great work starts with the right setting. Daylight, practical furniture and a team that prepares everything in advance make conversations easier.",
+      "From a quick interview to a full-day workshop, each room can be arranged around the people in it and the outcome they need.",
+    ],
+    founders: [
+      {
+        name: "Maya Menon",
+        role: "Founder & Space Director",
+        bio: "Maya designs rooms that make collaboration feel effortless.",
+        image: photoValue("photo-1494790108377-be9c29b29330", 900),
+      },
+      {
+        name: "Arjun Rao",
+        role: "Guest Experience Lead",
+        bio: "Arjun makes sure every booking starts ready and runs smoothly.",
+        image: photoValue("photo-1500648767791-00dcc994a43e", 900),
+      },
+    ],
+    address: "18 Richmond Road, Bangalore 560025",
+    page: {
+      ...base.page,
+      heroHeading: "Work in Northline Rooms",
+      heroSubHeading:
+        "Meeting rooms for interviews, workshops, presentations and team decisions.",
+      heroImage: photo(WORKHUB_PHOTOS.hero[0], 1900),
+      cardImage: photo(WORKHUB_PHOTOS.hero[1], 1100),
+    },
+    extra: {
+      ...base.extra,
+      meetingRooms: rooms.map((room, index) => ({
+        ...room,
+        images: WORKHUB_PHOTOS.rooms
           .slice(index * 3, index * 3 + 3)
           .map((id) => photoValue(id)),
       })),
@@ -2147,6 +2231,8 @@ const demoBusinessFor = (
     return FLOWSPACE_DEMO_BUSINESS;
   if (themeVariant === "workscape" && kind === "meeting")
     return WORKSCAPE_DEMO_BUSINESS;
+  if (themeVariant === "workhub" && kind === "meeting")
+    return WORKHUB_DEMO_BUSINESS;
   if (themeVariant === "brixspace" && kind === "meeting")
     return BRIXSPACE_DEMO_BUSINESS;
   if (themeVariant === "worpace" && kind === "workspace")

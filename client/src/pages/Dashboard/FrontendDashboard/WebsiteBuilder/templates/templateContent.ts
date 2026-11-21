@@ -2744,6 +2744,111 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContentDef> = {
     switches: [],
   },
 
+  workhub: {
+    slots: [
+      text(
+        "home.hero.title",
+        HOME,
+        "Hero: title",
+        "Curate your office space with WorkHub",
+      ),
+      text(
+        "home.hero.subtitle",
+        HOME,
+        "Hero: description",
+        "Empowering professionals with innovative workspaces",
+      ),
+      image("home.hero.image", HOME, "Hero: workspace photo"),
+      text(
+        "home.services.title",
+        HOME,
+        "Services: heading",
+        "Discover Our Array of Services",
+      ),
+      image("home.services.image", HOME, "Services: feature photo"),
+      text(
+        "home.locations.title",
+        HOME,
+        "Locations: heading",
+        "Explore Our Locations",
+      ),
+      text(
+        "home.cta.title",
+        HOME,
+        "Workspace CTA: heading",
+        "Scalable Vision: Your Future-Ready Workspace",
+      ),
+      text(
+        "home.cta.body",
+        HOME,
+        "Workspace CTA: description",
+        "Our rooms adapt as your team changes, so you can focus on the work ahead instead of the logistics.",
+      ),
+      text(
+        "home.testimonials.title",
+        HOME,
+        "Testimonials: heading",
+        "What our Members Say",
+      ),
+      text(
+        "home.trusted.title",
+        HOME,
+        "Trusted-by: heading",
+        "Trusted by Leading Companies",
+      ),
+      text(
+        "home.ctaBand.title",
+        HOME,
+        "Enquiry band: heading",
+        "Ready to Transform Your Workspace?",
+      ),
+      text(
+        "home.ctaBand.body",
+        HOME,
+        "Enquiry band: description",
+        "Request a quote or schedule a tour today!",
+      ),
+      text("home.news.title", HOME, "News: heading", "Stay in the know"),
+      text(
+        "home.news.body",
+        HOME,
+        "News: description",
+        "Ideas and updates for better workdays.",
+      ),
+      text(
+        "services.index.title",
+        SERVICES,
+        "Services page: heading",
+        "Work in WorkHub",
+      ),
+      text(
+        "services.index.body",
+        SERVICES,
+        "Services page: description",
+        "Flexible spaces for meetings, workshops and focused work.",
+      ),
+      text(
+        "about.title",
+        OTHER,
+        "About page: heading",
+        "Empowering Collaboration, Fostering Innovation",
+      ),
+      text(
+        "partner.title",
+        OTHER,
+        "Partner page: heading",
+        "Build a better workday with us",
+      ),
+      text(
+        "footer.about",
+        FOOTER,
+        "Footer: introduction",
+        "Contact us today to explore the possibilities of our dynamic workspace. Your ideal meeting room is just a message or call away.",
+      ),
+    ],
+    switches: [],
+  },
+
   brixspace: {
     slots: [
       text(

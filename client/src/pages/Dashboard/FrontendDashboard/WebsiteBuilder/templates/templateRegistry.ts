@@ -27,6 +27,7 @@ import RestobarTemplate from "./restobar/RestobarTemplate";
 import FlowspaceTemplate from "./flowspace/FlowspaceTemplate";
 import WorpaceTemplate from "./worpace/WorpaceTemplate";
 import WorkscapeTemplate from "./workscape/WorkscapeTemplate";
+import WorkhubTemplate from "./workhub/WorkhubTemplate";
 import BrixspaceTemplate from "./brixspace/BrixspaceTemplate";
 import QerjaTemplate from "./qerja/QerjaTemplate";
 import CoboxTemplate from "./cobox/CoboxTemplate";
@@ -406,6 +407,21 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
       fg: "#20201f",
       accent: "#a99d93",
       font: "'Inter', sans-serif",
+    },
+    recommendedFor: ["meeting"],
+    supportsBooking: true,
+  },
+  workhub: {
+    id: "workhub",
+    name: "WorkHub",
+    description:
+      "Polished corporate meeting-space design — blue accents, modular service cards, location storytelling, member proof and a focused enquiry flow.",
+    component: WorkhubTemplate,
+    swatch: {
+      bg: "#f0f2fb",
+      fg: "#242839",
+      accent: "#285fe2",
+      font: "'Outfit', sans-serif",
     },
     recommendedFor: ["meeting"],
     supportsBooking: true,
