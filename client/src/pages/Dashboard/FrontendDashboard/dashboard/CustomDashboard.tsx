@@ -18,7 +18,7 @@ import { useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import DashboardModuleCard from "../../../../components/DashboardModuleCard";
-import DonutChart from "../../../../components/graphs/DonutChart";
+import InsightDonutChart from "./InsightDonutChart";
 import BarGraph from "../../../../components/graphs/BarGraph";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import type { DashboardAccessResult } from "../../../../hooks/useDashboardAccess";
@@ -159,7 +159,7 @@ const StatusDonutPanel = ({
   <ActivityPanel eyebrow={eyebrow} title={title}>
     <div className="flex min-h-52 flex-1 items-center justify-center">
       {series.some((value) => value > 0) ? (
-        <DonutChart
+        <InsightDonutChart
           centerLabel={centerLabel}
           labels={labels}
           colors={colors}
@@ -1154,7 +1154,7 @@ const CustomDashboard = ({ access }: CustomDashboardProps) => {
             <ActivityPanel eyebrow="Visitor mix" title="Visitor Type">
               <div className="flex min-h-48 flex-1 items-center justify-center">
                 {visitorTypeDonut.series.some((value) => value > 0) ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Visitors"
                     labels={visitorTypeDonut.labels}
                     colors={visitorTypeDonut.colors}

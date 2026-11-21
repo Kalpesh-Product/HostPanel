@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import DashboardModuleCard from "../../components/DashboardModuleCard";
-import DonutChart from "../../components/graphs/DonutChart";
+import InsightDonutChart from "@/pages/Dashboard/FrontendDashboard/dashboard/InsightDonutChart";
 import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
 import PageFrame from "../../components/Pages/PageFrame";
 import financeBannerImage from "../../assets/finance-dashboard-banner.webp";
@@ -731,7 +731,7 @@ export default function FinanceWorkspaceDashboardPage() {
                 subtitle="Collected finance entries grouped by source."
               >
                 {revenueSources.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Revenue"
                     labels={revenueSources.map(([name]) => name)}
                     series={revenueSources.map(([, value]) => value)}
@@ -753,7 +753,7 @@ export default function FinanceWorkspaceDashboardPage() {
                 subtitle="Tenant and virtual-office rent records by payment state."
               >
                 {data.rents.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Rent cycles"
                     labels={["Paid", "Pending"]}
                     series={[rentPaid, data.rents.length - rentPaid]}
@@ -773,7 +773,7 @@ export default function FinanceWorkspaceDashboardPage() {
                 subtitle="Current payroll cycle grouped by processing state."
               >
                 {data.payroll.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Employees"
                     labels={["Processed", "Pending"]}
                     series={[payroll.paid, payroll.pending]}

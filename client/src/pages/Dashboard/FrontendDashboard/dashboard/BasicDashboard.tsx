@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { MetricTile, RecentItem } from "./DashboardShared";
 import type { QuickLinkItem } from "./DashboardShared";
-import DonutChart from "../../../../components/graphs/DonutChart";
+import InsightDonutChart from "./InsightDonutChart";
 import BarGraph from "../../../../components/graphs/BarGraph";
 import WonoListingsCard from "./WonoListingsCard";
 import VerifiedBadgeNotice from "./VerifiedBadgeNotice";
@@ -765,7 +765,7 @@ const BasicDashboard = ({
               <BasicActivityPanel eyebrow="Pipeline" title="Lead Status">
                 <div className="flex min-h-48 flex-1 items-center justify-center">
                   {leadDonut.series.some((value) => value > 0) ? (
-                    <DonutChart
+                    <InsightDonutChart
                       centerLabel="Leads"
                       labels={leadDonut.labels}
                       colors={leadDonut.colors}

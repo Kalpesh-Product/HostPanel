@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import DashboardModuleCard from "../../components/DashboardModuleCard";
-import DonutChart from "../../components/graphs/DonutChart";
+import InsightDonutChart from "@/pages/Dashboard/FrontendDashboard/dashboard/InsightDonutChart";
 import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
 import PageFrame from "../../components/Pages/PageFrame";
 import { DepartmentVisitorsCard } from "../Dashboard/FrontendDashboard/dashboard/DepartmentVisitorsCard";
@@ -1028,7 +1028,7 @@ export default function AdministrationWorkspaceDashboardPage() {
                 subtitle="Bookings grouped by their current workflow status."
               >
                 {bookingStatus.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Bookings"
                     labels={bookingStatus.map(([label]) => label)}
                     series={bookingStatus.map(([, value]) => value)}
@@ -1047,7 +1047,7 @@ export default function AdministrationWorkspaceDashboardPage() {
                 subtitle="Tenant companies grouped by status."
               >
                 {tenantStatus.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Tenants"
                     labels={tenantStatus.map(([label]) => label)}
                     series={tenantStatus.map(([, value]) => value)}
@@ -1066,7 +1066,7 @@ export default function AdministrationWorkspaceDashboardPage() {
                 subtitle="Today’s visitors grouped by visit type."
               >
                 {visitorTypes.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Visitors"
                     labels={visitorTypes.map(([label]) => label)}
                     series={visitorTypes.map(([, value]) => value)}
@@ -1085,7 +1085,7 @@ export default function AdministrationWorkspaceDashboardPage() {
                 subtitle="Administration resources grouped by status."
               >
                 {resourceStatus.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Resources"
                     labels={resourceStatus.map(([label]) => label)}
                     series={resourceStatus.map(([, value]) => value)}
@@ -1104,7 +1104,7 @@ export default function AdministrationWorkspaceDashboardPage() {
                 subtitle="Facilities tasks grouped by operational status."
               >
                 {housekeepingStatus.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Tasks"
                     labels={housekeepingStatus.map(([label]) => label)}
                     series={housekeepingStatus.map(([, value]) => value)}
@@ -1123,7 +1123,7 @@ export default function AdministrationWorkspaceDashboardPage() {
                 subtitle="Printout requests grouped by their current workflow status."
               >
                 {printoutStatus.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Printouts"
                     labels={printoutStatus.map(([label]) => label)}
                     series={printoutStatus.map(([, value]) => value)}

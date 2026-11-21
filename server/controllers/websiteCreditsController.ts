@@ -2,6 +2,7 @@
 import WorkspaceSubscription from "../models/WorkspaceSubscription.js";
 import WebsiteCreditsRequest from "../models/WebsiteCreditsRequest.js";
 import recordWebsiteCreditEvent from "../utils/websiteCreditLedger.js";
+import { normalizeCompanyKey } from "../utils/websiteCredits.js";
 
 export const requestCredits = async (req, res) => {
   try {
@@ -18,8 +19,10 @@ export const requestCredits = async (req, res) => {
         .json({ message: "requestedCredits must be between 1 and 5" });
     }
 
+    // One shared pool per company (the builder is company-wide), so the company
+    // key is the only match — never a `$or` with the unit's workspace.
     const subscription = await WorkspaceSubscription.findOne({
-      $or: [{ companyId: String(companyId) }, { workspaceId: String(workspaceId) }],
+      companyId: normalizeCompanyKey(companyId),
     })
       .select("creditsUsed creditsLimit")
       .lean()
@@ -85,7 +88,7 @@ export const approveCreditsRequest = async (req, res) => {
     await creditRequest.save();
 
     const subscription = await WorkspaceSubscription.findOne({
-      companyId: String(creditRequest.companyId),
+      companyId: normalizeCompanyKey(creditRequest.companyId),
     }).exec();
 
     if (!subscription) {

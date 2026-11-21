@@ -1,31 +1,42 @@
+/**
+ * SalesDashboardOverview — the Sales manager's dashboard at /dashboard. Uses
+ * the same visual language as the plan-wise and employee dashboards: the slate
+ * outer shell + bordered inner frame, a blue-gradient greeting masthead,
+ * today's attendance as the hero card, a "Sales Pulse" metric row, quick
+ * actions, and the Sales activity panels below.
+ */
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  Magnet,
+  Activity,
+  ArrowRight,
   Building2,
-  Tag,
-  ShoppingCart,
   CheckCircle2,
   Eye,
+  LayoutDashboard,
+  Magnet,
+  ShoppingCart,
+  Tag,
 } from "lucide-react";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
-import PageFrame from "@/components/Pages/PageFrame";
-import { DashboardAttendanceCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
-import WidgetSection from "@/components/WidgetSection";
+import BarGraph from "@/components/graphs/BarGraph";
+import InsightDonutChart from "@/pages/Dashboard/FrontendDashboard/dashboard/InsightDonutChart";
 import useDashboardAccess from "@/hooks/useDashboardAccess";
 import useWorkspacePreferences from "@/hooks/useWorkspacePreferences";
 import { useFreshCurrentUser } from "@/hooks/useFreshCurrentUser";
 import {
+  ActivityPanel,
+  EmptyState,
+  MetricTile,
   PlanBadge,
-  StatCard,
-  SectionCard,
+  QuickActionTile,
   RecentItem,
-  DonutWidget,
-  BarWidget,
-  QuickLink,
   getGreeting,
   humanRelTime,
   statusBadgeColor,
 } from "@/pages/Dashboard/FrontendDashboard/dashboard/DashboardShared";
+import TodayAttendanceCard from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
+import DepartmentBudgetPanel from "@/pages/Dashboard/FrontendDashboard/dashboard/DepartmentBudgetPanel";
 import { TeamLiveStatusCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TeamLiveStatusCard";
 import { DepartmentVisitorsCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/DepartmentVisitorsCard";
 import { getWebsiteLeads } from "@/services/sales-leads";
@@ -148,6 +159,20 @@ const WorkspaceClock = ({ timezone, location }: { timezone: string; location: st
       </span>
       {location ? ` - ${location}` : ""}
     </>
+  );
+};
+
+const ViewAllButton = ({ route }: { route: string }) => {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(route)}
+      className="group inline-flex items-center gap-1 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB]"
+    >
+      View all
+      <ArrowRight size={12} className="transition group-hover:translate-x-0.5" />
+    </button>
   );
 };
 
@@ -385,57 +410,91 @@ export function SalesDashboardWidgets() {
         </div>
       ) : null}
 
-      {/* Overview — only the metrics that matter */}
+      {/* Sales Pulse — the metrics that matter most */}
       <div data-tour="sales-overview">
-      <WidgetSection layout={5} title="Overview" border normalCase>
-        <StatCard icon={Magnet} label="Website Leads" value={totalLeads} sub={`${newLeadsCount} new · uncontacted`} color="#2563EB" route="/department-accesses/sales-department/leads-management" />
-        <StatCard icon={Building2} label="Tenant Companies" value={totalTenants} sub={`${activeTenantsCount} active`} color="#0891b2" route="/department-accesses/sales-department/tenant-companies" />
-        <StatCard icon={Tag} label="Pricing Packages" value={totalPackages} sub={`${activePackagesCount} active`} color="#7c3aed" route="/department-accesses/sales-department/resource-pricing" />
-        <StatCard icon={CheckCircle2} label="Contacted Leads" value={contactedLeadsCount} sub={`${contactedPercent}% of total leads`} color="#22c55e" route="/department-accesses/sales-department/leads-management" />
-        <StatCard icon={Eye} label="Visitors Today" value={dailyVisitors.length} sub={`${liveVisitors.length} checked in`} color="#80bf01" route="/visitors/visitor-management" />
-      </WidgetSection>
+        <section className="rounded-[1.75rem] border border-blue-100 bg-[#F8FAFD] p-5 shadow-[0_12px_34px_rgba(30,61,115,0.06)] sm:p-6">
+          <div className="mb-5 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#1E3D73] text-white shadow-sm">
+              <Activity size={18} />
+            </div>
+            <div>
+              <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
+                Pipeline
+              </p>
+              <h3 className="mt-0.5 text-lg font-pmedium text-[#1E3D73]">
+                Sales Pulse
+              </h3>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricTile icon={Magnet} label="Website Leads" value={totalLeads} sub={`${newLeadsCount} new · uncontacted`} route="/department-accesses/sales-department/leads-management" color="#2563EB" />
+            <MetricTile icon={Building2} label="Tenant Companies" value={totalTenants} sub={`${activeTenantsCount} active`} route="/department-accesses/sales-department/tenant-companies" color="#0891b2" />
+            <MetricTile icon={Tag} label="Pricing Packages" value={totalPackages} sub={`${activePackagesCount} active`} route="/department-accesses/sales-department/resource-pricing" color="#7c3aed" />
+            <MetricTile icon={CheckCircle2} label="Contacted Leads" value={contactedLeadsCount} sub={`${contactedPercent}% of total leads`} route="/department-accesses/sales-department/leads-management" color="#22c55e" />
+            <MetricTile icon={Eye} label="Visitors Today" value={dailyVisitors.length} sub={`${liveVisitors.length} checked in`} route="/visitors/visitor-management" color="#80bf01" />
+          </div>
+        </section>
       </div>
 
-      {/* Team status, live visitors and recent leads */}
-      <div data-tour="sales-team-activity" className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Team status, live visitors and recent leads — a fixed trio */}
+      <div data-tour="sales-team-activity" className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <TeamLiveStatusCard department="sales" viewAllRoute="/department-accesses/sales-department/leads-management" />
 
         <DepartmentVisitorsCard department="sales" title="Sales Visitors" />
 
-        <SectionCard title="Recent Website Leads" linkLabel="View all" linkRoute="/department-accesses/sales-department/leads-management">
-          <div className="space-y-3">
-            {recentLeads.length > 0 ? recentLeads.map((lead, index) => (
-              <RecentItem
-                key={lead.id || lead._id || index}
-                title={lead.name || lead.fullName || "Lead"}
-                sub={lead.email || lead.phone || "No contact info"}
-                badge={lead.status || "Pending"}
-                badgeColor={statusBadgeColor(lead.status || "Pending")}
-                time={humanRelTime(lead.createdAt || "")}
-              />
-            )) : (
-              <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No website leads yet</p></div>
-            )}
-          </div>
-        </SectionCard>
+        <ActivityPanel
+          eyebrow="New enquiries"
+          title="Recent Website Leads"
+          action={<ViewAllButton route="/department-accesses/sales-department/leads-management" />}
+        >
+          {recentLeads.length > 0 ? recentLeads.map((lead, index) => (
+            <RecentItem
+              key={lead.id || lead._id || index}
+              title={lead.name || lead.fullName || "Lead"}
+              sub={lead.email || lead.phone || "No contact info"}
+              badge={lead.status || "Pending"}
+              badgeColor={statusBadgeColor(lead.status || "Pending")}
+              time={humanRelTime(lead.createdAt || "")}
+            />
+          )) : (
+            <EmptyState icon={Magnet} title="No website leads yet" description="New enquiries will show up here as they arrive." actionLabel="Open Leads" route="/department-accesses/sales-department/leads-management" />
+          )}
+        </ActivityPanel>
       </div>
 
-      {/* Quick links */}
+      {/* Quick actions */}
       <div data-tour="sales-quick-links">
-      <WidgetSection layout={4} title="Quick Links" border normalCase>
-        <QuickLink icon={Magnet} label="Leads Management" description="Track & convert leads" route="/department-accesses/sales-department/leads-management" color="#2563EB" />
-        <QuickLink icon={Building2} label="Tenant Companies" description="Manage tenant accounts" route="/department-accesses/sales-department/tenant-companies" color="#0891b2" />
-        <QuickLink icon={Tag} label="Resource & Pricing" description="Packages & resource rates" route="/department-accesses/sales-department/resource-pricing" color="#7c3aed" />
-        <QuickLink icon={ShoppingCart} label="Sales Architecture" description="Space & resource assignment" route="/department-accesses/sales-department/sales-architecture" color="#f59e0b" />
-      </WidgetSection>
+        <section className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white p-5 shadow-[0_12px_34px_rgba(37,99,235,0.08)] sm:p-6">
+          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/70" />
+          <div className="relative mb-5">
+            <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
+              Jump back in
+            </p>
+            <h3 className="mt-1 text-lg font-pmedium text-[#1E3D73]">
+              Quick Actions
+            </h3>
+            <p className="mt-1 text-xs font-pmedium text-slate-500">
+              The Sales modules you use most, one click away.
+            </p>
+          </div>
+          <div className="relative grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <QuickActionTile icon={Magnet} label="Leads Management" description="Track & convert leads" route="/department-accesses/sales-department/leads-management" color="#2563EB" />
+            <QuickActionTile icon={Building2} label="Tenant Companies" description="Manage tenant accounts" route="/department-accesses/sales-department/tenant-companies" color="#0891b2" />
+            <QuickActionTile icon={Tag} label="Resource & Pricing" description="Packages & resource rates" route="/department-accesses/sales-department/resource-pricing" color="#7c3aed" />
+            <QuickActionTile icon={ShoppingCart} label="Sales Architecture" description="Space & resource assignment" route="/department-accesses/sales-department/sales-architecture" color="#f59e0b" />
+          </div>
+        </section>
       </div>
 
       {/* Recent activity — uncontacted leads, tenants needing attention, and
-          recent visitors each get their own bounded row (rather than one grid
-          combining all three) so their page-tour anchor highlights just that
-          row instead of the full combined block. */}
-      <div data-tour="sales-uncontacted-leads" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SectionCard title="Uncontacted Leads" linkLabel="View all" linkRoute="/department-accesses/sales-department/leads-management">
+          recent visitors each get their own bounded row so a highlight never
+          spans more than one pair. */}
+      <div data-tour="sales-uncontacted-leads" className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <ActivityPanel
+          eyebrow="Follow-ups"
+          title="Uncontacted Leads"
+          action={<ViewAllButton route="/department-accesses/sales-department/leads-management" />}
+        >
           {uncontactedLeads.length > 0 ? uncontactedLeads.map((lead, index) => (
             <RecentItem
               key={lead.id || lead._id || index}
@@ -446,21 +505,27 @@ export function SalesDashboardWidgets() {
               time={humanRelTime(lead.createdAt || "")}
             />
           )) : (
-            <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No uncontacted leads</p></div>
+            <EmptyState icon={Magnet} title="No uncontacted leads" description="Leads awaiting a first follow-up will show up here." actionLabel="Open Leads" route="/department-accesses/sales-department/leads-management" />
           )}
-        </SectionCard>
+        </ActivityPanel>
 
-        <DonutWidget
-          title="Lead Status"
-          series={leadStatusDonut.series}
-          labels={leadStatusDonut.labels}
-          colors={leadStatusDonut.colors}
-          centerLabel="Leads"
-        />
+        <ActivityPanel eyebrow="Breakdown" title="Lead Status">
+          <div className="flex min-h-48 flex-1 items-center justify-center">
+            {leadStatusDonut.series.some((value) => value > 0) ? (
+              <InsightDonutChart centerLabel="Leads" labels={leadStatusDonut.labels} colors={leadStatusDonut.colors} series={leadStatusDonut.series} tooltipValue={leadStatusDonut.series.map(String)} />
+            ) : (
+              <p className="text-content font-pmedium text-slate-400">No leads yet</p>
+            )}
+          </div>
+        </ActivityPanel>
       </div>
 
-      <div data-tour="sales-tenant-attention" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SectionCard title="Tenants Needing Attention" linkLabel="View all" linkRoute="/department-accesses/sales-department/tenant-companies">
+      <div data-tour="sales-tenant-attention" className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <ActivityPanel
+          eyebrow="Renewals"
+          title="Tenants Needing Attention"
+          action={<ViewAllButton route="/department-accesses/sales-department/tenant-companies" />}
+        >
           {attentionTenants.length > 0 ? attentionTenants.map((tenant, index) => (
             <RecentItem
               key={tenant.recordId || tenant.id || tenant._id || index}
@@ -471,21 +536,27 @@ export function SalesDashboardWidgets() {
               time={humanRelTime(tenant.createdAt || "")}
             />
           )) : (
-            <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No tenants pending action</p></div>
+            <EmptyState icon={Building2} title="No tenants pending action" description="Tenants needing renewal or attention will show up here." actionLabel="Open Tenants" route="/department-accesses/sales-department/tenant-companies" />
           )}
-        </SectionCard>
+        </ActivityPanel>
 
-        <DonutWidget
-          title="Tenant Status"
-          series={tenantStatusDonut.series}
-          labels={tenantStatusDonut.labels}
-          colors={tenantStatusDonut.colors}
-          centerLabel="Tenants"
-        />
+        <ActivityPanel eyebrow="Breakdown" title="Tenant Status">
+          <div className="flex min-h-48 flex-1 items-center justify-center">
+            {tenantStatusDonut.series.some((value) => value > 0) ? (
+              <InsightDonutChart centerLabel="Tenants" labels={tenantStatusDonut.labels} colors={tenantStatusDonut.colors} series={tenantStatusDonut.series} tooltipValue={tenantStatusDonut.series.map(String)} />
+            ) : (
+              <p className="text-content font-pmedium text-slate-400">No tenants yet</p>
+            )}
+          </div>
+        </ActivityPanel>
       </div>
 
-      <div data-tour="sales-visitor-activity" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SectionCard title="Recent Visitors" linkLabel="View all" linkRoute="/visitors/visitor-management">
+      <div data-tour="sales-visitor-activity" className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <ActivityPanel
+          eyebrow="Front desk"
+          title="Recent Visitors"
+          action={<ViewAllButton route="/visitors/visitor-management" />}
+        >
           {recentVisitors.length > 0 ? recentVisitors.map((v, index) => (
             <RecentItem
               key={v.id || v.recordId || index}
@@ -496,28 +567,28 @@ export function SalesDashboardWidgets() {
               time={humanRelTime(v.checkInAt || v.dateOfVisit || v.createdAt || "")}
             />
           )) : (
-            <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No visitors logged today</p></div>
+            <EmptyState icon={Eye} title="No visitors logged today" description="Today's visitor check-ins will show up here." actionLabel="Open Visitors" route="/visitors/visitor-management" />
           )}
-        </SectionCard>
+        </ActivityPanel>
 
-        <DonutWidget
-          title="Visitor Type"
-          series={visitorTypeDonut.series}
-          labels={visitorTypeDonut.labels}
-          colors={visitorTypeDonut.colors}
-          centerLabel="Visitors"
-        />
+        <ActivityPanel eyebrow="Breakdown" title="Visitor Type">
+          <div className="flex min-h-48 flex-1 items-center justify-center">
+            {visitorTypeDonut.series.some((value) => value > 0) ? (
+              <InsightDonutChart centerLabel="Visitors" labels={visitorTypeDonut.labels} colors={visitorTypeDonut.colors} series={visitorTypeDonut.series} tooltipValue={visitorTypeDonut.series.map(String)} />
+            ) : (
+              <p className="text-content font-pmedium text-slate-400">No visitors yet</p>
+            )}
+          </div>
+        </ActivityPanel>
       </div>
 
       <div data-tour="sales-lead-trend">
-        <BarWidget
-          title="Monthly Lead Trend (FY)"
-          chartId="sales-monthly-leads"
-          series={monthlyBarSeries}
-          options={monthlyBarOptions}
-          height={260}
-        />
+        <ActivityPanel eyebrow="Year at a glance" title="Monthly Lead Trend (FY)">
+          <BarGraph chartId="sales-monthly-leads" data={monthlyBarSeries} options={monthlyBarOptions} height={260} />
+        </ActivityPanel>
       </div>
+
+      <DepartmentBudgetPanel department="Sales" title="Sales Budget vs Spend" />
     </div>
   );
 }
@@ -579,26 +650,49 @@ export function SalesDashboardOverview() {
   }, [managerName, now, workspacePreferences.timezone]);
 
   return (
-    <div className="p-4 flex flex-col gap-5">
-      {/* Greeting banner */}
-      <PageFrame>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h2 className="text-title font-pmedium text-primary uppercase">Sales Dashboard</h2>
-              <PlanBadge plan={access.plan} />
+    <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
+      <div className="flex flex-col gap-5 rounded-xl border-default p-4">
+
+        {/* Greeting card — same blue plan-card style used across the plan
+            dashboards and the employee dashboard. */}
+        <section
+          data-tour="sales-greeting"
+          className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white p-5 shadow-[0_12px_34px_rgba(37,99,235,0.08)] sm:p-6"
+        >
+          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/70" />
+          <div className="pointer-events-none absolute -bottom-24 right-40 h-56 w-56 rounded-full bg-blue-50/70" />
+          <div className="relative flex min-w-0 items-start gap-4">
+            <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#2563EB] ring-1 ring-blue-100 sm:flex">
+              <LayoutDashboard size={21} />
             </div>
-            <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
-            <p className="text-content font-pmedium text-gray-700">{todayLabel}<WorkspaceClock timezone={workspacePreferences.timezone} location={workspacePreferences.location} /></p>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-[9px] font-pmedium uppercase tracking-[0.22em] text-[#2563EB]">
+                  Sales Unit dashboard
+                </p>
+                <PlanBadge plan={access.plan} />
+              </div>
+              <h2 className="mt-2 text-xl font-pmedium text-[#1E3D73] sm:text-2xl">
+                {greeting} 👋
+              </h2>
+              <p className="mt-1 text-xs font-pmedium text-slate-500 sm:text-sm">
+                {todayLabel}
+                <WorkspaceClock
+                  timezone={workspacePreferences.timezone}
+                  location={workspacePreferences.location}
+                />
+              </p>
+            </div>
           </div>
+        </section>
+
+        {/* Today's attendance — the hero card, same as the plan dashboards */}
+        <div data-tour="sales-attendance">
+          <TodayAttendanceCard variant="hero" />
         </div>
-      </PageFrame>
 
-      <div data-tour="sales-attendance">
-        <DashboardAttendanceCard />
+        <SalesDashboardWidgets />
       </div>
-
-      <SalesDashboardWidgets />
     </div>
   );
 }

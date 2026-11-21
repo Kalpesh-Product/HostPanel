@@ -18,7 +18,7 @@ import {
 import { Link } from "react-router-dom";
 import PageFrame from "../../components/Pages/PageFrame";
 import DashboardModuleCard from "../../components/DashboardModuleCard";
-import DonutChart from "../../components/graphs/DonutChart";
+import InsightDonutChart from "@/pages/Dashboard/FrontendDashboard/dashboard/InsightDonutChart";
 import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
 import salesBannerImage from "../../assets/sales-dashboard-banner.webp";
 import useDashboardAccess from "../../hooks/useDashboardAccess";
@@ -1072,7 +1072,7 @@ export default function SalesWorkspaceDashboardPage() {
                 subtitle="Collected revenue grouped by sales service."
               >
                 {finance.revenueSources.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Revenue"
                     labels={finance.revenueSources.map((item) => item.label)}
                     series={finance.revenueSources.map((item) => item.value)}
@@ -1107,7 +1107,7 @@ export default function SalesWorkspaceDashboardPage() {
                 subtitle="Current lead distribution by sales stage."
               >
                 {leadStatus.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Leads"
                     labels={leadStatus.map(([label]) => label)}
                     series={leadStatus.map(([, value]) => value)}
@@ -1128,7 +1128,7 @@ export default function SalesWorkspaceDashboardPage() {
                 subtitle="Website leads grouped by their recorded acquisition source."
               >
                 {leadSources.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Leads"
                     labels={leadSources.map((item) => item.label)}
                     series={leadSources.map((item) => item.value)}
@@ -1147,7 +1147,7 @@ export default function SalesWorkspaceDashboardPage() {
                 subtitle="Tenant companies grouped by their recorded business sector."
               >
                 {tenantSectors.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Tenants"
                     labels={tenantSectors.map((item) => item.label)}
                     series={tenantSectors.map((item) => item.value)}
@@ -1169,7 +1169,7 @@ export default function SalesWorkspaceDashboardPage() {
                 subtitle="Saved resources and cafe tables grouped by operating vertical."
               >
                 {resourcePortfolio.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Records"
                     labels={resourcePortfolio.map((item) => item.label)}
                     series={resourcePortfolio.map((item) => item.value)}

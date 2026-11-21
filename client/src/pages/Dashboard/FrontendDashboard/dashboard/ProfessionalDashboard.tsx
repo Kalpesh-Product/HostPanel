@@ -45,7 +45,7 @@ import {
   EmptyState,
 } from "./DashboardShared";
 import type { QuickLinkItem } from "./DashboardShared";
-import DonutChart from "../../../../components/graphs/DonutChart";
+import InsightDonutChart from "./InsightDonutChart";
 import BarGraph from "../../../../components/graphs/BarGraph";
 import DashboardModuleCard from "../../../../components/DashboardModuleCard";
 import WonoListingsCard from "./WonoListingsCard";
@@ -1125,7 +1125,7 @@ const ProfessionalDashboard = ({
               <ActivityPanel eyebrow="Breakdown" title="Visitor Type">
                 <div className="flex min-h-48 flex-1 items-center justify-center">
                   {visitorDonut.series.some((v) => v > 0) ? (
-                    <DonutChart
+                    <InsightDonutChart
                       centerLabel="Visitors"
                       labels={visitorDonut.labels}
                       colors={visitorDonut.colors}
@@ -1177,7 +1177,7 @@ const ProfessionalDashboard = ({
               <ActivityPanel eyebrow="Breakdown" title="Booking Status">
                 <div className="flex min-h-48 flex-1 items-center justify-center">
                   {bookingDonut.series.some((v) => v > 0) ? (
-                    <DonutChart
+                    <InsightDonutChart
                       centerLabel="Bookings"
                       labels={bookingDonut.labels}
                       colors={bookingDonut.colors}
@@ -1229,7 +1229,7 @@ const ProfessionalDashboard = ({
               <ActivityPanel eyebrow="Breakdown" title="Ticket Status">
                 <div className="flex min-h-48 flex-1 items-center justify-center">
                   {ticketDonut.series.some((v) => v > 0) ? (
-                    <DonutChart
+                    <InsightDonutChart
                       centerLabel="Tickets"
                       labels={ticketDonut.labels}
                       colors={ticketDonut.colors}
@@ -1298,7 +1298,7 @@ const ProfessionalDashboard = ({
               <ActivityPanel eyebrow="Breakdown" title="Tenant Status">
                 <div className="flex min-h-48 flex-1 items-center justify-center">
                   {tenantDonut.series.some((v) => v > 0) ? (
-                    <DonutChart
+                    <InsightDonutChart
                       centerLabel="Tenants"
                       labels={tenantDonut.labels}
                       colors={tenantDonut.colors}

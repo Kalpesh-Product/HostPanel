@@ -6,7 +6,7 @@
 import type { CSSProperties, ElementType, ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import DonutChart from "../../../../components/graphs/DonutChart";
+import InsightDonutChart from "./InsightDonutChart";
 import BarGraph from "../../../../components/graphs/BarGraph";
 
 // Re-export utils so consumers can import from one place
@@ -212,7 +212,7 @@ export const DonutWidget = ({
       </div>
       <div className="p-4 flex-1 flex items-center justify-center min-h-48">
         {hasData ? (
-          <DonutChart
+          <InsightDonutChart
             centerLabel={centerLabel}
             labels={labels}
             colors={colors}

@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import DashboardModuleCard from "../../components/DashboardModuleCard";
-import DonutChart from "../../components/graphs/DonutChart";
+import InsightDonutChart from "@/pages/Dashboard/FrontendDashboard/dashboard/InsightDonutChart";
 import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
 import PageFrame from "../../components/Pages/PageFrame";
 import techBannerImage from "../../assets/tech-dashboard-banner.webp";
@@ -789,7 +789,7 @@ export default function TechWorkspaceDashboardPage() {
                 subtitle="Website leads grouped by current workflow stage."
               >
                 {leadStatuses.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Leads"
                     labels={leadStatuses.map(([name]) => name)}
                     series={leadStatuses.map(([, value]) => value)}
@@ -810,7 +810,7 @@ export default function TechWorkspaceDashboardPage() {
                 subtitle="Customer reviews grouped by moderation state."
               >
                 {reviewStatuses.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Reviews"
                     labels={reviewStatuses.map(([name]) => name)}
                     series={reviewStatuses.map(([, value]) => value)}

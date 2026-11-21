@@ -37,6 +37,7 @@ import organizationRoutes from "./routes/organizationRoutes.js";
 import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 import supportTicketRoutes from "./routes/supportTicketRoutes.js";
 import websiteCreditsRoutes from "./routes/websiteCreditsRoutes.js";
+import { loadCreditsSettings } from "./utils/websiteCredits.js";
 import visitorRoutes from "./routes/visitorRoutes.js";
 import assetRoutes from "./routes/assetRoutes.js";
 import meetingRoomRoutes from "./routes/meetingRoomRoutes.js";
@@ -95,6 +96,16 @@ const startServer = async () => {
 
     migrateHolidayEntryIndexes().catch((error) => {
       console.error("Holiday index migration error:", error?.message || error);
+    });
+
+    // Warm the cache behind the Master-Panel-controlled per-plan website
+    // credit limits so the first credit check/builder read doesn't fall back
+    // to the code defaults.
+    loadCreditsSettings({ force: true }).catch((error) => {
+      console.error(
+        "Failed to warm website credit settings:",
+        error?.message || error,
+      );
     });
 
     // Run seeds without blocking the API after MongoDB is connected.

@@ -1,7 +1,6 @@
 // @ts-nocheck
 import mongoose from "mongoose";
-
-const MONTHLY_BASE_CREDITS = 5;
+import { creditsForPlan } from "../utils/websiteCredits.js";
 
 const getFirstDayOfNextMonthUtc = () => {
   const now = new Date();
@@ -9,7 +8,17 @@ const getFirstDayOfNextMonthUtc = () => {
 };
 
 const websiteCreditsSchema = new mongoose.Schema({
-  companyId: { type: String },
+  companyId: {
+    type: String,
+    // Strips a legacy "<companyId>-<timestamp>" suffix so every variant of one
+    // company maps to the same shared pool document.
+    set: (value) => {
+      const normalized = String(value || "").trim();
+      const match = normalized.match(/^(.*)-(\d{10,})$/);
+      return (match?.[1] || normalized) || undefined;
+    },
+  },
+  // Informational only: the last unit that touched the company's shared pool.
   workspaceId: { type: String },
   plan: {
     type: String,
@@ -28,26 +37,30 @@ const websiteCreditsSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
-// One credit pool per company *per workspace* (matches the rest of the data
-// model — e.g. a company with multiple workspace units), not one pool per
-// company globally. Previously companyId and workspaceId were each unique on
-// their own, which — combined with how much id reuse exists in this data —
-// caused a brand-new company to silently inherit and increment an unrelated
-// company's existing credits doc just because one of the two ids collided.
-websiteCreditsSchema.index({ companyId: 1, workspaceId: 1 }, { unique: true });
+// ONE credit pool per company. The website builder is shared by every unit of a
+// company, so all units draw from the same limit, usage counter and add-on
+// balance — keying on (companyId, workspaceId) gave each unit its own full
+// monthly allowance against a single shared site. workspaceId on the document
+// only records the last unit that touched the pool.
+websiteCreditsSchema.index(
+  { companyId: 1 },
+  { unique: true, partialFilterExpression: { companyId: { $type: "string" } } },
+);
 
-// Monthly limit is plan-based: professional 8, custom 12, basic (and the
-// legacy "static-free" label) the base 5. creditsLimit is kept in sync by
-// syncSubscriptionPlan and used as a fallback for legacy rows that predate
-// the plan field.
-const PROFESSIONAL_MONTHLY_CREDITS = 8;
-const CUSTOM_MONTHLY_CREDITS = 12;
+// Monthly limit is plan-based and staff-editable: the live numbers come from
+// the Master Panel's website_credits_settings document through
+// creditsForPlan(), never from constants in this file. creditsLimit is the
+// snapshot written by syncSubscriptionPlan and is only used as a fallback for
+// legacy rows that predate the plan field.
+const KNOWN_PLANS = ["static-free", "basic", "professional", "custom"];
 const getMonthlyLimit = (doc) => {
-  if (doc.plan === "professional") return PROFESSIONAL_MONTHLY_CREDITS;
-  if (doc.plan === "custom") return CUSTOM_MONTHLY_CREDITS;
+  const plan = String(doc.plan || "")
+    .trim()
+    .toLowerCase();
+  if (KNOWN_PLANS.includes(plan)) return creditsForPlan(plan);
   return Number(doc.creditsLimit || 0) > 0
     ? Number(doc.creditsLimit)
-    : MONTHLY_BASE_CREDITS;
+    : creditsForPlan("basic");
 };
 
 websiteCreditsSchema.virtual("monthlyCreditsLimit").get(function () {

@@ -1,31 +1,42 @@
-import React, { useEffect, useMemo, useState } from "react";
+/**
+ * MaintenanceDashboardOverview — the Maintenance manager's dashboard at
+ * /dashboard. Uses the same visual language as the plan-wise and employee
+ * dashboards: the slate outer shell + bordered inner frame, a blue-gradient
+ * greeting masthead, today's attendance as the hero card, a "Maintenance Pulse"
+ * metric row, quick actions, and the Maintenance activity panels below.
+ */
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Activity,
   AlertTriangle,
+  ArrowRight,
   CalendarClock,
   Clock,
+  Gauge,
+  LayoutDashboard,
   ScanSearch,
   Wrench,
 } from "lucide-react";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
-import PageFrame from "@/components/Pages/PageFrame";
-import { DashboardAttendanceCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
-import WidgetSection from "@/components/WidgetSection";
+import BarGraph from "@/components/graphs/BarGraph";
+import InsightDonutChart from "@/pages/Dashboard/FrontendDashboard/dashboard/InsightDonutChart";
 import useDashboardAccess from "@/hooks/useDashboardAccess";
 import useWorkspacePreferences from "@/hooks/useWorkspacePreferences";
 import { useFreshCurrentUser } from "@/hooks/useFreshCurrentUser";
 import {
+  ActivityPanel,
+  EmptyState,
+  MetricTile,
   PlanBadge,
-  StatCard,
-  SectionCard,
+  QuickActionTile,
   RecentItem,
-  DonutWidget,
-  BarWidget,
-  QuickLink,
   getGreeting,
   humanRelTime,
   statusBadgeColor,
 } from "@/pages/Dashboard/FrontendDashboard/dashboard/DashboardShared";
+import TodayAttendanceCard from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
+import DepartmentBudgetPanel from "@/pages/Dashboard/FrontendDashboard/dashboard/DepartmentBudgetPanel";
 import { TeamLiveStatusCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TeamLiveStatusCard";
 import { DepartmentVisitorsCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/DepartmentVisitorsCard";
 import { getMaintenanceOverview } from "@/services/maintenance";
@@ -126,6 +137,20 @@ const WorkspaceClock = ({ timezone, location }: { timezone: string; location: st
       </span>
       {location ? ` - ${location}` : ""}
     </>
+  );
+};
+
+const ViewAllButton = ({ route }: { route: string }) => {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(route)}
+      className="group inline-flex items-center gap-1 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB]"
+    >
+      View all
+      <ArrowRight size={12} className="transition group-hover:translate-x-0.5" />
+    </button>
   );
 };
 
@@ -246,6 +271,18 @@ export function MaintenanceDashboardWidgets() {
     };
   }, [repairLogs]);
 
+  const repairCompletionRate = useMemo(
+    () =>
+      repairLogs.length
+        ? Math.round(
+            (repairLogs.filter((log) => ["Resolved", "Closed"].includes(repairStatusLabel(log))).length /
+              repairLogs.length) *
+              100,
+          )
+        : 0,
+    [repairLogs],
+  );
+
   const monthLabels = useMemo(() => {
     const labels: string[] = [];
     const anchor = new Date();
@@ -294,67 +331,57 @@ export function MaintenanceDashboardWidgets() {
 
   return (
     <div className="flex flex-col gap-5">
-        {error ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-700">
-            {error}
-          </div>
-        ) : null}
+      {error ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-700">
+          {error}
+        </div>
+      ) : null}
 
-        {/* Overview — only the metrics that matter */}
-        <div data-tour="maintenance-overview">
-        <WidgetSection layout={4} title="Overview" border normalCase>
-          <StatCard icon={Activity} label="Uptime" value={`${uptimePercentage}%`} sub={`${totalSchedules} schedules tracked`} color="#1E3D73" route="/department-accesses/maintenance-department/amc-scheduler" />
-          <StatCard icon={Wrench} label="Open Repair Logs" value={openRepairLogs} sub={`${repairLogs.length} logged total`} color="#ef4444" route="/department-accesses/maintenance-department/repair-logs" />
-          <StatCard icon={AlertTriangle} label="Overdue Schedules" value={overdueSchedules} sub={`${dueSoonSchedules} due soon`} color="#dc2626" route="/department-accesses/maintenance-department/amc-scheduler" />
-          <StatCard icon={Clock} label="Due Soon Schedules" value={dueSoonSchedules} sub={`${healthySchedules} healthy`} color="#f59e0b" route="/department-accesses/maintenance-department/amc-scheduler" />
-        </WidgetSection>
+      {/* Maintenance Pulse — the metrics that matter most */}
+      <div data-tour="maintenance-overview">
+        <section className="rounded-[1.75rem] border border-blue-100 bg-[#F8FAFD] p-5 shadow-[0_12px_34px_rgba(30,61,115,0.06)] sm:p-6">
+          <div className="mb-5 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#1E3D73] text-white shadow-sm">
+              <Activity size={18} />
+            </div>
+            <div>
+              <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
+                Asset care
+              </p>
+              <h3 className="mt-0.5 text-lg font-pmedium text-[#1E3D73]">
+                Maintenance Pulse
+              </h3>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <MetricTile icon={Activity} label="Uptime" value={`${uptimePercentage}%`} sub={`${totalSchedules} schedules tracked`} route="/department-accesses/maintenance-department/amc-scheduler" color="#1E3D73" />
+            <MetricTile icon={Wrench} label="Open Repair Logs" value={openRepairLogs} sub={`${repairLogs.length} logged total`} route="/department-accesses/maintenance-department/repair-logs" color="#ef4444" />
+            <MetricTile icon={AlertTriangle} label="Overdue Schedules" value={overdueSchedules} sub={`${dueSoonSchedules} due soon`} route="/department-accesses/maintenance-department/amc-scheduler" color="#dc2626" />
+            <MetricTile icon={Clock} label="Due Soon Schedules" value={dueSoonSchedules} sub={`${healthySchedules} healthy`} route="/department-accesses/maintenance-department/amc-scheduler" color="#f59e0b" />
+            <MetricTile icon={Gauge} label="Repair Completion" value={`${repairCompletionRate}%`} sub="Resolved or closed" route="/department-accesses/maintenance-department/repair-logs" color="#0d9488" />
+          </div>
+        </section>
+      </div>
+
+      {/* Repair log queue, AMC schedule pipeline and recently completed service —
+          three unrelated widgets sharing a row purely for layout, so each gets
+          its own bounded anchor instead of the tour highlighting the whole row. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div data-tour="maintenance-team-status">
+          <TeamLiveStatusCard department="maintenance" viewAllRoute="/department-accesses/maintenance-department/amc-scheduler" />
         </div>
 
-        {/* Repair log queue, AMC schedule pipeline and recently completed service —
-            three unrelated widgets sharing a row purely for layout, so each gets
-            its own bounded anchor instead of the tour highlighting the whole row. */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div data-tour="maintenance-team-status">
-            <TeamLiveStatusCard department="maintenance" viewAllRoute="/department-accesses/maintenance-department/amc-scheduler" />
-          </div>
-
-          <div data-tour="maintenance-department-visitors">
-            <DepartmentVisitorsCard department="maintenance" title="Maintenance Visitors" />
-          </div>
-
-          <div data-tour="maintenance-recent-repair-logs">
-            <SectionCard title="Recent Repair Logs" linkLabel="View all" linkRoute="/department-accesses/maintenance-department/repair-logs">
-              {recentRepairLogs.length > 0 ? recentRepairLogs.map((log, index) => (
-                <RecentItem
-                  key={log._id || log.repairLogCode || index}
-                  title={log.assetName || "Asset"}
-                  sub={truncateText(log.issueDescription || log.issueType || "Issue reported", 60)}
-                  badge={repairStatusLabel(log)}
-                  badgeColor={statusBadgeColor(repairStatusLabel(log))}
-                  time={humanRelTime(log.createdAt || "")}
-                />
-              )) : (
-                <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No repair logs yet</p></div>
-              )}
-            </SectionCard>
-          </div>
+        <div data-tour="maintenance-department-visitors">
+          <DepartmentVisitorsCard department="maintenance" title="Maintenance Visitors" />
         </div>
 
-        {/* Quick links */}
-        <div data-tour="maintenance-quick-links">
-        <WidgetSection layout={2} title="Quick Links" border normalCase>
-          <QuickLink icon={ScanSearch} label="Repair Logs" description="Log & track repairs" route="/department-accesses/maintenance-department/repair-logs" color="#ef4444" />
-          <QuickLink icon={CalendarClock} label="AMC Scheduler" description="Preventive servicing & alerts" route="/department-accesses/maintenance-department/amc-scheduler" color="#f59e0b" />
-        </WidgetSection>
-        </div>
-
-        {/* Active repair logs + schedule health, and resolved/closed logs +
-            repair-log-status each get their own bounded row/anchor instead of
-            being combined into one grid, so a tour step never spans two
-            unrelated recent-activity pairs. */}
-        <div data-tour="maintenance-active-repair-logs" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <SectionCard title="Active Repair Logs" linkLabel="View all" linkRoute="/department-accesses/maintenance-department/repair-logs">
-            {activeRepairLogs.length > 0 ? activeRepairLogs.map((log, index) => (
+        <div data-tour="maintenance-recent-repair-logs">
+          <ActivityPanel
+            eyebrow="Service queue"
+            title="Recent Repair Logs"
+            action={<ViewAllButton route="/department-accesses/maintenance-department/repair-logs" />}
+          >
+            {recentRepairLogs.length > 0 ? recentRepairLogs.map((log, index) => (
               <RecentItem
                 key={log._id || log.repairLogCode || index}
                 title={log.assetName || "Asset"}
@@ -364,55 +391,109 @@ export function MaintenanceDashboardWidgets() {
                 time={humanRelTime(log.createdAt || "")}
               />
             )) : (
-              <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No active repair logs</p></div>
+              <EmptyState icon={Wrench} title="No repair logs yet" description="New repair logs will show up here as they are raised." actionLabel="Open Repair Logs" route="/department-accesses/maintenance-department/repair-logs" />
             )}
-          </SectionCard>
-
-          <DonutWidget
-            title="Schedule Health"
-            series={[healthySchedules, dueSoonSchedules, overdueSchedules]}
-            labels={["Healthy", "Due Soon", "Overdue"]}
-            colors={["#22c55e", "#f59e0b", "#ef4444"]}
-            centerLabel="Schedules"
-          />
+          </ActivityPanel>
         </div>
+      </div>
 
-        {repairLogs.length > 0 ? (
-          <div data-tour="maintenance-resolved-repair-logs" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <SectionCard title="Resolved & Closed Logs" linkLabel="View all" linkRoute="/department-accesses/maintenance-department/repair-logs">
-              {resolvedRepairLogs.length > 0 ? resolvedRepairLogs.map((log, index) => (
-                <RecentItem
-                  key={log._id || log.repairLogCode || index}
-                  title={log.assetName || "Asset"}
-                  sub={truncateText(log.resolutionNote || log.issueDescription || log.issueType || "Issue reported", 60)}
-                  badge={repairStatusLabel(log)}
-                  badgeColor={statusBadgeColor(repairStatusLabel(log))}
-                  time={humanRelTime(log.updatedAt || log.createdAt || "")}
-                />
-              )) : (
-                <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No resolved logs yet</p></div>
-              )}
-            </SectionCard>
-
-            <DonutWidget
-              title="Repair Log Status"
-              series={repairLogStatusDonut.series}
-              labels={repairLogStatusDonut.labels}
-              colors={repairLogStatusDonut.colors}
-              centerLabel="Logs"
-            />
+      {/* Quick actions */}
+      <div data-tour="maintenance-quick-links">
+        <section className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white p-5 shadow-[0_12px_34px_rgba(37,99,235,0.08)] sm:p-6">
+          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/70" />
+          <div className="relative mb-5">
+            <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
+              Jump back in
+            </p>
+            <h3 className="mt-1 text-lg font-pmedium text-[#1E3D73]">
+              Quick Actions
+            </h3>
+            <p className="mt-1 text-xs font-pmedium text-slate-500">
+              The Maintenance modules you use most, one click away.
+            </p>
           </div>
-        ) : null}
+          <div className="relative grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <QuickActionTile icon={ScanSearch} label="Repair Logs" description="Log & track repairs" route="/department-accesses/maintenance-department/repair-logs" color="#ef4444" />
+            <QuickActionTile icon={CalendarClock} label="AMC Scheduler" description="Preventive servicing & alerts" route="/department-accesses/maintenance-department/amc-scheduler" color="#f59e0b" />
+          </div>
+        </section>
+      </div>
 
-        <div data-tour="maintenance-repair-log-trend">
-          <BarWidget
-            title="Monthly Repair Log Trend"
-            chartId="maintenance-monthly-trends"
-            series={monthlyBarSeries}
-            options={monthlyBarOptions}
-            height={260}
-          />
+      {/* Active repair logs + schedule health, and resolved/closed logs +
+          repair-log-status each get their own bounded row/anchor instead of
+          being combined into one grid, so a tour step never spans two
+          unrelated recent-activity pairs. */}
+      <div data-tour="maintenance-active-repair-logs" className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <ActivityPanel
+          eyebrow="In progress"
+          title="Active Repair Logs"
+          action={<ViewAllButton route="/department-accesses/maintenance-department/repair-logs" />}
+        >
+          {activeRepairLogs.length > 0 ? activeRepairLogs.map((log, index) => (
+            <RecentItem
+              key={log._id || log.repairLogCode || index}
+              title={log.assetName || "Asset"}
+              sub={truncateText(log.issueDescription || log.issueType || "Issue reported", 60)}
+              badge={repairStatusLabel(log)}
+              badgeColor={statusBadgeColor(repairStatusLabel(log))}
+              time={humanRelTime(log.createdAt || "")}
+            />
+          )) : (
+            <EmptyState icon={Wrench} title="No active repair logs" description="Open and in-progress repairs will show up here." actionLabel="Open Repair Logs" route="/department-accesses/maintenance-department/repair-logs" />
+          )}
+        </ActivityPanel>
+
+        <ActivityPanel eyebrow="Breakdown" title="Schedule Health">
+          <div className="flex min-h-48 flex-1 items-center justify-center">
+            {[healthySchedules, dueSoonSchedules, overdueSchedules].some((value) => value > 0) ? (
+              <InsightDonutChart centerLabel="Schedules" labels={["Healthy", "Due Soon", "Overdue"]} colors={["#22c55e", "#f59e0b", "#ef4444"]} series={[healthySchedules, dueSoonSchedules, overdueSchedules]} tooltipValue={[healthySchedules, dueSoonSchedules, overdueSchedules].map(String)} />
+            ) : (
+              <p className="text-content font-pmedium text-slate-400">No schedules yet</p>
+            )}
+          </div>
+        </ActivityPanel>
+      </div>
+
+      {repairLogs.length > 0 ? (
+        <div data-tour="maintenance-resolved-repair-logs" className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <ActivityPanel
+            eyebrow="Completed"
+            title="Resolved & Closed Logs"
+            action={<ViewAllButton route="/department-accesses/maintenance-department/repair-logs" />}
+          >
+            {resolvedRepairLogs.length > 0 ? resolvedRepairLogs.map((log, index) => (
+              <RecentItem
+                key={log._id || log.repairLogCode || index}
+                title={log.assetName || "Asset"}
+                sub={truncateText(log.resolutionNote || log.issueDescription || log.issueType || "Issue reported", 60)}
+                badge={repairStatusLabel(log)}
+                badgeColor={statusBadgeColor(repairStatusLabel(log))}
+                time={humanRelTime(log.updatedAt || log.createdAt || "")}
+              />
+            )) : (
+              <EmptyState icon={ScanSearch} title="No resolved logs yet" description="Repairs that are closed out will show up here." actionLabel="Open Repair Logs" route="/department-accesses/maintenance-department/repair-logs" />
+            )}
+          </ActivityPanel>
+
+          <ActivityPanel eyebrow="Breakdown" title="Repair Log Status">
+            <div className="flex min-h-48 flex-1 items-center justify-center">
+              {repairLogStatusDonut.series.some((value) => value > 0) ? (
+                <InsightDonutChart centerLabel="Logs" labels={repairLogStatusDonut.labels} colors={repairLogStatusDonut.colors} series={repairLogStatusDonut.series} tooltipValue={repairLogStatusDonut.series.map(String)} />
+              ) : (
+                <p className="text-content font-pmedium text-slate-400">No logs yet</p>
+              )}
+            </div>
+          </ActivityPanel>
         </div>
+      ) : null}
+
+      <div data-tour="maintenance-repair-log-trend">
+        <ActivityPanel eyebrow="Year at a glance" title="Monthly Repair Log Trend">
+          <BarGraph chartId="maintenance-monthly-trends" data={monthlyBarSeries} options={monthlyBarOptions} height={260} />
+        </ActivityPanel>
+      </div>
+
+      <DepartmentBudgetPanel department="Maintenance" title="Maintenance Budget vs Spend" />
     </div>
   );
 }
@@ -474,25 +555,49 @@ export function MaintenanceDashboardOverview() {
   }, [managerName, now, workspacePreferences.timezone]);
 
   return (
-    <div className="p-4 flex flex-col gap-5">
-      <PageFrame>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h2 className="text-title font-pmedium text-primary uppercase">Maintenance Dashboard</h2>
-              <PlanBadge plan={access.plan} />
+    <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
+      <div className="flex flex-col gap-5 rounded-xl border-default p-4">
+
+        {/* Greeting card — same blue plan-card style used across the plan
+            dashboards and the employee dashboard. */}
+        <section
+          data-tour="maintenance-greeting"
+          className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white p-5 shadow-[0_12px_34px_rgba(37,99,235,0.08)] sm:p-6"
+        >
+          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/70" />
+          <div className="pointer-events-none absolute -bottom-24 right-40 h-56 w-56 rounded-full bg-blue-50/70" />
+          <div className="relative flex min-w-0 items-start gap-4">
+            <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#2563EB] ring-1 ring-blue-100 sm:flex">
+              <LayoutDashboard size={21} />
             </div>
-            <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
-            <p className="text-content font-pmedium text-gray-700">{todayLabel}<WorkspaceClock timezone={workspacePreferences.timezone} location={workspacePreferences.location} /></p>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-[9px] font-pmedium uppercase tracking-[0.22em] text-[#2563EB]">
+                  Maintenance Unit dashboard
+                </p>
+                <PlanBadge plan={access.plan} />
+              </div>
+              <h2 className="mt-2 text-xl font-pmedium text-[#1E3D73] sm:text-2xl">
+                {greeting} 👋
+              </h2>
+              <p className="mt-1 text-xs font-pmedium text-slate-500 sm:text-sm">
+                {todayLabel}
+                <WorkspaceClock
+                  timezone={workspacePreferences.timezone}
+                  location={workspacePreferences.location}
+                />
+              </p>
+            </div>
           </div>
+        </section>
+
+        {/* Today's attendance — the hero card, same as the plan dashboards */}
+        <div data-tour="maintenance-attendance">
+          <TodayAttendanceCard variant="hero" />
         </div>
-      </PageFrame>
 
-      <div data-tour="maintenance-attendance">
-        <DashboardAttendanceCard />
+        <MaintenanceDashboardWidgets />
       </div>
-
-      <MaintenanceDashboardWidgets />
     </div>
   );
 }

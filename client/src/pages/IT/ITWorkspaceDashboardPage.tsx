@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import DashboardModuleCard from "../../components/DashboardModuleCard";
-import DonutChart from "../../components/graphs/DonutChart";
+import InsightDonutChart from "@/pages/Dashboard/FrontendDashboard/dashboard/InsightDonutChart";
 import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
 import PageFrame from "../../components/Pages/PageFrame";
 import itBannerImage from "../../assets/it-dashboard-banner.webp";
@@ -803,7 +803,7 @@ export default function ITWorkspaceDashboardPage() {
                 subtitle="IT repair logs grouped by current workflow status."
               >
                 {repairStatuses.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Repairs"
                     labels={repairStatuses.map(([name]) => name)}
                     series={repairStatuses.map(([, value]) => value)}
@@ -824,7 +824,7 @@ export default function ITWorkspaceDashboardPage() {
                 subtitle="IT assets and software licenses grouped by access state."
               >
                 {assetStatuses.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Assets"
                     labels={assetStatuses.map(([name]) => name)}
                     series={assetStatuses.map(([, value]) => value)}

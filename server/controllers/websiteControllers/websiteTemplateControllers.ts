@@ -3,6 +3,7 @@ import sharp from "sharp";
 import WebsiteTemplate from "../../models/website/WebsiteTemplate.js";
 import {
   creditsForPlan,
+  normalizeCompanyKey,
   resolveWorkspacePlan,
 } from "../../utils/websiteCredits.js";
 import {
@@ -391,38 +392,51 @@ const deductWorkspaceCreditOnSuccess = async ({ workspaceId, companyId } = {}) =
   const normalizedCompanyId = String(companyId || "").trim();
   if (!normalizedWorkspaceId && !normalizedCompanyId) return;
 
-  // The schema's own unique index is the *compound* pair {companyId,
-  // workspaceId} — matching on $or of the two fields independently (the old
-  // behavior) means a company can inherit and increment a totally unrelated
-  // company's credit usage just because one of the two ids happens to
-  // collide (seen in this data: several docs reuse the same value for both
-  // fields). Require both together when both are known; only fall back to a
-  // single-field match when just one identifier is actually available.
-  const lookupFilter =
-    normalizedWorkspaceId && normalizedCompanyId
-      ? { workspaceId: normalizedWorkspaceId, companyId: normalizedCompanyId }
-      : normalizedWorkspaceId
-        ? { workspaceId: normalizedWorkspaceId }
-        : { companyId: normalizedCompanyId };
+  // One shared pool per company: every unit of a company (all created with the
+  // same companyId) draws from the same document, so the company key is
+  // authoritative. workspaceId is recorded as the last unit that spent a credit
+  // and is only a lookup fallback for legacy rows that predate the company key.
+  const companyKey = normalizeCompanyKey(normalizedCompanyId);
+  const lookupFilter = companyKey
+    ? { companyId: companyKey }
+    : { workspaceId: normalizedWorkspaceId };
 
-  return await WorkspaceSubscription.findOneAndUpdate(
-    lookupFilter,
-    {
-      $setOnInsert: {
-        workspaceId: normalizedWorkspaceId || normalizedCompanyId || undefined,
-        companyId: normalizedCompanyId || normalizedWorkspaceId || undefined,
-        plan: "basic",
-        creditsLimit: 5,
-        creditsResetDate: getFirstDayOfNextMonthUtc(),
-      },
-      $inc: { creditsUsed: 1 },
+  // workspaceId lives in exactly ONE operator. Listing a path in both $set and
+  // $setOnInsert is a hard MongoDB error ("would create a conflict at
+  // 'workspaceId'"), which the best-effort wrapper in editTemplate swallows —
+  // the edit saved but no credit was ever used. $set also applies on insert, so
+  // it is enough on its own.
+  const update = {
+    $setOnInsert: {
+      companyId: companyKey || normalizedWorkspaceId || undefined,
+      plan: "basic",
+      // Basic plan's current allowance (staff-editable from Master Panel), not
+      // a hardcoded 5.
+      creditsLimit: creditsForPlan("basic"),
+      creditsResetDate: getFirstDayOfNextMonthUtc(),
     },
-    {
+    $inc: { creditsUsed: 1 },
+  };
+  if (normalizedWorkspaceId) {
+    update.$set = { workspaceId: normalizedWorkspaceId };
+  }
+
+  try {
+    return await WorkspaceSubscription.findOneAndUpdate(lookupFilter, update, {
       upsert: true,
       new: true,
       setDefaultsOnInsert: true,
-    },
-  ).exec();
+    }).exec();
+  } catch (error) {
+    // Two units spent their first credit at the same moment and raced the
+    // company's pool insert; the loser just increments the winner's document.
+    if (error?.code !== 11000) throw error;
+    return await WorkspaceSubscription.findOneAndUpdate(
+      lookupFilter,
+      { $inc: { creditsUsed: 1 } },
+      { new: true },
+    ).exec();
+  }
 };
 
 const NOMADS_BASE_URL = "https://wono.co";
@@ -3944,7 +3958,7 @@ export const publishWebsite = async (req, res, next) => {
         companyId: resolvedCompanyId,
       });
       subscription = await WorkspaceSubscription.create({
-        companyId: resolvedCompanyId || resolvedWorkspaceId,
+        companyId: normalizeCompanyKey(resolvedCompanyId) || resolvedWorkspaceId,
         workspaceId: resolvedWorkspaceId || resolvedCompanyId,
         plan,
         creditsLimit: creditsForPlan(plan),
