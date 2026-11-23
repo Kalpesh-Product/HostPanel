@@ -24,6 +24,7 @@ const BACK_TO_TOP_SPECS: Record<string, BackToTopSpec> = {
   huddle: { bg: "#3b6cf0", fg: "#ffffff", border: "#3b6cf0", radius: "50%", shadow: "0 16px 34px rgba(59,108,240,.3)", font: "'Sora', sans-serif" },
   flowspace: { bg: "#d9ff4f", fg: "#10110f", border: "#10110f", radius: "999px", shadow: "4px 4px 0 #10110f", font: "'Inter', sans-serif" },
   workscape: { bg: "#ffffff", fg: "#20201f", border: "#a99d93", radius: "50%", shadow: "0 15px 34px rgba(32,32,31,.18)", font: "'Inter', sans-serif" },
+  workhub: { bg: "#285fe2", fg: "#ffffff", border: "#285fe2", radius: "4px", shadow: "0 16px 34px rgba(40,95,226,.3)", font: "'Outfit', sans-serif" },
   brixspace: { bg: "#078b52", fg: "#ffffff", border: "#ffffff", radius: "18px", shadow: "0 16px 34px rgba(7,139,82,.28)", font: "'DM Sans', sans-serif" },
   worpace: { bg: "#f7f7e8", fg: "#11110f", border: "#11110f", radius: "5px", shadow: "5px 5px 0 rgba(17,17,15,.9)", font: "'Inter', sans-serif" },
   qerja: { bg: "#f3c441", fg: "#003f3a", border: "#003f3a", radius: "50%", shadow: "0 16px 34px rgba(0,63,58,.25)", font: "'Manrope', sans-serif" },

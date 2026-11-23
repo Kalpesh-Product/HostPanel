@@ -22,6 +22,8 @@ export const SAMPLE_TEMPLATE_IDS = [
   "restobar",
   "flowspace",
   "workscape",
+  "wavex",
+  "workhub",
   "brixspace",
   "worpace",
   "qerja",

@@ -71,6 +71,18 @@ export const THEME_DEFAULTS: Record<string, ThemeDefaults> = {
     accent: "#a99d93",
     surfaceUp: true,
   },
+  wavex: {
+    bg: "#ffffff",
+    text: "#2b2b2f",
+    accent: "#ed4e36",
+    surfaceUp: true,
+  },
+  workhub: {
+    bg: "#f0f2fb",
+    text: "#242839",
+    accent: "#285fe2",
+    surfaceUp: true,
+  },
   brixspace: {
     bg: "#ffffff",
     text: "#101211",

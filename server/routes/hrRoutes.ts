@@ -12,6 +12,7 @@ import {
   updateEmployeeRecord,
   updateMyEmployeeProfile,
   updateMyProfilePicture,
+  removeMyProfilePicture,
   getPayrollSnapshot,
   previewPayrollPayslipTemplate,
   selectPayrollPayslipTemplate,
@@ -30,6 +31,7 @@ router.get("/employees/banks", getEmployeeBankDirectory);
 router.post("/employees/bank-account/verify", verifyEmployeeBankAccount);
 router.patch("/my-profile", updateMyEmployeeProfile);
 router.patch("/my-profile/avatar", upload.single("avatar"), updateMyProfilePicture);
+router.delete("/my-profile/avatar", removeMyProfilePicture);
 router.get("/documents/vault", getEmployeeDocumentsVault);
 router.post(
   "/employees/documents/upload",

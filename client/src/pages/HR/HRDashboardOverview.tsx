@@ -1,38 +1,48 @@
-import React, { useEffect, useMemo, useState } from "react";
+/**
+ * HRDashboardOverview — the HR manager's dashboard at /dashboard. Uses the
+ * same visual language as the plan-wise and employee dashboards: the slate
+ * outer shell + bordered inner frame, a blue-gradient greeting masthead,
+ * today's attendance as the hero card, an "HR Pulse" metric row, quick actions,
+ * and the HR activity panels below.
+ */
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Users,
+  Activity,
+  ArrowRight,
+  Briefcase,
+  Cake,
   CalendarDays,
   Clock,
-  Briefcase,
-  UserCheck,
-  UserPlus,
-  Wallet,
-  UserMinus,
   FileText,
-  Cake,
+  LayoutDashboard,
   LogOut,
+  UserCheck,
+  UserMinus,
+  UserPlus,
+  Users,
+  Wallet,
 } from "lucide-react";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
-import PageFrame from "@/components/Pages/PageFrame";
-import { DashboardAttendanceCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
-import WidgetSection from "@/components/WidgetSection";
+import BarGraph from "@/components/graphs/BarGraph";
+import InsightDonutChart from "@/pages/Dashboard/FrontendDashboard/dashboard/InsightDonutChart";
 import useDashboardAccess from "@/hooks/useDashboardAccess";
 import useWorkspacePreferences from "@/hooks/useWorkspacePreferences";
 import { useFreshCurrentUser } from "@/hooks/useFreshCurrentUser";
 import {
+  ActivityPanel,
+  EmptyState,
+  MetricTile,
   PlanBadge,
-  StatCard,
-  SectionCard,
+  QuickActionTile,
   RecentItem,
-  DonutWidget,
-  BarWidget,
-  QuickLink,
+  fmtINR,
   getGreeting,
   humanRelTime,
   statusBadgeColor,
-  fmtINR,
 } from "@/pages/Dashboard/FrontendDashboard/dashboard/DashboardShared";
+import TodayAttendanceCard from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
+import DepartmentBudgetPanel from "@/pages/Dashboard/FrontendDashboard/dashboard/DepartmentBudgetPanel";
 import { TeamLiveStatusCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TeamLiveStatusCard";
 import { DepartmentVisitorsCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/DepartmentVisitorsCard";
 import { getEmployeeManagementOverview, getPayrollSnapshot } from "@/services/hr";
@@ -198,6 +208,65 @@ function normalizeText(value: unknown): string {
   return String(value || "").trim().toLowerCase();
 }
 
+/* Ticking workspace clock used on the greeting masthead. Digits are
+   fixed-width so the card doesn't jitter every second. */
+const WorkspaceClock = ({ timezone, location }: { timezone: string; location: string }) => {
+  const [tick, setTick] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setTick(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const timeLabel = useMemo(() => {
+    try {
+      return new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      }).format(tick);
+    } catch {
+      return "";
+    }
+  }, [tick, timezone]);
+
+  if (!timeLabel) return null;
+
+  return (
+    <>
+      {` | `}
+      <span className="inline-block whitespace-nowrap" aria-label={timeLabel}>
+        {timeLabel.split("").map((ch, i) =>
+          /[0-9]/.test(ch) ? (
+            <span key={i} className="inline-block w-[0.665em] text-center">
+              {ch}
+            </span>
+          ) : (
+            <span key={i}>{ch}</span>
+          ),
+        )}
+      </span>
+      {location ? ` - ${location}` : ""}
+    </>
+  );
+};
+
+const ViewAllButton = ({ route }: { route: string }) => {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(route)}
+      className="group inline-flex items-center gap-1 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB]"
+    >
+      View all
+      <ArrowRight size={12} className="transition group-hover:translate-x-0.5" />
+    </button>
+  );
+};
+
 function formatAttendanceDate(value: unknown): string {
   if (!value) return "--";
 
@@ -328,60 +397,36 @@ function DashboardBirthdaysCard({ employees }: { employees: EmployeeRecord[] }) 
   }, [employees, currentMonthKey]);
 
   return (
-    <SectionCard title={`${currentMonthName} Birthdays`} linkLabel="View all" linkRoute="/department-accesses/hr-department/company-management">
-      <div className="flex-1 flex flex-col gap-1.5 overflow-hidden">
-        {visible.length > 0 ? visible.map(({ employee, birthday }) => {
-          const empName = employee.name || employee.fullName || "Employee";
-          return (
-            <div key={employee.id || empName} className="flex items-center justify-between gap-2 py-2 border-b border-gray-100 last:border-0">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <div className="h-8 w-8 shrink-0 rounded-full bg-[#2563EB] text-white flex items-center justify-center text-[10px] font-pmedium shadow-sm border border-blue-800">
-                  {(empName || "?").charAt(0).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-content font-pmedium text-gray-800 truncate">{empName}</p>
-                  <p className="text-small text-gray-500 truncate">{employee.department || "General"}</p>
-                </div>
-              </div>
-              <span className="text-[10px] font-pmedium text-slate-500 flex-shrink-0">
-                {formatBirthdayShort(birthday.month, birthday.day)}
-              </span>
-            </div>
-          );
-        }) : (
-          <div className="min-h-40 flex flex-col items-center justify-center text-gray-400">
-            <Cake size={26} className="text-slate-300 mb-2" />
-            <p className="text-content font-pmedium text-center">No birthdays this month.</p>
-          </div>
-        )}
-      </div>
-    </SectionCard>
+    <ActivityPanel
+      eyebrow="Celebrations"
+      title={`${currentMonthName} Birthdays`}
+      action={<ViewAllButton route="/department-accesses/hr-department/company-management" />}
+    >
+      {visible.length > 0 ? visible.map(({ employee, birthday }) => {
+        const empName = employee.name || employee.fullName || "Employee";
+        return (
+          <RecentItem
+            key={employee.id || empName}
+            title={empName}
+            sub={employee.department || "General"}
+            badge={formatBirthdayShort(birthday.month, birthday.day)}
+            badgeColor="bg-pink-50 text-pink-700 border-pink-200"
+          />
+        );
+      }) : (
+        <EmptyState
+          icon={Cake}
+          title="No birthdays this month"
+          description="Team birthdays will show up here when they fall in the current month."
+          actionLabel="Open Directory"
+          route="/department-accesses/hr-department/company-management"
+        />
+      )}
+    </ActivityPanel>
   );
 }
 
 /* ───────────────────────────── Dashboard resignations card ───────────────────────────── */
-
-function getResignationStatusBadge(status?: string): React.ReactNode {
-  const normalized = normalizeText(status);
-  if (normalized === "approved") {
-    return (
-      <span className="px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider border bg-blue-50 text-blue-700 border-blue-200">{status}</span>
-    );
-  }
-  if (normalized === "rejected") {
-    return (
-      <span className="px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider border bg-red-50 text-red-600 border-red-200">{status}</span>
-    );
-  }
-  if (normalized === "completed") {
-    return (
-      <span className="px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider border bg-green-50 text-green-700 border-green-200">{status}</span>
-    );
-  }
-  return (
-    <span className="px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider border bg-amber-50 text-amber-700 border-amber-200">Pending</span>
-  );
-}
 
 function DashboardResignationsCard({ requests }: { requests: ResignationRecord[] }) {
   const visible = useMemo(
@@ -393,37 +438,30 @@ function DashboardResignationsCard({ requests }: { requests: ResignationRecord[]
   );
 
   return (
-    <SectionCard title="Recent Resignations" linkLabel="View all" linkRoute="/department-accesses/hr-department/resignation-management">
-      <div className="flex-1 flex flex-col gap-1.5 overflow-hidden">
-        {visible.length > 0 ? visible.map((request) => {
-          const initials = String(request.employeeName || "?").split(" ").map((part) => part[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
-          return (
-            <div key={request.id || request.recordId || request.employeeName} className="flex items-center justify-between gap-2 py-2 border-b border-gray-100 last:border-0">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <div className="h-8 w-8 shrink-0 rounded-full bg-red-50 text-red-600 border border-red-200 flex items-center justify-center text-[10px] font-pmedium">
-                  {initials}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-content font-pmedium text-gray-800 truncate">{request.employeeName || "Employee"}</p>
-                  <p className="text-small text-gray-500 truncate">
-                    {request.department || "General"}{request.requesterRole ? ` · ${request.requesterRole}` : ""}
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                <span className="text-[10px] font-pmedium text-slate-500">{humanRelTime(request.createdAt || "")}</span>
-                {getResignationStatusBadge(request.status || "pending")}
-              </div>
-            </div>
-          );
-        }) : (
-          <div className="min-h-40 flex flex-col items-center justify-center text-gray-400">
-            <UserMinus size={26} className="text-slate-300 mb-2" />
-            <p className="text-content font-pmedium text-center">No resignation requests.</p>
-          </div>
-        )}
-      </div>
-    </SectionCard>
+    <ActivityPanel
+      eyebrow="Exit workflow"
+      title="Recent Resignations"
+      action={<ViewAllButton route="/department-accesses/hr-department/resignation-management" />}
+    >
+      {visible.length > 0 ? visible.map((request) => (
+        <RecentItem
+          key={request.id || request.recordId || request.employeeName}
+          title={request.employeeName || "Employee"}
+          sub={`${request.department || "General"}${request.requesterRole ? ` · ${request.requesterRole}` : ""}`}
+          badge={request.status || "pending"}
+          badgeColor={statusBadgeColor(request.status || "pending")}
+          time={humanRelTime(request.createdAt || "")}
+        />
+      )) : (
+        <EmptyState
+          icon={UserMinus}
+          title="No resignation requests"
+          description="Employee exit requests will appear here for review."
+          actionLabel="Open Resignations"
+          route="/department-accesses/hr-department/resignation-management"
+        />
+      )}
+    </ActivityPanel>
   );
 }
 
@@ -473,7 +511,7 @@ export function HRDashboardWidgets() {
         const teamAttendanceData = teamAttendanceResponse.status === "fulfilled"
           ? (teamAttendanceResponse.value as Record<string, unknown>)?.records || []
           : [];
-        const payrollData = payrollResponse.status === "fulfilled" ? (payrollResponse.value as Record<string, unknown>) || {} : {};
+        const payrollData = payrollResponse.status === "fulfilled" ? (payrollResponse.value as unknown as Record<string, unknown>) || {} : {};
         const resignationData = resignationResponse.status === "fulfilled" ? (resignationResponse.value as Record<string, unknown>) || {} : {};
 
         setDashboard({
@@ -748,174 +786,226 @@ export function HRDashboardWidgets() {
 
   return (
     <div className="flex flex-col gap-5">
-        {error ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-700">
-            {error}
-          </div>
-        ) : null}
-
-        {/* Overview — only the metrics that matter */}
-        <div data-tour="hr-overview">
-        <WidgetSection layout={4} title="Overview" border normalCase>
-          <StatCard icon={Users} label="Total Employees" value={totalEmployees} sub={`${presentEmployees} present today`} color="#1E3D73" route="/department-accesses/hr-department/company-management" />
-          <StatCard icon={CalendarDays} label="Pending Leaves" value={pendingLeaves} sub={`${formatPercentage(attendanceRate)} attendance rate`} color="#f59e0b" route="/department-accesses/hr-department/leave-request-processing" />
-          <StatCard icon={Clock} label="Correction Requests" value={pendingCorrections} sub="Awaiting HR review" color="#ef4444" route="/department-accesses/hr-department/attendance-review" />
-          <StatCard icon={Briefcase} label="Open Positions" value={openPositions} sub={`${selectedCandidates} shortlisted · ${onboardedCount} onboarded`} color="#7c3aed" route="/department-accesses/hr-department/recruitment" />
-          <StatCard icon={Wallet} label="Payroll" value={fmtINR(payrollStats.netPayable, workspacePreferences.currency)} sub={`${payrollStats.paid}/${payrollStats.totalEmployees} employees paid`} color="#0ea5e9" route="/department-accesses/hr-department/payroll-management" />
-          <StatCard icon={Cake} label={`${BIRTHDAY_MONTH_NAMES[new Date().getMonth()] || ""} Birthdays`} value={thisMonthBirthdays} sub="Celebrations this month" color="#ec4899" route="/department-accesses/hr-department/company-management" />
-          <StatCard icon={UserMinus} label="Pending Resignations" value={pendingResignations} sub="Awaiting HR review" color="#ef4444" route="/department-accesses/hr-department/resignation-management" />
-          <StatCard icon={LogOut} label="On Notice" value={activeNoticeCount} sub="Active notice periods" color="#f97316" route="/department-accesses/hr-department/resignation-management" />
-        </WidgetSection>
+      {error ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-700">
+          {error}
         </div>
+      ) : null}
 
-        {/* Team status, live visitors and today's correction queue — a fixed
-            trio (always rendered together) so it shares one bounded anchor. */}
-        <div data-tour="hr-team-status" className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <TeamLiveStatusCard department="hr" viewAllRoute="/department-accesses/hr-department/attendance-review" />
-
-          <DepartmentVisitorsCard department="hr" title="HR Visitors" />
-
-          <SectionCard title="Correction Requests" linkLabel="View all" linkRoute="/department-accesses/hr-department/attendance-review">
-            <div className="space-y-3">
-              {correctionsToday.length > 0 ? correctionsToday.map((request) => {
-                const requestKey = request.correctionId || request.recordId || request.id;
-                const isPending = normalizeText(request.status).includes("pending");
-                return (
-                  <div
-                    key={requestKey}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => request.userId && navigate(`/department-accesses/hr-department/attendance-review/${request.userId}`)}
-                    className="flex cursor-pointer items-start justify-between gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 transition-colors hover:border-primary"
-                  >
-                    <div className="flex min-w-0 items-start gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-amber-600">
-                        <Clock size={16} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-content font-pmedium text-gray-900 truncate">{request.employeeName || request.name || "Employee"}</p>
-                        <p className="text-small text-gray-500 truncate">In {request.requestedCheckIn || "--"} • Out {request.requestedCheckOut || "--"}</p>
-                      </div>
-                    </div>
-                    <span className={`flex-shrink-0 px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider border ${statusBadgeColor(request.status || "")}`}>
-                      {isPending ? "Pending" : request.status}
-                    </span>
-                  </div>
-                );
-              }) : (
-                <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No correction requests filed today</p></div>
-              )}
+      {/* HR Pulse — the metrics that matter to an HR manager */}
+      <div data-tour="hr-overview">
+        <section className="rounded-[1.75rem] border border-blue-100 bg-[#F8FAFD] p-5 shadow-[0_12px_34px_rgba(30,61,115,0.06)] sm:p-6">
+          <div className="mb-5 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#1E3D73] text-white shadow-sm">
+              <Activity size={18} />
             </div>
-          </SectionCard>
-        </div>
+            <div>
+              <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
+                Workforce
+              </p>
+              <h3 className="mt-0.5 text-lg font-pmedium text-[#1E3D73]">
+                HR Pulse
+              </h3>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricTile icon={Users} label="Total Employees" value={totalEmployees} sub={`${presentEmployees} present today`} route="/department-accesses/hr-department/company-management" color="#1E3D73" />
+            <MetricTile icon={CalendarDays} label="Pending Leaves" value={pendingLeaves} sub={`${formatPercentage(attendanceRate)} attendance rate`} route="/department-accesses/hr-department/leave-request-processing" color="#f59e0b" />
+            <MetricTile icon={Clock} label="Correction Requests" value={pendingCorrections} sub="Awaiting HR review" route="/department-accesses/hr-department/attendance-review" color="#ef4444" />
+            <MetricTile icon={Briefcase} label="Open Positions" value={openPositions} sub={`${selectedCandidates} shortlisted · ${onboardedCount} onboarded`} route="/department-accesses/hr-department/recruitment" color="#7c3aed" />
+            <MetricTile icon={Wallet} label="Payroll" value={fmtINR(payrollStats.netPayable, workspacePreferences.currency)} sub={`${payrollStats.paid}/${payrollStats.totalEmployees} employees paid`} route="/department-accesses/hr-department/payroll-management" color="#0ea5e9" />
+            <MetricTile icon={Cake} label={`${BIRTHDAY_MONTH_NAMES[new Date().getMonth()] || ""} Birthdays`} value={thisMonthBirthdays} sub="Celebrations this month" route="/department-accesses/hr-department/company-management" color="#ec4899" />
+            <MetricTile icon={UserMinus} label="Pending Resignations" value={pendingResignations} sub="Awaiting HR review" route="/department-accesses/hr-department/resignation-management" color="#ef4444" />
+            <MetricTile icon={LogOut} label="On Notice" value={activeNoticeCount} sub="Active notice periods" route="/department-accesses/hr-department/resignation-management" color="#f97316" />
+          </div>
+        </section>
+      </div>
 
-        {/* Quick links */}
-        <div data-tour="hr-quick-links">
-        <WidgetSection layout={4} title="Quick Links" border normalCase>
-          <QuickLink icon={Users} label="Company Management" description="Directory & records" route="/department-accesses/hr-department/company-management" color="#2563EB" />
-          <QuickLink icon={UserCheck} label="Attendance Review" description="Review team punches" route="/department-accesses/hr-department/attendance-review" color="#f59e0b" />
-          <QuickLink icon={CalendarDays} label="Leave Requests" description="Approve or reject leaves" route="/department-accesses/hr-department/leave-request-processing" color="#22c55e" />
-          <QuickLink icon={UserPlus} label="Recruitment" description="Candidates & job openings" route="/department-accesses/hr-department/recruitment" color="#8b5cf6" />
-          <QuickLink icon={Wallet} label="Payroll" description="Payroll management" route="/department-accesses/hr-department/payroll-management" color="#0ea5e9" />
-          <QuickLink icon={FileText} label="HR Documents" description="Policies & documents" route="/department-accesses/hr-department/documents" color="#64748b" />
-          <QuickLink icon={UserMinus} label="Resignation Management" description="Offboarding workflow" route="/department-accesses/hr-department/resignation-management" color="#ef4444" />
-        </WidgetSection>
-        </div>
+      {/* Team status, live visitors and today's correction queue — a fixed
+          trio (always rendered together) so it shares one bounded anchor. */}
+      <div data-tour="hr-team-status" className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <TeamLiveStatusCard department="hr" viewAllRoute="/department-accesses/hr-department/attendance-review" />
 
-        {/* Recent activity — each recent-list + donut pair gets its own
-            bounded row/anchor (rather than one grid combining all three)
-            so a highlight never spans more than a single pair. */}
-        <div data-tour="hr-leave-requests" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <SectionCard title="Recent Leave Requests" linkLabel="View all" linkRoute="/department-accesses/hr-department/leave-request-processing">
-            {recentLeaves.length > 0 ? recentLeaves.map((request, index) => (
-              <RecentItem
-                key={request.id || request.recordId || index}
-                title={request.employeeName || request.name || "Employee"}
-                sub={request.leaveType || "Leave"}
-                badge={request.status || "Pending"}
-                badgeColor={statusBadgeColor(request.status || "")}
-                time={humanRelTime(request.createdAt || request.updatedAt || "")}
-              />
-            )) : (
-              <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No leave requests yet</p></div>
+        <DepartmentVisitorsCard department="hr" title="HR Visitors" />
+
+        <ActivityPanel
+          eyebrow="Today's queue"
+          title="Correction Requests"
+          action={<ViewAllButton route="/department-accesses/hr-department/attendance-review" />}
+        >
+          {correctionsToday.length > 0 ? correctionsToday.map((request) => {
+            const requestKey = request.correctionId || request.recordId || request.id;
+            const isPending = normalizeText(request.status).includes("pending");
+            return (
+              <div
+                key={requestKey}
+                role="button"
+                tabIndex={0}
+                onClick={() => request.userId && navigate(`/department-accesses/hr-department/attendance-review/${request.userId}`)}
+                className="flex cursor-pointer items-start justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3 transition-colors hover:border-blue-200"
+              >
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-blue-100 bg-white text-amber-600">
+                    <Clock size={16} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-content font-pmedium text-[#1E3D73] truncate">{request.employeeName || request.name || "Employee"}</p>
+                    <p className="text-small text-slate-500 truncate">In {request.requestedCheckIn || "--"} • Out {request.requestedCheckOut || "--"}</p>
+                  </div>
+                </div>
+                <span className={`flex-shrink-0 px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider border ${statusBadgeColor(request.status || "")}`}>
+                  {isPending ? "Pending" : request.status}
+                </span>
+              </div>
+            );
+          }) : (
+            <EmptyState
+              icon={Clock}
+              title="No corrections today"
+              description="Attendance correction requests filed today will show up here."
+              actionLabel="Open Review"
+              route="/department-accesses/hr-department/attendance-review"
+            />
+          )}
+        </ActivityPanel>
+      </div>
+
+      {/* Quick actions */}
+      <div data-tour="hr-quick-links">
+        <section className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white p-5 shadow-[0_12px_34px_rgba(37,99,235,0.08)] sm:p-6">
+          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/70" />
+          <div className="relative mb-5">
+            <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
+              Jump back in
+            </p>
+            <h3 className="mt-1 text-lg font-pmedium text-[#1E3D73]">
+              Quick Actions
+            </h3>
+            <p className="mt-1 text-xs font-pmedium text-slate-500">
+              The HR modules you use most, one click away.
+            </p>
+          </div>
+          <div className="relative grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <QuickActionTile icon={Users} label="Company Management" description="Directory & records" route="/department-accesses/hr-department/company-management" color="#2563EB" />
+            <QuickActionTile icon={UserCheck} label="Attendance Review" description="Review team punches" route="/department-accesses/hr-department/attendance-review" color="#f59e0b" />
+            <QuickActionTile icon={CalendarDays} label="Leave Requests" description="Approve or reject leaves" route="/department-accesses/hr-department/leave-request-processing" color="#22c55e" />
+            <QuickActionTile icon={UserPlus} label="Recruitment" description="Candidates & job openings" route="/department-accesses/hr-department/recruitment" color="#8b5cf6" />
+            <QuickActionTile icon={Wallet} label="Payroll" description="Payroll management" route="/department-accesses/hr-department/payroll-management" color="#0ea5e9" />
+            <QuickActionTile icon={FileText} label="HR Documents" description="Policies & documents" route="/department-accesses/hr-department/documents" color="#64748b" />
+            <QuickActionTile icon={UserMinus} label="Resignation Management" description="Offboarding workflow" route="/department-accesses/hr-department/resignation-management" color="#ef4444" />
+          </div>
+        </section>
+      </div>
+
+      {/* Recent activity — each recent-list + donut pair gets its own
+          bounded row/anchor so a highlight never spans more than one pair. */}
+      <div data-tour="hr-leave-requests" className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <ActivityPanel
+          eyebrow="Time off"
+          title="Recent Leave Requests"
+          action={<ViewAllButton route="/department-accesses/hr-department/leave-request-processing" />}
+        >
+          {recentLeaves.length > 0 ? recentLeaves.map((request, index) => (
+            <RecentItem
+              key={request.id || request.recordId || index}
+              title={request.employeeName || request.name || "Employee"}
+              sub={request.leaveType || "Leave"}
+              badge={request.status || "Pending"}
+              badgeColor={statusBadgeColor(request.status || "")}
+              time={humanRelTime(request.createdAt || request.updatedAt || "")}
+            />
+          )) : (
+            <EmptyState icon={CalendarDays} title="No leave requests yet" description="New time-off submissions will show up here." actionLabel="Open Leaves" route="/department-accesses/hr-department/leave-request-processing" />
+          )}
+        </ActivityPanel>
+
+        <ActivityPanel eyebrow="Breakdown" title="Leave Status">
+          <div className="flex min-h-48 flex-1 items-center justify-center">
+            {leaveStatusDonut.series.some((value) => value > 0) ? (
+              <InsightDonutChart centerLabel="Leaves" labels={leaveStatusDonut.labels} colors={leaveStatusDonut.colors} series={leaveStatusDonut.series} tooltipValue={leaveStatusDonut.series.map(String)} />
+            ) : (
+              <p className="text-content font-pmedium text-slate-400">No leaves yet</p>
             )}
-          </SectionCard>
+          </div>
+        </ActivityPanel>
+      </div>
 
-          <DonutWidget
-            title="Leave Status"
-            series={leaveStatusDonut.series}
-            labels={leaveStatusDonut.labels}
-            colors={leaveStatusDonut.colors}
-            centerLabel="Leaves"
-          />
-        </div>
+      <div data-tour="hr-recent-attendance" className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <ActivityPanel
+          eyebrow="Front desk"
+          title="Recent Attendance"
+          action={<ViewAllButton route="/department-accesses/hr-department/attendance-review" />}
+        >
+          {recentAttendance.length > 0 ? recentAttendance.map((row, index) => (
+            <RecentItem
+              key={row.id || row.recordId || index}
+              title={row.name || row.employeeName || "Employee"}
+              sub={formatPunchSub(row)}
+              badge={getAttendanceStatusLabel(row)}
+              badgeColor={getAttendanceBadgeColor(getAttendanceStatusLabel(row))}
+              time={formatAttendanceDate(row.dateKey || row.date || row.attendanceDate || row.recordDate)}
+            />
+          )) : (
+            <EmptyState icon={Clock} title="No attendance records yet" description="Today's team punches will show up here." actionLabel="Open Review" route="/department-accesses/hr-department/attendance-review" />
+          )}
+        </ActivityPanel>
 
-        <div data-tour="hr-recent-attendance" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <SectionCard title="Recent Attendance" linkLabel="View all" linkRoute="/department-accesses/hr-department/attendance-review">
-            {recentAttendance.length > 0 ? recentAttendance.map((row, index) => (
-              <RecentItem
-                key={row.id || row.recordId || index}
-                title={row.name || row.employeeName || "Employee"}
-                sub={formatPunchSub(row)}
-                badge={getAttendanceStatusLabel(row)}
-                badgeColor={getAttendanceBadgeColor(getAttendanceStatusLabel(row))}
-                time={formatAttendanceDate(row.dateKey || row.date || row.attendanceDate || row.recordDate)}
-              />
-            )) : (
-              <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No attendance records yet</p></div>
+        <ActivityPanel eyebrow="Breakdown" title="Attendance Status">
+          <div className="flex min-h-48 flex-1 items-center justify-center">
+            {attendanceStatusDonut.series.some((value) => value > 0) ? (
+              <InsightDonutChart centerLabel="Today" labels={attendanceStatusDonut.labels} colors={attendanceStatusDonut.colors} series={attendanceStatusDonut.series} tooltipValue={attendanceStatusDonut.series.map(String)} />
+            ) : (
+              <p className="text-content font-pmedium text-slate-400">No attendance yet</p>
             )}
-          </SectionCard>
+          </div>
+        </ActivityPanel>
+      </div>
 
-          <DonutWidget
-            title="Attendance Status"
-            series={attendanceStatusDonut.series}
-            labels={attendanceStatusDonut.labels}
-            colors={attendanceStatusDonut.colors}
-            centerLabel="Today"
-          />
-        </div>
+      <div data-tour="hr-candidates" className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <ActivityPanel
+          eyebrow="Hiring"
+          title="Recent Candidates"
+          action={<ViewAllButton route="/department-accesses/hr-department/recruitment" />}
+        >
+          {recentCandidates.length > 0 ? recentCandidates.map((candidate, index) => (
+            <RecentItem
+              key={candidate.id || candidate.recordId || index}
+              title={candidate.name || candidate.fullName || "Candidate"}
+              sub={candidate.positionApplied || "Application"}
+              badge={candidate.status || "New"}
+              badgeColor={statusBadgeColor(candidate.status || "")}
+              time={humanRelTime(candidate.createdAt || candidate.appliedAt || candidate.lastContact || "")}
+            />
+          )) : (
+            <EmptyState icon={UserPlus} title="No candidates yet" description="New applicants will show up here as they apply." actionLabel="Open Recruitment" route="/department-accesses/hr-department/recruitment" />
+          )}
+        </ActivityPanel>
 
-        <div data-tour="hr-candidates" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <SectionCard title="Recent Candidates" linkLabel="View all" linkRoute="/department-accesses/hr-department/recruitment">
-            {recentCandidates.length > 0 ? recentCandidates.map((candidate, index) => (
-              <RecentItem
-                key={candidate.id || candidate.recordId || index}
-                title={candidate.name || candidate.fullName || "Candidate"}
-                sub={candidate.positionApplied || "Application"}
-                badge={candidate.status || "New"}
-                badgeColor={statusBadgeColor(candidate.status || "")}
-                time={humanRelTime(candidate.createdAt || candidate.appliedAt || candidate.lastContact || "")}
-              />
-            )) : (
-              <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No candidates yet</p></div>
+        <ActivityPanel eyebrow="Breakdown" title="Recruitment Funnel">
+          <div className="flex min-h-48 flex-1 items-center justify-center">
+            {recruitmentFunnel.series.some((value) => value > 0) ? (
+              <InsightDonutChart centerLabel="Candidates" labels={recruitmentFunnel.labels} colors={recruitmentFunnel.colors} series={recruitmentFunnel.series} tooltipValue={recruitmentFunnel.series.map(String)} />
+            ) : (
+              <p className="text-content font-pmedium text-slate-400">No candidates yet</p>
             )}
-          </SectionCard>
+          </div>
+        </ActivityPanel>
+      </div>
 
-          <DonutWidget
-            title="Recruitment Funnel"
-            series={recruitmentFunnel.series}
-            labels={recruitmentFunnel.labels}
-            colors={recruitmentFunnel.colors}
-            centerLabel="Candidates"
-          />
-        </div>
+      {/* Monthly Birthdays + Recent Resignations — a fixed pair (always
+          rendered together), so it shares one bounded anchor. */}
+      <div data-tour="hr-birthdays-resignations" className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <DashboardBirthdaysCard employees={employees} />
+        <DashboardResignationsCard requests={dashboard.resignations} />
+      </div>
 
-        {/* Monthly Birthdays + Recent Resignations — a fixed pair (always
-            rendered together), so it shares one bounded anchor. */}
-        <div data-tour="hr-birthdays-resignations" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <DashboardBirthdaysCard employees={employees} />
-          <DashboardResignationsCard requests={dashboard.resignations} />
-        </div>
+      <div data-tour="hr-monthly-trends">
+        <ActivityPanel eyebrow="Year at a glance" title="Monthly HR Trends (FY)">
+          <BarGraph chartId="hr-monthly-trends" data={monthlyBarSeries} options={monthlyBarOptions} height={260} />
+        </ActivityPanel>
+      </div>
 
-        <div data-tour="hr-monthly-trends">
-        <BarWidget
-          title="Monthly HR Trends (FY)"
-          chartId="hr-monthly-trends"
-          series={monthlyBarSeries}
-          options={monthlyBarOptions}
-          height={260}
-        />
-        </div>
+      <DepartmentBudgetPanel department="HR" title="HR Budget vs Spend" />
     </div>
   );
 }
@@ -976,44 +1066,50 @@ export function HRDashboardOverview() {
     }
   }, [founderName, now, workspacePreferences.timezone]);
 
-  const timeLabel = useMemo(() => {
-    try {
-      return new Intl.DateTimeFormat("en-US", {
-        timeZone: workspacePreferences.timezone,
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: true,
-      }).format(now);
-    } catch {
-      return "";
-    }
-  }, [now, workspacePreferences.timezone]);
-
   return (
-    <div className="p-4 flex flex-col gap-5">
-      <div data-tour="hr-greeting">
-      <PageFrame>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h2 className="text-title font-pmedium text-primary uppercase">HR Dashboard</h2>
-              <PlanBadge plan={access.plan} />
+    <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
+      <div className="flex flex-col gap-5 rounded-xl border-default p-4">
+
+        {/* Greeting card — same blue plan-card style used across the plan
+            dashboards and the employee dashboard. */}
+        <section
+          data-tour="hr-greeting"
+          className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white p-5 shadow-[0_12px_34px_rgba(37,99,235,0.08)] sm:p-6"
+        >
+          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/70" />
+          <div className="pointer-events-none absolute -bottom-24 right-40 h-56 w-56 rounded-full bg-blue-50/70" />
+          <div className="relative flex min-w-0 items-start gap-4">
+            <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#2563EB] ring-1 ring-blue-100 sm:flex">
+              <LayoutDashboard size={21} />
             </div>
-            <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
-            <p className="text-content font-pmedium text-gray-700">
-              {todayLabel}
-              {timeLabel ? ` | ${timeLabel}` : ""}
-              {workspacePreferences.location ? ` - ${workspacePreferences.location}` : ""}
-            </p>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-[9px] font-pmedium uppercase tracking-[0.22em] text-[#2563EB]">
+                  HR Unit dashboard
+                </p>
+                <PlanBadge plan={access.plan} />
+              </div>
+              <h2 className="mt-2 text-xl font-pmedium text-[#1E3D73] sm:text-2xl">
+                {greeting} 👋
+              </h2>
+              <p className="mt-1 text-xs font-pmedium text-slate-500 sm:text-sm">
+                {todayLabel}
+                <WorkspaceClock
+                  timezone={workspacePreferences.timezone}
+                  location={workspacePreferences.location}
+                />
+              </p>
+            </div>
           </div>
+        </section>
+
+        {/* Today's attendance — the hero card, same as the plan dashboards */}
+        <div data-tour="hr-attendance">
+          <TodayAttendanceCard variant="hero" />
         </div>
-      </PageFrame>
+
+        <HRDashboardWidgets />
       </div>
-
-      <div data-tour="hr-attendance"><DashboardAttendanceCard /></div>
-
-      <HRDashboardWidgets />
     </div>
   );
 }

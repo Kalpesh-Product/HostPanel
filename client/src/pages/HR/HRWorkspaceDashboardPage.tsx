@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import DashboardModuleCard from "../../components/DashboardModuleCard";
-import DonutChart from "../../components/graphs/DonutChart";
+import InsightDonutChart from "@/pages/Dashboard/FrontendDashboard/dashboard/InsightDonutChart";
 import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
 import PageFrame from "../../components/Pages/PageFrame";
 import { DepartmentVisitorsCard } from "../Dashboard/FrontendDashboard/dashboard/DepartmentVisitorsCard";
@@ -1067,7 +1067,7 @@ export default function HRWorkspaceDashboardPage() {
                 subtitle="Today’s team attendance distribution."
               >
                 {attendanceStatus.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Today"
                     labels={attendanceStatus.map(([label]) => label)}
                     series={attendanceStatus.map(([, value]) => value)}
@@ -1088,7 +1088,7 @@ export default function HRWorkspaceDashboardPage() {
                 subtitle="Candidates grouped by hiring status."
               >
                 {recruitmentStatus.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Candidates"
                     labels={recruitmentStatus.map(([label]) => label)}
                     series={recruitmentStatus.map(([, value]) => value)}
@@ -1107,7 +1107,7 @@ export default function HRWorkspaceDashboardPage() {
                 subtitle="Employee leave requests grouped by decision status."
               >
                 {leaveStatus.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Leaves"
                     labels={leaveStatus.map(([label]) => label)}
                     series={leaveStatus.map(([, value]) => value)}
@@ -1128,7 +1128,7 @@ export default function HRWorkspaceDashboardPage() {
                 subtitle="Active workforce grouped by recorded gender, following the WoNoV HR overview pattern."
               >
                 {employeeGender.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Employees"
                     labels={employeeGender.map(([label]) => label)}
                     series={employeeGender.map(([, value]) => value)}
@@ -1147,7 +1147,7 @@ export default function HRWorkspaceDashboardPage() {
                 subtitle="Workforce distribution using the employee home-city records available in HostPanel."
               >
                 {employeeCity.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Employees"
                     labels={employeeCity.map(([label]) => label)}
                     series={employeeCity.map(([, value]) => value)}
@@ -1166,7 +1166,7 @@ export default function HRWorkspaceDashboardPage() {
                 subtitle="Current payroll-cycle employees grouped by payment status."
               >
                 {payrollStatus.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Payroll"
                     labels={payrollStatus.map(([label]) => label)}
                     series={payrollStatus.map(([, value]) => value)}
@@ -1185,7 +1185,7 @@ export default function HRWorkspaceDashboardPage() {
                 subtitle="Employee vault documents grouped by document type or source."
               >
                 {documentTypes.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Documents"
                     labels={documentTypes.map(([label]) => label)}
                     series={documentTypes.map(([, value]) => value)}

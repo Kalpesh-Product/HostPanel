@@ -1,7 +1,10 @@
 // @ts-nocheck
 import WorkspaceSubscription from "../models/WorkspaceSubscription.js";
+import Workspace from "../models/Workspace.js";
 import {
   creditsForPlan,
+  loadCreditsSettings,
+  normalizeCompanyKey,
   resolveWorkspacePlan,
   syncSubscriptionPlan,
 } from "../utils/websiteCredits.js";
@@ -38,12 +41,15 @@ const buildCandidateClauses = ({
     clauses.push(clause);
   };
 
-  if (normalizedCompanyId && normalizedWorkspaceId) {
-    pushClause({ companyId: normalizedCompanyId, workspaceId: normalizedWorkspaceId });
+  // The website builder (and therefore its credit pool) is shared by every unit
+  // of a company, so the company key is tried first and is authoritative.
+  // workspaceId / routeId only cover legacy rows that predate the company key.
+  if (normalizedCompanyId) {
+    pushClause({ companyId: normalizeCompanyKey(normalizedCompanyId) });
   }
 
-  if (normalizedCompanyId) {
-    pushClause({ companyId: normalizedCompanyId });
+  if (normalizedCompanyId && normalizedWorkspaceId) {
+    pushClause({ companyId: normalizedCompanyId, workspaceId: normalizedWorkspaceId });
   }
 
   if (normalizedWorkspaceId) {
@@ -51,11 +57,25 @@ const buildCandidateClauses = ({
   }
 
   if (normalizedRouteId) {
-    pushClause({ companyId: normalizedRouteId });
+    pushClause({ companyId: normalizeCompanyKey(normalizedRouteId) });
     pushClause({ workspaceId: normalizedRouteId });
   }
 
   return clauses;
+};
+
+// The company that owns a workspace/unit — the key of its shared credit pool.
+// Used by the admin/dev reset endpoints, which only receive a workspaceId.
+export const resolveCompanyKeyFromWorkspace = async (workspaceId?: string) => {
+  const normalizedWorkspaceId = String(workspaceId || "").trim();
+  if (!normalizedWorkspaceId || !/^[a-f0-9]{24}$/i.test(normalizedWorkspaceId)) {
+    return "";
+  }
+  const workspace = await Workspace.findById(normalizedWorkspaceId)
+    .select("companyId")
+    .lean()
+    .exec();
+  return normalizeCompanyKey(workspace?.companyId || "");
 };
 
 export const findWorkspaceSubscription = async ({
@@ -83,7 +103,9 @@ export const renewMonthlyCreditsIfNeeded = async (subscription: any) => {
   if (!subscription) return subscription;
 
   // Plan (and its plan-based creditsLimit) is synced from the workspace's
-  // selectedPlan — professional: 8, custom: 12, basic: 5.
+  // selectedPlan and the Master-Panel-controlled per-plan limits, so a changed
+  // limit reaches the website builder on the next subscription read.
+  await loadCreditsSettings();
   subscription = await syncSubscriptionPlan(subscription);
 
   const now = new Date();

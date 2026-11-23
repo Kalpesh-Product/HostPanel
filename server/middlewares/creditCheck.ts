@@ -2,6 +2,8 @@
 import WorkspaceSubscription from "../models/WorkspaceSubscription.js";
 import {
   creditsForPlan,
+  loadCreditsSettings,
+  normalizeCompanyKey,
   resolveWorkspacePlan,
   syncSubscriptionPlan,
 } from "../utils/websiteCredits.js";
@@ -16,6 +18,10 @@ const getFirstDayOfNextMonthUtc = () => {
 
 export const checkAndDeductCredit = async (req, res, next) => {
   try {
+    // Pick up any limit changed from Master Panel -> Website Credits
+    // (cached for a short TTL, so this is usually free).
+    await loadCreditsSettings();
+
     const companyId = String(req.body?.companyId || req.query?.companyId || "").trim();
     const workspaceId = String(
       req.body?.workspaceId || req.query?.workspaceId || req.headers["x-workspace-id"] || "",
@@ -38,15 +44,27 @@ export const checkAndDeductCredit = async (req, res, next) => {
 
     if (!subscription) {
       const plan = await resolveWorkspacePlan({ workspaceId, companyId });
-      subscription = await WorkspaceSubscription.create({
-        companyId: companyId || workspaceId,
-        workspaceId: workspaceId || companyId,
-        plan,
-        creditsLimit: creditsForPlan(plan),
-        creditsUsed: 0,
-        addOnCreditsPurchased: 0,
-        creditsResetDate: getFirstDayOfNextMonthUtc(),
-      });
+      try {
+        subscription = await WorkspaceSubscription.create({
+          // One shared pool per company — never one per unit.
+          companyId: normalizeCompanyKey(companyId) || workspaceId,
+          workspaceId: workspaceId || companyId,
+          plan,
+          creditsLimit: creditsForPlan(plan),
+          creditsUsed: 0,
+          addOnCreditsPurchased: 0,
+          creditsResetDate: getFirstDayOfNextMonthUtc(),
+        });
+      } catch (error) {
+        // Another unit created the company's shared pool at the same moment.
+        if (error?.code !== 11000) throw error;
+        subscription = await findWorkspaceSubscription({
+          companyId,
+          workspaceId,
+          routeId: identifier,
+        });
+        if (!subscription) throw error;
+      }
     } else {
       // Keep plan + limit in sync with the workspace's current plan so
       // upgrades/downgrades take effect without waiting for the monthly reset.

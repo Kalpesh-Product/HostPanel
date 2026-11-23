@@ -21,6 +21,7 @@ const LOADER_SPECS: Record<string, LoaderSpec> = {
   camelia: { label: "Camelia", kicker: "A quieter arrival", motif: "camelia", bg: "#f6f3ec", fg: "#2b2a26", accent: "#8a9a86", font: "'Poppins', sans-serif" },
   commons: { label: "Commons", kicker: "Making space", motif: "commons", bg: "#f6f7f9", fg: "#0b1f3a", accent: "#ffc21a", font: "'Plus Jakarta Sans', sans-serif" },
   huddle: { label: "Huddle", kicker: "Your room is nearly ready", motif: "huddle", bg: "#f5f6f8", fg: "#14161a", accent: "#3b6cf0", font: "'Sora', sans-serif" },
+  workhub: { label: "WorkHub", kicker: "Preparing your workspace", motif: "huddle", bg: "#f0f2fb", fg: "#242839", accent: "#285fe2", font: "'Outfit', sans-serif" },
   "warm-organic": { label: "Warm Organic", kicker: "Rooted in good things", motif: "organic", bg: "#f1e6d3", fg: "#2b211a", accent: "#b85c38", font: "Georgia, serif" },
   "emerald-studio": { label: "Emerald Studio", kicker: "Shaping something clear", motif: "emerald", bg: "#36577f", fg: "#ffffff", accent: "#dbeafe", font: "'Fraunces', Georgia, serif" },
   "figma-make": { label: "Emerald Studio", kicker: "Shaping something clear", motif: "emerald", bg: "#36577f", fg: "#ffffff", accent: "#dbeafe", font: "'Fraunces', Georgia, serif" },

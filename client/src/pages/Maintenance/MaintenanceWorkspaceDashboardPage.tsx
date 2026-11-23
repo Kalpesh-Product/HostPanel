@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import DashboardModuleCard from "../../components/DashboardModuleCard";
-import DonutChart from "../../components/graphs/DonutChart";
+import InsightDonutChart from "@/pages/Dashboard/FrontendDashboard/dashboard/InsightDonutChart";
 import GroupedBarGraph from "../../components/graphs/GroupedBarGraph";
 import PageFrame from "../../components/Pages/PageFrame";
 import maintenanceBannerImage from "../../assets/maintenance-dashboard-banner.webp";
@@ -771,7 +771,7 @@ export default function MaintenanceWorkspaceDashboardPage() {
                 subtitle="Repair records grouped by current workflow status."
               >
                 {repairStatuses.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Repairs"
                     labels={repairStatuses.map(([name]) => name)}
                     series={repairStatuses.map(([, value]) => value)}
@@ -792,7 +792,7 @@ export default function MaintenanceWorkspaceDashboardPage() {
                 subtitle="Preventive schedules grouped by operational state."
               >
                 {scheduleStatuses.length ? (
-                  <DonutChart
+                  <InsightDonutChart
                     centerLabel="Schedules"
                     labels={scheduleStatuses.map(([name]) => name)}
                     series={scheduleStatuses.map(([, value]) => value)}

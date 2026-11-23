@@ -40,6 +40,10 @@ export const updateMyProfilePicture = async (formData: FormData) => {
   });
 };
 
+export const removeMyProfilePicture = async () => {
+  return axiosPrivate.delete("/api/hr/my-profile/avatar");
+};
+
 export const toggleEmployeeStatus = async (employeeId: string) => {
   return axiosPrivate.patch(`/api/hr/employees/${employeeId}/toggle-status`);
 };

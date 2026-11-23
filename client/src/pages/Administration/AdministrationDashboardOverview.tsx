@@ -1,31 +1,42 @@
+/**
+ * AdministrationDashboardOverview — the Administration manager's dashboard at
+ * /dashboard. Uses the same visual language as the plan-wise and employee
+ * dashboards: the slate outer shell + bordered inner frame, a blue-gradient
+ * greeting masthead, today's attendance as the hero card, an "Administration
+ * Pulse" metric row, quick actions, and the Administration activity panels.
+ */
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
+  Activity,
+  ArrowRight,
   Building2,
   CalendarCheck,
-  HandCoins,
-  Wrench,
   ContactRound,
   Eye,
+  HandCoins,
+  LayoutDashboard,
+  Wrench,
 } from "lucide-react";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
-import PageFrame from "@/components/Pages/PageFrame";
-import { DashboardAttendanceCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
-import WidgetSection from "@/components/WidgetSection";
+import BarGraph from "@/components/graphs/BarGraph";
+import InsightDonutChart from "@/pages/Dashboard/FrontendDashboard/dashboard/InsightDonutChart";
 import useDashboardAccess from "@/hooks/useDashboardAccess";
 import useWorkspacePreferences from "@/hooks/useWorkspacePreferences";
 import { useFreshCurrentUser } from "@/hooks/useFreshCurrentUser";
 import {
+  ActivityPanel,
+  EmptyState,
+  MetricTile,
   PlanBadge,
-  StatCard,
-  SectionCard,
+  QuickActionTile,
   RecentItem,
-  DonutWidget,
-  BarWidget,
-  QuickLink,
   getGreeting,
   humanRelTime,
   statusBadgeColor,
 } from "@/pages/Dashboard/FrontendDashboard/dashboard/DashboardShared";
+import TodayAttendanceCard from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
+import DepartmentBudgetPanel from "@/pages/Dashboard/FrontendDashboard/dashboard/DepartmentBudgetPanel";
 import { TeamLiveStatusCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TeamLiveStatusCard";
 import { DepartmentVisitorsCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/DepartmentVisitorsCard";
 import { getStoredUser } from "@/lib/auth-session";
@@ -188,6 +199,20 @@ const WorkspaceClock = ({ timezone, location }: { timezone: string; location: st
       </span>
       {location ? ` - ${location}` : ""}
     </>
+  );
+};
+
+const ViewAllButton = ({ route }: { route: string }) => {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(route)}
+      className="group inline-flex items-center gap-1 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB]"
+    >
+      View all
+      <ArrowRight size={12} className="transition group-hover:translate-x-0.5" />
+    </button>
   );
 };
 
@@ -452,17 +477,35 @@ export function AdministrationDashboardWidgets() {
         </div>
       ) : null}
 
+      {/* Administration Pulse — the metrics that matter most */}
       <div data-tour="administration-overview">
-      <WidgetSection layout={5} title="Overview" border normalCase>
-        <StatCard icon={Eye} label="Visitors Today" value={dailyVisitors.length} sub={`${liveVisitors.length} checked in`} color="#80bf01" route="/visitors/visitor-management" />
-        <StatCard icon={Building2} label="Total Tenants" value={tenantStats.total} sub={`${tenantStats.active} active`} color="#1E3D73" route="/department-accesses/administration-department/tenant-companies" />
-        <StatCard icon={CalendarCheck} label="Meeting Room Bookings" value={bookingStats.total} sub={`${bookingStats.confirmedToday} confirmed today`} color="#2563EB" route="/department-accesses/administration-department/bookings" />
-        <StatCard icon={HandCoins} label="Resources" value={resourceStats.total} sub={`${resourceStats.inUse} in use · ${resourceStats.active} active`} color="#7c3aed" route="/department-accesses/administration-department/resource-management" />
-        <StatCard icon={Wrench} label="Housekeeping Tasks" value={pendingHousekeeping} sub={`${activeHousekeeping} active`} color="#f59e0b" route="/department-accesses/administration-department/house-keeping" />
-      </WidgetSection>
+        <section className="rounded-[1.75rem] border border-blue-100 bg-[#F8FAFD] p-5 shadow-[0_12px_34px_rgba(30,61,115,0.06)] sm:p-6">
+          <div className="mb-5 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#1E3D73] text-white shadow-sm">
+              <Activity size={18} />
+            </div>
+            <div>
+              <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
+                Operations
+              </p>
+              <h3 className="mt-0.5 text-lg font-pmedium text-[#1E3D73]">
+                Administration Pulse
+              </h3>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricTile icon={Eye} label="Visitors Today" value={dailyVisitors.length} sub={`${liveVisitors.length} checked in`} route="/visitors/visitor-management" color="#80bf01" />
+            <MetricTile icon={Building2} label="Total Tenants" value={tenantStats.total} sub={`${tenantStats.active} active`} route="/department-accesses/administration-department/tenant-companies" color="#1E3D73" />
+            <MetricTile icon={CalendarCheck} label="Meeting Room Bookings" value={bookingStats.total} sub={`${bookingStats.confirmedToday} confirmed today`} route="/department-accesses/administration-department/bookings" color="#2563EB" />
+            <MetricTile icon={HandCoins} label="Resources" value={resourceStats.total} sub={`${resourceStats.inUse} in use · ${resourceStats.active} active`} route="/department-accesses/administration-department/resource-management" color="#7c3aed" />
+            <MetricTile icon={Wrench} label="Housekeeping Tasks" value={pendingHousekeeping} sub={`${activeHousekeeping} active`} route="/department-accesses/administration-department/house-keeping" color="#f59e0b" />
+          </div>
+        </section>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Team status, live visitors and the housekeeping queue — a fixed trio
+          (always rendered together) so it shares one bounded row. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div data-tour="administration-team-status">
           <TeamLiveStatusCard department="administration" viewAllRoute="/department-accesses/administration-department/bookings" />
         </div>
@@ -472,7 +515,11 @@ export function AdministrationDashboardWidgets() {
         </div>
 
         <div data-tour="administration-housekeeping-queue">
-          <SectionCard title="Housekeeping Queue" linkLabel="View all" linkRoute="/department-accesses/administration-department/house-keeping">
+          <ActivityPanel
+            eyebrow="Today's queue"
+            title="Housekeeping Queue"
+            action={<ViewAllButton route="/department-accesses/administration-department/house-keeping" />}
+          >
             {housekeepingQueue.length > 0 ? housekeepingQueue.map((task, index) => (
               <RecentItem
                 key={task.id || task.taskCode || index}
@@ -483,14 +530,18 @@ export function AdministrationDashboardWidgets() {
                 time={humanRelTime(task.createdAt || "")}
               />
             )) : (
-              <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No pending housekeeping tasks</p></div>
+              <EmptyState icon={Wrench} title="No housekeeping tasks" description="Pending housekeeping tasks will show up here in priority order." actionLabel="Open Housekeeping" route="/department-accesses/administration-department/house-keeping" />
             )}
-          </SectionCard>
+          </ActivityPanel>
         </div>
       </div>
 
-      <div data-tour="administration-visitors" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SectionCard title="Recent Visitors" linkLabel="View all" linkRoute="/visitors/visitor-management">
+      <div data-tour="administration-visitors" className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <ActivityPanel
+          eyebrow="Front desk"
+          title="Recent Visitors"
+          action={<ViewAllButton route="/visitors/visitor-management" />}
+        >
           {recentVisitors.length > 0 ? recentVisitors.map((v, index) => (
             <RecentItem
               key={v.id || v.recordId || index}
@@ -501,34 +552,54 @@ export function AdministrationDashboardWidgets() {
               time={humanRelTime(v.checkInAt || v.dateOfVisit || v.createdAt || "")}
             />
           )) : (
-            <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No visitors logged today</p></div>
+            <EmptyState icon={Eye} title="No visitors logged today" description="Today's visitor check-ins will show up here." actionLabel="Open Visitors" route="/visitors/visitor-management" />
           )}
-        </SectionCard>
+        </ActivityPanel>
 
-        <DonutWidget
-          title="Visitor Type"
-          series={visitorTypeDonut.series}
-          labels={visitorTypeDonut.labels}
-          colors={visitorTypeDonut.colors}
-          centerLabel="Visitors"
-        />
+        <ActivityPanel eyebrow="Breakdown" title="Visitor Type">
+          <div className="flex min-h-48 flex-1 items-center justify-center">
+            {visitorTypeDonut.series.some((value) => value > 0) ? (
+              <InsightDonutChart centerLabel="Visitors" labels={visitorTypeDonut.labels} colors={visitorTypeDonut.colors} series={visitorTypeDonut.series} tooltipValue={visitorTypeDonut.series.map(String)} />
+            ) : (
+              <p className="text-content font-pmedium text-slate-400">No visitors yet</p>
+            )}
+          </div>
+        </ActivityPanel>
       </div>
 
+      {/* Quick actions */}
       <div data-tour="administration-quick-links">
-      <WidgetSection layout={5} title="Quick Links" border normalCase>
-        <QuickLink icon={Building2} label="Tenant Companies" description="Manage tenants & agreements" route="/department-accesses/administration-department/tenant-companies" color="#1E3D73" />
-        <QuickLink icon={CalendarCheck} label="Bookings" description="Meeting room bookings" route="/department-accesses/administration-department/bookings" color="#2563EB" />
-        <QuickLink icon={HandCoins} label="Resource Management" description="Desks, rooms & assets" route="/department-accesses/administration-department/resource-management" color="#7c3aed" />
-        <QuickLink icon={Wrench} label="Housekeeping" description="Tasks & staff attendance" route="/department-accesses/administration-department/house-keeping" color="#f59e0b" />
-        <QuickLink icon={ContactRound} label="Visitor Management" description="Check-in / check-out" route="/visitors/visitor-management" color="#80bf01" />
-      </WidgetSection>
+        <section className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white p-5 shadow-[0_12px_34px_rgba(37,99,235,0.08)] sm:p-6">
+          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/70" />
+          <div className="relative mb-5">
+            <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
+              Jump back in
+            </p>
+            <h3 className="mt-1 text-lg font-pmedium text-[#1E3D73]">
+              Quick Actions
+            </h3>
+            <p className="mt-1 text-xs font-pmedium text-slate-500">
+              The Administration modules you use most, one click away.
+            </p>
+          </div>
+          <div className="relative grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <QuickActionTile icon={Building2} label="Tenant Companies" description="Manage tenants & agreements" route="/department-accesses/administration-department/tenant-companies" color="#1E3D73" />
+            <QuickActionTile icon={CalendarCheck} label="Bookings" description="Meeting room bookings" route="/department-accesses/administration-department/bookings" color="#2563EB" />
+            <QuickActionTile icon={HandCoins} label="Resource Management" description="Desks, rooms & assets" route="/department-accesses/administration-department/resource-management" color="#7c3aed" />
+            <QuickActionTile icon={Wrench} label="Housekeeping" description="Tasks & staff attendance" route="/department-accesses/administration-department/house-keeping" color="#f59e0b" />
+            <QuickActionTile icon={ContactRound} label="Visitor Management" description="Check-in / check-out" route="/visitors/visitor-management" color="#80bf01" />
+          </div>
+        </section>
       </div>
 
-      {/* Recent tenants / resources each get their own bounded row (rather
-          than one grid combining both pairs) so their page-tour anchor
-          highlights just that row instead of both pairs at once. */}
-      <div data-tour="administration-tenants" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SectionCard title="Recent Tenants" linkLabel="View all" linkRoute="/department-accesses/administration-department/tenant-companies">
+      {/* Recent tenants / resources each get their own bounded row so a tour
+          highlight never spans more than one pair. */}
+      <div data-tour="administration-tenants" className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <ActivityPanel
+          eyebrow="Tenancy"
+          title="Recent Tenants"
+          action={<ViewAllButton route="/department-accesses/administration-department/tenant-companies" />}
+        >
           {tenants.length > 0 ? [...tenants]
             .sort((left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime())
             .slice(0, 5)
@@ -542,21 +613,27 @@ export function AdministrationDashboardWidgets() {
                 time={humanRelTime(tenant.createdAt || "")}
               />
             )) : (
-            <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No tenant data</p></div>
-          )}
-        </SectionCard>
+              <EmptyState icon={Building2} title="No tenant data" description="Tenant companies will show up here once they are added." actionLabel="Open Tenants" route="/department-accesses/administration-department/tenant-companies" />
+            )}
+        </ActivityPanel>
 
-        <DonutWidget
-          title="Tenant Status"
-          series={tenantStatusDonut.series}
-          labels={tenantStatusDonut.labels}
-          colors={tenantStatusDonut.colors}
-          centerLabel="Tenants"
-        />
+        <ActivityPanel eyebrow="Breakdown" title="Tenant Status">
+          <div className="flex min-h-48 flex-1 items-center justify-center">
+            {tenantStatusDonut.series.some((value) => value > 0) ? (
+              <InsightDonutChart centerLabel="Tenants" labels={tenantStatusDonut.labels} colors={tenantStatusDonut.colors} series={tenantStatusDonut.series} tooltipValue={tenantStatusDonut.series.map(String)} />
+            ) : (
+              <p className="text-content font-pmedium text-slate-400">No tenants yet</p>
+            )}
+          </div>
+        </ActivityPanel>
       </div>
 
-      <div data-tour="administration-resources" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SectionCard title="Resource Directory" linkLabel="View all" linkRoute="/department-accesses/administration-department/resource-management">
+      <div data-tour="administration-resources" className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <ActivityPanel
+          eyebrow="Inventory"
+          title="Resource Directory"
+          action={<ViewAllButton route="/department-accesses/administration-department/resource-management" />}
+        >
           {resources.length > 0 ? [...resources]
             .sort((left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime())
             .slice(0, 5)
@@ -570,28 +647,28 @@ export function AdministrationDashboardWidgets() {
                 time={humanRelTime(resource.createdAt || "")}
               />
             )) : (
-            <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No resources yet</p></div>
-          )}
-        </SectionCard>
+              <EmptyState icon={HandCoins} title="No resources yet" description="Desks, rooms, and assets will show up here." actionLabel="Open Resources" route="/department-accesses/administration-department/resource-management" />
+            )}
+        </ActivityPanel>
 
-        <DonutWidget
-          title="Booking Status"
-          series={bookingStatusDonut.series}
-          labels={bookingStatusDonut.labels}
-          colors={bookingStatusDonut.colors}
-          centerLabel="Bookings"
-        />
+        <ActivityPanel eyebrow="Breakdown" title="Booking Status">
+          <div className="flex min-h-48 flex-1 items-center justify-center">
+            {bookingStatusDonut.series.some((value) => value > 0) ? (
+              <InsightDonutChart centerLabel="Bookings" labels={bookingStatusDonut.labels} colors={bookingStatusDonut.colors} series={bookingStatusDonut.series} tooltipValue={bookingStatusDonut.series.map(String)} />
+            ) : (
+              <p className="text-content font-pmedium text-slate-400">No bookings yet</p>
+            )}
+          </div>
+        </ActivityPanel>
       </div>
 
       <div data-tour="administration-booking-trend">
-        <BarWidget
-          title="Monthly Booking Trend (FY)"
-          chartId="administration-monthly-bookings"
-          series={monthlyBarSeries}
-          options={monthlyBarOptions}
-          height={260}
-        />
+        <ActivityPanel eyebrow="Year at a glance" title="Monthly Booking Trend (FY)">
+          <BarGraph chartId="administration-monthly-bookings" data={monthlyBarSeries} options={monthlyBarOptions} height={260} />
+        </ActivityPanel>
       </div>
+
+      <DepartmentBudgetPanel department="Administration" title="Administration Budget vs Spend" />
     </div>
   );
 }
@@ -653,25 +730,49 @@ export function AdministrationDashboardOverview() {
   }, [managerName, now, workspacePreferences.timezone]);
 
   return (
-    <div className="p-4 flex flex-col gap-5">
-      <PageFrame>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h2 className="text-title font-pmedium text-primary uppercase">Administration Dashboard</h2>
-              <PlanBadge plan={access.plan} />
+    <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
+      <div className="flex flex-col gap-5 rounded-xl border-default p-4">
+
+        {/* Greeting card — same blue plan-card style used across the plan
+            dashboards and the employee dashboard. */}
+        <section
+          data-tour="administration-greeting"
+          className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white p-5 shadow-[0_12px_34px_rgba(37,99,235,0.08)] sm:p-6"
+        >
+          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/70" />
+          <div className="pointer-events-none absolute -bottom-24 right-40 h-56 w-56 rounded-full bg-blue-50/70" />
+          <div className="relative flex min-w-0 items-start gap-4">
+            <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#2563EB] ring-1 ring-blue-100 sm:flex">
+              <LayoutDashboard size={21} />
             </div>
-            <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
-            <p className="text-content font-pmedium text-gray-700">{todayLabel}<WorkspaceClock timezone={workspacePreferences.timezone} location={workspacePreferences.location} /></p>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-[9px] font-pmedium uppercase tracking-[0.22em] text-[#2563EB]">
+                  Administration Unit dashboard
+                </p>
+                <PlanBadge plan={access.plan} />
+              </div>
+              <h2 className="mt-2 text-xl font-pmedium text-[#1E3D73] sm:text-2xl">
+                {greeting} 👋
+              </h2>
+              <p className="mt-1 text-xs font-pmedium text-slate-500 sm:text-sm">
+                {todayLabel}
+                <WorkspaceClock
+                  timezone={workspacePreferences.timezone}
+                  location={workspacePreferences.location}
+                />
+              </p>
+            </div>
           </div>
+        </section>
+
+        {/* Today's attendance — the hero card, same as the plan dashboards */}
+        <div data-tour="administration-attendance">
+          <TodayAttendanceCard variant="hero" />
         </div>
-      </PageFrame>
 
-      <div data-tour="administration-attendance">
-        <DashboardAttendanceCard />
+        <AdministrationDashboardWidgets />
       </div>
-
-      <AdministrationDashboardWidgets />
     </div>
   );
 }

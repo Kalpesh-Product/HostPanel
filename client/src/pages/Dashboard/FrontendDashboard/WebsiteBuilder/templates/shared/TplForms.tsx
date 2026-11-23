@@ -129,7 +129,12 @@ export const RoleSection: React.FC<{ title: string; text?: string; asList?: bool
   );
 };
 
-export const ApplyForm: React.FC = () => {
+export const ApplyForm: React.FC<{
+  /** Override the submit label (defaults to "Submit application"). */
+  submitLabel?: string;
+  /** Centre the submit button instead of stretching it on small screens. */
+  centered?: boolean;
+}> = ({ submitLabel = "Submit application", centered = false }) => {
   const { t } = useTpl();
   const form = t.careersApplyForm;
   const set = (key: string, transform?: (value: string) => string) => (event: React.ChangeEvent<any>) =>
@@ -208,8 +213,8 @@ export const ApplyForm: React.FC = () => {
         );
       })}
       {t.careersApplyError ? <p className="text-[13px] sm:col-span-2" role="alert" style={{ color: "#c0392b" }}>{t.careersApplyError}</p> : null}
-      <div className="sm:col-span-2">
-        <button type="submit" disabled={t.careersApplySubmitting} className="tp-btn tp-btn-primary w-full sm:w-auto">{t.careersApplySubmitting ? "Submitting…" : "Submit application"}</button>
+      <div className={`sm:col-span-2${centered ? " flex justify-center" : ""}`}>
+        <button type="submit" disabled={t.careersApplySubmitting} className={`tp-btn tp-btn-primary ${centered ? "w-auto" : "w-full sm:w-auto"}`}>{t.careersApplySubmitting ? "Submitting…" : submitLabel}</button>
       </div>
     </form>
   );

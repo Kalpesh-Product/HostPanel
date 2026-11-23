@@ -6,8 +6,10 @@ import {
   findWorkspaceSubscription,
   getFirstDayOfNextMonthUtc,
   renewMonthlyCreditsIfNeeded,
+  resolveCompanyKeyFromWorkspace,
   resolveWorkspacePlan,
 } from "./subscriptionHelpers.js";
+import { normalizeCompanyKey } from "../utils/websiteCredits.js";
 
 export const getSubscription = async (req, res, next) => {
   try {
@@ -33,15 +35,28 @@ export const getSubscription = async (req, res, next) => {
 
     if (!subscription) {
       const plan = await resolveWorkspacePlan({ workspaceId, companyId });
-      subscription = await WorkspaceSubscription.create({
-        companyId: companyId || workspaceId || routeId || undefined,
-        workspaceId: workspaceId || companyId || routeId || undefined,
-        plan,
-        creditsLimit: creditsForPlan(plan),
-        creditsUsed: 0,
-        addOnCreditsPurchased: 0,
-        creditsResetDate: getFirstDayOfNextMonthUtc(),
-      });
+      try {
+        subscription = await WorkspaceSubscription.create({
+          // One shared pool per company — every unit draws from this document.
+          companyId:
+            normalizeCompanyKey(companyId) || workspaceId || routeId || undefined,
+          workspaceId: workspaceId || companyId || routeId || undefined,
+          plan,
+          creditsLimit: creditsForPlan(plan),
+          creditsUsed: 0,
+          addOnCreditsPurchased: 0,
+          creditsResetDate: getFirstDayOfNextMonthUtc(),
+        });
+      } catch (error) {
+        // Another unit created the company's pool at the same moment.
+        if (error?.code !== 11000) throw error;
+        subscription = await findWorkspaceSubscription({
+          companyId,
+          workspaceId,
+          routeId,
+        });
+        if (!subscription) throw error;
+      }
     }
 
     subscription = await renewMonthlyCreditsIfNeeded(subscription);
@@ -66,11 +81,18 @@ export const resetCredits = async (req, res, next) => {
       return res.status(403).json({ error: "forbidden" });
     }
 
-    let subscription = await findWorkspaceSubscription({ workspaceId, routeId: workspaceId });
+    // Resetting a unit resets the company's shared pool — there is only one.
+    const companyId = await resolveCompanyKeyFromWorkspace(workspaceId);
+    let subscription = await findWorkspaceSubscription({
+      companyId,
+      workspaceId,
+      routeId: workspaceId,
+    });
 
     if (!subscription) {
-      const plan = await resolveWorkspacePlan({ workspaceId });
+      const plan = await resolveWorkspacePlan({ workspaceId, companyId });
       subscription = await WorkspaceSubscription.create({
+        companyId: companyId || undefined,
         workspaceId,
         plan,
         creditsLimit: creditsForPlan(plan),
@@ -101,11 +123,17 @@ export const devResetCredits = async (req, res, next) => {
       return res.status(400).json({ error: "workspaceId is required" });
     }
 
-    let subscription = await findWorkspaceSubscription({ workspaceId, routeId: workspaceId });
+    const companyId = await resolveCompanyKeyFromWorkspace(workspaceId);
+    let subscription = await findWorkspaceSubscription({
+      companyId,
+      workspaceId,
+      routeId: workspaceId,
+    });
 
     if (!subscription) {
-      const plan = await resolveWorkspacePlan({ workspaceId });
+      const plan = await resolveWorkspacePlan({ workspaceId, companyId });
       subscription = await WorkspaceSubscription.create({
+        companyId: companyId || undefined,
         workspaceId,
         plan,
         creditsLimit: creditsForPlan(plan),

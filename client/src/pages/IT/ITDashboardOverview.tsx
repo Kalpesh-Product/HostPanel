@@ -1,30 +1,42 @@
+/**
+ * ITDashboardOverview — the IT manager's dashboard at /dashboard. Uses the
+ * same visual language as the plan-wise and employee dashboards: the slate
+ * outer shell + bordered inner frame, a blue-gradient greeting masthead,
+ * today's attendance as the hero card, an "IT Pulse" metric row, quick
+ * actions, and the IT activity panels below.
+ */
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  MonitorCog,
+  Activity,
   AlertCircle,
+  ArrowRight,
   Clock3,
   FileSearch,
+  Hourglass,
   KeyRound,
+  LayoutDashboard,
+  MonitorCog,
 } from "lucide-react";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
-import PageFrame from "@/components/Pages/PageFrame";
-import { DashboardAttendanceCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
-import WidgetSection from "@/components/WidgetSection";
+import BarGraph from "@/components/graphs/BarGraph";
+import InsightDonutChart from "@/pages/Dashboard/FrontendDashboard/dashboard/InsightDonutChart";
 import useDashboardAccess from "@/hooks/useDashboardAccess";
 import useWorkspacePreferences from "@/hooks/useWorkspacePreferences";
 import { useFreshCurrentUser } from "@/hooks/useFreshCurrentUser";
 import {
+  ActivityPanel,
+  EmptyState,
+  MetricTile,
   PlanBadge,
-  StatCard,
-  SectionCard,
+  QuickActionTile,
   RecentItem,
-  DonutWidget,
-  BarWidget,
-  QuickLink,
   getGreeting,
   humanRelTime,
   statusBadgeColor,
 } from "@/pages/Dashboard/FrontendDashboard/dashboard/DashboardShared";
+import TodayAttendanceCard from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
+import DepartmentBudgetPanel from "@/pages/Dashboard/FrontendDashboard/dashboard/DepartmentBudgetPanel";
 import { TeamLiveStatusCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TeamLiveStatusCard";
 import { DepartmentVisitorsCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/DepartmentVisitorsCard";
 import { getITOverview } from "@/services/it";
@@ -115,6 +127,20 @@ const WorkspaceClock = ({ timezone, location }: { timezone: string; location: st
       </span>
       {location ? ` - ${location}` : ""}
     </>
+  );
+};
+
+const ViewAllButton = ({ route }: { route: string }) => {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(route)}
+      className="group inline-flex items-center gap-1 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB]"
+    >
+      View all
+      <ArrowRight size={12} className="transition group-hover:translate-x-0.5" />
+    </button>
   );
 };
 
@@ -211,6 +237,17 @@ export function ITDashboardWidgets() {
     [repairLogs],
   );
 
+  const agingLogs = useMemo(
+    () =>
+      repairLogs.filter((log) => {
+        const status = String(log.status || "").toLowerCase();
+        if (status === "resolved" || status === "closed") return false;
+        const created = new Date(String(log.createdAt || "")).getTime();
+        return Number.isFinite(created) && Date.now() - created > 7 * 24 * 60 * 60 * 1000;
+      }).length,
+    [repairLogs],
+  );
+
 
   const monthLabels = useMemo(() => {
     const labels: string[] = [];
@@ -292,16 +329,34 @@ export function ITDashboardWidgets() {
         </div>
       ) : null}
 
+      {/* IT Pulse — the metrics that matter most */}
       <div data-tour="it-overview">
-      <WidgetSection layout={4} title="Overview" border normalCase>
-        <StatCard icon={MonitorCog} label="Resolution Rate" value={`${resolutionRate}%`} sub={`${totalLogs} total logs`} color="#0891b2" route="/department-accesses/it-department/repair-logs" />
-        <StatCard icon={AlertCircle} label="Open Logs" value={openLogs} sub={`${inProgressLogs} in progress`} color="#ef4444" route="/department-accesses/it-department/repair-logs" />
-        <StatCard icon={Clock3} label="In Progress Logs" value={inProgressLogs} sub={`${resolvedLogs} resolved`} color="#f59e0b" route="/department-accesses/it-department/repair-logs" />
-        <StatCard icon={FileSearch} label="Total Logs" value={totalLogs} sub={`${closedLogs} closed`} color="#7c3aed" route="/department-accesses/it-department/repair-logs" />
-      </WidgetSection>
+        <section className="rounded-[1.75rem] border border-blue-100 bg-[#F8FAFD] p-5 shadow-[0_12px_34px_rgba(30,61,115,0.06)] sm:p-6">
+          <div className="mb-5 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#1E3D73] text-white shadow-sm">
+              <Activity size={18} />
+            </div>
+            <div>
+              <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
+                Support desk
+              </p>
+              <h3 className="mt-0.5 text-lg font-pmedium text-[#1E3D73]">
+                IT Pulse
+              </h3>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <MetricTile icon={MonitorCog} label="Resolution Rate" value={`${resolutionRate}%`} sub={`${totalLogs} total logs`} route="/department-accesses/it-department/repair-logs" color="#0891b2" />
+            <MetricTile icon={AlertCircle} label="Open Logs" value={openLogs} sub={`${inProgressLogs} in progress`} route="/department-accesses/it-department/repair-logs" color="#ef4444" />
+            <MetricTile icon={Clock3} label="In Progress Logs" value={inProgressLogs} sub={`${resolvedLogs} resolved`} route="/department-accesses/it-department/repair-logs" color="#f59e0b" />
+            <MetricTile icon={FileSearch} label="Total Logs" value={totalLogs} sub={`${closedLogs} closed`} route="/department-accesses/it-department/repair-logs" color="#7c3aed" />
+            <MetricTile icon={Hourglass} label="Aging Logs" value={agingLogs} sub="Active repairs over 7 days" route="/department-accesses/it-department/repair-logs" color="#ea580c" />
+          </div>
+        </section>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Team status, visitors and the latest repair logs — a fixed trio */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div data-tour="it-team-status">
           <TeamLiveStatusCard department="it" viewAllRoute="/department-accesses/it-department/repair-logs" />
         </div>
@@ -311,32 +366,55 @@ export function ITDashboardWidgets() {
         </div>
 
         <div data-tour="it-recent-repair-logs">
-        <SectionCard title="Recent IT Repair Logs" linkLabel="View all" linkRoute="/department-accesses/it-department/repair-logs">
-          {recentRepairLogs.length > 0 ? recentRepairLogs.map((log, index) => (
-            <RecentItem
-              key={log.id || log._id || index}
-              title={log.assetName || log.repairLogCode || "Asset"}
-              sub={log.issueType || log.issueDescription || "Repair"}
-              badge={log.status || "Open"}
-              badgeColor={statusBadgeColor(log.status || "")}
-              time={humanRelTime(log.createdAt || log.updatedAt || "")}
-            />
-          )) : (
-            <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No repair logs yet</p></div>
-          )}
-        </SectionCard>
+          <ActivityPanel
+            eyebrow="Support queue"
+            title="Recent IT Repair Logs"
+            action={<ViewAllButton route="/department-accesses/it-department/repair-logs" />}
+          >
+            {recentRepairLogs.length > 0 ? recentRepairLogs.map((log, index) => (
+              <RecentItem
+                key={log.id || log._id || index}
+                title={log.assetName || log.repairLogCode || "Asset"}
+                sub={log.issueType || log.issueDescription || "Repair"}
+                badge={log.status || "Open"}
+                badgeColor={statusBadgeColor(log.status || "")}
+                time={humanRelTime(log.createdAt || log.updatedAt || "")}
+              />
+            )) : (
+              <EmptyState icon={FileSearch} title="No repair logs yet" description="New repair logs will show up here as they are raised." actionLabel="Open Repair Logs" route="/department-accesses/it-department/repair-logs" />
+            )}
+          </ActivityPanel>
         </div>
       </div>
 
+      {/* Quick actions */}
       <div data-tour="it-quick-links">
-      <WidgetSection layout={2} title="Quick Links" border normalCase>
-        <QuickLink icon={FileSearch} label="IT Repair Logs" description="Log & track repairs" route="/department-accesses/it-department/repair-logs" color="#2563EB" />
-        <QuickLink icon={KeyRound} label="System Access" description="Manage software access" route="/department-accesses/it-department/system-access" color="#7c3aed" />
-      </WidgetSection>
+        <section className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white p-5 shadow-[0_12px_34px_rgba(37,99,235,0.08)] sm:p-6">
+          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/70" />
+          <div className="relative mb-5">
+            <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
+              Jump back in
+            </p>
+            <h3 className="mt-1 text-lg font-pmedium text-[#1E3D73]">
+              Quick Actions
+            </h3>
+            <p className="mt-1 text-xs font-pmedium text-slate-500">
+              The IT modules you use most, one click away.
+            </p>
+          </div>
+          <div className="relative grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <QuickActionTile icon={FileSearch} label="IT Repair Logs" description="Log & track repairs" route="/department-accesses/it-department/repair-logs" color="#2563EB" />
+            <QuickActionTile icon={KeyRound} label="System Access" description="Manage software access" route="/department-accesses/it-department/system-access" color="#7c3aed" />
+          </div>
+        </section>
       </div>
 
-      <div data-tour="it-resolved-logs" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SectionCard title="Recently Resolved Logs" linkLabel="View all" linkRoute="/department-accesses/it-department/repair-logs">
+      <div data-tour="it-resolved-logs" className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <ActivityPanel
+          eyebrow="Completed"
+          title="Recently Resolved Logs"
+          action={<ViewAllButton route="/department-accesses/it-department/repair-logs" />}
+        >
           {recentlyResolvedLogs.length > 0 ? recentlyResolvedLogs.map((log, index) => (
             <RecentItem
               key={log.id || log._id || index}
@@ -347,28 +425,28 @@ export function ITDashboardWidgets() {
               time={humanRelTime(log.resolvedAt || log.updatedAt || log.createdAt || "")}
             />
           )) : (
-            <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No resolved logs yet</p></div>
+            <EmptyState icon={MonitorCog} title="No resolved logs yet" description="Repairs that are closed out will show up here." actionLabel="Open Repair Logs" route="/department-accesses/it-department/repair-logs" />
           )}
-        </SectionCard>
+        </ActivityPanel>
 
-        <DonutWidget
-          title="Repair Log Status"
-          series={repairLogStatusDonut.series}
-          labels={repairLogStatusDonut.labels}
-          colors={repairLogStatusDonut.colors}
-          centerLabel="Logs"
-        />
+        <ActivityPanel eyebrow="Breakdown" title="Repair Log Status">
+          <div className="flex min-h-48 flex-1 items-center justify-center">
+            {repairLogStatusDonut.series.some((value) => value > 0) ? (
+              <InsightDonutChart centerLabel="Logs" labels={repairLogStatusDonut.labels} colors={repairLogStatusDonut.colors} series={repairLogStatusDonut.series} tooltipValue={repairLogStatusDonut.series.map(String)} />
+            ) : (
+              <p className="text-content font-pmedium text-slate-400">No logs yet</p>
+            )}
+          </div>
+        </ActivityPanel>
       </div>
 
       <div data-tour="it-monthly-trend">
-      <BarWidget
-        title="Monthly Repair Log Trend"
-        chartId="it-monthly-trends"
-        series={monthlyBarSeries}
-        options={monthlyBarOptions}
-        height={260}
-      />
+        <ActivityPanel eyebrow="Year at a glance" title="Monthly Repair Log Trend">
+          <BarGraph chartId="it-monthly-trends" data={monthlyBarSeries} options={monthlyBarOptions} height={260} />
+        </ActivityPanel>
       </div>
+
+      <DepartmentBudgetPanel department="IT" title="IT Budget vs Spend" />
     </div>
   );
 }
@@ -430,23 +508,49 @@ export function ITDashboardOverview() {
   }, [itManagerName, now, workspacePreferences.timezone]);
 
   return (
-    <div className="p-4 flex flex-col gap-5">
-      <PageFrame>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h2 className="text-title font-pmedium text-primary uppercase">IT Dashboard</h2>
-              <PlanBadge plan={access.plan} />
+    <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
+      <div className="flex flex-col gap-5 rounded-xl border-default p-4">
+
+        {/* Greeting card — same blue plan-card style used across the plan
+            dashboards and the employee dashboard. */}
+        <section
+          data-tour="it-greeting"
+          className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white p-5 shadow-[0_12px_34px_rgba(37,99,235,0.08)] sm:p-6"
+        >
+          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/70" />
+          <div className="pointer-events-none absolute -bottom-24 right-40 h-56 w-56 rounded-full bg-blue-50/70" />
+          <div className="relative flex min-w-0 items-start gap-4">
+            <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#2563EB] ring-1 ring-blue-100 sm:flex">
+              <LayoutDashboard size={21} />
             </div>
-            <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
-            <p className="text-content font-pmedium text-gray-700">{todayLabel}<WorkspaceClock timezone={workspacePreferences.timezone} location={workspacePreferences.location} /></p>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-[9px] font-pmedium uppercase tracking-[0.22em] text-[#2563EB]">
+                  IT Unit dashboard
+                </p>
+                <PlanBadge plan={access.plan} />
+              </div>
+              <h2 className="mt-2 text-xl font-pmedium text-[#1E3D73] sm:text-2xl">
+                {greeting} 👋
+              </h2>
+              <p className="mt-1 text-xs font-pmedium text-slate-500 sm:text-sm">
+                {todayLabel}
+                <WorkspaceClock
+                  timezone={workspacePreferences.timezone}
+                  location={workspacePreferences.location}
+                />
+              </p>
+            </div>
           </div>
+        </section>
+
+        {/* Today's attendance — the hero card, same as the plan dashboards */}
+        <div data-tour="it-attendance">
+          <TodayAttendanceCard variant="hero" />
         </div>
-      </PageFrame>
 
-      <DashboardAttendanceCard />
-
-      <ITDashboardWidgets />
+        <ITDashboardWidgets />
+      </div>
     </div>
   );
 }

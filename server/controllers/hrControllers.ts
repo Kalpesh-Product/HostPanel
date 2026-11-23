@@ -9,6 +9,7 @@ import {
   updateEmployeeProfile,
   updateOwnEmployeeProfile,
   updateOwnProfilePicture,
+  removeOwnProfilePicture,
 } from "../services/core/hr.service.js";
 import { uploadFileToS3 } from "../config/s3config.js";
 import { parsePhoneNumberFromString } from "libphonenumber-js/max";
@@ -202,6 +203,32 @@ export const updateMyProfilePicture = async (req, res, next) => {
       success: true,
       data: employee,
       message: "Profile picture updated successfully.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const removeMyProfilePicture = async (req, res, next) => {
+  try {
+    let { workspace } = await getCurrentWorkspace(req.user);
+    if (!workspace) {
+      const tenantEmployee = await TenantEmployee.findOne({
+        userId: req.user,
+        status: "Active",
+      }).select("workspaceId").lean().exec();
+      workspace = tenantEmployee?.workspaceId
+        ? await Workspace.findById(tenantEmployee.workspaceId).lean().exec()
+        : null;
+    }
+    if (!workspace) {
+      return res.status(404).json({ success: false, message: "Workspace not found for this user." });
+    }
+    const employee = await removeOwnProfilePicture(workspace, req.user);
+    return res.status(200).json({
+      success: true,
+      data: employee,
+      message: "Profile picture removed successfully.",
     });
   } catch (error) {
     next(error);
