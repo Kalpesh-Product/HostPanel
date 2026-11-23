@@ -1,11 +1,12 @@
 /**
  * EmployeeDashboardOverview — shown to plain employees (not a department
- * manager, not owner/super_admin). Deliberately simple: today's attendance,
- * an overview of the employee's own common-module activity, quick links to
- * the common modules, and whatever tasks/tickets have been assigned to them.
- * No charts — this is a personal work queue, not a department dashboard.
+ * manager, not owner/super_admin). Follows the same visual language as the
+ * plan-wise dashboards: a greeting banner, today's attendance as the hero
+ * card, a personal "My Pulse" metric row, quick actions, and the employee's
+ * own tasks/tickets below.
  */
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ListChecks,
   Ticket,
@@ -14,25 +15,26 @@ import {
   Calendar,
   CalendarDays,
   Package,
+  Activity,
+  LayoutDashboard,
+  ArrowRight,
 } from "lucide-react";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
-import PageFrame from "@/components/Pages/PageFrame";
-import WidgetSection from "@/components/WidgetSection";
 import useDashboardAccess from "@/hooks/useDashboardAccess";
 import useWorkspacePreferences from "@/hooks/useWorkspacePreferences";
 import { useFreshCurrentUser } from "@/hooks/useFreshCurrentUser";
 import {
   PlanBadge,
-  StatCard,
-  SectionCard,
+  MetricTile,
+  QuickActionTile,
+  ActivityPanel,
+  EmptyState,
   RecentItem,
-  QuickLink,
   getGreeting,
   humanRelTime,
   statusBadgeColor,
 } from "@/pages/Dashboard/FrontendDashboard/dashboard/DashboardShared";
-import { pickCardCols } from "@/pages/Dashboard/FrontendDashboard/dashboard/dashboardUtils";
-import { DashboardAttendanceCard } from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
+import TodayAttendanceCard from "@/pages/Dashboard/FrontendDashboard/dashboard/TodayAttendanceCard";
 import { getTasks } from "@/services/tasks";
 import { getTickets } from "@/services/tickets";
 import { getLeaveRequests } from "@/services/leave-requests";
@@ -175,6 +177,23 @@ const WorkspaceClock = ({ timezone, location }: { timezone: string; location: st
       </span>
       {location ? ` - ${location}` : ""}
     </>
+  );
+};
+
+const ViewAllButton = ({ route }: { route: string }) => {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(route)}
+      className="group inline-flex items-center gap-1 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB]"
+    >
+      View all
+      <ArrowRight
+        size={12}
+        className="transition group-hover:translate-x-0.5"
+      />
+    </button>
   );
 };
 
@@ -404,92 +423,162 @@ export function EmployeeDashboardOverview() {
   }
 
   return (
-    <div className="p-4 flex flex-col gap-5">
+    <div className="min-h-full bg-slate-50/40 p-2 lg:p-2.5">
+      <div className="flex flex-col gap-5 rounded-xl border-default p-4">
 
-      {/* Greeting banner */}
-      <div data-tour="employee-greeting">
-      <PageFrame>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h2 className="text-title font-pmedium text-primary uppercase">My Dashboard</h2>
-              <PlanBadge plan={access.plan} />
+        {/* Greeting card — same blue plan-card style used across the plan dashboards */}
+        <section
+          data-tour="employee-greeting"
+          className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white p-5 shadow-[0_12px_34px_rgba(37,99,235,0.08)] sm:p-6"
+        >
+          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/70" />
+          <div className="pointer-events-none absolute -bottom-24 right-40 h-56 w-56 rounded-full bg-blue-50/70" />
+          <div className="relative flex min-w-0 items-start gap-4">
+            <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#2563EB] ring-1 ring-blue-100 sm:flex">
+              <LayoutDashboard size={21} />
             </div>
-            <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
-            <p className="text-content font-pmedium text-gray-700">{todayLabel}<WorkspaceClock timezone={workspacePreferences.timezone} location={workspacePreferences.location} /></p>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-[9px] font-pmedium uppercase tracking-[0.22em] text-[#2563EB]">
+                  Employee Unit dashboard
+                </p>
+                <PlanBadge plan={access.plan} />
+              </div>
+              <h2 className="mt-2 text-xl font-pmedium text-[#1E3D73] sm:text-2xl">
+                {greeting} 👋
+              </h2>
+              <p className="mt-1 text-xs font-pmedium text-slate-500 sm:text-sm">
+                {todayLabel}
+                <WorkspaceClock
+                  timezone={workspacePreferences.timezone}
+                  location={workspacePreferences.location}
+                />
+              </p>
+            </div>
           </div>
+        </section>
+  
+        {error ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-700">
+            {error}
+          </div>
+        ) : null}
+  
+        {/* Today's attendance — the hero card, same as the plan dashboards */}
+        <div data-tour="employee-attendance">
+          <TodayAttendanceCard variant="hero" />
         </div>
-      </PageFrame>
-      </div>
-
-      {error ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-700">
-          {error}
+  
+        {/* My Pulse — only the metrics that matter to this employee */}
+        <div data-tour="employee-overview">
+          <section className="rounded-[1.75rem] border border-blue-100 bg-[#F8FAFD] p-5 shadow-[0_12px_34px_rgba(30,61,115,0.06)] sm:p-6">
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#1E3D73] text-white shadow-sm">
+                <Activity size={18} />
+              </div>
+              <div>
+                <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
+                  Personal
+                </p>
+                <h3 className="mt-0.5 text-lg font-pmedium text-[#1E3D73]">
+                  My Pulse
+                </h3>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <MetricTile icon={ListChecks} label="My Tasks" value={myTasks.length} sub={`${openTasksCount} open`} route="/common-modules/tasks" color="#1E3D73" />
+              <MetricTile icon={Ticket} label="My Tickets" value={myTickets.length} sub={`${openTicketsCount} open`} route="/common-modules/tickets" color="#ef4444" />
+              <MetricTile icon={CalendarClock} label="Leave Requests" value={myLeaveRequests.length} sub={`${pendingLeaveCount} pending`} route="/common-modules/leave-requests" color="#f59e0b" />
+              <MetricTile icon={Package} label="Assigned Assets" value={myAssignedAssetsCount} sub="Equipment assigned to you" route="/profile/assigned-assets" color="#0891b2" />
+              <MetricTile icon={Calendar} label="Upcoming Bookings" value={upcomingBookingsCount} sub="Meeting room bookings" route="/common-modules/meeting-room-booking" color="#7c3aed" />
+              <MetricTile icon={CalendarDays} label="Upcoming Events" value={upcomingCalendarEventsCount} sub="On your calendar" route="/common-modules/calendar" color="#059669" />
+            </div>
+          </section>
         </div>
-      ) : null}
-
-      <div data-tour="employee-attendance"><DashboardAttendanceCard /></div>
-
-      {/* Overview — only the metrics that matter */}
-      <div data-tour="employee-overview">
-      <WidgetSection layout={3} title="Overview" border normalCase>
-        <StatCard icon={ListChecks} label="My Tasks" value={myTasks.length} sub={`${openTasksCount} open`} color="#1E3D73" route="/common-modules/tasks" />
-        <StatCard icon={Ticket} label="My Tickets" value={myTickets.length} sub={`${openTicketsCount} open`} color="#ef4444" route="/common-modules/tickets" />
-        <StatCard icon={CalendarClock} label="Leave Requests" value={myLeaveRequests.length} sub={`${pendingLeaveCount} pending`} color="#f59e0b" route="/common-modules/leave-requests" />
-        <StatCard icon={Package} label="Assigned Assets" value={myAssignedAssetsCount} sub="Equipment assigned to you" color="#0891b2" route="/profile/assigned-assets" />
-        <StatCard icon={Calendar} label="Upcoming Bookings" value={upcomingBookingsCount} sub="Meeting room bookings" color="#7c3aed" route="/common-modules/meeting-room-booking" />
-        <StatCard icon={CalendarDays} label="Upcoming Events" value={upcomingCalendarEventsCount} sub="On your calendar" color="#059669" route="/common-modules/calendar" />
-      </WidgetSection>
-      </div>
-
-      {/* Quick links */}
-      <div data-tour="employee-quick-links">
-      <WidgetSection layout={pickCardCols(7)} title="Quick Links" border normalCase>
-        <QuickLink icon={ListChecks} label="Tasks" description="Your assigned work" route="/common-modules/tasks" color="#1E3D73" />
-        <QuickLink icon={Ticket} label="Tickets" description="Raise or track support tickets" route="/common-modules/tickets" color="#ef4444" />
-        <QuickLink icon={CalendarClock} label="Leave Requests" description="Apply for or check leaves" route="/common-modules/leave-requests" color="#f59e0b" />
-        <QuickLink icon={Calendar} label="Meeting Rooms" description="Book a meeting room" route="/common-modules/meeting-room-booking" color="#2563EB" />
-        <QuickLink icon={Calendar} label="Calendar" description="View events & schedules" route="/common-modules/calendar" color="#059669" />
-        <QuickLink icon={MessageSquareCode} label="Customer Support" description="Get help from support" route="/common-modules/customer-support" color="#7c3aed" />
-        <QuickLink icon={Package} label="Assigned Assets" description="Equipment assigned to you" route="/profile/assigned-assets" color="#0891b2" />
-      </WidgetSection>
-      </div>
-
-      {/* Assigned to me — each gets its own anchor so a highlight never spans
-          both cards at once. */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div data-tour="employee-my-tasks">
-        <SectionCard title="My Tasks" linkLabel="View all" linkRoute="/common-modules/tasks">
-          {myTasks.length > 0 ? myTasks.slice(0, 6).map((task, index) => (
-            <RecentItem
-              key={task.id || task._id || index}
-              title={task.title || "Task"}
-              sub={task.department || task.priority || "Task"}
-              badge={task.status || "Assigned"}
-              badgeColor={statusBadgeColor(task.status || "")}
-              time={task.dueDate ? `Due ${humanRelTime(task.dueDate)}` : undefined}
-            />
-          )) : (
-            <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No tasks assigned to you</p></div>
-          )}
-        </SectionCard>
+  
+        {/* Quick actions */}
+        <div data-tour="employee-quick-links">
+          <section className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white p-5 shadow-[0_12px_34px_rgba(37,99,235,0.08)] sm:p-6">
+            <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/70" />
+            <div className="relative mb-5">
+              <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
+                Jump back in
+              </p>
+              <h3 className="mt-1 text-lg font-pmedium text-[#1E3D73]">
+                Quick Actions
+              </h3>
+              <p className="mt-1 text-xs font-pmedium text-slate-500">
+                Your everyday tools, one click away.
+              </p>
+            </div>
+            <div className="relative grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <QuickActionTile icon={ListChecks} label="Tasks" description="Your assigned work" route="/common-modules/tasks" color="#1E3D73" />
+              <QuickActionTile icon={Ticket} label="Tickets" description="Raise or track support tickets" route="/common-modules/tickets" color="#ef4444" />
+              <QuickActionTile icon={CalendarClock} label="Leave Requests" description="Apply for or check leaves" route="/common-modules/leave-requests" color="#f59e0b" />
+              <QuickActionTile icon={Calendar} label="Meeting Rooms" description="Book a meeting room" route="/common-modules/meeting-room-booking" color="#2563EB" />
+              <QuickActionTile icon={Calendar} label="Calendar" description="View events & schedules" route="/common-modules/calendar" color="#059669" />
+              <QuickActionTile icon={MessageSquareCode} label="Customer Support" description="Get help from support" route="/common-modules/customer-support" color="#7c3aed" />
+              <QuickActionTile icon={Package} label="Assigned Assets" description="Equipment assigned to you" route="/profile/assigned-assets" color="#0891b2" />
+            </div>
+          </section>
         </div>
-
-        <div data-tour="employee-my-tickets">
-        <SectionCard title="My Tickets" linkLabel="View all" linkRoute="/common-modules/tickets">
-          {myTickets.length > 0 ? myTickets.slice(0, 6).map((ticket, index) => (
-            <RecentItem
-              key={ticket.id || ticket._id || index}
-              title={ticketTitle(ticket)}
-              sub={ticketCategory(ticket)}
-              badge={ticket.status || "Open"}
-              badgeColor={statusBadgeColor(ticket.status || "")}
-              time={humanRelTime(ticket.createdAt || "")}
-            />
-          )) : (
-            <div className="min-h-48 flex items-center justify-center"><p className="text-content text-gray-400 text-center">No tickets assigned to you</p></div>
-          )}
-        </SectionCard>
+  
+        {/* Assigned to me — each gets its own anchor so a highlight never spans
+            both cards at once. */}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <div data-tour="employee-my-tasks">
+            <ActivityPanel
+              eyebrow="Assigned to me"
+              title="My Tasks"
+              action={<ViewAllButton route="/common-modules/tasks" />}
+            >
+              {myTasks.length > 0 ? myTasks.slice(0, 6).map((task, index) => (
+                <RecentItem
+                  key={task.id || task._id || index}
+                  title={task.title || "Task"}
+                  sub={task.department || task.priority || "Task"}
+                  badge={task.status || "Assigned"}
+                  badgeColor={statusBadgeColor(task.status || "")}
+                  time={task.dueDate ? `Due ${humanRelTime(task.dueDate)}` : undefined}
+                />
+              )) : (
+                <EmptyState
+                  icon={ListChecks}
+                  title="No tasks assigned to you"
+                  description="Work assigned to you will show up here, ordered by due date."
+                  actionLabel="Open Tasks"
+                  route="/common-modules/tasks"
+                />
+              )}
+            </ActivityPanel>
+          </div>
+  
+          <div data-tour="employee-my-tickets">
+            <ActivityPanel
+              eyebrow="Support queue"
+              title="My Tickets"
+              action={<ViewAllButton route="/common-modules/tickets" />}
+            >
+              {myTickets.length > 0 ? myTickets.slice(0, 6).map((ticket, index) => (
+                <RecentItem
+                  key={ticket.id || ticket._id || index}
+                  title={ticketTitle(ticket)}
+                  sub={ticketCategory(ticket)}
+                  badge={ticket.status || "Open"}
+                  badgeColor={statusBadgeColor(ticket.status || "")}
+                  time={humanRelTime(ticket.createdAt || "")}
+                />
+              )) : (
+                <EmptyState
+                  icon={Ticket}
+                  title="No tickets assigned to you"
+                  description="Support tickets assigned to you will appear here, most recent first."
+                  actionLabel="Open Tickets"
+                  route="/common-modules/tickets"
+                />
+              )}
+            </ActivityPanel>
+          </div>
         </div>
       </div>
     </div>

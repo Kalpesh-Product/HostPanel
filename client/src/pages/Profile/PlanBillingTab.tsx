@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import PlanRenewModal from "../../components/PlanRenewModal";
 import {
   CalendarClock,
+  CreditCard,
   Eye,
   FileText,
   Layers,
@@ -43,6 +44,28 @@ const formatAmount = (amount?: number | string | null, currency = "USD") => {
   }).format(numeric);
 };
 
+// Same visual order the Sidebar shows its sections in — mirrors the
+// server's PLAN_BILLING_SECTION_ORDER (planBillingControllers.ts), which
+// in turn mirrors workspaceModuleCatalog.ts's MODULE_GROUPS array order.
+// Anything not listed here sorts to the end instead of breaking the page.
+const SECTION_ORDER = [
+  "Common Modules",
+  "Extra Common Modules",
+  "Key Apps",
+  "Core Modules",
+  "HR Department",
+  "Administration Department",
+  "Sales Department",
+  "Finance Department",
+  "Maintenance Department",
+  "Tech Department",
+  "IT Department",
+];
+const sectionOrderIndex = (section: string) => {
+  const index = SECTION_ORDER.indexOf(section);
+  return index === -1 ? SECTION_ORDER.length : index;
+};
+
 const STATUS_TONE: Record<string, string> = {
   active: "bg-emerald-50 text-emerald-700",
   expiring_soon: "bg-amber-50 text-amber-700",
@@ -54,6 +77,8 @@ const TABS = [
   { key: "modules", label: "Included Modules" },
   { key: "payments", label: "Payment History" },
 ] as const;
+
+export type PlanBillingModulePage = (typeof TABS)[number]["key"];
 
 type TabKey = (typeof TABS)[number]["key"];
 
@@ -87,14 +112,42 @@ const getModuleKey = (module: IncludedModule) =>
 
 const getInvoiceUrl = (invoice: any) => invoice?.hostedInvoiceUrl || invoice?.invoicePdfUrl || "";
 
-const PlanBillingTab = () => {
+const PlanBillingTab = ({
+  modulePage,
+}: {
+  modulePage?: PlanBillingModulePage;
+}) => {
   const axios = useAxiosPrivate();
-  const [activeTab, setActiveTab] = useState<TabKey>("modules");
+  const [activeTab, setActiveTab] = useState<TabKey>(modulePage || "modules");
   const [searchQuery, setSearchQuery] = useState("");
   const [moduleFilter, setModuleFilter] = useState("All");
   const [paymentFilter, setPaymentFilter] = useState("All");
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
+  const [isOpeningBillingPortal, setIsOpeningBillingPortal] = useState(false);
+
+  // Stripe's own hosted page for updating the card or canceling — only
+  // available for a company that started its trial through the
+  // card-backed checkout flow (see hasBillingPortal, planBillingControllers.ts).
+  const handleManageSubscription = async () => {
+    try {
+      setIsOpeningBillingPortal(true);
+      const { data } = await axios.post("/api/plan-billing/billing-portal");
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+      toast.error("Could not open billing portal — please try again.");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to open billing portal.");
+    } finally {
+      setIsOpeningBillingPortal(false);
+    }
+  };
+
+  useEffect(() => {
+    if (modulePage) setActiveTab(modulePage);
+  }, [modulePage]);
 
   const { data: summary, isLoading } = useQuery({
     queryKey: ["planBillingSummary"],
@@ -117,6 +170,9 @@ const PlanBillingTab = () => {
   const planLabel = PLAN_LABELS[planId] || planId;
   const planStatus = summary?.planStatus || "none";
   const isTrialing = Boolean(summary?.isTrialing);
+  const isSubscriptionCancelled = ["canceling", "canceled"].includes(
+    String(summary?.subscriptionStatus || "").toLowerCase(),
+  );
 
   const includedModules = useMemo<IncludedModule[]>(() => summary?.includedModules || [], [summary]);
   const invoices = useMemo(() => invoicesData || [], [invoicesData]);
@@ -128,7 +184,7 @@ const PlanBillingTab = () => {
       if (!unique.has(key)) unique.set(key, module);
     });
     return Array.from(unique.values()).sort((a, b) =>
-      String(a.section || "Other").localeCompare(String(b.section || "Other")) ||
+      sectionOrderIndex(String(a.section || "Other")) - sectionOrderIndex(String(b.section || "Other")) ||
       String(a.label || "").localeCompare(String(b.label || "")),
     );
   }, [includedModules]);
@@ -187,21 +243,40 @@ const PlanBillingTab = () => {
     <div className="border-default border-borderGray rounded-xl bg-white p-4 flex flex-col gap-4 font-pmedium">
       <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-title font-pmedium text-primary uppercase">Plan &amp; Billing</h2>
+          <h2 className="text-title font-pmedium text-primary uppercase">
+            {modulePage
+              ? TABS.find((tab) => tab.key === modulePage)?.label
+              : "Plan & Billing"}
+          </h2>
           <p className="text-xs font-pmedium text-slate-500 mt-1">
-            Your current plan, included modules, and payment history.
+            {modulePage
+              ? `Plan & Billing • ${TABS.find((tab) => tab.key === modulePage)?.label}`
+              : "Your current plan, included modules, and payment history."}
           </p>
         </div>
-        {planId !== "basic" ? (
-          <button
-            type="button"
-            onClick={() => setIsRenewModalOpen(true)}
-            className="inline-flex items-center gap-2 rounded-full bg-[#2563EB] px-4 py-2 text-[11px] font-pmedium text-white transition hover:bg-blue-700"
-          >
-            <RefreshCw size={13} />
-            Renew Now
-          </button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {summary?.hasBillingPortal ? (
+            <button
+              type="button"
+              onClick={handleManageSubscription}
+              disabled={isOpeningBillingPortal}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[11px] font-pmedium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+            >
+              <CreditCard size={13} />
+              {isOpeningBillingPortal ? "Opening..." : "Manage Subscription"}
+            </button>
+          ) : null}
+          {planId !== "basic" ? (
+            <button
+              type="button"
+              onClick={() => setIsRenewModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-full bg-[#2563EB] px-4 py-2 text-[11px] font-pmedium text-white transition hover:bg-blue-700"
+            >
+              <RefreshCw size={13} />
+              Renew Now
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-1 shrink-0">
@@ -278,9 +353,30 @@ const PlanBillingTab = () => {
         </div>
       )} */}
       {isTrialing && planStatus !== "expiring_soon" && (
-        <div className="rounded-2xl bg-blue-50 border border-blue-200 px-4 py-3 text-[12px] text-blue-800">
+        <div
+          className={`rounded-2xl border px-4 py-3 text-[12px] ${
+            isSubscriptionCancelled
+              ? "bg-amber-50 border-amber-200 text-amber-800"
+              : "bg-blue-50 border-blue-200 text-blue-800"
+          }`}
+        >
           You're on a free trial of the {planLabel}, active until <b>{formatDate(summary?.planExpiryDate)}</b>.
-          Renew now to continue on this plan after the trial ends.
+          {isSubscriptionCancelled
+            ? " Your subscription is set to cancel and won't be charged — after that date your workspace moves to the Basic plan. Changed your mind? You can resume anytime from Manage Subscription."
+            : summary?.hasBillingPortal
+              ? " Your card will be charged automatically when the trial ends — cancel anytime from Manage Subscription if you don't want to continue."
+              : " Renew now to continue on this plan after the trial ends."}
+        </div>
+      )}
+      {!isTrialing && isSubscriptionCancelled && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] text-amber-800">
+          <p className="font-pmedium text-amber-900">Payment cancelled — auto renewal is off.</p>
+          <p className="mt-1">
+            Your {planLabel} plan is still active, but it will not renew after expiry on{" "}
+            <b>{formatDate(summary?.planExpiryDate)}</b>. Your workspace will then move to the Basic plan
+            and lose access to:{" "}
+            {(summary?.modulesLostOnDowngrade || []).join(", ") || "the modules included in this plan"}.
+          </p>
         </div>
       )}
       {planStatus === "expired_downgraded" && (
@@ -290,34 +386,36 @@ const PlanBillingTab = () => {
         </div>
       )}
 
-      <div className="w-full rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-        <div className="grid w-full grid-cols-2 gap-1.5" role="tablist" aria-label="Plan and billing sections">
-          {TABS.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === tab.key}
-              onClick={() => {
-                setActiveTab(tab.key);
-                setSearchQuery("");
-                setModuleFilter("All");
-                setPaymentFilter("All");
-              }}
-              className={`flex w-full min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2.5 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
-                activeTab === tab.key
-                  ? "bg-[#2563EB] text-white shadow-sm"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              {tab.key === "modules" ? <Layers size={14} className="shrink-0" /> : <Receipt size={14} className="shrink-0" />}
-              {tab.label}
-              {tab.key === "modules" && ` (${visibleModules.length})`}
-              {tab.key === "payments" && ` (${invoices.length})`}
-            </button>
-          ))}
+      {!modulePage ? (
+        <div className="w-full rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+          <div className="grid w-full grid-cols-2 gap-1.5" role="tablist" aria-label="Plan and billing sections">
+            {TABS.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.key}
+                onClick={() => {
+                  setActiveTab(tab.key);
+                  setSearchQuery("");
+                  setModuleFilter("All");
+                  setPaymentFilter("All");
+                }}
+                className={`flex w-full min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2.5 text-[10px] font-pmedium uppercase tracking-widest transition-all ${
+                  activeTab === tab.key
+                    ? "bg-[#2563EB] text-white shadow-sm"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                }`}
+              >
+                {tab.key === "modules" ? <Layers size={14} className="shrink-0" /> : <Receipt size={14} className="shrink-0" />}
+                {tab.label}
+                {tab.key === "modules" && ` (${visibleModules.length})`}
+                {tab.key === "payments" && ` (${invoices.length})`}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[380px]">
         <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-200 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">

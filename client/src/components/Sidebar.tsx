@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import { useEffect, useId, useMemo, useState } from "react";
 import type { ElementType } from "react";
+import { canAccessCompanyProfile } from "../pages/Profile/profileAccess";
 import {
   ChevronDown,
   ChevronUp,
@@ -352,9 +353,18 @@ const DEFAULT_WORKSPACE_DEPARTMENT_NAMES = new Set([
   "it",
 ]);
 const generalData: NavNode[] = [
-  { id: "profile", label: "Profile", icon: User, route: "/profile/my-profile" },
+  { id: "profile", label: "Profile", icon: User, route: "/profile" },
   { id: "logout", label: "Sign Out", icon: LogOut, isRed: true, route: "/sign-out" },
 ];
+// Plan & Billing has its own standalone page (no Profile tab bar), using the
+// same PlanBillingTab component it did when it lived under Profile. Gated by
+// the same canAccessCompanyProfile check the tab itself uses.
+const BILLING_NAV_ITEM: NavNode = {
+  id: "billing",
+  label: "Plan & Billing",
+  icon: CreditCard,
+  route: "/plan-billing",
+};
 
 const SECTION_ABBR: Record<string, string> = {
   "common-modules": "COM",
@@ -421,7 +431,7 @@ export const ROUTE_BY_ID: Record<string, string> = {
   "tenant-rent-payments": "/dashboard/tenant/rent-payments",
   "tenant-tickets": "/dashboard/tenant/tickets",
   "tenant-profile": "/profile/my-profile",
-  profile: "/profile/my-profile",
+  profile: "/profile",
   "employee-management": "/department-accesses/hr-department/company-management",
   "hr-documents": "/department-accesses/hr-department/documents",
   "attendance-review": "/department-accesses/hr-department/attendance-review",
@@ -900,6 +910,19 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   });
   const [workspaceDepartments, setWorkspaceDepartments] = useState<WorkspaceDepartmentAccess[]>([]);
   const workspaceSetup = readWorkspaceSetup();
+
+  // A plain link right after Profile — same "Profile"/"Sign Out" style (no
+  // expand/collapse dropdown), gated the same way the Plan & Billing card
+  // itself is (founder/super_admin, or an HR department manager).
+  const sidebarGeneralItems = useMemo(() => {
+    const canSeeBilling = canAccessCompanyProfile({
+      roleBand: roleAccessContext.role,
+      departmentNames: roleAccessContext.departments,
+    });
+    return canSeeBilling
+      ? [generalData[0], BILLING_NAV_ITEM, ...generalData.slice(1)]
+      : generalData;
+  }, [roleAccessContext.role, roleAccessContext.departments]);
 
 const authUserId = String(
   (auth.user as { id?: string; _id?: string } | null)?.id ||
@@ -2069,7 +2092,7 @@ useEffect(() => {
         {isSidebarHydrated && (
           <div className="px-4 pt-2">
             <div className="border-t border-black/10 pt-2 space-y-1">
-              {generalData.map((item) => (
+              {sidebarGeneralItems.map((item) => (
                 <NavGroup
                   key={item.id}
                   item={item}

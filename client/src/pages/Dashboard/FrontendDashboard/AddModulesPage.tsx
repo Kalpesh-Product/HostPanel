@@ -51,7 +51,6 @@ import { useNavigate } from "react-router-dom";
 import Card from "../../../components/Card";
 import PageFrame from "../../../components/Pages/PageFrame";
 import PrimaryButton from "../../../components/PrimaryButton";
-import StartTrialConfirmModal from "../../../components/StartTrialConfirmModal";
 import useAuth from "../../../hooks/useAuth";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import { payForProfessionalUpgrade } from "../../../utils/planUpgradePayment";
@@ -348,7 +347,6 @@ const AddModulesPage = () => {
     freeTrialDurationDays: null as number | null,
   });
   const [isStartingTrial, setIsStartingTrial] = useState(false);
-  const [isTrialConfirmOpen, setIsTrialConfirmOpen] = useState(false);
   const [openAddOnGroups, setOpenAddOnGroups] = useState<Record<string, boolean>>({});
   const [openDepartmentGroups, setOpenDepartmentGroups] = useState<Record<string, boolean>>({});
 
@@ -470,12 +468,18 @@ const AddModulesPage = () => {
   const handleStartTrial = async () => {
     try {
       setIsStartingTrial(true);
-      await axiosPrivate.post("/api/plan-billing/start-trial");
-      toast.success("Your free trial has started!");
-      // Professional modules just unlocked across the workspace — a reload
-      // is the simplest way to get every module card, the sidebar, and this
-      // page's own plan gating all in sync with the new plan.
-      window.location.reload();
+      // Card-backed trial: Stripe collects the card and an optional promo
+      // code on its own hosted page, charges $0 now, and auto-charges the
+      // real Professional rate the moment the trial ends. The plan only
+      // actually flips to active once MasterPanel's webhook confirms the
+      // checkout — not here — so leave the browser to finish on Stripe's
+      // page instead of reloading immediately.
+      const { data } = await axiosPrivate.post("/api/plan-billing/start-trial-checkout");
+      if (data?.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+      toast.error("Could not start checkout — please try again.");
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to start free trial.");
     } finally {
@@ -1320,7 +1324,7 @@ const AddModulesPage = () => {
                                 ? `Start ${trialOffer.freeTrialDurationDays}-Day Free Trial`
                                 : "Start Free Trial"
                           }
-                          handleSubmit={() => setIsTrialConfirmOpen(true)}
+                          handleSubmit={handleStartTrial}
                           disabled={isStartingTrial || isUpgradeSubmitting}
                           className="w-full rounded-full"
                           padding="py-2"
@@ -1358,14 +1362,6 @@ const AddModulesPage = () => {
           )}
         </div>
       , document.body) : null}
-
-      <StartTrialConfirmModal
-        open={isTrialConfirmOpen}
-        durationDays={trialOffer.freeTrialDurationDays}
-        isStarting={isStartingTrial}
-        onConfirm={handleStartTrial}
-        onLater={() => setIsTrialConfirmOpen(false)}
-      />
     </PageFrame>
   );
 };

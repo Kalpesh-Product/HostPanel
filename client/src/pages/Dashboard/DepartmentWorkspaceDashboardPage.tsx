@@ -311,7 +311,7 @@ export default function DepartmentWorkspaceDashboardPage({
         <header className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
           <div className="relative h-44 sm:h-[12rem]">
             <img src={salesBannerImage} alt="" aria-hidden="true" className="absolute inset-y-0 right-0 h-full w-full object-cover object-center opacity-45 sm:w-[64%]" style={{ WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 28%, black 100%)", maskImage: "linear-gradient(to right, transparent 0%, black 28%, black 100%)" }} />
-            <div aria-hidden="true" className="absolute inset-y-0 right-0 w-full bg-gradient-to-br from-[#2563EB]/45 via-[#3b82f6]/25 to-[#60a5fa]/15 sm:w-[64%]" style={{ WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 28%, black 100%)", maskImage: "linear-gradient(to right, transparent 0%, black 28%, black 100%)" }} />
+            <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-br from-[#2563EB]/45 via-[#3b82f6]/25 to-[#60a5fa]/15" />
             <div className="relative z-10 flex h-full max-w-2xl flex-col justify-center px-6 sm:px-8">
               <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-700"><DepartmentIcon size={22} /></span>
               <h1 className="text-[22px] font-pmedium text-slate-950 sm:text-[26px]">{config.title}</h1>

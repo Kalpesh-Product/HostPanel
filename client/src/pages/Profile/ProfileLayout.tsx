@@ -29,13 +29,15 @@ const ProfileLayout = () => {
     roleBand: effectiveRole,
     departmentNames: effectiveDepartments,
   });
-  const showTabs = location.pathname !== "/profile" && !location.pathname.includes("budget/");
+  const normalizedPath = location.pathname.replace(/\/+$/, "") || "/";
+  const isProfileDashboard = normalizedPath === "/profile";
+  const showTabs = !isProfileDashboard && !location.pathname.includes("budget/");
   const activeTabId = profileTabs.find(
     (tab) => location.pathname === tab.route || location.pathname.includes(tab.id),
   )?.id;
 
   return (
-    <div className="p-4">
+    <div className={isProfileDashboard ? "" : "p-4"}>
       {showTabs && (
         <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
           {profileTabs.map((tab) => {
@@ -58,7 +60,7 @@ const ProfileLayout = () => {
         </div>
       )}
 
-      <div className="py-4">
+      <div className={isProfileDashboard ? "" : "py-4"}>
         <Outlet />
       </div>
     </div>

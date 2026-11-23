@@ -6,6 +6,8 @@ import WorkspaceMember from "../models/WorkspaceMember.js";
 import HostLeadCompany from "../models/HostLeadCompany.js";
 import {
   getDefaultEnabledModuleIdsForPlan,
+  getVerticalModuleIds,
+  getWorkspaceVerticalKeys,
   MODULE_LABEL_BY_ID,
   MODULE_SECTION_BY_ID,
 } from "../config/workspaceModuleCatalog.js";
@@ -13,6 +15,30 @@ import {
 const MASTER_PANEL_BASE_URL = String(
   process.env.MASTER_PANEL_BASE_URL || "http://localhost:5007",
 ).replace(/\/+$/, "");
+
+// Same visual order the Sidebar shows its sections in (Common Modules,
+// Extra Common Modules, Key Apps, Core Modules, then each Department in
+// its own catalog order) — mirrors workspaceModuleCatalog.ts's MODULE_GROUPS
+// array order, since MODULE_SECTION_BY_ID only gives label strings, not an
+// ordering. Anything not listed here (shouldn't happen, but just in case)
+// sorts to the end instead of breaking the page.
+const PLAN_BILLING_SECTION_ORDER = [
+  "Common Modules",
+  "Extra Common Modules",
+  "Key Apps",
+  "Core Modules",
+  "HR Department",
+  "Administration Department",
+  "Sales Department",
+  "Finance Department",
+  "Maintenance Department",
+  "Tech Department",
+  "IT Department",
+];
+const sectionOrderIndex = (section: string) => {
+  const index = PLAN_BILLING_SECTION_ORDER.indexOf(section);
+  return index === -1 ? PLAN_BILLING_SECTION_ORDER.length : index;
+};
 
 // Same server-to-server shared secret used by verifyBusinessControllers.ts.
 const masterPanelHeaders = () => ({
@@ -66,18 +92,29 @@ export const getPlanBillingSummary = async (req, res, next) => {
       modulesLostOnDowngrade.push(MODULE_LABEL_BY_ID[id] || id);
     }
 
-    // Paid add-ons belong only to Custom plans. enabledModuleIds can contain
-    // operational grants for every tier, so it must not drive billing labels.
+    // Paid add-ons belong only to Custom plans. enabledModuleIds (the raw
+    // field) can contain ad-hoc operational grants for every tier that
+    // aren't really "included in your plan", so it must not drive billing
+    // labels wholesale — but vertical modules (Cafe Management, Co-working
+    // Management, etc.) genuinely ARE part of what this plan unlocks for
+    // this workspace's business type, same as MasterPanel's
+    // getDefaultEnabledModuleIdsForWorkspace computes when actually
+    // granting access, so they belong here too.
     const isCustomPlan = String(workspace.selectedPlan || "").trim().toLowerCase() === "custom";
     const customAddonIds = new Set(
       isCustomPlan && Array.isArray(workspace.customPlanModuleIds)
         ? workspace.customPlanModuleIds.map((id) => String(id || "").trim()).filter(Boolean)
         : [],
     );
-    const effectiveIds = new Set([...planIds, ...customAddonIds]);
+    const verticalIds = new Set(
+      String(workspace.selectedPlan || "").trim().toLowerCase() === "basic"
+        ? []
+        : getVerticalModuleIds(getWorkspaceVerticalKeys(workspace.businessTypes)),
+    );
+    const effectiveIds = new Set([...planIds, ...verticalIds, ...customAddonIds]);
     const isBasicPlan = String(workspace.selectedPlan || "").trim().toLowerCase() === "basic";
     const includedModules = Array.from(effectiveIds)
-      .map((id) => {
+      .flatMap((id) => {
         let section = MODULE_SECTION_BY_ID[id] || "Other";
         // "website-review" shares its id between the Key Apps entry and the
         // Tech Department tab of the same name, and MODULE_SECTION_BY_ID
@@ -90,14 +127,27 @@ export const getPlanBillingSummary = async (req, res, next) => {
         if (isBasicPlan && id === "website-review" && section === "Tech Department") {
           section = "Key Apps";
         }
-        return {
-          id,
-          label: MODULE_LABEL_BY_ID[id] || id,
-          section,
-          source: customAddonIds.has(id) && !planIds.has(id) ? "addon" : "plan",
-        };
+        // tenant-companies-sales is a flat Professional-plan default (not
+        // vertical-gated, unlike tenant-companies-admin) with no department
+        // tab of its own in the catalog, so MODULE_SECTION_BY_ID's walk
+        // never gets a chance to correct it past whatever the generic
+        // "Add-ons" list assigned it — it belongs in Sales Department.
+        if (id === "tenant-companies-sales") section = "Sales Department";
+        const source = customAddonIds.has(id) && !planIds.has(id) ? "addon" : "plan";
+        const entries = [{ id, label: MODULE_LABEL_BY_ID[id] || id, section, source }];
+        // website-leads is the access-grant id for TWO genuinely separate
+        // pages — Key Apps' "All Leads" (what MODULE_SECTION_BY_ID resolves
+        // to by design) and Tech Department's own "Website Leads" tab —
+        // which only exists for a non-Basic plan. One flat id can only
+        // resolve to one section above, so add the Tech Department entry
+        // explicitly rather than losing it, matching what the Sidebar
+        // actually shows in both places.
+        if (id === "website-leads" && !isBasicPlan) {
+          entries.push({ id, label: "Website Leads", section: "Tech Department", source });
+        }
+        return entries;
       })
-      .sort((a, b) => a.section.localeCompare(b.section) || a.label.localeCompare(b.label));
+      .sort((a, b) => sectionOrderIndex(a.section) - sectionOrderIndex(b.section) || a.label.localeCompare(b.label));
 
     // hasUsedTrial/isTrialing drive the Add Modules upgrade modal's "Start
     // Free Trial" CTA (hide it once used, or once this workspace is already
@@ -121,6 +171,15 @@ export const getPlanBillingSummary = async (req, res, next) => {
         isTrialing: Boolean(workspace.isTrialing),
         hasUsedTrial: Boolean(leadCompany?.hasUsedTrial),
         trialEndAt: leadCompany?.trialEndAt || null,
+        // Only a company that started its trial through the card-backed
+        // startTrialCheckout flow has a Stripe customer — the billing
+        // portal (manage card / cancel) only works for those.
+        hasBillingPortal: Boolean(leadCompany?.stripeCustomerId),
+        // Stripe's real subscription lifecycle state ("trialing", "active",
+        // "past_due", "canceling", "canceled") — lets the trial banner say
+        // the right thing once a cancellation is scheduled instead of
+        // always claiming the card will auto-charge.
+        subscriptionStatus: leadCompany?.subscriptionStatus || "",
         // A staff-granted extra trial window for THIS company specifically
         // (Plan Pricing > trial companies, MasterPanel) — drives the
         // dashboard's BonusTrialOfferNotice banner. Only meaningful while
@@ -210,6 +269,67 @@ export const claimBonusTrial = async (req, res, next) => {
     }
     const { data } = await axios.patch(
       `${MASTER_PANEL_BASE_URL}/api/hosts/claim-bonus-trial`,
+      { companyId: workspace.companyId },
+      { headers: masterPanelHeaders() },
+    );
+    return res.status(200).json(data);
+  } catch (error) {
+    if (error?.response) {
+      return res.status(error.response.status || 502).json(error.response.data);
+    }
+    next(error);
+  }
+};
+
+// POST /api/plan-billing/start-trial-checkout — card-backed version of
+// startTrial above. Proxies to MasterPanel's start-trial-checkout, which
+// creates a Stripe Checkout Session (subscription mode, card captured, $0
+// due now, auto-charges when the trial ends) and returns its URL. The
+// actual DB flip to an active trial happens later on MasterPanel's
+// webhook, once Stripe confirms the session — not here, since the host
+// hasn't necessarily finished entering their card yet when this returns.
+export const startTrialCheckout = async (req, res, next) => {
+  try {
+    const workspace = await resolveCurrentWorkspace(req);
+    if (!workspace) {
+      return res.status(404).json({ message: "Workspace not found for this user." });
+    }
+    const user = await HostUser.findById(req.user);
+    if (!user?.email) {
+      return res.status(400).json({ message: "Your account has no email on file." });
+    }
+    const { data } = await axios.patch(
+      `${MASTER_PANEL_BASE_URL}/api/hosts/start-trial-checkout`,
+      {
+        companyId: workspace.companyId,
+        companyName: workspace.businessName,
+        email: user.email,
+        name: user.name,
+      },
+      { headers: masterPanelHeaders() },
+    );
+    return res.status(200).json(data);
+  } catch (error) {
+    if (error?.response) {
+      return res.status(error.response.status || 502).json(error.response.data);
+    }
+    next(error);
+  }
+};
+
+// POST /api/plan-billing/billing-portal — Stripe's own hosted page for
+// managing a card-backed subscription (update card, cancel). Only works
+// for a company that started its trial through startTrialCheckout above
+// (has a stripeCustomerId on MasterPanel's side) — the old no-card
+// startTrial flow has nothing for this to manage.
+export const createBillingPortalSession = async (req, res, next) => {
+  try {
+    const workspace = await resolveCurrentWorkspace(req);
+    if (!workspace) {
+      return res.status(404).json({ message: "Workspace not found for this user." });
+    }
+    const { data } = await axios.post(
+      `${MASTER_PANEL_BASE_URL}/api/hosts/billing-portal`,
       { companyId: workspace.companyId },
       { headers: masterPanelHeaders() },
     );

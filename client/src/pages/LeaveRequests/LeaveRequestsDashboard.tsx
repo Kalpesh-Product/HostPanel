@@ -442,12 +442,6 @@ export default function LeaveRequestsDashboard() {
             <div
               aria-hidden="true"
               className="absolute inset-0 bg-gradient-to-br from-[#2563EB]/45 via-[#3b82f6]/25 to-[#60a5fa]/15"
-              style={{
-                WebkitMaskImage:
-                  "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
-                maskImage:
-                  "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)",
-              }}
             />
             <div
               aria-hidden="true"

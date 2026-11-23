@@ -125,6 +125,7 @@ import ResetPassword from "../pages/LoginPage/ResetPassword";
 import RegisterPage from "../pages/LoginPage/RegisterPage";
 import RegisterOtpVerification from "../pages/LoginPage/RegisterOtpVerification";
 import PaymentSuccessPage from "../pages/LoginPage/PaymentSuccessPage";
+import TrialSuccessPage from "../pages/LoginPage/TrialSuccessPage";
 import StaffViewPage from "../pages/StaffView/StaffViewPage";
 import FounderWorkspaceSelectionPage from "../pages/LoginPage/FounderWorkspaceSelectionPage";
 import CompanyReviews from "../pages/Dashboard/FrontendDashboard/CompanyReviews";
@@ -191,8 +192,11 @@ import ResourceManagementWorkspaceDashboard from "../pages/Administration/Resour
 import AdministrationHousekeepingPage from "../pages/Administration/HouseKeeping/HousekeepingPage";
 import HousekeepingDashboard from "../pages/Administration/HouseKeeping/HousekeepingDashboard";
 import RepairLogsPage from "../pages/Maintenance/RepairLogsPage";
+import RepairLogsWorkspaceDashboard from "../pages/Maintenance/RepairLogsWorkspaceDashboard";
 import AMCMaintenanceSchedulerPage from "../pages/Maintenance/AMCMaintenanceSchedulerPage";
+import AMCMaintenanceSchedulerWorkspaceDashboard from "../pages/Maintenance/AMCMaintenanceSchedulerWorkspaceDashboard";
 import ITRepairLogsPage from "../pages/IT/ITRepairLogsPage";
+import ITRepairLogsWorkspaceDashboard from "../pages/IT/ITRepairLogsWorkspaceDashboard";
 import SystemAccessManagementPage from "../pages/IT/SystemAccessManagementPage";
 import { TicketsPage } from "../pages/Tickets/TicketsPage";
 import TicketsWorkspaceDashboard from "../pages/Tickets/TicketsWorkspaceDashboard";
@@ -232,10 +236,12 @@ import PolicyUpload from "../components/Pages/PolicyUpload";
 import AccessGrant from "../pages/Profile/AccessGrant";
 import AccessGrantsDashboard from "../pages/Profile/AccessGrantsDashboard";
 import ProfileLayout from "../pages/Profile/ProfileLayout";
+import ProfileDashboard from "../pages/Profile/ProfileDashboard";
 import UserDetails from "../pages/Profile/UserDetails";
 import CompanyProfile from "../pages/Profile/CompanyProfile";
 import CompanyProfileAccessGuard from "../pages/Profile/CompanyProfileAccessGuard";
 import PlanBillingTab from "../pages/Profile/PlanBillingTab";
+import PlanBillingWorkspaceDashboard from "../pages/Profile/PlanBillingWorkspaceDashboard";
 import ChangePassword from "../pages/Profile/ChangePassword";
 import { AssignedAssetsTab } from "../pages/Profile/AssignedAssetsTab";
 import { PayslipsTab } from "../pages/Profile/PayslipsTab";
@@ -381,6 +387,12 @@ export const routes = createBrowserRouter([
     // Public — Stripe redirects a first-time payer here before they have an account.
     path: "/payment-success",
     element: <PaymentSuccessPage />,
+  },
+  {
+    // Public, same reasoning as /payment-success — Stripe's startTrialCheckout
+    // success_url redirects here.
+    path: "/trial-success",
+    element: <TrialSuccessPage />,
   },
   {
     path: "/signup/:token",
@@ -1360,12 +1372,42 @@ export const routes = createBrowserRouter([
                 element: <Chat />,
               },
               {
+                // Standalone Plan & Billing dashboard — reachable straight
+                // from the sidebar without the Profile tab bar.
+                path: "plan-billing",
+                element: (
+                  <CompanyProfileAccessGuard>
+                    <PlanBillingWorkspaceDashboard />
+                  </CompanyProfileAccessGuard>
+                ),
+              },
+              {
+                path: "plan-billing/modules",
+                element: (
+                  <div className="p-4">
+                    <CompanyProfileAccessGuard>
+                      <PlanBillingTab modulePage="modules" />
+                    </CompanyProfileAccessGuard>
+                  </div>
+                ),
+              },
+              {
+                path: "plan-billing/payments",
+                element: (
+                  <div className="p-4">
+                    <CompanyProfileAccessGuard>
+                      <PlanBillingTab modulePage="payments" />
+                    </CompanyProfileAccessGuard>
+                  </div>
+                ),
+              },
+              {
                 path: "profile",
                 element: <ProfileLayout />,
                 children: [
                   {
                     index: true,
-                    element: <ModuleCardsLanding section="profile" />,
+                    element: <ProfileDashboard />,
                   },
                   {
                     path: "my-profile",
@@ -1380,20 +1422,18 @@ export const routes = createBrowserRouter([
                     ),
                   },
                   {
+                    // Plan & Billing now lives on its own page. Keep the old
+                    // profile URL working for saved links / existing redirects.
                     path: "plan-billing",
-                    element: (
-                      <CompanyProfileAccessGuard>
-                        <PlanBillingTab />
-                      </CompanyProfileAccessGuard>
-                    ),
+                    element: <Navigate to="/plan-billing" replace />,
                   },
                   {
                     // Stripe's payment-link redirect target (see
                     // planPaymentControllers.js createAndSendPlanPaymentLink)
                     // — webhook processing may still be in flight, so just
-                    // land the host back on the tab that reflects it.
+                    // land the host back on the page that reflects it.
                     path: "plan-billing/payment-result",
-                    element: <Navigate to="/profile/plan-billing" replace />,
+                    element: <Navigate to="/plan-billing" replace />,
                   },
                   {
                     path: "change-password",
@@ -1925,11 +1965,31 @@ export const routes = createBrowserRouter([
               // Department Access — Maintenance
               {
                 path: "department-accesses/maintenance-department/repair-logs",
-                element: <RepairLogsPage />,
+                element: <RepairLogsWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/maintenance-department/repair-logs/team-active",
+                element: <RepairLogsPage modulePage="team-active" />,
+              },
+              {
+                path: "department-accesses/maintenance-department/repair-logs/my-work",
+                element: <RepairLogsPage modulePage="my-work" />,
+              },
+              {
+                path: "department-accesses/maintenance-department/repair-logs/history",
+                element: <RepairLogsPage modulePage="history" />,
               },
               {
                 path: "department-accesses/maintenance-department/amc-scheduler",
-                element: <AMCMaintenanceSchedulerPage />,
+                element: <AMCMaintenanceSchedulerWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/maintenance-department/amc-scheduler/schedules",
+                element: <AMCMaintenanceSchedulerPage modulePage="schedules" />,
+              },
+              {
+                path: "department-accesses/maintenance-department/amc-scheduler/alerts",
+                element: <AMCMaintenanceSchedulerPage modulePage="alerts" />,
               },
               {
                 path: "maintenance/*",
@@ -1941,7 +2001,19 @@ export const routes = createBrowserRouter([
               // Department Access — IT
               {
                 path: "department-accesses/it-department/repair-logs",
-                element: <ITRepairLogsPage />,
+                element: <ITRepairLogsWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/it-department/repair-logs/active",
+                element: <ITRepairLogsPage modulePage="active" />,
+              },
+              {
+                path: "department-accesses/it-department/repair-logs/my-work",
+                element: <ITRepairLogsPage modulePage="my-work" />,
+              },
+              {
+                path: "department-accesses/it-department/repair-logs/history",
+                element: <ITRepairLogsPage modulePage="history" />,
               },
               {
                 path: "department-accesses/it-department/system-access",

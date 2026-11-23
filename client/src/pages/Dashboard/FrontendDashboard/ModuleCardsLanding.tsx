@@ -19,6 +19,7 @@ import {
   FileSearch,
   Globe,
   HandCoins,
+  CreditCard,
   KeyRound,
   Laptop,
   LayoutDashboard,
@@ -56,7 +57,6 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import DashboardModuleCard from "../../../components/DashboardModuleCard";
 import PageFrame from "../../../components/Pages/PageFrame";
 import PrimaryButton from "../../../components/PrimaryButton";
-import StartTrialConfirmModal from "../../../components/StartTrialConfirmModal";
 import useAuth from "../../../hooks/useAuth";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import { payForProfessionalUpgrade } from "../../../utils/planUpgradePayment";
@@ -209,6 +209,7 @@ export const DEFAULT_SECTION_ROUTES: Record<string, string> = {
   "company-profile": "/profile/company-profile",
   "my-profile": "/profile/my-profile",
   "change-password": "/profile/change-password",
+  "plan-billing": "/profile/plan-billing",
   "assigned-assets": "/profile/assigned-assets",
   payslips: "/profile/payslips",
   "exit-request": "/profile/resignation-request",
@@ -260,6 +261,7 @@ export const ICON_BY_ID: Record<string, ElementType> = {
   "company-profile": Building2,
   "my-profile": UserCog,
   "change-password": KeyRound,
+  "plan-billing": CreditCard,
   "assigned-assets": BriefcaseBusiness,
   payslips: Receipt,
   "exit-request": LogOut,
@@ -375,6 +377,7 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
       { id: "company-profile", label: "Company Profile", route: "/profile/company-profile", implemented: true, unlockedInWorkspace: true },
       { id: "my-profile", label: "My Profile", route: "/profile/my-profile", implemented: true, unlockedInWorkspace: true },
       { id: "change-password", label: "Change Password", route: "/profile/change-password", implemented: true, unlockedInWorkspace: true },
+      { id: "plan-billing", label: "Plan & Billing", route: "/profile/plan-billing", implemented: true, unlockedInWorkspace: true },
       { id: "assigned-assets", label: "Assigned Assets", route: "/profile/assigned-assets", implemented: true, unlockedInWorkspace: true },
       { id: "payslips", label: "Payslips", route: "/profile/payslips", implemented: true, unlockedInWorkspace: true },
       { id: "exit-request", label: "Resignation Request", route: "/profile/resignation-request", implemented: true, unlockedInWorkspace: true },
@@ -677,7 +680,6 @@ export const UpgradePlanModal = ({
     freeTrialDurationDays: null as number | null,
   });
   const [isStartingTrial, setIsStartingTrial] = useState(false);
-  const [isTrialConfirmOpen, setIsTrialConfirmOpen] = useState(false);
 
   const upgradePlanCards = getUpgradePlanOptions(currentPlan);
   const [upgradeBillingCycle, setUpgradeBillingCycle] = useState<"monthly" | "annual">("monthly");
@@ -718,9 +720,18 @@ export const UpgradePlanModal = ({
   const handleStartTrial = async () => {
     try {
       setIsStartingTrial(true);
-      await axiosPrivate.post("/api/plan-billing/start-trial");
-      toast.success("Your free trial has started!");
-      window.location.reload();
+      // Card-backed trial: Stripe collects the card and an optional promo
+      // code on its own hosted page, charges $0 now, and auto-charges the
+      // real Professional rate the moment the trial ends. The plan only
+      // actually flips to active once MasterPanel's webhook confirms the
+      // checkout — not here — so leave the browser to finish on Stripe's
+      // page instead of reloading immediately.
+      const { data } = await axiosPrivate.post("/api/plan-billing/start-trial-checkout");
+      if (data?.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+      toast.error("Could not start checkout — please try again.");
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to start free trial.");
     } finally {
@@ -977,7 +988,7 @@ export const UpgradePlanModal = ({
                             ? `Start ${trialOffer.freeTrialDurationDays}-Day Free Trial`
                             : "Start Free Trial"
                       }
-                      handleSubmit={() => setIsTrialConfirmOpen(true)}
+                      handleSubmit={handleStartTrial}
                       disabled={isStartingTrial || isUpgradeSubmitting}
                       className="w-full rounded-full"
                       padding="py-2"
@@ -1013,14 +1024,6 @@ export const UpgradePlanModal = ({
           </div>
         </div>
       )}
-
-      <StartTrialConfirmModal
-        open={isTrialConfirmOpen}
-        durationDays={trialOffer.freeTrialDurationDays}
-        isStarting={isStartingTrial}
-        onConfirm={handleStartTrial}
-        onLater={() => setIsTrialConfirmOpen(false)}
-      />
     </div>,
     document.body,
   );

@@ -162,7 +162,11 @@ const leaveRequestSchema = new Schema<ILeaveRequest>(
         days: {
             type: Number,
             required: true,
-            min: 0.5,
+            // Hour-based leave (leaveMode "hours") can legitimately compute to
+            // less than half a day (e.g. 1 hour of a 10-hour day = 0.1) — only
+            // reject zero/negative here; leave.service already validates the
+            // half_day/full_day/hours-specific minimums.
+            min: 0.01,
         },
         status: {
             type: String,

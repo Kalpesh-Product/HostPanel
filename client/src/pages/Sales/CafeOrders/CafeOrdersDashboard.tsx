@@ -263,7 +263,7 @@ export default function CafeOrdersDashboard() {
         <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img src={cafeBannerImage} alt="" aria-hidden="true" className="absolute inset-y-0 right-0 h-full w-full object-cover object-center sm:w-[64%]" style={{ WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 22%, black 100%)", maskImage: "linear-gradient(to right, transparent 0%, black 22%, black 100%)" }} />
-            <div aria-hidden="true" className="absolute inset-y-0 right-0 w-full bg-gradient-to-br from-[#2563EB]/45 via-[#3B82F6]/25 to-[#60A5FA]/15 sm:w-[64%]" style={{ WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 22%, black 100%)", maskImage: "linear-gradient(to right, transparent 0%, black 22%, black 100%)" }} />
+            <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-br from-[#2563EB]/45 via-[#3B82F6]/25 to-[#60A5FA]/15" />
             <div aria-hidden="true" className="absolute inset-y-0 left-0 w-full bg-white/90 sm:w-[66%]" style={{ WebkitMaskImage: "linear-gradient(to right, black 0%, black 76%, transparent 100%)", maskImage: "linear-gradient(to right, black 0%, black 76%, transparent 100%)" }} />
             <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center gap-2.5 px-6 py-6 sm:w-[76%]">
               <h1 className="flex flex-wrap items-center gap-x-2 text-[22px] font-pbold uppercase leading-[0.95] tracking-tight sm:text-[28px]">

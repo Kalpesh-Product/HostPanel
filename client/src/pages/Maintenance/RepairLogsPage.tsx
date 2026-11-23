@@ -79,6 +79,14 @@ type MemberOption = {
 
 const ISSUE_TYPES = ["Electrical", "Mechanical", "Plumbing", "Furniture", "HVAC", "Housekeeping", "Other"];
 
+export type RepairLogModulePage = "team-active" | "my-work" | "history";
+
+const MODULE_PAGE_LABELS: Record<RepairLogModulePage, string> = {
+  "team-active": "Team Active Logs",
+  "my-work": "My Work",
+  history: "History",
+};
+
 const initialForm: FormState = {
   assetId: "",
   assetCode: "",
@@ -140,7 +148,11 @@ function matchesSearch(log: RepairLog, query: string) {
   return hay.includes(query.toLowerCase());
 }
 
-export default function RepairLogsPage() {
+export default function RepairLogsPage({
+  modulePage,
+}: {
+  modulePage?: RepairLogModulePage;
+}) {
   const axiosPrivate = useAxiosPrivate();
   const { auth } = useAuth();
   const currentUser: any = auth?.user;
@@ -160,7 +172,9 @@ export default function RepairLogsPage() {
   const [logs, setLogs] = useState<RepairLog[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [activeTab, setActiveTab] = useState(isManager ? "team-active" : "my-work");
+  const [activeTab, setActiveTab] = useState<RepairLogModulePage>(
+    modulePage || (isManager ? "team-active" : "my-work"),
+  );
   const [showExportModal, setShowExportModal] = useState(false);
   const [selectedLog, setSelectedLog] = useState<RepairLog | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -192,8 +206,14 @@ export default function RepairLogsPage() {
   }, []);
 
   useEffect(() => {
-    setActiveTab(isManager ? "team-active" : "my-work");
-  }, [isManager]);
+    if (!modulePage) {
+      setActiveTab(isManager ? "team-active" : "my-work");
+      return;
+    }
+    setActiveTab(modulePage);
+    setStatusFilter("All");
+    setSearchQuery("");
+  }, [isManager, modulePage]);
 
   async function openFormModal() {
     setIsFormOpen(true);
@@ -294,7 +314,7 @@ export default function RepairLogsPage() {
     [allDepartmentLogs]
   );
 
-  const tabs = isManager
+  const tabs: Array<{ id: RepairLogModulePage; label: string }> = isManager
     ? [
         { id: "team-active", label: "Team Active Logs" },
         { id: "my-work", label: "My Work" },
@@ -305,7 +325,7 @@ export default function RepairLogsPage() {
         { id: "history", label: "History" },
       ];
 
-  const activeTabLabel = tabs.find((t) => t.id === activeTab)?.label || "Logs";
+  const activeTabLabel = MODULE_PAGE_LABELS[activeTab] || "Logs";
 
   function getStatusActions(log: RepairLog) {
     if (!log || log.status === "Closed") return [];
@@ -438,29 +458,33 @@ export default function RepairLogsPage() {
           {/* Header */}
           <div className="mb-3 flex items-center justify-between">
             <div>
-              <h1 className="text-title font-pmedium text-primary uppercase">Repair Logs</h1>
+              <h1 className="text-title font-pmedium text-primary uppercase">
+                {modulePage ? activeTabLabel : "Repair Logs"}
+              </h1>
               <p className="text-xs font-pmedium text-slate-500 mt-1">Maintenance Department &bull; Repair work orders</p>
             </div>
             <ReportExportButton onClick={() => setShowExportModal(true)} />
           </div>
 
           {/* Pill Tabs */}
-          <div data-tour="maintenance-repair-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? "bg-[#2563EB] text-white shadow-sm"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          {!modulePage ? (
+            <div data-tour="maintenance-repair-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? "bg-[#2563EB] text-white shadow-sm"
+                      : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           {/* Stat Cards */}
           <div data-tour="maintenance-repair-stats" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">

@@ -13,7 +13,7 @@ import { getProfessionalPageTour } from "./professionalPageTours";
 import { getCustomPageTour } from "./customPageTours";
 import { getTenantPageTour } from "./tenantPageTours";
 import { getRoleDashboardTour } from "./roleDashboardTours";
-import { resolveSyncDashboardVariant } from "../pages/Dashboard/dashboardVariant";
+import { resolveSyncDashboardVariant, hasDepartmentManagerRole } from "../pages/Dashboard/dashboardVariant";
 
 type TourStatus = "completed" | "skipped";
 
@@ -202,6 +202,15 @@ export default function usePageTour() {
       // dispatched by path like every other page — resolve the same variant
       // DashboardIndex would render and look its tour up by that instead.
       if (isDashboardPath(location.pathname)) {
+        // Keep the tour in sync with DashboardIndex: plain employees get the
+        // personal dashboard even when they belong to a department.
+        if (
+          !access.isLoading &&
+          access.roleBand === "employee" &&
+          !hasDepartmentManagerRole(user)
+        ) {
+          return getRoleDashboardTour("employee");
+        }
         const syncVariant = resolveSyncDashboardVariant(user);
         if (syncVariant && syncVariant !== "founder") {
           return getRoleDashboardTour(syncVariant);

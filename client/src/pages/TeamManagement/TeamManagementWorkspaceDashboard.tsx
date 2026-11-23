@@ -134,7 +134,7 @@ export default function TeamManagementWorkspaceDashboard() {
       <PageFrame>
         <section className="relative mb-6 h-44 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)] sm:h-[12rem]">
           <img src={teamBannerImage} alt="Team collaboration" className="absolute inset-0 h-full w-full object-cover object-center" style={{ WebkitMaskImage: "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)", maskImage: "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)" }} />
-          <div className="absolute inset-0 bg-gradient-to-br from-[#2563EB]/45 via-[#3B82F6]/25 to-[#60A5FA]/15" style={{ WebkitMaskImage: "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)", maskImage: "linear-gradient(to right, transparent 0%, transparent 32%, black 62%, black 100%)" }} />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#2563EB]/45 via-[#3B82F6]/25 to-[#60A5FA]/15" />
           <div className="absolute inset-y-0 left-0 w-full bg-white/90 sm:w-[66%]" style={{ WebkitMaskImage: "linear-gradient(to right, black 0%, black 76%, transparent 100%)", maskImage: "linear-gradient(to right, black 0%, black 76%, transparent 100%)" }} />
           <div className="absolute inset-y-0 left-0 z-10 flex w-full flex-col justify-center gap-2.5 px-6 py-6 sm:w-[76%]">
             <div className="flex items-center gap-2">

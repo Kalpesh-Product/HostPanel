@@ -2,7 +2,7 @@ import type { ComponentType } from "react";
 import { useFreshCurrentUser } from "@/hooks/useFreshCurrentUser";
 import useDashboardAccess from "@/hooks/useDashboardAccess";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
-import { resolveSyncDashboardVariant } from "./dashboardVariant";
+import { resolveSyncDashboardVariant, hasDepartmentManagerRole } from "./dashboardVariant";
 import type { DeptSlug } from "@/lib/departmentSlug";
 import CompanySettingsDashboard from "./FrontendDashboard/CompanySettingsDashboard";
 import EmployeeDashboardOverview from "./EmployeeDashboardOverview";
@@ -46,6 +46,17 @@ export function DashboardIndex() {
   const access = useDashboardAccess();
 
   const syncVariant = resolveSyncDashboardVariant(currentUser);
+
+  // Department dashboards are for managers. An employee who merely belongs
+  // to a department still gets the personal employee dashboard. Wait for the
+  // access fetch so we use the authoritative per-member role band here.
+  if (
+    !access.isLoading &&
+    access.roleBand === "employee" &&
+    !hasDepartmentManagerRole(currentUser)
+  ) {
+    return <EmployeeDashboardOverview />;
+  }
 
   if (syncVariant === "founder") {
     return <CompanySettingsDashboard />;
