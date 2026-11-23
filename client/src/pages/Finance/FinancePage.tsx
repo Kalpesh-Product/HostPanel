@@ -26,7 +26,9 @@ function getApiErrorMessage(error: any, fallback: string): string {
   return fallback;
 }
 
-export function FinancePage() {
+export type FinanceModulePage = "approvals" | "overview";
+
+export function FinancePage({ modulePage }: { modulePage?: FinanceModulePage } = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const currentUser = getStoredUser();
@@ -51,7 +53,15 @@ export function FinancePage() {
   // --- STATE ---
   const fiscalYearOptions = getFiscalYearOptions();
   const [selectedFY, setSelectedFY] = useState(DEFAULT_FISCAL_YEAR);
-  const [activeTab, setActiveTab] = useState((location.state as any)?.activeTab === 'overview' ? 'overview' : 'approvals');
+  const [activeTab, setActiveTab] = useState<FinanceModulePage>(
+    modulePage || ((location.state as any)?.activeTab === 'overview' ? 'overview' : 'approvals'),
+  );
+
+  // A module card opens this page directly, so keep the local tab in sync with
+  // the route while leaving the in-page tabs available for normal navigation.
+  useEffect(() => {
+    if (modulePage) setActiveTab(modulePage);
+  }, [modulePage]);
   const [approvalSubTab, setApprovalSubTab] = useState('annual');
   const [isLoadingFinance, setIsLoadingFinance] = useState(false);
   const [hasLoadedFinanceSnapshot, setHasLoadedFinanceSnapshot] = useState(false);
@@ -397,11 +407,10 @@ export function FinancePage() {
   };
 
   // Shared UI logic
-  const tabs = [
+  const tabs: Array<{ key: FinanceModulePage; label: string }> = [
     { key: 'approvals', label: 'Approval Center' },
-    { key: 'overview', label: 'Master Overview' },
+    { key: 'overview', label: 'Budget Overview' },
   ];
-
   const subTabsApprovals = [
     { key: 'annual', label: 'Projected Annual Budget Requests' },
     { key: 'extra', label: 'Extra Budget Requests' },
@@ -424,8 +433,12 @@ export function FinancePage() {
       <PageFrame>
         <div className="flex flex-col gap-4">
           
-          {/* HEADER */}
-          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+          {/* HEADER — same title block on the dashboard and curated module routes */}
+          <div
+            data-tour={modulePage ? 'finance-tabs' : undefined}
+            data-active-tab={modulePage ? activeTab : undefined}
+            className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5"
+          >
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Executive Finance Hub
@@ -441,25 +454,27 @@ export function FinancePage() {
             )}
           </div>
 
-          {/* MAIN TABS */}
-          <div data-tour="finance-tabs" className="mb-3 flex w-full gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 min-w-[160px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${
-                  activeTab === tab.key
-                    ? 'text-white'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                {activeTab === tab.key && (
-                  <motion.div layoutId="financeMainTabs" className="absolute inset-0 bg-[#2563EB] rounded-full shadow-sm z-[-1]" />
-                )}
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          {/* MAIN TABS — hidden when opened from a module card */}
+          {!modulePage && (
+            <div data-tour="finance-tabs" data-active-tab={activeTab} className="mb-3 flex w-full gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`flex-1 min-w-[160px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${
+                    activeTab === tab.key
+                      ? 'text-white'
+                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  {activeTab === tab.key && (
+                    <motion.div layoutId="financeMainTabs" className="absolute inset-0 bg-[#2563EB] rounded-full shadow-sm z-[-1]" />
+                  )}
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* STAT CARDS */}
           <div data-tour="finance-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">

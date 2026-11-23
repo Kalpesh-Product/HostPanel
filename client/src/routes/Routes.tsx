@@ -80,6 +80,7 @@ import HRLeaveRequestsProcessingWorkspaceDashboard from "../pages/HR/HRLeaveRequ
 import HRRecruitmentPage from "../pages/HR/HRRecruitmentPage";
 import HRRecruitmentWorkspaceDashboard from "../pages/HR/HRRecruitmentWorkspaceDashboard";
 import HRPayrollPage from "../pages/HR/HRPayrollPage";
+import HRPayrollWorkspaceDashboard from "../pages/HR/HRPayrollWorkspaceDashboard";
 import HRResignationManagementPage from "../pages/HR/HRResignationManagementPage";
 import HRResignationManagementWorkspaceDashboard from "../pages/HR/HRResignationManagementWorkspaceDashboard";
 import { ExpensesBudgetPage } from "../pages/Finance/ExpensesBudgetPage";
@@ -175,6 +176,7 @@ import MeetingRoomManagementPage from "../pages/MeetingRoomManagement/MeetingRoo
 import LeadsManagementPage from "../pages/Sales/LeadsManagement/LeadsManagementPage";
 import LeadsManagementDashboard from "../pages/Sales/LeadsManagement/LeadsManagementDashboard";
 import SalesArchitecturePage from "../pages/Sales/SalesArchitecture/SalesArchitecturePage";
+import SalesArchitectureWorkspaceDashboard from "../pages/Sales/SalesArchitecture/SalesArchitectureWorkspaceDashboard";
 import VirtualOfficesPage from "../pages/Sales/VirtualOffices/VirtualOfficesPage";
 import VirtualOfficesDashboard from "../pages/Sales/VirtualOffices/VirtualOfficesDashboard";
 import VirtualOfficeDetailPage from "../pages/Sales/VirtualOffices/VirtualOfficeDetailPage";
@@ -215,6 +217,9 @@ import InventoryWorkspaceDashboard from "../pages/Inventory/InventoryWorkspaceDa
 import { DepartmentInventoryPage } from "../pages/Inventory/DepartmentInventoryPage";
 import { FinancePage } from "../pages/Finance/FinancePage";
 import { DepartmentFinancePageV2 } from "../pages/Finance/DepartmentFinancePageV2";
+import FinanceManagementWorkspaceDashboard, {
+  isFounderFinanceRole,
+} from "../pages/Finance/FinanceManagementWorkspaceDashboard";
 import { DepartmentMonthExpensesPage } from "../pages/Finance/DepartmentMonthExpensesPage";
 import { TasksPage } from "../pages/Tasks/TasksPage";
 import TasksWorkspaceDashboard from "../pages/Tasks/TasksWorkspaceDashboard";
@@ -276,17 +281,51 @@ const DepartmentWiseBulkUpload = () => (
   <div>DepartmentWiseBulkUpload - Coming Soon</div>
 );
 
-function FinanceRoute() {
+const FINANCE_MANAGEMENT_PATH = "/extra-common-modules/finance-management";
+
+type FinanceManagementPage =
+  | "approvals"
+  | "overview"
+  | "projected"
+  | "extra"
+  | "history";
+
+function isFounderFinancePage(
+  page: FinanceManagementPage,
+): page is "approvals" | "overview" {
+  return page === "approvals" || page === "overview";
+}
+
+function FinanceManagementSubRoute({
+  modulePage,
+}: {
+  modulePage: FinanceManagementPage;
+}) {
   const user = getStoredUser();
-  const role = String(user?.workspaceMembership?.role || user?.role || "")
-    .trim()
-    .toLowerCase();
-  const isFounderOrSuperAdmin =
-    role === "owner" ||
-    role === "super_admin" ||
-    role === "super-admin" ||
-    role === "founder";
-  return isFounderOrSuperAdmin ? <FinancePage /> : <DepartmentFinancePageV2 />;
+  const role = String(
+    user?.workspaceMembership?.role ||
+      user?.role ||
+      user?.designation ||
+      "",
+  );
+  const founder = isFounderFinanceRole(role);
+
+  if (isFounderFinancePage(modulePage)) {
+    return founder ? (
+      <FinancePage modulePage={modulePage} />
+    ) : (
+      <Navigate to={`${FINANCE_MANAGEMENT_PATH}/projected`} replace />
+    );
+  }
+  return founder ? (
+    <Navigate to={`${FINANCE_MANAGEMENT_PATH}/overview`} replace />
+  ) : (
+    <DepartmentFinancePageV2 modulePage={modulePage} />
+  );
+}
+
+function FinanceRoute() {
+  return <FinanceManagementWorkspaceDashboard />;
 }
 
 function VerticalPickerRoute() {
@@ -1260,6 +1299,32 @@ export const routes = createBrowserRouter([
                 element: <FinanceRoute />,
               },
               {
+                path: "extra-common-modules/finance-management/list",
+                element: (
+                  <Navigate to="/extra-common-modules/finance-management" replace />
+                ),
+              },
+              {
+                path: "extra-common-modules/finance-management/approvals",
+                element: <FinanceManagementSubRoute modulePage="approvals" />,
+              },
+              {
+                path: "extra-common-modules/finance-management/overview",
+                element: <FinanceManagementSubRoute modulePage="overview" />,
+              },
+              {
+                path: "extra-common-modules/finance-management/projected",
+                element: <FinanceManagementSubRoute modulePage="projected" />,
+              },
+              {
+                path: "extra-common-modules/finance-management/extra",
+                element: <FinanceManagementSubRoute modulePage="extra" />,
+              },
+              {
+                path: "extra-common-modules/finance-management/history",
+                element: <FinanceManagementSubRoute modulePage="history" />,
+              },
+              {
                 path: "extra-common-modules/finance-management/month/:monthKey",
                 element: <DepartmentMonthExpensesPage />,
               },
@@ -1836,7 +1901,23 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/sales-department/sales-architecture",
-                element: <SalesArchitecturePage />,
+                element: <SalesArchitectureWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/sales-department/sales-architecture/architecture",
+                element: <SalesArchitecturePage modulePage="architecture" />,
+              },
+              {
+                path: "department-accesses/sales-department/sales-architecture/tenants",
+                element: <SalesArchitecturePage modulePage="tenants" />,
+              },
+              {
+                path: "department-accesses/sales-department/sales-architecture/virtual-offices",
+                element: <SalesArchitecturePage modulePage="virtualOffices" />,
+              },
+              {
+                path: "department-accesses/sales-department/sales-architecture/departments",
+                element: <SalesArchitecturePage modulePage="departments" />,
               },
               {
                 path: "sales-crm/*",
@@ -2127,7 +2208,24 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "department-accesses/hr-department/payroll-management",
-                element: <HRPayrollPage />,
+                element: <HRPayrollWorkspaceDashboard />,
+              },
+              {
+                path: "department-accesses/hr-department/payroll-management/list",
+                element: (
+                  <Navigate
+                    to="/department-accesses/hr-department/payroll-management/master"
+                    replace
+                  />
+                ),
+              },
+              {
+                path: "department-accesses/hr-department/payroll-management/master",
+                element: <HRPayrollPage modulePage="master" />,
+              },
+              {
+                path: "department-accesses/hr-department/payroll-management/history",
+                element: <HRPayrollPage modulePage="history" />,
               },
               {
                 path: "department-accesses/hr-department/resignation-management",

@@ -386,9 +386,22 @@ const MAIN_TABS = [
   { key: "tenants", label: "Tenants", icon: Building2 },
   { key: "virtualOffices", label: "Virtual Offices", icon: DoorOpen },
   { key: "departments", label: "Departments", icon: Briefcase },
-];
+] as const;
 
-export default function SalesArchitecturePage() {
+const SALES_ARCHITECTURE_ROUTE =
+  "/department-accesses/sales-department/sales-architecture";
+
+export type SalesArchitectureModulePage =
+  | "architecture"
+  | "tenants"
+  | "virtualOffices"
+  | "departments";
+
+export default function SalesArchitecturePage({
+  modulePage,
+}: {
+  modulePage?: SalesArchitectureModulePage;
+} = {}) {
     const [searchParams] = useSearchParams();
     const location = useLocation();
     const navigate = useNavigate();
@@ -411,6 +424,31 @@ export default function SalesArchitecturePage() {
     inventoryHeading: string;
     showOperationalTabs: boolean;
   };
+
+  // A module card opens one curated area only. Keep the local tab aligned with
+  // the route, and never let a scoped deep-link swap that locked module.
+  useEffect(() => {
+    if (modulePage) setActiveTab(modulePage);
+  }, [modulePage]);
+
+  useEffect(() => {
+    if (
+      modulePage &&
+      modulePage !== "architecture" &&
+      !architectureContext.showOperationalTabs
+    ) {
+      navigate(`${SALES_ARCHITECTURE_ROUTE}${location.search}`, {
+        replace: true,
+        state: location.state,
+      });
+    }
+  }, [
+    architectureContext.showOperationalTabs,
+    location.search,
+    location.state,
+    modulePage,
+    navigate,
+  ]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -441,7 +479,9 @@ export default function SalesArchitecturePage() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [viewMode, setViewMode] = useState("map");
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("architecture");
+  const [activeTab, setActiveTab] = useState<SalesArchitectureModulePage>(
+    modulePage || "architecture",
+  );
   const [viewTenantId, setViewTenantId] = useState("");
   // Real per-seat labels actually assigned to the tenant being viewed, keyed
   // by resourceId — a resource block can be shared across tenants, so its
@@ -615,8 +655,11 @@ export default function SalesArchitecturePage() {
   const currentUserName = useMemo(() => currentUser?.fullName || currentUser?.name || currentUser?.displayName || "Sales Team", [currentUser]);
 
   useEffect(() => {
-    if (scopedCompanyId) { setActiveTab("architecture"); setSelectedCompanyId(scopedCompanyId); }
-  }, [scopedCompanyId]);
+    if (scopedCompanyId) {
+      if (!modulePage) setActiveTab("architecture");
+      setSelectedCompanyId(scopedCompanyId);
+    }
+  }, [modulePage, scopedCompanyId]);
 
   useEffect(() => {
     if (scopedFloor) setSelectedFloor(scopedFloor);
@@ -2328,7 +2371,12 @@ export default function SalesArchitecturePage() {
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
         <div className="flex flex-col gap-4">
-          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+          {/* HEADER — same title block on the dashboard and curated module routes */}
+          <div
+            data-tour={modulePage ? "sa-tabs" : undefined}
+            data-active-tab={modulePage ? activeTab : undefined}
+            className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5"
+          >
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 {architectureContext.title}
@@ -2344,13 +2392,16 @@ export default function SalesArchitecturePage() {
             </div>
           </div>
 
-          <div data-tour="sa-tabs" data-active-tab={activeTab} className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-            {MAIN_TABS.filter((tab) => architectureContext.showOperationalTabs || tab.key === "architecture").map((tab) => (
-              <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${activeTab === tab.key ? "bg-[#2563EB] text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"}`}
-              >{tab.label}</button>
-            ))}
-          </div>
+          {/* MAIN TABS — hidden when opened from a module card */}
+          {!modulePage && (
+            <div data-tour="sa-tabs" data-active-tab={activeTab} className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+              {MAIN_TABS.filter((tab) => architectureContext.showOperationalTabs || tab.key === "architecture").map((tab) => (
+                <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+                  className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${activeTab === tab.key ? "bg-[#2563EB] text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"}`}
+                >{tab.label}</button>
+              ))}
+            </div>
+          )}
 
           <div className="flex-1 mt-2">
             {activeTab === "architecture" && renderArchitecture()}

@@ -479,6 +479,61 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/extra-common-modules/finance-management/approvals",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
+      {
+        label: "Finance Management",
+        path: "/extra-common-modules/finance-management",
+      },
+      { label: "Approval Center" },
+    ],
+  },
+  {
+    pattern: "/extra-common-modules/finance-management/overview",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
+      {
+        label: "Finance Management",
+        path: "/extra-common-modules/finance-management",
+      },
+      { label: "Budget Overview" },
+    ],
+  },
+  {
+    pattern: "/extra-common-modules/finance-management/projected",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
+      {
+        label: "Finance Management",
+        path: "/extra-common-modules/finance-management",
+      },
+      { label: "Projected Budget" },
+    ],
+  },
+  {
+    pattern: "/extra-common-modules/finance-management/extra",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
+      {
+        label: "Finance Management",
+        path: "/extra-common-modules/finance-management",
+      },
+      { label: "Extra Requested" },
+    ],
+  },
+  {
+    pattern: "/extra-common-modules/finance-management/history",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
+      {
+        label: "Finance Management",
+        path: "/extra-common-modules/finance-management",
+      },
+      { label: "Expense History" },
+    ],
+  },
+  {
     pattern: "/extra-common-modules/reports/manage",
     crumbs: [
       { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
@@ -2018,6 +2073,54 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
         path: "/department-accesses/sales-department",
       },
       { label: "Sales Architecture" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/sales-department/sales-architecture/architecture",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Sales Dashboard", path: "/department-accesses/sales-department" },
+      {
+        label: "Sales Architecture",
+        path: "/department-accesses/sales-department/sales-architecture",
+      },
+      { label: "Architecture" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/sales-department/sales-architecture/tenants",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Sales Dashboard", path: "/department-accesses/sales-department" },
+      {
+        label: "Sales Architecture",
+        path: "/department-accesses/sales-department/sales-architecture",
+      },
+      { label: "Tenants" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/sales-department/sales-architecture/virtual-offices",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Sales Dashboard", path: "/department-accesses/sales-department" },
+      {
+        label: "Sales Architecture",
+        path: "/department-accesses/sales-department/sales-architecture",
+      },
+      { label: "Virtual Offices" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/sales-department/sales-architecture/departments",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Sales Dashboard", path: "/department-accesses/sales-department" },
+      {
+        label: "Sales Architecture",
+        path: "/department-accesses/sales-department/sales-architecture",
+      },
+      { label: "Departments" },
     ],
   },
   {

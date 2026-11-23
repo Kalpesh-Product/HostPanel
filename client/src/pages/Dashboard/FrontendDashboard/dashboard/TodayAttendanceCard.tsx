@@ -452,7 +452,7 @@ const TodayAttendanceCard = ({
         </span>
       ) : (
         !todayRecord?.checkIn && (
-          <div className="flex flex-col items-start gap-1.5">
+          <div className="flex flex-col items-center gap-1.5">
             <button
               type="button"
               onClick={() => void openClockModal("in")}
@@ -462,7 +462,7 @@ const TodayAttendanceCard = ({
               <LogIn size={15} /> Clock In
             </button>
             {disableClockIn && disabledReason && (
-              <p className="max-w-xs text-[10px] font-pmedium text-amber-700">
+              <p className="max-w-xs text-center text-[10px] font-pmedium text-amber-700">
                 {disabledReason}
               </p>
             )}
