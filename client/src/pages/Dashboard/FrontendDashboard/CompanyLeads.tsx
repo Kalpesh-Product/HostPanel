@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, Bed, Building2, CalendarDays, CheckCircle2, Coffee, Eye, Download, FileText, Globe, Printer, Search, Send, Sparkles, Target, Users, X, Wallet, Ticket,
+  ArrowLeft, Bed, Building2, CalendarDays, CheckCircle2, Coffee, Eye, Download, FileText, Globe, Printer, Search, Send, Sparkles, Target, UserCheck, Users, X, Wallet, Ticket,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -61,8 +61,29 @@ function formatDateLabel(value) {
   return date.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
 }
 
+// A "Schedule a Visit" lead is a pre-registered arrival, not a booking. The
+// backend stamps a VIS- code when Accept creates the VisitorLog, and the
+// website form's inquiryType is "Tour Visit".
+function isTourVisitLead(lead) {
+  const inquiry = String(lead?.inquiryType || lead?.leadMeta?.inquiryType || "").toLowerCase();
+  if (inquiry.includes("tour") || inquiry.includes("visit")) return true;
+  return /^VIS-/i.test(String(lead?.bookingCode || ""));
+}
+
+// The website stores slots as 24h "11:00"; the CRM/badge should not show that.
+function formatSlotLabel(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const match = raw.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return raw;
+  const hours = Number(match[1]);
+  if (!Number.isFinite(hours) || hours > 23) return raw;
+  return `${hours % 12 || 12}:${match[2]} ${hours >= 12 ? "PM" : "AM"}`;
+}
+
 function printBookingBadge(lead) {
   const guestName = lead.fullName || "Guest";
+  const isTour = isTourVisitLead(lead);
   const bookingCode = lead.bookingCode || "--";
   // DP- codes are Coworking Day Passes — the badge is titled "Day Pass" and
   // names the flexi-desk product, never a meeting room.
@@ -70,7 +91,7 @@ function printBookingBadge(lead) {
   const roomName = isDayPass
     ? `${lead.roomType || lead.productType || "Day Pass"} — Coworking Flex Desk`
     : lead.roomType || lead.productType || "Room";
-  const dateTime = [formatDateLabel(lead.startDate), lead.timeSlot].filter(Boolean).join(" · ") || "--";
+  const dateTime = [formatDateLabel(lead.startDate), formatSlotLabel(lead.timeSlot)].filter(Boolean).join(" · ") || "--";
   const printHtml = `
     <html>
       <head>
@@ -88,10 +109,10 @@ function printBookingBadge(lead) {
       </head>
       <body>
         <div class="badge">
-          <h1>${isDayPass ? "Day Pass Confirmed" : "Booking Confirmed"}</h1>
+          <h1>${isTour ? "Visitor Pass" : isDayPass ? "Day Pass Confirmed" : "Booking Confirmed"}</h1>
           <div class="row"><p class="label">Guest Name</p><p class="value">${guestName}</p></div>
-          <div class="row"><p class="label">${isDayPass ? "Pass" : "Room Name"}</p><p class="value">${roomName}</p></div>
-          <div class="row"><p class="label">${isDayPass ? "Day Pass Code" : "Booking Code"}</p><p class="value code">${bookingCode}</p></div>
+          <div class="row"><p class="label">${isTour ? "Visiting" : isDayPass ? "Pass" : "Room Name"}</p><p class="value">${roomName}</p></div>
+          <div class="row"><p class="label">${isTour ? "Visitor Code" : isDayPass ? "Day Pass Code" : "Booking Code"}</p><p class="value code">${bookingCode}</p></div>
           <div class="row"><p class="label">${isDayPass ? "Date (09:00 AM - 07:00 PM)" : "Date / Time"}</p><p class="value">${dateTime}</p></div>
         </div>
         <script>window.onload = function () { window.focus(); window.print(); };</script>
@@ -380,7 +401,15 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
   // just accept. Otherwise open the modal, prefilled with the
   // auto-calculated price when one could be resolved. The host can edit it
   // either way; whatever is in the field is what gets sent.
-  const acceptLead = async (leadId) => {
+  const acceptLead = async (lead) => {
+    const leadId = lead?._id;
+    // A tour/visit has no bookable resource, so there is no amount to collect.
+    // Skip the preview call entirely: a coworking tour's productType can match
+    // a real Resource name, which would otherwise pop the payment modal.
+    if (isTourVisitLead(lead)) {
+      updateLeadMutation.mutate({ leadId, hostPanelStatus: "Accepted" });
+      return;
+    }
     let preview = null;
     try {
       preview = await previewPaymentMutation.mutateAsync(leadId);
@@ -1174,12 +1203,6 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                     const dur = selectedLead.stayDuration && !(sd && ed) ? selectedLead.stayDuration : null;
                     const room = !isRedundant(selectedLead.roomType) ? selectedLead.roomType : null;
                     const dorm = !isRedundant(selectedLead.dormType) && norm(selectedLead.dormType) !== norm(selectedLead.roomType) ? selectedLead.dormType : null;
-                    const pkg =
-                      !isRedundant(selectedLead.packageName) &&
-                      norm(selectedLead.packageName) !== norm(selectedLead.roomType) &&
-                      norm(selectedLead.packageName) !== norm(selectedLead.dormType)
-                        ? selectedLead.packageName
-                        : "-";
                     const att = !sameAsNop(selectedLead.attendees) ? selectedLead.attendees : null;
                     const inq = !isRedundant(selectedLead.inquiryType) ? selectedLead.inquiryType : null;
                     const slot = selectedLead.timeSlot || null;
@@ -1188,19 +1211,21 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                     const meetingLength = selectedLead.duration || null;
                     const bud = selectedLead.budget || null;
                     const loc = selectedLead.location || null;
+                    // A tour lead's date/slot is when the guest is expected, not a
+                    // stay range — label it the way the guest filled it in.
+                    const isTour = isTourVisitLead(selectedLead);
 
                     const fields = [
                       productLabel && { label: "Product / Service", value: productLabel },
                       selectedLead.noOfPeople && { label: "No. of People", value: selectedLead.noOfPeople },
-                      sd && { label: "Start Date", value: formatDateLabel(sd) },
+                      sd && { label: isTour ? "Visit Date" : "Start Date", value: formatDateLabel(sd) },
                       ed && { label: "End Date", value: formatDateLabel(ed) },
                       dur && { label: "Stay Duration", value: dur },
                       room && { label: "Room Type", value: room },
                       dorm && { label: "Bed / Dorm Type", value: dorm },
-                      { label: "Package / Plan", value: pkg },
                       att && { label: "Attendees / Team Size", value: att },
                       inq && { label: "Inquiry Type", value: inq },
-                      slot && { label: "Preferred Time / Slot", value: endTime ? `${slot} – ${endTime}` : slot },
+                      slot && { label: isTour ? "Visit Time" : "Preferred Time / Slot", value: endTime ? `${slot} – ${endTime}` : slot },
                       meetingLength && { label: "Duration", value: meetingLength },
                       seating && { label: "Seating", value: seating },
                       bud && { label: "Budget", value: bud },
@@ -1225,7 +1250,11 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                     );
                   })()}
 
-                  {selectedLead.hostPanelStatus === "Accepted" && (
+                  {/* Only a payable booking has a payment summary. A tour/visit
+                      (and any other non-payable enquiry) is "Not Required" — showing
+                      it would print ₹0 booking amount, ₹0 platform fee and
+                      "Total payable ₹0" for something nobody is paying for. */}
+                  {selectedLead.hostPanelStatus === "Accepted" && (selectedLead.paymentStatus || "Pending") !== "Not Required" && (
                     <div>
                       <h3 className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">
                         <CheckCircle2 size={14} /> Payment Summary
@@ -1323,7 +1352,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                     const hostStatus = selectedLead.hostPanelStatus || "Pending";
                     const paymentStatus = selectedLead.paymentStatus || "Pending";
                     const isBusy = updateLeadMutation.isPending || previewPaymentMutation.isPending || finalizeBookingMutation.isPending;
-                    const openAccept = () => acceptLead(selectedLead._id);
+                    const openAccept = () => acceptLead(selectedLead);
                     const rejectLead = () => handleStatusChange(selectedLead._id, "Rejected");
                     // Coworking / monthly-tenancy enquiries are accepted without a
                     // payment link (the backend marks them "Not Required") — there is
@@ -1334,6 +1363,9 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                     // IS payable, so only trust paymentStatus (set by the backend's
                     // isNonBookingInquiry check).
                     const isCoworkingInquiry = paymentStatus === "Not Required";
+                    // A tour is also "Not Required", but it is an expected
+                    // arrival — show the visitor pass, not a tenant upsell.
+                    const isTourVisit = isTourVisitLead(selectedLead);
                     // DP- codes mark Coworking Day Passes — their modal shows a
                     // day-pass register link instead of the meeting-room one.
                     const isDayPassBooking = /^DP-/i.test(String(selectedLead.bookingCode || ""));
@@ -1345,7 +1377,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                     // other booking code falls back to the meeting-room page.
                     const isHostelBooking = /^HS-/i.test(String(selectedLead.bookingCode || ""));
                     const isCoLivingBooking = /^CL-/i.test(String(selectedLead.bookingCode || ""));
-                    const isMeetingRoomBooking = Boolean(selectedLead.bookingCode) && !isDayPassBooking && !isCafeReservation && !isHostelBooking && !isCoLivingBooking;
+                    const isMeetingRoomBooking = Boolean(selectedLead.bookingCode) && !isTourVisit && !isDayPassBooking && !isCafeReservation && !isHostelBooking && !isCoLivingBooking;
                     const onboardAsTenant = () => {
                       navigate("/department-accesses/sales-department/tenant-companies", {
                         state: {
@@ -1379,7 +1411,9 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                         {hostStatus === "Accepted" && (
                           <>
                             <span className="flex-1 text-right text-[11px] font-pmedium text-slate-500 min-w-[180px]">
-                              {selectedLead.bookingCode
+                              {isTourVisit
+                                ? `Tour scheduled for ${formatDateLabel(selectedLead.startDate)}${selectedLead.timeSlot ? ` at ${formatSlotLabel(selectedLead.timeSlot)}` : ""} • Visitor Code: ${selectedLead.bookingCode || "pending"}`
+                                : selectedLead.bookingCode
                                 ? `${isDayPassBooking ? "Day Pass Code" : isCafeReservation ? "Reservation Code" : "Booking Code"}: ${selectedLead.bookingCode}`
                                 : isCoworkingInquiry
                                   ? "Coworking enquiry — ready to onboard as a tenant"
@@ -1391,7 +1425,27 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                               <>
                                 <button type="button" onClick={() => setShowBookingBadge(true)} disabled={isBusy}
                                   className={`${baseButton} bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-60`}
-                                ><Printer size={14} /> Print / View Badge</button>
+                                ><Printer size={14} /> {isTourVisit ? "Print / View Visitor Badge" : "Print / View Badge"}</button>
+                                {/* A visit is scheduled by Accept (VisitorLog with a
+                                    VIS- code). Open that pass directly; the button
+                                    only creates one for leads accepted before this
+                                    existed, so a tour never ends up with two
+                                    passes for the same person. */}
+                                {isTourVisit && (
+                                  selectedLead.visitorId ? (
+                                    <button type="button"
+                                      onClick={() => navigate(`/visitors/visitor-management?tab=daily&visitorCode=${encodeURIComponent(selectedLead.bookingCode || "")}`)}
+                                      disabled={isBusy}
+                                      className={`${baseButton} bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
+                                    ><UserCheck size={14} /> View Visitor Pass</button>
+                                  ) : (
+                                    <button type="button"
+                                      onClick={() => updateLeadMutation.mutate({ leadId: selectedLead._id, hostPanelStatus: "Accepted" })}
+                                      disabled={isBusy}
+                                      className={`${baseButton} bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
+                                    ><UserCheck size={14} /> Create a Visit</button>
+                                  )
+                                )}
                                 {isDayPassBooking && (
                                   <button
                                     type="button"
@@ -1467,6 +1521,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
 
       {showBookingBadge && selectedLead && (() => {
         const isDayPassBadge = /^DP-/i.test(String(selectedLead.bookingCode || ""));
+        const isTourBadge = isTourVisitLead(selectedLead);
         return (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-[#0F172A]/85 backdrop-blur-sm" onClick={() => setShowBookingBadge(false)}>
           <div className="w-full max-w-lg overflow-hidden rounded-[32px] border border-emerald-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
@@ -1476,9 +1531,9 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                   <CheckCircle2 size={20} />
                 </div>
                 <div>
-                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-600">{isDayPassBadge ? "Day Pass Confirmed" : "Booking Confirmed"}</p>
-                  <h3 className="mt-0.5 text-lg font-pmedium text-emerald-950">{isDayPassBadge ? "Coworking day pass confirmed" : "Website booking confirmed"}</h3>
-                  <p className="mt-0.5 text-[12px] font-pmedium text-emerald-900/70">A confirmation email with this booking ID has been sent to the guest.</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-emerald-600">{isTourBadge ? "Visitor Pre-Registered" : isDayPassBadge ? "Day Pass Confirmed" : "Booking Confirmed"}</p>
+                  <h3 className="mt-0.5 text-lg font-pmedium text-emerald-950">{isTourBadge ? "Tour visit scheduled" : isDayPassBadge ? "Coworking day pass confirmed" : "Website booking confirmed"}</h3>
+                  <p className="mt-0.5 text-[12px] font-pmedium text-emerald-900/70">{isTourBadge ? "The visitor pass is ready — the guest checks in at the front desk on the visit date." : "A confirmation email with this booking ID has been sent to the guest."}</p>
                 </div>
               </div>
               <button type="button" onClick={() => setShowBookingBadge(false)} aria-label="Close badge preview"
@@ -1487,7 +1542,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
             </div>
             <div className="p-6 space-y-3.5">
               <div className="rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/60 p-4 text-center">
-                <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">{isDayPassBadge ? "Day Pass Code" : "Booking Code"}</p>
+                <p className="text-[9px] font-pmedium uppercase tracking-widest text-emerald-600">{isTourBadge ? "Visitor Code" : isDayPassBadge ? "Day Pass Code" : "Booking Code"}</p>
                 <p className="mt-1 text-3xl font-pmedium tracking-[0.15em] text-emerald-700">{selectedLead.bookingCode}</p>
                 <p className="mt-1 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Saved and ready to verify at the front desk</p>
               </div>
@@ -1497,7 +1552,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                   <p className="mt-1 text-[13px] font-pmedium text-slate-900">{selectedLead.fullName || "Guest"}</p>
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3.5">
-                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{isDayPassBadge ? "Pass" : "Room"}</p>
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">{isTourBadge ? "Visiting" : isDayPassBadge ? "Pass" : "Room"}</p>
                   <p className="mt-1 text-[13px] font-pmedium text-slate-900">
                     {isDayPassBadge
                       ? `${selectedLead.roomType || selectedLead.productType || "Day Pass"} — Coworking Flex Desk`
@@ -1507,7 +1562,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3.5 sm:col-span-2">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Date / Time</p>
                   <p className="mt-1 text-[13px] font-pmedium text-slate-900">
-                    {[formatDateLabel(selectedLead.startDate), selectedLead.timeSlot || (isDayPassBadge ? "09:00 AM - 07:00 PM" : "")].filter(Boolean).join(" · ") || "--"}
+                    {[formatDateLabel(selectedLead.startDate), formatSlotLabel(selectedLead.timeSlot) || (isDayPassBadge ? "09:00 AM - 07:00 PM" : "")].filter(Boolean).join(" · ") || "--"}
                   </p>
                 </div>
               </div>

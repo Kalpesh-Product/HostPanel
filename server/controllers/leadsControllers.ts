@@ -5,6 +5,8 @@ import Company from "../models/Company.js";
 import WebsiteTemplate from "../models/website/WebsiteTemplate.js";
 import Workspace from "../models/Workspace.js";
 import WebsiteLead from "../models/WebsiteLead.js";
+import VisitorLog from "../models/VisitorLog.js";
+import { buildBadgeNo, buildVisitorCode } from "../utils/visitorCodes.js";
 import HostUser from "../models/HostUser.js";
 import { Resource } from "../models/Resource.js";
 import { MeetingRoomBooking } from "../models/MeetingRoomBooking.js";
@@ -238,6 +240,18 @@ const isStayVertical = (lead, room) => {
     (needle) => vertical.includes(needle) || productType.includes(needle),
   );
 };
+
+// A website "Schedule a Visit" / tour lead. Narrower than
+// isNonBookingInquiry on purpose: monthly tenancy and plain coworking
+// enquiries are also non-payable, but they are not an expected arrival and
+// must not create a visitor pass.
+const TOUR_VISIT_RE = /tour|visit/i;
+const isTourVisitInquiry = (lead) => {
+  const meta = readLeadMeta(lead);
+  if (TOUR_VISIT_RE.test(sanitizeValue(meta?.inquiryType || lead?.inquiryType))) return true;
+  return /^VIS-/i.test(sanitizeValue(lead?.bookingCode));
+};
+
 
 const isNonBookingInquiry = (lead) => {
   const meta = readLeadMeta(lead);
@@ -1172,6 +1186,7 @@ export const getLeads = async (req, res, next) => {
       paymentTransactionId: lead.paymentTransactionId || "",
       bookingId: lead.bookingId ? String(lead.bookingId) : "",
       bookingCode: lead.bookingCode || "",
+      visitorId: lead.visitorId ? String(lead.visitorId) : "",
       invoiceSentToWono: Boolean(lead.invoiceSentToWono),
       comment: lead.comment || "",
       recievedDate: lead.createdAt,
@@ -1299,6 +1314,7 @@ export const getLeads = async (req, res, next) => {
             paymentTransactionId: local.paymentTransactionId,
             bookingId: local.bookingId,
             bookingCode: local.bookingCode,
+            visitorId: local.visitorId,
             invoiceSentToWono: local.invoiceSentToWono,
             comment: local.comment,
           };
@@ -2178,6 +2194,10 @@ const resolveLocalLeadForWorkspace = async (leadId, hostWorkspaceId) => {
             : {}),
           ...Object.fromEntries(
             [
+              // inquiryType decides tour/visit vs payable lead (isTourVisitInquiry,
+              // isNonBookingInquiry) — a Nomads lead keeps it top-level, so it has
+              // to be copied in or every mirrored visit looks like a booking.
+              "inquiryType", "notes",
               "startDate", "endDate", "checkIn", "checkOut", "bookingDate",
               "preferredDate", "roomType", "roomName", "room", "packageName",
               "package", "planName", "timeSlot", "slot", "preferredTime",
@@ -2630,6 +2650,68 @@ export const updateLeads = async (req, res, next) => {
               ...readLeadMeta(localLead),
             },
             reservation: reservation.toObject(),
+          });
+        }
+
+        // A "Schedule a Visit" / tour lead is not a contract and not a
+        // booking — but it IS an expected arrival. Accepting it pre-registers
+        // a VisitorLog (visitor code + badge) so the prospect is on Front
+        // Desk's roster for the day they picked, instead of a salesperson
+        // re-keying the same visit. Re-accepting reuses the existing pass.
+        if (isTourVisitInquiry(localLead)) {
+          if (!localLead.visitorId) {
+            const tourMeta = readLeadMeta(localLead);
+            // resolveLeadSchedule combines the chosen day with the picked
+            // clock hour, which is exactly the expected arrival timestamp.
+            const { startDate: visitAt } = resolveLeadSchedule(tourMeta, null, null, localLead);
+            const visitorName = sanitizeValue(localLead.fullName) || "Guest";
+            const tourText = `${sanitizeValue(localLead.vertical)} ${sanitizeValue(localLead.productType)} ${sanitizeValue(tourMeta.inquiryType)}`;
+            // Coworking tours feed the existing Sales "Unit Tour" pipeline,
+            // which filters visitors by purpose "Workspace Tour". A stay
+            // tour is a property walkthrough, not a desk sale.
+            const tourPurpose = /co-living|coliving|hostel|stay|room/i.test(tourText)
+              ? "Property Tour"
+              : "Workspace Tour";
+            const visitor = await VisitorLog.create({
+              workspace: hostWorkspaceId,
+              createdByUser: req.user,
+              visitorCode: buildVisitorCode(),
+              badgeNo: buildBadgeNo(),
+              fullName: visitorName,
+              firstName: visitorName.split(" ")[0] || "",
+              lastName: visitorName.split(" ").slice(1).join(" "),
+              phone: sanitizeValue(localLead.mobileNumber),
+              email: sanitizeValue(localLead.email),
+              company: sanitizeValue(localLead.companyName),
+              purpose: tourPurpose,
+              reason: `Scheduled tour via website${sanitizeValue(tourMeta.timeSlot) ? ` at ${sanitizeValue(tourMeta.timeSlot)}` : ""}`,
+              // Approved up front (Sales already vetted it), still "pending"
+              // until reception checks the guest in.
+              approvalStatus: "approved",
+              status: "pending",
+              source: "website_tour",
+              leadStatus: "New",
+              tourNotes: sanitizeValue(tourMeta.notes || localLead.message),
+              scheduledDate: visitAt || null,
+              scheduledTime: sanitizeValue(tourMeta.timeSlot || tourMeta.startTime),
+              leadId: localLead._id,
+            });
+            localLead.visitorId = visitor._id;
+            localLead.bookingCode = visitor.visitorCode;
+          }
+          localLead.hostPanelStatus = "Accepted";
+          localLead.paymentStatus = "Not Required";
+          localLead.paymentStatusUpdatedAt = new Date();
+          await localLead.save();
+          await syncHostPanelStatusToNomads(leadId, hostWorkspaceId, "Accepted");
+          return res.status(200).json({
+            message: `Tour visit accepted — visitor pass ${localLead.bookingCode} scheduled.`,
+            lead: {
+              _id: String(localLead._id),
+              ...localLead.toObject(),
+              ...leadPaymentSummary(localLead),
+              ...readLeadMeta(localLead),
+            },
           });
         }
 

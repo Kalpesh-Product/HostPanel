@@ -52,6 +52,9 @@ const websiteLeadSchema = new mongoose.Schema(
     paymentTransactionId: { type: String, trim: true, default: "" },
     bookingId: { type: mongoose.Schema.Types.ObjectId, ref: "MeetingRoomBooking", default: null },
     bookingCode: { type: String, trim: true, default: "" },
+    // A tour/visit lead accepted in Sales pre-registers a VisitorLog instead of
+    // a booking — this is that visitor record (bookingId stays null).
+    visitorId: { type: mongoose.Schema.Types.ObjectId, ref: "VisitorLog", default: null },
     stayHoldId: { type: String, trim: true, default: "", index: true },
     stayHoldExpiresAt: { type: Date, default: null },
     comment: { type: String, trim: true, default: "" },

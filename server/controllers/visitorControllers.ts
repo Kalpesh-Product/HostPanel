@@ -11,6 +11,7 @@ import TenantEmployee from "../models/TenantEmployee.js";
 import { VISITOR_MEMBER_GRANT_ALIASES, VISITOR_PERMISSION_KEYS } from "../config/visitorPermissionMap.js";
 import { getZonedDateKey, normalizeTimeZone } from "../utils/workspaceLocalization.js";
 import { createNotification } from "../utils/notify.js";
+import { buildBadgeNo, buildVisitorCode } from "../utils/visitorCodes.js";
 
 const FRONTDESK_ROLES = new Set(["owner", "founder", "super_admin", "admin", "admin_manager", "manager"]);
 const MODULE_ADMIN_ROLES = new Set(["owner", "founder", "super_admin"]);
@@ -22,9 +23,6 @@ const normalizeRole = (value = "") =>
     .replace(/[\s-]+/g, "_");
 
 const toId = (value: unknown) => String(value || "");
-
-const buildVisitorCode = () => `VIS-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-const buildBadgeNo = () => `B-${Math.floor(1000 + Math.random() * 9000)}`;
 
 const getActorDisplayName = async (userId: string) => {
   if (!userId) return "";
@@ -190,6 +188,11 @@ const formatVisitor = (visitor: any) => ({
   checkedInByUserId: toId(visitor?.checkedInByUser),
   checkedInByName: visitor?.checkedInByName || "",
   checkOutAt: visitor?.checkOutAt || null,
+  // Pre-registered website tour: when the guest is expected, not when the
+  // pass was created.
+  scheduledDate: visitor?.scheduledDate || null,
+  scheduledTime: visitor?.scheduledTime || "",
+  leadId: toId(visitor?.leadId),
   checkedOutByUserId: toId(visitor?.checkedOutByUser),
   checkedOutByName: visitor?.checkedOutByName || "",
   createdAt: visitor?.createdAt || null,

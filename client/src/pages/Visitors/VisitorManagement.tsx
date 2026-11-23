@@ -389,7 +389,9 @@ function normalizeVisitorTrackingEntry(visitor = {}, timeZone = DEFAULT_WORKSPAC
     name: visitor?.name || visitor?.fullName || [visitor?.firstName, visitor?.lastName].filter(Boolean).join(' ').trim(),
     company: visitor?.company || visitor?.visitorCompany || '',
     host: visitor?.host || visitor?.hostName || 'Front Desk',
-    date: formatDisplayDate(visitor?.checkInAt || visitor?.createdAt || visitor?.date) || '',
+    // A website tour is pre-registered for a future slot — show the day the
+    // guest is expected, not the day Sales accepted the lead.
+    date: formatDisplayDate(visitor?.checkInAt || visitor?.scheduledDate || visitor?.createdAt || visitor?.date) || '',
     month: visitor?.month || derivedMonthYear.month,
     year: visitor?.year || derivedMonthYear.year,
     status,
@@ -1669,6 +1671,23 @@ export default function VisitorsManagementPage() {
     });
     return Array.from(mergedById.values());
   }, [liveVisitors, approvedVisitors, pendingVisitors]);
+
+  // Deep link from an accepted website tour (Sales → Company Leads): open the
+  // pre-registered pass for that visitor code instead of leaving the host to
+  // search the roster by hand.
+  useEffect(() => {
+    const code = String(
+      new URLSearchParams(location.search).get('visitorCode') || '',
+    ).trim().toUpperCase();
+    if (!code) return;
+    const match = trackedVisitors.find(
+      (visitor) => String(visitor?.visitorCode || '').trim().toUpperCase() === code,
+    );
+    if (!match) return;
+    setViewingVisitor(match);
+    setActiveTab('daily');
+    navigate(location.pathname, { replace: true });
+  }, [location.search, location.pathname, trackedVisitors, navigate]);
 
   useEffect(() => {
     const searchRecord = location.state?.globalSearchRecord;

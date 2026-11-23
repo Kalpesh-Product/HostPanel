@@ -208,6 +208,17 @@ const visitorLogSchema = new mongoose.Schema(
       default: "frontdesk",
       trim: true,
     },
+    // Pre-registered visit slot for a website "Schedule a Visit" / tour lead.
+    // Without these a tour accepted today would look like it was expected
+    // today, no matter which day the guest actually picked.
+    scheduledDate: { type: Date, default: null, index: true },
+    scheduledTime: { type: String, default: "", trim: true },
+    leadId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "WebsiteLead",
+      default: null,
+      index: true,
+    },
   },
   { timestamps: true },
 );
