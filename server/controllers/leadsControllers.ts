@@ -621,13 +621,22 @@ const runFinalizeLeadBooking = async (lead, { roomId, bodyStart, bodyEnd, bodyAt
         total: baseAmount,
         currency: lead.paymentCurrency || "INR",
         paymentMethod: "Online (Stripe)",
+        // Keep the Stripe reference on the stay record itself — without it a
+        // dispute or payout reconciliation has to be re-derived from amount
+        // and dates. The field already exists (paymentTransactionNumber).
+        paymentTransactionNumber: sanitizeValue(lead.paymentTransactionId),
         amountPaid: baseAmount,
         status: "Booked",
+        // A website lead is never a Walk-in — the model defaults to it, so it
+        // must be stated explicitly or every online stay is mis-reported.
+        bookingSource: "Website",
         createdBy: sanitizeValue(actingUserId) ? actingUserId : null,
       });
 
       lead.bookingId = booking._id;
       lead.bookingCode = booking.bookingCode;
+      lead.bookingFailureReason = "";
+      lead.bookingFailedAt = null;
       lead.stayHoldId = "";
       lead.stayHoldExpiresAt = null;
       await lead.save();
@@ -719,6 +728,8 @@ const runFinalizeLeadBooking = async (lead, { roomId, bodyStart, bodyEnd, bodyAt
 
       lead.bookingId = dayPass._id;
       lead.bookingCode = dayPass.bookingCode;
+      lead.bookingFailureReason = "";
+      lead.bookingFailedAt = null;
       await lead.save();
 
       sendLeadBookingConfirmedEmail(lead, {
@@ -789,6 +800,8 @@ const runFinalizeLeadBooking = async (lead, { roomId, bodyStart, bodyEnd, bodyAt
 
     lead.bookingId = booking._id;
     lead.bookingCode = booking.bookingCode;
+    lead.bookingFailureReason = "";
+    lead.bookingFailedAt = null;
     await lead.save();
 
     sendLeadBookingConfirmedEmail(lead, {
@@ -820,6 +833,9 @@ const runFinalizeLeadBooking = async (lead, { roomId, bodyStart, bodyEnd, bodyAt
 // handlePaymentWebhook runs the same logic automatically the instant
 // payment is confirmed, so this almost always finds alreadyFinalized=true.
 export const finalizeLeadBooking = async (req, res) => {
+  // Declared outside the try so the catch can record WHY finalize failed on
+  // the lead itself (the modal shows it and offers a retry).
+  let lead = null;
   try {
     const { leadId, roomId, start: bodyStart, end: bodyEnd, attendees: bodyAttendees } =
       req.body || {};
@@ -830,7 +846,7 @@ export const finalizeLeadBooking = async (req, res) => {
     const hostWorkspaceId = sanitizeValue(
       req.body?.workspaceId || req.workspaceMembership?.workspace,
     );
-    const lead = await WebsiteLead.findById(sanitizeValue(leadId)).exec();
+    lead = await WebsiteLead.findById(sanitizeValue(leadId)).exec();
     if (!lead) {
       return res.status(404).json({ message: "Lead not found" });
     }
@@ -847,6 +863,7 @@ export const finalizeLeadBooking = async (req, res) => {
     const result = await runFinalizeLeadBooking(lead, { roomId, bodyStart, bodyEnd, bodyAttendees, actingUserId: req.user });
     return res.status(result.alreadyFinalized ? 200 : 201).json(result.body);
   } catch (error) {
+    await recordLeadBookingFailure(lead, error);
     if (error instanceof FinalizeBookingError) {
       return res.status(error.statusCode).json({ message: error.message });
     }
@@ -1140,6 +1157,10 @@ export const handlePaymentWebhook = async (req, res, next) => {
         "Auto-finalize on payment webhook failed — lead is Paid but no booking was created automatically; finalize manually from CompanyLeads:",
         error?.message || error,
       );
+      // Make the failure visible on the lead instead of console-only: the
+      // payment succeeded, so a silent unbooked lead means a charged customer
+      // with no room. The lead list shows this reason + a retry action.
+      await recordLeadBookingFailure(lead, error);
     }
 
     return res.status(200).json({ message: "Lead payment status updated", booking: bookingResult });
@@ -1228,6 +1249,8 @@ export const getLeads = async (req, res, next) => {
       paymentTransactionId: lead.paymentTransactionId || "",
       bookingId: lead.bookingId ? String(lead.bookingId) : "",
       bookingCode: lead.bookingCode || "",
+      bookingFailureReason: lead.bookingFailureReason || "",
+      bookingFailedAt: lead.bookingFailedAt || null,
       visitorId: lead.visitorId ? String(lead.visitorId) : "",
       invoiceSentToWono: Boolean(lead.invoiceSentToWono),
       comment: lead.comment || "",
@@ -1437,6 +1460,21 @@ const formatBookingDateTime = (value) => {
     minute: "2-digit",
     hour12: true,
   });
+};
+
+// A payment can land while the booking itself fails (slot taken between accept
+// and payment, resource deleted, hold expired). Persist that on the lead so the
+// lead list can show why and offer a retry — otherwise the lead quietly sits at
+// "Paid" with no booking ID and nobody knows to fix it.
+const recordLeadBookingFailure = async (lead, error) => {
+  if (!lead) return;
+  try {
+    lead.bookingFailureReason = String(error?.message || "Booking creation failed").slice(0, 500);
+    lead.bookingFailedAt = new Date();
+    await lead.save();
+  } catch (saveError) {
+    console.error("Could not record booking failure on lead:", saveError?.message || saveError);
+  }
 };
 const NEW_HOST_PANEL_STATUSES = ["Accepted", "Rejected"];
 const ALL_HOST_PANEL_STATUSES = ["Pending", "Accepted", "Rejected", "Closed"];

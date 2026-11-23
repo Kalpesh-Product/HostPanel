@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, Bed, Building2, CalendarDays, CheckCircle2, Coffee, Eye, Download, FileText, Globe, Printer, Search, Send, Sparkles, Target, UserCheck, Users, X, Wallet, Ticket,
+  AlertTriangle, ArrowLeft, Bed, Building2, CalendarDays, CheckCircle2, Coffee, Eye, Download, FileText, Globe, Printer, RefreshCw, Search, Send, Sparkles, Target, UserCheck, Users, X, Wallet, Ticket,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -1376,6 +1376,11 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                     const isHostelBooking = /^HS-/i.test(String(selectedLead.bookingCode || ""));
                     const isCoLivingBooking = /^CL-/i.test(String(selectedLead.bookingCode || ""));
                     const isMeetingRoomBooking = Boolean(selectedLead.bookingCode) && !isTourVisit && !isDayPassBooking && !isCafeReservation && !isHostelBooking && !isCoLivingBooking;
+                    // Paid and bookable, but no booking ID — either the automatic
+                    // finalize failed (the backend now records why) or this lead
+                    // predates auto-finalize. Either way the host must be able to
+                    // act on it, not just read "Payment received".
+                    const needsBooking = paymentStatus === "Paid" && !selectedLead.bookingCode && !isCoworkingInquiry && !isTourVisit;
                     const onboardAsTenant = () => {
                       navigate("/department-accesses/sales-department/tenant-companies", {
                         state: {
@@ -1410,6 +1415,18 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                         )}
                         {hostStatus === "Accepted" && (
                           <div className="w-full space-y-3">
+                            {selectedLead.bookingFailureReason && (
+                              <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[11px] text-rose-700">
+                                <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="font-pmedium text-rose-800">Payment received, booking not created</p>
+                                  <p className="mt-0.5 break-words text-rose-600">
+                                    {selectedLead.bookingFailureReason}
+                                    {selectedLead.bookingFailedAt ? ` — ${formatDateLabel(selectedLead.bookingFailedAt)}` : ""}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
                             {/* Tier 1: full-width status banner — the schedule/code
                                 never competes with the action buttons for space. */}
                             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-blue-100/80 bg-blue-50/70 px-3.5 py-2.5 text-[11px] font-pmedium text-slate-700">
@@ -1517,6 +1534,17 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                                   <button type="button" onClick={onboardAsTenant} disabled={isBusy}
                                     className={`${actionButton} border border-[#2563EB] bg-[#2563EB] text-white hover:bg-blue-700 focus-visible:ring-[#2563EB]/40 disabled:opacity-60`}
                                   ><Users size={14} /> Onboard as Tenant</button>
+                                )}
+                                {needsBooking && (
+                                  <button type="button"
+                                    onClick={() => finalizeBookingMutation.mutate(selectedLead._id)}
+                                    disabled={isBusy}
+                                    className={`${actionButton} border ${selectedLead.bookingFailureReason ? "border-rose-600 bg-rose-600 hover:bg-rose-700" : "border-[#2563EB] bg-[#2563EB] hover:bg-blue-700"} text-white focus-visible:ring-[#2563EB]/40 disabled:opacity-60`}
+                                  >
+                                    {finalizeBookingMutation.isPending
+                                      ? <><RefreshCw size={14} className="animate-spin" /> Creating…</>
+                                      : <><RefreshCw size={14} /> {selectedLead.bookingFailureReason ? "Retry booking" : "Create booking"}</>}
+                                  </button>
                                 )}
                               </div>
                             </div>

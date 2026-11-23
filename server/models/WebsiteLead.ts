@@ -52,6 +52,12 @@ const websiteLeadSchema = new mongoose.Schema(
     paymentTransactionId: { type: String, trim: true, default: "" },
     bookingId: { type: mongoose.Schema.Types.ObjectId, ref: "MeetingRoomBooking", default: null },
     bookingCode: { type: String, trim: true, default: "" },
+    // Set when the automatic post-payment finalize fails (slot taken between
+    // accept and payment, resource removed, hold expired). The lead stays
+    // "Paid" with no bookingCode, so the host must see why and retry instead
+    // of assuming the reservation is settled.
+    bookingFailureReason: { type: String, trim: true, default: "" },
+    bookingFailedAt: { type: Date, default: null },
     // A tour/visit lead accepted in Sales pre-registers a VisitorLog instead of
     // a booking — this is that visitor record (bookingId stays null).
     visitorId: { type: mongoose.Schema.Types.ObjectId, ref: "VisitorLog", default: null },
