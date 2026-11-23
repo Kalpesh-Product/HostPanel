@@ -722,8 +722,13 @@ export const routes = createBrowserRouter([
                 element: <AllLeads />,
               },
               {
-                path: "key-apps/all-leads/request-payout",
+                path: "key-apps/all-leads/list/request-payout",
                 element: <AllLeadsRequestPayout />,
+              },
+              {
+                // Old flat URL — keep shared links working.
+                path: "key-apps/all-leads/request-payout",
+                element: <Navigate to="/key-apps/all-leads/list/request-payout" replace />,
               },
               {
                 path: "key-apps/nomad-listings",

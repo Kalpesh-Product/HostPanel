@@ -170,7 +170,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
   // ticks the bookings to bundle into the payout request.
   // Selection state for the Request Payout page — derived totals follow
   // the ticked rows, so the button always shows exactly what will be sent.
-  // Deep-linked via /key-apps/all-leads/request-payout (`payoutPage`) for
+  // Deep-linked via /key-apps/all-leads/list/request-payout (`payoutPage`) for
   // the All Leads scope; other scopes fall back to local view state.
   const [payoutViewLocal, setPayoutViewLocal] = useState(false);
   const showPayoutView = Boolean(payoutPage) || payoutViewLocal;
@@ -182,7 +182,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
   const openPayoutView = () => {
     const selectedIds = unclaimedLeads.map((l) => String(l._id));
     setPayoutSelectedIds(selectedIds);
-    if (isAllLeads) navigate("/key-apps/all-leads/request-payout", { state: { payoutLeadIds: selectedIds } });
+    if (isAllLeads) navigate("/key-apps/all-leads/list/request-payout", { state: { payoutLeadIds: selectedIds } });
     else setPayoutViewLocal(true);
   };
   const [payoutSelectedIds, setPayoutSelectedIds] = useState(() =>
@@ -275,6 +275,12 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
   // Staff mark it Paid manually in Master Panel.
   const receivedFromWonoTotal = hostInvoices
     .filter((i) => i.status === "Paid")
+    .reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+  // Issued invoices WONO hasn't paid yet (accounts receivable). Staff flip an
+  // invoice to "Paid" in Master Panel when the bank transfer lands; "Rejected"
+  // is not receivable, so only "Requested" invoices belong in this bucket.
+  const invoicedNotReceivedTotal = hostInvoices
+    .filter((i) => i.status === "Requested")
     .reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
   const hostInvoicesCurrency = hostInvoices[0]?.currency || "USD";
   // Unclaimed Payout Balance — every paid, finalized booking not yet rolled
@@ -578,10 +584,10 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
         value: Number.isFinite(leadLimit) ? `${Math.max(leadLimit - total, 0)} / ${leadLimit}` : "Unlimited",
         icon: Target,
       },
-      { label: "Unclaimed Payout Balance", value: formatMoney(unclaimedPayoutTotal, unclaimedPayoutCurrency), icon: FileText },
+      { label: "Yet to Received from WONO", value: formatMoney(invoicedNotReceivedTotal, hostInvoicesCurrency), icon: FileText },
       { label: "Received from WONO", value: formatMoney(receivedFromWonoTotal, hostInvoicesCurrency), icon: Wallet },
     ];
-  }, [leads, pageTitle, leadLimit, unclaimedPayoutTotal, unclaimedPayoutCurrency, receivedFromWonoTotal, hostInvoicesCurrency]);
+  }, [leads, pageTitle, leadLimit, invoicedNotReceivedTotal, receivedFromWonoTotal, hostInvoicesCurrency]);
 
   const visibleLeads = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -862,7 +868,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Unclaimed Payout Balance</p>
+                <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Yet to Received from WONO</p>
                 <p className="text-[15px] font-pmedium text-slate-900">{leadStats[4]?.value ?? 0}</p>
               </div>
               <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><FileText size={16} /></div>
@@ -1298,14 +1304,6 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                                 <span className="text-[9px] uppercase font-pmedium tracking-widest text-slate-500">Total payable</span>
                                 <span className="text-[15px] font-pmedium text-slate-900">{formatMoney(total, currency)}</span>
                               </div>
-                              {selectedLead.bookingCode && (
-                                <div className="flex justify-between items-center gap-3 bg-emerald-50/60 border border-emerald-100 rounded-xl px-3.5 py-3">
-                                  <span className="text-[9px] uppercase font-pmedium tracking-widest text-emerald-600">
-                                    {/^DP-/i.test(String(selectedLead.bookingCode || "")) ? "Day pass confirmed" : "Booking confirmed"}
-                                  </span>
-                                  <span className="text-[13px] font-pmedium text-emerald-700">{selectedLead.bookingCode}</span>
-                                </div>
-                              )}
                             </>
                           );
                         })()}
@@ -1395,6 +1393,8 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                       });
                     };
                     const baseButton = "flex-1 py-2.5 rounded-xl font-pmedium text-[12px] transition-colors shadow-sm flex items-center justify-center gap-1.5 min-w-[110px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1";
+                    const actionButton = "py-2.5 px-3.5 rounded-xl font-pmedium text-[12px] transition-colors shadow-sm flex items-center justify-center gap-1.5 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1";
+                    const StatusIcon = isTourVisit ? CalendarDays : isDayPassBooking ? Ticket : isCafeReservation ? Coffee : isHostelBooking ? Bed : isCoLivingBooking ? Building2 : FileText;
                     if (hostStatus !== "Pending" && hostStatus !== "Accepted") return null;
                     return (
                       <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 shrink-0 flex flex-wrap items-center gap-2.5">
@@ -1409,104 +1409,118 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                           </>
                         )}
                         {hostStatus === "Accepted" && (
-                          <>
-                            <span className="flex-1 text-right text-[11px] font-pmedium text-slate-500 min-w-[180px]">
-                              {isTourVisit
-                                ? `Tour scheduled for ${formatDateLabel(selectedLead.startDate)}${selectedLead.timeSlot ? ` at ${formatSlotLabel(selectedLead.timeSlot)}` : ""} • Visitor Code: ${selectedLead.bookingCode || "pending"}`
-                                : selectedLead.bookingCode
-                                ? `${isDayPassBooking ? "Day Pass Code" : isCafeReservation ? "Reservation Code" : "Booking Code"}: ${selectedLead.bookingCode}`
-                                : isCoworkingInquiry
-                                  ? "Coworking enquiry — ready to onboard as a tenant"
-                                  : paymentStatus !== "Paid"
-                                    ? `Awaiting payment — ${formatMoney(selectedLead.paymentTotalAmount, selectedLead.paymentCurrency)} payable`
-                                    : "Payment received — ready to finalize"}
-                            </span>
-                            {selectedLead.bookingCode ? (
-                              <>
-                                <button type="button" onClick={() => setShowBookingBadge(true)} disabled={isBusy}
-                                  className={`${baseButton} bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-60`}
-                                ><Printer size={14} /> {isTourVisit ? "Print / View Visitor Badge" : "Print / View Badge"}</button>
-                                {/* A visit is scheduled by Accept (VisitorLog with a
-                                    VIS- code). Open that pass directly; the button
-                                    only creates one for leads accepted before this
-                                    existed, so a tour never ends up with two
-                                    passes for the same person. */}
-                                {isTourVisit && (
-                                  selectedLead.visitorId ? (
-                                    <button type="button"
-                                      onClick={() => navigate(`/visitors/visitor-management?tab=daily&visitorCode=${encodeURIComponent(selectedLead.bookingCode || "")}`)}
-                                      disabled={isBusy}
-                                      className={`${baseButton} bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
-                                    ><UserCheck size={14} /> View Visitor Pass</button>
+                          <div className="w-full space-y-3">
+                            {/* Tier 1: full-width status banner — the schedule/code
+                                never competes with the action buttons for space. */}
+                            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-blue-100/80 bg-blue-50/70 px-3.5 py-2.5 text-[11px] font-pmedium text-slate-700">
+                              <div className="flex min-w-0 items-center gap-2">
+                                <StatusIcon size={14} className="shrink-0 text-[#2563EB]" />
+                                <span className="min-w-0">
+                                  {isTourVisit ? (
+                                    <>
+                                      Tour scheduled for <strong className="font-pmedium text-slate-900">{formatDateLabel(selectedLead.startDate)}</strong>
+                                      {selectedLead.timeSlot ? ` at ${formatSlotLabel(selectedLead.timeSlot)}` : ""}
+                                    </>
+                                  ) : selectedLead.bookingCode ? (
+                                    <>{isDayPassBooking ? "Day pass" : isCafeReservation ? "Reservation" : "Booking"} confirmed</>
+                                  ) : isCoworkingInquiry ? (
+                                    "Coworking enquiry — ready to onboard as a tenant"
+                                  ) : paymentStatus !== "Paid" ? (
+                                    `Awaiting payment — ${formatMoney(selectedLead.paymentTotalAmount, selectedLead.paymentCurrency)} payable`
                                   ) : (
-                                    <button type="button"
-                                      onClick={() => updateLeadMutation.mutate({ leadId: selectedLead._id, hostPanelStatus: "Accepted" })}
-                                      disabled={isBusy}
-                                      className={`${baseButton} bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
-                                    ><UserCheck size={14} /> Create a Visit</button>
-                                  )
+                                    "Payment received — ready to finalize"
+                                  )}
+                                </span>
+                              </div>
+                              {selectedLead.bookingCode && (
+                                <span className="shrink-0 rounded-md border border-blue-200 bg-white px-2 py-0.5 font-mono text-[11px] tracking-wide text-[#2563EB]">
+                                  {selectedLead.bookingCode}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Tier 2: buttons get a row of their own, and wrap
+                                cleanly when a lead has multiple destinations. */}
+                            <div className="flex flex-wrap items-center justify-between gap-2.5">
+                              <button type="button"
+                                onClick={() => { setSelectedLeadId(null); setShowBookingBadge(false); }}
+                                className={`${actionButton} border border-slate-200 bg-white text-slate-600 hover:bg-slate-50`}
+                              >Close</button>
+                              <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
+                                {selectedLead.bookingCode && (
+                                  <>
+                                    <button type="button" onClick={() => setShowBookingBadge(true)} disabled={isBusy}
+                                      className={`${actionButton} border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-60`}
+                                    ><Printer size={14} /> {isTourVisit ? "Print / View Visitor Badge" : "Print / View Badge"}</button>
+                                    {/* A visit is scheduled by Accept (VisitorLog with a
+                                        VIS- code). Open that pass directly; the button
+                                        only creates one for leads accepted before this
+                                        existed, so a tour never ends up with two
+                                        passes for the same person. */}
+                                    {isTourVisit && (
+                                      selectedLead.visitorId ? (
+                                        <button type="button"
+                                          onClick={() => navigate(`/visitors/visitor-management?tab=daily&visitorCode=${encodeURIComponent(selectedLead.bookingCode || "")}`)}
+                                          disabled={isBusy}
+                                          className={`${actionButton} border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
+                                        ><UserCheck size={14} /> View Visitor Pass</button>
+                                      ) : (
+                                        <button type="button"
+                                          onClick={() => updateLeadMutation.mutate({ leadId: selectedLead._id, hostPanelStatus: "Accepted" })}
+                                          disabled={isBusy}
+                                          className={`${actionButton} border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
+                                        ><UserCheck size={14} /> Create a Visit</button>
+                                      )
+                                    )}
+                                    {isDayPassBooking && (
+                                      <button type="button"
+                                        onClick={() => navigate("/key-apps/co-working-management/day-passes")}
+                                        disabled={isBusy}
+                                        className={`${actionButton} border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
+                                      ><Ticket size={14} /> View in Coworking Register</button>
+                                    )}
+                                    {isCafeReservation && (
+                                      <button type="button"
+                                        onClick={() => navigate("/key-apps/cafe-management/reservations")}
+                                        disabled={isBusy}
+                                        className={`${actionButton} border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
+                                      ><Coffee size={14} /> View in Cafe Reservations</button>
+                                    )}
+                                    {/* Hostel dorm stay — lands straight on the
+                                        Reservations tab where the check-in row is. */}
+                                    {isHostelBooking && (
+                                      <button type="button"
+                                        onClick={() => navigate("/common-modules/hostel-booking/list?tab=reservations")}
+                                        disabled={isBusy}
+                                        className={`${actionButton} border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
+                                      ><Bed size={14} /> View in Hostel Bookings</button>
+                                    )}
+                                    {/* Co-living room stay. */}
+                                    {isCoLivingBooking && (
+                                      <button type="button"
+                                        onClick={() => navigate("/common-modules/room-booking/list?tab=reservations")}
+                                        disabled={isBusy}
+                                        className={`${actionButton} border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
+                                      ><Building2 size={14} /> View in Room Bookings</button>
+                                    )}
+                                    {/* Any other booking code is a meeting-room booking. */}
+                                    {isMeetingRoomBooking && (
+                                      <button type="button"
+                                        onClick={() => navigate("/common-modules/meeting-room-booking/list?module=external_booking")}
+                                        disabled={isBusy}
+                                        className={`${actionButton} border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
+                                      ><CalendarDays size={14} /> View in Meeting Rooms</button>
+                                    )}
+                                  </>
                                 )}
-                                {isDayPassBooking && (
-                                  <button
-                                    type="button"
-                                    onClick={() => navigate("/key-apps/co-working-management/day-passes")}
-                                    disabled={isBusy}
-                                    className={`${baseButton} bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
-                                  >
-                                    <Ticket size={14} /> View in Coworking Register
-                                  </button>
+                                {!selectedLead.bookingCode && isCoworkingInquiry && (
+                                  <button type="button" onClick={onboardAsTenant} disabled={isBusy}
+                                    className={`${actionButton} border border-[#2563EB] bg-[#2563EB] text-white hover:bg-blue-700 focus-visible:ring-[#2563EB]/40 disabled:opacity-60`}
+                                  ><Users size={14} /> Onboard as Tenant</button>
                                 )}
-                                {isCafeReservation && (
-                                  <button
-                                    type="button"
-                                    onClick={() => navigate("/key-apps/cafe-management/reservations")}
-                                    disabled={isBusy}
-                                    className={`${baseButton} bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
-                                  >
-                                    <Coffee size={14} /> View in Cafe Reservations
-                                  </button>
-                                )}
-                                {/* Hostel dorm stay — lands straight on the
-                                    Reservations tab where the check-in row is. */}
-                                {isHostelBooking && (
-                                  <button
-                                    type="button"
-                                    onClick={() => navigate("/common-modules/hostel-booking/list?tab=reservations")}
-                                    disabled={isBusy}
-                                    className={`${baseButton} bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
-                                  >
-                                    <Bed size={14} /> View in Hostel Bookings
-                                  </button>
-                                )}
-                                {/* Co-living room stay. */}
-                                {isCoLivingBooking && (
-                                  <button
-                                    type="button"
-                                    onClick={() => navigate("/common-modules/room-booking/list?tab=reservations")}
-                                    disabled={isBusy}
-                                    className={`${baseButton} bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
-                                  >
-                                    <Building2 size={14} /> View in Room Bookings
-                                  </button>
-                                )}
-                                {/* Any other booking code is a meeting-room booking. */}
-                                {isMeetingRoomBooking && (
-                                  <button
-                                    type="button"
-                                    onClick={() => navigate("/common-modules/meeting-room-booking/list?module=external_booking")}
-                                    disabled={isBusy}
-                                    className={`${baseButton} bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
-                                  >
-                                    <CalendarDays size={14} /> View in Meeting Rooms
-                                  </button>
-                                )}
-                              </>
-                            ) : isCoworkingInquiry ? (
-                              <button type="button" onClick={onboardAsTenant} disabled={isBusy}
-                                className={`${baseButton} bg-[#2563EB] text-white hover:bg-blue-700 focus-visible:ring-[#2563EB]/40 disabled:opacity-60`}
-                              ><Users size={14} /> Onboard as Tenant</button>
-                            ) : null}
-                          </>
+                              </div>
+                            </div>
+                          </div>
                         )}
                       </div>
                     );

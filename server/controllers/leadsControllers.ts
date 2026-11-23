@@ -34,6 +34,7 @@ import WorkspaceSubscription from "../models/WorkspaceSubscription.js";
 import { sendMail } from "../config/mailer.js";
 import {
   sendLeadBookingAcceptedEmail,
+  sendLeadBookingConfirmedEmail,
   sendLeadRejectedEmail,
   sendLeadSlotUnavailableEmail,
 } from "../utils/leadPaymentEmails.js";
@@ -631,6 +632,22 @@ const runFinalizeLeadBooking = async (lead, { roomId, bodyStart, bodyEnd, bodyAt
       lead.stayHoldExpiresAt = null;
       await lead.save();
 
+      // Booking ID is created — send it to the guest right away so they know
+      // the stay is locked in and have the code to show at reception.
+      sendLeadBookingConfirmedEmail(lead, {
+        bookingCode: booking.bookingCode,
+        service: room.type === "Dorm" ? "Hostel Bed" : "Co-living Room",
+        currency: booking.currency || lead.paymentCurrency || "INR",
+        amount: Number(booking.total || baseAmount) || 0,
+        details: [
+          { label: "Space", value: booking.roomName || room.name },
+          { label: "Check-in", value: formatBookingDateTime(booking.checkIn || checkIn) },
+          { label: "Check-out", value: formatBookingDateTime(booking.checkOut || checkOut) },
+          { label: "Nights", value: String(nights || 1) },
+          { label: "Guests", value: String(attendeeCount) },
+        ],
+      });
+
       return {
         alreadyFinalized: false,
         body: {
@@ -704,6 +721,18 @@ const runFinalizeLeadBooking = async (lead, { roomId, bodyStart, bodyEnd, bodyAt
       lead.bookingCode = dayPass.bookingCode;
       await lead.save();
 
+      sendLeadBookingConfirmedEmail(lead, {
+        bookingCode: dayPass.bookingCode,
+        service: "Day Pass",
+        currency: dayPass.currency || lead.paymentCurrency || "INR",
+        amount: Number(dayPass.totalAmount || baseAmount) || 0,
+        details: [
+          { label: "Date", value: formatBookingDateTime(dayPass.date || startDate) },
+          { label: "Pass type", value: dayPass.passType || "Full-Day" },
+          { label: "Guests", value: String(attendeeCount) },
+        ],
+      });
+
       return {
         alreadyFinalized: false,
         body: {
@@ -761,6 +790,19 @@ const runFinalizeLeadBooking = async (lead, { roomId, bodyStart, bodyEnd, bodyAt
     lead.bookingId = booking._id;
     lead.bookingCode = booking.bookingCode;
     await lead.save();
+
+    sendLeadBookingConfirmedEmail(lead, {
+      bookingCode: booking.bookingCode,
+      service: "Meeting Room",
+      currency: booking.currency || lead.paymentCurrency || "INR",
+      amount: Number(booking.totalAmount || baseAmount) || 0,
+      details: [
+        { label: "Room", value: booking.roomName || room.name },
+        { label: "Schedule", value: `${formatBookingDateTime(booking.start || startDate)} — ${formatBookingDateTime(booking.end || endDate)}` },
+        { label: "Guests", value: String(attendeeCount) },
+        { label: "Purpose", value: purpose },
+      ],
+    });
 
     return {
       alreadyFinalized: false,
@@ -1381,6 +1423,21 @@ const PLATFORM_FEE_PERCENT = 7;
 const STRIPE_PROCESSING_FEE_PERCENT = 0;
 const LEAD_PAYMENT_CURRENCY = sanitizeValue(process.env.LEAD_PAYMENT_CURRENCY) || "USD";
 const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
+
+// Booking-confirmation emails quote a single human schedule line per booking,
+// so keep one formatter rather than letting each service invent its own.
+const formatBookingDateTime = (value) => {
+  const date = value instanceof Date ? value : new Date(value || "");
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
 const NEW_HOST_PANEL_STATUSES = ["Accepted", "Rejected"];
 const ALL_HOST_PANEL_STATUSES = ["Pending", "Accepted", "Rejected", "Closed"];
 
@@ -2640,6 +2697,15 @@ export const updateLeads = async (req, res, next) => {
           localLead.bookingId = reservation._id;
           localLead.bookingCode = `CR-${reservation.reservationNumber}`;
           await localLead.save();
+          sendLeadBookingConfirmedEmail(localLead, {
+            bookingCode: localLead.bookingCode,
+            service: "Cafe Table Reservation",
+            details: [
+              { label: "Guest name", value: localLead.fullName || "" },
+              { label: "Date & time", value: formatBookingDateTime(reservationAt) },
+              { label: "Party size", value: `${Number(localLead.noOfPeople) || Number(cafeMeta.attendees) || 1} guest(s)` },
+            ],
+          });
           await syncHostPanelStatusToNomads(leadId, hostWorkspaceId, "Accepted");
           return res.status(200).json({
             message: `Lead accepted — table reservation ${localLead.bookingCode} created.`,
@@ -2699,6 +2765,19 @@ export const updateLeads = async (req, res, next) => {
             localLead.visitorId = visitor._id;
             localLead.bookingCode = visitor.visitorCode;
           }
+          // A visitor pass was issued for the visit — send the code so the
+          // guest knows they are expected and can quote it at the door.
+          const acceptedTourMeta = readLeadMeta(localLead);
+          const acceptedTourAt = resolveLeadSchedule(acceptedTourMeta, null, null, localLead).startDate;
+          sendLeadBookingConfirmedEmail(localLead, {
+            bookingCode: localLead.bookingCode,
+            service: "Tour Visit",
+            details: [
+              { label: "Visit date", value: formatBookingDateTime(acceptedTourAt) },
+              { label: "Visit time", value: sanitizeValue(acceptedTourMeta.timeSlot || acceptedTourMeta.startTime) || "As scheduled" },
+              { label: "Note", value: "Please arrive 5 minutes early and show this ID at reception." },
+            ],
+          });
           localLead.hostPanelStatus = "Accepted";
           localLead.paymentStatus = "Not Required";
           localLead.paymentStatusUpdatedAt = new Date();
@@ -2738,9 +2817,12 @@ export const updateLeads = async (req, res, next) => {
 
         // Payable inquiry type, but no matching Resource found — don't
         // silently skip the charge. Host needs to name/create a Resource
-        // that matches this lead's roomType/productType.
+        // that matches this lead's roomType/productType. A day pass is the
+        // exception: it draws from the shared Open Desk floor rather than one
+        // named resource, and its capacity is checked below instead.
         const acceptRoomForTyping = await resolveRoomForLead(localLead);
-        if (!acceptRoomForTyping) {
+        const acceptIsDayPass = isDayPassLeadText(localLead, readLeadMeta(localLead));
+        if (!acceptRoomForTyping && !acceptIsDayPass) {
           return res.status(409).json({
             message:
               "No matching bookable resource found for this lead's room/product type. Create or rename a resource to match before accepting.",
@@ -2786,6 +2868,48 @@ export const updateLeads = async (req, res, next) => {
           });
         }
         const meta = readLeadMeta(localLead);
+        // Never mint a payment link for a lead the payment webhook's finalize
+        // step cannot turn into a real booking — otherwise the customer is
+        // charged and the lead dead-ends at "Create Booking" with a 400/409.
+        // Finalize needs a resolvable slot; a day pass additionally needs a
+        // live Open Desk with capacity for the party.
+        const acceptIsStay = isStayVertical(localLead, acceptRoomForTyping);
+        if (!acceptIsStay) {
+          const acceptSchedule = resolveLeadSchedule(meta, null, null, localLead);
+          if (
+            !acceptSchedule.startDate ||
+            !acceptSchedule.endDate ||
+            acceptSchedule.endDate <= acceptSchedule.startDate
+          ) {
+            return res.status(409).json({
+              message:
+                "This lead has no complete date/time slot, so no booking can be created from it. Ask the client to resubmit with a date and time before accepting.",
+            });
+          }
+          if (acceptIsDayPass) {
+            const dayPassAvailability = await resolveDayPassAvailability(
+              hostWorkspaceId,
+              acceptSchedule.startDate,
+            );
+            if (!dayPassAvailability) {
+              return res.status(409).json({
+                message:
+                  "No active Open Desk resource is configured for this workspace — add one before accepting day pass leads.",
+              });
+            }
+            const acceptAttendees = Math.max(
+              1,
+              Math.trunc(
+                Number(parseMoney(meta.attendees ?? meta.noOfPeople ?? localLead.noOfPeople ?? 1)) || 1,
+              ),
+            );
+            if (acceptAttendees > dayPassAvailability.availableCount) {
+              return res.status(409).json({
+                message: `Only ${dayPassAvailability.availableCount} day pass desk${dayPassAvailability.availableCount === 1 ? "" : "s"} left for that date. The client has not been charged.`,
+              });
+            }
+          }
+        }
         const paymentRoom = await resolveRoomForLead(localLead);
         const paymentServiceType = paymentRoom?.type === "Dorm"
           ? "hostel"

@@ -361,3 +361,116 @@ export const sendLeadRejectedEmail = async (lead) => {
     return { sent: false, reason: error?.message || "mail-error" };
   }
 };
+
+// ─── Booking confirmed ──────────────────────────────────────────────────────
+// Sent the moment a real booking record with a code exists — meeting room
+// (MRB-…), co-living room / hostel bed (RSB-…), day pass (DP-…), cafe
+// reservation (CR-…) or a scheduled tour pass (VIS-…). The one thing the
+// client needs at the door is the booking ID, so it gets its own card.
+const buildBookingConfirmedHtml = (lead, booking = {}) => {
+  const code = String(booking.bookingCode || "").trim().toUpperCase();
+  const service = String(booking.service || "Booking").trim();
+  const currency = String(booking.currency || lead?.paymentCurrency || "INR").toUpperCase();
+  const amount = Number(booking.amount) || 0;
+  const details = (Array.isArray(booking.details) ? booking.details : [])
+    .filter((row) => row && String(row.value ?? "").trim());
+
+  const codeCard = `
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 22px;">
+<tr><td align="center" style="border:2px dashed ${BLUE};border-radius:12px;background:${LIGHT_BLUE_BG};padding:18px 20px;">
+<p style="margin:0;font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:${BLUE};font-family:Arial,Helvetica,sans-serif;">Your Booking ID</p>
+<p style="margin:8px 0 0;font-size:24px;font-weight:800;letter-spacing:2px;color:${NAVY};font-family:Consolas,Menlo,monospace;">${escapeHtml(code)}</p>
+<p style="margin:8px 0 0;font-size:11px;color:#6b7f99;font-family:Arial,Helvetica,sans-serif;">Show this ID at the front desk to verify your booking and collect your visitor badge.</p>
+</td></tr></table>`;
+
+  const detailsTable = details.length
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 6px;">${details
+        .map((row) => summaryRow(escapeHtml(row.label), escapeHtml(row.value)))
+        .join("")}</table>`
+    : "";
+
+  const amountBlock = amount > 0
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:10px 0 4px;background:${LIGHT_BLUE_BG};border-radius:10px;">
+<tr><td style="padding:14px 16px;font-size:13px;font-weight:700;color:${NAVY};font-family:Arial,Helvetica,sans-serif;">Total paid</td>
+<td align="right" style="padding:14px 16px;font-size:15px;font-weight:800;color:${NAVY};font-family:Arial,Helvetica,sans-serif;">${escapeHtml(fmtMoney(amount, currency))}</td></tr>
+</table>`
+    : "";
+
+  return emailShell(`
+<tr><td style="height:6px;background:linear-gradient(90deg,#79b2f2,#1e6fe0);">&nbsp;</td></tr>
+<tr><td align="center" style="padding:22px 40px 18px;background:#ffffff;">
+<span style="font-size:26px;font-weight:800;letter-spacing:1px;font-family:Arial,Helvetica,sans-serif;"><span style="color:${NAVY};">WO</span><span style="color:#3b9df0;">NO</span></span>
+</td></tr>
+<tr><td align="center" style="background:${LIGHT_BLUE_BG};padding:26px 40px 24px;">
+${checkBadge()}
+<p style="margin:12px 0 0;font-size:22px;font-weight:700;color:${NAVY};font-family:Arial,Helvetica,sans-serif;">Booking Confirmed</p>
+<p style="margin:6px 0 0;font-size:13px;color:#3b5a7d;font-family:Arial,Helvetica,sans-serif;">You're all set — your ${escapeHtml(service.toLowerCase())} is booked.</p>
+</td></tr>
+<tr><td style="padding:26px 40px 30px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;">
+<p style="margin:0 0 16px;font-size:13px;font-weight:700;color:${NAVY};">Hello ${escapeHtml(lead?.fullName || "there")},</p>
+<p style="margin:0 0 18px;font-size:13px;color:#33475c;line-height:1.6;">Your payment is complete and your booking is confirmed. Here is your booking ID${lead?.companyName ? ` for ${escapeHtml(lead.companyName)}` : ""}:</p>
+${codeCard}
+${pageHeading("Booking Details")}
+${detailsTable}
+${amountBlock}
+${infoBox("Need to change something? Reply to this email and our team will help. Please keep this booking ID handy — it is what we use to find your reservation at reception.")}
+</td></tr>
+<tr><td align="center" style="background:${NAVY};padding:16px 40px;">
+<p style="margin:0;font-size:11px;color:#ffffff;font-family:Arial,Helvetica,sans-serif;">&copy; ${new Date().getFullYear()} WONO. All rights reserved.</p>
+</td></tr>`);
+};
+
+export const buildLeadBookingConfirmedEmail = (lead, booking = {}) =>
+  buildBookingConfirmedHtml(lead, booking);
+
+export const sendLeadBookingConfirmedEmail = async (lead, booking = {}) => {
+  const to = String(lead?.email || "").trim();
+  if (!to) {
+    console.warn("Booking confirmed email skipped -- lead has no email address", {
+      leadId: String(lead?._id || ""),
+      bookingCode: String(booking?.bookingCode || ""),
+    });
+    return { sent: false, reason: "no-email" };
+  }
+  const code = String(booking?.bookingCode || "").trim();
+  if (!code) {
+    console.warn("Booking confirmed email skipped -- no booking code", {
+      leadId: String(lead?._id || ""),
+    });
+    return { sent: false, reason: "no-booking-code" };
+  }
+  const service = String(booking?.service || "Booking").trim();
+  const details = (Array.isArray(booking?.details) ? booking.details : [])
+    .filter((row) => row && String(row.value ?? "").trim());
+  const text = [
+    `Hello ${lead.fullName || "there"},`,
+    "",
+    `Your payment is complete and your ${service.toLowerCase()} is confirmed.`,
+    "",
+    `Booking ID: ${code.toUpperCase()}`,
+    "Show this ID at the front desk to verify your booking and collect your visitor badge.",
+    "",
+    ...details.map((row) => `${row.label}: ${row.value}`),
+    Number(booking?.amount) > 0
+      ? `Total paid: ${fmtMoney(booking.amount, booking.currency || lead.paymentCurrency || "INR")}`
+      : "",
+    "",
+    "Questions? Just reply to this email.",
+  ].filter((line) => line !== "").join("\n");
+  try {
+    await sendMail({
+      to,
+      subject: `${service} confirmed - your booking ID is ${code.toUpperCase()}`,
+      html: buildBookingConfirmedHtml(lead, booking),
+      text,
+    });
+    return { sent: true };
+  } catch (error) {
+    console.error("Booking confirmed email failed:", {
+      leadId: String(lead?._id || ""),
+      bookingCode: code,
+      message: error?.message || String(error),
+    });
+    return { sent: false, reason: error?.message || "mail-error" };
+  }
+};
