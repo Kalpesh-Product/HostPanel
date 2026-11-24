@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Armchair,
+  ArrowLeft,
   CheckCircle2,
   Loader2,
   Minus,
@@ -111,6 +112,20 @@ const getErrorMessage = (error: any, fallback: string) =>
 
 const isOpenStatus = (status: CafeOrderStatus) => CAFE_OPEN_STATUSES.includes(status);
 
+// Seated guests get an "Order" action on Reservations; the order dialog opens
+// with the booking's own details so the front desk doesn't retype them (and so
+// the order can be matched back to the reservation later).
+const reservationOrderNote = (reservation: CafeReservation) =>
+  [
+    `Reservation #${reservation.reservationNumber}`,
+    `Party of ${reservation.partySize}`,
+    new Date(reservation.reservationAt).toLocaleString([], { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }),
+    reservation.guestPhone,
+    reservation.notes,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
 export default function CafeOrdersPage() {
   const workspacePreferences = useWorkspacePreferences();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -126,7 +141,7 @@ export default function CafeOrdersPage() {
   const [openOrders, setOpenOrders] = useState<CafeOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [settings, setSettings] = useState<CafeSettings>({ companyName: "", googleReviewUrl: "", showReviewQr: false, taxPercent: 0, cafeStartTime: "06:00", reservationPolicy: { allowOnlineReservations: true, type: "free", chargeBasis: "per_table", coverChargeAmount: 0, minimumSpend: true } });
-  const [dialog, setDialog] = useState<{ table: CafeTable; order: CafeOrder | null; readOnly: boolean; initialCustomerName?: string } | null>(null);
+  const [dialog, setDialog] = useState<{ table: CafeTable; order: CafeOrder | null; readOnly: boolean; initialCustomerName?: string; initialNotes?: string } | null>(null);
   const [reservations, setReservations] = useState<CafeReservation[]>([]);
   const [now, setNow] = useState(() => Date.now());
 
@@ -244,7 +259,13 @@ export default function CafeOrdersPage() {
             onTakeOrder={(reservation, tableId) => {
               const table = tables.find((entry) => entry._id === tableId);
               if (!table) return toast.error("That table could not be found.");
-              setDialog({ table, order: openOrderByTable.get(tableId) || null, readOnly: false, initialCustomerName: reservation.guestName });
+              setDialog({
+                table,
+                order: openOrderByTable.get(tableId) || null,
+                readOnly: false,
+                initialCustomerName: reservation.guestName,
+                initialNotes: reservationOrderNote(reservation),
+              });
               openTab("live");
             }}
           />
@@ -265,6 +286,7 @@ export default function CafeOrdersPage() {
           order={dialog.order}
           readOnly={dialog.readOnly}
           initialCustomerName={dialog.initialCustomerName}
+          initialNotes={dialog.initialNotes}
           menuItems={menuItems}
           formatCurrency={formatCurrency}
           settings={settings}
@@ -516,6 +538,7 @@ function OrderDialog({
   order,
   readOnly,
   initialCustomerName,
+  initialNotes,
   menuItems,
   formatCurrency,
   settings,
@@ -526,6 +549,7 @@ function OrderDialog({
   order: CafeOrder | null;
   readOnly: boolean;
   initialCustomerName?: string;
+  initialNotes?: string;
   menuItems: CafeMenuItem[];
   formatCurrency: (value?: number) => string;
   settings: CafeSettings;
@@ -534,16 +558,39 @@ function OrderDialog({
 }) {
   const { prompt } = useAppConfirm();
   const [customerName, setCustomerName] = useState(order?.customerName || initialCustomerName || "");
-  const [notes, setNotes] = useState(order?.notes || "");
+  const [notes, setNotes] = useState(order?.notes || initialNotes || "");
   const [category, setCategory] = useState("Popular");
   const [draft, setDraft] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState(false);
-  const [showOrderReview, setShowOrderReview] = useState(false);
+  // One sheet, three views: order -> review -> bill. Previously each step was
+  // its own full-screen overlay nested inside this one, so the bill was drawn
+  // a third time on top of a blurred copy of itself.
+  const [view, setView] = useState<"order" | "review" | "bill">("order");
   const [itemPopularity, setItemPopularity] = useState<Record<string, number>>({});
-  const [showSettlement, setShowSettlement] = useState(false);
   const [discountType, setDiscountType] = useState<"none" | "percentage" | "fixed">("none");
   const [discountValue, setDiscountValue] = useState("0");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
+
+  // Escape steps back one view (bill/review -> order) and only closes the
+  // dialog from the order view, so a stray Escape can't drop a half-settled
+  // bill. The page behind is scroll-locked while the sheet is open.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (view !== "order") {
+        setView("order");
+        return;
+      }
+      onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [view, onClose]);
 
   const writeReceipt = (printWindow: Window, title: string, body: string) => {
     printWindow.document.write(`<!doctype html><html><head><title>${title}</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#111}h1{font-size:18px;text-align:center;margin:0 0 4px}.meta{text-align:center;font-size:12px;color:#555;margin-bottom:16px}.line{display:flex;justify-content:space-between;border-bottom:1px dashed #bbb;padding:6px 0}.total{font-weight:700;border-top:2px solid #111;margin-top:10px;padding-top:8px}.qr{text-align:center;margin-top:18px}.qr img{width:120px;height:120px}</style></head><body>${body}</body></html>`);
@@ -560,7 +607,7 @@ function OrderDialog({
 
   useEffect(() => {
     setCustomerName(order?.customerName || initialCustomerName || "");
-    setNotes(order?.notes || "");
+    setNotes(order?.notes || initialNotes || "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order?._id]);
 
@@ -791,12 +838,18 @@ function OrderDialog({
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-end justify-center sm:items-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className={`flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:rounded-[2rem] ${readOnly ? "sm:max-w-2xl" : "sm:max-w-4xl"}`}>
+      <div className={`flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:rounded-[2rem] ${readOnly ? "sm:max-w-2xl" : view === "review" ? "sm:max-w-lg" : view === "bill" ? "sm:max-w-3xl" : "sm:max-w-4xl"}`}>
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div>
-            <h3 className="text-[13px] font-pmedium uppercase tracking-widest text-slate-900">{table.name}</h3>
+            <h3 className="text-[13px] font-pmedium uppercase tracking-widest text-slate-900">
+              {view === "bill" ? "Settle bill" : table.name}
+            </h3>
             <p className="text-[11px] font-pmedium text-slate-500">
-              {order ? `Order #${order.orderNumber}` : "No open order"} · {table.seats} seats
+              {view === "bill"
+                ? `${table.name} · Order #${order?.orderNumber ?? ""}`
+                : order
+                  ? `Order #${order.orderNumber} · ${table.seats} seats`
+                  : `No open order · ${table.seats} seats`}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -807,6 +860,7 @@ function OrderDialog({
           </div>
         </div>
 
+        {view === "order" && (
         <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto md:grid-cols-5">
           <div className={`flex flex-col gap-4 border-b border-slate-100 p-6 md:border-b-0 ${readOnly ? "md:col-span-5" : "md:col-span-2 md:border-r"}`}>
             <div>
@@ -873,12 +927,12 @@ function OrderDialog({
               )}
             </div>
 
-            {order && (
+            {order && (readOnly || order.status === "Paid") && (
               <div className="rounded-2xl border border-dashed border-slate-300 p-4 text-[12px]">
                 <p className="text-center font-pmedium text-slate-900">{settings.companyName || "Cafe Bill"}</p>
                 <p className="text-center font-pmedium text-[11px] text-slate-500">Bill · Order #{order.orderNumber}</p>
                 <p className="text-center font-pmedium text-[11px] text-slate-500">
-                  {table.name} · {new Date().toLocaleString()}
+                  {table.name} · {new Date(order.billedAt || order.createdAt).toLocaleString()}
                   {order.customerName ? ` · ${order.customerName}` : ""}
                 </p>
                 <div className="my-2 divide-y divide-slate-100 border-y font-pmedium border-slate-100">
@@ -904,6 +958,27 @@ function OrderDialog({
                 </div>
                 {order.waiterName && <p className="mt-2 text-center font-pmedium text-[10px] text-slate-500">Waiter: {order.waiterName}</p>}
                 {order.paymentMethod && <p className="text-center font-pmedium text-[10px] text-slate-500">Paid via {order.paymentMethod}</p>}
+              </div>
+            )}
+
+            {/* While ordering, the sheet shows totals only: the itemised bill
+                lives in the bill view instead of being drawn twice in the same
+                scroll column as the round list. */}
+            {order && !readOnly && order.status !== "Paid" && (
+              <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 text-[11px] font-pmedium">
+                <div className="flex justify-between text-slate-600"><span>Subtotal</span><span>{formatCurrency(order.subtotal)}</span></div>
+                {order.discountAmount > 0 && <div className="mt-1 flex justify-between text-emerald-700"><span>Discount</span><span>−{formatCurrency(order.discountAmount)}</span></div>}
+                {order.taxAmount > 0 && <div className="mt-1 flex justify-between text-slate-600"><span>Tax ({order.taxPercent}%)</span><span>{formatCurrency(order.taxAmount)}</span></div>}
+                {(order.advanceDeduction || 0) > 0 && <div className="mt-1 flex justify-between text-emerald-700"><span>Advance deposit{order.advanceAdjustment?.reservationCode ? ` (${order.advanceAdjustment.reservationCode})` : ""}</span><span>−{formatCurrency(order.advanceDeduction || 0)}</span></div>}
+                {/* order.total is subtotal + tax until the bill is settled —
+                    it excludes the advance deposit, so showing it under a
+                    deposit line printed "Subtotal 3000 · −500 · Net due 3000". */}
+                <div className="mt-2 flex justify-between border-t border-slate-200 pt-2 text-[13px] text-slate-900"><span>Net due</span><span>{formatCurrency(previewTotal)}</span></div>
+                {order.status === "Served" && (
+                  <button type="button" onClick={() => setView("bill")} className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB] hover:text-blue-700">
+                    <Receipt size={12} /> View itemised bill
+                  </button>
+                )}
               </div>
             )}
 
@@ -979,28 +1054,28 @@ function OrderDialog({
               <span className="text-[11px] font-pmedium text-slate-500">
                 {draftLines.length === 0 ? "Pick items to add" : `${draftLines.length} item(s) · ${formatCurrency(draftTotal)}`}
               </span>
-              <button type="button" onClick={() => setShowOrderReview(true)} disabled={busy || draftLines.length === 0} className={PRIMARY_BUTTON}>
+              <button type="button" onClick={() => setView("review")} disabled={busy || draftLines.length === 0} className={PRIMARY_BUTTON}>
                 Review order
               </button>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-6 py-4">
+        )}
+        <div className={`flex flex-wrap justify-end gap-2 border-t border-slate-100 px-6 py-4 ${view === "order" ? "" : "hidden"}`}>
           {/* <button type="button" onClick={onClose} className={SECONDARY_BUTTON}>
             Close
           </button> */}
           {order && !readOnly && order.status === "Served" && (
-            <button type="button" onClick={() => setShowSettlement(true)} disabled={busy} className={PRIMARY_BUTTON}>
+            <button type="button" onClick={() => setView("bill")} disabled={busy} className={PRIMARY_BUTTON}>
               Discount &amp; settle
             </button>
           )}
         </div>
-      </div>
 
-      {showOrderReview && draftLines.length > 0 && (
-        <div className="fixed inset-0 z-[10010] flex items-end justify-center bg-slate-950/55 backdrop-blur-sm sm:items-center sm:p-4">
-          <div className="flex max-h-[90vh] w-full flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-w-xl sm:rounded-[2rem]">
+      {view === "review" && (
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <div>
                 <h3 className="text-[13px] font-pmedium uppercase tracking-widest text-slate-900">Review kitchen order</h3>
@@ -1008,7 +1083,7 @@ function OrderDialog({
                   {table.name} · {order ? `Round ${(order.rounds?.length || 0) + 1}` : "Round 1"}
                 </p>
               </div>
-              <button type="button" onClick={() => setShowOrderReview(false)} aria-label="Close order review" className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
+              <button type="button" onClick={() => setView("order")} aria-label="Close order review" className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
                 <X size={18} />
               </button>
             </div>
@@ -1051,7 +1126,7 @@ function OrderDialog({
             </div>
 
             <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-6 py-4">
-              <button type="button" onClick={() => setShowOrderReview(false)} className={SECONDARY_BUTTON}>Back to menu</button>
+              <button type="button" onClick={() => setView("order")} className={SECONDARY_BUTTON}>Back to menu</button>
               <button type="button" onClick={handleAddItems} disabled={busy || draftLines.length === 0} className={PRIMARY_BUTTON}>
                 {busy && <Loader2 size={13} className="animate-spin" />}
                 {order ? "Send next round" : "Send round 1"}
@@ -1061,18 +1136,14 @@ function OrderDialog({
         </div>
       )}
 
-      {order && showSettlement && order.status === "Served" && (
-        <div className="fixed inset-0 z-[10010] flex items-end justify-center bg-slate-950/55 backdrop-blur-sm sm:items-center sm:p-4">
-          <div className="flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-w-3xl sm:rounded-[2rem]">
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-              <div>
-                <h3 className="text-[13px] font-pmedium uppercase tracking-widest text-slate-900">Settle café bill</h3>
-                <p className="mt-1 text-[11px] font-pmedium text-slate-500">Order #{order.orderNumber} · {table.name}</p>
-              </div>
-              <button type="button" onClick={() => setShowSettlement(false)} aria-label="Close billing" className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
-                <X size={18} />
-              </button>
-            </div>
+      {view === "bill" && order && order.status === "Served" && (
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-3">
+            <button type="button" onClick={() => setView("order")} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-[10px] font-pmedium uppercase tracking-widest text-slate-600 transition hover:bg-slate-50">
+              <ArrowLeft size={13} /> Back to order
+            </button>
+            <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Order #{order.orderNumber} · {table.name}</p>
+          </div>
 
             <div className="grid min-h-0 flex-1 overflow-y-auto md:grid-cols-5">
               <div className="border-b border-slate-100 p-6 md:col-span-3 md:border-b-0 md:border-r">
@@ -1084,7 +1155,7 @@ function OrderDialog({
                   <span className={pill("emerald")}>Served</span>
                 </div>
 
-                <div className="max-h-64 overflow-y-auto rounded-xl border border-slate-100">
+                <div className="rounded-xl border border-slate-100">
                   <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-b border-slate-100 bg-slate-50 px-4 py-2 text-[9px] font-pmedium uppercase tracking-widest text-slate-400">
                     <span>Item</span><span>Qty</span><span>Amount</span>
                   </div>
@@ -1137,9 +1208,9 @@ function OrderDialog({
                 </div>
               </div>
             </div>
-          </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

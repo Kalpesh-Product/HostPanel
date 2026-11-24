@@ -73,6 +73,16 @@ const todayInput = (offsetDays = 0) => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 };
 
+const dateKeyOf = (value: string | Date) => {
+  const date = new Date(value);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+};
+
+// Same date scopes, order and default as the Cafe reservations tab, so the
+// three reservation screens behave identically.
+const DATE_SCOPES = ["All", "Today", "Upcoming"] as const;
+type DateScope = (typeof DATE_SCOPES)[number];
+
 const emptyRow = (colSpan: number, message: string) => (
   <tr>
     <td colSpan={colSpan} className="bg-slate-50/50 py-20 text-center text-slate-400">
@@ -98,6 +108,7 @@ export default function RoomReservationsPanel({
   const { prompt } = useAppConfirm();
   const [bookings, setBookings] = useState<RoomStayBooking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [dateScope, setDateScope] = useState<DateScope>("All");
   const [statusFilter, setStatusFilter] = useState<"All" | RoomStayStatus>("All");
   const [checkingIn, setCheckingIn] = useState<RoomStayBooking | null>(null);
   const [query, setQuery] = useState("");
@@ -122,6 +133,13 @@ export default function RoomReservationsPanel({
   }, [roomType]);
 
   const filtered = bookings.filter((booking) => {
+    if (dateScope !== "All") {
+      // A stay's date is its check-in. "Upcoming" is today-or-later, matching
+      // the cafe tab, so nothing arriving today disappears from that view.
+      const key = dateKeyOf(booking.checkIn);
+      const today = todayInput();
+      if (dateScope === "Today" ? key !== today : key < today) return false;
+    }
     if (statusFilter !== "All" && booking.status !== statusFilter) return false;
     if (!query.trim()) return true;
     const needle = query.trim().toLowerCase();
@@ -178,7 +196,17 @@ export default function RoomReservationsPanel({
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
               <input className={`${FIELD} pl-9`} placeholder="Search booking # or guest..." value={query} onChange={(event) => setQuery(event.target.value)} />
             </div>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Date</span>
+              {DATE_SCOPES.map((value) => (
+                <button key={value} type="button" onClick={() => setDateScope(value)} className={`rounded-lg px-3 py-1.5 text-[11px] font-pmedium ${dateScope === value ? "bg-[#2563EB] text-white" : "bg-slate-100 text-slate-500"}`}>
+                  {value}
+                </button>
+              ))}
+            </div>
+            <span className="hidden h-6 w-px bg-slate-200 sm:block" aria-hidden="true" />
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400">Status</span>
               {(["All", "Booked", "Checked-in", "Cancelled"] as const).map((value) => (
                 <button key={value} type="button" onClick={() => setStatusFilter(value)} className={`rounded-lg px-3 py-1.5 text-[11px] font-pmedium ${statusFilter === value ? "bg-[#2563EB] text-white" : "bg-slate-100 text-slate-500"}`}>
                   {value}

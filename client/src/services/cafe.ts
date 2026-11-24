@@ -180,7 +180,7 @@ export const billCafeOrder = async (
   payload: { discountType: "none" | "percentage" | "fixed"; discountValue: number; paymentMethod: string },
 ) => axiosPrivate.patch(`/api/v1/cafe/orders/${orderId}/bill`, payload);
 
-export type CafeReservationStatus = "Confirmed" | "Seated" | "No-show" | "Cancelled";
+export type CafeReservationStatus = "Confirmed" | "Seated" | "Completed" | "No-show" | "Cancelled";
 
 export type CafeReservation = {
   _id: string;

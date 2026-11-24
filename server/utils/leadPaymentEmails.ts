@@ -372,6 +372,9 @@ const buildBookingConfirmedHtml = (lead, booking = {}) => {
   const service = String(booking.service || "Booking").trim();
   const currency = String(booking.currency || lead?.paymentCurrency || "INR").toUpperCase();
   const amount = Number(booking.amount) || 0;
+  // A free reservation (no payment collected) must not be told its payment is
+  // complete — the code card and details are all it needs.
+  const paid = booking.paid !== false;
   const details = (Array.isArray(booking.details) ? booking.details : [])
     .filter((row) => row && String(row.value ?? "").trim());
 
@@ -408,7 +411,7 @@ ${checkBadge()}
 </td></tr>
 <tr><td style="padding:26px 40px 30px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;">
 <p style="margin:0 0 16px;font-size:13px;font-weight:700;color:${NAVY};">Hello ${escapeHtml(lead?.fullName || "there")},</p>
-<p style="margin:0 0 18px;font-size:13px;color:#33475c;line-height:1.6;">Your payment is complete and your booking is confirmed. Here is your booking ID${lead?.companyName ? ` for ${escapeHtml(lead.companyName)}` : ""}:</p>
+<p style="margin:0 0 18px;font-size:13px;color:#33475c;line-height:1.6;">${paid ? "Your payment is complete and your booking is confirmed." : "Your reservation is confirmed."} Here is your booking ID${lead?.companyName ? ` for ${escapeHtml(lead.companyName)}` : ""}:</p>
 ${codeCard}
 ${pageHeading("Booking Details")}
 ${detailsTable}
@@ -445,7 +448,9 @@ export const sendLeadBookingConfirmedEmail = async (lead, booking = {}) => {
   const text = [
     `Hello ${lead.fullName || "there"},`,
     "",
-    `Your payment is complete and your ${service.toLowerCase()} is confirmed.`,
+    booking?.paid === false
+      ? `Your ${service.toLowerCase()} is confirmed.`
+      : `Your payment is complete and your ${service.toLowerCase()} is confirmed.`,
     "",
     `Booking ID: ${code.toUpperCase()}`,
     "Show this ID at the front desk to verify your booking and collect your visitor badge.",

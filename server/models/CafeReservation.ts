@@ -1,6 +1,8 @@
 import mongoose, { Schema, Document } from "mongoose";
 
-export const CAFE_RESERVATION_STATUSES = ["Confirmed", "Seated", "No-show", "Cancelled"] as const;
+// Seated → Completed is the checkout: settling the table's bill closes the
+// booking, so it stops offering "Take Order" and stops holding the table.
+export const CAFE_RESERVATION_STATUSES = ["Confirmed", "Seated", "Completed", "No-show", "Cancelled"] as const;
 export type CafeReservationStatus = (typeof CAFE_RESERVATION_STATUSES)[number];
 export const CAFE_RESERVATION_OPEN_STATUSES: CafeReservationStatus[] = ["Confirmed"];
 

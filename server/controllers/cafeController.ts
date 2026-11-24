@@ -77,6 +77,82 @@ const findOpenOrderForTable = (workspaceId: mongoose.Types.ObjectId, tableId: mo
         status: { $in: CAFE_OPEN_ORDER_STATUSES },
     });
 
+// A seated reservation's deposit rides onto the order for its table exactly
+// once. A cancelled order never collected money, so it must not keep the CR-
+// code marked as spent — otherwise voiding one test order silently loses the
+// guest's deposit and every later order bills full price.
+const findSeatedReservationDeposit = async (
+    workspaceId: mongoose.Types.ObjectId,
+    tableId: mongoose.Types.ObjectId | null | undefined,
+) => {
+    if (!tableId) return null;
+    const seatedReservation = await CafeReservation.findOne({
+        workspaceId,
+        tableId,
+        status: "Seated",
+        depositPaid: { $gt: 0 },
+    }).sort({ reservationAt: -1 }).select("reservationNumber depositPaid").lean();
+    if (!seatedReservation) return null;
+    const reservationCode = `CR-${seatedReservation.reservationNumber}`;
+    const alreadyApplied = await CafeOrder.exists({
+        workspaceId,
+        "advanceAdjustment.reservationCode": reservationCode,
+        status: { $ne: "Cancelled" },
+    });
+    if (alreadyApplied) return null;
+    return {
+        reservationCode,
+        advanceDeduction: roundMoney(Number(seatedReservation.depositPaid) || 0),
+    };
+};
+
+// Settling the bill is the guest's checkout. Without this the reservation stays
+// Seated forever: it keeps offering "Take Order", keeps the guest on the floor
+// plan as present, and never leaves today's service. Only a seated booking is
+// closed — a Confirmed one was never sat and still expires to No-show on its own.
+const checkOutReservationForOrder = async (workspaceId: mongoose.Types.ObjectId, order: any) => {
+    const code = order.advanceAdjustment?.reservationCode;
+    if (code) {
+        const reservationNumber = Number(String(code).replace(/^CR-/, ""));
+        if (Number.isFinite(reservationNumber)) {
+            const closed = await CafeReservation.updateOne(
+                { workspaceId, reservationNumber, status: "Seated" },
+                { $set: { status: "Completed" } },
+            );
+            if (closed.modifiedCount) return;
+        }
+    }
+    // Walk-in order at a reserved table: close whichever booking was seated there.
+    if (!order.tableId) return;
+    await CafeReservation.findOneAndUpdate(
+        { workspaceId, tableId: order.tableId, status: "Seated" },
+        { $set: { status: "Completed" } },
+        { sort: { reservationAt: -1 } },
+    );
+};
+
+// The deduction is stamped when the order is opened, but an order can be opened
+// before its guest is seated, and a row already sitting at 0 was never
+// re-checked. Retry whenever the order moves so the deposit still lands before
+// the bill is taken.
+const attachReservationDeposit = async (
+    order: any,
+    workspaceId: mongoose.Types.ObjectId,
+    userId: mongoose.Types.ObjectId | null,
+) => {
+    if (order.advanceAdjustment || (Number(order.advanceDeduction) || 0) > 0 || !order.tableId) return order;
+    const deposit = await findSeatedReservationDeposit(workspaceId, order.tableId);
+    if (!deposit) return order;
+    order.advanceDeduction = deposit.advanceDeduction;
+    order.advanceAdjustment = {
+        reservationCode: deposit.reservationCode,
+        amount: deposit.advanceDeduction,
+        appliedAt: new Date(),
+        appliedBy: userId,
+    };
+    return order;
+};
+
 export async function listCafeMenuItems(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
         const workspaceId = getWorkspaceObjectId(req);
@@ -459,7 +535,38 @@ export async function listCafeOrders(req: AuthenticatedRequest, res: Response, n
         if (to && !Number.isNaN(to.getTime())) dateFilter.$lte = to;
         if (Object.keys(dateFilter).length) filter.createdAt = dateFilter;
 
-        const orders = await CafeOrder.find(filter).sort({ orderNumber: -1 }).limit(500).lean();
+        let orders = await CafeOrder.find(filter).sort({ orderNumber: -1 }).limit(500).lean();
+
+        // Repair pass for open orders: one opened before its guest was seated
+        // carries no deposit, and no other read looks again — the guest would
+        // be billed full price. Resolve it once per table, and only for orders
+        // that still have nothing applied.
+        if (scope === "open") {
+            const depositsByTable: Record<string, Awaited<ReturnType<typeof findSeatedReservationDeposit>>> = {};
+            for (const order of orders) {
+                if (order.advanceAdjustment || (Number(order.advanceDeduction) || 0) > 0 || !order.tableId) continue;
+                const tableKey = String(order.tableId);
+                if (!(tableKey in depositsByTable)) {
+                    depositsByTable[tableKey] = await findSeatedReservationDeposit(workspaceId, order.tableId);
+                }
+                const deposit = depositsByTable[tableKey];
+                if (!deposit) continue;
+                const advanceAdjustment = {
+                    reservationCode: deposit.reservationCode,
+                    amount: deposit.advanceDeduction,
+                    appliedAt: new Date(),
+                    appliedBy: null,
+                };
+                const updated = await CafeOrder.updateOne(
+                    { _id: order._id, workspaceId, advanceDeduction: { $in: [0, null] } },
+                    { $set: { advanceDeduction: deposit.advanceDeduction, advanceAdjustment } },
+                );
+                if (!updated.modifiedCount) continue;
+                order.advanceDeduction = deposit.advanceDeduction;
+                (order as any).advanceAdjustment = advanceAdjustment;
+            }
+        }
+
         res.status(200).json({ success: true, message: "Orders loaded successfully.", data: orders });
     } catch (error) {
         next(error);
@@ -696,6 +803,7 @@ export async function createCafeOrder(req: AuthenticatedRequest, res: Response, 
                 openOrder.total = roundMoney(openOrder.subtotal + openOrder.taxAmount);
                 openOrder.status = "Placed";
                 if (!openOrder.waiterName) openOrder.waiterName = waiterName;
+                await attachReservationDeposit(openOrder, workspaceId, getOptionalUserObjectId(req));
                 await openOrder.save();
                 return res.status(200).json({ success: true, message: `Round ${roundNumber} sent to kitchen.`, data: openOrder });
             }
@@ -706,27 +814,22 @@ export async function createCafeOrder(req: AuthenticatedRequest, res: Response, 
         const latest = await CafeOrder.findOne({ workspaceId }).sort({ orderNumber: -1 }).select("orderNumber").lean();
 
         // A seated reservation's cover-charge deposit rides onto the first
-        // order opened for its table, once — a CafeOrder already carrying its
+        // order opened for its table, once — an order already carrying its
         // reservationCode means it's been applied, so a later walk-in order
         // at the same table doesn't deduct it again.
-        let advanceDeduction = 0;
-        let advanceAdjustment = null;
-        if (tableId) {
-            const seatedReservation = await CafeReservation.findOne({
-                workspaceId,
-                tableId: parseObjectId(tableId, "Invalid table."),
-                status: "Seated",
-                depositPaid: { $gt: 0 },
-            }).sort({ reservationAt: -1 }).select("reservationNumber depositPaid").lean();
-            if (seatedReservation) {
-                const reservationCode = `CR-${seatedReservation.reservationNumber}`;
-                const alreadyApplied = await CafeOrder.exists({ workspaceId, "advanceAdjustment.reservationCode": reservationCode });
-                if (!alreadyApplied) {
-                    advanceDeduction = roundMoney(Number(seatedReservation.depositPaid) || 0);
-                    advanceAdjustment = { reservationCode, amount: advanceDeduction, appliedAt: new Date(), appliedBy: getOptionalUserObjectId(req) };
-                }
+        const deposit = await findSeatedReservationDeposit(
+            workspaceId,
+            tableId ? parseObjectId(tableId, "Invalid table.") : null,
+        );
+        const advanceDeduction = deposit?.advanceDeduction || 0;
+        const advanceAdjustment = deposit
+            ? {
+                reservationCode: deposit.reservationCode,
+                amount: deposit.advanceDeduction,
+                appliedAt: new Date(),
+                appliedBy: getOptionalUserObjectId(req),
             }
-        }
+            : null;
 
         const order = await CafeOrder.create({
             workspaceId,
@@ -782,6 +885,7 @@ export async function updateCafeOrderStatus(req: AuthenticatedRequest, res: Resp
                     round.servedAt = new Date();
                 }
             });
+            await attachReservationDeposit(current, workspaceId, getOptionalUserObjectId(req));
         }
         await current.save();
 
@@ -905,6 +1009,7 @@ export async function billCafeOrder(req: AuthenticatedRequest, res: Response, ne
 
         const order = await CafeOrder.findOne({ _id: orderId, workspaceId, status: "Served" });
         if (!order) throw conflict("Only a served order can be settled.");
+        await attachReservationDeposit(order, workspaceId, getOptionalUserObjectId(req));
         const discountAmount = discountType === "percentage"
             ? roundMoney(order.subtotal * discountValue / 100)
             : discountType === "fixed"
@@ -923,6 +1028,7 @@ export async function billCafeOrder(req: AuthenticatedRequest, res: Response, ne
         order.paidAt = new Date();
         order.billedAt = order.paidAt;
         await order.save();
+        await checkOutReservationForOrder(workspaceId, order);
 
         res.status(200).json({ success: true, message: "Payment settled and table closed.", data: order });
     } catch (error) {

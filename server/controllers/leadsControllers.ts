@@ -619,7 +619,23 @@ const runFinalizeLeadBooking = async (lead, { roomId, bodyStart, bodyEnd, bodyAt
       });
       lead.bookingId = reservation._id;
       lead.bookingCode = `CR-${reservation.reservationNumber}`;
+      lead.bookingFailureReason = "";
+      lead.bookingFailedAt = null;
       await lead.save();
+      // Cover charge is paid — send the CR- booking ID like every other
+      // booking type does, otherwise the guest has paid and heard nothing.
+      sendLeadBookingConfirmedEmail(lead, {
+        bookingCode: lead.bookingCode,
+        service: "Cafe Table Reservation",
+        currency: lead.paymentCurrency || "INR",
+        amount: Number(reservation.depositPaid) || 0,
+        details: [
+          { label: "Guest name", value: lead.fullName || "" },
+          { label: "Date & time", value: formatBookingDateTime(reservation.reservationAt || reservationAt) },
+          { label: "Party size", value: `${partySize} guest(s)` },
+          { label: "Cover charge", value: "Adjustable against your food bill" },
+        ],
+      });
       return {
         alreadyFinalized: false,
         body: {
@@ -2861,6 +2877,19 @@ export const updateLeads = async (req, res, next) => {
             localLead.bookingId = reservation._id;
             localLead.bookingCode = `CR-${reservation.reservationNumber}`;
             await localLead.save();
+            // Confirm the reservation to the guest — a free reservation still
+            // produces a CR- code they need at the door. `paid: false` keeps
+            // the email from claiming a payment that never happened.
+            sendLeadBookingConfirmedEmail(localLead, {
+              bookingCode: localLead.bookingCode,
+              service: "Cafe Table Reservation",
+              paid: false,
+              details: [
+                { label: "Guest name", value: localLead.fullName || "" },
+                { label: "Date & time", value: formatBookingDateTime(reservationAt) },
+                { label: "Party size", value: `${partySize} guest(s)` },
+              ],
+            });
             await syncHostPanelStatusToNomads(leadId, hostWorkspaceId, "Accepted");
             return res.status(200).json({
               message: `Lead accepted — table reservation ${localLead.bookingCode} created.`,
@@ -2878,6 +2907,7 @@ export const updateLeads = async (req, res, next) => {
             cafePolicy.chargeBasis === "per_person" ? coverChargeAmount * partySize : coverChargeAmount,
           );
           let cafePaymentLinkUrl = "";
+          let cafeEmailSent = false;
           try {
             const paymentLinkResponse = await axios.post(
               `${MASTER_PANEL_BASE_URL}/api/hostpanel/booking-payment-links`,
@@ -2895,11 +2925,18 @@ export const updateLeads = async (req, res, next) => {
                 unitRate: coverChargeAmount,
                 description: "Cafe table reservation — advance cover charge",
                 paymentType: "booking",
-                sendEmail: false,
+                // The guest must receive the link to pay — MasterPanel's
+                // booking-payment email carries it (the generic accepted email
+                // does not fit a table cover charge).
+                sendEmail: true,
               },
               { headers: masterPanelHeaders(), timeout: 10000 },
             );
             cafePaymentLinkUrl = sanitizeValue(paymentLinkResponse?.data?.paymentLinkUrl);
+            // false when Stripe created the link but the mail bounced/was
+            // rejected — the host still needs the link, so say so instead of
+            // claiming it was emailed.
+            cafeEmailSent = paymentLinkResponse?.data?.emailSent !== false;
           } catch (error) {
             return res.status(error?.response?.status || 502).json({
               message:
@@ -2919,18 +2956,17 @@ export const updateLeads = async (req, res, next) => {
           localLead.paymentBaseAmount = coverAmount;
           localLead.paymentTotalAmount = coverAmount;
           await localLead.save();
-          sendLeadBookingConfirmedEmail(localLead, {
-            bookingCode: localLead.bookingCode,
-            service: "Cafe Table Reservation",
-            details: [
-              { label: "Guest name", value: localLead.fullName || "" },
-              { label: "Date & time", value: formatBookingDateTime(reservationAt) },
-              { label: "Party size", value: `${Number(localLead.noOfPeople) || Number(cafeMeta.attendees) || 1} guest(s)` },
-            ],
-          });
+          // No confirmation email here: the reservation (and its CR- code) is
+          // only created once the webhook finalizes the payment. The guest's
+          // email at this step is the payment link, sent by MasterPanel.
+          // sendLeadBookingConfirmedEmail would have been skipped anyway for
+          // having no booking code — see runFinalizeLeadBooking's cafe branch,
+          // which mails the CR- code after payment.
           await syncHostPanelStatusToNomads(leadId, hostWorkspaceId, "Accepted");
           return res.status(200).json({
-            message: `Lead accepted — advance cover charge ${coverAmount.toFixed(2)} payment link sent.`,
+            message: cafeEmailSent
+              ? `Lead accepted — advance cover charge ${coverAmount.toFixed(2)} payment link emailed to ${localLead.email}.`
+              : `Lead accepted — payment link created but the email failed. Share it manually: ${cafePaymentLinkUrl}`,
             lead: {
               _id: String(localLead._id),
               ...localLead.toObject(),

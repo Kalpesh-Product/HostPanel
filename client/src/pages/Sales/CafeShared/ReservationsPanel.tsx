@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { CalendarCheck, CalendarClock, Loader2, LogIn, Plus, Users, X, XCircle } from "lucide-react";
+import { CalendarCheck, CalendarClock, Loader2, LogIn, Plus, Receipt, Users, X, XCircle } from "lucide-react";
 import { useAppConfirm } from "../../../components/app/AppConfirmProvider";
 import {
   createCafeReservation,
@@ -26,15 +26,17 @@ const TOOLBAR =
 const TH = "px-3.5 py-2";
 const TD = "px-3.5 py-2 text-[12px] font-pmedium text-slate-900";
 
-const STATUS_TONE: Record<CafeReservationStatus, "blue" | "emerald" | "amber" | "red"> = {
+const STATUS_TONE: Record<CafeReservationStatus, "blue" | "emerald" | "slate" | "amber" | "red"> = {
   Confirmed: "blue",
   Seated: "emerald",
+  Completed: "slate",
   "No-show": "amber",
   Cancelled: "red",
 };
 const TONE_CLASS: Record<string, string> = {
   blue: "border-blue-200 bg-blue-50 text-blue-700",
   emerald: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  slate: "border-slate-200 bg-slate-50 text-slate-600",
   amber: "border-amber-200 bg-amber-50 text-amber-700",
   red: "border-red-200 bg-red-50 text-red-700",
 };
@@ -54,7 +56,9 @@ const dateKeyOf = (value: string | Date) => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 };
 
-const DATE_PILLS = ["Today", "Upcoming", "All"] as const;
+// Broadest scope first and selected by default: a host opening Reservations
+// wants to see everything that exists before narrowing to today's service.
+const DATE_PILLS = ["All", "Today", "Upcoming"] as const;
 type DatePill = (typeof DATE_PILLS)[number];
 
 const emptyRow = (colSpan: number, message: string) => (
@@ -91,7 +95,7 @@ export default function ReservationsPanel({
   // filter over this same list.
   const [reservations, setReservations] = useState<CafeReservation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [datePill, setDatePill] = useState<DatePill>("Today");
+  const [datePill, setDatePill] = useState<DatePill>("All");
   const [showCreate, setShowCreate] = useState(false);
   const [seatPicker, setSeatPicker] = useState<CafeReservation | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -123,7 +127,7 @@ export default function ReservationsPanel({
 
   const confirmedCount = visibleReservations.filter((r) => r.status === "Confirmed").length;
   const seatedCount = visibleReservations.filter((r) => r.status === "Seated").length;
-  const closedCount = visibleReservations.filter((r) => r.status === "No-show" || r.status === "Cancelled").length;
+  const closedCount = visibleReservations.filter((r) => r.status === "Completed" || r.status === "No-show" || r.status === "Cancelled").length;
 
   const seat = async (reservation: CafeReservation, tableId?: string) => {
     const finalTableId = reservation.tableId || tableId;
@@ -192,7 +196,7 @@ export default function ReservationsPanel({
           { key: "total", label: "Reservations", value: String(visibleReservations.length), icon: CalendarClock, cardClass: baseCardClass, iconClass: "bg-blue-50 text-blue-600" },
           { key: "confirmed", label: "Upcoming", value: String(confirmedCount), icon: CalendarCheck, cardClass: `${baseCardClass} border-l-4 border-l-blue-500`, iconClass: "bg-blue-50 text-blue-600" },
           { key: "seated", label: "Seated", value: String(seatedCount), icon: LogIn, cardClass: `${baseCardClass} border-l-4 border-l-emerald-500`, iconClass: "bg-emerald-50 text-emerald-600" },
-          { key: "closed", label: "No-show / Cancelled", value: String(closedCount), icon: XCircle, cardClass: `${baseCardClass} border-l-4 border-l-red-500`, iconClass: "bg-red-50 text-red-600" },
+          { key: "closed", label: "Completed / No-show / Cancelled", value: String(closedCount), icon: XCircle, cardClass: `${baseCardClass} border-l-4 border-l-red-500`, iconClass: "bg-red-50 text-red-600" },
         ].map((card) => {
           const Icon = card.icon;
           const labelToneClass =
@@ -266,6 +270,17 @@ export default function ReservationsPanel({
                       </span>
                     </td>
                     <td className="px-3.5 py-2 text-center">
+                      {reservation.status === "Seated" && onTakeOrder && (
+                        <button
+                          type="button"
+                          onClick={() => reservation.tableId && onTakeOrder(reservation, reservation.tableId)}
+                          disabled={busyId === reservation._id || !reservation.tableId}
+                          className={PRIMARY_BUTTON}
+                          title={reservation.tableId ? "Open this guest's order" : "Assign a table before taking an order"}
+                        >
+                          <Receipt size={13} /> Order
+                        </button>
+                      )}
                       {reservation.status === "Confirmed" && (
                         <div className="flex items-center justify-center gap-2">
                           <button type="button" onClick={() => handleSeatClick(reservation)} disabled={busyId === reservation._id} className={onTakeOrder ? PRIMARY_BUTTON : SECONDARY_BUTTON} title={onTakeOrder ? "Seat and take their order" : "Seat guest"}>
