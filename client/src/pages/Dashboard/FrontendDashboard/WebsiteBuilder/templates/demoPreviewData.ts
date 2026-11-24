@@ -2218,15 +2218,30 @@ const tinyHomeDemo: DemoBusiness = (() => {
 const cabinDemo: DemoBusiness = (() => {
   const base = DEMO_BUSINESSES.coLiving;
   const cdn = "https://cdn.prod.website-files.com/66fef51bb2a32743f5bfff90/";
-  const exterior = cdn + "66fef51bb2a32743f5bfffe9_clay-banks-UEhjiKh63Ek-unsplash.jpg";
-  const living = photo("photo-1543806053-7f9ac02e6631", 1200);
-  const kitchen = photo("photo-1586753701871-07e025659129", 1200);
-  const bedroom = photo("photo-1628394029749-ea3dcce4caa6", 1200);
-  const porch = photo("photo-1510798831971-661eb04b3739", 1200);
+  const cmsCdn = "https://cdn.prod.website-files.com/66fef51bb2a32743f5bfff97/";
+  const ref = (file: string) => cdn + file;
+  const cmsRef = (file: string) => cmsCdn + file;
+  // Reference photographs — the Bg-Row/Bg-third/Work_bg/Blog_bg/Insta-bg assets
+  // are near-white layout masks and must not be used as card imagery.
+  const exterior = ref("66fef51bb2a32743f5bfffe9_clay-banks-UEhjiKh63Ek-unsplash.jpg");
+  const discovery1 = ref("66fef51bb2a32743f5c00045_clay-banks-Kdmx7BVKfBI-unsplash.jpg");
+  const discovery2 = ref("66fef51bb2a32743f5c00049_clay-banks-haJdK-oucKg-unsplash.jpg");
+  const discovery3 = ref("66fef51bb2a32743f5c00044_clay-banks-su9IJ9K_f2I-unsplash.jpg");
+  const amenity1 = ref("66fef51bb2a32743f5c0004c_clay-banks-D-KyoOIZtmM-unsplash.jpg");
+  const amenity2 = ref("66fef51bb2a32743f5c000d0_clay-banks-KjkZqlBayFc-unsplash.jpg");
+  const amenity3 = ref("66fef51bb2a32743f5c00096_clay-banks-6LSKem6Fkt4-unsplash.jpg");
+  const cabin1 = cmsRef("66fef51bb2a32743f5c00015_3d-rendering-wooden-house%20(1).jpg");
+  const cabin2 = cmsRef("66fef51bb2a32743f5c00014_3d-rendering-wooden-house%20(2).jpg");
+  const cabin3 = cmsRef("66fef51bb2a32743f5bfff9a_3d-rendering-wooden-house%20(3).jpg");
+  const slider1 = ref("66fef51bb2a32743f5c000d4_Slider_1.jpg");
+  const slider2 = ref("66fef51bb2a32743f5c000da_Slider_2.jpg");
+  const insta1 = ref("66fef51bb2a32743f5c000a6_Insta-1.jpg");
+  const insta2 = ref("66fef51bb2a32743f5c000a7_Insta-2.jpg");
+  const insta3 = ref("66fef51bb2a32743f5c000a5_Insta-3.jpg");
   const rooms = [
-    { title: "Woodland Studio", price: "$1,250", priceUnit: "per month", description: "A furnished studio for independent living, with a private kitchenette and a quiet view of the trees.", images: [bedroom, kitchen, exterior].map((url) => ({ url })), occupancy: "single", bathroom: "ensuite", furnished: true, featured: true, enabled: true, features: ["Private kitchenette", "Wi-Fi", "Ensuite bathroom", "Garden access"] },
-    { title: "Garden Room", price: "$950", priceUnit: "per month", description: "Your own peaceful room, with a shared kitchen, welcoming common spaces, and a garden to enjoy.", images: [living, bedroom].map((url) => ({ url })), occupancy: "single", bathroom: "shared", furnished: true, enabled: true, features: ["Furnished room", "Shared kitchen", "Housekeeping", "Wi-Fi"] },
-    { title: "Forest Cabin", price: "$1,650", priceUnit: "per month", description: "A home for two with a private kitchen, a covered porch, and access to our community spaces.", images: [porch, bedroom, kitchen].map((url) => ({ url })), occupancy: "double", bathroom: "ensuite", furnished: true, enabled: true, features: ["Private kitchen", "Covered porch", "Wi-Fi", "Community spaces"] },
+    { title: "Woodland Studio", price: "$1,250", priceUnit: "per month", description: "A furnished studio for independent living, with a private kitchenette and a quiet view of the trees.", images: [cabin1, discovery1, exterior].map((url) => ({ url })), occupancy: "single", bathroom: "ensuite", furnished: true, featured: true, enabled: true, features: ["Private kitchenette", "Wi-Fi", "Ensuite bathroom", "Garden access"] },
+    { title: "Garden Room", price: "$950", priceUnit: "per month", description: "Your own peaceful room, with a shared kitchen, welcoming common spaces, and a garden to enjoy.", images: [discovery2, discovery3, amenity2].map((url) => ({ url })), occupancy: "single", bathroom: "shared", furnished: true, enabled: true, features: ["Furnished room", "Shared kitchen", "Housekeeping", "Wi-Fi"] },
+    { title: "Forest Cabin", price: "$1,650", priceUnit: "per month", description: "A home for two with a private kitchen, a covered porch, and access to our community spaces.", images: [amenity1, amenity3, cabin2].map((url) => ({ url })), occupancy: "double", bathroom: "ensuite", furnished: true, enabled: true, features: ["Private kitchen", "Covered porch", "Wi-Fi", "Community spaces"] },
   ];
   return {
     ...base,
@@ -2234,9 +2249,9 @@ const cabinDemo: DemoBusiness = (() => {
     title: "Escape",
     subTitle: "Find your place among the trees. Furnished homes, shared moments, and space to breathe.",
     cta: "Book a stay",
-    heroImages: [exterior, porch, bedroom],
-    gallery: [living, kitchen, bedroom, porch, exterior, photo("photo-1543806053-7f9ac02e6631", 1200)],
-    aboutImages: [living, porch, bedroom],
+    heroImages: [exterior, slider1, slider2],
+    gallery: [discovery1, discovery2, discovery3, amenity1, cabin1, slider2, cabin3, insta1, insta2, insta3],
+    aboutImages: [discovery1, discovery3, amenity1],
     aboutTitle: "A place to slow down, settle in, and feel a little closer to nature.",
     about: ["Make room for slow mornings, new friendships, and a home that feels like yours from the first day.", "Our furnished homes bring private space and shared living together, with nature on your doorstep."],
     aboutPageStory: "Cabin grew from a simple idea. Create comfortable homes where people can live independently, find community, and enjoy more time outside.",
@@ -2255,7 +2270,7 @@ const cabinDemo: DemoBusiness = (() => {
       { question: "How long can I stay?", answer: "Tell us your planned move-in date and length of stay. We will share the available homes and current terms." },
       { question: "Where are you located?", answer: "Our homes are in Catskill, New York, close to woodland walks and local cafés. Contact us for directions." },
     ],
-    page: { ...base.page, homeCardHeading: "Cabin homes", homeCardSubText: "Thoughtfully furnished homes, close to nature.", heroHeading: "Find your home", heroSubHeading: "Private rooms, studios, and cabins with a community to come home to.", heroImage: exterior, cardImage: porch },
+    page: { ...base.page, homeCardHeading: "Cabin homes", homeCardSubText: "Thoughtfully furnished homes, close to nature.", heroHeading: "Find your home", heroSubHeading: "Private rooms, studios, and cabins with a community to come home to.", heroImage: exterior, cardImage: amenity1 },
     extra: { ...base.extra, coLivingRooms: rooms },
     settings: { ...base.settings, tourBooking: { enabled: false }, stayPolicy: { checkInTime: "15:00", checkOutTime: "11:00", houseRules: ["Quiet hours after 10 PM", "No smoking indoors", "Leave shared spaces ready for the next resident"] } },
   };

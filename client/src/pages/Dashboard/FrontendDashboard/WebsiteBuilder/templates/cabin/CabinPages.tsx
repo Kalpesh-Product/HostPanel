@@ -1,7 +1,8 @@
-import { getCareersJobMeta, getCareersJobTitle, getMediaSrc } from "../useWebsiteTemplateData";
+import { getCareersJobMeta, getCareersJobTitle } from "../useWebsiteTemplateData";
 import { ApplyForm, MessageForm, RoleSection } from "../shared/TplForms";
 import { FaqSection } from "../shared/TplParts";
 import { useCabin } from "./CabinContext";
+import { cabinFallback, cabinImage } from "./cabinMedia";
 import { CabinHours, CabinImage, CabinPageHero } from "./CabinUI";
 
 export function AboutPage() {
@@ -13,7 +14,7 @@ export function AboutPage() {
   return (
     <>
       <CabinPageHero title={draft.aboutPageHeading || navLabel("about", "About us")}
-        body={draft.aboutPageIntro} image={photo("about.image", getMediaSrc(images[0]) || t.heroImages[0] || "")} />
+        body={draft.aboutPageIntro} image={photo("about.image", cabinImage(images[0], t.heroImages[0], cabinFallback(0)))} />
       <section className="cabin-section cabin-shell">
         <div className="cabin-split">
           <div>
@@ -23,13 +24,13 @@ export function AboutPage() {
               <article className="cabin-narrative" key={title}><h3>{title}</h3><p>{body}</p></article>
             ))}
           </div>
-          <CabinImage src={photo("about.detail", getMediaSrc(images[1]) || t.galleryItems[0] || "")} />
+          <CabinImage src={photo("about.detail", cabinImage(images[1], t.galleryItems[0], cabinFallback(1)))} fallback={cabinFallback(1)} />
         </div>
         {people.length ? <div className="cabin-related">
           <h2>{draft.aboutPageTeamHeading || "Meet our team"}</h2>
           <div className="cabin-cards">
             {people.map((person: any, index: number) => <article key={index}>
-              <CabinImage src={getMediaSrc(person.image)} />
+              <CabinImage src={cabinImage(person.image, cabinFallback(index))} fallback={cabinFallback(index)} />
               <div><h3>{person.name || person.title}</h3><p>{person.role || person.bio || person.description}</p></div>
             </article>)}
           </div>
@@ -44,11 +45,11 @@ export function GalleryPage() {
   const { t, draft, navLabel } = useCabin();
   return (
     <>
-      <CabinPageHero title={draft.galleryPageHeading || navLabel("gallery", "Gallery")} image={t.galleryItems[0] || t.heroImages[0]} />
+      <CabinPageHero title={draft.galleryPageHeading || navLabel("gallery", "Gallery")} image={cabinImage(t.galleryItems[0], t.heroImages[0])} />
       <section className="cabin-section cabin-shell">
         {t.galleryItems.length ? <div className="cabin-gallery">
           {t.galleryItems.map((image: string, index: number) => <button key={image + index} type="button"
-            aria-label={"Open gallery photo " + (index + 1)} onClick={() => t.openGalleryViewer(index)}><CabinImage src={image} /></button>)}
+            aria-label={"Open gallery photo " + (index + 1)} onClick={() => t.openGalleryViewer(index)}><CabinImage src={image} fallback={cabinFallback(index)} /></button>)}
         </div> : <p>No photos have been added yet.</p>}
       </section>
     </>
@@ -60,7 +61,7 @@ export function ReviewsPage() {
   return (
     <>
       <CabinPageHero title={draft.testimonialsPageHeading || navLabel("testimonials", "Guest reviews")}
-        body={draft.testimonialsPageIntro} image={t.heroImages[0]} />
+        body={draft.testimonialsPageIntro} image={cabinImage(t.heroImages[0], cabinFallback(2))} />
       <section className="cabin-section cabin-shell cabin-center">
         {rating.count ? <p>{rating.avg.toFixed(1)} / 5 from {rating.count} {rating.count === 1 ? "rating" : "ratings"}</p> : null}
         <div className="cabin-reviews">
@@ -81,7 +82,7 @@ export function ContactPage() {
   return (
     <>
       <CabinPageHero title={draft.contactPageHeading || navLabel("contact", "Contact")}
-        body={draft.contactPageIntro} image={t.heroImages[0]} />
+        body={draft.contactPageIntro} image={cabinImage(t.heroImages[0], cabinFallback(2))} />
       <section className="cabin-section cabin-shell">
         <div className="cabin-split">
           <div>
@@ -107,7 +108,7 @@ export function PartnerPage() {
   const { t, draft, navLabel } = useCabin();
   return (
     <>
-      <CabinPageHero title={t.partnerPageHeading || navLabel("partner", "Partner with us")} body={t.partnerPageContent} image={t.heroImages[0]} />
+      <CabinPageHero title={t.partnerPageHeading || navLabel("partner", "Partner with us")} body={t.partnerPageContent} image={cabinImage(t.heroImages[0], cabinFallback(2))} />
       {draft.partnerEnableInquiryForm !== false ? <section className="cabin-section cabin-shell">
         <div className="cabin-form cabin-narrow cabin-partner-form">
           <h2>{t.partnerFormTitle || "Start a conversation"}</h2>
@@ -136,7 +137,7 @@ export function CareersPage() {
   }
   return (
     <>
-      <CabinPageHero title={draft.careersPageHeading || navLabel("careers", "Careers")} body={draft.careersPageIntro} image={t.heroImages[0]} />
+      <CabinPageHero title={draft.careersPageHeading || navLabel("careers", "Careers")} body={draft.careersPageIntro} image={cabinImage(t.heroImages[0], cabinFallback(2))} />
       <section className="cabin-section cabin-shell">
         {t.careersJobsLoading ? <p>Loading roles…</p> : t.careersJobs.length ? (
           <ul className="cabin-job-list">
