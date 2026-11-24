@@ -1728,7 +1728,7 @@ export function LeaveRequestsPage() {
               })}
             </div>
 
-            {/* 4. DEPARTMENT ABSENCE CARDS */}
+            {/* 4. DEPARTMENT ABSENCE CARDS
             {showDepartmentCards && (
               <div
                 data-tour="leaves-department-cards"
@@ -1766,7 +1766,7 @@ export function LeaveRequestsPage() {
                   );
                 })}
               </div>
-            )}
+            )} */}
 
             {/* 5. DATA PANEL */}
             <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">

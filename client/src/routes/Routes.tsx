@@ -905,6 +905,14 @@ export const routes = createBrowserRouter([
                 element: <OrganizationPage />,
               },
               {
+                path: "core-modules/organization-management/users",
+                element: <OrganizationPage modulePage="users" />,
+              },
+              {
+                path: "core-modules/organization-management/departments",
+                element: <OrganizationPage modulePage="departments" />,
+              },
+              {
                 path: "core-modules/access-grants",
                 element: <AccessGrantsDashboard />,
               },
@@ -1139,7 +1147,7 @@ export const routes = createBrowserRouter([
                 element: (
                   <RoomManagementPage
                     roomType="Room"
-                    title="Co-living Management"
+                    title="Reservations & Reports "
                     noun="Room"
                   />
                 ),
@@ -1812,6 +1820,22 @@ export const routes = createBrowserRouter([
                   {
                     path: "visitor-management/frontdesk-action",
                     element: <VisitorManagement />,
+                  },
+                  {
+                    path: "visitor-management/daily",
+                    element: <VisitorManagement modulePage="daily" />,
+                  },
+                  {
+                    path: "visitor-management/history",
+                    element: <VisitorManagement modulePage="history" />,
+                  },
+                  {
+                    path: "visitor-management/bookings",
+                    element: <VisitorManagement modulePage="bookings" />,
+                  },
+                  {
+                    path: "visitor-management/clients",
+                    element: <VisitorManagement modulePage="clients" />,
                   },
                   {
                     path: "manage-visitors",

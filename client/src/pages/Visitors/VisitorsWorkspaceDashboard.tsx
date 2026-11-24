@@ -81,17 +81,22 @@ function ChartCard({
   title,
   subtitle,
   action,
+  dataTour,
   bodyClassName = "p-5",
   children,
 }: {
   title: string;
   subtitle?: string;
   action?: ReactNode;
+  dataTour?: string;
   bodyClassName?: string;
   children: ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <div
+      data-tour={dataTour}
+      className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+    >
       <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
         <div className="min-w-0">
           <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">
@@ -426,7 +431,10 @@ export default function VisitorsWorkspaceDashboard() {
   return (
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
-        <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+        <div
+          data-tour="visitors-dashboard-banner"
+          className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]"
+        >
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img
               src={visitorBannerImage}
@@ -497,7 +505,10 @@ export default function VisitorsWorkspaceDashboard() {
             ))}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div
+            data-tour="visitors-dashboard-stats"
+            className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+          >
             <StatTile
               icon={<ContactRound size={20} />}
               label="Live visitors"
@@ -551,7 +562,7 @@ export default function VisitorsWorkspaceDashboard() {
           </div>
         )}
 
-        <div className="mb-6">
+        <div data-tour="visitors-dashboard-modules" className="mb-6">
           <div className="mb-3">
             <p className="text-sm font-pmedium text-slate-900">
               Manage visitor operations
@@ -594,6 +605,7 @@ export default function VisitorsWorkspaceDashboard() {
           <>
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
               <ChartCard
+                dataTour="visitors-dashboard-trend"
                 title="Monthly Visitor Trend"
                 subtitle="All tracked visitor logs created during the last 12 calendar months."
               >
@@ -603,6 +615,7 @@ export default function VisitorsWorkspaceDashboard() {
                 />
               </ChartCard>
               <ChartCard
+                dataTour="visitors-dashboard-purposes"
                 title="Visit Purposes"
                 subtitle="Tracked visitors grouped by their recorded purpose of visit."
               >
@@ -625,6 +638,7 @@ export default function VisitorsWorkspaceDashboard() {
 
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
               <ChartCard
+                dataTour="visitors-dashboard-hosts"
                 title="Visitors by Host"
                 subtitle="Tracked visitors grouped by the member hosting them."
               >
@@ -643,7 +657,7 @@ export default function VisitorsWorkspaceDashboard() {
                   <Empty>No hosted visits are recorded yet.</Empty>
                 )}
               </ChartCard>
-              <ChartCard title="Module Snapshot">
+              <ChartCard dataTour="visitors-dashboard-snapshot" title="Module Snapshot">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {VISITOR_DASHBOARD_MODULES.map((module, index) => {
                     const Icon = module.icon;
@@ -678,6 +692,7 @@ export default function VisitorsWorkspaceDashboard() {
 
             <div className="mb-4 grid grid-cols-1 gap-4">
               <ChartCard
+                dataTour="visitors-dashboard-recent"
                 title="Recent Visitors"
                 subtitle="The latest visitor logs across history, live, and upcoming lists."
                 action={<RecordCountChip count={allTrackedVisitors.length} />}
@@ -753,6 +768,7 @@ export default function VisitorsWorkspaceDashboard() {
               </ChartCard>
 
               <ChartCard
+                dataTour="visitors-dashboard-pending"
                 title="Pending Approvals"
                 subtitle="Visitor requests waiting for a host or manager decision."
                 action={<RecordCountChip count={lists.pendingVisitors.length} />}

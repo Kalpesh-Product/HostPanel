@@ -441,7 +441,7 @@ export function FinancePage({ modulePage }: { modulePage?: FinanceModulePage } =
           >
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                Executive Finance Hub
+                {modulePage ? tabs.find((tab) => tab.key === modulePage)?.label : 'Executive Finance Hub'}
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
                 Master control over budgets, spending audits, and document tracking.

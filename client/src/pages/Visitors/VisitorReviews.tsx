@@ -167,6 +167,7 @@ const VisitorReviews = () => {
   return (
     <>
       <div>
+        <div data-tour="visitor-reviews-summary">
         <WidgetSection layout={2}>
           <DataCard
             data={reviews.length}
@@ -179,8 +180,9 @@ const VisitorReviews = () => {
             description=" Ratings"
           />
         </WidgetSection>
+        </div>
 
-        <div className="p-4">
+        <div data-tour="visitor-reviews-table" className="p-4">
           <PageFrame>
             <AgTable
               search={true}

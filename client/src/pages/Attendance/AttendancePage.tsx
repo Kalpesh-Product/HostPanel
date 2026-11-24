@@ -1247,7 +1247,7 @@ export function AttendancePage() {
         : isAdminProfile
           ? "Assigned Department Attendance"
           : isOwnerProfile || isSuperAdminProfile
-            ? "Company Attendance"
+            ? "Team Attendance"
             : "Team Attendance";
   const attendanceModuleDescription =
     activeTab === "my-attendance"

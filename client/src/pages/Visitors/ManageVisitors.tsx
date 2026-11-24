@@ -184,6 +184,7 @@ const ManageVisitors = () => {
           <ReportExportButton onClick={() => setShowExportModal(true)} />
         </div>
 
+        <div data-tour="visitor-records-table">
         <YearWiseTable
           dateColumn={"checkIn"}
           search
@@ -207,6 +208,7 @@ const ManageVisitors = () => {
             }))}
           columns={visitorsColumns}
         />
+        </div>
       </PageFrame>
 
       <ExportReportModal

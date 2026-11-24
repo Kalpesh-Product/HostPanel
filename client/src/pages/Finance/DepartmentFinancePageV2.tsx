@@ -1235,7 +1235,7 @@ export function DepartmentFinancePageV2({
           >
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                {departmentLabel} Finance Management
+                {modulePage ? tabs.find((tab) => tab.key === modulePage)?.label : `${departmentLabel} Finance Management`}
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
                 Track projected budgets, extra requests, and expense history for your department for {selectedFY}.

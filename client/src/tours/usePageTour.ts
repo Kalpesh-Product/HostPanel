@@ -83,10 +83,16 @@ const buildSteps = (tour: NonNullable<ReturnType<typeof getBasicPageTour>>): Tou
     '[data-tour="page-content"] table, [data-tour="page-content"] [role="grid"], [data-tour="page-content"] .ag-root',
   );
   const guideButton = findVisible('[data-tour="page-guide-button"]');
+  // A page can point the opening step at its whole header card (title plus
+  // context) instead of just the heading text, so the first step highlights
+  // the full card the user sees at the top of the page.
+  const introTarget = tour.introSelector
+    ? findVisible(tour.introSelector)
+    : null;
 
   const steps: TourDriveStep[] = isEditorTour && activeEditorPage !== "home" ? [] : [
     {
-      element: pageHeading || pageContent || undefined,
+      element: introTarget || pageHeading || pageContent || undefined,
       popover: {
         title: tour.title,
         description: tour.description,
@@ -114,12 +120,14 @@ const buildSteps = (tour: NonNullable<ReturnType<typeof getBasicPageTour>>): Tou
         });
       });
 
-    if (tour.replayHint && guideButton) {
+    // Every page tour ends on the Guide button so users learn they can replay
+    // the walkthrough from there.
+    if (guideButton) {
       steps.push({
         element: guideButton,
         popover: {
-          title: "Replay any page guide",
-          description: "Select Guide beside a page heading whenever you want to replay that page's detailed walkthrough.",
+          title: "Need this guide again?",
+          description: "Select Guide beside the page heading whenever you want to replay this page's tour.",
           side: "bottom",
           align: "end",
         },

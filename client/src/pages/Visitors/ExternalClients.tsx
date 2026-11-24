@@ -233,6 +233,7 @@ const ExternalClients = () => {
   return (
     <div>
       <PageFrame>
+        <div data-tour="visitor-records-table">
         <YearWiseTable
           search={true}
           tableTitle={"External Clients"}
@@ -271,6 +272,7 @@ const ExternalClients = () => {
           columns={visitorsColumns}
           handleClick={handleAddAsset}
         />
+        </div>
       </PageFrame>
       <MuiModal
         open={isModalOpen}

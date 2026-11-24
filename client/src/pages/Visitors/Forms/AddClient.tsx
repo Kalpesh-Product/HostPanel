@@ -68,7 +68,7 @@ const AddClient = () => {
     <PageFrame>
       <div className="max-w-xl mx-auto py-6">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
+        <div data-tour="visitor-add-header" className="flex items-center gap-3 mb-6">
           <button
             type="button"
             onClick={() => navigate(-1)}
@@ -82,7 +82,7 @@ const AddClient = () => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        <form data-tour="visitor-add-form" onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           {/* Client type toggle */}
           <div className="space-y-2">
             <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Client Type</label>
@@ -174,7 +174,7 @@ const AddClient = () => {
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3 pt-2">
+          <div data-tour="visitor-add-actions" className="flex gap-3 pt-2">
             <button
               type="button"
               onClick={() => navigate(-1)}

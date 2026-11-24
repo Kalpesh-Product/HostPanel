@@ -70,15 +70,20 @@ function ChartCard({
   action,
   bodyClassName = "p-5",
   children,
+  dataTour,
 }: {
   title: string;
   subtitle?: string;
   action?: ReactNode;
   bodyClassName?: string;
   children: ReactNode;
+  dataTour?: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <div
+      data-tour={dataTour}
+      className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+    >
       <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
         <div className="min-w-0">
           <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">
@@ -438,7 +443,10 @@ const WonoNomad = () => {
   return (
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
-        <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+        <div
+          data-tour="wono-nomad-banner"
+          className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]"
+        >
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img
               src={coworkingBannerImage}
@@ -509,7 +517,10 @@ const WonoNomad = () => {
             ))}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div
+            data-tour="wono-nomad-stats"
+            className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+          >
             <StatTile
               icon={<Layers3 size={20} />}
               label="Nomad listings"
@@ -572,7 +583,7 @@ const WonoNomad = () => {
           </div>
         )}
 
-        <div className="mb-6">
+        <div data-tour="wono-nomad-modules" className="mb-6">
           <div className="mb-3">
             <p className="text-sm font-pmedium text-slate-900">
               Manage nomad listings
@@ -614,7 +625,9 @@ const WonoNomad = () => {
                         ? "wono-nomad-reviews"
                         : module.id === "nomads-leads"
                           ? "wono-nomad-leads"
-                          : undefined
+                          : module.id === "nomad-verify-business"
+                            ? "wono-nomad-verify-business"
+                            : undefined
                   }
                   className="grid"
                 >
@@ -636,6 +649,7 @@ const WonoNomad = () => {
           <>
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
               <ChartCard
+                dataTour="wono-nomad-lead-trend"
                 title="Nomads Leads Trend"
                 subtitle="Nomads enquiries received during the last 12 calendar months."
               >
@@ -645,6 +659,7 @@ const WonoNomad = () => {
                 />
               </ChartCard>
               <ChartCard
+                dataTour="wono-nomad-pipeline"
                 title="Lead Pipeline"
                 subtitle="Current enquiry distribution by stage."
               >
@@ -669,6 +684,7 @@ const WonoNomad = () => {
 
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
               <ChartCard
+                dataTour="wono-nomad-types"
                 title="Listings by Product Type"
                 subtitle="Non-deleted listings grouped by their product type."
               >
@@ -690,7 +706,7 @@ const WonoNomad = () => {
                   </Empty>
                 )}
               </ChartCard>
-              <ChartCard title="Module Snapshot">
+              <ChartCard dataTour="wono-nomad-snapshot" title="Module Snapshot">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {NOMAD_DASHBOARD_MODULES.map((module, index) => {
                     const Icon = module.icon;
@@ -725,6 +741,7 @@ const WonoNomad = () => {
 
             <div className="grid grid-cols-1 gap-4">
               <ChartCard
+                dataTour="wono-nomad-recent-leads"
                 title="Recent Nomads Leads"
                 subtitle="The latest enquiries received from your listings."
                 action={<RecordCountChip count={leads.length} />}
@@ -780,6 +797,7 @@ const WonoNomad = () => {
               </ChartCard>
 
               <ChartCard
+                dataTour="wono-nomad-attention"
                 title="Listings Needing Attention"
                 subtitle="Listings not currently active on the Nomads website."
                 action={<RecordCountChip count={stats.inactiveListings} />}

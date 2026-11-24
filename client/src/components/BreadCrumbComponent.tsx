@@ -645,6 +645,38 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/visitors/visitor-management/daily",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Visitor Management", path: "/visitors/dashboard" },
+      { label: "Daily Visitors" },
+    ],
+  },
+  {
+    pattern: "/visitors/visitor-management/history",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Visitor Management", path: "/visitors/dashboard" },
+      { label: "Visitor History" },
+    ],
+  },
+  {
+    pattern: "/visitors/visitor-management/bookings",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Visitor Management", path: "/visitors/dashboard" },
+      { label: "Bookings" },
+    ],
+  },
+  {
+    pattern: "/visitors/visitor-management/clients",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Visitor Management", path: "/visitors/dashboard" },
+      { label: "Clients" },
+    ],
+  },
+  {
     pattern: "/visitors/visitor-management/frontdesk-action",
     crumbs: [
       { label: SECTION_LABELS.keyApps, path: "/key-apps" },
@@ -1253,6 +1285,28 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
         path: "/core-modules/organization-management",
       },
       { label: "Workspace" },
+    ],
+  },
+  {
+    pattern: "/core-modules/organization-management/users",
+    crumbs: [
+      { label: SECTION_LABELS.founderCore, path: "/core-modules" },
+      {
+        label: "Organization Management",
+        path: "/core-modules/organization-management",
+      },
+      { label: "Platform Users" },
+    ],
+  },
+  {
+    pattern: "/core-modules/organization-management/departments",
+    crumbs: [
+      { label: SECTION_LABELS.founderCore, path: "/core-modules" },
+      {
+        label: "Organization Management",
+        path: "/core-modules/organization-management",
+      },
+      { label: "Departments" },
     ],
   },
   {

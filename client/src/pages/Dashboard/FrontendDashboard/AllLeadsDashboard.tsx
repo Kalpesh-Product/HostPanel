@@ -78,16 +78,21 @@ function ChartCard({
   subtitle,
   action,
   bodyClassName = "p-5",
+  dataTour,
   children,
 }: {
   title: string;
   subtitle?: string;
   action?: ReactNode;
   bodyClassName?: string;
+  dataTour?: string;
   children: ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <div
+      data-tour={dataTour}
+      className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+    >
       <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
         <div className="min-w-0">
           <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">
@@ -295,7 +300,10 @@ const AllLeadsDashboard = () => {
   return (
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
-        <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+        <div
+          data-tour="al-dashboard-banner"
+          className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]"
+        >
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img
               src={salesBannerImage}
@@ -359,7 +367,10 @@ const AllLeadsDashboard = () => {
             ))}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div
+            data-tour="al-dashboard-stats"
+            className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+          >
             <StatTile
               icon={<Target size={20} />}
               label="Total leads"
@@ -401,7 +412,7 @@ const AllLeadsDashboard = () => {
           </div>
         )}
 
-        <div className="mb-6">
+        <div data-tour="al-dashboard-modules" className="mb-6">
           <div className="mb-3">
             <p className="text-sm font-pmedium text-slate-900">Manage all leads</p>
             <p className="mt-1 text-[10px] font-pmedium text-slate-500">
@@ -425,6 +436,7 @@ const AllLeadsDashboard = () => {
           <>
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
               <ChartCard
+                dataTour="al-dashboard-trend"
                 title="Monthly Leads Trend"
                 subtitle="Website versus Nomads leads received during the last 12 calendar months."
               >
@@ -436,7 +448,7 @@ const AllLeadsDashboard = () => {
                   ]}
                 />
               </ChartCard>
-              <ChartCard title="Leads by Source" subtitle="Current split between website and Nomads enquiries.">
+              <ChartCard dataTour="al-dashboard-source" title="Leads by Source" subtitle="Current split between website and Nomads enquiries.">
                 {sourceMix.length ? (
                   <DonutChart
                     centerLabel="Leads"
@@ -453,7 +465,7 @@ const AllLeadsDashboard = () => {
             </div>
 
             <div className="mb-4 grid grid-cols-1 gap-4">
-              <ChartCard title="Status Breakdown" subtitle="All leads grouped by their current follow-up status.">
+              <ChartCard dataTour="al-dashboard-status" title="Status Breakdown" subtitle="All leads grouped by their current follow-up status.">
                 {statusBreakdown.length ? (
                   <DonutChart
                     centerLabel="Leads"
@@ -471,6 +483,7 @@ const AllLeadsDashboard = () => {
 
             <div className="grid grid-cols-1 gap-4">
               <ChartCard
+                dataTour="al-dashboard-recent"
                 title="Recent Leads"
                 subtitle="The latest enquiries received across website and Nomads listings."
                 action={<RecordCountChip count={leads.length} />}

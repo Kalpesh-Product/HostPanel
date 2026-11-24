@@ -61,16 +61,21 @@ function ChartCard({
   subtitle,
   action,
   bodyClassName = "p-5",
+  dataTour,
   children,
 }: {
   title: string;
   subtitle?: string;
   action?: ReactNode;
   bodyClassName?: string;
+  dataTour?: string;
   children: ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <div
+      data-tour={dataTour}
+      className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+    >
       <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
         <div className="min-w-0">
           <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">
@@ -401,7 +406,10 @@ const WebsiteBuilderDashboard = () => {
   return (
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
-        <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+        <div
+          data-tour="wb-dashboard-banner"
+          className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]"
+        >
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img
               src={techBannerImage}
@@ -465,7 +473,10 @@ const WebsiteBuilderDashboard = () => {
             ))}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div
+            data-tour="wb-dashboard-stats"
+            className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+          >
             <StatTile
               icon={<Globe size={20} />}
               label="Website status"
@@ -529,7 +540,7 @@ const WebsiteBuilderDashboard = () => {
           </div>
         )}
 
-        <div className="mb-6">
+        <div data-tour="wb-dashboard-modules" className="mb-6">
           <div className="mb-3">
             <p className="text-sm font-pmedium text-slate-900">Manage website builder</p>
             <p className="mt-1 text-[10px] font-pmedium text-slate-500">
@@ -575,6 +586,7 @@ const WebsiteBuilderDashboard = () => {
           <>
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
               <ChartCard
+                dataTour="wb-dashboard-lead-trend"
                 title="Website Leads Trend"
                 subtitle="Enquiries received through your website during the last 12 calendar months."
               >
@@ -583,7 +595,7 @@ const WebsiteBuilderDashboard = () => {
                   series={[{ name: "Website leads", data: monthlyLeads }]}
                 />
               </ChartCard>
-              <ChartCard title="Lead Pipeline" subtitle="Current enquiry distribution by stage.">
+              <ChartCard dataTour="wb-dashboard-lead-pipeline" title="Lead Pipeline" subtitle="Current enquiry distribution by stage.">
                 {leadPipeline.length ? (
                   <DonutChart
                     centerLabel="Leads"
@@ -600,7 +612,7 @@ const WebsiteBuilderDashboard = () => {
             </div>
 
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
-              <ChartCard title="Review Status Breakdown" subtitle="Visitor reviews grouped by moderation status.">
+              <ChartCard dataTour="wb-dashboard-review-status" title="Review Status Breakdown" subtitle="Visitor reviews grouped by moderation status.">
                 {reviewBreakdown.length ? (
                   <DonutChart
                     centerLabel="Reviews"
@@ -614,7 +626,7 @@ const WebsiteBuilderDashboard = () => {
                   <Empty>No reviews have been submitted yet.</Empty>
                 )}
               </ChartCard>
-              <ChartCard title="Module Snapshot">
+              <ChartCard dataTour="wb-dashboard-snapshot" title="Module Snapshot">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {modules.map((module, index) => (
                     <div
@@ -643,6 +655,7 @@ const WebsiteBuilderDashboard = () => {
 
             <div className="grid grid-cols-1 gap-4">
               <ChartCard
+                dataTour="wb-dashboard-recent"
                 title="Recent Website Leads"
                 subtitle="The latest enquiries received through your website."
                 action={<RecordCountChip count={leads.length} />}

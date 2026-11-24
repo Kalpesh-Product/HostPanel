@@ -81,7 +81,7 @@ const VisitorReports = () => {
   return (
     <div className="flex flex-col gap-8 p-4">
       <PageFrame>
-        <div>
+        <div data-tour="visitor-reports-table">
           <YearWiseTable
             exportData
             dateColumn={"date"}

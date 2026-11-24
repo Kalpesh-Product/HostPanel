@@ -730,7 +730,10 @@ export default function CustomerSupportPage({
       <PageFrame>
         <div className="flex flex-col gap-4">
           {/* 1. HEADER */}
-          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+          <div
+            data-tour="cs-header"
+            className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5"
+          >
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 {modulePage
@@ -759,7 +762,7 @@ export default function CustomerSupportPage({
           </div>
 
           {/* 2. STAT CARDS */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          <div data-tour="cs-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             {(activeTab === "raised"
               ? [
                   { label: "Total Raised", value: supportData.raised.length + (draftTicket ? 1 : 0), icon: AlertCircle, toneClass: "bg-slate-50 text-slate-600", accentClass: "" },
@@ -796,7 +799,7 @@ export default function CustomerSupportPage({
 
           {/* 3. MAIN TABS */}
           {!modulePage ? (
-          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div data-tour="cs-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             <button
               type="button"
               onClick={() => setActiveTab("raised")}
@@ -827,7 +830,7 @@ export default function CustomerSupportPage({
             {/* Toolbar */}
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
               {activeTab === "raised" ? (
-                <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                <div data-tour="cs-status-filters" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                   {[
                     "All",
                     "Draft",
@@ -848,7 +851,7 @@ export default function CustomerSupportPage({
                   ))}
                 </div>
               ) : (
-                <div className="relative w-full">
+                <div data-tour="cs-search" className="relative w-full">
                   <Search
                     className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                     size={15}
@@ -864,7 +867,7 @@ export default function CustomerSupportPage({
               )}
               {activeTab === "raised" ? (
                 <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-                  <div className="relative flex-1 min-w-[180px]">
+                  <div data-tour="cs-search" className="relative flex-1 min-w-[180px]">
                     <Search
                       className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                       size={15}
@@ -879,6 +882,7 @@ export default function CustomerSupportPage({
                   </div>
                   <button
                     type="button"
+                    data-tour="cs-raise"
                     onClick={openCreateModal}
                     className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-pmedium text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                   >
@@ -888,7 +892,7 @@ export default function CustomerSupportPage({
               ) : null}
             </div>
             <div className="overflow-x-auto flex-1">
-              <table className="w-full text-left border-collapse">
+              <table data-tour="cs-table" className="w-full text-left border-collapse">
                 <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
                     <th className="px-4 py-3.5 text-[11px] font-pmedium text-slate-400 uppercase tracking-widest text-left">
