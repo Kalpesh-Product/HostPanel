@@ -3,19 +3,20 @@ import type { Service, ServiceItem } from "../serviceAdapter";
 import { priceWithUnit } from "../templateKit";
 import { FaqSection, PhotoViewer } from "../shared/TplParts";
 import { useCabin } from "./CabinContext";
+import { cabinFallback, cabinImage } from "./cabinMedia";
 import { CabinImage, CabinPageHero } from "./CabinUI";
 
 export function StaysPage() {
   const { t, draft, services, goToService, navLabel } = useCabin();
   return (
     <>
-      <CabinPageHero title={draft.productPageHeading || navLabel("products", "Our stays")} image={t.heroImages[0]} />
+      <CabinPageHero title={draft.productPageHeading || navLabel("products", "Our stays")} image={cabinImage(t.heroImages[0], cabinFallback(0))} />
       <section className="cabin-section cabin-shell">
         {services.length ? (
           <div className="cabin-cards cabin-product-cards">
             {services.map((service) => (
               <article key={service.key}>
-                <CabinImage src={service.cardImage || service.heroImage} />
+                <CabinImage src={cabinImage(service.cardImage, service.heroImage)} fallback={cabinFallback(5)} />
                 <div>
                   <h2>{service.heading}</h2>
                   {service.subText ? <p>{service.subText}</p> : null}
@@ -36,15 +37,15 @@ export function StayServicePage({ service }: { service: Service }) {
   return (
     <>
       <CabinPageHero title={service.heroHeading} body={service.heroSubHeading}
-        image={service.heroImage || service.cardImage || t.heroImages[0]} />
+        image={cabinImage(service.heroImage, service.cardImage, t.heroImages[0], cabinFallback(5))} />
       <section className="cabin-section cabin-shell">
         {service.items.length ? (
           <div className="cabin-cards cabin-product-cards">
-            {service.items.map((item) => {
+            {service.items.map((item, index) => {
               const price = priceWithUnit(item.price, item.priceUnit);
               return (
                 <article key={item.key}>
-                  <CabinImage src={item.image || service.cardImage} />
+                  <CabinImage src={cabinImage(item.image, service.cardImage, service.heroImage)} fallback={cabinFallback(index + 5)} />
                   <div>
                     {item.badge ? <p className="cabin-kicker">{item.badge}</p> : null}
                     <h2>{item.title}</h2>
@@ -70,7 +71,9 @@ export function StayServicePage({ service }: { service: Service }) {
 export function StayDetailPage({ service, item }: { service: Service; item: ServiceItem }) {
   const { draft, goToService, openLead, goToItem, c } = useCabin();
   const [selectedPhoto, setSelectedPhoto] = useState<number | null>(null);
-  const photos = item.images.length ? item.images : [item.image || service.heroImage].filter(Boolean);
+  const photos = item.images.length
+    ? item.images.map((image, index) => cabinImage(image, cabinFallback(index)))
+    : [cabinImage(item.image, service.heroImage, service.cardImage, cabinFallback(0))];
   const facts = [...new Set([...item.chips, ...item.features])];
   const related = service.items.filter((entry) => entry.key !== item.key).slice(0, 3);
   const price = priceWithUnit(item.price, item.priceUnit);
@@ -81,11 +84,11 @@ export function StayDetailPage({ service, item }: { service: Service; item: Serv
       <div className="cabin-split cabin-item-detail">
         <div>
           {photos[0] ? <button className="cabin-image-button" type="button" aria-label="Enlarge stay photo" onClick={() => setSelectedPhoto(0)}>
-            <CabinImage src={photos[0]} alt={item.title} eager />
+            <CabinImage src={photos[0]} fallback={cabinFallback(0)} alt={item.title} eager />
           </button> : null}
           {photos.length > 1 ? <div className="cabin-thumbnails">
             {photos.map((image, index) => <button key={image + index} type="button" onClick={() => setSelectedPhoto(index)}
-              aria-label={"Enlarge stay photo " + (index + 1)}><CabinImage src={image} /></button>)}
+              aria-label={"Enlarge stay photo " + (index + 1)}><CabinImage src={image} fallback={cabinFallback(index)} /></button>)}
           </div> : null}
         </div>
         <div>
@@ -108,8 +111,8 @@ export function StayDetailPage({ service, item }: { service: Service; item: Serv
       {related.length ? <div className="cabin-related">
         <h2>More places to stay</h2>
         <div className="cabin-cards cabin-product-cards">
-          {related.map((entry) => <article key={entry.key}>
-            <CabinImage src={entry.image} />
+          {related.map((entry, index) => <article key={entry.key}>
+            <CabinImage src={cabinImage(entry.image, cabinFallback(index + 5))} fallback={cabinFallback(index + 5)} />
             <div><h3>{entry.title}</h3>
               <button type="button" className="cabin-card-action" aria-label={"View stay: " + entry.title}
                 onClick={() => goToItem(service, entry)}>View stay ↗</button>

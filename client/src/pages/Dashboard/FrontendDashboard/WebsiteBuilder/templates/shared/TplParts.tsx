@@ -64,7 +64,7 @@ export const Lightbox: React.FC = () => {
   }, [open, t.galleryViewerIndex]);
   return (
     <AnimatePresence>
-      {open ? (
+      {open && t.galleryItems[t.galleryViewerIndex] ? (
         <motion.div
           className="fixed inset-0 z-[70] flex items-center justify-center p-4"
           style={{ background: "rgba(8,6,4,.92)" }}

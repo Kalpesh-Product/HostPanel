@@ -217,9 +217,9 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
   cabin: {
     id: "cabin",
     name: "Cabin",
-    description: "Nature-led co-living with an oversized serif hero, a tilted photo collage, rounded home cards and stay enquiries.",
+    description: "Cabin CMS-inspired co-living design: a full-bleed photo hero with rotating serif words, a tilted photo collage, rounded image grids, dark pricing band and stay enquiries.",
     component: CabinTemplate,
-    swatch: { bg: "#ffffff", fg: "#181916", accent: "#181916", font: "'Instrument Serif', serif" },
+    swatch: { bg: "#efefef", fg: "#1f1f1f", accent: "#eeac3f", font: "'Nyghtserif', serif" },
     recommendedFor: ["coLiving"],
     supportsBooking: true,
   },
