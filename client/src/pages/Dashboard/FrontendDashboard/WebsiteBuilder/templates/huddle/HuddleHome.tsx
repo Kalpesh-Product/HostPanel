@@ -4,7 +4,7 @@ import type { Service, ServiceItem } from "../serviceAdapter";
 import { getInclusionMeta } from "../inclusionIcons";
 import { formatTime12h, todayISO } from "../leadForms";
 import { contentSteps } from "../templateContent";
-import { currencyPrefix } from "../templateKit";
+import { priceWithUnit } from "../templateKit";
 import { LeadFormPanel } from "../shared/TplLead";
 import { FaqSection } from "../shared/TplParts";
 import { useTpl } from "../shared/TplContext";
@@ -53,7 +53,7 @@ export const estimate = (item: ServiceItem, hours: number) => {
   if (!item.price || !/hour|hr/i.test(item.priceUnit || "")) return "";
   const amount = Number(String(item.price).replace(/[^\d.]/g, ""));
   if (!amount) return "";
-  return `${currencyPrefix(item.price)}${Math.round(amount * hours).toLocaleString("en-IN")}`;
+  return priceWithUnit(Math.round(amount * hours).toLocaleString("en-IN"), "");
 };
 
 /** What the search fills in on the booking form. */

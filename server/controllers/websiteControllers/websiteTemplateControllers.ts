@@ -298,10 +298,35 @@ const serializeProductDropdownPagesForClient = (items = [], products = []) => {
   });
 };
 
+// Every price on the hosted site renders with the owning unit's own currency,
+// and Unit Settings is the single source of truth — the same value the builder
+// preview reads through useWorkspacePreferences. Resolved per request so a
+// currency change reaches an already-published site without republishing, and
+// never defaulted to a fixed code here.
+const resolveTemplateCurrency = async (template) => {
+  const workspaceId = String(template?.workspaceId || "").trim();
+  if (workspaceId) {
+    try {
+      const workspace = await Workspace.findById(workspaceId)
+        .select("preferences.currency")
+        .lean()
+        .exec();
+      const currency = String(workspace?.preferences?.currency || "")
+        .trim()
+        .toUpperCase();
+      if (/^[A-Z]{3}$/.test(currency)) return currency;
+    } catch (error) {
+      // Unreadable/legacy workspace id: fall back to the stored template value.
+    }
+  }
+  const stored = String(template?.currency || "").trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(stored) ? stored : "";
+};
+
 // Freezes the current top-level template fields into publishedData — the copy the
 // hosted website serves. Draft auto-saves keep mutating the top-level fields, so
 // the live site must never read them directly once a snapshot exists.
-const buildPublishedSnapshot = (template) => {
+const buildPublishedSnapshot = async (template) => {
   const snapshot = template?.toObject
     ? template.toObject({ depopulate: true })
     : { ...template };
@@ -309,6 +334,8 @@ const buildPublishedSnapshot = (template) => {
   delete snapshot.draftData;
   delete snapshot.draftUpdatedAt;
   delete snapshot.publishedData;
+  const currency = await resolveTemplateCurrency(template);
+  if (currency) snapshot.currency = currency;
   return snapshot;
 };
 
@@ -2548,7 +2575,7 @@ const createTemplateHandler = async (req, res, next) => {
     }
 
     // Submit pushes the site live: refresh the snapshot the hosted website serves.
-    template.publishedData = buildPublishedSnapshot(template);
+    template.publishedData = await buildPublishedSnapshot(template);
     template.publishedAt = new Date();
 
     const savedTemplate = await template.save();
@@ -2640,7 +2667,12 @@ export const getTemplate = async (req, res) => {
     if (!template) {
       return res.status(200).json([]);
     }
-    res.json(serializeWebsiteTemplateForClient(template));
+    // The public website reads this payload, so the price currency is attached
+    // live from Unit Settings rather than trusted from the saved draft/snapshot.
+    const payload = serializeWebsiteTemplateForClient(template);
+    const currency = await resolveTemplateCurrency(template);
+    if (currency) payload.currency = currency;
+    res.json(payload);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -3877,7 +3909,7 @@ const editTemplateHandler = async (req, res, next) => {
     }
 
     // Submit pushes the site live: refresh the snapshot the hosted website serves.
-    template.publishedData = buildPublishedSnapshot(template);
+    template.publishedData = await buildPublishedSnapshot(template);
     template.publishedAt = new Date();
 
     // Validate before saving to catch schema validation errors
@@ -3984,7 +4016,7 @@ export const publishWebsite = async (req, res, next) => {
       template.productDropdownPages,
     );
     template.menuItems = sanitizeMenuItemsForPersistence(template.menuItems);
-    template.publishedData = buildPublishedSnapshot(template);
+    template.publishedData = await buildPublishedSnapshot(template);
     template.publishedAt = deployedAt;
     await template.save();
 

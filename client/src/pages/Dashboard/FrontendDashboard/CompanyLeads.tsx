@@ -10,6 +10,7 @@ import { useSelector } from "react-redux";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import useAuth from "../../../hooks/useAuth";
 import useDashboardAccess from "../../../hooks/useDashboardAccess";
+import useWorkspacePreferences from "../../../hooks/useWorkspacePreferences";
 import { canExportReports } from "../../../utils/workspacePlanAccess";
 import PageFrame from "../../../components/Pages/PageFrame";
 import { statusPillClass } from '../../../lib/status-pill';
@@ -161,6 +162,11 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
   const { plan } = useDashboardAccess();
   const showReportExports = canExportReports(plan);
   const queryClient = useQueryClient();
+  // The unit's own currency (Unit Settings) presets every lead payment field on
+  // this page — the eye-icon dialog's currency select, its payment summary and
+  // the header totals — so a lead is never quoted in a hard-coded default.
+  const workspacePreferences = useWorkspacePreferences();
+  const workspaceCurrency = String(workspacePreferences.currency || "").trim().toUpperCase();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [stageFilter, setStageFilter] = useState("All");
@@ -195,11 +201,20 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
   const [showExportModal, setShowExportModal] = useState(false);
   const [manualAmountPrompt, setManualAmountPrompt] = useState(null); // { leadId } | null
   const [manualAmountValue, setManualAmountValue] = useState("");
-  const [manualCurrencyValue, setManualCurrencyValue] = useState("USD");
+  // Empty means "follow Unit Settings"; opening a lead only overrides it for
+  // that lead (see acceptLead), never silently for the whole page.
+  const [manualCurrencyValue, setManualCurrencyValue] = useState("");
   const [discountType, setDiscountType] = useState("amount"); // "amount" | "percent"
   const [discountValue, setDiscountValue] = useState("");
   const [availabilityInfo, setAvailabilityInfo] = useState(null); // { checked, available, conflictBookingCode } | null
   const [showBookingBadge, setShowBookingBadge] = useState(false);
+  const effectiveLeadCurrency = manualCurrencyValue || workspaceCurrency || "USD";
+  // The workspace's own code is always selectable (and first), so a unit billing
+  // in something outside the common four is still preset correctly.
+  const leadCurrencyOptions = useMemo(() => {
+    const codes = [manualCurrencyValue, workspaceCurrency, "INR", "USD", "EUR", "GBP"].filter(Boolean);
+    return Array.from(new Set(codes));
+  }, [manualCurrencyValue, workspaceCurrency]);
 
   const workspaceId = selectedCompany?.workspaceId || auth?.user?.primaryWorkspace || auth?.user?.workspaceMembership?.workspace || auth?.user?.workspaceId || "";
   const companyId = selectedCompany?.companyId || auth?.user?.companyId || "";
@@ -282,7 +297,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
   const invoicedNotReceivedTotal = hostInvoices
     .filter((i) => i.status === "Requested")
     .reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
-  const hostInvoicesCurrency = hostInvoices[0]?.currency || "USD";
+  const hostInvoicesCurrency = hostInvoices[0]?.currency || workspaceCurrency || "USD";
   // Unclaimed Payout Balance — every paid, finalized booking not yet rolled
   // into a payout request. "Request Payout" below bundles all of these into
   // one consolidated invoice instead of one per booking.
@@ -358,7 +373,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
       queryClient.invalidateQueries({ queryKey: ["leadCompany"] });
       setManualAmountPrompt(null);
       setManualAmountValue("");
-      setManualCurrencyValue("USD");
+      setManualCurrencyValue("");
       setDiscountType("amount");
       setDiscountValue("");
       setAvailabilityInfo(null);
@@ -429,7 +444,10 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
     }
     setManualAmountPrompt({ leadId });
     setManualAmountValue(Number(preview?.base) > 0 ? String(preview.base) : "");
-    setManualCurrencyValue(preview?.currency || "USD");
+    // preview.currency is resolved by the server from Unit Settings. When it is
+    // blank the field stays empty and the server resolves the currency itself,
+    // so a not-yet-loaded client preference can never override the real setting.
+    setManualCurrencyValue(preview?.currency || "");
     setDiscountType("amount");
     setDiscountValue("");
     setAvailabilityInfo(preview?.availability || null);
@@ -574,7 +592,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
     // Host's net take — base amount only, excludes the 7% WoNo platform fee
     // the client's total payment also covers.
     const paymentsReceivedTotal = paidLeads.reduce((sum, l) => sum + (Number(l.paymentBaseAmount) || 0), 0);
-    const paymentsReceivedCurrency = paidLeads[0]?.paymentCurrency || "USD";
+    const paymentsReceivedCurrency = paidLeads[0]?.paymentCurrency || workspaceCurrency || "USD";
     return [
       { label: "Pending", value: pending, icon: Sparkles },
       { label: "Closed", value: closed, icon: CheckCircle2 },
@@ -587,7 +605,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
       { label: "Yet to Received from WONO", value: formatMoney(invoicedNotReceivedTotal, hostInvoicesCurrency), icon: FileText },
       { label: "Received from WONO", value: formatMoney(receivedFromWonoTotal, hostInvoicesCurrency), icon: Wallet },
     ];
-  }, [leads, pageTitle, leadLimit, invoicedNotReceivedTotal, receivedFromWonoTotal, hostInvoicesCurrency]);
+  }, [leads, pageTitle, leadLimit, invoicedNotReceivedTotal, receivedFromWonoTotal, hostInvoicesCurrency, workspaceCurrency]);
 
   const visibleLeads = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -1116,10 +1134,10 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                       className="w-full rounded-xl border border-slate-200 px-3 py-2 text-[12px] font-pmedium mb-3 outline-none focus:border-blue-400"
                     />
                     <label className="block text-[10px] uppercase tracking-widest font-pmedium text-slate-500 mb-1">Currency</label>
-                    <select value={manualCurrencyValue} onChange={(e) => setManualCurrencyValue(e.target.value)}
+                    <select value={effectiveLeadCurrency} onChange={(e) => setManualCurrencyValue(e.target.value)}
                       className="w-full rounded-xl border border-slate-200 px-3 py-2 text-[12px] font-pmedium mb-3 outline-none focus:border-blue-400"
                     >
-                      {["USD", "INR", "EUR", "GBP"].map((code) => <option key={code} value={code}>{code}</option>)}
+                      {leadCurrencyOptions.map((code) => <option key={code} value={code}>{code}</option>)}
                     </select>
 
                     <label className="block text-[10px] uppercase tracking-widest font-pmedium text-slate-500 mb-1">Discount (optional)</label>
@@ -1132,7 +1150,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                       <select value={discountType} onChange={(e) => setDiscountType(e.target.value)}
                         className="rounded-xl border border-slate-200 px-2 py-2 text-[12px] font-pmedium outline-none focus:border-blue-400"
                       >
-                        <option value="amount">{manualCurrencyValue}</option>
+                        <option value="amount">{effectiveLeadCurrency}</option>
                         <option value="percent">%</option>
                       </select>
                     </div>
@@ -1141,21 +1159,21 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                       <div className="bg-slate-50/60 border border-slate-100 rounded-xl p-3 mb-2 space-y-1.5">
                         <div className="flex justify-between text-[11px] font-pmedium text-slate-600">
                           <span>Subtotal</span>
-                          <span>{formatMoney(manualFeePreview.subtotal, manualCurrencyValue)}</span>
+                          <span>{formatMoney(manualFeePreview.subtotal, effectiveLeadCurrency)}</span>
                         </div>
                         {manualFeePreview.discountAmount > 0 && (
                           <div className="flex justify-between text-[11px] font-pmedium text-rose-600">
                             <span>Discount</span>
-                            <span>-{formatMoney(manualFeePreview.discountAmount, manualCurrencyValue)}</span>
+                            <span>-{formatMoney(manualFeePreview.discountAmount, effectiveLeadCurrency)}</span>
                           </div>
                         )}
                         <div className="flex justify-between text-[11px] font-pmedium text-slate-600">
                           <span>WoNo platform fee (7%)</span>
-                          <span>{formatMoney(manualFeePreview.platformFeeAmount, manualCurrencyValue)}</span>
+                          <span>{formatMoney(manualFeePreview.platformFeeAmount, effectiveLeadCurrency)}</span>
                         </div>
                         <div className="flex justify-between text-[12px] font-pmedium text-slate-900 pt-1.5 border-t border-slate-200">
                           <span>Total payable</span>
-                          <span>{formatMoney(manualFeePreview.total, manualCurrencyValue)}</span>
+                          <span>{formatMoney(manualFeePreview.total, effectiveLeadCurrency)}</span>
                         </div>
                       </div>
                     )}
@@ -1267,7 +1285,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                       </h3>
                       <div className="bg-slate-50/60 p-4 rounded-2xl border border-slate-100 space-y-2.5">
                         {(() => {
-                          const currency = selectedLead.paymentCurrency || "USD";
+                          const currency = selectedLead.paymentCurrency || workspaceCurrency || "USD";
                           const subtotal = Number(selectedLead.paymentSubtotalAmount) || 0;
                           const discountAmount = Number(selectedLead.discountAmount) || 0;
                           const base = Number(selectedLead.paymentBaseAmount) || 0;
@@ -1443,7 +1461,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                                   ) : isCoworkingInquiry ? (
                                     "Coworking enquiry — ready to onboard as a tenant"
                                   ) : paymentStatus !== "Paid" ? (
-                                    `Awaiting payment — ${formatMoney(selectedLead.paymentTotalAmount, selectedLead.paymentCurrency)} payable`
+                                    `Awaiting payment — ${formatMoney(selectedLead.paymentTotalAmount, selectedLead.paymentCurrency || workspaceCurrency)} payable`
                                   ) : (
                                     "Payment received — ready to finalize"
                                   )}

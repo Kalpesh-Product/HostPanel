@@ -8,7 +8,7 @@ import {
   type LeadFieldDef,
 } from "../leadForms";
 import type { Service, ServiceItem } from "../serviceAdapter";
-import { currencyPrefix } from "../templateKit";
+import { priceWithUnit } from "../templateKit";
 import { Icon } from "./TplUI";
 import { useTpl } from "./TplContext";
 
@@ -21,7 +21,7 @@ export const estimateTotal = (item: ServiceItem | null | undefined, start: strin
   const perBed = item.raw?.roomKind === "dorm" || (item.raw?.capacity && item.raw?.roomKind !== "private");
   const beds = perBed ? Math.max(1, Number(people) || 1) : 1;
   const total = unit * nights * beds;
-  return { nights, beds: perBed ? beds : 0, text: `${currencyPrefix(item.price)}${total.toLocaleString()}` };
+  return { nights, beds: perBed ? beds : 0, text: priceWithUnit(total.toLocaleString(), "") };
 };
 
 const Field: React.FC<{

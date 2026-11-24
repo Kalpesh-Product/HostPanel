@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, CheckCircle2, Clock3, History, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
+import useWorkspacePreferences from "../../../../hooks/useWorkspacePreferences";
 import TemplatePickerGrid, { type TemplateAvailability } from "./TemplatePickerGrid";
 import { buildDemoPreviewDraft } from "./templates/demoPreviewData";
 import { DEFAULT_TEMPLATE_ID, TEMPLATE_REGISTRY } from "./templates/templateRegistry";
@@ -66,6 +67,8 @@ const TemplateChangeRequestControl = ({
   workspaceId,
 }: TemplateChangeRequestControlProps) => {
   const axios = useAxiosPrivate();
+  // Previews quote prices in this workspace's currency, exactly like its live site.
+  const { currency } = useWorkspacePreferences();
   const queryClient = useQueryClient();
   const submitGuardRef = useRef(false);
   const [open, setOpen] = useState(false);
@@ -138,7 +141,7 @@ const TemplateChangeRequestControl = ({
   }, [open]);
 
   const handlePreview = (templateId: string) => {
-    const draft = buildDemoPreviewDraft(templateId);
+    const draft = buildDemoPreviewDraft(templateId, [], currency);
     localStorage.setItem(LIVE_PREVIEW_DRAFT_STORAGE_KEY, JSON.stringify(draft));
     window.open("/website-preview", "_blank", "noopener,noreferrer");
   };

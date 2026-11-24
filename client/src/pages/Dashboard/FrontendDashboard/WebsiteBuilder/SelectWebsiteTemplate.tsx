@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import PageFrame from "../../../../components/Pages/PageFrame";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
+import useWorkspacePreferences from "../../../../hooks/useWorkspacePreferences";
 import {
   TEMPLATE_REGISTRY,
   DEFAULT_TEMPLATE_ID,
@@ -54,6 +55,8 @@ export const TemplatePicker = ({ onClose }: { onClose?: () => void }) => {
   // Templates the admin has hidden or switched off (Master Panel > website templates). If the
   // lookup fails, every template stays available.
   const axios = useAxiosPrivate();
+  // Previews quote prices in this workspace's currency, exactly like its live site.
+  const { currency } = useWorkspacePreferences();
   const [availability, setAvailability] = useState<Record<string, { enabled: boolean; visible: boolean; disabledReason: string }>>({});
   useEffect(() => {
     let active = true;
@@ -92,7 +95,7 @@ export const TemplatePicker = ({ onClose }: { onClose?: () => void }) => {
     // These previews show the template's own business, even with another
     // primary service selected in the picker.
     const usesOwnDemo = ["restobar", "tinyhome", "coplace", "italiano", "cabin", "orchard"].includes(templateId);
-    const draft = buildDemoPreviewDraft(templateId, usesOwnDemo ? [] : services);
+    const draft = buildDemoPreviewDraft(templateId, usesOwnDemo ? [] : services, currency);
     localStorage.setItem(LIVE_PREVIEW_DRAFT_STORAGE_KEY, JSON.stringify(draft));
     window.open("/website-preview", "_blank", "noopener,noreferrer");
   };

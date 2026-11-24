@@ -1345,6 +1345,11 @@ export const getLeads = async (req, res, next) => {
       });
     }
 
+    // Unquoted leads display in the unit's own currency; once a lead is
+    // accepted its amounts are locked, so its stored currency must keep
+    // describing those amounts.
+    const workspaceCurrency = await resolveWorkspaceCurrency(targetWorkspaceId);
+
     const localLeadQuery = {
       ...(!isNomadsScope
         ? { workspaceId: targetWorkspaceId }
@@ -1372,7 +1377,10 @@ export const getLeads = async (req, res, next) => {
       hostPanelStatus: lead.hostPanelStatus || "Pending",
       hostPanelStatusUpdatedAt: lead.hostPanelStatusUpdatedAt || null,
       paymentStatus: lead.paymentStatus || "Pending",
-      paymentCurrency: lead.paymentCurrency || "USD",
+      paymentCurrency:
+        lead.paymentStatus === "Pending" && !Number(lead.paymentBaseAmount)
+          ? workspaceCurrency || lead.paymentCurrency || LEAD_PAYMENT_CURRENCY
+          : lead.paymentCurrency || workspaceCurrency || LEAD_PAYMENT_CURRENCY,
       paymentSubtotalAmount: Number(lead.paymentSubtotalAmount) || 0,
       discountType: lead.discountType || "amount",
       discountValue: Number(lead.discountValue) || 0,
@@ -1582,6 +1590,29 @@ export const getLeads = async (req, res, next) => {
 const PLATFORM_FEE_PERCENT = 7;
 const STRIPE_PROCESSING_FEE_PERCENT = 0;
 const LEAD_PAYMENT_CURRENCY = sanitizeValue(process.env.LEAD_PAYMENT_CURRENCY) || "USD";
+const isCurrencyCode = (value) => /^[A-Z]{3}$/.test(sanitizeValue(value).toUpperCase());
+
+// The unit's own currency is the only authority for what a website lead is
+// charged in: the same value Unit Settings edits and the same value the
+// builder's live preview renders with (useWebsiteTemplateData reads it from
+// the workspace preferences). LEAD_PAYMENT_CURRENCY is a last resort for a
+// lead whose workspace can't be read, never a fixed default.
+const resolveWorkspaceCurrency = async (workspaceId) => {
+  const id = sanitizeValue(workspaceId);
+  if (!id) return "";
+  try {
+    const workspace = await Workspace.findById(id)
+      .select("preferences.currency")
+      .lean()
+      .exec();
+    const currency = sanitizeValue(workspace?.preferences?.currency).toUpperCase();
+    if (isCurrencyCode(currency)) return currency;
+  } catch (error) {
+    // Unknown/legacy workspace id: let the caller fall back.
+  }
+  return "";
+};
+
 const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
 // Booking-confirmation emails quote a single human schedule line per booking,
@@ -1667,9 +1698,16 @@ const parseMoney = (value) => {
   return match ? Number(match[0]) : NaN;
 };
 
-const resolveLeadCurrency = (meta) => {
+// `workspaceCurrency` comes from Unit Settings and deliberately wins over the
+// currency a form/snapshot carried: a site published before the workspace
+// switched currency still submits the old code, and a hard-coded "USD" in an
+// older draft must never decide what the guest is charged.
+const resolveLeadCurrency = (meta, workspaceCurrency = "") => {
+  if (isCurrencyCode(workspaceCurrency)) {
+    return sanitizeValue(workspaceCurrency).toUpperCase();
+  }
   const explicit = sanitizeValue(meta.currency || meta.currencyCode).toUpperCase();
-  if (/^[A-Z]{3}$/.test(explicit)) return explicit;
+  if (isCurrencyCode(explicit)) return explicit;
   const rawPrice = sanitizeValue(
     meta.price ?? meta.amount ?? meta.hourlyRate ?? meta.pricePerHour,
   );
@@ -2231,9 +2269,14 @@ const resolveWebsitePriceForLead = async (lead, meta) => {
 
 const computeLeadPayment = async (lead) => {
   let meta = { ...readLeadMeta(lead) };
+  // Resolved once for all four pricing paths below, so an hourly booking, a
+  // stay, a day pass and a plain inquiry can never disagree on currency.
+  const workspaceCurrency = await resolveWorkspaceCurrency(
+    lead?.workspaceId || lead?.escalatedWorkspaceId,
+  );
   if (isNonBookingInquiry(lead)) {
     return {
-      currency: resolveLeadCurrency(meta),
+      currency: resolveLeadCurrency(meta, workspaceCurrency),
       ...applyFees(0),
       rate: 0,
       resourceId: "",
@@ -2295,7 +2338,7 @@ const computeLeadPayment = async (lead) => {
         : 1;
     const stayBase = round2(nightlyRate * (nights || 0) * beds);
     return {
-      currency: resolveLeadCurrency(meta),
+      currency: resolveLeadCurrency(meta, workspaceCurrency),
       ...applyFees(stayBase),
       rate: nightlyRate,
       nights: nights || 0,
@@ -2325,7 +2368,7 @@ const computeLeadPayment = async (lead) => {
     const dailyRate = Number(room?.pricePerDay) > 0 ? Number(room.pricePerDay) : (Number(room?.pricePerHour) > 0 ? Number(room.pricePerHour) * 8 : (Number(rate) > 0 ? Number(rate) : 500));
     const dayPassBase = round2(dailyRate * attendees);
     return {
-      currency: resolveLeadCurrency(meta),
+      currency: resolveLeadCurrency(meta, workspaceCurrency),
       ...applyFees(dayPassBase),
       rate: dailyRate,
       hours: 8,
@@ -2348,7 +2391,7 @@ const computeLeadPayment = async (lead) => {
 
   const base = round2((Number.isFinite(rate) ? rate : 0) * (Number.isFinite(hours) ? hours : 0));
   return {
-    currency: resolveLeadCurrency(meta),
+    currency: resolveLeadCurrency(meta, workspaceCurrency),
     ...applyFees(base),
     rate: Number.isFinite(rate) ? rate : 0,
     hours: Number.isFinite(hours) ? hours : 0,
@@ -3598,6 +3641,14 @@ export const createWebsiteLead = async (req, res) => {
       if (!sanitizeValue(v)) delete normalizedMeta[k];
     }
 
+    // Lock the unit's currency onto the lead the moment it arrives, so the
+    // Accept modal and the Stripe payment link priced from it never fall back
+    // to the platform's default.
+    const leadPaymentCurrency = resolveLeadCurrency(
+      normalizedMeta,
+      await resolveWorkspaceCurrency(resolvedWorkspaceId),
+    );
+
     const localLead = await WebsiteLead.create({
       workspaceId: resolvedWorkspaceId,
       companyId: resolvedCompanyId,
@@ -3612,6 +3663,7 @@ export const createWebsiteLead = async (req, res) => {
       productType: sanitizeValue(payload.productType),
       noOfPeople: sanitizeValue(payload.noOfPeople),
       leadMeta: normalizedMeta,
+      paymentCurrency: leadPaymentCurrency,
       status: "Pending",
       hostPanelStatus: "Pending",
     });

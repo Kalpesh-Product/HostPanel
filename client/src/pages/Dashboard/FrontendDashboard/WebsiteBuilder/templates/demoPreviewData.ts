@@ -2389,6 +2389,7 @@ const pageFor = (kind: ServiceKind, business: DemoBusiness, slug: string) => ({
 export const buildDemoPreviewDraft = (
   themeVariant: string,
   serviceNames: string[] = [],
+  currency = "",
 ) => {
   const main = defaultKindForTemplate(themeVariant);
   // Only the services explicitly picked in the picker widen this beyond the template's own kind
@@ -2427,10 +2428,10 @@ export const buildDemoPreviewDraft = (
     searchKey: "demo-preview",
     companyId: "demo",
     workspaceId: "",
-    // Demo previews always show USD, independent of whoever's browsing the template
-    // gallery — a real company's own currency only kicks in once they've started
-    // building their own site (see useWebsiteTemplateData's workspace-currency fallback).
-    currency: "USD",
+    // The demo business quotes prices in the currency of whoever is previewing
+    // it (their workspace's Unit Settings), which is what their own site will
+    // show. Blank when no currency is known — a bare number beats a wrong symbol.
+    currency,
     themeVariant,
     // Camelia's hero plays a looping video when one is linked (see the builder's "Hero Video URL").
     // The sample clip is a placeholder for previews only; a real site sets its own link.

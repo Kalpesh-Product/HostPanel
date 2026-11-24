@@ -43,6 +43,16 @@ const templateSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    // ISO currency the site's prices are quoted in (e.g. "INR"). Sealed into
+    // publishedData at publish time from the workspace's Unit Settings so a
+    // published site carries its currency; the public endpoint still resolves it
+    // live, so a later change never needs a republish.
+    currency: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: "",
+    },
     title: { type: String },
     subTitle: { type: String },
     CTAButtonText: { type: String },

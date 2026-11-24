@@ -290,10 +290,10 @@ export const useWebsiteTemplateData = () => {
   const [draft, setDraft] = useState<any>(() => parsePreviewDraft(readPreviewDraftRaw()));
   const previewDraftRawRef = useRef<string | null>(readPreviewDraftRaw());
 
-  // Demo drafts carry their own currency (always "USD" — see buildDemoPreviewDraft) so every
-  // template preview reads the same regardless of who's browsing it. A real company's draft has
-  // none yet, so every template's price displays fall back to their actual workspace currency —
-  // set synchronously (not in an effect) so the first paint is already correct.
+  // A draft may carry its own currency (see buildDemoPreviewDraft, which seeds it from the
+  // workspace), otherwise the workspace's Unit Settings decides — so a preview and the live site
+  // always quote the same currency. Set synchronously (not in an effect) so the first paint is
+  // already correct.
   const workspacePreferences = useWorkspacePreferences();
   setActiveTemplateCurrency(draft?.currency || workspacePreferences.currency);
 

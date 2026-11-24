@@ -128,17 +128,17 @@ export const postWebsiteLead = (draft: any, fields: Record<string, unknown>) =>
 
 // The currency every template's price display resolves to when a call site
 // doesn't pass one explicitly. Set once per render by useWebsiteTemplateData
-// from the draft's own currency (demo previews force "USD"; a real company's
-// builder preview falls back to their workspace currency), so the ~30
-// existing priceWithUnit(price, unit) call sites across every template don't
-// each need to thread a currency prop through. Defaults to USD rather than
-// the workspace-localization default of INR, so a price with no currency
-// context yet (old saved drafts, a stray demo path) reads as generic rather
-// than assuming India.
-let activeTemplateCurrency = "USD";
+// from the draft's own currency (the workspace's Unit Settings when the draft
+// carries none), so the ~30 existing priceWithUnit(price, unit) call sites
+// across every template don't each need to thread a currency prop through.
+//
+// It starts empty on purpose: with no currency context at all (an old saved
+// draft, a stray demo path) a price renders as a bare number. Guessing USD
+// there is exactly how a workspace that bills in INR ended up showing "$".
+let activeTemplateCurrency = "";
 export const setActiveTemplateCurrency = (currency?: string) => {
-  const trimmed = String(currency || "").trim();
-  activeTemplateCurrency = trimmed ? normalizeWorkspaceCurrency(trimmed) : "USD";
+  const code = String(currency || "").trim().toUpperCase();
+  activeTemplateCurrency = /^[A-Z]{3}$/.test(code) ? normalizeWorkspaceCurrency(code) : "";
 };
 
 /** "500" + "per night" -> "₹500 / night" (symbol resolved from the active/given currency, any symbol already in `price` is replaced). */
@@ -146,7 +146,8 @@ export const priceWithUnit = (price: string, unit: string, currency?: string) =>
   if (!price) return "";
   const cleaned = String(unit || "").replace(/^per\s+/i, "").replace(/^\/\s*/, "").trim();
   const numeric = String(price).replace(/^[^\d]+/, "").trim();
-  const symbol = getWorkspaceCurrencySymbol(currency || activeTemplateCurrency);
+  const code = String(currency || activeTemplateCurrency || "").trim().toUpperCase();
+  const symbol = /^[A-Z]{3}$/.test(code) ? getWorkspaceCurrencySymbol(code) : "";
   const priced = numeric ? `${symbol}${numeric}` : String(price);
   return cleaned ? `${priced} / ${cleaned}` : priced;
 };
