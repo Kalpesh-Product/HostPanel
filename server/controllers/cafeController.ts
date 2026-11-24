@@ -11,6 +11,7 @@ import {
 } from "../models/CafeReservation.js";
 import HostUser from "../models/HostUser.js";
 import Workspace from "../models/Workspace.js";
+import WebsiteTemplate from "../models/website/WebsiteTemplate.js";
 import { normalizeTimeZone } from "../utils/workspaceLocalization.js";
 import {
     CAFE_OPEN_ORDER_STATUSES,
@@ -140,13 +141,46 @@ export async function bulkCreateCafeMenuItems(req: AuthenticatedRequest, res: Re
     }
 }
 
+const defaultReservationPolicy = {
+    allowOnlineReservations: true,
+    type: "free",
+    chargeBasis: "per_table",
+    coverChargeAmount: 0,
+    minimumSpend: true,
+};
+
 const defaultCafeSettings = {
     companyName: "",
     googleReviewUrl: "",
     showReviewQr: false,
     taxPercent: 0,
     cafeStartTime: "06:00",
+    reservationPolicy: defaultReservationPolicy,
 };
+
+function parseReservationPolicy(raw: any) {
+    const input = raw && typeof raw === "object" ? raw : {};
+    const type = input.type === "cover_charge" ? "cover_charge" : "free";
+    const chargeBasis = input.chargeBasis === "per_person" ? "per_person" : "per_table";
+    const coverChargeAmount = Number(input.coverChargeAmount ?? 0);
+    if (!Number.isFinite(coverChargeAmount) || coverChargeAmount < 0) {
+        throw badRequest("Cover charge must be zero or greater.");
+    }
+    return {
+        allowOnlineReservations: input.allowOnlineReservations !== false,
+        type,
+        chargeBasis,
+        coverChargeAmount: roundMoney(coverChargeAmount),
+        minimumSpend: input.minimumSpend !== false,
+    };
+}
+
+// Shared with leadsControllers' website-lead Accept flow, which needs the
+// cover-charge policy without going through the authenticated req/res pair.
+export async function getCafeReservationPolicy(workspaceId: mongoose.Types.ObjectId | string) {
+    const settings = await CafeSettings.findOne({ workspaceId }).select("reservationPolicy").lean();
+    return settings?.reservationPolicy || defaultReservationPolicy;
+}
 
 export async function getCafeSettings(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
@@ -168,6 +202,12 @@ export async function updateCafeSettings(req: AuthenticatedRequest, res: Respons
         const googleReviewUrl = String(req.body?.googleReviewUrl || "").trim();
         if (googleReviewUrl && !/^https?:\/\//i.test(googleReviewUrl)) throw badRequest("Google review link must be a valid URL.");
 
+        const existing = await CafeSettings.findOne({ workspaceId }).lean();
+        const reservationPolicy =
+            req.body?.reservationPolicy === undefined
+                ? existing?.reservationPolicy || defaultReservationPolicy
+                : parseReservationPolicy(req.body.reservationPolicy);
+
         const settings = await CafeSettings.findOneAndUpdate(
             { workspaceId },
             {
@@ -177,10 +217,19 @@ export async function updateCafeSettings(req: AuthenticatedRequest, res: Respons
                     showReviewQr: Boolean(req.body?.showReviewQr && googleReviewUrl),
                     taxPercent: roundMoney(taxPercent),
                     cafeStartTime,
+                    reservationPolicy,
                 },
             },
             { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true },
         ).lean();
+
+        // Keep the published website template in sync so the public form can
+        // describe the cover charge before a guest submits a reservation.
+        await WebsiteTemplate.updateOne(
+            { workspaceId },
+            { $set: { "reservation.reservationPolicy": reservationPolicy } },
+        ).exec();
+
         res.status(200).json({ success: true, message: "Cafe settings saved.", data: settings });
     } catch (error) {
         next(error);
@@ -656,6 +705,29 @@ export async function createCafeOrder(req: AuthenticatedRequest, res: Response, 
         const taxAmount = roundMoney(subtotal * taxPercent / 100);
         const latest = await CafeOrder.findOne({ workspaceId }).sort({ orderNumber: -1 }).select("orderNumber").lean();
 
+        // A seated reservation's cover-charge deposit rides onto the first
+        // order opened for its table, once — a CafeOrder already carrying its
+        // reservationCode means it's been applied, so a later walk-in order
+        // at the same table doesn't deduct it again.
+        let advanceDeduction = 0;
+        let advanceAdjustment = null;
+        if (tableId) {
+            const seatedReservation = await CafeReservation.findOne({
+                workspaceId,
+                tableId: parseObjectId(tableId, "Invalid table."),
+                status: "Seated",
+                depositPaid: { $gt: 0 },
+            }).sort({ reservationAt: -1 }).select("reservationNumber depositPaid").lean();
+            if (seatedReservation) {
+                const reservationCode = `CR-${seatedReservation.reservationNumber}`;
+                const alreadyApplied = await CafeOrder.exists({ workspaceId, "advanceAdjustment.reservationCode": reservationCode });
+                if (!alreadyApplied) {
+                    advanceDeduction = roundMoney(Number(seatedReservation.depositPaid) || 0);
+                    advanceAdjustment = { reservationCode, amount: advanceDeduction, appliedAt: new Date(), appliedBy: getOptionalUserObjectId(req) };
+                }
+            }
+        }
+
         const order = await CafeOrder.create({
             workspaceId,
             orderNumber: (latest?.orderNumber || 0) + 1,
@@ -669,6 +741,8 @@ export async function createCafeOrder(req: AuthenticatedRequest, res: Response, 
             taxPercent,
             taxAmount,
             total: roundMoney(subtotal + taxAmount),
+            advanceDeduction,
+            advanceAdjustment,
             status: "Placed",
             createdBy: getOptionalUserObjectId(req),
             waiterName,
@@ -838,11 +912,12 @@ export async function billCafeOrder(req: AuthenticatedRequest, res: Response, ne
                 : 0;
         const discountedSubtotal = roundMoney(Math.max(0, order.subtotal - discountAmount));
         const taxAmount = roundMoney(discountedSubtotal * order.taxPercent / 100);
+        const advanceDeduction = roundMoney(Math.min(Number(order.advanceDeduction) || 0, discountedSubtotal + taxAmount));
         order.discountType = discountType;
         order.discountValue = discountType === "none" ? 0 : roundMoney(discountValue);
         order.discountAmount = discountAmount;
         order.taxAmount = taxAmount;
-        order.total = roundMoney(discountedSubtotal + taxAmount);
+        order.total = roundMoney(Math.max(0, discountedSubtotal + taxAmount - advanceDeduction));
         order.paymentMethod = paymentMethod;
         order.status = "Paid";
         order.paidAt = new Date();
@@ -939,6 +1014,8 @@ export async function createCafeReservationRecord(
         tableId = null,
         notes = "",
         createdBy = null,
+        depositPaid = 0,
+        isCoverCharge = false,
     }: {
         guestName: string;
         guestPhone?: string;
@@ -947,6 +1024,8 @@ export async function createCafeReservationRecord(
         tableId?: mongoose.Types.ObjectId | null;
         notes?: string;
         createdBy?: mongoose.Types.ObjectId | null;
+        depositPaid?: number;
+        isCoverCharge?: boolean;
     },
 ) {
     const latest = await CafeReservation.findOne({ workspaceId }).sort({ reservationNumber: -1 }).select("reservationNumber").lean();
@@ -960,6 +1039,8 @@ export async function createCafeReservationRecord(
         tableId,
         notes: String(notes || "").trim(),
         createdBy,
+        depositPaid: Math.max(0, Number(depositPaid) || 0),
+        isCoverCharge: Boolean(isCoverCharge),
     });
 }
 

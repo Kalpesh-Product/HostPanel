@@ -15,6 +15,8 @@ export interface ICafeReservation extends Document {
     status: CafeReservationStatus;
     notes: string;
     cancelReason: string;
+    depositPaid: number;
+    isCoverCharge: boolean;
     createdBy?: mongoose.Types.ObjectId | null;
     createdAt?: Date;
     updatedAt?: Date;
@@ -32,6 +34,8 @@ const cafeReservationSchema = new Schema<ICafeReservation>(
         status: { type: String, enum: CAFE_RESERVATION_STATUSES, default: "Confirmed", index: true },
         notes: { type: String, trim: true, default: "", maxlength: 500 },
         cancelReason: { type: String, trim: true, default: "", maxlength: 500 },
+        depositPaid: { type: Number, min: 0, default: 0 },
+        isCoverCharge: { type: Boolean, default: false },
         createdBy: { type: Schema.Types.ObjectId, ref: "HostUser", default: null },
     },
     { timestamps: true }

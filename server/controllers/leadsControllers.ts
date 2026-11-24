@@ -19,7 +19,7 @@ import {
   createDayPassWithUniqueCode,
   resolveDayPassAvailability,
 } from "./dayPassBookingController.js";
-import { createCafeReservationRecord } from "./cafeController.js";
+import { createCafeReservationRecord, getCafeReservationPolicy } from "./cafeController.js";
 import {
   allocateDormBeds,
   createRoomStayAtomically,
@@ -154,8 +154,84 @@ const isDayPassLeadText = (lead, meta = {}) => DAY_PASS_TEXT_RE.test(dayPassLead
 // A Cafe table reservation — the website sends inquiryType "Cafe" (see
 // useWebsiteTemplateData.ts). Free (no Stripe), so Accept creates the
 // CafeReservation row immediately instead of going through a payment step.
-const CAFE_TEXT_RE = /cafe/i;
-const isCafeLeadText = (lead, meta = {}) => CAFE_TEXT_RE.test(dayPassLeadText(lead, meta));
+const CAFE_TEXT_RE = /cafe|coffee shop|table reservation|reserved table|book\s*(?:a\s*)?table/i;
+const isCafeLeadText = (lead, meta = {}) =>
+  CAFE_TEXT_RE.test(dayPassLeadText(lead, meta)) ||
+  String(meta?.vertical ?? lead?.vertical ?? "").trim().toLowerCase() === "cafe";
+
+const TOUR_INQUIRY_RE = /tour.visit|visit.tour|site.visit|property.tour|guided.tour|schedule.a.tour|book.a.tour|tour\s*request/i;
+
+function isTourVisitLead(lead, meta = {}): boolean {
+  if (String(meta?.inquiryType ?? lead.inquiryType ?? "").trim().toLowerCase().replace(/[\s_-]+/g, "_") === "tour_visit") return true;
+  return TOUR_INQUIRY_RE.test(
+    [lead.subject, lead.message, meta?.inquiryType, meta?.subject].filter(Boolean).join(" "),
+  );
+}
+
+function parseVisitDate(value: unknown): Date | null {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  if (typeof value !== "string") return null;
+  const raw = value.trim();
+  if (!raw) return null;
+  const match = /^\d{4}-\d{2}-\d{2}/.exec(raw);
+  const date = match ? new Date(`${match[0]}T12:00:00Z`) : new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+// Returns the visitor pass for this lead — the existing one if the lead was
+// already accepted before, otherwise a newly created one. Re-accepting must
+// reuse the existing pass instead of issuing a second badge.
+async function createWebsiteTourVisitorLog(lead, meta, workspaceId, req) {
+  const visitDate =
+    parseVisitDate(meta?.checkInDate ?? meta?.visitDate ?? meta?.date ?? meta?.startDate) ??
+    parseVisitDate(lead.checkInDate);
+  if (!visitDate) {
+    throw new Error("This tour visit lead has no valid visit date; set a visit date before accepting.");
+  }
+  const existing = await VisitorLog.findOne({
+    workspace: workspaceId,
+    source: "website_tour",
+    leadId: lead._id,
+  });
+  if (existing) return existing;
+
+  const visitorName = String(lead.fullName ?? lead.guestName ?? "").trim() || "Website Tour Visitor";
+  const email = String(lead.email ?? lead.guestEmail ?? "").trim().toLowerCase();
+  const phone = String(lead.mobileNumber ?? lead.guestPhone ?? "").trim();
+  // Coworking tours feed the existing Sales "Unit Tour" pipeline, which
+  // filters visitors by purpose "Workspace Tour". A stay tour is a property
+  // walkthrough, not a desk sale.
+  const tourText = `${sanitizeValue(lead.vertical)} ${sanitizeValue(lead.productType)} ${sanitizeValue(meta?.inquiryType)}`;
+  const tourPurpose = /co-living|coliving|hostel|stay|room/i.test(tourText) ? "Property Tour" : "Workspace Tour";
+  return VisitorLog.create({
+    workspace: workspaceId,
+    createdByUser: req.user,
+    visitorCode: buildVisitorCode(),
+    badgeNo: buildBadgeNo(),
+    fullName: visitorName,
+    firstName: visitorName.split(" ")[0] || "",
+    lastName: visitorName.split(" ").slice(1).join(" "),
+    phone: phone || "Website Tour",
+    ...(email ? { email } : {}),
+    company: sanitizeValue(lead.companyName),
+    purpose: tourPurpose,
+    reason: `Scheduled tour via website${sanitizeValue(meta?.timeSlot) ? ` at ${sanitizeValue(meta.timeSlot)}` : ""}`,
+    // Approved up front (Sales already vetted it), still "pending" until
+    // reception checks the guest in.
+    approvalStatus: "approved",
+    status: "pending",
+    source: "website_tour",
+    leadStatus: "New",
+    tourNotes: sanitizeValue(meta?.notes || lead.message),
+    notes: `Website lead ${lead.leadNumber ?? lead._id}${lead.message ? ` — ${lead.message}` : ""}`.slice(0, 1000),
+    visitDate,
+    scheduledDate: visitDate,
+    scheduledTime: sanitizeValue(meta?.timeSlot || meta?.startTime),
+    leadId: lead._id,
+    approvedBy: req.user?._id,
+    approvedAt: new Date(),
+  });
+}
 
 const resolveLeadSchedule = (meta, bodyStart, bodyEnd, lead = null) => {
   const resolveDate = (raw) => {
@@ -509,6 +585,51 @@ const runFinalizeLeadBooking = async (lead, { roomId, bodyStart, bodyEnd, bodyAt
     }
 
     const meta = readLeadMeta(lead);
+
+    // Cafe cover-charge reservations draw from the open floor, not a single
+    // Resource — confirm the table directly instead of falling into the
+    // room/meeting resolution below.
+    if (isCafeLeadText(lead)) {
+      if (lead.bookingId) {
+        return {
+          alreadyFinalized: true,
+          body: {
+            message: "Reservation already finalized",
+            booking: { bookingCode: lead.bookingCode },
+            lead: { _id: String(lead._id), ...lead.toObject() },
+          },
+        };
+      }
+      const { startDate: reservationAt } = resolveLeadSchedule(meta, bodyStart, bodyEnd, lead);
+      if (!reservationAt) {
+        throw new FinalizeBookingError(400, "Could not resolve this reservation's date/time");
+      }
+      const partySize = Math.max(
+        1,
+        Math.trunc(Number(parseMoney(bodyAttendees ?? meta.attendees ?? lead.noOfPeople ?? 1))) || 1,
+      );
+      const reservation = await createCafeReservationRecord(lead.workspaceId, {
+        guestName: lead.fullName || "Cafe Guest",
+        guestPhone: sanitizeValue(lead.mobileNumber),
+        partySize,
+        reservationAt,
+        notes: lead.comment || "",
+        depositPaid: Number(lead.paymentBaseAmount) || 0,
+        isCoverCharge: true,
+      });
+      lead.bookingId = reservation._id;
+      lead.bookingCode = `CR-${reservation.reservationNumber}`;
+      await lead.save();
+      return {
+        alreadyFinalized: false,
+        body: {
+          message: `Table reservation ${lead.bookingCode} confirmed — advance cover charge collected.`,
+          booking: reservation.toObject(),
+          lead: { _id: String(lead._id), ...lead.toObject() },
+        },
+      };
+    }
+
     const room = sanitizeValue(roomId)
       ? await Resource.findById(sanitizeValue(roomId)).select("name pricePerHour pricePerNight type capacity").lean().exec()
       : await resolveRoomForLead(lead);
@@ -2710,10 +2831,10 @@ export const updateLeads = async (req, res, next) => {
       if (typeof comment === "string") localLead.comment = comment;
 
       if (normalizedHostStatus === "Accepted") {
-        // Cafe table reservation — free, so Accept creates the real
-        // CafeReservation row right away instead of waiting on a payment
-        // webhook. Table stays unassigned until the host seats the guest
-        // (seatCafeReservation already supports that).
+        // Cafe table reservation — free unless the host configured an advance
+        // cover charge in CafeSettings; a cover charge is collected via the
+        // same Stripe payment-link flow room/meeting bookings use, finalized
+        // by runFinalizeLeadBooking on payment (see its isCafeLeadText branch).
         if (isCafeLeadText(localLead)) {
           const cafeMeta = readLeadMeta(localLead);
           const { startDate: reservationAt } = resolveLeadSchedule(cafeMeta, null, null, localLead);
@@ -2722,18 +2843,81 @@ export const updateLeads = async (req, res, next) => {
               message: "Could not resolve this reservation's date/time — ask the client to resubmit with a date and time slot.",
             });
           }
-          const reservation = await createCafeReservationRecord(hostWorkspaceId, {
-            guestName: localLead.fullName,
-            guestPhone: localLead.mobileNumber,
-            partySize: Number(localLead.noOfPeople) || Number(cafeMeta.attendees) || 1,
-            reservationAt,
-            notes: localLead.comment || "",
-          });
+          const partySize = Number(localLead.noOfPeople) || Number(cafeMeta.attendees) || 1;
+          const cafePolicy = await getCafeReservationPolicy(hostWorkspaceId);
+          const coverChargeAmount = cafePolicy.type === "cover_charge" ? Number(cafePolicy.coverChargeAmount) || 0 : 0;
+
+          if (!coverChargeAmount) {
+            const reservation = await createCafeReservationRecord(hostWorkspaceId, {
+              guestName: localLead.fullName,
+              guestPhone: localLead.mobileNumber,
+              partySize,
+              reservationAt,
+              notes: localLead.comment || "",
+            });
+            localLead.hostPanelStatus = "Accepted";
+            localLead.paymentStatus = "Not Required";
+            localLead.paymentStatusUpdatedAt = new Date();
+            localLead.bookingId = reservation._id;
+            localLead.bookingCode = `CR-${reservation.reservationNumber}`;
+            await localLead.save();
+            await syncHostPanelStatusToNomads(leadId, hostWorkspaceId, "Accepted");
+            return res.status(200).json({
+              message: `Lead accepted — table reservation ${localLead.bookingCode} created.`,
+              lead: {
+                _id: String(localLead._id),
+                ...localLead.toObject(),
+                ...leadPaymentSummary(localLead),
+                ...readLeadMeta(localLead),
+              },
+              reservation: reservation.toObject(),
+            });
+          }
+
+          const coverAmount = round2(
+            cafePolicy.chargeBasis === "per_person" ? coverChargeAmount * partySize : coverChargeAmount,
+          );
+          let cafePaymentLinkUrl = "";
+          try {
+            const paymentLinkResponse = await axios.post(
+              `${MASTER_PANEL_BASE_URL}/api/hostpanel/booking-payment-links`,
+              {
+                leadId: String(localLead._id),
+                customerName: localLead.fullName,
+                customerEmail: localLead.email,
+                companyName: localLead.companyName,
+                productType: "Table Reservation Cover Charge",
+                serviceType: "cafe",
+                startDate: reservationAt,
+                noOfPeople: partySize,
+                amount: coverAmount,
+                currency: "INR",
+                unitRate: coverChargeAmount,
+                description: "Cafe table reservation — advance cover charge",
+                paymentType: "booking",
+                sendEmail: false,
+              },
+              { headers: masterPanelHeaders(), timeout: 10000 },
+            );
+            cafePaymentLinkUrl = sanitizeValue(paymentLinkResponse?.data?.paymentLinkUrl);
+          } catch (error) {
+            return res.status(error?.response?.status || 502).json({
+              message:
+                error?.response?.data?.message ||
+                "Unable to create the Stripe payment link. The lead was not accepted.",
+            });
+          }
+          if (!cafePaymentLinkUrl) {
+            return res.status(502).json({
+              message: "Master Panel did not return a Stripe payment link. The lead was not accepted.",
+            });
+          }
           localLead.hostPanelStatus = "Accepted";
-          localLead.paymentStatus = "Not Required";
+          localLead.paymentStatus = "Pending";
           localLead.paymentStatusUpdatedAt = new Date();
-          localLead.bookingId = reservation._id;
-          localLead.bookingCode = `CR-${reservation.reservationNumber}`;
+          localLead.paymentCurrency = "INR";
+          localLead.paymentBaseAmount = coverAmount;
+          localLead.paymentTotalAmount = coverAmount;
           await localLead.save();
           sendLeadBookingConfirmedEmail(localLead, {
             bookingCode: localLead.bookingCode,
@@ -2746,14 +2930,14 @@ export const updateLeads = async (req, res, next) => {
           });
           await syncHostPanelStatusToNomads(leadId, hostWorkspaceId, "Accepted");
           return res.status(200).json({
-            message: `Lead accepted — table reservation ${localLead.bookingCode} created.`,
+            message: `Lead accepted — advance cover charge ${coverAmount.toFixed(2)} payment link sent.`,
             lead: {
               _id: String(localLead._id),
               ...localLead.toObject(),
               ...leadPaymentSummary(localLead),
               ...readLeadMeta(localLead),
             },
-            reservation: reservation.toObject(),
+            payment: { paymentLinkUrl: cafePaymentLinkUrl, total: coverAmount, currency: "INR" },
           });
         }
 
@@ -2762,80 +2946,48 @@ export const updateLeads = async (req, res, next) => {
         // a VisitorLog (visitor code + badge) so the prospect is on Front
         // Desk's roster for the day they picked, instead of a salesperson
         // re-keying the same visit. Re-accepting reuses the existing pass.
-        if (isTourVisitInquiry(localLead)) {
-          if (!localLead.visitorId) {
-            const tourMeta = readLeadMeta(localLead);
-            // resolveLeadSchedule combines the chosen day with the picked
-            // clock hour, which is exactly the expected arrival timestamp.
-            const { startDate: visitAt } = resolveLeadSchedule(tourMeta, null, null, localLead);
-            const visitorName = sanitizeValue(localLead.fullName) || "Guest";
-            const tourText = `${sanitizeValue(localLead.vertical)} ${sanitizeValue(localLead.productType)} ${sanitizeValue(tourMeta.inquiryType)}`;
-            // Coworking tours feed the existing Sales "Unit Tour" pipeline,
-            // which filters visitors by purpose "Workspace Tour". A stay
-            // tour is a property walkthrough, not a desk sale.
-            const tourPurpose = /co-living|coliving|hostel|stay|room/i.test(tourText)
-              ? "Property Tour"
-              : "Workspace Tour";
-            const visitor = await VisitorLog.create({
-              workspace: hostWorkspaceId,
-              createdByUser: req.user,
-              visitorCode: buildVisitorCode(),
-              badgeNo: buildBadgeNo(),
-              fullName: visitorName,
-              firstName: visitorName.split(" ")[0] || "",
-              lastName: visitorName.split(" ").slice(1).join(" "),
-              phone: sanitizeValue(localLead.mobileNumber),
-              email: sanitizeValue(localLead.email),
-              company: sanitizeValue(localLead.companyName),
-              purpose: tourPurpose,
-              reason: `Scheduled tour via website${sanitizeValue(tourMeta.timeSlot) ? ` at ${sanitizeValue(tourMeta.timeSlot)}` : ""}`,
-              // Approved up front (Sales already vetted it), still "pending"
-              // until reception checks the guest in.
-              approvalStatus: "approved",
-              status: "pending",
-              source: "website_tour",
-              leadStatus: "New",
-              tourNotes: sanitizeValue(tourMeta.notes || localLead.message),
-              scheduledDate: visitAt || null,
-              scheduledTime: sanitizeValue(tourMeta.timeSlot || tourMeta.startTime),
-              leadId: localLead._id,
-            });
-            localLead.visitorId = visitor._id;
-            localLead.bookingCode = visitor.visitorCode;
+        const tourMeta = readLeadMeta(localLead);
+        if (isTourVisitLead(localLead, tourMeta) || isTourVisitInquiry(localLead)) {
+          let visitor;
+          try {
+            visitor = await createWebsiteTourVisitorLog(localLead, tourMeta, hostWorkspaceId, req);
+          } catch (tourError) {
+            return res.status(400).json({ message: tourError?.message || "Could not create tour visitor." });
           }
-          // A visitor pass was issued for the visit — send the code so the
-          // guest knows they are expected and can quote it at the door.
-          const acceptedTourMeta = readLeadMeta(localLead);
-          const acceptedTourAt = resolveLeadSchedule(acceptedTourMeta, null, null, localLead).startDate;
-          sendLeadBookingConfirmedEmail(localLead, {
-            bookingCode: localLead.bookingCode,
-            service: "Tour Visit",
-            details: [
-              { label: "Visit date", value: formatBookingDateTime(acceptedTourAt) },
-              { label: "Visit time", value: sanitizeValue(acceptedTourMeta.timeSlot || acceptedTourMeta.startTime) || "As scheduled" },
-              { label: "Note", value: "Please arrive 5 minutes early and show this ID at reception." },
-            ],
-          });
+          localLead.visitorId = visitor._id;
+          localLead.bookingCode = visitor.visitorCode;
           localLead.hostPanelStatus = "Accepted";
           localLead.paymentStatus = "Not Required";
           localLead.paymentStatusUpdatedAt = new Date();
           await localLead.save();
+          // A visitor pass was issued for the visit — send the code so the
+          // guest knows they are expected and can quote it at the door.
+          const acceptedTourAt = resolveLeadSchedule(tourMeta, null, null, localLead).startDate;
           await syncHostPanelStatusToNomads(leadId, hostWorkspaceId, "Accepted");
+          sendLeadBookingConfirmedEmail(localLead, {
+            bookingCode: localLead.bookingCode,
+            service: "Tour Visit",
+            details: [
+              { label: "Visit date", value: formatBookingDateTime(acceptedTourAt || visitor.visitDate) },
+              { label: "Visit time", value: sanitizeValue(tourMeta.timeSlot || tourMeta.startTime) || "As scheduled" },
+              { label: "Note", value: "Please arrive 5 minutes early and show this ID at reception." },
+            ],
+          });
           return res.status(200).json({
             message: `Tour visit accepted — visitor pass ${localLead.bookingCode} scheduled.`,
             lead: {
               _id: String(localLead._id),
               ...localLead.toObject(),
               ...leadPaymentSummary(localLead),
-              ...readLeadMeta(localLead),
+              ...tourMeta,
             },
           });
         }
 
-        // Co-working (and anything else genuinely non-payable — tour,
-        // visit, monthly tenancy) is a plain enquiry the host follows up
-        // on manually. Accept just marks it Accepted, no Stripe link, no
-        // conflict check, no fees.
+        // Co-working (and anything else genuinely non-payable — monthly
+        // tenancy) is a plain enquiry the host follows up on manually.
+        // Accept just marks it Accepted, no Stripe link, no fees. Tour/visit
+        // leads are handled above, before this fallback.
         if (isNonBookingInquiry(localLead)) {
           localLead.hostPanelStatus = "Accepted";
           localLead.paymentStatus = "Not Required";

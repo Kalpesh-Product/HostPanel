@@ -160,7 +160,7 @@ export default function CafeManagementPage({ lockedTabs }: { lockedTabs?: Tab[] 
   const [menuItems, setMenuItems] = useState<CafeMenuItem[]>([]);
   const [categoryList, setCategoryList] = useState<CafeCategory[]>([]);
   const [openOrders, setOpenOrders] = useState<CafeOrder[]>([]);
-  const [settings, setSettings] = useState<CafeSettings>({ companyName: "", googleReviewUrl: "", showReviewQr: false, taxPercent: 0, cafeStartTime: "06:00" });
+  const [settings, setSettings] = useState<CafeSettings>({ companyName: "", googleReviewUrl: "", showReviewQr: false, taxPercent: 0, cafeStartTime: "06:00", reservationPolicy: { allowOnlineReservations: true, type: "free", chargeBasis: "per_table", coverChargeAmount: 0, minimumSpend: true } });
   const [isLoading, setIsLoading] = useState(true);
   const [dialog, setDialog] = useState<{ kind: "tables" | "menu" | "categories" | "bulk" | "order"; table?: CafeTable; item?: CafeMenuItem; order?: CafeOrder } | null>(null);
 
@@ -1176,10 +1176,95 @@ function CafeReportsPanel({ formatCurrency }: { formatCurrency: (value?: number)
 }
 
 function CafeSettingsPanel({ value, onSaved }: { value: CafeSettings; onSaved: () => Promise<void> }) {
-  const [form, setForm] = useState(value); const [busy, setBusy] = useState(false);
-  useEffect(() => setForm(value), [value]);
-  const save = async () => { setBusy(true); try { await updateCafeSettings(form); toast.success("Cafe settings saved."); await onSaved(); } catch (error) { toast.error(getErrorMessage(error, "Unable to save settings.")); } finally { setBusy(false); } };
-  return <div className="mt-8 overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm"><div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/50 p-5"><div className="rounded-2xl bg-blue-50 p-2 text-blue-600"><Settings2 size={18} /></div><div><h3 className="font-pmedium text-slate-900">Cafe controls</h3><p className="text-[11px] text-slate-500">Bill identity, tax, review QR, and the daily order start time.</p></div></div><div className="grid gap-5 p-6 md:grid-cols-2"><WebsiteFormField label="Company name on bill" value={form.companyName} onChange={(event: any) => setForm({ ...form, companyName: event.target.value })} placeholder="Cafe or company name" /><WebsiteFormField label="Cafe start time" type="time" value={form.cafeStartTime} onChange={(event: any) => setForm({ ...form, cafeStartTime: event.target.value })} /><WebsiteFormField label="Tax percentage" type="number" value={String(form.taxPercent)} onChange={(event: any) => setForm({ ...form, taxPercent: Number(event.target.value) })} /><WebsiteFormField label="Google review link" value={form.googleReviewUrl} onChange={(event: any) => setForm({ ...form, googleReviewUrl: event.target.value })} placeholder="https://g.page/r/..." /><label className="flex items-center gap-2 text-[12px] font-pmedium text-slate-700"><input type="checkbox" checked={form.showReviewQr} onChange={(event) => setForm({ ...form, showReviewQr: event.target.checked })} />Show Google review QR on printed bills</label></div><div className="flex justify-end border-t border-slate-100 p-5"><button type="button" onClick={save} disabled={busy} className={SAVE_BUTTON}>{busy && <Loader2 size={13} className="animate-spin" />} Save settings</button></div></div>;
+  const normalize = (settings: CafeSettings): CafeSettings => ({
+    ...settings,
+    reservationPolicy: settings.reservationPolicy || {
+      allowOnlineReservations: true,
+      type: "free",
+      chargeBasis: "per_table",
+      coverChargeAmount: 0,
+      minimumSpend: true,
+    },
+  });
+  const [form, setForm] = useState(normalize(value));
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setForm(normalize(value)), [value]);
+
+  const setPolicy = (patch: Partial<CafeSettings["reservationPolicy"]>) =>
+    setForm((current) => ({ ...current, reservationPolicy: { ...current.reservationPolicy, ...patch } }));
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      await updateCafeSettings(form);
+      toast.success("Cafe settings saved.");
+      await onSaved();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Unable to save settings."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const policy = form.reservationPolicy;
+
+  return (
+    <div className="mt-8 overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
+      <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/50 p-5">
+        <div className="rounded-2xl bg-blue-50 p-2 text-blue-600"><Settings2 size={18} /></div>
+        <div>
+          <h3 className="font-pmedium text-slate-900">Cafe controls</h3>
+          <p className="text-[11px] text-slate-500">Bill identity, tax, review QR, order start time, and table-reservation policy.</p>
+        </div>
+      </div>
+      <div className="grid gap-5 p-6 md:grid-cols-2">
+        <WebsiteFormField label="Company name on bill" value={form.companyName} onChange={(event: any) => setForm({ ...form, companyName: event.target.value })} placeholder="Cafe or company name" />
+        <WebsiteFormField label="Cafe start time" type="time" value={form.cafeStartTime} onChange={(event: any) => setForm({ ...form, cafeStartTime: event.target.value })} />
+        <WebsiteFormField label="Tax percentage" type="number" value={String(form.taxPercent)} onChange={(event: any) => setForm({ ...form, taxPercent: Number(event.target.value) })} />
+        <WebsiteFormField label="Google review link" value={form.googleReviewUrl} onChange={(event: any) => setForm({ ...form, googleReviewUrl: event.target.value })} placeholder="https://g.page/r/..." />
+        <label className="flex items-center gap-2 text-[12px] font-pmedium text-slate-700">
+          <input type="checkbox" checked={form.showReviewQr} onChange={(event) => setForm({ ...form, showReviewQr: event.target.checked })} />
+          Show Google review QR on printed bills
+        </label>
+      </div>
+      <div className="border-t border-slate-100 p-6">
+        <h4 className="text-[13px] font-semibold text-slate-900">Table reservation policy</h4>
+        <p className="mt-1 text-[11px] text-slate-500">This is mirrored to the public website so guests see the charge before booking.</p>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <label className="flex items-center gap-2 text-[12px] font-pmedium text-slate-700">
+            <input type="checkbox" checked={policy.allowOnlineReservations} onChange={(event) => setPolicy({ allowOnlineReservations: event.target.checked })} />
+            Allow online table reservations
+          </label>
+          <label className="flex items-center gap-2 text-[12px] font-pmedium text-slate-700">
+            <input type="checkbox" checked={policy.minimumSpend} onChange={(event) => setPolicy({ minimumSpend: event.target.checked })} />
+            Cover charge is adjustable against the food bill
+          </label>
+          <div>
+            <label className="mb-1.5 block text-[11px] font-pmedium text-slate-600">Reservation type</label>
+            <select className={`${FIELD} cursor-pointer`} value={policy.type} onChange={(event) => setPolicy({ type: event.target.value as CafeSettings["reservationPolicy"]["type"] })}>
+              <option value="free">Free reservation</option>
+              <option value="cover_charge">Advance cover charge / deposit</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-[11px] font-pmedium text-slate-600">Charge basis</label>
+            <select className={`${FIELD} cursor-pointer`} value={policy.chargeBasis} onChange={(event) => setPolicy({ chargeBasis: event.target.value as CafeSettings["reservationPolicy"]["chargeBasis"] })} disabled={policy.type !== "cover_charge"}>
+              <option value="per_table">Per table</option>
+              <option value="per_person">Per person</option>
+            </select>
+          </div>
+          {policy.type === "cover_charge" && (
+            <WebsiteFormField label="Cover charge amount" type="number" value={String(policy.coverChargeAmount)} onChange={(event: any) => setPolicy({ coverChargeAmount: Number(event.target.value) })} placeholder="0" />
+          )}
+        </div>
+      </div>
+      <div className="flex justify-end border-t border-slate-100 p-5">
+        <button type="button" onClick={save} disabled={busy} className={SAVE_BUTTON}>
+          {busy && <Loader2 size={13} className="animate-spin" />} Save settings
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function BulkMenuSheetModal({ categories, onClose, onSaved }: { categories: string[]; onClose: () => void; onSaved: () => Promise<void> }) {

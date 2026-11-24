@@ -38,6 +38,13 @@ export interface ICafeOrderVoidLogEntry {
     voidedAt: Date;
 }
 
+export interface ICafeOrderAdvanceAdjustment {
+    reservationCode: string;
+    amount: number;
+    appliedAt: Date;
+    appliedBy?: mongoose.Types.ObjectId | null;
+}
+
 export interface ICafeOrder extends Document {
     workspaceId: mongoose.Types.ObjectId;
     orderNumber: number;
@@ -55,6 +62,8 @@ export interface ICafeOrder extends Document {
     discountValue: number;
     discountAmount: number;
     total: number;
+    advanceDeduction: number;
+    advanceAdjustment?: ICafeOrderAdvanceAdjustment | null;
     status: CafeOrderStatus;
     billedAt?: Date | null;
     paidAt?: Date | null;
@@ -104,6 +113,16 @@ const cafeOrderVoidLogSchema = new Schema<ICafeOrderVoidLogEntry>(
     { _id: false },
 );
 
+const cafeOrderAdvanceAdjustmentSchema = new Schema<ICafeOrderAdvanceAdjustment>(
+    {
+        reservationCode: { type: String, trim: true, default: "" },
+        amount: { type: Number, min: 0, default: 0 },
+        appliedAt: { type: Date, default: Date.now },
+        appliedBy: { type: Schema.Types.ObjectId, ref: "HostUser", default: null },
+    },
+    { _id: false }
+);
+
 const cafeOrderSchema = new Schema<ICafeOrder>(
     {
         workspaceId: {
@@ -141,6 +160,8 @@ const cafeOrderSchema = new Schema<ICafeOrder>(
         discountValue: { type: Number, min: 0, default: 0 },
         discountAmount: { type: Number, min: 0, default: 0 },
         total: { type: Number, required: true, min: 0 },
+        advanceDeduction: { type: Number, min: 0, default: 0 },
+        advanceAdjustment: { type: cafeOrderAdvanceAdjustmentSchema, default: null },
         waiterName: { type: String, trim: true, maxlength: 160, default: "" },
         paymentMethod: { type: String, trim: true, maxlength: 40, default: "" },
         cancelReason: { type: String, trim: true, maxlength: 500, default: "" },

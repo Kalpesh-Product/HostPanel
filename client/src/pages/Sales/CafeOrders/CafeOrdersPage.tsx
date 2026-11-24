@@ -125,7 +125,7 @@ export default function CafeOrdersPage() {
   const [menuItems, setMenuItems] = useState<CafeMenuItem[]>([]);
   const [openOrders, setOpenOrders] = useState<CafeOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [settings, setSettings] = useState<CafeSettings>({ companyName: "", googleReviewUrl: "", showReviewQr: false, taxPercent: 0, cafeStartTime: "06:00" });
+  const [settings, setSettings] = useState<CafeSettings>({ companyName: "", googleReviewUrl: "", showReviewQr: false, taxPercent: 0, cafeStartTime: "06:00", reservationPolicy: { allowOnlineReservations: true, type: "free", chargeBasis: "per_table", coverChargeAmount: 0, minimumSpend: true } });
   const [dialog, setDialog] = useState<{ table: CafeTable; order: CafeOrder | null; readOnly: boolean; initialCustomerName?: string } | null>(null);
   const [reservations, setReservations] = useState<CafeReservation[]>([]);
   const [now, setNow] = useState(() => Date.now());
@@ -728,7 +728,7 @@ function OrderDialog({
     const qr = settings.showReviewQr && settings.googleReviewUrl
       ? `<div class="qr"><p>Review us on Google</p><img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(settings.googleReviewUrl)}"></div>`
       : "";
-    return `<h1>${settings.companyName || "Cafe Bill"}</h1><div class="meta">Order #${billOrder.orderNumber} · ${table.name}<br>${new Date().toLocaleString()}${billOrder.waiterName ? `<br>Waiter: ${billOrder.waiterName}` : ""}</div>${billOrder.items.map((line) => `<div class="line"><span>${line.quantity} × ${line.name}</span><span>${formatCurrency(line.lineTotal)}</span></div>`).join("")}<div class="line"><span>Subtotal</span><span>${formatCurrency(billOrder.subtotal)}</span></div>${billOrder.discountAmount ? `<div class="line"><span>Discount</span><span>−${formatCurrency(billOrder.discountAmount)}</span></div>` : ""}${billOrder.taxAmount ? `<div class="line"><span>Tax (${billOrder.taxPercent}%)</span><span>${formatCurrency(billOrder.taxAmount)}</span></div>` : ""}<div class="line total"><span>Total</span><span>${formatCurrency(billOrder.total)}</span></div>${billOrder.paymentMethod ? `<div class="meta">Paid via ${billOrder.paymentMethod}</div>` : ""}${qr}`;
+    return `<h1>${settings.companyName || "Cafe Bill"}</h1><div class="meta">Order #${billOrder.orderNumber} · ${table.name}<br>${new Date().toLocaleString()}${billOrder.waiterName ? `<br>Waiter: ${billOrder.waiterName}` : ""}</div>${billOrder.items.map((line) => `<div class="line"><span>${line.quantity} × ${line.name}</span><span>${formatCurrency(line.lineTotal)}</span></div>`).join("")}<div class="line"><span>Subtotal</span><span>${formatCurrency(billOrder.subtotal)}</span></div>${billOrder.discountAmount ? `<div class="line"><span>Discount</span><span>−${formatCurrency(billOrder.discountAmount)}</span></div>` : ""}${billOrder.taxAmount ? `<div class="line"><span>Tax (${billOrder.taxPercent}%)</span><span>${formatCurrency(billOrder.taxAmount)}</span></div>` : ""}${billOrder.advanceDeduction ? `<div class="line"><span>Advance deposit${billOrder.advanceAdjustment?.reservationCode ? ` (${billOrder.advanceAdjustment.reservationCode})` : ""}</span><span>−${formatCurrency(billOrder.advanceDeduction)}</span></div>` : ""}<div class="line total"><span>Net due</span><span>${formatCurrency(billOrder.total)}</span></div>${billOrder.paymentMethod ? `<div class="meta">Paid via ${billOrder.paymentMethod}</div>` : ""}${qr}`;
   };
 
   const handlePrintBill = () => {
@@ -786,7 +786,8 @@ function OrderDialog({
       ? Math.min(order?.subtotal || 0, Number(discountValue || 0))
       : 0;
   const previewTax = Math.max(0, (order?.subtotal || 0) - previewDiscount) * (order?.taxPercent || 0) / 100;
-  const previewTotal = Math.max(0, (order?.subtotal || 0) - previewDiscount) + previewTax;
+  const previewAdvanceDeduction = Math.min(order?.advanceDeduction || 0, Math.max(0, (order?.subtotal || 0) - previewDiscount) + previewTax);
+  const previewTotal = Math.max(0, Math.max(0, (order?.subtotal || 0) - previewDiscount) + previewTax - previewAdvanceDeduction);
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-end justify-center sm:items-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
@@ -896,8 +897,9 @@ function OrderDialog({
                 </div>
                 {order.discountAmount > 0 && <div className="flex justify-between text-emerald-700"><span>Discount</span><span>−{formatCurrency(order.discountAmount)}</span></div>}
                 {order.taxAmount > 0 && <div className="flex justify-between font-pmedium text-slate-600"><span>Tax ({order.taxPercent}%)</span><span>{formatCurrency(order.taxAmount)}</span></div>}
+                {(order.advanceDeduction || 0) > 0 && <div className="flex justify-between text-emerald-700"><span>Advance deposit{order.advanceAdjustment?.reservationCode ? ` (${order.advanceAdjustment.reservationCode})` : ""}</span><span>−{formatCurrency(order.advanceDeduction || 0)}</span></div>}
                 <div className="flex justify-between font-pmedium text-slate-900">
-                  <span>Total</span>
+                  <span>Net due</span>
                   <span>{formatCurrency(order.total)}</span>
                 </div>
                 {order.waiterName && <p className="mt-2 text-center font-pmedium text-[10px] text-slate-500">Waiter: {order.waiterName}</p>}
@@ -1101,7 +1103,8 @@ function OrderDialog({
                   <div className="flex justify-between text-slate-600"><span>Subtotal</span><span>{formatCurrency(order.subtotal)}</span></div>
                   <div className="flex justify-between text-emerald-700"><span>Discount</span><span>−{formatCurrency(previewDiscount)}</span></div>
                   <div className="flex justify-between text-slate-600"><span>Tax ({order.taxPercent}%)</span><span>{formatCurrency(previewTax)}</span></div>
-                  <div className="flex justify-between border-t border-slate-200 pt-3 text-[15px] text-slate-950"><span>Amount payable</span><span>{formatCurrency(previewTotal)}</span></div>
+                  {previewAdvanceDeduction > 0 && <div className="flex justify-between text-emerald-700"><span>Advance deposit{order.advanceAdjustment?.reservationCode ? ` (${order.advanceAdjustment.reservationCode})` : ""}</span><span>−{formatCurrency(previewAdvanceDeduction)}</span></div>}
+                  <div className="flex justify-between border-t border-slate-200 pt-3 text-[15px] text-slate-950"><span>Net due</span><span>{formatCurrency(previewTotal)}</span></div>
                 </div>
               </div>
 

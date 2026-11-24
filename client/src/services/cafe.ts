@@ -70,6 +70,13 @@ export type CafeOrder = {
   discountValue: number;
   discountAmount: number;
   total: number;
+  advanceDeduction?: number;
+  advanceAdjustment?: {
+    reservationCode?: string;
+    amount?: number;
+    appliedAt?: string;
+    appliedBy?: string;
+  } | null;
   status: CafeOrderStatus;
   billedAt: string | null;
   paidAt: string | null;
@@ -79,12 +86,21 @@ export type CafeOrder = {
   createdAt: string;
 };
 
+export type CafeReservationPolicy = {
+  allowOnlineReservations: boolean;
+  type: "free" | "cover_charge";
+  chargeBasis: "per_table" | "per_person";
+  coverChargeAmount: number;
+  minimumSpend: boolean;
+};
+
 export type CafeSettings = {
   companyName: string;
   googleReviewUrl: string;
   showReviewQr: boolean;
   taxPercent: number;
   cafeStartTime: string;
+  reservationPolicy: CafeReservationPolicy;
 };
 
 export const getCafeMenuItems = async () => axiosPrivate.get("/api/v1/cafe/menu-items");

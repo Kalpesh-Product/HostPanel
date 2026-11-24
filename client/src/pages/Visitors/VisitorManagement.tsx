@@ -349,6 +349,7 @@ function normalizeVisitorTrackingEntry(visitor = {}, timeZone = DEFAULT_WORKSPAC
   const hasCheckOutTime = hasMeaningfulTimeValue(visitor?.checkOutAt) || hasMeaningfulTimeValue(visitor?.checkOut);
   const isCheckedOut = hasCheckOutTime || rawStatus === 'checked out';
   const isCheckedIn = !isCheckedOut && (hasCheckInTime || rawStatus === 'checked in');
+  const isWebsiteTour = normalizeText(visitor?.source) === 'website_tour';
 
   const statusKey = isCheckedOut
     ? 'checked_out'
@@ -365,7 +366,7 @@ function normalizeVisitorTrackingEntry(visitor = {}, timeZone = DEFAULT_WORKSPAC
     : isCheckedIn
       ? 'Checked In'
       : approvalStatus === 'approved'
-        ? 'Approved'
+        ? (isWebsiteTour ? 'Expected (website tour)' : 'Approved')
         : approvalStatus === 'rejected'
           ? 'Rejected'
           : 'Pending Approval';
@@ -380,6 +381,7 @@ function normalizeVisitorTrackingEntry(visitor = {}, timeZone = DEFAULT_WORKSPAC
   const monthYearSource =
     visitor?.checkOutAt ||
     visitor?.checkInAt ||
+    visitor?.visitDate ||
     visitor?.createdAt ||
     (visitor?.date ? new Date(visitor.date) : null);
   const derivedMonthYear = getMonthYearFromValue(monthYearSource, timeZone);
@@ -391,7 +393,7 @@ function normalizeVisitorTrackingEntry(visitor = {}, timeZone = DEFAULT_WORKSPAC
     host: visitor?.host || visitor?.hostName || 'Front Desk',
     // A website tour is pre-registered for a future slot — show the day the
     // guest is expected, not the day Sales accepted the lead.
-    date: formatDisplayDate(visitor?.checkInAt || visitor?.scheduledDate || visitor?.createdAt || visitor?.date) || '',
+    date: formatDisplayDate(visitor?.checkInAt || visitor?.scheduledDate || visitor?.visitDate || visitor?.createdAt || visitor?.date) || '',
     month: visitor?.month || derivedMonthYear.month,
     year: visitor?.year || derivedMonthYear.year,
     status,

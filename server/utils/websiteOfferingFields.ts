@@ -94,12 +94,21 @@ export const sanitizeOpeningHours = (value) =>
     }))
     .filter((row) => row.day);
 
+export const sanitizeReservationPolicy = (value) => ({
+  allowOnlineReservations: value?.allowOnlineReservations === undefined ? true : bool(value.allowOnlineReservations),
+  type: oneOf(value?.type, ["free", "cover_charge"]) || "free",
+  chargeBasis: oneOf(value?.chargeBasis, ["per_table", "per_person"]) || "per_table",
+  coverChargeAmount: Math.max(0, numOrUndefined(value?.coverChargeAmount) ?? 0),
+  minimumSpend: value?.minimumSpend === undefined ? true : bool(value.minimumSpend),
+});
+
 export const sanitizeReservation = (value) => ({
   enabled: value?.enabled === undefined ? true : bool(value.enabled),
   maxGuests: Math.max(1, numOrUndefined(value?.maxGuests) ?? 10),
   slotIntervalMinutes: Math.max(5, numOrUndefined(value?.slotIntervalMinutes) ?? 30),
   seatingOptions: strList(value?.seatingOptions),
   confirmationNote: str(value?.confirmationNote),
+  reservationPolicy: sanitizeReservationPolicy(value?.reservationPolicy),
 });
 
 export const sanitizeStayPolicy = (value) => {

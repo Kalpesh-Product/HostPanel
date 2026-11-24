@@ -148,6 +148,26 @@ const visitorLogSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    visitDate: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    leadId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "WebsiteLead",
+      default: null,
+      index: true,
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "HostUser",
+      default: null,
+    },
+    approvedAt: {
+      type: Date,
+      default: null,
+    },
     approvalStatus: {
       type: String,
       enum: ["pending", "approved", "rejected"],
