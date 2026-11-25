@@ -102,7 +102,7 @@ export default function UnitBusinessHoursPage() {
           <div className="bg-white/80 rounded-2xl border border-slate-100 shadow-sm min-h-[400px] animate-pulse" />
         ) : (
           <div className="flex flex-col gap-4 text-slate-700 font-sans">
-            <div className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+            <div data-tour="unit-business-hours-header" className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
               <div>
                 <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                   Business Hours
@@ -128,6 +128,7 @@ export default function UnitBusinessHoursPage() {
                 </div>
                 <button
                   type="button"
+                  data-tour="unit-business-hours-save"
                   onClick={saveBusinessHours}
                   disabled={isSaving}
                   className="inline-flex items-center justify-center gap-1.5 rounded-2xl px-4 py-2.5 text-[10px] font-pmedium shadow-sm transition-all whitespace-nowrap bg-[#2563EB] text-white hover:bg-primary/95 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -136,7 +137,7 @@ export default function UnitBusinessHoursPage() {
                   {isSaving ? "SAVING..." : "SAVE HOURS"}
                 </button>
               </div>
-              <div className="p-3 sm:p-4 lg:p-5">
+              <div data-tour="unit-business-hours-fields" className="p-3 sm:p-4 lg:p-5">
                 <div className="grid gap-3 sm:grid-cols-2 mb-4">
                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 space-y-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Workspace Timezone</label>
@@ -168,7 +169,7 @@ export default function UnitBusinessHoursPage() {
                   />
                   <span className="text-[11px] font-pmedium text-[#0F172A]">Open 24 hours</span>
                 </label>
-                <div className="grid gap-4 md:grid-cols-2">
+                <div data-tour="unit-business-hours-timings" className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-1">
                     <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Opening Time</label>
                     <TimePicker12h

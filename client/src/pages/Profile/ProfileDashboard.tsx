@@ -242,6 +242,7 @@ export default function ProfileDashboard() {
           tags={["Personal Details", "Unit Access", "Security", "Plan & Billing"]}
           image={profileDashboardBanner}
           moduleCount={modules.length}
+          dataTour="profile-hub-banner"
         />
 
         {isLoading ? (
@@ -251,7 +252,7 @@ export default function ProfileDashboard() {
             ))}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div data-tour="profile-hub-stats" className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <DashboardStatTile
               icon={<UserRound size={20} />}
               label="My Profile"
@@ -284,7 +285,7 @@ export default function ProfileDashboard() {
         )}
 
         {hasCustomProfileModules ? (
-          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div data-tour="profile-hub-self-service" className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <DashboardStatTile
               icon={<PackageCheck size={20} />}
               label="Assigned Assets"
@@ -309,7 +310,7 @@ export default function ProfileDashboard() {
           </div>
         ) : null}
 
-        <div className="mb-6">
+        <div data-tour="profile-hub-modules" className="mb-6">
           <p className="text-sm font-pmedium text-slate-900">Profile modules</p>
           <p className="mt-1 text-[10px] text-slate-500">
             Open the relevant profile module; the existing tabs and workflows remain unchanged.
@@ -318,7 +319,7 @@ export default function ProfileDashboard() {
         </div>
 
         {customModules.length > 0 ? (
-          <div className="mb-6 border-t border-slate-100 pt-5">
+          <div data-tour="profile-hub-custom-modules" className="mb-6 border-t border-slate-100 pt-5">
             <p className="text-sm font-pmedium text-slate-900">Custom plan modules</p>
             <p className="mt-1 text-[10px] text-slate-500">
               Employee self-service records and requests included with the Custom plan.
@@ -330,6 +331,7 @@ export default function ProfileDashboard() {
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           <DashboardSection
             title="Account snapshot"
+            dataTour="profile-hub-snapshot"
             subtitle="Current identity and unit details available to your profile."
             bodyClassName="p-0"
           >
@@ -341,6 +343,7 @@ export default function ProfileDashboard() {
 
           <DashboardSection
             title="Access and security"
+            dataTour="profile-hub-access"
             subtitle="Plan, role, department, and credential controls for this account."
             bodyClassName="p-0"
           >
