@@ -70,14 +70,13 @@ export const CABIN_CSS = String.raw`
 
 .cabin-shell { width: min(1290px, calc(100% - 96px)); margin-inline: auto; }
 .cabin-narrow-container { width: min(940px, 100%); margin-inline: auto; }
-.cabin-section { padding-block: clamp(80px, 12vw, 160px); padding-inline: clamp(20px, 3.5vw, 56px); position: relative; }
+.cabin-section { padding-block: var(--cb-section-space, clamp(80px, 12vw, 160px)); padding-inline: clamp(20px, 3.5vw, 56px); position: relative; }
 .cabin-center { text-align: center; }
 .cabin-narrow { max-width: 780px; }
 .cabin-auto { margin-inline: auto; }
 .cabin-kicker { color: var(--cb-muted); font-size: 20px; font-weight: 500; line-height: 24px; margin-bottom: 15px; }
 .cabin-kicker.white, .cabin-center .cabin-kicker.white { color: var(--cb-white); }
 .cabin-serif-copy { font-family: var(--cb-serif); font-size: clamp(1.25rem, 2vw, 28px); font-weight: 300; line-height: 38px; }
-.cabin-indent { text-indent: 23%; }
 .cabin-amenity-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 0; list-style: none; margin-top: 24px; }
 .cabin-amenity-tags li { padding: 8px 16px; border: 1px solid var(--cb-line); border-radius: 99px; color: var(--cb-muted); font-size: 14px; line-height: 18px; }
 .cabin-visually-hidden, .cabin-skip:not(:focus) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
@@ -141,13 +140,14 @@ export const CABIN_CSS = String.raw`
 .cabin-round-link { display: flex; align-items: center; gap: 24px; margin-left: auto; padding: 0; border: 0; background: transparent; color: #fff; }
 .cabin-round-link span { display: grid; place-items: center; width: 72px; height: 72px; border: 1px solid rgba(255,255,255,.6); border-radius: 50%; font-size: 32px; transition: transform .25s; }
 .cabin-round-link:hover span { transform: translateY(4px); }
-.cabin-scroll { display: flex; align-items: center; gap: 16px; color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-decoration: none; text-transform: uppercase; white-space: nowrap; }
+.cabin-scroll { display: flex; align-items: center; gap: 16px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-decoration: none; text-transform: uppercase; white-space: nowrap; }
+.cabin a.cabin-scroll { color: var(--cb-white); }
 .cabin-scroll span { display: grid; place-items: center; width: 64px; height: 64px; border: 1px solid rgba(255,255,255,.55); border-radius: 50%; font-size: 26px; }
-.cabin-scroll:hover { color: #fff; }
 @keyframes cabin-word-in { from { opacity: 0; transform: translate3d(0,100%,0) rotateX(-60deg); } to { opacity: 1; transform: translate3d(0,0,0) rotateX(0); } }
 
 /* White sheet that scrolls up over the fixed hero, matching the reference card overlap. */
 .cabin-content-sheet {
+  --cb-section-space: clamp(36px, 4.5vw, 68px);
   position: relative; z-index: 1; width: min(1290px, calc(100% - 48px));
   margin-inline: auto; overflow: hidden; border-radius: 60px;
   background: var(--cb-white);
@@ -163,7 +163,7 @@ export const CABIN_CSS = String.raw`
 .cabin-intro-icon { display: grid; place-items: center; width: 70px; height: 70px; margin-bottom: 22px; border: 1px solid var(--cb-line); border-radius: 20px; font: 300 30px/1 var(--cb-serif); }
 
 /* Rotated photo collage. */
-.cabin-collage-section { padding-block: 20px 80px; padding-inline: 0; }
+.cabin-collage-section { padding-block: 20px var(--cb-section-space); padding-inline: 0; }
 .cabin-collage { position: relative; height: clamp(420px, 55vw, 720px); border-radius: 60px; overflow: hidden; background: #d4d6cd; }
 .cabin-collage-grid { position: absolute; inset: -40%; display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); grid-template-rows: repeat(3,1fr); gap: 20px; transform: rotate(-27deg); }
 .cabin-collage-grid button { min-width: 0; min-height: 0; padding: 0; border: 0; border-radius: 32px; overflow: hidden; background: var(--cb-surface); }
@@ -171,8 +171,8 @@ export const CABIN_CSS = String.raw`
 .cabin-collage-grid button:hover img { transform: scale(1.05); }
 .cabin-collage-title { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.2); color: #fff; text-align: center; pointer-events: none; }
 .cabin-collage-title h2 { max-width: 10ch; color: #fff; font-size: clamp(2.5rem, 4.6vw, 58px); line-height: 1.1; font-weight: 500; }
-.cabin-call-curve { position: absolute; right: 0; bottom: 0; z-index: 2; display: flex; align-items: center; gap: 16px; max-width: 420px; padding: 34px 40px 34px 50px; border-radius: 60px 0 60px 0; background: var(--cb-white); color: var(--t-text, #1f1f1f); font-size: 15px; font-weight: 700; text-decoration: none; }
-.cabin-call-curve:hover { color: var(--cb-link); }
+.cabin-call-curve { position: absolute; right: 0; bottom: 0; z-index: 2; display: flex; align-items: center; gap: 16px; max-width: 420px; padding: 34px 40px 34px 50px; border-radius: 60px 0 60px 0; background: var(--cb-white); font-size: 15px; font-weight: 700; text-decoration: none; }
+.cabin a.cabin-call-curve { color: var(--cb-dark); }
 .cabin-call-curve::before { content: ""; width: 44px; height: 44px; border-radius: 50%; background: var(--cb-surface) url("https://cdn.prod.website-files.com/66fef51bb2a32743f5bfff90/66fef51bb2a32743f5c0002d_Logo.png") center/26px no-repeat; }
 
 /* Section headings used by Discover, Amenities, Cabins and Pricing. */
@@ -194,14 +194,6 @@ export const CABIN_CSS = String.raw`
 .cabin-discover-cta .cabin-button { margin-top: 10px; }
 
 /* Amazing — alternating image and serif copy rows. */
-.cabin-story-row { align-items: center; gap: clamp(30px, 6vw, 90px); margin-bottom: 80px; }
-.cabin-story-row:last-child { margin-bottom: 0; }
-.cabin-story-row.reverse > div:first-child { order: 2; }
-.cabin-story-row .cabin-image-button img { width: 100%; aspect-ratio: .92; object-fit: cover; border-radius: 45px; }
-.cabin-story-copy { padding: 20px 0; }
-.cabin-story-copy h4 { margin-bottom: 30px; }
-.cabin-story-copy p { max-width: 500px; font-family: var(--cb-serif); font-size: clamp(1.25rem, 2vw, 28px); font-weight: 300; line-height: 38px; text-indent: 23%; }
-.cabin-corner-icon { display: grid; place-items: center; width: 77px; height: 77px; margin-top: 20px; border-radius: 30px; background: var(--cb-surface); font-size: 36px; }
 
 /* Amenities — three expanding image panels and data counters. */
 .cabin-expand-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 20px; margin-top: 70px; }
@@ -221,21 +213,19 @@ export const CABIN_CSS = String.raw`
 .cabin-stats-block p { margin-top: 10px; color: var(--cb-muted); font-size: 16px; line-height: 24px; }
 
 /* Cabins / stays — one large feature and two supporting cards. */
-.cabin-works { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
-.cabin-works-side { display: grid; grid-template-rows: 1fr 1fr; gap: 26px; }
-.cabin-work-card { display: flex; flex-direction: column; min-width: 0; }
-.cabin-work-image { position: relative; display: block; width: 100%; flex: 1; min-height: 300px; padding: 0; border: 0; border-radius: 40px; overflow: hidden; background: var(--cb-surface); }
-.cabin-works > .cabin-work-card > .cabin-work-image { min-height: 620px; }
-.cabin-work-image img { width: 100%; height: 100%; object-fit: cover; transition: transform .6s; }
-.cabin-work-image:hover img { transform: scale(1.04); }
-.cabin-work-hover { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(22,22,22,.35); color: #fff; font: 300 30px/1 var(--cb-serif); opacity: 0; transition: opacity .3s; }
-.cabin-work-image:hover .cabin-work-hover { opacity: 1; }
-.cabin-work-meta { display: flex; gap: 28px; padding: 22px 8px 0; }
-.cabin-work-meta small { color: var(--cb-muted); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
-.cabin-work-meta a, .cabin-work-meta button { font: 400 20px/26px var(--cb-serif); text-decoration: none; }
+
+.cabin-works { display: flex; justify-content: center; gap: clamp(8px, 2vw, 26px); }
+.cabin-work-card { flex: 1 1 0; min-width: 0; max-width: 340px; }
+.cabin-work-image { position: relative; display: block; width: 100%; aspect-ratio: 4 / 3; padding: 0; border: 0; border-radius: clamp(12px, 3vw, 32px); overflow: hidden; background: var(--cb-surface); }
+.cabin-work-image img { width: 100%; height: 100%; object-fit: cover; }
+.cabin-work-hover { position: absolute; inset: 0; display: grid; place-items: center; padding: 4px; background: rgba(22,22,22,.4); color: #fff; font: 400 clamp(.8rem, 2vw, 1.5rem)/1.2 var(--cb-serif); opacity: 0; transition: opacity .3s; }
+.cabin-work-image:is(:hover, :focus-visible) .cabin-work-hover { opacity: 1; }
+.cabin-work-meta { display: grid; justify-items: start; gap: 4px; padding-top: 14px; overflow-wrap: anywhere; }
+.cabin-work-meta small { color: var(--cb-muted); font-size: clamp(.65rem, 1.15vw, .8125rem); font-weight: 700; line-height: 1.35; }
+.cabin-work-meta button { padding: 0; border: 0; background: transparent; text-align: left; font: 400 clamp(.95rem, 2vw, 1.25rem)/1.3 var(--cb-serif); }
 
 /* Pricing — deep rounded panel with three plan cards. */
-.cabin-pricing { padding-block: clamp(90px, 12vw, 200px) 100px; padding-inline: 0; }
+.cabin-pricing { padding-inline: 0; }
 .cabin-pricing .dark-bg { position: relative; border-radius: 60px; background: var(--cb-dark); padding: clamp(70px, 9vw, 150px) 40px 80px; overflow: hidden; }
 .cabin-pricing .radial-container { position: absolute; inset: 0; pointer-events: none; }
 .cabin-pricing .radial-container > div { position: absolute; border: 1px solid rgba(255,255,255,.06); border-radius: 50%; }
@@ -258,11 +248,7 @@ export const CABIN_CSS = String.raw`
 .cabin-price-grid article.dark > p:not(.cabin-price) { color: #d6d6d6; }
 .cabin-price-grid ul { padding: 0; margin: 28px 0; list-style: none; }
 .cabin-price-grid li { border-top: 1px solid rgba(128,128,128,.35); padding-block: 14px; font-size: 15px; }
-.cabin-price-grid details summary { display: flex; justify-content: space-between; gap: 12px; cursor: pointer; list-style: none; }
-.cabin-price-grid details summary::-webkit-details-marker { display: none; }
-.cabin-price-grid details summary::after { content: "+"; font-size: 18px; }
-.cabin-price-grid details[open] summary::after { content: "−"; }
-.cabin-price-grid details p { padding: 10px 0 14px; color: var(--cb-muted); font-size: 14px; line-height: 22px; }
+.cabin-price-grid .cabin-price-features-title { color: inherit; font: 600 18px/1.4 var(--cb-sans); }
 .cabin-badge { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); padding: 8px 22px; border-radius: 99px; background: var(--cb-link); color: #fff; font-size: 13px; font-weight: 700; }
 .cabin-people { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 20px; margin-top: 90px; }
 .cabin-people figure { position: relative; min-width: 0; }
@@ -270,6 +256,8 @@ export const CABIN_CSS = String.raw`
 .cabin-people figcaption { margin-top: 18px; text-align: center; font-family: var(--cb-serif); font-size: 24px; }
 .cabin-people small { display: block; font: 700 12px/18px var(--cb-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--cb-muted); }
 .cabin-price-grid .cabin-button { width: 100%; }
+.cabin-price-grid article.dark .cabin-button { border-color: var(--cb-white); color: var(--cb-white); }
+.cabin-price-grid article.dark .cabin-button:is(:hover, :focus-visible) { background: var(--cb-white); color: var(--cb-dark); }
 
 /* FAQ accordion. */
 .cabin-faq-layout { display: grid; grid-template-columns: 1fr 1.3fr; gap: 70px; }
@@ -282,6 +270,8 @@ export const CABIN_CSS = String.raw`
 .cabin-faqs details[open] summary span { transform: rotate(45deg); }
 
 /* Testimonial cards. */
+.cabin-rating-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 14px; margin-top: 12px; }
+.cabin-rating-summary strong { font-size: 1.25rem; }
 .cabin-reviews { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 28px; margin-block: 40px; }
 .cabin-reviews figure { display: flex; flex-direction: column; padding: 34px; border: 1px solid var(--cb-line); border-radius: 30px; }
 .cabin-reviews .cabin-kicker { font-size: 15px; }
@@ -289,7 +279,7 @@ export const CABIN_CSS = String.raw`
 .cabin-review-dots { display: flex; justify-content: center; gap: 12px; margin-block: 30px; }
 .cabin-review-dots button { width: 12px; height: 12px; padding: 0; border: 1px solid currentColor; border-radius: 50%; background: transparent; }
 .cabin-review-dots button[aria-pressed=true] { background: currentColor; }
-.cabin-stars { color: var(--cb-link); letter-spacing: 3px; }
+.cabin-stars { --t-accent-fg: var(--cb-link); display: flex; align-items: center; }
 .cabin-review figcaption, .cabin-reviews figcaption { display: flex; align-items: center; gap: 14px; margin-top: 26px; font-weight: 700; }
 .cabin-avatar { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: var(--cb-surface); font-family: var(--cb-serif); font-size: 22px; }
 
@@ -313,21 +303,7 @@ export const CABIN_CSS = String.raw`
 .cabin-form form > div, .cabin-dialog form > div { min-width: 0; }
 .cabin-form button[type=submit], .cabin-dialog button[type=submit] { width: 100%; margin-top: 16px; }
 
-/* Feature grid and latest updates. */
-.cabin-features-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 30px 40px; margin-top: 60px; }
-.cabin-feature { padding-top: 22px; border-top: 1px solid var(--cb-line); }
-.cabin-feature h3 { margin-bottom: 12px; }
-.cabin-feature p { color: var(--cb-muted); }
-.cabin-features-grid + .cabin-center { margin-top: 50px; }
-.cabin-feature + .cabin-center { grid-column: 1 / -1; }
-.cabin-updates-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 26px; margin-top: 60px; }
-.cabin-update img { width: 100%; aspect-ratio: 1.25; object-fit: cover; border-radius: 40px; }
-.cabin-update small { display: block; margin-top: 22px; color: var(--cb-muted); font-size: 13px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
-.cabin-update h3 { margin-block: 12px; }
-.cabin-update p { color: var(--cb-muted); }
-.cabin-update .cabin-text-link { margin-top: 14px; }
-
-.cabin-instagram { padding-block: 40px 140px; padding-inline: clamp(20px, 3.5vw, 56px); }
+.cabin-instagram { padding-block: 32px 100px; padding-inline: clamp(20px, 3.5vw, 56px); }
 .cabin-instagram-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; }
 .cabin-instagram-grid button { position: relative; padding: 0; border: 0; border-radius: 30px; overflow: hidden; background: var(--cb-surface); }
 .cabin-instagram-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; transition: transform .5s; }
@@ -339,22 +315,23 @@ export const CABIN_CSS = String.raw`
 /* Footer — matches the header/content sheet width and stays above the fixed home hero. */
 .cabin-footer {
   position: relative; z-index: 2; width: min(1290px, calc(100% - 48px));
-  margin: -50px auto 0; padding: 96px clamp(24px, 4vw, 48px);
+  margin: -50px auto 0; padding: 56px clamp(24px, 4vw, 48px) 28px;
   border-radius: 60px; background: var(--cb-dark); color: #fff;
 }
 .cabin-footer .cabin-shell { width: 100%; }
-.cabin-footer-grid { display: grid; grid-template-columns: 1.6fr .6fr 1fr; gap: 60px; padding-bottom: 70px; }
-.cabin-footer-intro h2 { margin-block: 30px; max-width: 8ch; }
+.cabin-footer-grid { display: grid; grid-template-columns: 1.6fr .6fr 1fr; gap: 60px; padding-bottom: 38px; }
+.cabin-footer-intro h2 { margin-block: 20px; max-width: 8ch; }
 .cabin-footer-intro p { max-width: 360px; color: #d6d6d6; }
 .cabin-footer .cabin-brand { max-width: 100%; color: #fff; }
-.cabin-footer h3 { font: 700 16px/1.4 var(--cb-sans); margin-bottom: 24px; }
+.cabin-footer h3 { font: 700 16px/1.4 var(--cb-sans); margin-bottom: 16px; }
 .cabin-footer nav button { display: block; padding: 6px 0; border: 0; background: transparent; color: #fff; text-align: left; }
 .cabin-footer a { color: #fff; text-decoration: none; }
 .cabin-footer :where(a,nav button):hover { color: var(--cb-link); text-decoration: underline; text-underline-offset: 5px; }
 .cabin-footer address { display: grid; gap: 10px; margin-top: 20px; font-style: normal; }
 .cabin-footer .cabin-hours-list { font-size: .85rem; }
-.cabin-copyright { border-top: 1px solid #ffffff35; padding-block: 24px; font-size: .85rem; color: #d6d6d6; }
+.cabin-copyright { border-top: 1px solid #ffffff35; padding-block: 16px; font-size: .85rem; color: #d6d6d6; }
 .cabin-contact-details, .cabin-footer address { display: grid; gap: 12px; font-style: normal; margin-top: 20px; }
+.cabin-contact-details a, .cabin-contact-details a:hover { color: inherit; }
 .cabin-map { width: 100%; height: 420px; margin-top: 40px; border: 0; border-radius: 30px; }
 .cabin-hours-list { margin-top: 24px; }
 .cabin-hours-list > div { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid currentColor; }
@@ -369,7 +346,7 @@ export const CABIN_CSS = String.raw`
 .cabin-page-hero::after { content: ""; position: absolute; inset: 0; background: rgba(17,17,17,.55); z-index: -1; }
 .cabin-page-hero .cabin-kicker { color: inherit; }
 .cabin-page-intro { margin: 22px auto 0; max-width: 62ch; font-family: var(--cb-serif); font-size: 24px; font-weight: 300; line-height: 34px; }
-.cabin-cards { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 28px; }
+.cabin-cards, .cabin-gallery { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 28px; }
 .cabin-cards article { position: relative; height: 100%; border: 1px solid var(--cb-line); border-radius: 32px; overflow: hidden; }
 .cabin-cards article img { width: 100%; aspect-ratio: .95; object-fit: cover; transition: transform .65s; }
 .cabin-cards article:hover img { transform: scale(1.035); }
@@ -433,7 +410,7 @@ export const CABIN_CSS = String.raw`
   .cabin-discover-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .cabin-discover-grid img, .cabin-discover-grid .cabin-image-button, .cabin-discover-cta { min-height: 340px; }
   .cabin-people { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .cabin-cards, .cabin-reviews, .cabin-pricing .cabin-price-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .cabin-cards, .cabin-gallery, .cabin-reviews, .cabin-pricing .cabin-price-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .cabin-product-cards > * { flex-basis: calc((100% - var(--card-gap)) / 2); }
   .cabin-footer-grid { gap: 30px; grid-template-columns: 1.4fr .7fr 1fr; }
 }
@@ -473,17 +450,13 @@ export const CABIN_CSS = String.raw`
   .cabin-section-heading, .cabin-faq-layout { grid-template-columns: minmax(0,1fr); display: grid; gap: 26px; }
   .cabin-section-heading > p { max-width: 100%; }
   .cabin-discover-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .cabin-expand-grid, .cabin-expand-grid[class*="is-expanding-"], .cabin-works, .cabin-reviews, .cabin-pricing .cabin-price-grid, .cabin-features-grid, .cabin-updates-grid, .cabin-instagram-grid { grid-template-columns: minmax(0,1fr); }
-  .cabin-works-side { grid-template-rows: none; }
+  .cabin-expand-grid, .cabin-expand-grid[class*="is-expanding-"], .cabin-reviews, .cabin-pricing .cabin-price-grid, .cabin-instagram-grid { grid-template-columns: minmax(0,1fr); }
   .cabin-expand-card { min-height: 320px; }
   .cabin-expand-card h3 { font-size: 32px; line-height: 1.15; }
   .cabin-stats { grid-template-columns: minmax(0,1fr); margin-top: 70px; }
   .cabin-discover-grid img, .cabin-discover-grid .cabin-image-button, .cabin-discover-cta { min-height: 260px; border-radius: 32px; }
-  .cabin-story-row.reverse > div:first-child { order: 0; }
-  .cabin-story-copy p { text-indent: 0; font-size: 22px; line-height: 32px; }
-  .cabin-works > .cabin-work-card > .cabin-work-image { min-height: 360px; }
   .cabin-split { grid-template-columns: minmax(0,1fr); gap: 36px; }
-  .cabin-footer { width: calc(100% - 24px); margin-top: -32px; padding: 64px 24px 0; }
+  .cabin-footer { width: calc(100% - 24px); margin-top: -32px; padding: 40px 24px 0; }
   .cabin-footer-grid { grid-template-columns: 1fr 1fr; }
   .cabin-footer-intro { grid-column: 1 / -1; }
   .cabin-footer-intro h2 { max-width: 100%; }

@@ -63,7 +63,7 @@ export const MessageForm: React.FC<{ inquiryType: string; submitLabel: string; s
 };
 
 
-export const ReviewModal: React.FC = () => {
+export const ReviewModal: React.FC<{ panelBackground?: string }> = ({ panelBackground = "var(--t-bg)" }) => {
   const { t } = useTpl();
   return (
     <AnimatePresence>
@@ -76,7 +76,7 @@ export const ReviewModal: React.FC = () => {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 20, opacity: 0 }}
             className="relative w-full max-w-lg rounded-[32px] p-7 md:p-9"
-            style={{ background: "var(--t-bg)", color: "var(--t-text)" }}
+            style={{ background: panelBackground, color: "var(--t-text)" }}
           >
             <button type="button" aria-label="Close" onClick={() => t.setReviewModalOpen(false)} className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full" style={{ background: "color-mix(in srgb, var(--t-text) 8%, transparent)" }}>{Icon.close()}</button>
             <h2 className="tp-h3 mb-6 pr-10">Share your experience</h2>

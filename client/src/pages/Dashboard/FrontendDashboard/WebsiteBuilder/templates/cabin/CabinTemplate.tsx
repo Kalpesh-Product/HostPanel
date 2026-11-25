@@ -86,7 +86,7 @@ export default function CabinTemplate() {
             t.closeLeadModal();
           }} />
         ) : null}
-        <ReviewModal />
+        <ReviewModal panelBackground="var(--t-bg, var(--cb-white))" />
         <Lightbox />
         <Toast />
       </div>

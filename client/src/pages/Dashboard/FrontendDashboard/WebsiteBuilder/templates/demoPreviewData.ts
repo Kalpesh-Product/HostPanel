@@ -2264,6 +2264,10 @@ const cabinDemo: DemoBusiness = (() => {
     testimonials: [
       { name: "Maya Chen", jobPosition: "Resident", rating: 5, image: "", testimony: "Having my own space and a friendly community nearby made moving here feel easy. The quiet mornings are my favourite part." },
       { name: "Leo Martin", jobPosition: "Resident", rating: 5, image: "", testimony: "A comfortable home, a proper place to work, and a garden to switch off in. I settled in much faster than I expected." },
+      { name: "Sofia Patel", jobPosition: "Resident", rating: 4, image: "", testimony: "I could get a full day of work done and still make it out for an evening walk. The balance felt right from the first week." },
+      { name: "Noah Williams", jobPosition: "Resident", rating: 5, image: "", testimony: "Cooking with the other residents made the shared kitchen feel like home. I always had my own room to retreat to afterward." },
+      { name: "Priya Shah", jobPosition: "Resident", rating: 5, image: "", testimony: "Moving in was easy because the room was already furnished. I spent my first Saturday on the porch with coffee and a book." },
+      { name: "Elena García", jobPosition: "Resident", rating: 4, image: "", testimony: "The garden became my favourite spot after work, and the team was quick to answer my questions about settling in." },
     ],
     faqs: [
       { question: "What is included in my stay?", answer: "Each home is furnished. The room listing shows its amenities and shared facilities. Ask our team about utilities and services before confirming your stay." },

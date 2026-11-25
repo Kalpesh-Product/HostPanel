@@ -3,13 +3,14 @@ import { useReducedMotion } from "framer-motion";
 import { getInclusionMeta } from "../inclusionIcons";
 import { priceWithUnit } from "../templateKit";
 import { LeadFormPanel } from "../shared/TplLead";
+import { StarRow } from "../shared/TplUI";
 import { useCabin } from "./CabinContext";
 import { cabinFallback, cabinImage, cabinSrc } from "./cabinMedia";
 import { CabinImage, CabinReveal } from "./CabinUI";
 
 export function CabinHome() {
-  const { t, draft, services, primary, openLead, goToItem, c, photo } = useCabin();
-  const [reviewIndex, setReviewIndex] = useState(0);
+  const { t, draft, services, primary, rating, openLead, goToItem, c, photo } = useCabin();
+  const [reviewPage, setReviewPage] = useState(0);
   const [heroIndex, setHeroIndex] = useState(0);
   const [heroPaused, setHeroPaused] = useState(false);
   const [activeAmenity, setActiveAmenity] = useState<number | null>(null);
@@ -18,12 +19,9 @@ export function CabinHome() {
   const photos = t.galleryItems as string[];
   const hero = photo("hero.image", cabinImage(t.mainHeroImage, t.heroImages[0], photos[0], primary?.heroImage));
   const about = photo("intro.image", cabinImage(draft.aboutPageImages?.[0], photos[0], hero));
-  const storyFirst = photo("story.first.image", cabinImage(photos[3], photos[0], hero, cabinFallback(3)));
-  const storySecond = photo("story.second.image", cabinImage(photos[4], photos[1], about, cabinFallback(4)));
   // Keep the three amenity cards as cabin interiors; the third fallback used
   // to be a portrait, which did not match the other two cards.
   const amenityImages = [0, 1, 2].map((index) => photo(`amenity.${index + 1}.image`, cabinImage(photos[index], cabinFallback(index + 1), hero)));
-  const updateImages = [0, 1, 2].map((index) => photo(`update.${index + 1}.image`, cabinImage(photos[index + 3], photos[index], hero, cabinFallback(index + 3))));
   const stays = services.flatMap((service) => service.items.map((item) => ({ service, item }))).slice(0, 3);
   const booking = primary?.leadEnabled ? primary : services.find((service) => service.leadEnabled);
   const amenities = [...new Set([
@@ -31,12 +29,15 @@ export function CabinHome() {
     ...(draft.inclusions || []).filter((entry: any) => entry.enabled !== false).map((entry: any) => getInclusionMeta(entry).label),
   ])].filter(Boolean).slice(0, 6);
   const reviews = t.testimonials.filter((review: any) => review.text || review.review || review.testimony);
-  const visibleReviews = reviews.length
-    ? Array.from({ length: Math.min(3, reviews.length) }, (_, offset) => reviews[(reviewIndex + offset) % reviews.length])
-    : [];
+  const reviewsPerPage = 3;
+  const reviewPageCount = Math.ceil(reviews.length / reviewsPerPage);
+  const activeReviewPage = Math.min(reviewPage, Math.max(0, reviewPageCount - 1));
+  const firstReviewIndex = activeReviewPage * reviewsPerPage;
+  const visibleReviews = reviews.slice(firstReviewIndex, firstReviewIndex + reviewsPerPage);
   const faqs = (draft.faqs || []).filter((faq: any) => faq.enabled !== false);
   const title = c("hero.title", draft.title || "Escape");
   const instagramHref = (t.footerSocialLinks || []).find(({ key }: { key: string }) => key.toLowerCase().includes("instagram"))?.href || "";
+  const galleryTitle = c("instagram.title", "Gallery");
   const slides = [
     { title, image: hero },
     { title: c("hero.second.title", "Discover"), image: photo("hero.second.image", cabinSrc(t.heroImages[1])) },
@@ -62,20 +63,6 @@ export function CabinHome() {
       scroll();
     }
   };
-
-  const workCard = ({ service, item }: { service: (typeof services)[number]; item: (typeof services)[number]["items"][number] }, index: number) => (
-    <CabinReveal className="cabin-work-card" key={service.key + item.key}>
-      <button className="cabin-work-image" type="button" aria-label={"Explore " + item.title} onClick={() => goToItem(service, item)}>
-        <CabinImage src={cabinImage(item.image, service.cardImage, service.heroImage)} fallback={cabinFallback(index + 5)} alt={item.title} />
-        <span className="cabin-work-hover">{c("stays.cta", "View work")} ↗</span>
-      </button>
-      <div className="cabin-work-meta">
-        <small>{String(index + 1).padStart(2, "0")} / {service.heading || c("stays.title", "Cabins")}</small>
-        <button type="button" onClick={() => goToItem(service, item)}>{item.title}</button>
-        {item.price ? <small>{priceWithUnit(item.price, item.priceUnit)}</small> : null}
-      </div>
-    </CabinReveal>
-  );
 
   return <>
     {enabled("home_hero") ? <section className="cabin-hero">
@@ -169,34 +156,6 @@ export function CabinHome() {
       </div>
     </section> : null}
 
-    {enabled("home_story") ? <section className="cabin-section cabin-shell">
-      <CabinReveal className="cabin-big-heading center">
-        <p className="cabin-kicker">{c("story.eyebrow", "Amazing")}</p>
-        <h2>{c("story.title", "Enhace your Life")}</h2>
-        <p>{c("story.body", "Its modern, responsive design adapts to all devices.")}</p>
-      </CabinReveal>
-      <CabinReveal className="cabin-story-row cabin-split">
-        <button className="cabin-image-button" type="button" aria-label="Open relaxation photograph" onClick={() => t.openGalleryViewer(3 % (photos.length || 1))}>
-          <CabinImage src={storyFirst} fallback={cabinFallback(3)} />
-        </button>
-        <div className="cabin-story-copy">
-          <h4>{c("story.first.title", "Relax")}</h4>
-          <p className="cabin-serif-copy cabin-indent">{c("story.first.body", "Showcase your listings with beautiful photo galleries, and contact forms seamlessly.")}</p>
-          <span className="cabin-corner-icon" aria-hidden="true">↗</span>
-        </div>
-      </CabinReveal>
-      <CabinReveal className="cabin-story-row cabin-split reverse">
-        <div className="cabin-story-copy">
-          <h4>{c("story.second.title", "Breath")}</h4>
-          <p className="cabin-serif-copy cabin-indent">{c("story.second.body", "Optimize your site for search engines; Cabin’s intuitive layout is fully customizable.")}</p>
-          <span className="cabin-corner-icon" aria-hidden="true">↗</span>
-        </div>
-        <button className="cabin-image-button" type="button" aria-label="Open nature photograph" onClick={() => t.openGalleryViewer(4 % (photos.length || 1))}>
-          <CabinImage src={storySecond} fallback={cabinFallback(4)} />
-        </button>
-      </CabinReveal>
-    </section> : null}
-
     {enabled("home_inclusions") ? <section id="cabin-amenities" className="cabin-section cabin-shell">
       <CabinReveal className="cabin-big-heading center">
         <p className="cabin-kicker">{c("amenities.eyebrow", "Amenities")}</p>
@@ -234,14 +193,25 @@ export function CabinHome() {
       </div>
     </section> : null}
 
-    {enabled("home_products") && t.productsPageEnabled && stays.length ? <section id="cabin-cabins" className="cabin-section cabin-shell">
+    {enabled("home_products") && t.productsPageEnabled && stays.length > 0 ? <section id="cabin-cabins" className="cabin-section cabin-shell">
       <CabinReveal className="cabin-section-heading">
         <h2>{c("stays.title", "Cabins")}</h2>
         <p>{c("stays.body", "Cabin is built to meet the needs of short-term rental businesses with key features that allow you to display property images, and more.")}</p>
       </CabinReveal>
       <div className="cabin-works">
-        {stays[0] ? workCard(stays[0], 0) : null}
-        {stays.length > 1 ? <div className="cabin-works-side">{stays.slice(1).map((stay, index) => workCard(stay, index + 1))}</div> : null}
+        {stays.map(({ service, item }, index) => (
+          <CabinReveal className="cabin-work-card" key={`${service.key}-${item.key}`}>
+            <button className="cabin-work-image" type="button" aria-label={`Explore ${item.title}`} onClick={() => goToItem(service, item)}>
+              <CabinImage src={cabinImage(item.image, service.cardImage, service.heroImage)} fallback={cabinFallback(index + 5)} alt={item.title} />
+              <span className="cabin-work-hover" aria-hidden="true">{c("stays.cta", "View work")} ↗</span>
+            </button>
+            <div className="cabin-work-meta">
+              <small>{String(index + 1).padStart(2, "0")} / {service.heading || c("stays.title", "Cabins")}</small>
+              <button type="button" onClick={() => goToItem(service, item)}>{item.title}</button>
+              {item.price ? <small>{priceWithUnit(item.price, item.priceUnit)}</small> : null}
+            </div>
+          </CabinReveal>
+        ))}
       </div>
     </section> : null}
 
@@ -262,10 +232,10 @@ export function CabinHome() {
               <h3>{item.title}</h3>
               <p className="cabin-price">{priceWithUnit(item.price, item.priceUnit)}</p>
               {item.description ? <p>{item.description}</p> : null}
-              {(item.features || []).length ? <details>
-                <summary>{c("pricing.details", "What's included")}</summary>
-                <ul>{(item.features || []).map((feature) => <li key={feature}>{feature}</li>)}</ul>
-              </details> : null}
+              {item.features?.length ? <>
+                <h4 className="cabin-price-features-title">{c("pricing.details", "What's included")}</h4>
+                <ul>{item.features.map((feature) => <li key={feature}>{feature}</li>)}</ul>
+              </> : null}
               <button type="button" className="cabin-button" onClick={() => goToItem(service, item)}>{c("stays.cta", "View work")} ↗</button>
             </article>)}
           </div>
@@ -288,9 +258,14 @@ export function CabinHome() {
     {enabled("home_testimonials") && reviews.length ? <section className="cabin-section cabin-shell" aria-label="Testimonials">
       <CabinReveal>
         <p className="cabin-kicker cabin-center">{c("reviews.eyebrow", "Testimonial")}</p>
+        {rating.count > 0 ? <div className="cabin-rating-summary">
+          <strong>{rating.avg.toFixed(1)} / 5</strong>
+          <span className="cabin-stars" aria-hidden="true"><StarRow value={rating.avg} size={18} /></span>
+          <span>from {rating.count} {rating.count === 1 ? "rating" : "ratings"}</span>
+        </div> : null}
         <div className="cabin-reviews">
           {visibleReviews.map((review: any, index: number) => <figure key={review.key || index}>
-            <p className="cabin-stars" aria-label={(review.rating || 5) + " of 5 stars"}>{"★".repeat(Math.max(1, Math.round(review.rating || 5)))}</p>
+            {review.rating > 0 ? <div className="cabin-stars"><StarRow value={review.rating} size={16} /></div> : null}
             <blockquote>{review.text || review.review || review.testimony}</blockquote>
             <figcaption>
               <span className="cabin-avatar" aria-hidden="true">{(review.name || review.author || "G").charAt(0)}</span>
@@ -298,26 +273,13 @@ export function CabinHome() {
             </figcaption>
           </figure>)}
         </div>
-        <div className="cabin-review-dots">{reviews.map((_: any, index: number) => <button type="button" key={index} aria-label={"Show review " + (index + 1)} aria-pressed={reviewIndex === index} onClick={() => setReviewIndex(index)} />)}</div>
+        {reviewPageCount > 1 ? <div className="cabin-review-dots">
+          {Array.from({ length: reviewPageCount }, (_, index) => (
+            <button type="button" key={index} aria-label={`Show review page ${index + 1}`} aria-pressed={activeReviewPage === index} onClick={() => setReviewPage(index)} />
+          ))}
+        </div> : null}
         <div className="cabin-center">{t.showWriteReview ? <button type="button" className="cabin-text-link" onClick={t.openReviewModal}>Write a review ↗</button> : null}</div>
       </CabinReveal>
-    </section> : null}
-
-    {enabled("home_features") ? <section className="cabin-section cabin-shell">
-      <CabinReveal className="cabin-big-heading center">
-        <p className="cabin-kicker">{c("features.eyebrow", "Features")}</p>
-        <h2>{c("features.title", "Enhace your Life")}</h2>
-        <p>{c("features.body", "If you want a high-quality, visually appealing website.")}</p>
-      </CabinReveal>
-      <div className="cabin-features-grid">
-        {[1, 2, 3, 4, 5, 6].map((number) => <CabinReveal className="cabin-feature" key={number}>
-          <h3>{c(`feature.${number}.title`, "")}</h3>
-          <p>{c(`feature.${number}.body`, "")}</p>
-        </CabinReveal>)}
-      </div>
-      <div className="cabin-center">
-        <button type="button" className="cabin-button" onClick={() => booking ? openLead(booking) : t.goToSection("contact")}>{c("features.cta", "Learn More!")} ↗</button>
-      </div>
     </section> : null}
 
     {enabled("home_stay_request") && booking ? <section id="cabin-request" className="cabin-section cabin-shell cabin-split cabin-request">
@@ -333,28 +295,9 @@ export function CabinHome() {
       </div>
     </section> : null}
 
-    {enabled("home_updates") ? <section id="cabin-updates" className="cabin-section cabin-shell">
-      <CabinReveal className="cabin-section-heading">
-        <div>
-          <p className="cabin-kicker">{c("updates.eyebrow", "Updates")}</p>
-          <h2>{c("updates.title", "A practice not without controversy, laying out pages.")}</h2>
-        </div>
-        <button type="button" className="cabin-text-link" onClick={() => t.contactPageEnabled ? t.goToSection("contact") : goToAnchor("cabin-request")}>{c("updates.cta", "Read More")} ↗</button>
-      </CabinReveal>
-      <div className="cabin-updates-grid">
-        {[1, 2, 3].map((number) => <CabinReveal className="cabin-update" key={number}>
-          <CabinImage src={updateImages[number - 1]} fallback={cabinFallback(number + 3)} />
-          <small>{c(`update.${number}.date`, "")}</small>
-          <h3>{c(`update.${number}.title`, "")}</h3>
-          <p>{c(`update.${number}.body`, "")}</p>
-          <button type="button" className="cabin-text-link" onClick={() => t.contactPageEnabled ? t.goToSection("contact") : goToAnchor("cabin-request")}>{c("updates.cta", "Read More")} ↗</button>
-        </CabinReveal>)}
-      </div>
-    </section> : null}
-
     {enabled("home_instagram") && photos.length ? <section className="cabin-instagram cabin-shell">
       <div className="cabin-instagram-label">
-        <h2>{c("instagram.title", "@Cabin")}</h2>
+        <h2>{galleryTitle === "@Cabin" ? "Gallery" : galleryTitle}</h2>
         {instagramHref ? <a className="cabin-text-link" href={instagramHref} target="_blank" rel="noreferrer">Follow ↗</a> : null}
       </div>
       <div className="cabin-instagram-grid">
