@@ -2,7 +2,7 @@ import { getCareersJobMeta, getCareersJobTitle, getMediaSrc } from "../useWebsit
 import { ApplyForm, MessageForm, RoleSection } from "../shared/TplForms";
 import { FaqSection } from "../shared/TplParts";
 import { useTinyHome } from "./TinyHomeContext";
-import { TinyHomeHours, TinyHomeImage, TinyHomePageHero } from "./TinyHomeUI";
+import { TinyHomeHours, TinyHomeImage, TinyHomeMap, TinyHomePageHero } from "./TinyHomeUI";
 
 export function AboutPage() {
   const { t, draft, navLabel, photo } = useTinyHome();
@@ -77,7 +77,6 @@ export function ReviewsPage() {
 export function ContactPage() {
   const { t, draft, navLabel } = useTinyHome();
   const query = encodeURIComponent(t.contactAddress || "");
-  const map = draft.mapUrl || (query ? "https://www.google.com/maps?q=" + query + "&output=embed" : "");
   return (
     <>
       <TinyHomePageHero title={draft.contactPageHeading || navLabel("contact", "Contact")}
@@ -97,7 +96,7 @@ export function ContactPage() {
             <MessageForm inquiryType="General Enquiry" submitLabel="Send message" success={draft.contactInquirySuccessMessage || "Thanks for getting in touch. We’ll reply soon."} />
           </div> : null}
         </div>
-        {map ? <iframe className="tinyhome-map" title="Property location" src={map} loading="lazy" referrerPolicy="no-referrer-when-downgrade" /> : null}
+        <TinyHomeMap />
       </section>
     </>
   );

@@ -2185,6 +2185,7 @@ const tinyHomeDemo: DemoBusiness = (() => {
     testimonials: [
       { name: "Maya Chen", jobPosition: "Weekend guest", rating: 5, image: "", testimony: "We spent most mornings on the porch and had everything we needed to cook dinner after a day outside." },
       { name: "Leo Martin", jobPosition: "Long-stay guest", rating: 5, image: "", testimony: "A quiet cabin with a comfortable bed and a good spot to work when I needed it." },
+      { name: "Sofia Patel", jobPosition: "Weekend guest", rating: 4, image: "", testimony: "The kitchen had everything we needed, and we could walk straight to the trails after breakfast." },
     ],
     address: "Main Street, Catskill, NY 12414",
     inclusions: ["fast-internet", "housekeeping"],

@@ -1,5 +1,5 @@
 export const TINY_HOME_CSS = String.raw`
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Spinnaker&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Spinnaker&display=swap");
 
 .tinyhome {
   --t-bg: #fff;
@@ -9,18 +9,30 @@ export const TINY_HOME_CSS = String.raw`
   --th-surface: var(--t-surface, #f3f2ed);
   --th-line: var(--t-line, #d8d7cf);
   --th-muted: var(--t-muted, #65665f);
-  --th-display: "Spinnaker", "DM Sans", sans-serif;
+  --th-display: "Spinnaker", sans-serif;
+  --th-button-font: "Lato", sans-serif;
+  --th-h1-size: 54px;
+  --th-h2-size: 46px;
+  --th-h3-size: 30px;
+  --th-h4-size: 26px;
+  --th-h5-size: 24px;
+  --th-h6-size: 20px;
+  --th-shell-max: 1250px;
+  --th-shell-edge: 48px;
   min-height: 100vh;
   color: var(--t-text);
   background: var(--t-bg);
-  font: 16px/1.7 "DM Sans", system-ui, sans-serif;
+  font: 400 16px/2 var(--th-display);
 }
 .tinyhome *, .tinyhome *::before, .tinyhome *::after { box-sizing: border-box; }
-.tinyhome :where(h1,h2,h3,p,figure,blockquote,dl,dd,ul) { margin: 0; }
-.tinyhome :where(h1,h2,h3) { font-family: var(--th-display); line-height: 1.2; overflow-wrap: anywhere; }
-.tinyhome h1 { font-size: clamp(2.5rem, 5.5vw, 5.1rem); font-weight: 400; }
-.tinyhome h2 { font-size: clamp(1.8rem, 3.6vw, 3.55rem); font-weight: 400; }
-.tinyhome h3 { font-size: clamp(1.15rem, 2vw, 1.6rem); }
+.tinyhome :where(h1,h2,h3,h4,h5,h6,p,figure,blockquote,dl,dd,ul) { margin: 0; }
+.tinyhome :where(h1,h2,h3,h4,h5,h6) { font-family: var(--th-display); font-weight: 400; line-height: 1.75; overflow-wrap: anywhere; }
+.tinyhome h1 { font-size: var(--th-h1-size); }
+.tinyhome h2 { font-size: var(--th-h2-size); }
+.tinyhome h3 { font-size: var(--th-h3-size); }
+.tinyhome h4 { font-size: var(--th-h4-size); }
+.tinyhome h5 { font-size: var(--th-h5-size); }
+.tinyhome h6 { font-size: var(--th-h6-size); }
 .tinyhome :where(a,button) { color: inherit; }
 .tinyhome :where(button,input,textarea,select) { font: inherit; }
 .tinyhome button { cursor: pointer; }
@@ -29,7 +41,7 @@ export const TINY_HOME_CSS = String.raw`
 .tinyhome img { display: block; max-width: 100%; }
 .tinyhome img.object-contain { width: auto; object-fit: contain; }
 .tinyhome :where(p,address,a) { overflow-wrap: anywhere; }
-.tinyhome-shell { width: min(1250px, calc(100% - 96px)); margin-inline: auto; }
+.tinyhome-shell { width: min(var(--th-shell-max), calc(100% - 2 * var(--th-shell-edge))); margin-inline: auto; }
 .tinyhome-section { padding-block: clamp(64px, 9vw, 140px); }
 .tinyhome-surface { background: var(--th-surface); }
 .tinyhome-center { text-align: center; }
@@ -40,7 +52,7 @@ export const TINY_HOME_CSS = String.raw`
 .tinyhome-button {
   display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 11px 22px;
   border: 1px solid var(--t-accent); background: var(--t-accent); color: var(--t-accent-text);
-  font-size: .84rem; font-weight: 700; line-height: 1.4; text-align: center; text-transform: uppercase; transition: opacity .2s;
+  font: 700 14px/1.4 var(--th-button-font); text-align: center; text-transform: uppercase; transition: opacity .2s;
 }
 .tinyhome-button:hover { opacity: .85; }
 .tinyhome-button-light { background: #fff; color: #262725; border-color: #fff; }
@@ -50,13 +62,14 @@ export const TINY_HOME_CSS = String.raw`
 .tinyhome-nav-row { display: flex; justify-content: space-between; align-items: center; min-height: 76px; gap: 24px; }
 .tinyhome-brand {
   padding: 0; border: 0; background: transparent; text-align: left;
-  font: 700 clamp(1.1rem, 2vw, 1.6rem)/1.15 var(--th-display); text-transform: uppercase; overflow-wrap: anywhere;
+  font: 700 24px/1.15 var(--th-display); text-transform: uppercase; overflow-wrap: anywhere;
 }
 .tinyhome-brand img { width: auto; max-height: 48px; object-fit: contain; }
 .tinyhome-desktop-nav, .tinyhome-header-actions, .tinyhome-socials { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 18px; }
 .tinyhome-desktop-nav { justify-content: center; }
 .tinyhome-header-actions { justify-content: flex-end; flex-wrap: nowrap; }
-.tinyhome-desktop-nav button, .tinyhome-drawer nav button { padding: 8px 0; border: 0; background: transparent; font-size: .93rem; }
+.tinyhome-desktop-nav button, .tinyhome-drawer nav button { padding: 8px 0; border: 0; background: transparent; font-family: var(--th-display); }
+.tinyhome-desktop-nav button { font-size: 18px; font-weight: 600; }
 .tinyhome-desktop-nav button[aria-current], .tinyhome-drawer nav button[aria-current] { text-decoration: underline; text-underline-offset: 5px; }
 .tinyhome-socials a { display: grid; place-items: center; min-width: 24px; min-height: 36px; text-decoration: none; }
 .tinyhome-socials svg { width: 16px; height: 16px; }
@@ -68,11 +81,12 @@ export const TINY_HOME_CSS = String.raw`
 .tinyhome-hero-panel {
   width: 43%; display: flex; align-items: center;
   background: rgba(38,39,37,.88); padding: clamp(40px, 7.5vw, 112px) clamp(26px, 5.7vw, 92px);
+  padding-inline-start: max(var(--th-shell-edge), calc((100% - var(--th-shell-max)) / 2));
 }
 .tinyhome-hero-copy { width: 100%; max-width: 500px; }
 .tinyhome-hero-copy::before { content: ""; display: block; width: 1px; height: clamp(40px, 8vw, 92px); background: rgba(255,255,255,.75); margin: 0 0 36px 30px; }
 .tinyhome-hero .tinyhome-kicker { color: #fff; margin-bottom: 26px; }
-.tinyhome-hero h1 { font-size: clamp(2.3rem, 4.5vw, 4.65rem); text-transform: uppercase; }
+.tinyhome-hero h1 { line-height: 1.2; letter-spacing: 1px; text-transform: uppercase; }
 .tinyhome-hero h1 + p { margin-block: clamp(18px, 3vw, 42px); max-width: 40ch; }
 .tinyhome-hero .tinyhome-button { min-width: min(190px, 100%); }
 
@@ -90,10 +104,15 @@ export const TINY_HOME_CSS = String.raw`
 .tinyhome-amenities { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px 24px; margin-top: 24px; padding: 0; list-style: none; }
 .tinyhome-amenities li { padding: 8px 0; border-bottom: 1px solid var(--th-line); overflow-wrap: anywhere; }
 .tinyhome-amenities li::before { content: "✓"; display: inline-block; margin-right: 8px; color: var(--t-accent); }
-.tinyhome-quote { background: var(--t-accent); color: var(--t-accent-text); }
-.tinyhome-quote .tinyhome-kicker { color: inherit; opacity: .8; }
-.tinyhome-quote blockquote { font: 400 clamp(1.5rem, 3.4vw, 2.75rem)/1.4 var(--th-display); }
-.tinyhome-quote figcaption, .tinyhome-reviews figcaption { margin-top: 18px; font-weight: 700; }
+.tinyhome-quote { background: var(--t-accent); color: var(--t-accent-text); --t-accent-fg: var(--t-accent-text); }
+.tinyhome-review-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 12px; margin-top: 16px; }
+.tinyhome-review-summary strong { font-size: 1.25rem; }
+.tinyhome-guest-reviews { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin-block: 32px 8px; }
+.tinyhome-guest-reviews figure { display: flex; flex: 1 1 230px; flex-direction: column; gap: 12px; max-width: 370px; border: 1px solid color-mix(in srgb, currentColor 30%, transparent); padding: 22px; }
+.tinyhome-review-stars { min-height: 1.5em; }
+.tinyhome-guest-reviews blockquote { font: 400 1.125rem/1.55 var(--th-display); }
+.tinyhome-guest-reviews figcaption { margin-top: auto; padding-top: 8px; font-size: 22px; }
+.tinyhome-reviews figcaption { margin-top: 18px; font-weight: 700; }
 .tinyhome-quote .tinyhome-button { border-color: currentColor; margin-top: 24px; }
 .tinyhome-price { font: 700 1.15rem/1.4 var(--th-display); }
 .tinyhome-home-contact p { margin-top: 14px; }
@@ -126,6 +145,7 @@ export const TINY_HOME_CSS = String.raw`
 .tinyhome-narrative p { white-space: pre-line; }
 .tinyhome-contact-details, .tinyhome-footer address { display: grid; gap: 6px; font-style: normal; margin-top: 14px; }
 .tinyhome-map { width: 100%; height: min(440px, 64vh); margin-top: 32px; border: 0; }
+.tinyhome-home-contact .tinyhome-map { display: block; height: clamp(220px, 44vw, 420px); }
 .tinyhome-job-list { padding: 0; list-style: none; margin-bottom: 24px; }
 .tinyhome-job-list li { padding-block: 12px; border-bottom: 1px solid var(--th-line); }
 .tinyhome-job-list small { display: block; }
@@ -169,31 +189,38 @@ export const TINY_HOME_CSS = String.raw`
 .tinyhome-dialog h2, .tinyhome-form h2 { font-size: clamp(1.5rem,3vw,2.15rem); margin-bottom: 20px; }
 .tinyhome-drawer { width: min(390px,100%); max-width: 100%; height: 100dvh; max-height: none; margin: 0 0 0 auto; border: 0; }
 .tinyhome-drawer nav { display: grid; gap: 2px; margin-block: 22px; }
-.tinyhome-drawer nav button { min-height: 44px; border-bottom: 1px solid var(--th-line); text-align: left; }
+.tinyhome-drawer nav button { min-height: 44px; border-bottom: 1px solid var(--th-line); font-size: 14px; line-height: 1.5; text-align: left; }
 .tinyhome-drawer .tinyhome-socials { margin-top: 16px; }
 .tinyhome-form { padding: clamp(20px,3.4vw,38px); border: 1px solid var(--th-line); background: var(--t-bg); min-width: 0; }
 .tinyhome-form > form > div, .tinyhome-dialog form > div { min-width: 0; }
 .tinyhome .tp-label { display: block; font-weight: 600; margin-bottom: 5px; }
 .tinyhome .tp-input { width: 100%; min-height: 42px; padding: 8px 10px; background: var(--t-bg); color: var(--t-text); border: 1px solid var(--th-line); }
-.tinyhome .tp-btn, .tinyhome .tp-tab { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 8px 14px; border: 1px solid var(--t-accent); font-weight: 700; }
+.tinyhome .tp-btn, .tinyhome .tp-tab { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 8px 14px; border: 1px solid var(--t-accent); font-family: var(--th-button-font); font-weight: 700; }
 .tinyhome .tp-btn, .tinyhome .tp-tab[aria-pressed=true] { background: var(--t-accent); color: var(--t-accent-text); }
 .tinyhome .tp-tab { background: var(--t-bg); color: var(--t-text); }
 .tinyhome .tp-soft, .tinyhome .tp-card { background: var(--th-surface); }
 .tinyhome .tp-muted { color: var(--th-muted); }
 
 @media (max-width: 1100px) {
-  .tinyhome-shell { width: calc(100% - 52px); }
+  .tinyhome { --th-shell-edge: 26px; }
   .tinyhome-header-actions > .tinyhome-socials, .tinyhome-desktop-nav { display: none; }
   .tinyhome-menu-toggle { display: grid; }
 }
+@media (max-width: 1024px) {
+  .tinyhome { --th-h1-size: 46px; --th-h2-size: 42px; --th-h5-size: 20px; }
+}
+@media (max-width: 767px) {
+  .tinyhome { --th-h2-size: 30px; --th-h3-size: 26px; --th-h4-size: 18px; --th-h5-size: 17px; --th-h6-size: 16px; font-size: 14px; }
+  .tinyhome-brand { font-size: 21px; }
+}
 @media (max-width: 760px) {
-  .tinyhome-shell { width: calc(100% - 36px); }
+  .tinyhome { --th-shell-edge: 18px; }
   .tinyhome-nav-row { min-height: 66px; gap: 8px; }
   .tinyhome-header-actions { gap: 6px; }
   .tinyhome-header-actions .tinyhome-button { padding: 7px 11px; font-size: .72rem; }
   .tinyhome-hero { min-height: 0; display: block; padding-top: clamp(220px, 52vw, 385px); }
   .tinyhome-hero > img { height: clamp(220px, 52vw, 385px); }
-  .tinyhome-hero-panel { width: 100%; padding: 34px 18px 42px; }
+  .tinyhome-hero-panel { width: 100%; padding: 34px var(--th-shell-edge) 42px; }
   .tinyhome-hero-copy::before { height: 30px; margin: 0 0 22px; }
   .tinyhome-split { grid-template-columns: minmax(0,1fr); }
   .tinyhome-welcome > img { aspect-ratio: 1.2; }
