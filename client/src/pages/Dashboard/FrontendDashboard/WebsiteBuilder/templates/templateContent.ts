@@ -4798,6 +4798,7 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContentDef> = {
         "Need a custom workspace? Let's build it together",
       ),
       image("home.values.image1", HOME, "Core values: first card photograph"),
+      image("home.values.card2.image", HOME, "Core values: second card photograph"),
       image("home.values.image2", HOME, "Core values: closing card photograph"),
       text("home.reviews.eyebrow", HOME, "Testimonials: small label", "Client testimonials"),
       text(
