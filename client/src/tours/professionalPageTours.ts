@@ -6,7 +6,6 @@ interface ProfessionalTourRoute extends BasicPageTour {
 }
 
 const PROFESSIONAL_TOUR_VERSION = 2;
-const PROFESSIONAL_UNIT_TOUR_VERSION = 4;
 const exact = (path: string) => (pathname: string) =>
   pathname === path || pathname === `${path}/`;
 const startsWith = (path: string) => (pathname: string) =>
@@ -164,38 +163,6 @@ const PROFESSIONAL_PAGE_TOURS: ProfessionalTourRoute[] = [
       { selector: '[data-tour="page-content"] .grid-cols-7', title: "Monthly calendar", description: "Select a date to review its events, or select an event badge to open its complete date, module, priority, and status details." },
     ],
     matches: exact("/common-modules/calendar"),
-  },
-  {
-    id: "professional-workspace-settings",
-    version: PROFESSIONAL_UNIT_TOUR_VERSION,
-    title: "Unit Settings",
-    description: "Create another Professional unit under the same Founder account and review what will be shared or entered again during setup.",
-    steps: [
-      { selector: '[data-tour="unit-settings-summary"]', title: "Your unit overview", description: "Owned Units shows how many branches belong to this Founder account. The other cards identify the active unit and combine employee and task totals across linked units." },
-      { selector: '[data-tour="unit-settings-create"]', title: "Start another branch unit", description: "This is the complete entry point for adding a second Professional unit. Only the Founder or Owner can start this protected creation flow." },
-      { selector: '[data-tour="unit-settings-create-button"]', title: "Select Create Unit", description: "Click Create Unit to open password verification. Enter the current Founder account password to continue. You are then taken to the onboarding flow, where only your current business name is prefilled and you enter the new branch's own unit name, brand name, country, state, city, address, and business vertical. Finishing onboarding links the new unit to this Founder account, adds it to the workspace switcher, and unlocks Unit Management." },
-      { selector: '[data-tour="unit-settings-linked-units"]', title: "Your linked units", description: "Every unit linked to this Founder account appears here with its status, plan, location, and employee count. Use the row actions to switch to a unit, rename it, enable or disable it, or delete it. The main unit is protected and cannot be removed." },
-      { selector: '[data-tour="unit-settings-business-hours"]', title: "Set operating hours", description: "Choose opening and closing times for the active unit, then select Save Hours. These hours control meeting-room, walk-in, and booking availability for its resources." },
-      { selector: '[data-tour="unit-settings-billing"]', title: "Tax and payment preferences", description: "Configure the location-level tax and payment rules that drive external and walk-in booking totals, payment evidence, and confirmation emails for the active unit.", side: "top" },
-    ],
-    matches: exact("/core-modules/workspace-settings"),
-  },
-  {
-    id: "professional-workspace-management",
-    version: PROFESSIONAL_UNIT_TOUR_VERSION,
-    title: "Unit Management",
-    description: "Compare and manage every Professional unit linked to the Founder account after a second unit has been created.",
-    recordsDescription: "Each unit record combines its identity, operating totals, detailed people and department information, and permitted management actions.",
-    steps: [
-      { selector: '[data-tour="unit-management-summary"]', title: "Combined unit performance", description: "These cards total employees, departments, tickets, tasks, assets, inventory, meeting bookings, and overall performance across the linked units." },
-      { selector: '[data-tour="unit-management-controls"]', title: "Choose the data to review", description: "Use the first filter to show every unit or one specific branch. Use the department filter to recalculate the view for a selected department across the linked units." },
-      { selector: '[data-tour="unit-management-view-data"]', title: "Open the combined data view", description: "Select View Data to open a consolidated operational view across units, including status breakdowns and recent records for work, assets, inventory, bookings, and employees." },
-      { selector: '[data-tour="unit-management-list"]', title: "Review each linked unit", description: "Each unit card shows its business identity, location, creation date, current or linked state, and separate totals for employees, departments, tickets, tasks, assets, inventory, bookings, and performance." },
-      { selector: '[data-tour="unit-management-view-details"]', title: "View a unit’s detailed data", description: "Select View Details to expand the unit. The Employees, Roles, Work Items, and Departments tabs then show the people, access distribution, recent tickets and tasks, and department-level totals for that branch." },
-      { selector: '[data-tour="unit-management-switch-unit"]', title: "Switch to a linked unit", description: "Select Switch on any linked unit that is not already active to move your session there. This button is only available for units that are not currently active, disabled, or deleted." },
-      { selector: '[data-tour="unit-management-manage-unit"]', title: "Manage the unit", description: "Select Manage Unit to jump to Unit Settings, where you can rename, enable or disable, delete, or request recovery for any linked unit." },
-    ],
-    matches: exact("/core-modules/workspace-management"),
   },
   {
     id: "professional-leads-management",

@@ -163,14 +163,16 @@ function SectionCard({
   subtitle,
   children,
   bodyClassName = "p-5",
+  dataTour,
 }: {
   title: string;
   subtitle: string;
   children: ReactNode;
   bodyClassName?: string;
+  dataTour?: string;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <section data-tour={dataTour} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
       <div className="border-b border-slate-100 px-5 py-4">
         <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">
           {title}
@@ -333,7 +335,7 @@ export default function UnitSettingsDashboard() {
   return (
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
-        <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+        <div data-tour="unit-settings-dashboard-banner" className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img
               src={unitSettingsBanner}
@@ -396,7 +398,7 @@ export default function UnitSettingsDashboard() {
           </div>
         ) : (
           <>
-            <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div data-tour="unit-settings-dashboard-stats" className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
               <StatTile
                 icon={<Building2 size={18} />}
                 label="Total units"
@@ -459,7 +461,7 @@ export default function UnitSettingsDashboard() {
               />
             </div>
 
-            <div className="mb-6">
+            <div data-tour="unit-settings-dashboard-modules" className="mb-6">
               <p className="text-sm font-pmedium text-slate-900">
                 Manage Unit Settings
               </p>
@@ -487,6 +489,7 @@ export default function UnitSettingsDashboard() {
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
               <SectionCard
                 title="Unit status"
+                dataTour="unit-settings-dashboard-status"
                 subtitle={
                   workspaces.length
                     ? `${activeUnits.length} of ${workspaces.length} linked unit${workspaces.length === 1 ? "" : "s"} are currently active.`
@@ -512,6 +515,7 @@ export default function UnitSettingsDashboard() {
               </SectionCard>
               <SectionCard
                 title="Employees by unit"
+                dataTour="unit-settings-dashboard-employees"
                 subtitle={
                   employeeRows.length
                     ? `${totalEmployees} employee${totalEmployees === 1 ? "" : "s"} across ${employeeRows.length} unit${employeeRows.length === 1 ? "" : "s"}.`
@@ -538,6 +542,7 @@ export default function UnitSettingsDashboard() {
 
             <SectionCard
               title="Recent linked units"
+              dataTour="unit-settings-dashboard-units"
               subtitle="Latest unit records available to this founder account."
               bodyClassName="max-h-[390px] overflow-y-auto p-0"
             >

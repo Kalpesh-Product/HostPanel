@@ -120,7 +120,7 @@ export default function UnitEmployeesPage() {
           <div className="bg-white/80 rounded-2xl border border-slate-100 shadow-sm min-h-[400px] animate-pulse" />
         ) : (
           <div className="flex flex-col gap-4 text-slate-700 font-sans">
-            <div className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+            <div data-tour="unit-employees-header" className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
               <div>
                 <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                   Employees
@@ -131,13 +131,13 @@ export default function UnitEmployeesPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div data-tour="unit-employees-stats" className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <StatTile icon={Users} label="Total employees" value={totalEmployees} sub="Across linked units" />
               <StatTile icon={Building2} label="Units with employees" value={unitsWithEmployees} sub={`of ${workspaceList.length} linked units`} tone="emerald" />
               <StatTile icon={Briefcase} label="Average per unit" value={workspaceList.length ? Math.round(totalEmployees / workspaceList.length) : 0} sub="Mean employee count" />
             </div>
 
-            <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <section data-tour="unit-employees-chart" className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
               <div className="border-b border-slate-100 px-5 py-4">
                 <h3 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">Employees by unit</h3>
                 <p className="mt-1 text-[11px] text-slate-500">How the combined workforce is distributed.</p>
@@ -156,7 +156,7 @@ export default function UnitEmployeesPage() {
               </div>
             </section>
 
-            <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <section data-tour="unit-employees-list" className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
               <div className="border-b border-slate-100 px-5 py-4">
                 <h3 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">All employees</h3>
                 <p className="mt-1 text-[11px] text-slate-500">Everyone across every linked unit.</p>

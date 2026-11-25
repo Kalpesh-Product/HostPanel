@@ -8,15 +8,17 @@ export function DashboardBanner({
   description,
   tags,
   image,
+  dataTour,
 }: {
   title: string;
   description: string;
   tags: string[];
   image: string;
   moduleCount?: number;
+  dataTour?: string;
 }) {
   return (
-    <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+    <div data-tour={dataTour} className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
       <div className="relative h-44 w-full sm:h-[12rem]">
         <img
           src={image}
@@ -132,14 +134,16 @@ export function DashboardSection({
   subtitle,
   children,
   bodyClassName = "p-5",
+  dataTour,
 }: {
   title: string;
   subtitle: string;
   children: ReactNode;
   bodyClassName?: string;
+  dataTour?: string;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <section data-tour={dataTour} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
       <div className="border-b border-slate-100 px-5 py-4">
         <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">
           {title}

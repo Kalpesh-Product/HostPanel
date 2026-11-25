@@ -603,7 +603,7 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
         <span className="text-title font-pmedium text-primary uppercase">Company Profile</span>
       </div>
       <div className="space-y-5 text-slate-900">
-      <section className="overflow-hidden rounded-[2.5rem] border border-white/80 bg-white/90 shadow-[0_24px_80px_rgba(15,23,42,0.1)] backdrop-blur">
+      <section data-tour="company-profile-header" className="overflow-hidden rounded-[2.5rem] border border-white/80 bg-white/90 shadow-[0_24px_80px_rgba(15,23,42,0.1)] backdrop-blur">
         <div className="p-6 sm:p-8 lg:p-10">
           <div className="flex flex-wrap items-start gap-4">
             <div className="relative shrink-0">
@@ -618,6 +618,7 @@ const { data: userDetails, refetch: refetchProfile } = useQuery({
                   else openLogoPicker();
                 }}
                 disabled={hasTenantRole}
+                data-tour="company-profile-logo"
                 className="flex h-16 w-56 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-blue-300 hover:bg-blue-50/30"
                 title={currentLogoUrl ? "Preview company logo" : "Upload company logo"}
               >
