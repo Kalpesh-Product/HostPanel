@@ -11,6 +11,10 @@ import { FaqSection } from "../shared/TplParts";
 import { Icon } from "../shared/TplUI";
 import { useWavex } from "./WavexContext";
 import { WxCrumbs, WxMedia, WxPageHero, WxSectionHead } from "./WavexUI";
+import meetingRoomBanner from "../../../../../../assets/meeting-room-banner.jpg";
+
+const pageHeroFallback = (t: ReturnType<typeof useWavex>["t"], galleryIndex: number) =>
+  t.galleryItems[galleryIndex] || t.mainHeroImage || t.resolvedHomeHeroImage || meetingRoomBanner;
 
 const splitLines = (value: any): string[] =>
   String(value || "")
@@ -214,7 +218,7 @@ export const WavexTestimonials: React.FC = () => {
 };
 
 export const WavexPartner: React.FC = () => {
-  const { t, draft, c } = useWavex();
+  const { t, draft, c, photo } = useWavex();
   const paragraphs = splitLines(t.partnerPageContent);
   return (
     <>
@@ -222,7 +226,7 @@ export const WavexPartner: React.FC = () => {
         index="04 / Partner"
         title={t.partnerPageHeading || `Partner with ${draft?.companyName || "us"}`}
         body={c("partner.intro", "Companies, communities and local businesses — let's work together.")}
-        image={t.homeHeroImage}
+        image={photo("partner.hero.image", pageHeroFallback(t, 1))}
       />
       <section className="wx-section">
         <div className="wx-shell wx-contact-grid">
@@ -249,7 +253,7 @@ export const WavexPartner: React.FC = () => {
 };
 
 export const WavexContact: React.FC = () => {
-  const { t, draft, primary, navLabel, c } = useWavex();
+  const { t, draft, primary, navLabel, c, photo } = useWavex();
   const hours = groupOpeningHours(draft?.openingHours);
   const showForm = draft?.contactEnableInquiryForm !== false;
   return (
@@ -258,7 +262,7 @@ export const WavexContact: React.FC = () => {
         index="05 / Contact"
         title={draft?.contactPageHeading || navLabel("contact", "Contact")}
         body={draft?.contactPageIntro || c("home.contact.body", "Tell us what you're planning and we'll help you find the right room.")}
-        image={t.homeHeroImage}
+        image={photo("contact.hero.image", pageHeroFallback(t, 3))}
       />
       <section className="wx-section">
         <div className="wx-shell wx-contact-grid">
@@ -312,8 +316,9 @@ export const WavexContact: React.FC = () => {
 };
 
 export const WavexCareers: React.FC = () => {
-  const { t, draft } = useWavex();
+  const { t, draft, photo } = useWavex();
   const job = t.careersApplyJob;
+  const heroImage = photo("careers.hero.image", pageHeroFallback(t, 2));
 
   if (job) {
     const applyOnly = t.careersDirectApply;
@@ -323,23 +328,28 @@ export const WavexCareers: React.FC = () => {
           index="06 / Careers"
           title={applyOnly ? "General application" : getCareersJobTitle(job)}
           body={applyOnly ? undefined : getCareersJobMeta(job)}
-          image={t.homeHeroImage}
+          image={heroImage}
         />
         <section className="wx-section">
-          <div className={`wx-shell${applyOnly ? "" : " wx-contact-grid"}`}>
-            {!applyOnly ? (
-              <Reveal className="wx-prose">
-                <RoleSection title="About this role" text={job.aboutTheJob} />
-                <RoleSection title="Key responsibilities" text={job.keyResponsibilities} asList />
-                <RoleSection title="Requirements" text={job.requirements} asList />
-                <RoleSection title="Soft skills" text={job.softSkills} asList />
+          <div className="wx-shell">
+            <button type="button" className="tp-link" style={{ marginBottom: 24 }} onClick={t.closeCareersJob}>
+              <span aria-hidden="true">←</span> Back to Careers
+            </button>
+            <div className={applyOnly ? undefined : "wx-contact-grid"}>
+              {!applyOnly ? (
+                <Reveal className="wx-prose">
+                  <RoleSection title="About this role" text={job.aboutTheJob} />
+                  <RoleSection title="Key responsibilities" text={job.keyResponsibilities} asList />
+                  <RoleSection title="Requirements" text={job.requirements} asList />
+                  <RoleSection title="Soft skills" text={job.softSkills} asList />
+                </Reveal>
+              ) : null}
+              <Reveal delay={0.08} className={`wx-contact-form${applyOnly ? " wx-contact-form-solo" : ""}`}>
+                <h3>Apply now</h3>
+                <p>Send us your details and resume.</p>
+                <ApplyForm submitLabel="Submit Application" centered />
               </Reveal>
-            ) : null}
-            <Reveal delay={0.08} className={`wx-contact-form${applyOnly ? " wx-contact-form-solo" : ""}`}>
-              <h3>Apply now</h3>
-              <p>Send us your details and resume.</p>
-              <ApplyForm submitLabel="Submit Application" centered />
-            </Reveal>
+            </div>
           </div>
         </section>
       </>
@@ -354,7 +364,7 @@ export const WavexCareers: React.FC = () => {
         index="06 / Careers"
         title={draft?.careersPageHeading || `Work with ${draft?.companyName || "us"}`}
         body={intro[0]}
-        image={t.homeHeroImage}
+        image={heroImage}
       />
       <section className="wx-section">
         <div className="wx-shell">
