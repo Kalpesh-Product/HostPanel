@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   AlertTriangle, ArrowLeft, Bed, Building2, CalendarDays, CheckCircle2, Coffee, Eye, Download, FileText, Globe, Printer, RefreshCw, Search, Send, Sparkles, Target, UserCheck, Users, X, Wallet, Ticket,
@@ -200,6 +200,7 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
   const [isExportingReport, setIsExportingReport] = useState("");
   const [showExportModal, setShowExportModal] = useState(false);
   const [manualAmountPrompt, setManualAmountPrompt] = useState(null); // { leadId } | null
+  const onboardingDocsInputRef = useRef(null);
   const [manualAmountValue, setManualAmountValue] = useState("");
   // Empty means "follow Unit Settings"; opening a lead only overrides it for
   // that lead (see acceptLead), never silently for the whole page.
@@ -513,6 +514,23 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to notify client");
+    },
+  });
+
+  const sendOnboardingDocsMutation = useMutation({
+    mutationFn: async ({ leadId, files }) => {
+      const formData = new FormData();
+      formData.append("leadId", leadId);
+      formData.append("workspaceId", workspaceId);
+      files.forEach((file) => formData.append("documents", file));
+      const res = await axiosPrivate.post("/api/leads/send-onboarding-docs", formData);
+      return res.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data?.message || "Documents emailed to the client");
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to send documents");
     },
   });
 
@@ -1399,6 +1417,12 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                     // predates auto-finalize. Either way the host must be able to
                     // act on it, not just read "Payment received".
                     const needsBooking = paymentStatus === "Paid" && !selectedLead.bookingCode && !isCoworkingInquiry && !isTourVisit;
+                    const sendOnboardingDocs = (e) => {
+                      const files = Array.from(e.target.files || []);
+                      e.target.value = "";
+                      if (!files.length) return;
+                      sendOnboardingDocsMutation.mutate({ leadId: selectedLead._id, files });
+                    };
                     const onboardAsTenant = () => {
                       navigate("/department-accesses/sales-department/tenant-companies", {
                         state: {
@@ -1549,9 +1573,23 @@ export default function CompanyLeads({ leadScope = "website", payoutPage = false
                                   </>
                                 )}
                                 {!selectedLead.bookingCode && isCoworkingInquiry && (
-                                  <button type="button" onClick={onboardAsTenant} disabled={isBusy}
-                                    className={`${actionButton} border border-[#2563EB] bg-[#2563EB] text-white hover:bg-blue-700 focus-visible:ring-[#2563EB]/40 disabled:opacity-60`}
-                                  ><Users size={14} /> Onboard as Tenant</button>
+                                  <>
+                                    <input type="file" ref={onboardingDocsInputRef} multiple hidden
+                                      accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,image/jpeg,image/png,image/webp"
+                                      onChange={sendOnboardingDocs} />
+                                    <button type="button"
+                                      onClick={() => onboardingDocsInputRef.current?.click()}
+                                      disabled={isBusy || sendOnboardingDocsMutation.isPending}
+                                      className={`${actionButton} border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-60`}
+                                    >
+                                      {sendOnboardingDocsMutation.isPending
+                                        ? <><RefreshCw size={14} className="animate-spin" /> Sending…</>
+                                        : <><FileText size={14} /> Send Documents</>}
+                                    </button>
+                                    <button type="button" onClick={onboardAsTenant} disabled={isBusy}
+                                      className={`${actionButton} border border-[#2563EB] bg-[#2563EB] text-white hover:bg-blue-700 focus-visible:ring-[#2563EB]/40 disabled:opacity-60`}
+                                    ><Users size={14} /> Onboard as Tenant</button>
+                                  </>
                                 )}
                                 {needsBooking && (
                                   <button type="button"

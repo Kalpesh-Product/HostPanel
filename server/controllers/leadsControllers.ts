@@ -37,6 +37,7 @@ import {
   sendLeadBookingConfirmedEmail,
   sendLeadRejectedEmail,
   sendLeadSlotUnavailableEmail,
+  sendLeadOnboardingDocsEmail,
 } from "../utils/leadPaymentEmails.js";
 
 // Website-lead visibility cap, by subscription plan — staff-editable from
@@ -2598,6 +2599,56 @@ export const notifySlotUnavailable = async (req, res, next) => {
         ...readLeadMeta(localLead),
       },
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// "Send Documents" on a coworking lead — host attaches the agreement/
+// checklist file(s) from their device, we email them to the lead as-is.
+// Pure mailer action: doesn't touch hostPanelStatus/paymentStatus, so it
+// can't collide with Accept or Onboard as Tenant.
+export const sendLeadOnboardingDocuments = async (req, res, next) => {
+  try {
+    const leadId = sanitizeValue(req.body?.leadId);
+    if (!leadId) {
+      return res.status(400).json({ message: "leadId is required" });
+    }
+    const hostWorkspaceId = sanitizeValue(
+      req.body?.workspaceId || req.workspaceMembership?.workspace,
+    );
+    if (!hostWorkspaceId) {
+      return res.status(400).json({ message: "A HostPanel workspace is required" });
+    }
+    const files = Array.isArray(req.files) ? req.files : [];
+    if (!files.length) {
+      return res.status(400).json({ message: "Attach at least one document" });
+    }
+    const localLead = await resolveLocalLeadForWorkspace(leadId, hostWorkspaceId);
+    if (!localLead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
+    const ownsLead =
+      sanitizeValue(localLead.escalatedWorkspaceId) === hostWorkspaceId ||
+      sanitizeValue(localLead.workspaceId) === hostWorkspaceId;
+    if (!ownsLead) {
+      return res
+        .status(403)
+        .json({ message: "Lead does not belong to this HostPanel workspace" });
+    }
+    if (!sanitizeValue(localLead.email)) {
+      return res.status(400).json({ message: "This lead has no email address on file" });
+    }
+    const attachments = files.map((file) => ({
+      filename: file.originalname,
+      content: file.buffer,
+      contentType: file.mimetype,
+    }));
+    const result = await sendLeadOnboardingDocsEmail(localLead, attachments);
+    if (!result.sent) {
+      return res.status(502).json({ message: "Could not send the email — try again" });
+    }
+    return res.status(200).json({ message: "Documents emailed to the client" });
   } catch (error) {
     next(error);
   }

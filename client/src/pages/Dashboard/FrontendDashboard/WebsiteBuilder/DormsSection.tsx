@@ -1,11 +1,10 @@
 // @ts-nocheck
-import { Controller, useFieldArray } from "react-hook-form";
-import { useQuery } from "@tanstack/react-query";
+import { Controller, useFieldArray, useWatch } from "react-hook-form";
 import UploadMultipleFilesInput from "../../../../components/UploadMultipleFilesInput";
 import EnabledSwitch from "../../../../components/ui/EnabledSwitch";
 import WebsiteFormField from "../../../../components/WebsiteFormField";
 import ItemExtraFields, { OfferingDescription } from "./ItemExtraFields";
-import { getResources } from "../../../../services/resources";
+import BookableResourceSelect from "./BookableResourceSelect";
 
 // Website-lead bookings get finalized against a real Resource record by
 // matching its name — a free-typed Title here that doesn't match any
@@ -18,17 +17,11 @@ const DormsSection = ({ control, register, setValue }) => {
     name: "dorms",
   });
 
-  const { data: bookableResources = [] } = useQuery({
-    queryKey: ["bookableResources", "dorms"],
-    queryFn: async () => {
-      const res = await getResources();
-      const resources = res?.data?.data?.resources || [];
-      return resources.filter((r) => r.type === "Dorm");
-    },
-  });
+  // Titles drive both the picker's current selection and the duplicate block:
+  // a dorm another card already uses is disabled in this card's list.
+  const dormItems = useWatch({ control, name: "dorms" }) || [];
 
-  const applyResource = (index, recordId) => {
-    const resource = bookableResources.find((r) => String(r.recordId) === recordId);
+  const applyResource = (index, resource) => {
     if (!resource) return;
     setValue?.(`dorms.${index}.title`, resource.name, { shouldDirty: true });
     if (resource.pricePerNight) {
@@ -60,26 +53,16 @@ const DormsSection = ({ control, register, setValue }) => {
                 </button>
               </div>
             </div>
-            {bookableResources.length > 0 && (
-              <div className="mb-3">
-                <label className="block text-xs font-pmedium text-gray-500 mb-1">
-                  Use an existing resource (recommended)
-                </label>
-                <select
-                  defaultValue=""
-                  onChange={(e) => { if (e.target.value) applyResource(index, e.target.value); }}
-                  className="w-full rounded-lg border border-borderGray px-3 py-2 text-sm"
-                >
-                  <option value="">Select a resource to autofill name, capacity &amp; price…</option>
-                  {bookableResources.map((r) => (
-                    <option key={r.recordId} value={r.recordId}>{r.name} ({r.type})</option>
-                  ))}
-                </select>
-                <p className="text-[11px] text-gray-400 mt-1">
-                  Picking one keeps this listing in sync with the bookable resource, so the booking can be finalized after payment.
-                </p>
-              </div>
-            )}
+            <BookableResourceSelect
+              resourceTypes={["Dorm"]}
+              queryKeySuffix="dorms"
+              ownTitle={dormItems?.[index]?.title || ""}
+              otherTitles={dormItems
+                .filter((_, itemIndex) => itemIndex !== index)
+                .map((item) => item?.title)}
+              onSelect={(resource) => applyResource(index, resource)}
+              placeholder="Select a resource to autofill name, capacity & price…"
+            />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <WebsiteFormField
                 label="Title"
@@ -140,4 +123,3 @@ const DormsSection = ({ control, register, setValue }) => {
 };
 
 export default DormsSection;
-

@@ -423,6 +423,52 @@ ${infoBox("Need to change something? Reply to this email and our team will help.
 </td></tr>`);
 };
 
+// ─── Coworking onboarding documents ────────────────────────────────────────
+// Sent from the "Send Documents" action on a coworking lead, before the host
+// formally onboards them as a tenant — gives the client the agreement/
+// checklist to read first. Just a mailer around host-picked attachments, no
+// DB record (that's what TenantAgreementDocument is for once they're an
+// actual TenantCompany).
+const buildOnboardingDocsHtml = (lead, fileNames = []) => emailShell(`
+<tr><td style="height:6px;background:linear-gradient(90deg,#79b2f2,#1e6fe0);">&nbsp;</td></tr>
+<tr><td align="center" style="padding:22px 40px 18px;background:#ffffff;">
+<span style="font-size:26px;font-weight:800;letter-spacing:1px;font-family:Arial,Helvetica,sans-serif;"><span style="color:${NAVY};">WO</span><span style="color:#3b9df0;">NO</span></span>
+</td></tr>
+<tr><td align="center" style="background:${LIGHT_BLUE_BG};padding:26px 40px 24px;">
+<p style="margin:0;font-size:22px;font-weight:700;color:${NAVY};font-family:Arial,Helvetica,sans-serif;">Your Onboarding Documents</p>
+<p style="margin:6px 0 0;font-size:13px;color:#3b5a7d;font-family:Arial,Helvetica,sans-serif;">Please review the attached document(s) before we proceed.</p>
+</td></tr>
+<tr><td style="padding:26px 40px 30px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;">
+<p style="margin:0 0 14px;font-size:13px;font-weight:700;color:${NAVY};">Hello ${escapeHtml(lead.fullName || "there")},</p>
+<p style="margin:0 0 18px;font-size:13px;color:#33475c;line-height:1.6;">Ahead of onboarding you${lead.companyName ? ` at ${escapeHtml(lead.companyName)}` : ""}, please find attached the document(s) covering your workspace agreement and onboarding checklist. Take your time to read through them, and reply to this email with any questions.</p>
+${fileNames.length ? `${pageHeading("Attached")}${fileNames.map((name) => checklistItem(escapeHtml(name))).join("")}` : ""}
+${infoBox(`<span style="color:#33475c;">Need assistance?</span><br><a href="mailto:response@wono.co" style="color:${BLUE};font-weight:700;text-decoration:none;">response@wono.co</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://wono.co" style="color:${BLUE};font-weight:700;text-decoration:none;">www.wono.co</a>`)}
+</td></tr>
+<tr><td align="center" style="background:${NAVY};padding:16px 40px;">
+<p style="margin:0;font-size:11px;color:#ffffff;font-family:Arial,Helvetica,sans-serif;">&copy; ${new Date().getFullYear()} WONO. All rights reserved.</p>
+</td></tr>`);
+
+export const sendLeadOnboardingDocsEmail = async (lead, attachments = []) => {
+  const to = String(lead?.email || "").trim();
+  if (!to) {
+    return { sent: false, reason: "no-email" };
+  }
+  const fileNames = attachments.map((file) => file.filename).filter(Boolean);
+  try {
+    await sendMail({
+      to,
+      subject: `Onboarding documents${lead.companyName ? ` for ${lead.companyName}` : ""}`,
+      html: buildOnboardingDocsHtml(lead, fileNames),
+      text: `Hello ${lead.fullName || "there"},\n\nAhead of onboarding you${lead.companyName ? ` at ${lead.companyName}` : ""}, please find attached the document(s) covering your workspace agreement and onboarding checklist.\n\nQuestions? Reply to this email or reach response@wono.co`,
+      attachments,
+    });
+    return { sent: true };
+  } catch (error) {
+    console.error("Onboarding docs email failed:", error?.message || error);
+    return { sent: false, reason: error?.message || "mail-error" };
+  }
+};
+
 export const buildLeadBookingConfirmedEmail = (lead, booking = {}) =>
   buildBookingConfirmedHtml(lead, booking);
 

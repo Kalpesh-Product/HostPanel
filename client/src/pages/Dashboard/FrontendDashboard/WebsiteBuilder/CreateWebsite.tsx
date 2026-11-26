@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useRef, useState } from "react";
-import { useForm, Controller, useFieldArray } from "react-hook-form";
+import { useForm, Controller, useFieldArray, useWatch } from "react-hook-form";
 import {
   Dialog,
   DialogTitle,
@@ -30,6 +30,7 @@ import {
 import SectionPreviewInfo from "./SectionPreviewInfo";
 import CreditsIndicator from "../../../../components/CreditsIndicator";
 import RoomsSection from "./RoomsSection";
+import BookableResourceSelect from "./BookableResourceSelect";
 import ThemeColors from "./ThemeColors";
 import TemplateContentPanel from "./TemplateContentPanel";
 import { supportsThemeColors } from "./templates/templateTheme";
@@ -70,6 +71,11 @@ const defaultSubProduct = {
   cost: "",
   images: [],
 };
+
+// Co-working services are desks/offices, so the picker offers those resource
+// types only. Cost is left to the host: Resources & Pricing holds hourly /
+// daily rates while these are usually sold monthly.
+const CO_WORKING_RESOURCE_TYPES = ["Open Desk", "Cabin Desk", "Virtual Office"];
 
 const buildDefaultProductPage = (name = "Service Page 1") => {
   const slug = toSlug(name || "service-page-1");
@@ -1072,18 +1078,27 @@ const NOMAD_LISTING_STEPS = [
 // caused every page to show the same sub-products).
 const ProductPageSubProducts = ({
   control,
+  setValue,
   pageIndex,
   pageName,
+  resourceTypes = [],
 }: {
   control: any;
+  setValue?: any;
   pageIndex: number;
   pageName: string;
+  resourceTypes?: string[];
 }) => {
   const {
     fields: subProductFields,
     append: appendSubProduct,
     remove: removeSubProduct,
   } = useFieldArray({ control, name: `productDropdownPages.${pageIndex}.subProducts` });
+
+  // Service names drive the desk picker: a desk another service on this page
+  // already uses is disabled there, and a saved name re-selects the dropdown.
+  const subProductItems =
+    useWatch({ control, name: `productDropdownPages.${pageIndex}.subProducts` }) || [];
 
   return (
     <div className="mt-3 grid grid-cols-1 gap-4">
@@ -1111,6 +1126,27 @@ const ProductPageSubProducts = ({
               </button>
             </div>
           </div>
+          {resourceTypes.length > 0 && (
+            <div className="mb-3">
+              <BookableResourceSelect
+                resourceTypes={resourceTypes}
+                queryKeySuffix={`subProducts-${pageIndex}`}
+                placeholder="Select a desk to autofill the service name…"
+                hint="Picking one keeps this service in sync with the bookable desk. Cost stays as you typed it."
+                ownTitle={subProductItems?.[index]?.name || ""}
+                otherTitles={subProductItems
+                  .filter((_, itemIndex) => itemIndex !== index)
+                  .map((item) => item?.name)}
+                onSelect={(resource) =>
+                  setValue?.(
+                    `productDropdownPages.${pageIndex}.subProducts.${index}.name`,
+                    resource.name,
+                    { shouldDirty: true },
+                  )
+                }
+              />
+            </div>
+          )}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Controller
               name={`productDropdownPages.${pageIndex}.subProducts.${index}.name`}
@@ -4590,6 +4626,8 @@ const CreateWebsite = () => {
                                 control={control}
                                 pageIndex={activeProductPageTab}
                                 pageName={watch(`productDropdownPages.${activeProductPageTab}.name`)}
+                                setValue={setValue}
+                                resourceTypes={isCoWorkingPage ? CO_WORKING_RESOURCE_TYPES : []}
                               />
                             );
                             return isCoWorkingPage ? (
@@ -6090,6 +6128,7 @@ const CreateWebsite = () => {
               <RoomsSection
                 control={control}
                 register={register}
+                setValue={setValue}
                 priceLabel="Price per night"
               />
             )}

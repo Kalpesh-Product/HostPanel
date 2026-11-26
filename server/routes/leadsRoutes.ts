@@ -12,6 +12,7 @@ import {
   sendInvoiceToWono,
   previewPayoutInvoice,
   getHostInvoices,
+  sendLeadOnboardingDocuments,
 } from "../controllers/leadsControllers.js";
 import {
   getDayPassAvailability,
@@ -19,6 +20,7 @@ import {
   createWalkInDayPass,
   updateDayPassStatus,
 } from "../controllers/dayPassBookingController.js";
+import { uploadDocuments } from "../config/multerConfig.js";
 const router = Router();
 
 router.patch("/update-lead", updateLeads);
@@ -27,6 +29,7 @@ router.get("/preview-payment", previewLeadPayment);
 router.get("/booking-prefill", previewLeadBookingPrefill);
 router.post("/finalize-booking", finalizeLeadBooking);
 router.post("/notify-slot-unavailable", notifySlotUnavailable);
+router.post("/send-onboarding-docs", uploadDocuments.array("documents", 5), sendLeadOnboardingDocuments);
 router.get("/plan-limit", getLeadPlanLimit);
 router.post("/request-more-leads", requestMoreLeads);
 router.post("/send-invoice-to-wono", sendInvoiceToWono);
