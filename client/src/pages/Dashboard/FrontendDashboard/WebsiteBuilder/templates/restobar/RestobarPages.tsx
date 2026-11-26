@@ -214,7 +214,7 @@ export function CareersPage() {
           {job ? <button className="resto-text-link" type="button" onClick={t.closeCareersJob}>← All roles</button> : null}
           {job?.description ? <RoleSection title="The role" text={job.description} /> : null}
           {job?.requirements ? <RoleSection title="Requirements" text={job.requirements} asList /> : null}
-          <div className="resto-form"><ApplyForm /></div>
+          <div className="resto-form"><ApplyForm centered /></div>
         </section>
       </>
     );

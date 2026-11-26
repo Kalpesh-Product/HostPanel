@@ -1,5 +1,5 @@
 export const RESTOBAR_CSS = String.raw`
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Merriweather:ital,wght@0,400;0,600;0,700;0,800;1,700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,700&display=swap");
 
 .resto {
   --t-bg: #101519;
@@ -13,7 +13,7 @@ export const RESTOBAR_CSS = String.raw`
   --rb-accent: var(--t-accent, #c29a77);
   --rb-ink: var(--t-accent-text, #15100b);
   --rb-line: var(--t-line, #746154);
-  --rb-serif: "Merriweather", Georgia, serif;
+  --rb-serif: "Playfair Display", Georgia, serif;
   min-height: 100vh;
   background: var(--rb-bg);
   color: var(--rb-text);
@@ -99,6 +99,7 @@ export const RESTOBAR_CSS = String.raw`
 .resto-panel-toggle span { display: block; margin-bottom: 8px; font: 600 clamp(.8rem,1.45vw,1.15rem)/1.3 var(--rb-serif); }
 .resto-panel-toggle strong { display: block; font: italic 700 clamp(1.35rem,2.3vw,2.45rem)/1.23 var(--rb-serif); overflow-wrap: anywhere; }
 .resto-hero .resto-text-link { font-size: .88rem; }
+.resto-phone-carousel { display: none; }
 
 .resto-split { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: clamp(28px,6vw,100px); align-items: center; }
 .resto-split > div { min-width: 0; }
@@ -141,7 +142,11 @@ export const RESTOBAR_CSS = String.raw`
 .resto-gallery button, .resto-image-button, .resto-cards article > button, .resto-thumbnails button { width: 100%; padding: 0; border: 0; background: transparent; }
 .resto-gallery img, .resto-cards img { aspect-ratio: 1.25; }
 .resto-gallery button:hover img { filter: brightness(.83); }
+.resto-rating-summary { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 12px; margin-top: 16px; }
 .resto-reviews figure { padding: 22px; border: 1px solid var(--rb-line); }
+.resto-guest-notes figure { display: flex; flex-direction: column; }
+.resto-guest-notes blockquote { flex: 1; }
+.resto-review-stars { min-height: 24px; margin-bottom: 6px; }
 .resto-reviews figcaption { margin-top: 12px; color: var(--rb-accent); font-weight: 700; }
 .resto-reviews + .resto-button { margin-top: 28px; }
 .resto-home-contact { border-top: 1px solid var(--rb-line); }
@@ -250,6 +255,12 @@ export const RESTOBAR_CSS = String.raw`
 .resto-drawer-contact a { text-decoration: none; }
 .resto-drawer-contact a:hover { color: var(--rb-accent); }
 .resto-drawer-contact a[href^="tel:"] { font-family: var(--rb-serif); font-weight: 700; font-style: italic; }
+@media (width > 800px) {
+  .resto-drawer-inner > :is(nav, .resto-button), .resto-drawer-contact { display: none; }
+  .resto-drawer-details { margin-top: clamp(48px, 14vh, 128px); }
+  .resto-drawer .resto-socials { gap: 12px; }
+  .resto-drawer .resto-socials a { font-size: 1.125rem; }
+}
 .resto .tp-label { display: block; font-weight: 600; margin-bottom: 5px; }
 .resto .tp-input { width: 100%; min-height: 42px; padding: 8px 10px; background: var(--rb-bg); color: var(--rb-text); border: 1px solid var(--rb-line); }
 .resto .tp-btn { display: inline-flex; justify-content: center; align-items: center; gap: 8px; padding: 10px 16px; min-height: 42px; border: 1px solid var(--rb-accent); background: var(--rb-accent); color: var(--rb-ink); font-weight: 700; }
@@ -282,7 +293,22 @@ export const RESTOBAR_CSS = String.raw`
 }
 @media (max-width: 480px) {
   .resto-shell { width: calc(100% - 32px); }
-  .resto-hero-panels article { padding: 18px 14px; gap: 10px; }
+  .resto-hero-panels { display: none; }
+  .resto-hero-images > .is-current:not(.is-phone-current) { opacity: 0; }
+  .resto-hero-images > .is-phone-current { opacity: 1; }
+  .resto-hero::after { background: linear-gradient(180deg, rgba(12,14,14,.12), rgba(12,14,14,.9)); }
+  .resto-phone-carousel {
+    display: flex; flex-direction: column; justify-content: end; gap: 18px;
+    min-height: clamp(400px, 67svh, 540px); padding: 80px 24px 18px;
+  }
+  .resto-phone-slide p { font-family: var(--rb-serif); font-weight: 600; margin-bottom: 8px; }
+  .resto-phone-slide h2 { max-width: 16ch; font-size: clamp(2rem, 8.6vw, 2.65rem); font-style: italic; }
+  .resto-phone-carousel .resto-text-link { margin-top: 16px; }
+  .resto-phone-carousel-controls { display: flex; align-items: center; }
+  .resto-phone-carousel-controls button { min-height: 44px; border: 0; background: transparent; }
+  .resto-phone-slide-dot { display: grid; width: 44px; place-items: center; }
+  .resto-phone-slide-dot::before { content: ""; width: 9px; height: 9px; border: 1px solid currentColor; border-radius: 50%; }
+  .resto-phone-slide-dot[aria-current]::before { background: currentColor; }
   .resto-menu-item { gap: 9px; }
   .resto-menu-item img { width: 52px; height: 52px; }
   .resto-gallery, .resto-cards, .resto-reviews, .resto-footer-grid { grid-template-columns: 1fr; }

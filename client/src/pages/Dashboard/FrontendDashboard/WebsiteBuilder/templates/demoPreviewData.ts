@@ -10,6 +10,7 @@
 import type { ServiceKind } from "./verticalProfiles";
 import { serviceNameToKind } from "./serviceChoices";
 import { DEMO_BUSINESSES, withFaqs, type DemoBusiness } from "./demoContent";
+import cafePhoto from "../../../../../assets/cafe-banner.jpg";
 
 const TEMPLATE_KIND: Record<string, ServiceKind> = {
   savor: "menu",
@@ -2051,7 +2052,6 @@ const RESTOBAR_DEMO_BUSINESS: DemoBusiness = (() => {
     "photo-1552566626-52f8b828add9",
     "photo-1514933651103-005eec06c04b",
     "photo-1515003197210-e0cd71810b5f",
-    "photo-1527761939622-911909463c76",
   ];
   const menu = [
     ["Starters", "Burrata & tomatoes", "$13", "Ripe tomatoes, basil oil and a slice of toasted sourdough.", "photo-1547592180-85f173990554"],
@@ -2072,7 +2072,7 @@ const RESTOBAR_DEMO_BUSINESS: DemoBusiness = (() => {
     subTitle: "An all-day café and bistro for plates worth passing around, a good drink, and time with friends.",
     cta: "See our menu",
     heroImages: hero.map((id) => photo(id, 1920)),
-    gallery: [...room, ...hero].map((id) => photo(id, 1300)),
+    gallery: [...room.map((id) => photo(id, 1300)), cafePhoto, ...hero.map((id) => photo(id, 1300))],
     aboutImages: [room[0], room[2]].map((id) => photo(id, 1200)),
     aboutTitle: "A neighborhood table",
     aboutPageStory: "Restobar began with a simple idea: a neighborhood café should make it easy to slow down and share a good meal.",
