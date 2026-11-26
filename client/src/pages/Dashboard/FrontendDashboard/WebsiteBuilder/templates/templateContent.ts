@@ -5577,7 +5577,7 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContentDef> = {
         "Dining: introduction",
         "Start with coffee, stay for dinner. Our kitchen brings local flavours to a table everyone can share.",
       ),
-      text("home.dining.cta", HOME, "Dining: button", "Explore the menu"),
+      text("home.dining.cta", HOME, "Dining: button", "Explore"),
 
       text("home.facilities.eyebrow", HOME, "Facilities: small label", "Facilities"),
       text(
@@ -5644,7 +5644,6 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContentDef> = {
         "Testimonials: heading",
         "Kind words from our guests",
       ),
-      text("home.reviews.link", HOME, "Testimonials: link", "All reviews"),
       text("home.reviews.write", HOME, "Testimonials: write button", "Write a review"),
 
       image("home.gallery.image", HOME, "Gallery strip: fallback photo"),
@@ -5726,9 +5725,6 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContentDef> = {
 
       text("gallery.eyebrow", OTHER, "Gallery page: small label", "Gallery"),
       text("gallery.empty", OTHER, "Gallery page: empty copy", "Photos are on their way."),
-      text("reviews.eyebrow", OTHER, "Reviews page: small label", "Reviews"),
-      text("reviews.empty", OTHER, "Reviews page: empty copy", "Be the first to leave a review."),
-      text("reviews.write", OTHER, "Reviews page: write button", "Write a review"),
 
       text("contact.eyebrow", OTHER, "Contact page: small label", "Get in touch"),
       text("contact.form.eyebrow", OTHER, "Contact page: form label", "Send a message"),
@@ -5788,18 +5784,6 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContentDef> = {
       text("footer.explore.title", FOOTER, "Footer: explore column", "Explore"),
       text("footer.contact.title", FOOTER, "Footer: contact column", "Contact"),
       text("footer.hours.title", FOOTER, "Footer: hours column", "Opening hours"),
-      text(
-        "footer.newsletter.title",
-        FOOTER,
-        "Footer: newsletter heading",
-        "Subscribe to our newsletter",
-      ),
-      text(
-        "footer.newsletter.success",
-        FOOTER,
-        "Footer: newsletter success",
-        "Thanks for subscribing.",
-      ),
       text("footer.crafted", FOOTER, "Footer: closing line", "Made for memorable stays."),
     ],
     switches: [

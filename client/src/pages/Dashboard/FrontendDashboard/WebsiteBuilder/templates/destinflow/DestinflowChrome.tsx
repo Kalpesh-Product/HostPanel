@@ -1,11 +1,14 @@
-import React, { useState } from "react";
+import React from "react";
 import { resolveSectionFromSlug } from "../useWebsiteTemplateData";
 import { SOCIAL_ICON } from "../socialIcons";
 import { groupOpeningHours } from "../templateKit";
 import { Icon } from "../shared/TplUI";
 import { useTpl } from "../shared/TplContext";
 
-const navItems = (t: any): any[] => (t.navItems || []) as any[];
+const navItems = (t: any): any[] =>
+  ((t.navItems || []) as any[]).filter(
+    (item) => resolveSectionFromSlug(item.slug) !== "testimonials",
+  );
 
 export const DestinflowHeader: React.FC = () => {
   const { t, draft, primary, services, openLead, c } = useTpl();
@@ -95,18 +98,9 @@ export const DestinflowHeader: React.FC = () => {
 
 export const DestinflowFooter: React.FC = () => {
   const { t, draft, c } = useTpl();
-  const [email, setEmail] = useState("");
   const name = t.footerCompanyName || draft?.companyName || "";
   const sections = ["about", "products", "gallery", "contact"] as const;
   const hours = groupOpeningHours(draft?.openingHours);
-  const gallery = (t.galleryItems || []).slice(0, 6) as string[];
-
-  const subscribe = (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!email.trim()) return;
-    t.showSuccessPopup(c("footer.newsletter.success", "Thanks for subscribing."));
-    setEmail("");
-  };
 
   return (
     <footer className="df-footer">
@@ -119,17 +113,6 @@ export const DestinflowFooter: React.FC = () => {
               <p className="df-footer-brand">{name}</p>
             )}
             <p>{c("footer.tagline", "A comfortable stay, thoughtfully hosted.")}</p>
-            <h3 style={{ marginTop: 30 }}>{c("footer.newsletter.title", "Subscribe to our newsletter")}</h3>
-            <form className="df-newsletter" onSubmit={subscribe}>
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="your@email.com"
-                aria-label="Email address"
-              />
-              <button type="submit" aria-label="Subscribe">{Icon.arrow(16)}</button>
-            </form>
             <div className="df-socials">
               {t.footerSocialLinks.map((social: any) => {
                 const Tag: any = social.href ? "a" : "span";
@@ -180,14 +163,6 @@ export const DestinflowFooter: React.FC = () => {
             </div>
           </div>
         </div>
-
-        {gallery.length ? (
-          <div className="df-instagram-grid" aria-label="Photo highlights">
-            {gallery.map((src, index) => (
-              <img key={`${src}-${index}`} src={src} alt="" loading="lazy" />
-            ))}
-          </div>
-        ) : null}
 
         <div className="df-footer-bottom">
           <span>{t.footerCopyrightText || `© ${new Date().getFullYear()} ${name}`}</span>
