@@ -274,7 +274,7 @@ ${WAYFARER_CSS}
   max-width: 1050px;
   margin: 0;
   color: #fff;
-  font-size: clamp(54px, 8.4vw, 122px);
+  font-size: clamp(30px, 5vw, 66px);
   font-weight: 500;
   line-height: .94;
   letter-spacing: -0.055em;
@@ -284,7 +284,7 @@ ${WAYFARER_CSS}
 .ol-hero-copy {
   max-width: 520px;
   margin: 30px 0 0;
-  font-size: clamp(17px, 1.6vw, 22px);
+  font-size: clamp(16px, 1.25vw, 18px);
   line-height: 1.6;
 }
 .ol-hero-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 38px; }
@@ -304,6 +304,7 @@ ${WAYFARER_CSS}
   background: transparent;
   cursor: pointer;
 }
+.ol-down svg { transform: rotate(90deg); }
 .ol-down:hover { background: rgba(255,255,255,.16); }
 
 /* ── welcome ──────────────────────────────────────────────── */
@@ -331,8 +332,13 @@ ${WAYFARER_CSS}
 .ol-welcome-photo-small {
   aspect-ratio: 1 / .72;
   margin-top: 28px;
-  margin-left: 14%;
-  width: 86%;
+  width: 100%;
+}
+@media (width > 1100px) {
+  .ol-welcome-grid { align-items: stretch; }
+  .ol-welcome-content { display: flex; flex-direction: column; }
+  .ol-welcome-photo-small { flex: 1 0 150px; aspect-ratio: auto; }
+  :is(.ol-welcome-photo, .ol-welcome-photo-small) > :is(img, .tp-ph) { position: absolute; inset: 0; }
 }
 
 /* ── amenities ────────────────────────────────────────────── */
@@ -372,6 +378,10 @@ ${WAYFARER_CSS}
   background: var(--ol-soft);
 }
 .ol-amenity-stage img { width: 100%; height: 100%; object-fit: cover; }
+@media (width > 1100px) {
+  .ol-amenity-stage { align-self: stretch; aspect-ratio: auto; }
+  .ol-amenity-stage img { position: absolute; inset: 0; }
+}
 .ol-amenity-caption {
   position: absolute;
   left: 24px;
@@ -462,6 +472,7 @@ ${WAYFARER_CSS}
 .ol-plan-price { margin: 24px 0 0; font-size: 15px; }
 .ol-plan-price strong { color: var(--ol-heading); font-size: 22px; font-weight: 600; }
 .ol-plan-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.ol-home-plans .ol-plan-actions { justify-content: center; }
 
 /* ── unit features ────────────────────────────────────────── */
 
@@ -623,7 +634,7 @@ ${WAYFARER_CSS}
   gap: 26px;
   align-items: stretch;
 }
-.ol-neighborhood-hero { min-height: 100%; }
+.ol-neighborhood-hero > :is(img, .tp-ph) { position: absolute; inset: 0; }
 .ol-neighborhood-card {
   display: grid;
   grid-template-columns: 120px 1fr;
@@ -657,6 +668,19 @@ ${WAYFARER_CSS}
   font-size: 14px;
 }
 .ol-tour-note strong { color: var(--ol-heading); }
+.ol-tour-info { display: flex; flex-direction: column; align-self: stretch; }
+.ol-tour-heading { text-align: center; }
+.ol-tour-heading > div, .ol-tour-heading .ol-lead { margin-inline: auto; }
+.ol-tour-info + .ol-tour-panel { align-self: stretch; }
+.ol-tour-info .ol-tour-note { margin-bottom: 24px; }
+.ol-tour-expect {
+  margin-top: auto;
+  padding: clamp(20px, 3vw, 34px);
+  border: 1px solid var(--ol-line);
+  background: var(--ol-soft);
+}
+.ol-tour-expect h3 { margin: 0 0 10px; font-size: 20px; }
+.ol-tour-expect p { margin: 0; }
 .ol-contact-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -697,27 +721,50 @@ ${WAYFARER_CSS}
 .ol-index-card img { width: 100%; aspect-ratio: 1.6 / 1; object-fit: cover; }
 .ol-index-card-body { padding: 24px; }
 .ol-index-card h2 { margin: 8px 0 0; font-size: 28px; }
-.ol-detail-gallery {
-  display: grid;
-  grid-template-columns: 1.35fr .65fr;
-  grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  height: clamp(360px, 54vw, 620px);
-  margin-top: 36px;
+.ol-detail-gallery { min-width: 0; }
+.ol-detail-photo {
+  display: block;
+  width: 100%;
+  height: clamp(210px, 36vw, 440px);
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: var(--ol-soft);
+  cursor: zoom-in;
 }
-.ol-detail-gallery button { border: 0; padding: 0; overflow: hidden; cursor: zoom-in; background: var(--ol-soft); }
-.ol-detail-gallery button:first-child { grid-row: span 2; }
-.ol-detail-gallery img { width: 100%; height: 100%; object-fit: cover; }
+.ol-detail-photo img { width: 100%; height: 100%; object-fit: contain; }
+.ol-detail-thumbnails { display: flex; gap: 10px; overflow-x: auto; padding: 4px; margin: 8px -4px 0; }
+.ol-detail-thumbnails button {
+  flex: 0 0 clamp(66px, 12vw, 104px);
+  aspect-ratio: 4 / 3;
+  border: 2px solid transparent;
+  border-radius: 2px;
+  padding: 2px;
+  background: transparent;
+  overflow: hidden;
+  cursor: pointer;
+}
+.ol-detail-thumbnails button[aria-pressed="true"] { border-color: var(--ol-heading); }
+.ol-detail-gallery button:focus-visible { outline: 2px solid var(--ol-heading); outline-offset: 2px; }
+.ol-detail-thumbnails img { width: 100%; height: 100%; object-fit: cover; }
 .ol-detail-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
-  gap: clamp(32px, 6vw, 90px);
-  margin-top: 56px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(30px, 4vw, 60px);
   align-items: start;
+}
+@media (width > 760px) {
+  .ol-detail-grid:has(.ol-detail-gallery) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 .ol-detail-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 26px; margin-top: 28px; }
 .ol-detail-list div { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--ol-line); padding-bottom: 12px; font-size: 14px; }
-.ol-detail-card { position: sticky; top: 104px; border: 1px solid var(--ol-line); background: color-mix(in srgb, var(--t-bg, #fafaf9) 90%, #fff); padding: 28px; }
+.ol-detail-card {
+  max-width: 720px;
+  margin: clamp(36px, 5vw, 72px) auto 0;
+  border: 1px solid var(--ol-line);
+  background: color-mix(in srgb, var(--t-bg, #fafaf9) 90%, #fff);
+  padding: clamp(20px, 3vw, 28px);
+}
 
 /* ── reviews & gallery ────────────────────────────────────── */
 
@@ -725,6 +772,18 @@ ${WAYFARER_CSS}
 .ol-review { border-top: 1px solid var(--ol-line); padding-top: 24px; }
 .ol-review blockquote { margin: 18px 0 0; font-size: 18px; line-height: 1.7; color: var(--ol-heading); }
 .ol-review figcaption { margin-top: 20px; font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
+.ol-home-review-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 24px; }
+.ol-home-review-summary strong { color: var(--ol-heading); }
+.ol-home-reviews .ol-review { display: flex; flex-direction: column; align-items: start; }
+.ol-home-reviews blockquote { flex: 1; }
+.ol-home-review-pages { display: flex; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
+.ol-home-review-pages button { display: grid; place-items: center; width: 44px; height: 44px; border: 0; background: transparent; color: var(--ol-heading); cursor: pointer; }
+.ol-home-review-pages button::before { content: ""; width: 10px; height: 10px; border: 1px solid currentColor; border-radius: 50%; }
+.ol-home-review-pages button[aria-current]::before { background: currentColor; }
+.ol-home-review-write { display: flex; width: fit-content; margin: 32px auto 0; }
+@media (width > 760px) {
+  .ol-home-reviews .ol-review-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
 .ol-gallery-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -811,7 +870,6 @@ ${WAYFARER_CSS}
 
 .ol-pagehero-media { aspect-ratio: 2.8 / 1; margin-top: 12px; }
 
-.ol-detail-gallery-section { margin-top: 12px; }
 .ol-good-to-know {
   margin-top: 38px;
   border: 1px solid var(--ol-line);
@@ -827,12 +885,11 @@ ${WAYFARER_CSS}
 
 .ol-about-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 500px) minmax(0, 1fr);
   gap: clamp(26px, 5vw, 76px);
   align-items: center;
 }
-.ol-about-photo { aspect-ratio: 1.1 / 1; }
-.ol-about-photo-offset { margin-top: 44px; }
+.ol-about-photo { width: min(100%, 500px); aspect-ratio: 3 / 2; }
 .ol-team-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; margin-top: 40px; }
 .ol-team-card h3 { margin: 18px 0 0; font-size: 20px; }
 .ol-team-card p { margin: 7px 0 0; font-size: 13px; }
@@ -852,6 +909,9 @@ ${WAYFARER_CSS}
 .ol-apply-panel h2 { text-align: center; }
 .ol-apply-panel form { max-width: 620px; margin-inline: auto; text-align: left; }
 .ol-apply-panel form > div:last-child { display: flex; justify-content: center; }
+.ol-careers-roles-heading > div { margin-inline: auto; text-align: center; }
+.ol-careers-roles-heading .ol-lead,
+.ol-careers-roles-heading + .ol-lead { margin-inline: auto; text-align: center; }
 .ol-role-list { display: grid; gap: 12px; margin-top: 40px; }
 .ol-role-list button {
   display: grid;
@@ -868,7 +928,7 @@ ${WAYFARER_CSS}
 .ol-role-list button:hover { border-color: var(--ol-heading); }
 .ol-role-list button .ol-eyebrow { grid-column: 1 / -1; margin: 0; }
 .ol-role-list button strong { font-size: clamp(20px, 2.4vw, 30px); font-weight: 600; }
-.ol-no-roles { border-top: 1px solid var(--ol-line); margin-top: 40px; padding-top: 28px; }
+.ol-no-roles { border-top: 1px solid var(--ol-line); margin-top: 40px; padding-top: 28px; text-align: center; }
 
 @media (min-width: 1101px) {
   .ol-header-actions .ol-iconbtn { display: none; }
@@ -884,13 +944,12 @@ ${WAYFARER_CSS}
   .ol-amenity-grid,
   .ol-neighborhood-grid,
   .ol-tour-grid,
-  .ol-detail-grid,
   .ol-about-grid,
   .ol-job { grid-template-columns: 1fr; }
+  .ol-neighborhood-hero { aspect-ratio: 3 / 2; }
   .ol-plans-grid,
   .ol-feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ol-team-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ol-about-photo-offset { margin-top: 0; }
   .ol-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .ol-footer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ol-pagehero-media { aspect-ratio: 2 / 1; }
@@ -905,9 +964,6 @@ ${WAYFARER_CSS}
   .ol-header-cta { display: none; }
   .ol-hero { min-height: 620px; }
   .ol-hero-content { padding: 80px clamp(24px, 5vw, 88px) 92px; }
-  .ol-hero-title { font-size: clamp(46px, 13vw, 72px); }
-  .ol-hero-copy { font-size: 16px; }
-  .ol-welcome-photo-small { margin-left: 0; width: 100%; }
   .ol-amenity-stage { aspect-ratio: 1.15 / 1; }
   .ol-amenity-list,
   .ol-plans-grid,
@@ -921,22 +977,22 @@ ${WAYFARER_CSS}
   .ol-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ol-pagehero-media { aspect-ratio: 1.35 / 1; }
   .ol-review-intro { align-items: start; flex-direction: column; }
+  .ol-home-review-summary,
+  .ol-home-review-pages,
+  .ol-home-reviews .ol-home-review-write,
+  .ol-home-reviews .ol-review:nth-child(n + 3),
+  .ol-home-reviews:not(:has(.ol-review-grid)) { display: none; }
   .ol-good-to-know { padding: 20px; }
   .ol-role-list button { padding: 20px; }
   .ol-space-stage { aspect-ratio: 1.1 / 1; }
   .ol-neighborhood-card { grid-template-columns: 92px 1fr; }
   .ol-neighborhood-card img { width: 92px; height: 74px; }
-  .ol-detail-gallery { grid-template-columns: 1fr; grid-template-rows: 320px 180px; height: auto; }
-  .ol-detail-gallery button:first-child { grid-row: auto; }
-  .ol-detail-gallery button:nth-child(n+3) { display: none; }
-  .ol-detail-card { position: static; }
   .ol-gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 170px; }
   .ol-gallery-grid button.is-wide { grid-column: span 2; grid-row: span 1; }
   .ol-footer { margin-top: 56px; }
 }
 
 @media (max-width: 480px) {
-  .ol-hero-title { font-size: clamp(40px, 14vw, 56px); }
   .ol-hero-actions { flex-direction: column; align-items: stretch; }
   .ol-hero-actions .ol-btn { width: 100%; }
   .ol-amenity-tabs { gap: 6px; }

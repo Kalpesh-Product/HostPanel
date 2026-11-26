@@ -5109,6 +5109,7 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContentDef> = {
         "Reviews: introduction",
         "The nicest part of running a house like this is hearing from the people who stayed.",
       ),
+      text("home.reviews.write", HOME, "Reviews: write button", "Write a review"),
       image("home.neighbourhood.image", HOME, "Neighbourhood: large photo"),
       image(
         "home.neighbourhood.card1.image",
@@ -5221,6 +5222,13 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContentDef> = {
         HOME,
         "Tour form: note",
         "Send a note and the team will get back to you the same day.",
+      ),
+      text("home.tour.expectTitle", HOME, "Tour form: what to expect heading", "What to expect on your tour"),
+      text(
+        "home.tour.expectBody",
+        HOME,
+        "Tour form: what to expect text",
+        "Use your visit to compare room options, see the shared spaces, and ask about check-in. If you’re visiting with a group or have accessibility needs, mention them in your request.",
       ),
       text(
         "home.tour.submit",
@@ -5345,7 +5353,6 @@ export const TEMPLATE_CONTENT: Record<string, TemplateContentDef> = {
         "View all rooms",
       ),
       image("about.image1", OTHER, "About page: first photo"),
-      image("about.image2", OTHER, "About page: second photo"),
       text("about.eyebrow", OTHER, "About page: small label", "Our story"),
       text(
         "about.title",
