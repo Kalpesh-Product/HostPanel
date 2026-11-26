@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { getMediaSrc } from "../useWebsiteTemplateData";
 import { LeadFormPanel } from "../shared/TplLead";
+import { StarRow } from "../shared/TplUI";
 import { useItaliano } from "./ItalianoContext";
 import { MenuList, ItalianoHours, ItalianoImage } from "./ItalianoUI";
+import restaurantKitchen from "./restaurant-kitchen.jpg";
 
 export function ItalianoHero() {
   const { t, draft, c, photo } = useItaliano();
@@ -69,9 +71,15 @@ function ItalianoStory() {
   const { t, draft, c, photo } = useItaliano();
   const story = draft.aboutPageStory || t.aboutIntroBlocks?.[0] || "";
   const images = draft.aboutPageImages || [];
+  const kitchenImage = getMediaSrc(images[1]);
+  const hasStockPastaImage = /^https:\/\/images\.unsplash\.com\/photo-1473093295043-cdd812d0e601(?:[?#]|$)/.test(kitchenImage);
   const chapters = [
     { title: c("story.first.title", "Our roots"), body: c("story.first.body", story), image: photo("about.image", getMediaSrc(images[0]) || t.galleryItems[0]) },
-    { title: c("story.second.title", "In the kitchen"), body: c("story.second.body", draft.aboutPageMission || ""), image: photo("about.detail", getMediaSrc(images[1])) },
+    {
+      title: c("story.second.title", "In the kitchen"),
+      body: c("story.second.body", draft.aboutPageMission || ""),
+      image: photo("about.detail", hasStockPastaImage ? restaurantKitchen : kitchenImage || restaurantKitchen),
+    },
     { title: c("story.third.title", "Around the table"), body: c("story.third.body", draft.aboutPageValues || ""), image: photo("story.third.image", getMediaSrc(images[2])) },
   ].filter((chapter) => chapter.body);
 
@@ -103,7 +111,7 @@ function ItalianoStory() {
 }
 
 export function ItalianoHome() {
-  const { t, draft, services, primary, goToService, c, photo } = useItaliano();
+  const { t, draft, services, primary, goToService, c, photo, rating } = useItaliano();
   const enabled = t.isSectionEnabled;
   const menu = services.find((service) => service.kind === "menu") || primary;
   const booking = services.find((service) => service.kind === "menu" && service.leadEnabled);
@@ -174,18 +182,35 @@ export function ItalianoHome() {
         </section>
       ) : null}
       {enabled("home_testimonials") && t.testimonials.length ? (
-        <section className="italiano-section">
+        <section className="italiano-section italiano-guest-notes">
           <div className="italiano-shell italiano-center">
             <p className="italiano-kicker">{c("reviews.eyebrow", "Guest notes")}</p>
             <h2>{c("reviews.title", "From our guests")}</h2>
+            {rating.count > 0 ? (
+              <div className="italiano-rating-summary">
+                <strong>{rating.avg.toFixed(1)} / 5</strong>
+                <span aria-hidden="true"><StarRow value={rating.avg} size={18} /></span>
+                <span>from {rating.count} {rating.count === 1 ? "rating" : "ratings"}</span>
+              </div>
+            ) : null}
             <div className="italiano-reviews">
-              {t.testimonials.slice(0, 3).map((review: any, index: number) => (
+              {t.visibleTestimonials.map((review, index) => (
                 <figure key={review.key || index}>
-                  <blockquote>{review.text || review.review || review.testimony}</blockquote>
-                  <figcaption>{review.name || review.author}</figcaption>
+                  {review.rating > 0 ? <div><StarRow value={review.rating} size={16} /></div> : null}
+                  <blockquote>{review.text}</blockquote>
+                  <figcaption>{review.name}</figcaption>
                 </figure>
               ))}
             </div>
+            {t.testimonialPages > 1 ? (
+              <div className="italiano-review-pages" role="group" aria-label="Review pages">
+                {Array.from({ length: t.testimonialPages }, (_, index) => (
+                  <button type="button" key={index} aria-label={`Show review page ${index + 1}`}
+                    aria-current={t.testimonialIndex === index ? "true" : undefined}
+                    onClick={() => t.setTestimonialIndex(index)} />
+                ))}
+              </div>
+            ) : null}
             {t.showWriteReview ? <button type="button" className="italiano-button" onClick={t.openReviewModal}>Write a review</button> : null}
           </div>
         </section>
