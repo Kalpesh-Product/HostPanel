@@ -725,7 +725,7 @@ function UnifiedCalendar() {
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
         <div className="flex flex-col gap-4">
-          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+          <div data-tour="calendar-header" className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Calendar
@@ -744,7 +744,10 @@ function UnifiedCalendar() {
             </div>
           )}
 
-          <div className={`grid grid-cols-2 gap-3 mb-3 shrink-0 ${workspacePlan === 'custom' ? 'md:grid-cols-5' : 'md:grid-cols-2'}`}>
+          <div
+            data-tour="calendar-summary"
+            className={`grid grid-cols-2 gap-3 mb-3 shrink-0 ${workspacePlan === 'custom' ? 'md:grid-cols-5' : 'md:grid-cols-2'}`}
+          >
             {visibleSummaryCards.map((card) => {
               const Icon = card.icon;
               return (
@@ -770,7 +773,7 @@ function UnifiedCalendar() {
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden mb-3">
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
 
-              <div className="flex items-center gap-3">
+              <div data-tour="calendar-month-nav" className="flex items-center gap-3">
                 <button onClick={() => changeMonth('prev')} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
                   <ChevronLeft size={18} className="text-slate-500" />
                 </button>
@@ -803,7 +806,7 @@ function UnifiedCalendar() {
               </div>
 
               <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-                <div className="relative flex-1 min-w-[160px]">
+                <div data-tour="calendar-search" className="relative flex-1 min-w-[160px]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                   <input
                     type="text" placeholder="Search events..."
@@ -813,7 +816,7 @@ function UnifiedCalendar() {
                   />
                 </div>
 
-                <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                <div data-tour="calendar-filters" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                   {visibleEventFilters.map(type => (
                     <button
                       key={type}
@@ -831,7 +834,7 @@ function UnifiedCalendar() {
             </div>
           </div>
 
-          <div className="mb-3 -mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          <div data-tour="calendar-legend" className="mb-3 -mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5">
             {visibleEventFilters.filter((type) => type !== 'all').map((type) => {
               const meta = META[type];
               if (!meta) return null;
@@ -853,7 +856,10 @@ function UnifiedCalendar() {
               {showLoadingState ? (
                 <CalendarSkeleton />
               ) : (
-                <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+                <div
+                  data-tour="calendar-grid"
+                  className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden"
+                >
                   <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-100">
                     {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
                       <div key={day} className="p-3 text-center text-[10px] font-pmedium text-slate-400 uppercase tracking-wider">{day}</div>
@@ -953,7 +959,10 @@ function UnifiedCalendar() {
             </div>
 
             <div className="xl:col-span-1">
-              <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5 sticky top-8">
+              <div
+                data-tour="calendar-upcoming"
+                className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5 sticky top-8"
+              >
                 <h3 className="text-sm font-pmedium text-primary mb-4 flex items-center gap-2">
                   <CalendarIcon size={16} className="text-[#2563EB]" />
                   {sidebarHeading}

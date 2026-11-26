@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -7,6 +7,8 @@ import {
   BadgeCheck,
   Briefcase,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Globe,
   Magnet,
   Sparkles,
@@ -22,7 +24,15 @@ import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import useAuth from "../../../../hooks/useAuth";
 import { getRecruitmentOverview } from "../../../../services/recruitment";
 
+type ActivityPeriod = "Yearly" | "Monthly" | "Weekly";
+
 const DONUT_PALETTE = ["#2563EB", "#7C3AED", "#F59E0B", "#10B981", "#EF4444", "#64748B"];
+
+const asDate = (value?: unknown) => {
+  if (!value) return null;
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime()) ? null : date;
+};
 
 const readableLabel = (value?: string) =>
   String(value || "Pending")
@@ -159,6 +169,8 @@ const WebsiteBuilderDashboard = () => {
   const axiosPrivate = useAxiosPrivate();
   const { auth } = useAuth();
   const navigate = useNavigate();
+  const [activityPeriod, setActivityPeriod] = useState<ActivityPeriod>("Yearly");
+  const [activityAnchor, setActivityAnchor] = useState(() => new Date());
   const user = auth?.user;
   const selectedCompany = useSelector(
     (state: { company?: { selectedCompany?: { companyId?: string; workspaceId?: string; companyName?: string } } }) =>
@@ -290,27 +302,107 @@ const WebsiteBuilderDashboard = () => {
     return Object.entries(buckets);
   }, [reviews]);
 
-  const monthLabels = useMemo(() => {
-    const anchor = new Date();
-    return Array.from({ length: 12 }, (_, index) => {
-      const date = new Date(anchor.getFullYear(), anchor.getMonth() - (11 - index), 1);
-      return date.toLocaleDateString("en-US", { month: "short" });
-    });
-  }, []);
+  // Same fiscal-year / month / week windows as the ticket activity and
+  // printouts activity charts, so the modules read the same way.
+  const activityData = useMemo(() => {
+    let start: Date;
+    let end: Date;
+    let categories: string[];
 
-  const monthlyLeads = useMemo(() => {
-    const anchor = new Date();
-    const counts = new Array(12).fill(0);
+    if (activityPeriod === "Yearly") {
+      const fiscalStartYear =
+        activityAnchor.getMonth() < 3
+          ? activityAnchor.getFullYear() - 1
+          : activityAnchor.getFullYear();
+      start = new Date(fiscalStartYear, 3, 1, 0, 0, 0, 0);
+      end = new Date(fiscalStartYear + 1, 2, 31, 23, 59, 59, 999);
+      categories = Array.from({ length: 12 }, (_, index) =>
+        new Date(fiscalStartYear, 3 + index, 1).toLocaleDateString("en-IN", {
+          month: "short",
+          year: "2-digit",
+        }),
+      );
+    } else if (activityPeriod === "Monthly") {
+      start = new Date(
+        activityAnchor.getFullYear(),
+        activityAnchor.getMonth(),
+        1,
+        0,
+        0,
+        0,
+        0,
+      );
+      end = new Date(
+        activityAnchor.getFullYear(),
+        activityAnchor.getMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+        999,
+      );
+      categories = Array.from({ length: end.getDate() }, (_, index) =>
+        String(index + 1).padStart(2, "0"),
+      );
+    } else {
+      const day = activityAnchor.getDay();
+      const mondayOffset = day === 0 ? -6 : 1 - day;
+      start = new Date(activityAnchor);
+      start.setDate(activityAnchor.getDate() + mondayOffset);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      end.setHours(23, 59, 59, 999);
+      categories = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    }
+
+    const counts = new Array(categories.length).fill(0);
     leads.forEach((lead: any) => {
-      const created = new Date(String(lead.recievedDate || lead.receivedDate || lead.createdAt || ""));
-      if (Number.isNaN(created.getTime())) return;
-      const difference =
-        (anchor.getFullYear() - created.getFullYear()) * 12 + anchor.getMonth() - created.getMonth();
-      const index = 11 - difference;
-      if (index >= 0 && index < 12) counts[index] += 1;
+      const created = asDate(lead.recievedDate || lead.receivedDate || lead.createdAt);
+      if (!created || created < start || created > end) return;
+      let index = 0;
+      if (activityPeriod === "Yearly") {
+        index = (created.getMonth() - 3 + 12) % 12;
+      } else if (activityPeriod === "Monthly") {
+        index = created.getDate() - 1;
+      } else {
+        index = Math.floor((created.getTime() - start.getTime()) / 86400000);
+      }
+      if (index < 0 || index >= categories.length) return;
+      counts[index] += 1;
     });
-    return counts;
-  }, [leads]);
+
+    let periodLabel = "";
+    if (activityPeriod === "Yearly") {
+      periodLabel = `FY ${start.getFullYear()}-${String(end.getFullYear()).slice(-2)}`;
+    } else if (activityPeriod === "Monthly") {
+      periodLabel = activityAnchor.toLocaleDateString("en-IN", {
+        month: "long",
+        year: "numeric",
+      });
+    } else {
+      periodLabel = `${start.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })} – ${end.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}`;
+    }
+
+    return {
+      categories,
+      counts,
+      total: counts.reduce((sum, value) => sum + value, 0),
+      periodLabel,
+    };
+  }, [activityAnchor, activityPeriod, leads]);
+
+  const moveActivityPeriod = (direction: -1 | 1) => {
+    setActivityAnchor((current) => {
+      const next = new Date(current);
+      if (activityPeriod === "Yearly")
+        next.setFullYear(current.getFullYear() + direction);
+      else if (activityPeriod === "Monthly")
+        next.setMonth(current.getMonth() + direction);
+      else next.setDate(current.getDate() + direction * 7);
+      return next;
+    });
+  };
 
   const recentLeads = useMemo(
     () =>
@@ -324,12 +416,20 @@ const WebsiteBuilderDashboard = () => {
     [leads],
   );
 
-  const chartOptions = {
+  const trendOptions = {
     chart: { toolbar: { show: false }, fontFamily: "Poppins-Regular" },
-    plotOptions: { bar: { borderRadius: 4, columnWidth: "44%" } },
+    plotOptions: {
+      bar: {
+        borderRadius: 4,
+        columnWidth: activityPeriod === "Monthly" ? "45%" : "55%",
+      },
+    },
     dataLabels: { enabled: false },
     grid: { borderColor: "#EEF2F7" },
-    xaxis: { categories: monthLabels },
+    xaxis: {
+      categories: activityData.categories,
+      labels: { style: { colors: "#64748B", fontSize: "10px" } },
+    },
     colors: ["#2563EB"],
     stroke: { show: true, width: 2, colors: ["transparent"] },
     tooltip: { theme: "light" },
@@ -394,14 +494,6 @@ const WebsiteBuilderDashboard = () => {
       color: "#F59E0B",
     },
   ];
-
-  const moduleMetric = (moduleId: string) => {
-    if (moduleId === "website-leads") return leads.length;
-    if (moduleId === "website-reviews") return reviews.length;
-    if (moduleId === "website-careers") return careerJobs.length;
-    if (moduleId === "website-create-edit") return website ? (isWebsitePublished ? "Live" : "Draft") : "Not created";
-    return "—";
-  };
 
   return (
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
@@ -584,17 +676,66 @@ const WebsiteBuilderDashboard = () => {
 
         {!isLoading ? (
           <>
-            <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+            <div className="mb-4">
               <ChartCard
                 dataTour="wb-dashboard-lead-trend"
                 title="Website Leads Trend"
-                subtitle="Enquiries received through your website during the last 12 calendar months."
+                subtitle="Enquiries received through your website. Switch between fiscal-year, month, and week views."
               >
-                <GroupedBarGraph
-                  options={chartOptions}
-                  series={[{ name: "Website leads", data: monthlyLeads }]}
-                />
+                <div>
+                  <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div
+                      data-tour="wb-lead-trend-period"
+                      className="inline-flex w-fit rounded-lg border border-slate-200 bg-slate-50 p-1"
+                    >
+                      {(["Yearly", "Monthly", "Weekly"] as ActivityPeriod[]).map((period) => (
+                        <button
+                          key={period}
+                          type="button"
+                          onClick={() => setActivityPeriod(period)}
+                          className={`rounded-md px-3.5 py-2 text-[10px] font-pmedium transition ${activityPeriod === period ? "bg-[#2563EB] text-white shadow-sm" : "text-slate-600 hover:bg-white hover:text-slate-900"}`}
+                        >
+                          {period}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] font-pmedium text-slate-500">
+                      <span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-700">
+                        {activityData.total} leads
+                      </span>
+                      <span>in selected period</span>
+                    </div>
+                  </div>
+                  <GroupedBarGraph
+                    options={trendOptions}
+                    series={[{ name: "Website leads", data: activityData.counts }]}
+                  />
+                  <div className="mt-2 flex items-center justify-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => moveActivityPeriod(-1)}
+                      aria-label="Previous website leads period"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <span className="min-w-[160px] text-center text-[10px] font-pmedium text-[#1E3D73]">
+                      {activityData.periodLabel}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => moveActivityPeriod(1)}
+                      aria-label="Next website leads period"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
               </ChartCard>
+            </div>
+
+            <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
               <ChartCard dataTour="wb-dashboard-lead-pipeline" title="Lead Pipeline" subtitle="Current enquiry distribution by stage.">
                 {leadPipeline.length ? (
                   <DonutChart
@@ -609,9 +750,6 @@ const WebsiteBuilderDashboard = () => {
                   <Empty>No leads have been recorded from your website yet.</Empty>
                 )}
               </ChartCard>
-            </div>
-
-            <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
               <ChartCard dataTour="wb-dashboard-review-status" title="Review Status Breakdown" subtitle="Visitor reviews grouped by moderation status.">
                 {reviewBreakdown.length ? (
                   <DonutChart
@@ -625,31 +763,6 @@ const WebsiteBuilderDashboard = () => {
                 ) : (
                   <Empty>No reviews have been submitted yet.</Empty>
                 )}
-              </ChartCard>
-              <ChartCard dataTour="wb-dashboard-snapshot" title="Module Snapshot">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {modules.map((module, index) => (
-                    <div
-                      key={module.id}
-                      className="flex items-center justify-between rounded-2xl border border-slate-100 px-4 py-3"
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white"
-                          style={{ backgroundColor: DONUT_PALETTE[index % DONUT_PALETTE.length] }}
-                        >
-                          {module.icon}
-                        </span>
-                        <span className="truncate text-[11px] font-pmedium text-slate-600">
-                          {module.label}
-                        </span>
-                      </div>
-                      <span className="ml-3 text-[13px] font-pmedium text-slate-900">
-                        {moduleMetric(module.id)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
               </ChartCard>
             </div>
 

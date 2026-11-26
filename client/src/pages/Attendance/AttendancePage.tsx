@@ -171,7 +171,6 @@ type CorrectionTab = "all" | "checkin" | "checkout" | "break";
 
 interface CorrectionForm {
   recordId: string;
-  date: string;
   reason: string;
   correctionTab: CorrectionTab;
   includeCheckIn: boolean;
@@ -405,7 +404,6 @@ const getManagedDepartments = (currentUser: any): string[] => {
 
 const INITIAL_CORRECTION_FORM: CorrectionForm = {
   recordId: "",
-  date: "",
   reason: "",
   correctionTab: "all",
   includeCheckIn: true,
@@ -574,12 +572,6 @@ export function AttendancePage() {
     INITIAL_CORRECTION_FORM,
   );
   const [isSubmittingCorrection, setIsSubmittingCorrection] = useState(false);
-  // Set when the correction form was opened automatically for a day the
-  // auto-checkout sweep closed (forgotten clock-out), rather than by the
-  // employee clicking "Request Correction" themselves — shows an explainer
-  // banner instead of silently reusing the same generic form.
-  const [isForcedClockOutCorrection, setIsForcedClockOutCorrection] =
-    useState(false);
 
   const [isSavingDecision, setIsSavingDecision] = useState(false);
 
@@ -720,7 +712,9 @@ export function AttendancePage() {
   // A forgotten clock-out from a previous day gets auto-closed (see the
   // auto-checkout sweep) but still owes a real time — clocking in again
   // before that's resolved would just create another day needing the same
-  // fix, so block it until the forced correction form (below) is submitted.
+  // fix. TodayAttendanceCard detects this itself and swaps the Clock In
+  // button for a Clock Out button that resolves it, so this is only used
+  // for the banner below, not to disable the card's button.
   const hasUnresolvedClockOut = useMemo(
     () =>
       myRecords.some(
@@ -731,9 +725,7 @@ export function AttendancePage() {
 
   const clockInDisabledReason = isClockDisabledByConfig
     ? attendanceLockMessage
-    : hasUnresolvedClockOut
-      ? "Submit your missed clock-out time below before clocking in again."
-      : isOnLeaveToday
+    : isOnLeaveToday
         ? "You're on approved leave today, so clock-in is disabled."
         : isHolidayToday
           ? `${holidayLabel}${todayRecord?.activeHoliday?.name ? `: ${todayRecord.activeHoliday.name}` : ""} — clock-in is disabled today.`
@@ -888,24 +880,8 @@ export function AttendancePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, selectedMonth]);
 
-  // A forgotten clock-out gets auto-closed by the server so reports/payroll
-  // never see an open day, but the employee still owes the real time — force
-  // the correction form open (instead of leaving it to a "Request Correction"
-  // click they might never make) until they've filed one.
-  useEffect(() => {
-    if (showCorrectionForm) return;
-    const unresolved = myRecords.find(
-      (record) => record.needsClockOutConfirmation,
-    );
-    if (unresolved) handleOpenCorrectionForm(unresolved, { forcedClockOut: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [myRecords, showCorrectionForm]);
-
   /* ── Correction Handlers ── */
-  const handleOpenCorrectionForm = (
-    record: AttendanceRecord,
-    options?: { forcedClockOut?: boolean },
-  ) => {
+  const handleOpenCorrectionForm = (record: AttendanceRecord) => {
     // <input type="time"> requires a bare 24-hour "HH:MM" value — record.checkIn/
     // checkOut are already formatted as 12-hour labels (e.g. "10:30 AM") for
     // display, so re-derive from the ISO timestamps here instead.
@@ -915,14 +891,11 @@ export function AttendancePage() {
     const checkOutValue = record.checkOutAt
       ? getWorkspaceTime(record.checkOutAt, workspacePreferences.timezone)
       : "";
-    const forcedClockOut = Boolean(options?.forcedClockOut);
-    setIsForcedClockOutCorrection(forcedClockOut);
     setCorrectionForm({
       recordId: record.recordId || record.id || "",
-      date: record.date || "",
-      reason: forcedClockOut ? "Forgot to clock out." : "",
-      correctionTab: forcedClockOut ? "checkout" : "all",
-      includeCheckIn: !forcedClockOut,
+      reason: "",
+      correctionTab: "all",
+      includeCheckIn: true,
       includeCheckOut: true,
       includeBreaks: false,
       originalCheckIn: checkInValue,
@@ -1394,8 +1367,9 @@ export function AttendancePage() {
           {!isClockDisabledByConfig && hasUnresolvedClockOut ? (
             <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-[12px] font-pmedium text-rose-700 flex items-center gap-2">
               <AlertTriangle size={14} />
-              You have a missed clock-out from a previous day. Submit the
-              correct time in the form below before clocking in again.
+              You have a missed clock-out from a previous day. Use the Clock
+              Out button above to submit the correct time before clocking in
+              again.
             </div>
           ) : null}
 
@@ -1908,17 +1882,6 @@ export function AttendancePage() {
                 className="flex flex-col overflow-hidden flex-1"
               >
                 <div className="p-6 space-y-4 overflow-y-auto flex-1">
-                  {isForcedClockOutCorrection && (
-                    <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[12px] font-pmedium text-amber-700">
-                      <AlertTriangle size={15} className="shrink-0 mt-0.5" />
-                      <span>
-                        You didn't clock out on{" "}
-                        {formatDateDMY(correctionForm.date)}, so it was
-                        auto-closed. Enter the actual clock-out time below —
-                        HR will review and approve it.
-                      </span>
-                    </div>
-                  )}
                   <div>
                     <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mb-2">
                       Correct
