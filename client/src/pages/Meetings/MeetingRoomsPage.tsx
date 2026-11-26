@@ -4499,8 +4499,8 @@ export function MeetingRoomsPage() {
   const bookingScopeTabs = useMemo(() => {
     if (mainBookingTab !== 'my_bookings') {
       return [
-        { key: 'bookings', label: 'Bookings' },
-        { key: 'booking_history', label: 'Booking History' },
+        { key: 'bookings', label: 'Bookings', tour: 'meetings-module-bookings' },
+        { key: 'booking_history', label: 'Booking History', tour: 'meetings-module-history' },
       ];
     }
 
@@ -4741,10 +4741,10 @@ export function MeetingRoomsPage() {
           </div>
         )}
         {!isInitialLoading && (
-          <div className="flex flex-col gap-4 text-slate-700 font-pmedium">
+          <div className="flex flex-col gap-4 text-slate-700 font-pmedium" data-active-tab={mainBookingTab}>
 
             {/* 1. HEADER */}
-            <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+            <div data-tour="meetings-header" className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
               <div>
                 <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                   {bookingModulePageContent.title}
@@ -4803,7 +4803,7 @@ export function MeetingRoomsPage() {
             ) : null}
 
             {!hasBookableMeetingResources && (
-              <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div data-tour="meetings-no-rooms" className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-start gap-3">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-200 bg-white text-amber-700 shadow-sm">
                     <AlertTriangle size={16} />
@@ -4824,7 +4824,7 @@ export function MeetingRoomsPage() {
             )}
 
             <div
-              data-tour="meetings-scope-tabs"
+              data-tour={mainBookingTab === 'my_bookings' ? 'meetings-scope-tabs' : 'meetings-module-tabs'}
               className="mb-3 flex w-full gap-1.5 overflow-x-auto rounded-2xl border border-slate-100 bg-white p-1 shadow-sm [&::-webkit-scrollbar]:hidden"
             >
               {bookingScopeTabs.map((tab) => {
@@ -5045,7 +5045,7 @@ export function MeetingRoomsPage() {
                 {/* Scope Tabs */}
                 <div aria-hidden="true" className="hidden">
                   {mainBookingTab === 'my_bookings' && (
-                    <div className="flex w-full gap-1.5 overflow-x-auto rounded-2xl border border-slate-100 bg-white p-1 shadow-sm [&::-webkit-scrollbar]:hidden">
+                    <div data-tour="meetings-module-tabs" className="flex w-full gap-1.5 overflow-x-auto rounded-2xl border border-slate-100 bg-white p-1 shadow-sm [&::-webkit-scrollbar]:hidden">
                       {isEmployeeProfile ? (
                       <>
                         <button
@@ -5123,7 +5123,7 @@ export function MeetingRoomsPage() {
                   </div>
                   )}
                   {mainBookingTab !== 'my_bookings' && (
-                    <div className="flex w-full gap-1.5 overflow-x-auto rounded-2xl border border-slate-100 bg-white p-1 shadow-sm [&::-webkit-scrollbar]:hidden">
+                    <div data-tour="meetings-module-tabs" className="flex w-full gap-1.5 overflow-x-auto rounded-2xl border border-slate-100 bg-white p-1 shadow-sm [&::-webkit-scrollbar]:hidden">
                       <button
                         onClick={() => { setActiveTab('bookings'); setStatusFilter('all'); }}
                         className={`flex-1 min-w-[150px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'bookings' ? 'text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
@@ -5577,8 +5577,8 @@ export function MeetingRoomsPage() {
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8">
 
                 {/* Calendar Widget */}
-                <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-4 flex-grow-0">
-                  <div className="mb-4">
+                <div data-tour="meetings-availability" className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-4 flex-grow-0">
+                  <div data-tour="meetings-availability-header" className="mb-4">
                     <h3 data-tour="meetings-calendar" className="font-pmedium text-[14px] text-[#0F172A] mb-3">Room Availability</h3>
                     <div className="relative">
                       <select
@@ -5697,21 +5697,23 @@ export function MeetingRoomsPage() {
                 </div>
 
                 {/* Contextual Upcoming Widget */}
-                <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5 flex-grow">
-                  <h3 className="font-pmedium text-[14px] text-[#0F172A] mb-1">Upcoming</h3>
-                  <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-5">
-                    {activeTab === 'my_bookings'
-                      ? 'Your Schedule'
-                      : isEmployeeProfile && activeTab === 'invites'
-                        ? 'Your Invitations'
-                        : activeTab === 'assigned_dept_bookings'
-                          ? 'Assigned Dept Schedule'
-                          : activeTab === 'company_bookings'
-                            ? 'Company Schedule'
-                            : isDepartmentManagerProfile
-                              ? 'Department Schedule'
-                              : 'Company Schedule'}
-                  </p>
+                <div data-tour="meetings-upcoming" className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5 flex-grow">
+                  <div data-tour="meetings-upcoming-header">
+                    <h3 className="font-pmedium text-[14px] text-[#0F172A] mb-1">Upcoming</h3>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-5">
+                      {activeTab === 'my_bookings'
+                        ? 'Your Schedule'
+                        : isEmployeeProfile && activeTab === 'invites'
+                          ? 'Your Invitations'
+                          : activeTab === 'assigned_dept_bookings'
+                            ? 'Assigned Dept Schedule'
+                            : activeTab === 'company_bookings'
+                              ? 'Company Schedule'
+                              : isDepartmentManagerProfile
+                                ? 'Department Schedule'
+                                : 'Company Schedule'}
+                    </p>
+                  </div>
 
                   <div className="space-y-3 sm:space-y-4">
                     {upcomingReservations.length > 0 ? upcomingReservations.map(b => (

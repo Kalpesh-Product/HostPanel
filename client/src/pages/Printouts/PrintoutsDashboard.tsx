@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   Hourglass,
   ListChecks,
@@ -25,6 +27,8 @@ type PrintoutRequestRecord = {
   createdAt?: string;
 };
 
+type ActivityPeriod = "Yearly" | "Monthly" | "Weekly";
+
 const PRINTOUTS_API = "/api/printouts";
 const DONUT_PALETTE = ["#F59E0B", "#2563EB", "#10B981", "#EF4444", "#64748B"];
 
@@ -32,6 +36,12 @@ const normalize = (value: unknown) =>
   String(value || "")
     .trim()
     .toLowerCase();
+
+const asDate = (value?: string | null) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
 
 const dateLabel = (value?: string | null) => {
   if (!value) return "Not recorded";
@@ -56,15 +66,20 @@ function ChartCard({
   title,
   subtitle,
   bodyClassName = "p-5",
+  tourId,
   children,
 }: {
   title: string;
   subtitle?: string;
   bodyClassName?: string;
+  tourId?: string;
   children: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <section
+      data-tour={tourId}
+      className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+    >
       <div className="border-b border-slate-100 px-5 py-4">
         <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">
           {title}
@@ -133,6 +148,8 @@ export default function PrintoutsDashboard() {
   const [requests, setRequests] = useState<PrintoutRequestRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [activityPeriod, setActivityPeriod] = useState<ActivityPeriod>("Yearly");
+  const [activityAnchor, setActivityAnchor] = useState(() => new Date());
 
   useEffect(() => {
     let cancelled = false;
@@ -186,38 +203,127 @@ export default function PrintoutsDashboard() {
     return [...buckets.entries()].sort((left, right) => right[1] - left[1]);
   }, [requests]);
 
-  const monthLabels = useMemo(() => {
-    const anchor = new Date();
-    return Array.from({ length: 12 }, (_, index) => {
-      const date = new Date(
-        anchor.getFullYear(),
-        anchor.getMonth() - (11 - index),
-        1,
-      );
-      return date.toLocaleDateString("en-US", { month: "short" });
-    });
-  }, []);
-
-  const monthlyActivity = useMemo(() => {
-    const anchor = new Date();
-    const indexFor = (value?: string | null) => {
-      const date = new Date(String(value || ""));
-      if (Number.isNaN(date.getTime())) return -1;
-      const difference =
-        (anchor.getFullYear() - date.getFullYear()) * 12 +
-        anchor.getMonth() -
-        date.getMonth();
-      const index = 11 - difference;
-      return index >= 0 && index < 12 ? index : -1;
-    };
-
-    const counts = new Array(12).fill(0);
+  const priorityBreakdown = useMemo(() => {
+    const order = ["High", "Medium", "Low"];
+    const buckets = new Map<string, number>([
+      ["High", 0],
+      ["Medium", 0],
+      ["Low", 0],
+    ]);
     requests.forEach((request) => {
-      const index = indexFor(request.createdAt);
-      if (index >= 0) counts[index] += 1;
+      const label = order.includes(String(request.priority))
+        ? String(request.priority)
+        : "Medium";
+      buckets.set(label, (buckets.get(label) || 0) + 1);
     });
-    return counts;
+    return order
+      .map((label) => [label, buckets.get(label) || 0] as [string, number])
+      .filter(([, value]) => value > 0);
   }, [requests]);
+
+  // Same fiscal-year / month / week windows as the ticket activity chart, so
+  // the two modules read the same way.
+  const activityData = useMemo(() => {
+    let start: Date;
+    let end: Date;
+    let categories: string[];
+
+    if (activityPeriod === "Yearly") {
+      const fiscalStartYear =
+        activityAnchor.getMonth() < 3
+          ? activityAnchor.getFullYear() - 1
+          : activityAnchor.getFullYear();
+      start = new Date(fiscalStartYear, 3, 1, 0, 0, 0, 0);
+      end = new Date(fiscalStartYear + 1, 2, 31, 23, 59, 59, 999);
+      categories = Array.from({ length: 12 }, (_, index) => {
+        const month = new Date(fiscalStartYear, 3 + index, 1);
+        return month.toLocaleDateString("en-IN", {
+          month: "short",
+          year: "2-digit",
+        });
+      });
+    } else if (activityPeriod === "Monthly") {
+      start = new Date(
+        activityAnchor.getFullYear(),
+        activityAnchor.getMonth(),
+        1,
+        0,
+        0,
+        0,
+        0,
+      );
+      end = new Date(
+        activityAnchor.getFullYear(),
+        activityAnchor.getMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+        999,
+      );
+      categories = Array.from({ length: end.getDate() }, (_, index) =>
+        String(index + 1).padStart(2, "0"),
+      );
+    } else {
+      const day = activityAnchor.getDay();
+      const mondayOffset = day === 0 ? -6 : 1 - day;
+      start = new Date(activityAnchor);
+      start.setDate(activityAnchor.getDate() + mondayOffset);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      end.setHours(23, 59, 59, 999);
+      categories = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    }
+
+    const counts = new Array(categories.length).fill(0);
+    requests.forEach((request) => {
+      const createdAt = asDate(request.createdAt);
+      if (!createdAt || createdAt < start || createdAt > end) return;
+
+      let index = 0;
+      if (activityPeriod === "Yearly") {
+        index = (createdAt.getMonth() - 3 + 12) % 12;
+      } else if (activityPeriod === "Monthly") {
+        index = createdAt.getDate() - 1;
+      } else {
+        index = Math.floor((createdAt.getTime() - start.getTime()) / 86400000);
+      }
+      if (index < 0 || index >= categories.length) return;
+      counts[index] += 1;
+    });
+
+    let periodLabel = "";
+    if (activityPeriod === "Yearly") {
+      periodLabel = `FY ${start.getFullYear()}-${String(end.getFullYear()).slice(-2)}`;
+    } else if (activityPeriod === "Monthly") {
+      periodLabel = activityAnchor.toLocaleDateString("en-IN", {
+        month: "long",
+        year: "numeric",
+      });
+    } else {
+      periodLabel = `${start.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })} – ${end.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}`;
+    }
+
+    return {
+      categories,
+      counts,
+      total: counts.reduce((sum, value) => sum + value, 0),
+      periodLabel,
+    };
+  }, [activityAnchor, activityPeriod, requests]);
+
+  const moveActivityPeriod = (direction: -1 | 1) => {
+    setActivityAnchor((current) => {
+      const next = new Date(current);
+      if (activityPeriod === "Yearly")
+        next.setFullYear(current.getFullYear() + direction);
+      else if (activityPeriod === "Monthly")
+        next.setMonth(current.getMonth() + direction);
+      else next.setDate(current.getDate() + direction * 7);
+      return next;
+    });
+  };
 
   const recentRequests = useMemo(
     () =>
@@ -233,10 +339,18 @@ export default function PrintoutsDashboard() {
 
   const trendOptions = {
     chart: { toolbar: { show: false }, fontFamily: "Poppins-Regular" },
-    plotOptions: { bar: { borderRadius: 4, columnWidth: "55%" } },
+    plotOptions: {
+      bar: {
+        borderRadius: 4,
+        columnWidth: activityPeriod === "Monthly" ? "45%" : "55%",
+      },
+    },
     dataLabels: { enabled: false },
     grid: { borderColor: "#EEF2F7" },
-    xaxis: { categories: monthLabels },
+    xaxis: {
+      categories: activityData.categories,
+      labels: { style: { colors: "#64748B", fontSize: "10px" } },
+    },
     colors: ["#2563EB"],
     stroke: { show: true, width: 2, colors: ["transparent"] },
     tooltip: { theme: "light" },
@@ -245,7 +359,10 @@ export default function PrintoutsDashboard() {
   return (
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
-        <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+        <div
+          data-tour="printouts-dashboard-banner"
+          className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]"
+        >
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img
               src={printoutBannerImage}
@@ -317,7 +434,10 @@ export default function PrintoutsDashboard() {
             ))}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3">
+          <div
+            data-tour="printouts-dashboard-stats"
+            className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3"
+          >
             <StatTile
               icon={<ListChecks size={20} />}
               label="Total requests"
@@ -355,7 +475,7 @@ export default function PrintoutsDashboard() {
           </div>
         )}
 
-        <div className="mb-6">
+        <div data-tour="printouts-dashboard-modules" className="mb-6">
           <div className="mb-3">
             <p className="text-sm font-pmedium text-slate-900">
               Manage printouts
@@ -377,17 +497,67 @@ export default function PrintoutsDashboard() {
 
         {!isLoading ? (
           <>
-            <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+            <div className="mb-4">
               <ChartCard
-                title="Monthly Printout Activity"
-                subtitle="Requests submitted over the last 12 calendar months."
+                tourId="printouts-dashboard-activity"
+                title="Printout Activity"
+                subtitle="Switch between fiscal-year, month, and week views to see when requests were submitted."
               >
-                <GroupedBarGraph
-                  options={trendOptions}
-                  series={[{ name: "Requests", data: monthlyActivity }]}
-                />
+                <div>
+                  <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="inline-flex w-fit rounded-lg border border-slate-200 bg-slate-50 p-1">
+                      {(["Yearly", "Monthly", "Weekly"] as ActivityPeriod[]).map(
+                        (period) => (
+                          <button
+                            key={period}
+                            type="button"
+                            onClick={() => setActivityPeriod(period)}
+                            className={`rounded-md px-3.5 py-2 text-[10px] font-pmedium transition ${activityPeriod === period ? "bg-[#2563EB] text-white shadow-sm" : "text-slate-600 hover:bg-white hover:text-slate-900"}`}
+                          >
+                            {period}
+                          </button>
+                        ),
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] font-pmedium text-slate-500">
+                      <span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-700">
+                        {activityData.total} requests
+                      </span>
+                      <span>in selected period</span>
+                    </div>
+                  </div>
+                  <GroupedBarGraph
+                    options={trendOptions}
+                    series={[{ name: "Requests", data: activityData.counts }]}
+                  />
+                  <div className="mt-2 flex items-center justify-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => moveActivityPeriod(-1)}
+                      aria-label="Previous printout activity period"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <span className="min-w-[160px] text-center text-[10px] font-pmedium text-[#1E3D73]">
+                      {activityData.periodLabel}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => moveActivityPeriod(1)}
+                      aria-label="Next printout activity period"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
               </ChartCard>
+            </div>
+
+            <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
               <ChartCard
+                tourId="printouts-dashboard-status"
                 title="Request Status Breakdown"
                 subtitle="Every printout request grouped by its current status."
               >
@@ -405,10 +575,33 @@ export default function PrintoutsDashboard() {
                   <Empty>No printout-status data is available yet.</Empty>
                 )}
               </ChartCard>
+              <ChartCard
+                tourId="printouts-dashboard-priority"
+                title="Priority Mix"
+                subtitle="How requests are split across High, Medium, and Low priority."
+              >
+                {priorityBreakdown.length ? (
+                  <DonutChart
+                    centerLabel="Requests"
+                    labels={priorityBreakdown.map(([label]) => label)}
+                    series={priorityBreakdown.map(([, value]) => value)}
+                    colors={["#EF4444", "#F59E0B", "#64748B"].slice(
+                      0,
+                      priorityBreakdown.length,
+                    )}
+                    tooltipValue={priorityBreakdown.map(
+                      ([, value]) => `${value} requests`,
+                    )}
+                  />
+                ) : (
+                  <Empty>No priority data is available yet.</Empty>
+                )}
+              </ChartCard>
             </div>
 
             <div className="mb-4">
               <ChartCard
+                tourId="printouts-dashboard-recent"
                 title="Recent Printout Requests"
                 subtitle="The latest requests submitted across the workspace."
                 bodyClassName=""

@@ -86,15 +86,20 @@ function SectionCard({
   title,
   subtitle,
   bodyClassName = "p-5",
+  tourId,
   children,
 }: {
   title: string;
   subtitle: string;
   bodyClassName?: string;
+  tourId?: string;
   children: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <section
+      data-tour={tourId}
+      className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+    >
       <div className="border-b border-slate-100 px-5 py-4">
         <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">
           {title}
@@ -605,7 +610,10 @@ export default function TicketsWorkspaceDashboard() {
   return (
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
-        <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+        <div
+          data-tour="tickets-dashboard-banner"
+          className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]"
+        >
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img
               src={ticketBannerImage}
@@ -661,7 +669,10 @@ export default function TicketsWorkspaceDashboard() {
             ))}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div
+            data-tour="tickets-dashboard-stats"
+            className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+          >
             <StatTile icon={<TicketCheck size={20} />} label="Total tickets" value={stats.total} sub="All tickets visible in this unit" />
             <StatTile icon={<AlertCircle size={20} />} label="Open" value={stats.open} sub="Raised tickets awaiting action" tone="amber" />
             <StatTile icon={<Clock3 size={20} />} label="In progress" value={stats.inProgress} sub="Tickets currently being worked" tone="blue" />
@@ -673,7 +684,7 @@ export default function TicketsWorkspaceDashboard() {
           </div>
         )}
 
-        <div className="mb-6">
+        <div data-tour="tickets-dashboard-modules" className="mb-6">
           <p className="text-sm font-pmedium text-slate-900">Manage tickets</p>
           <p className="mt-1 text-[10px] text-slate-500">Open the ticket views available for your role and department.</p>
           <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -706,7 +717,7 @@ export default function TicketsWorkspaceDashboard() {
         {!isLoading ? (
           <>
             <div className="mb-4">
-              <SectionCard title="Today's ticket operations" subtitle="Live priority, workflow, and ownership signals for tickets raised or completed today." bodyClassName="p-0">
+              <SectionCard tourId="tickets-dashboard-today" title="Today's ticket operations" subtitle="Live priority, workflow, and ownership signals for tickets raised or completed today." bodyClassName="p-0">
                 <div className="grid grid-cols-1 divide-y divide-slate-100 md:grid-cols-3 md:divide-x md:divide-y-0">
                   {[
                     { title: "Priority today", rows: [["High", todaySnapshot.high, "text-rose-600"], ["Medium", todaySnapshot.medium, "text-amber-600"], ["Low", todaySnapshot.low, "text-emerald-600"]] },
@@ -730,7 +741,7 @@ export default function TicketsWorkspaceDashboard() {
             </div>
 
             <div className="mb-4">
-              <SectionCard title="Ticket activity" subtitle="Switch between fiscal-year, month, and week views to understand when tickets were raised and their current outcome.">
+              <SectionCard tourId="tickets-dashboard-activity" title="Ticket activity" subtitle="Switch between fiscal-year, month, and week views to understand when tickets were raised and their current outcome.">
                 {tickets.length ? (
                   <div>
                     <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -779,7 +790,7 @@ export default function TicketsWorkspaceDashboard() {
             </div>
 
             <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <SectionCard title="Ticket status" subtitle="Current ticket workload grouped by workflow status.">
+              <SectionCard tourId="tickets-dashboard-status" title="Ticket status" subtitle="Current ticket workload grouped by workflow status.">
                 {statusBreakdown.length ? (
                   <DonutChart
                     centerLabel="Tickets"
@@ -793,7 +804,7 @@ export default function TicketsWorkspaceDashboard() {
                   <div className="flex h-[280px] items-center justify-center text-[11px] text-slate-500">No ticket status data yet.</div>
                 )}
               </SectionCard>
-              <SectionCard title="Priority mix" subtitle="Current workload split by ticket priority.">
+              <SectionCard tourId="tickets-dashboard-priority" title="Priority mix" subtitle="Current workload split by ticket priority.">
                 {priorityBreakdown.length ? (
                   <DonutChart
                     centerLabel="Tickets"
@@ -810,16 +821,16 @@ export default function TicketsWorkspaceDashboard() {
             </div>
 
             <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <SectionCard title="Open-ticket aging" subtitle="Unresolved workload grouped by how long each ticket has remained open.">
+              <SectionCard tourId="tickets-dashboard-aging" title="Open-ticket aging" subtitle="Unresolved workload grouped by how long each ticket has remained open.">
                 {tickets.length ? <ReactApexChart type="bar" height={310} options={agingChartOptions} series={[{ name: "Open tickets", data: agingRows.map((row) => row.value) }]} /> : <div className="flex h-[310px] items-center justify-center text-[11px] text-slate-500">No ticket-aging data is available yet.</div>}
               </SectionCard>
-              <SectionCard title="Department resolution health" subtitle="Resolved or closed share of visible tickets by responsible department.">
+              <SectionCard tourId="tickets-dashboard-department-health" title="Department resolution health" subtitle="Resolved or closed share of visible tickets by responsible department.">
                 {departmentHealth.length ? <ReactApexChart type="bar" height={310} options={departmentHealthOptions} series={[{ name: "Resolution rate", data: departmentHealth.map((row) => row.resolutionRate) }]} /> : <div className="flex h-[310px] items-center justify-center text-[11px] text-slate-500">No department resolution data is available yet.</div>}
               </SectionCard>
             </div>
 
             <div className="mb-4">
-              <SectionCard title="Tickets by department" subtitle="Ticket volume grouped by the department responsible for the issue.">
+              <SectionCard tourId="tickets-dashboard-by-department" title="Tickets by department" subtitle="Ticket volume grouped by the department responsible for the issue.">
                 {departmentBreakdown.length ? (
                   <GroupedBarGraph
                     options={departmentChartOptions}
@@ -832,7 +843,7 @@ export default function TicketsWorkspaceDashboard() {
             </div>
 
             <div className="mb-4">
-              <SectionCard title="Ticket attention queue" subtitle="High-priority, unassigned, overdue, or aging tickets that need operational follow-up." bodyClassName="p-0">
+              <SectionCard tourId="tickets-dashboard-attention" title="Ticket attention queue" subtitle="High-priority, unassigned, overdue, or aging tickets that need operational follow-up." bodyClassName="p-0">
                 {attentionTickets.length ? <div className="divide-y divide-slate-100">{attentionTickets.map((ticket, index) => {
                   const dueDate = new Date(String(ticket.dueDate || ""));
                   const overdue = !Number.isNaN(dueDate.getTime()) && dueDate.getTime() < Date.now();
@@ -845,7 +856,7 @@ export default function TicketsWorkspaceDashboard() {
               </SectionCard>
             </div>
 
-            <SectionCard title="Recent tickets" subtitle="The latest ticket activity visible in this unit." bodyClassName="">
+            <SectionCard tourId="tickets-dashboard-recent" title="Recent tickets" subtitle="The latest ticket activity visible in this unit." bodyClassName="">
               {recentTickets.length ? (
                 <div className="max-h-[360px] min-h-[240px] overflow-y-auto overflow-x-hidden">
                   <table className="w-full table-fixed border-collapse text-left">

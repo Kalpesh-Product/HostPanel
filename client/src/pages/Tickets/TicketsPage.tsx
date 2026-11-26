@@ -2433,7 +2433,7 @@ export function TicketsPage() {
           <div className="flex flex-col gap-4 text-slate-700 font-pmedium">
 
             {/* 1. HEADER */}
-            <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+            <div data-tour="tickets-header" className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
               <div>
                 <h2 data-tour="tickets-heading" className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                   {activeViewTitle}
@@ -2612,7 +2612,7 @@ export function TicketsPage() {
               </div>
 
               {/* Table (Desktop) / Cards (Mobile) */}
-              <div className="overflow-x-auto flex-1 [&::-webkit-scrollbar]:hidden bg-white/20">
+              <div data-tour="tickets-list" className="overflow-x-auto flex-1 [&::-webkit-scrollbar]:hidden bg-white/20">
 
                 {/* Desktop Table */}
                 <table data-tour="tickets-table" className="hidden lg:table w-full min-w-max text-left">
