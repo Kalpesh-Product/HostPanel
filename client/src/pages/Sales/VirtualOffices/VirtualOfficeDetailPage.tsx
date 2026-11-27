@@ -161,7 +161,7 @@ export default function VirtualOfficeDetailPage() {
       <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
         <PageFrame>
           <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-3">
+            <div data-tour="vod-header" className="flex items-center gap-3">
               <button onClick={handleGoBack} type="button" className="p-2 bg-white border border-slate-200 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-all shadow-sm">
                 <ArrowLeft size={16} />
               </button>

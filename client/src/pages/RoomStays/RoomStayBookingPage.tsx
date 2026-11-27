@@ -119,6 +119,11 @@ const TONE_CLASS: Record<string, string> = {
 const pill = (tone: string) =>
   `inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-pmedium uppercase tracking-widest ${TONE_CLASS[tone]}`;
 
+// The booking page renders both the hostel and the co-living stay modules, so
+// guide hooks carry the prefix of the product the user opened.
+const stayTour = (roomType: string, element: string) =>
+  `${roomType === "Dorm" ? "hostel-booking" : "room-booking"}-${element}`;
+
 const getErrorMessage = (error: any, fallback: string) =>
   error?.response?.data?.message || error?.message || fallback;
 
@@ -143,6 +148,7 @@ function EmptyRow({ colSpan, message }: { colSpan: number; message: string }) {
 
 function SummaryCards({
   cards,
+  dataTour,
 }: {
   cards: Array<{
     key: string;
@@ -152,9 +158,13 @@ function SummaryCards({
     cardClass: string;
     iconClass: string;
   }>;
+  dataTour?: string;
 }) {
   return (
-    <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4 shrink-0">
+    <div
+      data-tour={dataTour}
+      className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4 shrink-0"
+    >
       {cards.map((card) => {
         const Icon = card.icon;
         return (
@@ -224,7 +234,10 @@ export default function RoomStayBookingPage({
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
-        <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+        <div
+          data-tour={stayTour(roomType, "header")}
+          className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end"
+        >
           <div>
             <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
               {title}
@@ -235,35 +248,38 @@ export default function RoomStayBookingPage({
           </div>
         </div>
 
-        {tab === "availability" && (
-          <AvailabilityTab
-            roomType={roomType}
-            noun={noun}
-            formatCurrency={formatCurrency}
-            checkTimes={checkTimes}
-          />
-        )}
-        {tab === "reservations" && (
-          <RoomReservationsPanel
-            roomType={roomType}
-            noun={noun}
-            formatCurrency={formatCurrency}
-          />
-        )}
-        {tab === "guests" && (
-          <CurrentGuestsTab
-            roomType={roomType}
-            noun={noun}
-            formatCurrency={formatCurrency}
-          />
-        )}
-        {tab === "history" && (
-          <HistoryTab
-            roomType={roomType}
-            noun={noun}
-            formatCurrency={formatCurrency}
-          />
-        )}
+        {/* The open view is also the guide's tab scope, so replaying the tour walks only the view in front of the user. */}
+        <div data-active-tab={tab}>
+          {tab === "availability" && (
+            <AvailabilityTab
+              roomType={roomType}
+              noun={noun}
+              formatCurrency={formatCurrency}
+              checkTimes={checkTimes}
+            />
+          )}
+          {tab === "reservations" && (
+            <RoomReservationsPanel
+              roomType={roomType}
+              noun={noun}
+              formatCurrency={formatCurrency}
+            />
+          )}
+          {tab === "guests" && (
+            <CurrentGuestsTab
+              roomType={roomType}
+              noun={noun}
+              formatCurrency={formatCurrency}
+            />
+          )}
+          {tab === "history" && (
+            <HistoryTab
+              roomType={roomType}
+              noun={noun}
+              formatCurrency={formatCurrency}
+            />
+          )}
+        </div>
       </PageFrame>
     </div>
   );
@@ -335,6 +351,7 @@ function AvailabilityTab({
   return (
     <>
       <SummaryCards
+        dataTour={stayTour(roomType, "availability-summary")}
         cards={[
           {
             key: "total",
@@ -372,7 +389,10 @@ function AvailabilityTab({
       />
 
       <div className="flex min-h-110 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/50 p-4 lg:flex-row lg:items-center lg:justify-between">
+        <div
+          data-tour={stayTour(roomType, "availability-toolbar")}
+          className="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/50 p-4 lg:flex-row lg:items-center lg:justify-between"
+        >
           <div>
             <p className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">
               {roomType === "Dorm" ? "Dorm inventory" : "Room inventory"}
@@ -406,7 +426,10 @@ function AvailabilityTab({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-auto">
+        <div
+          data-tour={stayTour(roomType, "availability-table")}
+          className="min-h-0 flex-1 overflow-auto"
+        >
           <table className="min-w-[900px] w-full text-left">
             <thead className="sticky top-0 z-10 text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100 bg-white">
               <tr>
@@ -487,6 +510,7 @@ function AvailabilityTab({
                       <td className="px-3.5 py-2 text-center">
                         <button
                           type="button"
+                          data-tour={stayTour(roomType, "availability-action")}
                           onClick={() => setSelected(room)}
                           className={SECONDARY_BUTTON}
                         >
@@ -1653,6 +1677,7 @@ function CurrentGuestsTab({
   return (
     <>
       <SummaryCards
+        dataTour={stayTour(roomType, "guests-summary")}
         cards={[
           {
             key: "total",
@@ -1689,7 +1714,10 @@ function CurrentGuestsTab({
         ]}
       />
       <div className="flex min-h-110 flex-col overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
-        <div className="min-h-0 flex-1 overflow-auto">
+        <div
+          data-tour={stayTour(roomType, "guests-table")}
+          className="min-h-0 flex-1 overflow-auto"
+        >
           <table className="min-w-[900px] w-full text-left">
             <thead className="sticky top-0 z-10 text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100 bg-white">
               <tr>
@@ -1742,7 +1770,10 @@ function CurrentGuestsTab({
                       </span>
                     </td>
                     <td className="px-3.5 py-2 text-center">
-                      <div className="flex items-center justify-center gap-2">
+                      <div
+                        data-tour={stayTour(roomType, "guests-actions")}
+                        className="flex items-center justify-center gap-2"
+                      >
                         {booking.status === "Booked" && (
                           <button
                             type="button"
@@ -1945,6 +1976,7 @@ function HistoryTab({
   return (
     <>
       <SummaryCards
+        dataTour={stayTour(roomType, "history-summary")}
         cards={[
           {
             key: "total",
@@ -1981,7 +2013,7 @@ function HistoryTab({
         ]}
       />
       <div className="flex min-h-110 flex-col overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
-        <div className={TOOLBAR}>
+        <div data-tour={stayTour(roomType, "history-toolbar")} className={TOOLBAR}>
           <div className="relative w-full xl:w-72">
             <Search
               className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
@@ -2011,7 +2043,10 @@ function HistoryTab({
             />
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-auto">
+        <div
+          data-tour={stayTour(roomType, "history-table")}
+          className="min-h-0 flex-1 overflow-auto"
+        >
           <table className="min-w-[900px] w-full text-left">
             <thead className="sticky top-0 z-10 text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100 bg-white">
               <tr>

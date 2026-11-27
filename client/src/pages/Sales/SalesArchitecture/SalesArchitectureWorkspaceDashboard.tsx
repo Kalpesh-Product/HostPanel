@@ -587,6 +587,7 @@ export default function SalesArchitectureWorkspaceDashboard() {
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
         <DashboardBanner
+          dataTour="sa-workspace-header"
           title={context.title}
           description={context.description}
           tags={[...context.tags]}
@@ -672,7 +673,7 @@ export default function SalesArchitectureWorkspaceDashboard() {
           </div>
         )}
 
-        <div className="mb-6">
+        <div data-tour="sa-workspace-modules" className="mb-6">
           <p className="text-sm font-pmedium text-slate-900">
             Sales architecture modules
           </p>
@@ -681,7 +682,6 @@ export default function SalesArchitectureWorkspaceDashboard() {
             this architecture context are shown.
           </p>
           <div
-            data-tour="sa-workspace-modules"
             className="mt-3 grid w-full grid-cols-1 gap-4 md:grid-cols-[repeat(var(--module-cols),minmax(0,1fr))]"
             style={{ "--module-cols": visibleModules.length } as CSSProperties}
           >
