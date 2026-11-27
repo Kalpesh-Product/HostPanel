@@ -169,7 +169,7 @@ export default function ReservationsPanel({
 
   return (
     <>
-      <div className="mb-3 mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div data-tour="cafe-orders-reservations-summary" className="mb-3 mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
           { key: "total", label: "Reservations", value: String(reservations.length), icon: CalendarClock, cardClass: baseCardClass, iconClass: "bg-blue-50 text-blue-600" },
           { key: "confirmed", label: "Upcoming", value: String(confirmedCount), icon: CalendarCheck, cardClass: `${baseCardClass} border-l-4 border-l-blue-500`, iconClass: "bg-blue-50 text-blue-600" },
@@ -190,7 +190,7 @@ export default function ReservationsPanel({
       </div>
 
       <div className="flex min-h-110 flex-col overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
-        <div className={TOOLBAR}>
+        <div data-tour="cafe-orders-reservations-toolbar" className={TOOLBAR}>
           <input type="date" className={`${FIELD} w-auto`} value={date} onChange={(event) => setDate(event.target.value)} aria-label="Reservation date" />
           {allowCreate && (
             <button type="button" onClick={() => setShowCreate(true)} className={PRIMARY_BUTTON}>
@@ -198,7 +198,7 @@ export default function ReservationsPanel({
             </button>
           )}
         </div>
-        <div className="min-h-0 flex-1 overflow-auto">
+        <div data-tour="cafe-orders-reservations-table" className="min-h-0 flex-1 overflow-auto">
           <table className="min-w-[900px] w-full text-left">
             <thead className="sticky top-0 z-10 text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100 bg-white">
               <tr>
@@ -233,7 +233,7 @@ export default function ReservationsPanel({
                     <td className="px-3.5 py-2 text-center">
                       {reservation.status === "Confirmed" && (
                         <div className="flex items-center justify-center gap-2">
-                          <button type="button" onClick={() => handleSeatClick(reservation)} disabled={busyId === reservation._id} className={onTakeOrder ? PRIMARY_BUTTON : SECONDARY_BUTTON} title={onTakeOrder ? "Seat and take their order" : "Seat guest"}>
+                          <button type="button" data-tour="cafe-orders-reservations-action" onClick={() => handleSeatClick(reservation)} disabled={busyId === reservation._id} className={onTakeOrder ? PRIMARY_BUTTON : SECONDARY_BUTTON} title={onTakeOrder ? "Seat and take their order" : "Seat guest"}>
                             <LogIn size={13} /> {onTakeOrder ? "Take Order" : ""}
                           </button>
                           <button type="button" onClick={() => markNoShow(reservation)} disabled={busyId === reservation._id} className="rounded-2xl px-3 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-amber-600 hover:bg-amber-50">

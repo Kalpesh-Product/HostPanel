@@ -61,16 +61,21 @@ function Empty({ children }: { children: ReactNode }) {
 function ChartCard({
   title,
   subtitle,
+  dataTour,
   bodyClassName = "p-5",
   children,
 }: {
   title: string;
   subtitle?: string;
+  dataTour?: string;
   bodyClassName?: string;
   children: ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <div
+      data-tour={dataTour}
+      className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+    >
       <div className="border-b border-slate-100 px-5 py-4">
         <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">{title}</h2>
         {subtitle ? <p className="mt-1 text-[11px] text-slate-500">{subtitle}</p> : null}
@@ -233,7 +238,10 @@ export default function VirtualOfficesDashboard() {
   return (
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
-        <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+        <div
+          data-tour="vo-dashboard-banner"
+          className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]"
+        >
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img
               src={virtualOfficeBannerImage}
@@ -291,7 +299,10 @@ export default function VirtualOfficesDashboard() {
             ))}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3">
+          <div
+            data-tour="vo-dashboard-stats"
+            className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3"
+          >
             <StatTile icon={<Building2 size={20} />} label="Total companies" value={summary.total ?? records.length} sub="Every onboarded virtual-office company" />
             <StatTile icon={<ShieldCheck size={20} />} label="Active rents" value={summary.active ?? 0} sub="Companies currently on an active rent" status="success" />
             <StatTile icon={<AlertTriangle size={20} />} label="Overdue rents" value={summary.overdue ?? 0} sub="Rent cycles past due" status={summary.overdue ? "attention" : "success"} />
@@ -301,7 +312,7 @@ export default function VirtualOfficesDashboard() {
           </div>
         )}
 
-        <div className="mb-6">
+        <div data-tour="vo-dashboard-modules" className="mb-6">
           <div className="mb-3">
             <p className="text-sm font-pmedium text-slate-900">Manage virtual offices</p>
             <p className="mt-1 text-[10px] font-pmedium text-slate-500">Open the full company list or the rent collections ledger.</p>
@@ -329,10 +340,10 @@ export default function VirtualOfficesDashboard() {
         {!isLoading ? (
           <>
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-              <ChartCard title="Monthly Rent Collected" subtitle="Payments marked Paid over the last 12 calendar months.">
+              <ChartCard dataTour="vo-dashboard-rent-trend" title="Monthly Rent Collected" subtitle="Payments marked Paid over the last 12 calendar months.">
                 <GroupedBarGraph options={trendChartOptions} series={[{ name: "Collected rent", data: monthlyCollected }]} />
               </ChartCard>
-              <ChartCard title="Rent Status" subtitle="Every company grouped by current rent status.">
+              <ChartCard dataTour="vo-dashboard-rent-status" title="Rent Status" subtitle="Every company grouped by current rent status.">
                 {rentStatusBreakdown.length ? (
                   <DonutChart
                     centerLabel="Companies"
@@ -348,7 +359,7 @@ export default function VirtualOfficesDashboard() {
             </div>
 
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
-              <ChartCard title="Record Status" subtitle="Every company grouped by onboarding/lifecycle status.">
+              <ChartCard dataTour="vo-dashboard-record-status" title="Record Status" subtitle="Every company grouped by onboarding/lifecycle status.">
                 {recordStatusBreakdown.length ? (
                   <DonutChart
                     centerLabel="Companies"
@@ -362,7 +373,7 @@ export default function VirtualOfficesDashboard() {
                   <Empty>No record-status data is available yet.</Empty>
                 )}
               </ChartCard>
-              <ChartCard title="Upcoming Renewals" subtitle="Companies expiring soon or already expired, soonest first." bodyClassName="">
+              <ChartCard dataTour="vo-dashboard-renewals" title="Upcoming Renewals" subtitle="Companies expiring soon or already expired, soonest first." bodyClassName="">
                 {upcomingRenewals.length ? (
                   <div className="max-h-[360px] overflow-auto">
                     <table className="w-full min-w-[640px] border-collapse text-left">

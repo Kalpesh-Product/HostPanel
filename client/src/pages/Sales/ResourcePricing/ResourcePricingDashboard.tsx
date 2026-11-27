@@ -51,9 +51,9 @@ function Empty({ children }: { children: ReactNode }) {
   );
 }
 
-function ChartCard({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+function ChartCard({ title, subtitle, dataTour, children }: { title: string; subtitle?: string; dataTour?: string; children: ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <div data-tour={dataTour} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
       <div className="border-b border-slate-100 px-5 py-4">
         <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">{title}</h2>
         {subtitle ? <p className="mt-1 text-[11px] text-slate-500">{subtitle}</p> : null}
@@ -177,7 +177,7 @@ export default function ResourcePricingDashboard() {
   return (
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
-        <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+        <div data-tour="resource-pricing-dashboard-banner" className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img
               src={resourcePricingBannerImage}
@@ -239,7 +239,7 @@ export default function ResourcePricingDashboard() {
             ))}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3">
+          <div data-tour="resource-pricing-dashboard-stats" className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3">
             <StatTile icon={<Monitor size={20} />} label="Total resources" value={resources.length} sub="Every priced resource in the workspace" />
             <StatTile icon={<CheckCircle2 size={20} />} label="Active resources" value={stats.active} sub="Available for booking or assignment" status="success" />
             <StatTile icon={<AlertTriangle size={20} />} label="Under maintenance" value={stats.maintenance} sub="Temporarily unavailable" status={stats.maintenance ? "attention" : "success"} />
@@ -249,7 +249,7 @@ export default function ResourcePricingDashboard() {
           </div>
         )}
 
-        <div className="mb-6">
+        <div data-tour="resource-pricing-dashboard-modules" className="mb-6">
           <div className="mb-3">
             <p className="text-sm font-pmedium text-slate-900">Manage resources & pricing</p>
             <p className="mt-1 text-[10px] font-pmedium text-slate-500">Open the full resource register or the tenant package list.</p>
@@ -277,7 +277,7 @@ export default function ResourcePricingDashboard() {
         {!isLoading ? (
           <>
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
-              <ChartCard title="Resources by Category" subtitle="Every priced resource grouped by category.">
+              <ChartCard dataTour="resource-pricing-dashboard-categories" title="Resources by Category" subtitle="Every priced resource grouped by category.">
                 {resourceCategoryBreakdown.length ? (
                   <DonutChart
                     centerLabel="Resources"
@@ -291,7 +291,7 @@ export default function ResourcePricingDashboard() {
                   <Empty>No resources are available yet.</Empty>
                 )}
               </ChartCard>
-              <ChartCard title="Resource Status" subtitle="Every resource grouped by availability status.">
+              <ChartCard dataTour="resource-pricing-dashboard-status" title="Resource Status" subtitle="Every resource grouped by availability status.">
                 {resourceStatusBreakdown.length ? (
                   <DonutChart
                     centerLabel="Resources"
@@ -307,7 +307,7 @@ export default function ResourcePricingDashboard() {
             </div>
 
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
-              <ChartCard title="Packages by Category" subtitle="Every pricing package grouped by category.">
+              <ChartCard dataTour="resource-pricing-dashboard-packages" title="Packages by Category" subtitle="Every pricing package grouped by category.">
                 {packageCategoryBreakdown.length ? (
                   <DonutChart
                     centerLabel="Packages"
@@ -320,7 +320,7 @@ export default function ResourcePricingDashboard() {
                   <Empty>No packages are available yet.</Empty>
                 )}
               </ChartCard>
-              <ChartCard title="Pricing Snapshot">
+              <ChartCard dataTour="resource-pricing-dashboard-pricing" title="Pricing Snapshot">
                 <div className="grid grid-cols-1 gap-3">
                   <div className="flex items-center justify-between rounded-2xl border border-slate-100 px-4 py-3">
                     <span className="text-[11px] font-pmedium text-slate-600">Average package price</span>

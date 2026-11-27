@@ -217,46 +217,51 @@ export default function CafeOrdersPage() {
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
-        <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+        <div data-tour="cafe-orders-header" className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
             <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">Cafe Orders</h2>
             <p className="text-xs font-pmedium text-slate-500 mt-1">Take orders by table, track what sells, and review settled bills.</p>
           </div>
         </div>
 
-        {tab === "live" && (
-          <LiveTablesTab
-            isLoading={isLoading}
-            tables={tables}
-            occupiedCount={occupiedCount}
-            openValue={openValue}
-            openOrderByTable={openOrderByTable}
-            lockedReservationByTable={lockedReservationByTable}
-            formatCurrency={formatCurrency}
-            onSelect={(table) => setDialog({ table, order: openOrderByTable.get(table._id) || null, readOnly: false })}
-          />
-        )}
-        {tab === "reservations" && (
-          <ReservationsPanel
-            tables={tables}
-            allowCreate={false}
-            onChanged={refreshReservations}
-            onTakeOrder={(reservation, tableId) => {
-              const table = tables.find((entry) => entry._id === tableId);
-              if (!table) return toast.error("That table could not be found.");
-              setDialog({ table, order: openOrderByTable.get(tableId) || null, readOnly: false, initialCustomerName: reservation.guestName });
-              openTab("live");
-            }}
-          />
-        )}
-        {tab === "insights" && <InsightsTab formatCurrency={formatCurrency} />}
-        {tab === "history" && (
-          <OrderHistoryTab
-            tables={tables}
-            formatCurrency={formatCurrency}
-            onView={(table, order) => setDialog({ table, order, readOnly: true })}
-          />
-        )}
+        {/* The open view is also the guide's tab scope, so replaying the tour walks only the view in front of the user. */}
+        <div data-active-tab={tab}>
+          {tab === "live" && (
+            <LiveTablesTab
+              isLoading={isLoading}
+              tables={tables}
+              occupiedCount={occupiedCount}
+              openValue={openValue}
+              openOrderByTable={openOrderByTable}
+              lockedReservationByTable={lockedReservationByTable}
+              formatCurrency={formatCurrency}
+              onSelect={(table) => setDialog({ table, order: openOrderByTable.get(table._id) || null, readOnly: false })}
+            />
+          )}
+          {tab === "reservations" && (
+            <div data-tour="cafe-orders-reservations">
+              <ReservationsPanel
+                tables={tables}
+                allowCreate={false}
+                onChanged={refreshReservations}
+                onTakeOrder={(reservation, tableId) => {
+                  const table = tables.find((entry) => entry._id === tableId);
+                  if (!table) return toast.error("That table could not be found.");
+                  setDialog({ table, order: openOrderByTable.get(tableId) || null, readOnly: false, initialCustomerName: reservation.guestName });
+                  openTab("live");
+                }}
+              />
+            </div>
+          )}
+          {tab === "insights" && <InsightsTab formatCurrency={formatCurrency} />}
+          {tab === "history" && (
+            <OrderHistoryTab
+              tables={tables}
+              formatCurrency={formatCurrency}
+              onView={(table, order) => setDialog({ table, order, readOnly: true })}
+            />
+          )}
+        </div>
       </PageFrame>
 
       {dialog && (
@@ -278,11 +283,13 @@ export default function CafeOrdersPage() {
 
 function SummaryCards({
   cards,
+  dataTour,
 }: {
   cards: Array<{ key: string; icon: typeof Armchair; label: string; value: string; cardClass: string; iconClass: string }>;
+  dataTour?: string;
 }) {
   return (
-    <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4 shrink-0">
+    <div data-tour={dataTour} className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4 shrink-0">
       {cards.map((card) => {
         const Icon = card.icon;
         const labelToneClass =
@@ -416,6 +423,7 @@ function LiveTablesTab({
   return (
     <>
       <SummaryCards
+        dataTour="cafe-orders-live-summary"
         cards={[
           { key: "tables", icon: Armchair, label: "Active tables", value: String(activeTableCount), cardClass: baseCardClass, iconClass: "bg-blue-50 text-blue-600" },
           { key: "free", icon: CheckCircle2, label: "Available", value: String(availableCount), cardClass: `${baseCardClass} border-l-4 border-l-emerald-500`, iconClass: "bg-emerald-50 text-emerald-600" },
@@ -425,7 +433,7 @@ function LiveTablesTab({
       />
 
       <div className="flex min-h-110 flex-col overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
-        <div className={TOOLBAR}>
+        <div data-tour="cafe-orders-live-toolbar" className={TOOLBAR}>
           <div>
             <StatusPills options={["All", "Free", "Occupied", "Ready", "Reserved"] as const} value={status} onChange={setStatus} />
             <p className="mt-2 text-[9px] font-pmedium uppercase tracking-wider text-slate-400">Ready and active kitchen orders are shown first</p>
@@ -446,7 +454,7 @@ function LiveTablesTab({
           ) : filtered.length === 0 ? (
             <p className="p-10 text-center text-sm font-pmedium text-slate-400">No tables match these filters.</p>
           ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div data-tour="cafe-orders-live-grid" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {filtered.map((table) => {
                 const order = openOrderByTable.get(table._id);
                 const lockedReservation = !order ? lockedReservationByTable.get(table._id) : undefined;
@@ -1181,6 +1189,7 @@ function InsightsTab({ formatCurrency }: { formatCurrency: (value?: number) => s
       ) : (
         <>
           <SummaryCards
+            dataTour="cafe-orders-insights-summary"
             cards={[
               { key: "revenue", icon: Receipt, label: "Revenue", value: formatCurrency(data.summary.revenue), cardClass: baseCardClass, iconClass: "bg-blue-50 text-blue-600" },
               { key: "bills", icon: CheckCircle2, label: "Bills settled", value: String(data.summary.billedOrders), cardClass: `${baseCardClass} border-l-4 border-l-emerald-500`, iconClass: "bg-emerald-50 text-emerald-600" },
@@ -1190,13 +1199,13 @@ function InsightsTab({ formatCurrency }: { formatCurrency: (value?: number) => s
           />
 
           <div className="flex min-h-110 flex-col overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
-            <div className={TOOLBAR}>
+            <div data-tour="cafe-orders-insights-period" className={TOOLBAR}>
               <p className="text-[11px] font-pmedium text-slate-500">Based on settled bills in the selected period.</p>
               <StatusPills options={[7, 30, 90] as const} value={days} onChange={(value) => setDays(value)} label={(value) => `${value} days`} />
             </div>
 
             <div className="grid grid-cols-1 gap-4 p-4 xl:grid-cols-2">
-              <section className="rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm">
+              <section data-tour="cafe-orders-insights-most-ordered" className="rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm">
                 <h3 className="mb-4 text-[11px] font-pmedium uppercase tracking-widest text-slate-500">Most ordered</h3>
                 {data.topItems.length === 0 ? (
                   <p className="text-[11px] font-pmedium text-slate-400">No settled bills in this period.</p>
@@ -1221,7 +1230,7 @@ function InsightsTab({ formatCurrency }: { formatCurrency: (value?: number) => s
                 )}
               </section>
 
-              <section className="rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm">
+              <section data-tour="cafe-orders-insights-peak" className="rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm">
                 <h3 className="mb-4 text-[11px] font-pmedium uppercase tracking-widest text-slate-500">Peak hours</h3>
                 <div className="flex h-40 items-end gap-1">
                   {hourBuckets.map((bucket) => (
@@ -1243,7 +1252,7 @@ function InsightsTab({ formatCurrency }: { formatCurrency: (value?: number) => s
               </section>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-auto border-t border-slate-100">
+            <div data-tour="cafe-orders-insights-daily" className="min-h-0 flex-1 overflow-auto border-t border-slate-100">
               <table className="min-w-[480px] w-full text-left">
                 <thead className="sticky top-0 z-10 text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100 bg-white">
                   <tr>
@@ -1330,6 +1339,7 @@ function OrderHistoryTab({
   return (
     <>
       <SummaryCards
+        dataTour="cafe-orders-history-summary"
         cards={[
           { key: "orders", icon: Receipt, label: "Orders", value: String(filtered.length), cardClass: baseCardClass, iconClass: "bg-blue-50 text-blue-600" },
           { key: "billed", icon: CheckCircle2, label: "Paid", value: String(filtered.filter((o) => o.status === "Paid").length), cardClass: `${baseCardClass} border-l-4 border-l-emerald-500`, iconClass: "bg-emerald-50 text-emerald-600" },
@@ -1339,7 +1349,7 @@ function OrderHistoryTab({
       />
 
       <div className="flex min-h-110 flex-col overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
-        <div className={TOOLBAR}>
+        <div data-tour="cafe-orders-history-toolbar" className={TOOLBAR}>
           <StatusPills options={["All", "Paid", "Cancelled"] as const} value={status} onChange={setStatus} />
           <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
             <div className="relative flex-1 min-w-[180px]">
@@ -1351,7 +1361,7 @@ function OrderHistoryTab({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-auto">
+        <div data-tour="cafe-orders-history-table" className="min-h-0 flex-1 overflow-auto">
           {isLoading ? (
             <div className="flex items-center gap-2 p-6 text-sm text-slate-500">
               <Loader2 size={16} className="animate-spin" /> Loading history...

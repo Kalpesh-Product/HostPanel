@@ -173,17 +173,22 @@ function ChartCard({
   title,
   subtitle,
   action,
+  dataTour,
   bodyClassName = "p-5",
   children,
 }: {
   title: string;
   subtitle?: string;
   action?: ReactNode;
+  dataTour?: string;
   bodyClassName?: string;
   children: ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <div
+      data-tour={dataTour}
+      className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+    >
       <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
         <div className="min-w-0">
           <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">
@@ -789,7 +794,10 @@ export default function SalesWorkspaceDashboardPage() {
   return (
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
-        <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+        <div
+          data-tour="sales-dept-banner"
+          className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]"
+        >
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img
               src={salesBannerImage}
@@ -859,7 +867,10 @@ export default function SalesWorkspaceDashboardPage() {
             ))}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div
+            data-tour="sales-dept-stats"
+            className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+          >
             <StatTile
               icon={<Magnet size={20} />}
               label="Total leads"
@@ -919,7 +930,10 @@ export default function SalesWorkspaceDashboardPage() {
         )}
 
         {!isLoading ? (
-          <section className="mb-6 grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <section
+            data-tour="sales-dept-team-visitors"
+            className="mb-6 grid grid-cols-1 gap-4 xl:grid-cols-2"
+          >
             <TeamLiveStatusCard
               department="sales"
               viewAllRoute="/common-modules/attendance"
@@ -929,7 +943,7 @@ export default function SalesWorkspaceDashboardPage() {
         ) : null}
 
         {!isLoading && !access.isLoading ? (
-          <div className="mb-6">
+          <div data-tour="sales-dept-finance" className="mb-6">
             <div className="mb-3">
               <p className="text-sm font-pmedium text-slate-900">
                 Sales finance overview
@@ -1019,7 +1033,7 @@ export default function SalesWorkspaceDashboardPage() {
           </div>
         ) : null}
 
-        <div className="mb-6">
+        <div data-tour="sales-dept-modules" className="mb-6">
           <div className="mb-3 flex items-end justify-between gap-3">
             <div>
               <p className="text-sm font-pmedium text-slate-900">
@@ -1057,6 +1071,7 @@ export default function SalesWorkspaceDashboardPage() {
           <>
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
               <ChartCard
+                dataTour="sales-dept-revenue-trend"
                 title="Sales Revenue Trend"
                 subtitle="Collected revenue posted during the last 12 calendar months."
               >
@@ -1068,6 +1083,7 @@ export default function SalesWorkspaceDashboardPage() {
                 />
               </ChartCard>
               <ChartCard
+                dataTour="sales-dept-revenue-sources"
                 title="Revenue Sources"
                 subtitle="Collected revenue grouped by sales service."
               >
@@ -1094,6 +1110,7 @@ export default function SalesWorkspaceDashboardPage() {
 
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
               <ChartCard
+                dataTour="sales-dept-lead-trend"
                 title="Monthly Lead Trend"
                 subtitle="Website leads created during the last 12 calendar months."
               >
@@ -1103,6 +1120,7 @@ export default function SalesWorkspaceDashboardPage() {
                 />
               </ChartCard>
               <ChartCard
+                dataTour="sales-dept-lead-pipeline"
                 title="Lead Pipeline"
                 subtitle="Current lead distribution by sales stage."
               >
@@ -1124,6 +1142,7 @@ export default function SalesWorkspaceDashboardPage() {
 
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
               <ChartCard
+                dataTour="sales-dept-lead-sources"
                 title="Sourcing Channels"
                 subtitle="Website leads grouped by their recorded acquisition source."
               >
@@ -1143,6 +1162,7 @@ export default function SalesWorkspaceDashboardPage() {
                 )}
               </ChartCard>
               <ChartCard
+                dataTour="sales-dept-tenant-sectors"
                 title="Tenant Sectors"
                 subtitle="Tenant companies grouped by their recorded business sector."
               >
@@ -1165,6 +1185,7 @@ export default function SalesWorkspaceDashboardPage() {
 
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
               <ChartCard
+                dataTour="sales-dept-inventory"
                 title="Inventory by Vertical"
                 subtitle="Saved resources and cafe tables grouped by operating vertical."
               >
@@ -1183,7 +1204,7 @@ export default function SalesWorkspaceDashboardPage() {
                   <Empty>No vertical inventory is available yet.</Empty>
                 )}
               </ChartCard>
-              <ChartCard title="Module Snapshot">
+              <ChartCard dataTour="sales-dept-module-snapshot" title="Module Snapshot">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {enabledModules.map((module, index) => {
                     const Icon = module.icon;
@@ -1218,6 +1239,7 @@ export default function SalesWorkspaceDashboardPage() {
 
             <div className="grid grid-cols-1 gap-4">
               <ChartCard
+                dataTour="sales-dept-recent-leads"
                 title="Recent Leads"
                 subtitle="The latest sales enquiries with contact and pipeline status."
                 action={<RecordCountChip count={data.leads.length} />}
@@ -1273,6 +1295,7 @@ export default function SalesWorkspaceDashboardPage() {
               </ChartCard>
 
               <ChartCard
+                dataTour="sales-dept-tenant-attention"
                 title="Tenants Needing Attention"
                 subtitle="Tenant companies not currently marked active."
                 action={<RecordCountChip count={attentionTenants.length} />}
