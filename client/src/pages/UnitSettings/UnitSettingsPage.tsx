@@ -487,10 +487,10 @@ export default function WorkspaceSettingsPage() {
         <div className="flex flex-col gap-4 text-slate-700 font-sans">
 
           {/* 1. HEADER */}
-          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+          <div data-tour="unit-settings-header" className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                Unit Settings
+                Unit & Profile
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
                 Manage the founder-level unit flow. Create new unit branches securely and unlock unit management once you have more than one unit.
@@ -515,9 +515,9 @@ export default function WorkspaceSettingsPage() {
           </div>
 
         <div className="space-y-4">
-            <section data-tour="unit-settings-create" className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+            <section className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
               {/* Header row */}
-              <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+              <div data-tour="unit-settings-create" className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
                 <div className="flex items-start gap-3">
                   <span className="rounded-2xl bg-blue-50 p-2 text-[#2563EB] shrink-0">
                     <Plus className="h-5 w-5" />
@@ -583,8 +583,8 @@ export default function WorkspaceSettingsPage() {
                 </div>
               </div>
 
-              <div className="p-3 sm:p-4 lg:p-5" data-tour="unit-settings-linked-units">
-                <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="p-3 sm:p-4 lg:p-5">
+                <div data-tour="unit-settings-linked-units" className="mb-3 flex items-center justify-between gap-3">
                   <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Linked Units</p>
                   <p className="text-[10px] font-pmedium text-slate-400">
                     Switch, enable/disable or delete units. The main unit is protected.
@@ -595,7 +595,7 @@ export default function WorkspaceSettingsPage() {
                     No linked units found.
                   </div>
                 ) : (
-                  <div className="overflow-x-auto rounded-2xl border border-slate-100">
+                  <div data-tour="unit-settings-table" className="overflow-x-auto rounded-2xl border border-slate-100">
                     <table className="w-full min-w-[760px] border-collapse text-left">
                       <thead>
                         <tr className="bg-slate-50 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
@@ -659,7 +659,7 @@ export default function WorkspaceSettingsPage() {
                               </span>
                             </td>
                             <td className="px-4 py-3">
-                              <div className="flex flex-wrap items-center justify-end gap-1.5">
+                              <div data-tour="unit-settings-row-actions" className="flex flex-wrap items-center justify-end gap-1.5">
                                 <button
                                   type="button"
                                   title={workspace.isDeleted ? "Deleted units have no details to show" : "View details"}

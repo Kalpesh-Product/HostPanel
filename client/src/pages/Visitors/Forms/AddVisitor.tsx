@@ -179,11 +179,14 @@ const AddVisitor = () => {
   return (
     <div className=" p-4">
       <PageFrame>
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form data-tour="visitor-add-form" onSubmit={handleSubmit(onSubmit)}>
           <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 gap-4">
             <div>
               {/* Section: Basic Information */}
-              <div className="py-4 border-b-default border-borderGray">
+              <div
+                data-tour="visitor-add-header"
+                className="py-4 border-b-default border-borderGray"
+              >
                 <span className="text-subtitle font-pmedium">
                   Visitor Details
                 </span>
@@ -642,7 +645,10 @@ const AddVisitor = () => {
           </div>
 
           {/* Submit Button */}
-          <div className="flex items-center justify-center gap-4">
+          <div
+            data-tour="visitor-add-actions"
+            className="flex items-center justify-center gap-4"
+          >
             <PrimaryButton
               type="submit"
               title={"Submit"}

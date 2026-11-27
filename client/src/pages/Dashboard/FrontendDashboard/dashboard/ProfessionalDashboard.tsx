@@ -843,6 +843,9 @@ const ProfessionalDashboard = ({
 
   const activeModuleCount =
     professionalModuleCards.length + verticalModuleCards.length;
+  // The dashboard grid stays compact: only the first eight plan modules are
+  // listed here, and the rest remain reachable from the sidebar.
+  const visibleProfessionalModuleCards = professionalModuleCards.slice(0, 8);
   return (
     <div className="flex flex-col gap-5">
       {/* Upgrade nudge — opens modal for Custom plan. Shown even during an
@@ -986,7 +989,10 @@ const ProfessionalDashboard = ({
       </section>
 
       {professionalModuleCards.length > 0 && (
-        <section className="rounded-[1.75rem] border border-blue-100 bg-white p-5 shadow-[0_12px_34px_rgba(30,61,115,0.06)] sm:p-6">
+        <section
+          data-tour="professional-modules"
+          className="rounded-[1.75rem] border border-blue-100 bg-white p-5 shadow-[0_12px_34px_rgba(30,61,115,0.06)] sm:p-6"
+        >
           <div className="mb-5">
             <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-[#2563EB]">
               Included with your plan
@@ -999,8 +1005,8 @@ const ProfessionalDashboard = ({
               are shown.
             </p>
           </div>
-          <div className={getModuleGridClass(professionalModuleCards.length)}>
-            {professionalModuleCards.map((module) => {
+          <div className={getModuleGridClass(visibleProfessionalModuleCards.length)}>
+            {visibleProfessionalModuleCards.map((module) => {
               const Icon = module.icon;
               return (
                 <DashboardModuleCard
@@ -1018,7 +1024,10 @@ const ProfessionalDashboard = ({
       )}
 
       {verticalModuleCards.length > 0 && (
-        <section className="rounded-[1.75rem] border border-cyan-100 bg-gradient-to-br from-cyan-50/50 via-white to-white p-5 shadow-[0_12px_34px_rgba(8,145,178,0.07)] sm:p-6">
+        <section
+          data-tour="professional-verticals"
+          className="rounded-[1.75rem] border border-cyan-100 bg-gradient-to-br from-cyan-50/50 via-white to-white p-5 shadow-[0_12px_34px_rgba(8,145,178,0.07)] sm:p-6"
+        >
           <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-[9px] font-pmedium uppercase tracking-[0.2em] text-cyan-700">

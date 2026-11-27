@@ -1,5 +1,8 @@
 import React, { useState } from "react";
-import { motion } from "../motion";
+import { Marquee, motion } from "../motion";
+import { getMediaSrc } from "../useWebsiteTemplateData";
+import { StarRow } from "../shared/TplUI";
+import { findCoPlaceDemoLogo } from "../coplace/coPlaceDemoLogos";
 import { useWorkhub } from "./WorkhubContext";
 import { WhIcon, WhImage, WhReveal } from "./WorkhubUI";
 
@@ -24,15 +27,6 @@ const heroTitleNode = (value: string, companyName: string): React.ReactNode => {
   );
 };
 
-const MARKS = [
-  "NORTH/CO",
-  "STUDIO—01",
-  "WORKFORM",
-  "UNION SPACE",
-  "COMMON",
-  "ORBIT",
-];
-
 const NEWS = [
   {
     tag: "Workplace",
@@ -56,6 +50,7 @@ export const WorkhubHome: React.FC = () => {
     t,
     draft,
     primary,
+    rating,
     c,
     photo,
     status,
@@ -77,6 +72,7 @@ export const WorkhubHome: React.FC = () => {
   const items = primary?.items || [];
   const reviews = t.testimonials || [];
   const review = reviews[reviewIndex % Math.max(reviews.length, 1)];
+  const reviewRating = Number(review?.rating);
   const reviewCopy =
     review?.quote ||
     review?.review ||
@@ -115,13 +111,16 @@ export const WorkhubHome: React.FC = () => {
     },
   ];
   const activeLocation = locations[locationIndex];
-  const trustedLogos = reviews.length
-    ? reviews
-        .slice(0, 6)
-        .map((entry: any) =>
-          String(entry?.company || entry?.name || "Member").toUpperCase(),
-        )
-    : MARKS;
+  const trusted = draft?.logoCarousel;
+  const trustedLogos = (Array.isArray(trusted?.logos) ? trusted.logos : [])
+    .map((logo: { name?: string } | string) => {
+      const src = getMediaSrc(logo);
+      const demoLogo = findCoPlaceDemoLogo(src);
+      const name = typeof logo === "string" ? "" : logo?.name || "";
+      return { src: demoLogo?.url || src, name: demoLogo?.name || name };
+    })
+    .filter(({ src }) => Boolean(src));
+  const homeServices = items.slice(0, 6).filter((_, index) => index !== 3);
 
   return (
     <>
@@ -209,7 +208,7 @@ export const WorkhubHome: React.FC = () => {
               </div>
             </WhReveal>
             <div className="wh-services-grid">
-              {items.slice(0, 6).map((item, index) => (
+              {homeServices.map((item, index) => (
                 <WhReveal key={item.key} delay={Math.min(index * 0.06, 0.3)}>
                   <article className="wh-service-card">
                     <span className="wh-service-num">0{index + 1}</span>
@@ -375,6 +374,13 @@ export const WorkhubHome: React.FC = () => {
             <div>
               <p className="wh-eyebrow">Member stories</p>
               <h2>{c("home.testimonials.title", "What our Members Say")}</h2>
+              {rating.count > 0 ? (
+                <div className="wh-testimonial-rating">
+                  <strong>{rating.avg.toFixed(1)} / 5</strong>
+                  <span aria-hidden="true"><StarRow value={rating.avg} size={18} /></span>
+                  <span>from {rating.count} {rating.count === 1 ? "rating" : "ratings"}</span>
+                </div>
+              ) : null}
             </div>
             <p>
               Real words from the people who use our rooms every week.
@@ -391,6 +397,11 @@ export const WorkhubHome: React.FC = () => {
               <span className="wh-quote-mark" aria-hidden="true">
                 “
               </span>
+              {reviewRating > 0 ? (
+                <div className="wh-testimonial-stars" role="img" aria-label={`${reviewRating} out of 5 stars`}>
+                  <span aria-hidden="true"><StarRow value={reviewRating} size={18} /></span>
+                </div>
+              ) : null}
               <motion.blockquote
                 key={reviewIndex}
                 className="wh-testimonial-quote"
@@ -422,21 +433,30 @@ export const WorkhubHome: React.FC = () => {
               </button>
             </div>
           </div>
+          {t.showWriteReview ? (
+            <div className="wh-testimonial-review-action">
+              <button type="button" className="wh-btn-white" onClick={t.openReviewModal}>
+                Write a review
+              </button>
+            </div>
+          ) : null}
         </div>
       </section>
 
-      <section className="wh-trusted">
-        <div className="wh-shell wh-trusted-inner">
-          <p className="wh-eyebrow wh-trusted-label">
-            {c("home.trusted.title", "Trusted by Leading Companies")}
-          </p>
-          <div className="wh-trusted-logos">
-            {trustedLogos.map((logo, index) => (
-              <span key={`${logo}-${index}`}>{logo}</span>
-            ))}
+      {trusted?.enabled && trustedLogos.length > 0 ? (
+        <section className="wh-trusted">
+          <div className="wh-shell wh-trusted-inner">
+            <p className="wh-eyebrow wh-trusted-label">
+              {trusted.title || c("home.trusted.title", "Trusted by Leading Companies")}
+            </p>
+            <Marquee className="wh-trusted-logos" speed={38}>
+              {trustedLogos.map(({ src, name }, index) => (
+                <WhImage key={`${src}-${index}`} src={src} alt={name || `Company logo ${index + 1}`} />
+              ))}
+            </Marquee>
           </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       <section className="wh-cta-band">
         <div className="wh-shell wh-cta-band-inner">

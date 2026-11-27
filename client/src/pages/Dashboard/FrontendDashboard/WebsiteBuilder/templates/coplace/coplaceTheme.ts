@@ -74,6 +74,7 @@ export const COPLACE_CSS = String.raw`
 .coplace-hero h1 mark { background: linear-gradient(transparent 69%, var(--cp-mint) 69%); color: inherit; }
 .coplace-hero h1 + p { margin-top: 22px; max-width: 60ch; color: var(--cp-muted); }
 .coplace-actions { display: flex; flex-wrap: wrap; gap: 12px 16px; margin-top: 22px; }
+.coplace-hero-mobile-contact { display: none; }
 .coplace-hero-contact { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; border-top: 1px solid var(--cp-line); margin-top: 32px; padding-top: 22px; font-size: .92rem; }
 .coplace-hero-contact button { border: 0; background: var(--cp-mint); color: #082d25; font-weight: 700; padding: 7px 16px; border-radius: 99px; }
 .coplace-orbit { position: relative; margin: 10px auto; width: min(100%, 560px); aspect-ratio: 1; }
@@ -84,7 +85,7 @@ export const COPLACE_CSS = String.raw`
 .coplace-trust { padding-block: 52px 28px; }
 .coplace-trust h2 { font-size: 1.35rem; }
 .coplace-trust > div { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-evenly; gap: 18px 28px; margin-top: 26px; color: var(--cp-muted); }
-.coplace-trust img { width: 115px; height: 42px; object-fit: contain; }
+.coplace-trust img { width: clamp(112px, 32vw, 144px); max-width: 100%; height: 42px; object-fit: contain; }
 .coplace-highlights { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px; margin-top: 32px; }
 .coplace-highlights article { background: var(--cp-surface); border-radius: 20px; padding: clamp(20px,3vw,34px); }
 .coplace-highlights article > span { display: grid; place-items: center; width: 44px; aspect-ratio: 1; border-radius: 50%; background: var(--cp-mint); color: #082d25; margin-bottom: 14px; }
@@ -106,6 +107,7 @@ export const COPLACE_CSS = String.raw`
 .coplace-amenities li::before { content: "✓"; display: inline-block; margin-right: 8px; color: var(--t-accent); }
 .coplace-price { font: 700 1.15rem/1.4 var(--cp-display); }
 .coplace-home-contact p { margin-top: 14px; }
+.coplace-home-contact .coplace-map { display: block; height: clamp(220px, 44vw, 420px); border-radius: 20px; }
 
 .coplace-page-hero { position: relative; isolation: isolate; padding-block: clamp(80px,12vw,165px); background: #102f36; color: #fff; text-align: center; }
 .coplace-page-hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
@@ -115,6 +117,7 @@ export const COPLACE_CSS = String.raw`
 .coplace-cards, .coplace-gallery, .coplace-reviews { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: clamp(16px, 2.8vw, 38px); }
 .coplace-cards article { position: relative; background: var(--cp-surface); border: 1px solid var(--cp-line); border-radius: 20px; }
 .coplace-cards article img, .coplace-gallery img { width: 100%; aspect-ratio: 1.33; object-fit: cover; border-radius: 18px 18px 0 0; }
+.coplace-gallery-page img { border-radius: 18px; }
 .coplace-cards article > div { padding: 22px; }
 .coplace-cards h2 { font-size: 1.55rem; }
 .coplace-cards p + h2, .coplace-cards :where(h2,h3) + p, .coplace-cards p + p { margin-top: 10px; }
@@ -124,9 +127,15 @@ export const COPLACE_CSS = String.raw`
 .coplace-cards article:hover .coplace-card-action { text-decoration: underline; text-underline-offset: 4px; }
 .coplace-reviews figure { padding: 24px; background: var(--cp-surface); }
 .coplace-reviews, .coplace-reviews + .coplace-button { margin-top: 28px; }
+.coplace-review-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 12px; margin-top: 16px; }
+.coplace-review-summary strong { font-size: 1.25rem; }
+.coplace-review-summary > span:last-child { color: var(--cp-muted); }
+.coplace-home-reviews .coplace-reviews figure { display: flex; flex-direction: column; gap: 12px; }
+.coplace-review-stars { min-height: 1.5em; }
+.coplace-home-reviews figcaption { margin-top: auto; padding-top: 8px; font-weight: 800; }
 .coplace-related { margin-top: clamp(32px,6vw,72px); }
 .coplace-related > h2 { margin-bottom: 24px; }
-.coplace-item-detail { margin-top: 24px; }
+.coplace-item-detail { margin-top: 24px; align-items: start; }
 .coplace-item-detail img { width: 100%; aspect-ratio: 1.3; object-fit: cover; }
 .coplace-thumbnails { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; margin-top: 8px; }
 .coplace-narrative { margin-top: 22px; }
@@ -208,6 +217,12 @@ export const COPLACE_CSS = String.raw`
   .coplace-gallery, .coplace-cards, .coplace-reviews, .coplace-footer-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
 @media (max-width: 480px) {
+  .coplace-hero h1 { font-size: xx-large; }
+  .coplace-hero h1, .coplace-hero h1 + p { text-align: center; }
+  .coplace-hero-booking, .coplace-hero-contact { display: none; }
+  .coplace-hero-mobile-contact { display: inline-flex; }
+  .coplace-home-about h2 { text-align: center; }
+  .coplace-home-about .coplace-button { display: flex; width: fit-content; margin-inline: auto; }
   .coplace-gallery, .coplace-cards, .coplace-reviews, .coplace-footer-grid, .coplace-amenities { grid-template-columns: minmax(0,1fr); }
   .coplace-form form.grid, .coplace-dialog form.grid { grid-template-columns: minmax(0,1fr); }
   .coplace-form form.grid > *, .coplace-dialog form.grid > * { grid-column: 1 / -1; }

@@ -15,6 +15,7 @@ const LOADER_SPECS: Record<string, LoaderSpec> = {
   "minimal-swiss": { label: "Minimal Swiss", kicker: "Edition 01", motif: "swiss", bg: "#ffffff", fg: "#090909", accent: "#d7263d", font: "'Inter', sans-serif" },
   "fresh-studio": { label: "Fresh Studio", kicker: "Fresh ideas loading", motif: "fresh", bg: "#f7fff8", fg: "#0e0e0e", accent: "#d94b4b", font: "'Inter', sans-serif" },
   savor: { label: "Savor", kicker: "A table is waiting", motif: "savor", bg: "#fff7ed", fg: "#2a1a12", accent: "#e4572e", font: "'Bricolage Grotesque', sans-serif" },
+  restobar: { label: "Restobar", kicker: "Welcome", motif: "savor", bg: "#101519", fg: "#f5f0e9", accent: "#c29a77", font: "'Playfair Display', Georgia, serif" },
   wayfarer: { label: "Wayfarer", kicker: "Your stay starts here", motif: "wayfarer", bg: "#f3fbfa", fg: "#0c2a2e", accent: "#f26b3a", font: "'Sora', sans-serif" },
   travigo: { label: "Travigo", kicker: "Ready for departure", motif: "travigo", bg: "#f5f3ed", fg: "#111111", accent: "#b6dc26", font: "'Manrope', sans-serif" },
   haven: { label: "Haven", kicker: "Come on in", motif: "haven", bg: "#f4f1ea", fg: "#26312b", accent: "#5b7f6a", font: "'Fraunces', Georgia, serif" },

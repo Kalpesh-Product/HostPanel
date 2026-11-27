@@ -191,7 +191,7 @@ export default function UnitWorkItemsPage() {
           <div className="bg-white/80 rounded-2xl border border-slate-100 shadow-sm min-h-[400px] animate-pulse" />
         ) : (
           <div className="flex flex-col gap-4 text-slate-700 font-sans">
-            <div className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+            <div data-tour="unit-work-items-header" className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
               <div>
                 <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                   Work Items
@@ -202,7 +202,7 @@ export default function UnitWorkItemsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div data-tour="unit-work-items-stats" className="grid grid-cols-2 md:grid-cols-5 gap-3">
               <StatTile icon={Ticket} label="Tickets" value={Number(summary.totalTickets || 0)} tone="amber" />
               <StatTile icon={ClipboardList} label="Tasks" value={Number(summary.totalTasks || 0)} tone="violet" />
               <StatTile icon={Package} label="Assets" value={Number(summary.totalAssets || 0)} tone="rose" />
@@ -211,7 +211,7 @@ export default function UnitWorkItemsPage() {
             </div>
 
             <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-              <div className="border-b border-slate-100 px-5 py-4">
+              <div data-tour="unit-work-items-workload" className="border-b border-slate-100 px-5 py-4">
                 <h3 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">Operational workload</h3>
                 <p className="mt-1 text-[11px] text-slate-500">Current work and resource records across all units.</p>
               </div>
@@ -234,12 +234,12 @@ export default function UnitWorkItemsPage() {
             </section>
 
             <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-              <div className="border-b border-slate-100 px-5 py-4">
+              <div data-tour="unit-work-items-detail" className="border-b border-slate-100 px-5 py-4">
                 <h3 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">Work item detail</h3>
                 <p className="mt-1 text-[11px] text-slate-500">Status breakdown and recent records across all units.</p>
               </div>
               <div className="p-5">
-                <div className="flex items-center gap-1 rounded-2xl bg-slate-100/70 p-1 flex-wrap">
+                <div data-tour="unit-work-items-tabs" data-active-tab={activeTab} className="flex items-center gap-1 rounded-2xl bg-slate-100/70 p-1 flex-wrap">
                   {tabs.map((tab) => (
                     <TabButton
                       key={tab.key}
@@ -252,7 +252,7 @@ export default function UnitWorkItemsPage() {
 
                 {activeTab === "tickets" ? (
                   <div className="mt-4 space-y-4">
-                    <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+                    <div data-tour="unit-work-items-tickets" className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
                       {combinedData.tickets.byStatus.map((item) => (
                         <StatusPill key={`ticket-${item.status}`} label={item.status} value={item.count} tone="amber" />
                       ))}
@@ -274,7 +274,7 @@ export default function UnitWorkItemsPage() {
 
                 {activeTab === "tasks" ? (
                   <div className="mt-4 space-y-4">
-                    <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+                    <div data-tour="unit-work-items-tasks" className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
                       {combinedData.tasks.byStatus.map((item) => (
                         <StatusPill key={`task-${item.status}`} label={item.status} value={item.count} tone="violet" />
                       ))}
@@ -296,7 +296,7 @@ export default function UnitWorkItemsPage() {
 
                 {activeTab === "assets" ? (
                   <div className="mt-4 space-y-4">
-                    <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-4">
+                    <div data-tour="unit-work-items-assets" className="grid gap-3 md:grid-cols-3 xl:grid-cols-4">
                       {combinedData.assets.byStatus.map((item) => (
                         <StatusPill key={`asset-${item.status}`} label={item.status} value={item.count} tone="blue" />
                       ))}
@@ -318,7 +318,7 @@ export default function UnitWorkItemsPage() {
 
                 {activeTab === "inventory" ? (
                   <div className="mt-4 space-y-4">
-                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <div data-tour="unit-work-items-inventory" className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                       {combinedData.inventory.byCategory.map((item) => (
                         <StatusPill key={`inventory-category-${item.status}`} label={item.status} value={item.count} tone="emerald" />
                       ))}
@@ -345,7 +345,7 @@ export default function UnitWorkItemsPage() {
 
                 {activeTab === "bookings" ? (
                   <div className="mt-4 space-y-4">
-                    <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+                    <div data-tour="unit-work-items-bookings" className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
                       {combinedData.bookings.byStatus.map((item) => (
                         <StatusPill key={`booking-${item.status}`} label={item.status} value={item.count} tone="amber" />
                       ))}

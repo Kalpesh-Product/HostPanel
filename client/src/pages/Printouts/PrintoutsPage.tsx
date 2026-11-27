@@ -270,7 +270,7 @@ export default function PrintoutsPage() {
         <div className="flex flex-col gap-4">
 
           {/* HEADER */}
-          <div className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-3">
+          <div data-tour="printouts-header" className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-3">
             <div className="flex items-center gap-3">
               <div>
                 <h2 className="text-title font-pmedium text-primary uppercase">Printouts</h2>

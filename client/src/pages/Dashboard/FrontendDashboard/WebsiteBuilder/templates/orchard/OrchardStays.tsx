@@ -139,11 +139,9 @@ export const OrchardItemDetail: React.FC<{
 }> = ({ service, item }) => {
   const { t, draft, goToService, c } = useTpl();
   const [viewer, setViewer] = useState<number | null>(null);
-  const images = item.images.length
-    ? item.images
-    : item.image
-      ? [item.image]
-      : [];
+  const [selectedPhoto, setSelectedPhoto] = useState(0);
+  const images = [...new Set([item.image, ...item.images].filter(Boolean))];
+  const activePhoto = images[selectedPhoto] ? selectedPhoto : 0;
   const policy = draft?.stayPolicy || {};
   const related = service.items
     .filter((entry) => entry.key !== item.key)
@@ -155,24 +153,36 @@ export const OrchardItemDetail: React.FC<{
         eyebrow={item.chips.join(" · ") || c("services.detail.eyebrow", "Your room")}
         title={item.title}
         text={item.description}
-        image={item.image}
       />
-      <section className="ol-detail-gallery-section">
-        <div className="ol-shell ol-detail-gallery">
-          {images.slice(0, 4).map((src, index) => (
-            <button
-              key={`${src}-${index}`}
-              type="button"
-              onClick={() => setViewer(index)}
-              aria-label={`Open photo ${index + 1} of ${item.title}`}
-            >
-              <img src={src} alt={`${item.title} ${index + 1}`} loading="lazy" />
-            </button>
-          ))}
-        </div>
-      </section>
-      <section className="ol-section">
-        <div className="ol-shell ol-detail-grid">
+      <div className="ol-shell ol-section-tight">
+        <div className="ol-detail-grid">
+          {images.length > 0 ? (
+            <section className="ol-detail-gallery" aria-label={`${item.title} photos`}>
+              <button
+                type="button"
+                className="ol-detail-photo"
+                onClick={() => setViewer(activePhoto)}
+                aria-label={`Enlarge photo ${activePhoto + 1} of ${item.title}`}
+              >
+                <img src={images[activePhoto]} alt={`${item.title} photo ${activePhoto + 1}`} />
+              </button>
+              {images.length > 1 ? (
+                <div className="ol-detail-thumbnails">
+                  {images.map((src, index) => (
+                    <button
+                      key={src}
+                      type="button"
+                      onClick={() => setSelectedPhoto(index)}
+                      aria-label={`Show photo ${index + 1} of ${item.title}`}
+                      aria-pressed={index === activePhoto}
+                    >
+                      <img src={src} alt="" loading="lazy" />
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </section>
+          ) : null}
           <div>
             <OrchardHeading
               eyebrow={c("services.detail.eyebrow", "Inside the room")}
@@ -222,23 +232,23 @@ export const OrchardItemDetail: React.FC<{
               </OrchardTextLink>
             </div>
           </div>
-          <aside className="ol-detail-card">
-            <p className="ol-eyebrow">
-              {c("services.detail.reserve", "Reserve your stay")}
-            </p>
-            <h3>{item.title}</h3>
-            {service.leadEnabled ? (
-              <LeadFormPanel service={service} item={item} />
-            ) : (
-              <MessageForm
-                inquiryType="Room enquiry"
-                submitLabel={c("services.detail.submit", "Send enquiry")}
-                success="Thanks — we will be in touch shortly."
-              />
-            )}
-          </aside>
         </div>
-      </section>
+        <section className="ol-detail-card" aria-labelledby="ol-detail-reserve-title">
+          <p className="ol-eyebrow">
+            {c("services.detail.reserve", "Reserve your stay")}
+          </p>
+          <h3 id="ol-detail-reserve-title">{item.title}</h3>
+          {service.leadEnabled ? (
+            <LeadFormPanel service={service} item={item} />
+          ) : (
+            <MessageForm
+              inquiryType="Room enquiry"
+              submitLabel={c("services.detail.submit", "Send enquiry")}
+              success="Thanks — we will be in touch shortly."
+            />
+          )}
+        </section>
+      </div>
       {related.length ? (
         <section className="ol-section ol-section-soft">
           <div className="ol-shell">

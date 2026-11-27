@@ -379,7 +379,7 @@ export default function NomadListingsOverview() {
       <PageFrame>
         <div className="flex flex-col gap-4">
           {/* HEADER */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+          <div data-tour="nomad-header" className="flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Listings
@@ -593,6 +593,7 @@ export default function NomadListingsOverview() {
                     !claimStatus?.linked &&
                     (claimStatus?.status || !nonDeletedListings.length) && (
                     <button
+                      data-tour="nomad-claim-listings"
                       type="button"
                       onClick={() => setShowClaimModal(true)}
                       title="Already listed on wono.co? Find your company, verify its listings and bring them into this account"
@@ -607,6 +608,7 @@ export default function NomadListingsOverview() {
                     </button>
                   )}
                   <button
+                    data-tour="nomad-verify-business"
                     type="button"
                     onClick={handleVerifyBusinessClick}
                     disabled={!canVerifyBusiness}

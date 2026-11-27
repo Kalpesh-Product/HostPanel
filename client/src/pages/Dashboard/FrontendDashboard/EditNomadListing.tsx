@@ -454,7 +454,7 @@ const EditNomadListing = () => {
     <div className="p-4">
       <PageFrame>
         {/* HEADER */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5 mb-4">
+        <div data-tour="nomad-listing-header" className="flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5 mb-4">
           <div>
             <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
               {isViewMode ? "View Product" : "Edit Product"}

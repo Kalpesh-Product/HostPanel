@@ -100,18 +100,6 @@ export const WORKHUB_CSS = `
   color: var(--wh-muted);
 }
 
-.wh-sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
 /* ── Shared controls ───────────────────────────────────────────── */
 .wh .wh-btn,
 .wh .wh-btn-soft,
@@ -406,7 +394,11 @@ export const WORKHUB_CSS = `
   gap: 16px;
 }
 
-.wh-drawer-head > button {
+.wh-drawer-head .wh-brand {
+  flex: 1 1 auto;
+}
+
+.wh-drawer-close {
   width: 44px;
   height: 44px;
   display: grid;
@@ -547,19 +539,15 @@ export const WORKHUB_CSS = `
 }
 
 .wh-trusted-logos {
-  display: flex;
-  flex: 1;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px clamp(20px, 3.6vw, 54px);
+  flex: 1 1 250px;
+  min-width: 0;
 }
 
-.wh-trusted-logos span {
-  color: #979cb0;
-  font-size: clamp(14px, 1.5vw, 19px);
-  font-weight: 650;
-  letter-spacing: -.02em;
-  white-space: nowrap;
+.wh-trusted-logos img {
+  height: 44px;
+  width: auto;
+  max-width: 185px;
+  object-fit: contain;
 }
 
 /* ── Section heads ─────────────────────────────────────────────── */
@@ -878,6 +866,29 @@ export const WORKHUB_CSS = `
   line-height: 1.7;
 }
 
+.wh-testimonial-rating,
+.wh-testimonial-stars {
+  --t-accent-fg: #ffca71;
+}
+
+.wh-testimonial-rating {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-top: 16px;
+  font-size: 14px;
+}
+
+.wh-testimonial-stars {
+  margin-bottom: 8px;
+}
+
+.wh-testimonial-review-action {
+  margin-top: clamp(24px, 4vw, 44px);
+  text-align: center;
+}
+
 .wh-testimonial-body {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr) auto;
@@ -1000,12 +1011,14 @@ export const WORKHUB_CSS = `
 .wh-news-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
   gap: clamp(16px, 2vw, 26px);
 }
 
 .wh-news-card {
   display: flex;
   flex-direction: column;
+  height: 100%;
   border: 1px solid var(--wh-line);
   border-radius: 22px;
   background: #ffffff;
@@ -1080,7 +1093,7 @@ export const WORKHUB_CSS = `
 
 .wh-footer h2 {
   max-width: 620px;
-  font-size: clamp(32px, 4vw, 58px);
+  font-size: clamp(29px, 3.6vw, 52px);
   font-weight: 600;
   letter-spacing: -.05em;
   line-height: 1.06;
@@ -1098,42 +1111,6 @@ export const WORKHUB_CSS = `
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
   gap: clamp(38px, 6vw, 96px);
-}
-
-.wh-newsletter {
-  display: flex;
-  align-items: center;
-  max-width: 500px;
-  margin-top: 32px;
-  border-bottom: 1px solid rgba(255, 255, 255, .35);
-}
-
-.wh-newsletter input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  background: none;
-  padding: 14px 0;
-  color: #ffffff;
-  font-size: 14px;
-  outline: none;
-}
-
-.wh-newsletter input::placeholder {
-  color: rgba(255, 255, 255, .5);
-}
-
-.wh-newsletter button {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  flex: none;
-  border: 0;
-  border-radius: 50%;
-  background: var(--wh-blue);
-  color: #ffffff;
-  cursor: pointer;
 }
 
 .wh-footer-links {
@@ -1556,6 +1533,12 @@ export const WORKHUB_CSS = `
   gap: clamp(16px, 2vw, 26px);
 }
 
+@media (width > 1180px) {
+  .wh-card-grid.wh-count-4 > :last-child {
+    grid-column: 2;
+  }
+}
+
 .wh-room-card {
   display: flex;
   flex-direction: column;
@@ -1885,6 +1868,14 @@ export const WORKHUB_CSS = `
   align-items: start;
 }
 
+.wh-form-panel {
+  min-width: 0;
+  padding: clamp(18px, 3vw, 36px);
+  border: 1px solid var(--wh-line);
+  border-radius: var(--wh-radius);
+  background: var(--wh-surface);
+}
+
 .wh-form-grid h2 {
   margin-top: 14px;
   font-size: clamp(30px, 3.6vw, 52px);
@@ -1999,6 +1990,12 @@ export const WORKHUB_CSS = `
   line-height: 1.65;
 }
 
+.wh-careers-general .wh-btn-outline:is(:hover, :focus-visible) {
+  background: var(--wh-blue-dark);
+  border-color: var(--wh-blue-dark);
+  color: #fff;
+}
+
 .wh-careers-detail {
   max-width: 980px;
   margin-inline: auto;
@@ -2029,8 +2026,6 @@ export const WORKHUB_CSS = `
 .wh-apply {
   max-width: 920px;
   margin: clamp(38px, 5vw, 70px) auto 0;
-  border-radius: 26px;
-  background: var(--wh-pale);
   padding: clamp(24px, 3.4vw, 48px);
   text-align: center;
 }
@@ -2396,18 +2391,109 @@ export const WORKHUB_CSS = `
 }
 
 @media (max-width: 640px) {
+  .wh main,
+  .wh-footer {
+    text-align: center;
+  }
+
+  .wh main form {
+    text-align: left;
+  }
+
+  .wh main form .tp-btn {
+    justify-self: center;
+    text-align: center;
+  }
+
+  .wh-section-head,
+  .wh-testimonial-head,
+  .wh-testimonial-rating,
+  .wh-testimonial-name,
+  .wh-trusted-inner,
+  .wh-service-foot,
+  .wh-service-copy > div,
+  .wh-location-actions,
+  .wh-split-actions,
+  .wh-room-meta,
+  .wh-room-actions,
+  .wh-news-meta,
+  .wh-cta-band-inner,
+  .wh-footer-contact,
+  .wh-footer-bottom,
+  .wh-contact-lines a,
+  .wh-contact-lines > div,
+  .wh-detail-overview li {
+    justify-content: center;
+  }
+
+  .wh main :is(h1, h2, h3, p, blockquote) {
+    margin-inline: auto;
+  }
+
+  .wh-footer h2 {
+    margin-block: 12px 16px;
+    margin-inline: auto;
+    line-height: 1.2;
+  }
+
+  .wh-section-head > div:first-child,
+  .wh-testimonial-head > div:first-child {
+    width: 100%;
+  }
+
+  .wh-testimonial-photo,
+  .wh-testimonial-arrows {
+    justify-self: center;
+  }
+
+  .wh-news-body .wh-textlink {
+    align-self: center;
+  }
+
+  .wh-location-tab,
+  .wh-jobs > button {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    text-align: center;
+  }
+
+  .wh-service-directory > div > button,
+  .wh-footer-links button {
+    text-align: center;
+  }
+
+  .wh-footer-links > div {
+    align-items: center;
+  }
+
+  .wh-trusted-logos {
+    flex: 1 1 100%;
+  }
+
   .wh-header-inner {
     min-height: 70px;
+  }
+
+  .wh-header-inner .wh-brand {
+    flex: 0 1 auto;
   }
 
   .wh-brand-tag {
     display: none;
   }
 
-  .wh-header-cta {
+  .wh .wh-header-cta {
     min-height: 42px;
     padding: 0 16px;
     font-size: 12px;
+  }
+
+  .wh-header-actions {
+    reading-flow: flex-visual;
+  }
+
+  .wh-header-actions .wh-menu {
+    order: 1;
   }
 
   .wh-hero {
@@ -2465,15 +2551,6 @@ export const WORKHUB_CSS = `
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .wh-jobs > button {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 8px 14px;
-  }
-
-  .wh-jobs span {
-    grid-column: 1 / -1;
-  }
-
   .wh-section-head h2,
   .wh-heading,
   .wh-footer h2,
@@ -2491,8 +2568,13 @@ export const WORKHUB_CSS = `
     width: min(100% - 24px, 1340px);
   }
 
-  .wh-header-cta {
-    display: none;
+  .wh-header-inner .wh-brand img,
+  .wh-drawer-head .wh-brand img {
+    max-width: 52px;
+  }
+
+  .wh-header-actions {
+    gap: 8px;
   }
 
   .wh-brand-name {
@@ -2510,14 +2592,6 @@ export const WORKHUB_CSS = `
 
   .wh-hero-panel h1 {
     font-size: clamp(28px, 9.4vw, 36px);
-  }
-
-  .wh-location-tab {
-    grid-template-columns: 26px 1fr;
-  }
-
-  .wh-location-tab small {
-    grid-column: 2;
   }
 
   .wh-split-panel {

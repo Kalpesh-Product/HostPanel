@@ -258,7 +258,9 @@ function saveUserOwnerAccessSettings(user, accessState) {
   });
 }
 
-export function OrganizationPage() {
+type OrganizationModulePage = 'users' | 'departments';
+
+export function OrganizationPage({ modulePage }: { modulePage?: OrganizationModulePage } = {}) {
   const location = useLocation();
   const navigate = useNavigate();
   const { auth } = useAuth();
@@ -267,6 +269,7 @@ export function OrganizationPage() {
   const [isLoading, setIsLoading] = useState(true);
   // --- STATE ---
   const [activeTab, setActiveTab] = useState(() => {
+    if (modulePage) return modulePage;
     const requestedTab = new URLSearchParams(location.search).get('tab');
     return requestedTab === 'departments' ? 'departments' : 'users';
   });
@@ -834,6 +837,16 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
 
   useEffect(() => {
     if (isLoading) return;
+    if (modulePage) {
+      if (modulePage === 'departments' && canAccessDepartmentsTab) {
+        setActiveTab('departments');
+        setView('list');
+      } else {
+        setActiveTab('users');
+        setView('list');
+      }
+      return;
+    }
     const requestedTab = new URLSearchParams(location.search).get('tab');
     if (requestedTab === 'departments' && canAccessDepartmentsTab) {
       setActiveTab('departments');
@@ -844,7 +857,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
       setActiveTab('users');
       setView('list');
     }
-  }, [canAccessDepartmentsTab, isLoading, location.search]);
+  }, [canAccessDepartmentsTab, isLoading, location.search, modulePage]);
 
   const filteredTeamMembers = useMemo(() => {
     const normalizedSearch = searchQuery.toLowerCase().trim();
@@ -1576,15 +1589,24 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
         <div className="flex flex-col gap-4 text-slate-700 font-sans">
 
         {/* 1. HEADER */}
-        <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+        <div
+          data-tour="organization-header"
+          className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5"
+        >
           <div>
-            <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">Organization Management</h2>
+            <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
+              {modulePage === 'departments' ? 'Departments' : modulePage === 'users' ? 'Platform Users' : 'Organization Management'}
+            </h2>
             <p className="text-xs font-pmedium text-slate-500 mt-1">Manage platform users and organization access.</p>
           </div>
         </div>
 
-        {/* 2. MAIN TABS (pill-style matching DESIGN.md) */}
-        <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+        {/* 2. MAIN TABS (pill-style matching DESIGN.md) — hidden when opened from a module card */}
+        {!modulePage && (
+        <div
+          data-tour="organization-tabs"
+          className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm"
+        >
           <button data-tour="organization-users-tab" onClick={() => setActiveTab('users')} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${activeTab === 'users' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
             <Shield size={16} className="inline mr-1"/> PLATFORM USERS
           </button>
@@ -1603,11 +1625,12 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
             {!canAccessDepartmentsTab && <Lock size={12} />} DEPARTMENTS
           </button>
         </div>
+        )}
 
         {/* 3. STAT CARDS (DESIGN.md 4-col grid with border-left accents) */}
         {/* Tab-aware: PLATFORM USERS shows user cards, DEPARTMENTS shows dept cards. */}
         {activeTab === 'users' ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+        <div data-tour="organization-stats" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
         <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
           <div className="min-w-0">
             <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Platform Users</p>
@@ -1640,7 +1663,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
         </div>
       </div>
         ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+        <div data-tour="organization-stats" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
         <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
           <div className="min-w-0">
             <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Departments</p>
@@ -2099,7 +2122,10 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
             </div>
           ) : null}
 
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <div
+            data-tour="organization-departments-grid"
+            className="grid gap-5 md:grid-cols-2 lg:grid-cols-3"
+          >
             {inviteDepartmentOptions.map((dept) => {
               const isAllowedDepartment = isDepartmentAllowedForPlan(workspacePlan, dept.name);
               const departmentModuleLabels = getDepartmentModuleLabels(dept);

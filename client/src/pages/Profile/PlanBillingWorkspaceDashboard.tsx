@@ -340,10 +340,11 @@ export default function PlanBillingWorkspaceDashboard() {
           description="Review your current plan, the modules it includes, and every payment made for this workspace."
           tags={["Current Plan", "Included Modules", "Add-ons", "Payment History"]}
           image={financeDashboardBannerImage}
+          dataTour="plan-billing-banner"
         />
 
         {isLoading ? (
-          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div data-tour="plan-billing-stats" className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 8 }, (_, index) => (
               <div
                 key={index}
@@ -352,7 +353,7 @@ export default function PlanBillingWorkspaceDashboard() {
             ))}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div data-tour="plan-billing-stats" className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <DashboardStatTile
               icon={<ShieldCheck size={20} />}
               label="Current Plan"
@@ -464,7 +465,7 @@ export default function PlanBillingWorkspaceDashboard() {
           </div>
         ) : null}
 
-        <div className="mb-6">
+        <div data-tour="plan-billing-modules" className="mb-6">
           <p className="text-sm font-pmedium text-slate-900">
             Plan &amp; billing modules
           </p>
@@ -498,6 +499,7 @@ export default function PlanBillingWorkspaceDashboard() {
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
               <DashboardSection
                 title="Modules by section"
+                dataTour="plan-billing-section-mix"
                 subtitle="How the included modules and add-ons are distributed."
               >
                 {moduleSectionRows.length ? (
@@ -527,6 +529,7 @@ export default function PlanBillingWorkspaceDashboard() {
               </DashboardSection>
               <DashboardSection
                 title="Payment status mix"
+                dataTour="plan-billing-payment-mix"
                 subtitle="Current split of paid, pending, and failed invoices."
               >
                 {paymentStatusRows.length ? (
@@ -552,6 +555,7 @@ export default function PlanBillingWorkspaceDashboard() {
               <div className="mb-4">
                 <DashboardSection
                   title="Six-month payment trend"
+                  dataTour="plan-billing-trend"
                   subtitle="Amount paid each month across all recorded invoices."
                 >
                   <ReactApexChart
@@ -565,7 +569,8 @@ export default function PlanBillingWorkspaceDashboard() {
             ) : null}
 
             <DashboardSection
-              title="Recent payments"
+                                title="Recent payments"
+                  dataTour="plan-billing-recent"
               subtitle="Latest invoices and plan charges for this workspace."
               bodyClassName="max-h-[430px] overflow-y-auto p-0"
             >

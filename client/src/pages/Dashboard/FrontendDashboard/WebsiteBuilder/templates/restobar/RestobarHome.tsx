@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import cafePhoto from "../../../../../../assets/cafe-banner.jpg";
 import { getMediaSrc } from "../useWebsiteTemplateData";
 import { LeadFormPanel } from "../shared/TplLead";
+import { StarRow } from "../shared/TplUI";
 import { useRestobar } from "./RestobarContext";
 import { MenuList, RestobarHours, RestobarImage } from "./RestobarUI";
 
@@ -14,6 +16,7 @@ const HERO_PANELS = [
 function RestobarHero() {
   const { t, draft, primary, goToService, c, photo } = useRestobar();
   const [active, setActive] = useState(1);
+  const [phoneActive, setPhoneActive] = useState(1);
   const canBrowse = t.productsPageEnabled && t.isSectionEnabled("home_products");
   const slides = HERO_PANELS.map((panel, index) => ({
     label: c("hero.panel" + (index + 1) + ".label", panel.label),
@@ -21,12 +24,40 @@ function RestobarHero() {
     image: photo("hero.panel" + (index + 1) + ".image",
       t.heroImages[index] || t.heroImages[0] || t.galleryItems[0] || ""),
   }));
+  const phoneSlide = slides[phoneActive];
+  const menuButton = canBrowse ? (
+    <button type="button" className="resto-text-link"
+      onClick={() => primary ? goToService(primary) : t.goToSection("products")}>
+      {draft.CTAButtonText || c("hero.cta", "See our menu")} <span aria-hidden="true">↗</span>
+    </button>
+  ) : null;
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 480px) and (prefers-reduced-motion: no-preference)");
+    let timer: number | undefined;
+    const syncAutoplay = () => {
+      window.clearTimeout(timer);
+      if (media.matches && !document.hidden) {
+        timer = window.setTimeout(() => {
+          setPhoneActive((current) => (current + 1) % HERO_PANELS.length);
+        }, 5000);
+      }
+    };
+    syncAutoplay();
+    media.addEventListener("change", syncAutoplay);
+    document.addEventListener("visibilitychange", syncAutoplay);
+    return () => {
+      window.clearTimeout(timer);
+      media.removeEventListener("change", syncAutoplay);
+      document.removeEventListener("visibilitychange", syncAutoplay);
+    };
+  }, [phoneActive]);
 
   return (
     <section className="resto-hero" aria-label={draft.companyName || "Restobar"}>
       <div className="resto-hero-images" aria-hidden="true">
         {slides.map((slide, index) => (
-          <div key={index} className={index === active ? "is-current" : undefined}>
+          <div key={index} className={[index === active && "is-current", index === phoneActive && "is-phone-current"].filter(Boolean).join(" ")}>
             <RestobarImage src={slide.image} eager={index === active} />
           </div>
         ))}
@@ -39,19 +70,32 @@ function RestobarHero() {
               <span>{slide.label}</span>
               <strong>{slide.title}</strong>
             </button>
-            {canBrowse ? <button type="button" className="resto-text-link"
-              onClick={() => primary ? goToService(primary) : t.goToSection("products")}>
-              {draft.CTAButtonText || c("hero.cta", "See our menu")} <span aria-hidden="true">↗</span>
-            </button> : null}
+            {menuButton}
           </article>
         ))}
+      </div>
+      <div className="resto-phone-carousel" role="group" aria-roledescription="carousel" aria-label="Restobar highlights">
+        <div>
+          <div key={phoneActive} className="resto-phone-slide">
+            <p>{phoneSlide.label}</p>
+            <h2>{phoneSlide.title}</h2>
+          </div>
+          {menuButton}
+        </div>
+        <div className="resto-phone-carousel-controls">
+          {slides.map((slide, index) => (
+            <button key={index} type="button" className="resto-phone-slide-dot"
+              aria-label={`Slide ${index + 1}: ${slide.title}`} aria-current={index === phoneActive ? "true" : undefined}
+              onClick={() => setPhoneActive(index)} />
+          ))}
+        </div>
       </div>
     </section>
   );
 }
 
 export function RestobarHome() {
-  const { t, draft, services, primary, goToService, c, photo } = useRestobar();
+  const { t, draft, services, primary, goToService, c, photo, rating } = useRestobar();
   const enabled = t.isSectionEnabled;
   const menu = services.find((service) => service.kind === "menu") || primary;
   const booking = services.find((service) => service.kind === "menu" && service.leadEnabled);
@@ -118,12 +162,10 @@ export function RestobarHome() {
               <RestobarHours />
               {t.contactPageEnabled ? <button className="resto-button" type="button" onClick={() => t.goToSection("contact")}>Find us</button> : null}
             </div>
-            {hoursImage ? (
-              <div className="resto-hours-image">
-                <RestobarImage src={hoursImage} />
-                {/^https?:\/\//i.test(videoUrl) ? <a className="resto-button" href={videoUrl} target="_blank" rel="noreferrer">Watch video ↗</a> : null}
-              </div>
-            ) : null}
+            <div className="resto-hours-image">
+              <RestobarImage src={hoursImage} fallbackSrc={cafePhoto} />
+              {/^https?:\/\//i.test(videoUrl) ? <a className="resto-button" href={videoUrl} target="_blank" rel="noreferrer">Watch video ↗</a> : null}
+            </div>
           </div>
         </section>
       ) : null}
@@ -144,15 +186,23 @@ export function RestobarHome() {
         </section>
       ) : null}
       {enabled("home_testimonials") && t.testimonials.length ? (
-        <section className="resto-section">
+        <section className="resto-section resto-guest-notes">
           <div className="resto-shell resto-center">
             <p className="resto-kicker">{c("reviews.eyebrow", "Guest notes")}</p>
             <h2>{c("reviews.title", "From our guests")}</h2>
+            {rating.count > 0 ? (
+              <div className="resto-rating-summary">
+                <strong>{rating.avg.toFixed(1)} / 5</strong>
+                <span aria-hidden="true"><StarRow value={rating.avg} size={18} /></span>
+                <span>from {rating.count} {rating.count === 1 ? "rating" : "ratings"}</span>
+              </div>
+            ) : null}
             <div className="resto-reviews">
-              {t.testimonials.slice(0, 3).map((review: any, index: number) => (
+              {t.testimonials.slice(0, 3).map((review, index) => (
                 <figure key={review.key || index}>
-                  <blockquote>{review.text || review.review || review.testimony}</blockquote>
-                  <figcaption>{review.name || review.author}</figcaption>
+                  {review.rating > 0 ? <div className="resto-review-stars"><StarRow value={review.rating} size={16} /></div> : null}
+                  <blockquote>{review.text}</blockquote>
+                  <figcaption>{review.name}</figcaption>
                 </figure>
               ))}
             </div>

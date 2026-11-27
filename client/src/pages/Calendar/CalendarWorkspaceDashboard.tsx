@@ -87,14 +87,19 @@ function SectionCard({
   subtitle,
   children,
   bodyClassName = "p-5",
+  tourId,
 }: {
   title: string;
   subtitle: string;
   children: ReactNode;
   bodyClassName?: string;
+  tourId?: string;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <section
+      data-tour={tourId}
+      className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+    >
       <div className="border-b border-slate-100 px-5 py-4">
         <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">
           {title}
@@ -311,7 +316,10 @@ export default function CalendarWorkspaceDashboard() {
   return (
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
-        <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+        <div
+          data-tour="calendar-dashboard-banner"
+          className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]"
+        >
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img
               src={calendarBannerImage}
@@ -371,7 +379,10 @@ export default function CalendarWorkspaceDashboard() {
             ))}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div
+            data-tour="calendar-dashboard-stats"
+            className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+          >
             <StatTile icon={<CalendarRange size={20} />} label="Total Schedule" value={stats.total} sub="Items visible in your calendar" tone="blue" />
             <StatTile icon={<CalendarCheck2 size={20} />} label="Today" value={stats.today} sub="Commitments scheduled today" tone="green" />
             <StatTile icon={<CalendarDays size={20} />} label="Next 7 Days" value={stats.nextSevenDays} sub="Upcoming schedule workload" tone="cyan" />
@@ -383,7 +394,7 @@ export default function CalendarWorkspaceDashboard() {
           </div>
         )}
 
-        <div className="mb-6">
+        <div data-tour="calendar-dashboard-modules" className="mb-6">
           <p className="text-sm font-pmedium text-slate-900">Manage schedule</p>
           <p className="mt-1 text-[10px] text-slate-500">
             Open the complete monthly calendar to review details or create an event.
@@ -404,6 +415,7 @@ export default function CalendarWorkspaceDashboard() {
           <>
             <div className="mb-4">
               <SectionCard
+                tourId="calendar-dashboard-trend"
                 title="Schedule trend"
                 subtitle="Calendar items recorded across the latest six months."
               >
@@ -427,6 +439,7 @@ export default function CalendarWorkspaceDashboard() {
 
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
               <SectionCard
+                tourId="calendar-dashboard-event-mix"
                 title="Event mix"
                 subtitle="Calendar activity grouped by operational source."
               >
@@ -447,6 +460,7 @@ export default function CalendarWorkspaceDashboard() {
               </SectionCard>
 
               <SectionCard
+                tourId="calendar-dashboard-status"
                 title="Schedule status"
                 subtitle="Current status distribution across visible calendar items."
               >
@@ -468,6 +482,7 @@ export default function CalendarWorkspaceDashboard() {
             </div>
 
             <SectionCard
+              tourId="calendar-dashboard-agenda"
               title="Upcoming agenda"
               subtitle="Next calendar commitments in chronological order."
               bodyClassName="max-h-[420px] overflow-auto p-0"

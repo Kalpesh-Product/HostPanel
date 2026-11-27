@@ -988,7 +988,7 @@ export default function UserDetails() {
         <span className="text-title font-pmedium text-primary uppercase">My Profile</span>
       </div>
       <div className="space-y-5">
-      <section data-tour="my-profile-avatar" className="overflow-hidden rounded-[2.5rem] border border-white/80 bg-white/90 shadow-[0_24px_80px_rgba(15,23,42,0.1)] backdrop-blur">
+      <section data-tour="my-profile-header" className="overflow-hidden rounded-[2.5rem] border border-white/80 bg-white/90 shadow-[0_24px_80px_rgba(15,23,42,0.1)] backdrop-blur">
         <div className="p-6 sm:p-8 lg:p-10">
           <div className="flex flex-wrap items-start gap-4">
             <div className="relative shrink-0">
@@ -998,6 +998,7 @@ export default function UserDetails() {
                   if (currentAvatarUrl) setIsAvatarPreviewOpen(true);
                   else openAvatarPicker();
                 }}
+                data-tour="my-profile-avatar"
                 className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-[#2563EB] to-[#1d4ed8] text-2xl font-bold text-white shadow-[0_18px_40px_rgba(37,99,235,0.28)] transition hover:brightness-95"
                 title={currentAvatarUrl ? "View profile photo" : "Upload profile photo"}
               >

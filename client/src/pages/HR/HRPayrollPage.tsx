@@ -156,6 +156,8 @@ interface AdjustmentForm {
   reason: string;
 }
 
+type PayrollModulePage = "master" | "history";
+
 /* ───────────────────────────── Constants ───────────────────────────── */
 
 const PAYROLL_MONTH_NAMES = [
@@ -989,10 +991,14 @@ function Row({ label, value, valueClass = "text-slate-900" }: { label: string; v
 /*  Main Page Component                                              */
 /* ──────────────────────────────────────────────────────────────── */
 
-export default function HRPayrollPage() {
+export default function HRPayrollPage({
+  modulePage,
+}: {
+  modulePage?: PayrollModulePage;
+}) {
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState("master");
+  const [activeTab, setActiveTab] = useState<PayrollModulePage>(modulePage || "master");
   const [masterStatusFilter, setMasterStatusFilter] = useState<"all" | "pending" | "completed">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("All Departments");
@@ -1122,6 +1128,14 @@ export default function HRPayrollPage() {
     setViewingHistoryCycle(null);
     void loadPayrollData(selectedMonth, selectedYear);
   }, [loadPayrollData, selectedMonth, selectedYear]);
+
+  // When opened from the payroll dashboard the active area comes from the
+  // route, so the tab switcher is hidden and the local tab follows the URL.
+  useEffect(() => {
+    if (!modulePage) return;
+    setActiveTab(modulePage);
+    setSearchQuery("");
+  }, [modulePage]);
 
   const handleTemplatePdfAction = async (
     templateId: PayslipTemplateId,
@@ -1567,26 +1581,28 @@ export default function HRPayrollPage() {
           )}
 
           {/* ── Main Tabs (pill-style, before stat cards) ── */}
-          <div data-tour="hr-payroll-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-            <button
-              onClick={() => { setActiveTab("master"); setSearchQuery(""); }}
-              className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-pmedium uppercase tracking-widest transition-all ${
-                activeTab === "master" 
-                ? "bg-[#2563EB] text-white shadow-sm"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              PAYROLL MASTER
-            </button>
-            <button
-              onClick={() => { setActiveTab("history"); setSearchQuery(""); }}
-              className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-pmedium uppercase tracking-widest transition-all ${
-                activeTab === "history" ? "bg-[#2563EB] text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              PAYROLL HISTORY
-            </button>
-          </div>
+          {!modulePage && (
+            <div data-tour="hr-payroll-tabs" data-active-tab={activeTab} className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+              <button
+                onClick={() => { setActiveTab("master"); setSearchQuery(""); }}
+                className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-pmedium uppercase tracking-widest transition-all ${
+                  activeTab === "master"
+                  ? "bg-[#2563EB] text-white shadow-sm"
+                      : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                }`}
+              >
+                PAYROLL MASTER
+              </button>
+              <button
+                onClick={() => { setActiveTab("history"); setSearchQuery(""); }}
+                className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-pmedium uppercase tracking-widest transition-all ${
+                  activeTab === "history" ? "bg-[#2563EB] text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                }`}
+              >
+                PAYROLL HISTORY
+              </button>
+            </div>
+          )}
 
           {/* ── Stat Cards ── */}
           <div data-tour="hr-payroll-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">

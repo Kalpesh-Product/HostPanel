@@ -18,6 +18,7 @@ import {
   checkOutAttendance,
   endBreakAttendance,
   getMyAttendance,
+  requestAttendanceCorrection,
   startBreakAttendance,
 } from "../../../../services/attendance";
 import {
@@ -132,6 +133,50 @@ const TodayAttendanceCard = ({
       ) || null,
     [data, todayKey],
   );
+  // A forgotten clock-out auto-closes the day server-side (see the
+  // auto-checkout sweep) but the real time is still owed — clocking in again
+  // before that's resolved would just create another day needing the same
+  // fix, so this takes over the Clock In slot with a Clock Out action instead.
+  const unresolvedRecord = useMemo(
+    () =>
+      (Array.isArray(data) ? data : []).find(
+        (record: any) => record?.needsClockOutConfirmation,
+      ) || null,
+    [data],
+  );
+  const [showResolveModal, setShowResolveModal] = useState(false);
+  const [resolveTime, setResolveTime] = useState("");
+  const [resolveReason, setResolveReason] = useState("");
+  const [isResolving, setIsResolving] = useState(false);
+  const [resolveError, setResolveError] = useState("");
+
+  const submitResolveClockOut = async () => {
+    if (!unresolvedRecord || !resolveTime) return;
+    setIsResolving(true);
+    setResolveError("");
+    try {
+      await requestAttendanceCorrection(
+        unresolvedRecord.recordId || unresolvedRecord.id,
+        {
+          reason: resolveReason.trim() || "Forgot to clock out.",
+          requestedCheckOut: resolveTime,
+        },
+      );
+      setShowResolveModal(false);
+      setResolveTime("");
+      setResolveReason("");
+      await refetch();
+      onChanged?.();
+    } catch (error: any) {
+      setResolveError(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Failed to submit the clock-out time.",
+      );
+    } finally {
+      setIsResolving(false);
+    }
+  };
   const isCompleted = Boolean(todayRecord?.checkOut);
   // "on_leave" here only ever means a full-day (or full-shift hour-based)
   // leave — the attendance service already keeps partial leave out of this
@@ -445,14 +490,28 @@ const TodayAttendanceCard = ({
 
   const attendanceActions = (
     <div className="flex flex-wrap items-center gap-2">
-      {status === "on_leave" ? (
+      {unresolvedRecord ? (
+        <div className="flex flex-col items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setShowResolveModal(true)}
+            className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-3 text-xs font-pmedium uppercase tracking-wider text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-700 hover:shadow-md"
+          >
+            <LogOut size={15} /> Clock Out
+          </button>
+          <p className="max-w-xs text-center text-[10px] font-pmedium text-rose-700">
+            You forgot to clock out that day — submit the time to resume
+            clocking in.
+          </p>
+        </div>
+      ) : status === "on_leave" ? (
         <span className="text-small font-pmedium text-sky-700">
           You're on approved {activeLeave?.leaveType || "leave"} today — clock-in
           is disabled.
         </span>
       ) : (
         !todayRecord?.checkIn && (
-          <div className="flex flex-col items-start gap-1.5">
+          <div className="flex flex-col items-center gap-1.5">
             <button
               type="button"
               onClick={() => void openClockModal("in")}
@@ -462,7 +521,7 @@ const TodayAttendanceCard = ({
               <LogIn size={15} /> Clock In
             </button>
             {disableClockIn && disabledReason && (
-              <p className="max-w-xs text-[10px] font-pmedium text-amber-700">
+              <p className="max-w-xs text-center text-[10px] font-pmedium text-amber-700">
                 {disabledReason}
               </p>
             )}
@@ -926,6 +985,87 @@ const TodayAttendanceCard = ({
                     <Camera size={14} /> Capture
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showResolveModal && unresolvedRecord && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F172A]/80 p-4 backdrop-blur-md">
+          <div
+            className="w-full max-w-sm overflow-hidden rounded-[1.75rem] bg-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-4">
+              <div>
+                <h2 className="flex items-center gap-2 text-lg font-pmedium text-primary">
+                  <LogOut size={18} className="text-rose-600" /> Clock Out
+                </h2>
+                <p className="mt-1 text-[10px] font-pmedium uppercase tracking-[0.24em] text-slate-400">
+                  Missed clock-out
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowResolveModal(false)}
+                disabled={isResolving}
+                className="rounded-full bg-white p-2 shadow-sm disabled:opacity-50"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-3 p-5">
+              <div>
+                <label className="mb-1 block text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
+                  Actual Clock Out Time
+                </label>
+                <input
+                  type="time"
+                  value={resolveTime}
+                  onChange={(event) => setResolveTime(event.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[12px] font-pmedium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-pmedium uppercase tracking-widest text-slate-500">
+                  Reason
+                </label>
+                <textarea
+                  value={resolveReason}
+                  onChange={(event) => setResolveReason(event.target.value)}
+                  rows={2}
+                  placeholder="Forgot to clock out..."
+                  className="w-full resize-none rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[12px] font-pmedium outline-none placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                />
+              </div>
+              {resolveError && (
+                <p className="rounded-lg bg-rose-50 px-3 py-2 text-small font-pmedium text-rose-700">
+                  {resolveError}
+                </p>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-3 border-t border-slate-100 bg-slate-50 px-5 py-4">
+              <button
+                type="button"
+                onClick={() => setShowResolveModal(false)}
+                disabled={isResolving}
+                className="rounded-xl border border-slate-200 bg-white py-3 text-xs font-pmedium uppercase text-slate-700 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void submitResolveClockOut()}
+                disabled={isResolving || !resolveTime}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] py-3 text-xs font-pmedium uppercase text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {isResolving ? (
+                  <RefreshCw size={14} className="animate-spin" />
+                ) : (
+                  <Check size={14} />
+                )}
+                Submit
               </button>
             </div>
           </div>

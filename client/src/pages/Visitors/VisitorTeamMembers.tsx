@@ -38,7 +38,7 @@ const VisitorTeamMembers = () => {
   return (
     <div className="flex flex-col gap-8 p-4">
       <PageFrame>
-        <div>
+        <div data-tour="visitor-team-table">
           <AgTable
             search={true}
             searchColumn={"kra"}

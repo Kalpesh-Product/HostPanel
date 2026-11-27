@@ -238,7 +238,10 @@ const CompanySettingsDashboard = () => {
       >
       {/* Every founder plan dashboard shares the same masthead system. */}
       {isPlanDashboardHome ? (
-        <section className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white p-5 shadow-[0_12px_34px_rgba(37,99,235,0.08)] sm:p-6">
+        <section
+          data-tour="dashboard-greeting"
+          className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-white p-5 shadow-[0_12px_34px_rgba(37,99,235,0.08)] sm:p-6"
+        >
           <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/70" />
           <div className="pointer-events-none absolute -bottom-24 right-40 h-56 w-56 rounded-full bg-blue-50/70" />
           <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

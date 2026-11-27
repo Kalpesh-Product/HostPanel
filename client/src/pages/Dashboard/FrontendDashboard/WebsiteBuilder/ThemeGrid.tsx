@@ -172,7 +172,7 @@ const ThemeGrid = () => {
   return (
     <div>
       <div className="p-4 flex flex-col gap-4">
-        <div className="themePage-content-header bg-white flex flex-col gap-4">
+        <div data-tour="wb-theme-header" className="themePage-content-header bg-white flex flex-col gap-4">
         <h4 className="text-4xl text-left">
             Select Themes
           </h4>
@@ -180,7 +180,7 @@ const ThemeGrid = () => {
         </div>
 
         {!isTemplatesPending ? (
-          <div className="grid grid-cols-2 sm:grid-cols1 gap-6">
+          <div data-tour="wb-theme-grid" className="grid grid-cols-2 sm:grid-cols1 gap-6">
             {filteredTemplates.map((template, index) => (
               <div>
                 <div

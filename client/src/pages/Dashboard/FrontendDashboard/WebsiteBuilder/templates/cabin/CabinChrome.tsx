@@ -2,12 +2,13 @@ import { useRef, useState } from "react";
 import { SOCIAL_ICON } from "../socialIcons";
 import { resolveSectionFromSlug } from "../useWebsiteTemplateData";
 import { useCabin } from "./CabinContext";
+import { cabinSrc } from "./cabinMedia";
 import { CabinHours, CabinImage } from "./CabinUI";
 
 function SocialLinks() {
   const { t } = useCabin();
   return <div className="cabin-socials">
-    {t.footerSocialLinks.map(({ key, href }: { key: string; href: string; }) => href ? (
+    {(t.footerSocialLinks || []).map(({ key, href }: { key: string; href: string; }) => href ? (
       <a key={key} href={href} target="_blank" rel="noreferrer" aria-label={key}>
         <span aria-hidden="true">{SOCIAL_ICON[key] || key.charAt(0).toUpperCase()}</span>
       </a>
@@ -16,20 +17,24 @@ function SocialLinks() {
 }
 
 export function CabinHeader() {
-  const { t, draft, primary, services, c, openLead } = useCabin();
+  const { t, draft, primary, services, openLead, c } = useCabin();
   const drawer = useRef<HTMLDialogElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const logo = cabinSrc(draft.companyLogo);
   const booking = primary?.leadEnabled ? primary : services.find((service) => service.leadEnabled);
   const book = () => {
     drawer.current?.close();
     if (booking) openLead(booking);
   };
-  const nav = () => t.navItems.map(({ name, slug }: { name: string; slug: string; }) => (
-    <button type="button" key={slug} aria-current={resolveSectionFromSlug(slug) === t.currentSection ? "page" : undefined}
-      onClick={() => {
-        drawer.current?.close();
-        t.goToSection(slug);
-      }}>{name}<span aria-hidden="true">↗</span>
+  const goTo = (slug: string) => {
+    drawer.current?.close();
+    t.goToSection(slug);
+  };
+  const nav = () => t.navItems.map(({ name, slug }: { name: string; slug: string }) => (
+    <button type="button" key={slug}
+      aria-current={resolveSectionFromSlug(slug) === t.currentSection ? "page" : undefined}
+      onClick={() => goTo(slug)}>
+      {name}<span aria-hidden="true">↗</span>
     </button>
   ));
 
@@ -37,11 +42,13 @@ export function CabinHeader() {
     <a className="cabin-skip" href="#cabin-main">Skip to content</a>
     <header className="cabin-header">
       <button className="cabin-brand" type="button" onClick={() => t.goToSection("home")} aria-label="Home">
-        {draft.companyLogo ? <CabinImage src={draft.companyLogo} alt={draft.companyName || "Cabin"} eager /> : draft.companyName || "Cabin"}
+        {logo ? <CabinImage src={logo} alt={draft.companyName || "Cabin"} eager /> : draft.companyName || "Cabin"}
       </button>
-      <nav className="cabin-desktop-nav" aria-label="Main navigation">{nav()}</nav>
+      <nav className="cabin-desktop-nav" aria-label="Main navigation">
+        {nav()}
+      </nav>
       <div className="cabin-header-actions">
-        {booking ? <button type="button" className="cabin-header-book" onClick={book}>{c("booking.cta", "Book a stay")} <span aria-hidden="true">↗</span>
+        {booking ? <button type="button" className="cabin-header-book" onClick={book}>{draft.CTAButtonText || c("booking.cta", "Book a stay")} <span aria-hidden="true">↗</span>
         </button> : null}
         <button type="button" className="cabin-menu-toggle" aria-label="Open menu" aria-haspopup="dialog"
           aria-expanded={menuOpen} aria-controls="cabin-menu" onClick={() => {
@@ -61,7 +68,9 @@ export function CabinHeader() {
           <p className="cabin-brand">{draft.companyName || "Cabin"}</p>
           <button type="button" className="cabin-dialog-close" aria-label="Close menu" onClick={() => drawer.current?.close()}>×</button>
         </div>
-        <nav aria-label="Site menu">{nav()}</nav>
+        <nav aria-label="Site menu">
+          {nav()}
+        </nav>
         {booking ? <button type="button" className="cabin-button" onClick={book}>{c("booking.cta", "Book a stay")} ↗</button> : null}
         <SocialLinks />
       </div>
@@ -71,12 +80,13 @@ export function CabinHeader() {
 
 export function CabinFooter() {
   const { t, draft, c } = useCabin();
+  const logo = cabinSrc(draft.companyLogo);
   return <footer className="cabin-footer">
     <div className="cabin-shell">
       <div className="cabin-footer-grid">
         <div className="cabin-footer-intro">
           <button type="button" className="cabin-brand" onClick={() => t.goToSection("home")}>
-            {draft.companyLogo ? <CabinImage src={draft.companyLogo} alt={draft.companyName || "Cabin"} /> : draft.companyName || "Cabin"}
+            {logo ? <CabinImage src={logo} alt={draft.companyName || "Cabin"} /> : draft.companyName || "Cabin"}
           </button>
           <h2>{c("footer.title", "Get in touch with us")}</h2>
           {c("footer.body", draft.subTitle || "") ? <p>{c("footer.body", draft.subTitle || "")}</p> : null}
@@ -84,7 +94,7 @@ export function CabinFooter() {
         </div>
         <nav aria-label="Footer navigation">
           <h3>{c("footer.navigation", "Explore")}</h3>
-          {t.navItems.map(({ name, slug }: { name: string; slug: string; }) => <button key={slug} type="button" onClick={() => t.goToSection(slug)}>{name}</button>)}
+          {t.navItems.map(({ name, slug }: { name: string; slug: string }) => <button key={slug} type="button" onClick={() => t.goToSection(slug)}>{name}</button>)}
         </nav>
         <div>
           <h3>{c("footer.contact", "Visit us")}</h3>

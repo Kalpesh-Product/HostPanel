@@ -112,6 +112,7 @@ export const WavexHeader: React.FC = () => {
                   <button
                     key={item.slug}
                     type="button"
+                    aria-current={active(item) ? "page" : undefined}
                     onClick={() => t.goToSection(item.slug)}
                   >
                     {item.name}

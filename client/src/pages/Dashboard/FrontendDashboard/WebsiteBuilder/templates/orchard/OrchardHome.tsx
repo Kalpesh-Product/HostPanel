@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "../motion";
 import { useTpl } from "../shared/TplContext";
-import { Icon } from "../shared/TplUI";
+import { Icon, StarRow } from "../shared/TplUI";
 import { LeadFormPanel } from "../shared/TplLead";
 import { MessageForm } from "../shared/TplForms";
 import {
@@ -20,6 +20,10 @@ export const OrchardHome: React.FC = () => {
   const { t, draft, primary, rating, openLead, c, photo } = useTpl();
   const [amenity, setAmenity] = useState(0);
   const [space, setSpace] = useState(0);
+  const [reviewPage, setReviewPage] = useState(0);
+  const reviewsPerPage = 3;
+  const reviewPages = Math.ceil(t.testimonials.length / reviewsPerPage);
+  const activeReviewPage = Math.min(reviewPage, Math.max(0, reviewPages - 1));
 
   const hero = photo(
     "home.hero.image",
@@ -203,7 +207,7 @@ export const OrchardHome: React.FC = () => {
             alt="Welcome to the house"
             className="ol-welcome-photo"
           />
-          <div>
+          <div className="ol-welcome-content">
             <OrchardHeading
               eyebrow={c("home.welcome.eyebrow", "Welcome to Orchard")}
               title={c("home.welcome.title", "A place to land, and a place to belong.")}
@@ -278,7 +282,7 @@ export const OrchardHome: React.FC = () => {
       </section>
 
       {rooms.length ? (
-        <section className="ol-section ol-section-soft">
+        <section className="ol-section ol-section-soft ol-home-plans">
           <div className="ol-shell">
             <OrchardHeading
               eyebrow={c("home.plans.eyebrow", "Find your room")}
@@ -406,8 +410,8 @@ export const OrchardHome: React.FC = () => {
         </div>
       </section>
 
-      {t.testimonials?.length ? (
-        <section className="ol-section ol-section-soft">
+      {t.testimonials?.length || t.showWriteReview ? (
+        <section className="ol-section ol-section-soft ol-home-reviews">
           <div className="ol-shell">
             <OrchardHeading
               eyebrow={c("home.reviews.eyebrow", "Guest notes")}
@@ -418,7 +422,34 @@ export const OrchardHome: React.FC = () => {
               )}
               small
             />
-            <OrchardReviews limit={2} />
+            {rating.count > 0 ? (
+              <div className="ol-home-review-summary">
+                <strong>{rating.avg.toFixed(1)} / 5</strong>
+                <span aria-hidden="true"><StarRow value={rating.avg} size={16} /></span>
+                <span>from {rating.count} {rating.count === 1 ? "rating" : "ratings"}</span>
+              </div>
+            ) : null}
+            <div aria-live="polite">
+              <OrchardReviews limit={reviewsPerPage} offset={activeReviewPage * reviewsPerPage} />
+            </div>
+            {reviewPages > 1 ? (
+              <div className="ol-home-review-pages" role="group" aria-label="Guest review slides">
+                {Array.from({ length: reviewPages }, (_, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    aria-label={`Show review slide ${index + 1}`}
+                    aria-current={index === activeReviewPage ? "true" : undefined}
+                    onClick={() => setReviewPage(index)}
+                  />
+                ))}
+              </div>
+            ) : null}
+            {t.showWriteReview ? (
+              <button type="button" className="ol-btn ol-home-review-write" onClick={t.openReviewModal}>
+                {c("home.reviews.write", "Write a review")}
+              </button>
+            ) : null}
           </div>
         </section>
       ) : null}
@@ -469,8 +500,9 @@ export const OrchardHome: React.FC = () => {
 
       <section className="ol-section">
         <div className="ol-shell ol-tour-grid">
-          <div>
+          <div className="ol-tour-info">
             <OrchardHeading
+              className="ol-tour-heading"
               eyebrow={c("home.tour.eyebrow", "Come see it for yourself")}
               title={c("home.tour.title", "Schedule a tour.")}
               sub={c(
@@ -487,6 +519,13 @@ export const OrchardHome: React.FC = () => {
                 "Send a note and the team will get back to you the same day.",
               )}
             </p>
+            <div className="ol-tour-expect">
+              <h3>{c("home.tour.expectTitle", "What to expect on your tour")}</h3>
+              <p>{c(
+                "home.tour.expectBody",
+                "Use your visit to compare room options, see the shared spaces, and ask about check-in. If you’re visiting with a group or have accessibility needs, mention them in your request.",
+              )}</p>
+            </div>
           </div>
           <div className="ol-tour-panel">
             {primary?.leadEnabled ? (

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { Reveal, Stagger } from "../motion";
 import type { Service } from "../serviceAdapter";
 import { getInclusionMeta } from "../inclusionIcons";
@@ -80,7 +80,7 @@ const Intro: React.FC = () => {
           <div className="df-icon-tile">{Icon.pin(24)}</div>
           <p className="df-intro-label">{c("home.intro.label", draft?.companyName || "Your home away")}</p>
           {image ? (
-            <div className="df-photo" style={{ marginTop: 34, aspectRatio: "4 / 5" }}>
+            <div className="df-photo" style={{ marginTop: 34, aspectRatio: "16 / 9" }}>
               <img src={image} alt="" loading="lazy" decoding="async" />
             </div>
           ) : null}
@@ -94,7 +94,7 @@ const Intro: React.FC = () => {
             <p className="df-lead">{copy}</p>
           </Reveal>
           {blocks[1] ? (
-            <Reveal delay={0.14}>
+            <Reveal delay={0.14} className="df-intro-block">
               <p>{blocks[1]}</p>
             </Reveal>
           ) : null}
@@ -131,8 +131,8 @@ const Rooms: React.FC<{ service: Service }> = ({ service }) => {
             </DfTextLink>
           }
         />
-        <Stagger className="df-grid-3">
-          {list.slice(0, 6).map((item, index) => (
+        <Stagger className="df-grid-3 df-rooms-grid">
+          {list.slice(0, 3).map((item, index) => (
             <DfRoomCard key={item.key} service={service} item={item} index={index} />
           ))}
         </Stagger>
@@ -177,7 +177,7 @@ const Dining: React.FC<{ services: Service[] }> = ({ services }) => {
           </Reveal>
           <Reveal delay={0.14}>
             <button type="button" className="df-btn df-btn-light" onClick={open}>
-              {c("home.dining.cta", "Explore the menu")}
+              {c("home.dining.cta", "Explore")}
             </button>
           </Reveal>
         </div>
@@ -325,7 +325,17 @@ const LakeFeature: React.FC<{ service: Service | null }> = ({ service }) => {
 
 const Testimonials: React.FC = () => {
   const { t, rating, c } = useTpl();
+  const trackRef = useRef<HTMLDivElement>(null);
   const list: any[] = t.testimonials.slice(0, 8);
+
+  const slide = (direction: -1 | 1) => {
+    const track = trackRef.current;
+    if (!track) return;
+    const card = track.querySelector<HTMLElement>(".df-review");
+    const step = card ? card.getBoundingClientRect().width + 20 : track.clientWidth;
+    track.scrollBy({ left: direction * step, behavior: "smooth" });
+  };
+
   if (!list.length) return null;
   return (
     <section className="df-testimonials">
@@ -335,22 +345,25 @@ const Testimonials: React.FC = () => {
           title={c("home.reviews.title", "Kind words from our guests")}
           sub={rating.count ? `${rating.avg.toFixed(1)} out of 5 · ${rating.count} reviews` : undefined}
           action={
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-              <DfTextLink onClick={() => t.goToSection("testimonials")}>
-                {c("home.reviews.link", "All reviews")}
-              </DfTextLink>
-              {t.showWriteReview ? (
-                <button type="button" className="df-btn df-btn-sm" onClick={t.openReviewModal}>
-                  {c("home.reviews.write", "Write a review")}
-                </button>
-              ) : null}
-            </div>
+            t.showWriteReview ? (
+              <button type="button" className="df-btn df-btn-sm" onClick={t.openReviewModal}>
+                {c("home.reviews.write", "Write a review")}
+              </button>
+            ) : null
           }
         />
-        <div className="df-review-track">
+        <div className="df-review-track" ref={trackRef}>
           {list.map((item, index) => (
             <DfReviewCard key={item.key || index} item={{ ...item, role: item.jobPosition || item.role }} />
           ))}
+        </div>
+        <div className="df-carousel-controls">
+          <button type="button" className="df-carousel-btn" onClick={() => slide(-1)} aria-label="Previous review">
+            {Icon.arrow(16)}
+          </button>
+          <button type="button" className="df-carousel-btn" onClick={() => slide(1)} aria-label="Next review">
+            {Icon.arrow(16)}
+          </button>
         </div>
       </div>
     </section>

@@ -127,14 +127,16 @@ function SectionCard({
   subtitle,
   children,
   bodyClassName = "p-5",
+  dataTour,
 }: {
   title: string;
   subtitle: string;
   children: ReactNode;
   bodyClassName?: string;
+  dataTour?: string;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <section data-tour={dataTour} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
       <div className="border-b border-slate-100 px-5 py-4">
         <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">
           {title}
@@ -287,7 +289,7 @@ export default function UnitManagementDashboard() {
   return (
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
-        <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+        <div data-tour="unit-management-dashboard-banner" className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img
               src={unitManagementBanner}
@@ -350,7 +352,7 @@ export default function UnitManagementDashboard() {
           </div>
         ) : (
           <>
-            <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div data-tour="unit-management-dashboard-stats" className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
               <StatTile icon={<Building2 size={18} />} label="Managed units" value={units.length} sub={`${activeUnits.length} currently active`} />
               <StatTile icon={<Users size={18} />} label="Employees" value={Number(summary.totalEmployees || 0)} sub="Across linked units" tone="green" />
               <StatTile icon={<BriefcaseBusiness size={18} />} label="Departments" value={Number(summary.totalDepartments || 0)} sub="Combined organization structure" tone="violet" />
@@ -361,7 +363,7 @@ export default function UnitManagementDashboard() {
               <StatTile icon={<BarChart3 size={18} />} label="Performance" value={`${Number(summary.performance?.overallScore || 0)}%`} sub={`${Number(summary.totalMeetingBookings || 0)} meeting bookings`} tone="green" />
             </div>
 
-            <div className="mb-6">
+            <div data-tour="unit-management-dashboard-modules" className="mb-6">
               <p className="text-sm font-pmedium text-slate-900">
                 Explore Unit Management
               </p>
@@ -389,6 +391,7 @@ export default function UnitManagementDashboard() {
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
               <SectionCard
                 title="Operational workload"
+                dataTour="unit-management-dashboard-workload"
                 subtitle="Current work and resource records across all units."
               >
                 {workloadRows.length ? (
@@ -410,6 +413,7 @@ export default function UnitManagementDashboard() {
               </SectionCard>
               <SectionCard
                 title="Employees by unit"
+                dataTour="unit-management-dashboard-employees"
                 subtitle="How the combined workforce is distributed."
               >
                 {employeeRows.length ? (
@@ -433,6 +437,7 @@ export default function UnitManagementDashboard() {
             <div className="mb-4">
               <SectionCard
                 title="Performance by unit"
+                dataTour="unit-management-dashboard-performance"
                 subtitle="Overall operational score reported for each linked unit."
               >
                 {performanceRows.length ? (
@@ -455,6 +460,7 @@ export default function UnitManagementDashboard() {
 
             <SectionCard
               title="Unit comparison"
+              dataTour="unit-management-dashboard-comparison"
               subtitle="Core people, workload, booking, and performance measures by unit."
               bodyClassName="max-h-[390px] overflow-y-auto p-0"
             >

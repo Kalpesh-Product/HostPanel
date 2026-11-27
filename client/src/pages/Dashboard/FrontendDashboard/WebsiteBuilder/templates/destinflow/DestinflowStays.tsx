@@ -144,7 +144,7 @@ export const ServicePage: React.FC<{ service: Service }> = ({ service }) => {
       <section className="df-section-tight">
         <div className="df-shell">
           {service.items.length ? (
-            <div className="df-service-layout">
+            <div className="df-service-layout df-services-split">
               <div>
                 <DfSectionHead
                   eyebrow={c("services.list.eyebrow", "Choose your room")}
@@ -249,7 +249,7 @@ export const ItemDetail: React.FC<{ service: Service; item: ServiceItem }> = ({ 
 
       <section className="df-section-tight">
         <div className="df-shell">
-          <div className="df-service-layout">
+          <div className="df-service-layout df-item-detail-split">
             <div>
               {images.length ? (
                 <Reveal className="df-detail-media">

@@ -16,6 +16,7 @@ const BACK_TO_TOP_SPECS: Record<string, BackToTopSpec> = {
   "fresh-studio": { bg: "#0e0e0e", fg: "#ffffff", border: "#d94b4b", radius: "5px", shadow: "0 14px 32px rgba(14,14,14,.24)", font: "'Inter', sans-serif" },
   savor: { bg: "#e4572e", fg: "#fff7ed", border: "#e4572e", radius: "50%", shadow: "0 16px 34px rgba(228,87,46,.3)", font: "'Bricolage Grotesque', sans-serif" },
   tastyc: { bg: "#10282b", fg: "#fffdf8", border: "#cf7736", radius: "50%", shadow: "0 16px 36px rgba(6,25,27,.34)", font: "'Playfair Display', Georgia, serif" },
+  restobar: { bg: "#101519", fg: "#f5f0e9", border: "#c29a77", radius: "50%", shadow: "0 8px 24px rgba(0,0,0,.3)", font: "'Playfair Display', Georgia, serif" },
   wayfarer: { bg: "#0c2a2e", fg: "#ffffff", border: "#f26b3a", radius: "999px", shadow: "0 15px 34px rgba(12,42,46,.28)", font: "'Sora', sans-serif" },
   travigo: { bg: "#d8ff48", fg: "#111111", border: "#111111", radius: "12px 12px 2px 12px", shadow: "5px 5px 0 #111111", font: "'Manrope', sans-serif" },
   haven: { bg: "#f4f1ea", fg: "#26312b", border: "#5b7f6a", radius: "28px 28px 8px 8px", shadow: "0 16px 34px rgba(38,49,43,.2)", font: "'Fraunces', Georgia, serif" },
