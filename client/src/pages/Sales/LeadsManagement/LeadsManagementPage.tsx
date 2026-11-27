@@ -456,10 +456,10 @@ export default function LeadsManagementPage({
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
-        <div className="flex flex-col gap-4 text-slate-700 font-sans">
+        <div data-active-tab={mainTab} className="flex flex-col gap-4 text-slate-700 font-sans">
 
         {/* 1. HEADER */}
-        <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+        <div data-tour="leads-header" className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
           <div>
             <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
               {lockedTab
@@ -501,7 +501,7 @@ export default function LeadsManagementPage({
         {/* Hidden on the dedicated single-view routes — those pages are
             locked to one tab, so the switcher would be noise. */}
         {!lockedTab ? (
-        <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+        <div data-tour="leads-tabs" className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
           {[
             { key: "website-leads", label: "All Website & Nomad Leads" },
             { key: "unit-tour", label: "Unit Tour Leads" },
@@ -515,7 +515,7 @@ export default function LeadsManagementPage({
 
         {/* 3. STAT CARDS (DESIGN.md 4-col grid with border-left accents) */}
         {mainTab === "unit-tour" ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+        <div data-tour="leads-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
             <div className="min-w-0">
               <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Leads</p>
@@ -546,7 +546,7 @@ export default function LeadsManagementPage({
           </div>
         </div>
         ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-3 shrink-0">
+        <div data-tour="leads-summary" className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-3 shrink-0">
           {websiteLeadStats.map((stat) => (
             <div key={stat.label} className={`bg-white p-5 rounded-[2rem] border border-slate-100 border-l-4 shadow-sm flex justify-between items-center gap-3 ${stat.accent}`}>
               <div className="min-w-0">
@@ -566,7 +566,7 @@ export default function LeadsManagementPage({
         <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
           <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
           {/* STATUS SUB-TABS */}
-          <div className="w-full overflow-x-auto mb-3 [&::-webkit-scrollbar]:hidden">
+          <div data-tour="leads-filters" className="w-full overflow-x-auto mb-3 [&::-webkit-scrollbar]:hidden">
             <div className="flex items-center gap-1.5 overflow-x-auto">
               <button onClick={() => setStageFilter("All")}
                 className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${stageFilter === "All" ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200" : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"}`}
@@ -582,7 +582,7 @@ export default function LeadsManagementPage({
           </div>
             <div />
             <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-              <div className="relative flex-1 min-w-[180px]">
+              <div data-tour="leads-search" className="relative flex-1 min-w-[180px]">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                 <input type="text" placeholder="Search leads, companies, visitor codes..."
                   value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
@@ -597,7 +597,7 @@ export default function LeadsManagementPage({
             </div>
           ) : (
           <div className="overflow-x-auto flex-1">
-            <table className="w-full text-left min-w-[860px]">
+            <table data-tour="leads-table" className="w-full text-left min-w-[860px]">
               <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                 <tr>
                   <th className="px-5 py-4">ID</th>
@@ -629,7 +629,7 @@ export default function LeadsManagementPage({
                         {savingStages[lead.id] && <span className="block mt-1 text-[10px] text-slate-500" role="status">Saving...</span>}
                       </td>
                       <td className="px-5 py-4 text-center">
-                        <button type="button" onClick={() => setSelectedLeadId(lead.id)} title="View details" aria-label={`View details for ${lead.name}`}
+                        <button type="button" data-tour="leads-row-action" onClick={() => setSelectedLeadId(lead.id)} title="View details" aria-label={`View details for ${lead.name}`}
                           className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg focus-visible:ring-2 focus-visible:ring-blue-500/40"><Eye size={15} strokeWidth={2.5} /></button>
                       </td>
                     </tr>
@@ -644,7 +644,7 @@ export default function LeadsManagementPage({
         <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
           <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
           {/* STATUS SUB-TABS (stage filter pills, above main tabs) */}
-        <div className="w-full overflow-x-auto mb-3 [&::-webkit-scrollbar]:hidden">
+        <div data-tour="leads-filters" className="w-full overflow-x-auto mb-3 [&::-webkit-scrollbar]:hidden">
           <div className="flex items-center gap-1.5 overflow-x-auto">
             <button onClick={() => setStageFilter("All")}
               className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${stageFilter === "All" ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200" : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"}`}
@@ -660,7 +660,7 @@ export default function LeadsManagementPage({
         </div>
             <div />
             <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-              <div className="relative flex-1 min-w-[180px]">
+              <div data-tour="leads-search" className="relative flex-1 min-w-[180px]">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                 <input type="text" placeholder="Search by name, email, phone..."
                   value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
@@ -675,7 +675,7 @@ export default function LeadsManagementPage({
             </div>
           ) : (
           <div className="overflow-x-auto flex-1">
-            <table className="w-full text-left min-w-[900px]">
+            <table data-tour="leads-table" className="w-full text-left min-w-[900px]">
               <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                 <tr>
                   <th className="px-5 py-4">Lead Names</th>
@@ -736,7 +736,7 @@ export default function LeadsManagementPage({
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center justify-center gap-1.5">
-                          <button type="button" onClick={() => setSelectedWebsiteLeadId(lead._id)}
+                          <button type="button" data-tour="leads-row-action" onClick={() => setSelectedWebsiteLeadId(lead._id)}
                             title="View details" aria-label={`View details for ${lead.fullName}`}
                             className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"><Eye size={15} strokeWidth={2.5} aria-hidden="true" /></button>
                           {/* <button type="button" onClick={() => handleUpdateWebsiteLeadStatus(lead._id, "Closed")}

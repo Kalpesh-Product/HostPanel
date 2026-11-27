@@ -64,19 +64,29 @@ const statusClass = (status?: string) => {
   return "bg-blue-50 text-blue-700";
 };
 
+// This dashboard renders the hostel and the co-living stay modules, so guide
+// hooks carry the prefix of the product the user opened.
+const stayTour = (roomType: string, element: string) =>
+  `${roomType === "Dorm" ? "hostel-booking" : "room-booking"}-${element}`;
+
 function SectionCard({
   title,
   subtitle,
+  dataTour,
   children,
   bodyClassName = "p-5",
 }: {
   title: string;
   subtitle: string;
+  dataTour?: string;
   children: ReactNode;
   bodyClassName?: string;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <section
+      data-tour={dataTour}
+      className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+    >
       <div className="border-b border-slate-100 px-5 py-4">
         <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">
           {title}
@@ -355,7 +365,10 @@ export function RoomStayBookingDashboard({
   return (
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
-        <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+        <div
+          data-tour={stayTour(roomType, "dashboard-banner")}
+          className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]"
+        >
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img
               src={bannerImage}
@@ -414,7 +427,10 @@ export function RoomStayBookingDashboard({
 
         {!isLoading ? (
           <>
-            <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-4">
+            <div
+              data-tour={stayTour(roomType, "dashboard-stats")}
+              className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-4"
+            >
               <StatTile
                 icon={<Bed size={18} />}
                 label={`Active ${resourcePlural}`}
@@ -472,7 +488,7 @@ export function RoomStayBookingDashboard({
               />
             </div>
 
-            <div className="mb-6">
+            <div data-tour={stayTour(roomType, "dashboard-modules")} className="mb-6">
               <p className="text-sm font-pmedium text-slate-900">
                 Manage {title.toLowerCase()}
               </p>
@@ -499,6 +515,7 @@ export function RoomStayBookingDashboard({
 
             <div className="mb-4 flex flex-col gap-4">
               <SectionCard
+                dataTour={stayTour(roomType, "dashboard-booking-trend")}
                 title="Booking trend"
                 subtitle={`${title} activity recorded across the last 30 days.`}
               >
@@ -521,6 +538,7 @@ export function RoomStayBookingDashboard({
                 )}
               </SectionCard>
               <SectionCard
+                dataTour={stayTour(roomType, "dashboard-revenue-trend")}
                 title="Revenue trend"
                 subtitle={`${title} revenue recorded across the last 30 days.`}
               >
@@ -546,6 +564,7 @@ export function RoomStayBookingDashboard({
 
             <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
               <SectionCard
+                dataTour={stayTour(roomType, "dashboard-status")}
                 title="Booking status"
                 subtitle={`Current ${title.toLowerCase()} distribution by stay status.`}
               >
@@ -567,6 +586,7 @@ export function RoomStayBookingDashboard({
                 )}
               </SectionCard>
               <SectionCard
+                dataTour={stayTour(roomType, "dashboard-payments")}
                 title="Payment methods"
                 subtitle={`Payment methods recorded across ${title.toLowerCase()} stays.`}
               >
@@ -596,6 +616,7 @@ export function RoomStayBookingDashboard({
             </div>
 
             <SectionCard
+              dataTour={stayTour(roomType, "dashboard-recent")}
               title={`Recent ${title.toLowerCase()} records`}
               subtitle="Latest reservations, active stays, completed stays, and cancellations."
               bodyClassName="max-h-[390px] overflow-y-auto p-0"

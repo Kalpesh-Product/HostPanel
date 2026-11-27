@@ -48,6 +48,11 @@ const pillClass = (tone: "emerald" | "amber" | "red" | "slate" | "blue") => {
   return `inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-pmedium uppercase tracking-widest ${tones[tone]}`;
 };
 
+// Shared by the hostel and co-living booking pages, so guide hooks carry the
+// prefix of the product the user opened.
+const stayTour = (roomType: string, element: string) =>
+  `${roomType === "Dorm" ? "hostel-booking" : "room-booking"}-${element}`;
+
 const getErrorMessage = (error: any, fallback: string) =>
   error?.response?.data?.message || error?.message || fallback;
 
@@ -150,7 +155,10 @@ export default function RoomReservationsPanel({
 
   return (
     <>
-      <div className="mb-3 mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div
+        data-tour={stayTour(roomType, "reservations-summary")}
+        className="mb-3 mt-8 grid grid-cols-2 gap-3 md:grid-cols-4"
+      >
         {[
           { key: "total", label: "Reservations", value: String(bookings.length), icon: CalendarClock, cardClass: baseCardClass, iconClass: "bg-blue-50 text-blue-600" },
           { key: "upcoming", label: "Upcoming", value: String(upcoming), icon: CalendarCheck, cardClass: `${baseCardClass} border-l-4 border-l-blue-500`, iconClass: "bg-blue-50 text-blue-600" },
@@ -168,7 +176,7 @@ export default function RoomReservationsPanel({
       </div>
 
       <div className="flex min-h-110 flex-col overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
-        <div className={TOOLBAR}>
+        <div data-tour={stayTour(roomType, "reservations-toolbar")} className={TOOLBAR}>
           <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
             <div className="relative flex-1 min-w-[180px] xl:min-w-[220px]">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
@@ -186,7 +194,10 @@ export default function RoomReservationsPanel({
             <Plus size={14} /> New Reservation
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-auto">
+        <div
+          data-tour={stayTour(roomType, "reservations-table")}
+          className="min-h-0 flex-1 overflow-auto"
+        >
           <table className="min-w-[900px] w-full text-left">
             <thead className="sticky top-0 z-10 text-[10px] font-pmedium text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100 bg-white">
               <tr>
@@ -222,7 +233,7 @@ export default function RoomReservationsPanel({
                         <td className="px-3.5 py-2 text-center">
                           {booking.status === "Booked" && (
                             <div className="flex items-center justify-center gap-2">
-                              <button type="button" onClick={() => checkIn(booking)} disabled={busyId === booking._id} className={SECONDARY_BUTTON} title="Check in">
+                              <button type="button" data-tour={stayTour(roomType, "reservations-action")} onClick={() => checkIn(booking)} disabled={busyId === booking._id} className={SECONDARY_BUTTON} title="Check in">
                                 <LogIn size={13} /> Check-in
                               </button>
                               <button type="button" onClick={() => cancelReservation(booking)} disabled={busyId === booking._id} className="rounded-2xl px-3 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-rose-600 hover:bg-rose-50">

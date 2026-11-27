@@ -209,7 +209,7 @@ export default function VirtualOfficesPage() {
     <>
       <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
         <PageFrame>
-          <div className="mb-3 flex flex-col md:flex-row md:items-end justify-between gap-3 shrink-0">
+          <div data-tour="vo-header" className="mb-3 flex flex-col md:flex-row md:items-end justify-between gap-3 shrink-0">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Virtual Office Companies

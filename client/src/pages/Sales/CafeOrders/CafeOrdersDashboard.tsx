@@ -72,15 +72,17 @@ function SectionCard({
   title,
   subtitle,
   bodyClassName = "p-5",
+  dataTour,
   children,
 }: {
   title: string;
   subtitle: string;
   bodyClassName?: string;
+  dataTour?: string;
   children: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <section data-tour={dataTour} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
       <div className="border-b border-slate-100 px-5 py-4">
         <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">{title}</h2>
         <p className="mt-1 text-[11px] text-slate-500">{subtitle}</p>
@@ -260,7 +262,7 @@ export default function CafeOrdersDashboard() {
   return (
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
-        <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+        <div data-tour="cafe-orders-dashboard-banner" className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img src={cafeBannerImage} alt="" aria-hidden="true" className="absolute inset-y-0 right-0 h-full w-full object-cover object-center sm:w-[64%]" style={{ WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 22%, black 100%)", maskImage: "linear-gradient(to right, transparent 0%, black 22%, black 100%)" }} />
             <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-br from-[#2563EB]/45 via-[#3B82F6]/25 to-[#60A5FA]/15" />
@@ -280,7 +282,7 @@ export default function CafeOrdersDashboard() {
         {loadError && !isLoading ? <div className="mb-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] text-amber-800"><AlertTriangle size={16} />{loadError}</div> : null}
 
         {!isLoading ? <>
-          <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-4">
+          <div data-tour="cafe-orders-dashboard-stats" className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-4">
             <StatTile icon={<Armchair size={18} />} label="Active tables" value={activeTables} sub={`${occupiedTables} currently occupied`} />
             <StatTile icon={<Receipt size={18} />} label="Open orders" value={openOrders.length} sub="Across live tables" tone="amber" />
             <StatTile icon={<ChefHat size={18} />} label="In kitchen" value={kitchenOrders} sub="Placed or preparing" tone="amber" />
@@ -291,7 +293,7 @@ export default function CafeOrdersDashboard() {
             <StatTile icon={<Receipt size={18} />} label="Average bill" value={formatCurrency(analytics?.summary?.averageBill || 0)} sub="Settled orders" tone="violet" />
           </div>
 
-          <div className="mb-6">
+          <div data-tour="cafe-orders-dashboard-modules" className="mb-6">
             <p className="text-sm font-pmedium text-slate-900">Manage café order operations</p>
             <p className="mt-1 text-[10px] text-slate-500">Open a module to work with its dedicated café order view.</p>
             <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -303,33 +305,33 @@ export default function CafeOrdersDashboard() {
           </div>
 
           <div className="mb-4 flex flex-col gap-4">
-            <SectionCard title="Order trend" subtitle="Settled café order count across the last 30 days.">
+            <SectionCard dataTour="cafe-orders-dashboard-order-trend" title="Order trend" subtitle="Settled café order count across the last 30 days.">
               {(analytics?.daily || []).length ? <ReactApexChart type="bar" height={320} options={orderTrendOptions} series={[{ name: "Orders", data: (analytics?.daily || []).map((item) => item.orders) }]} /> : <div className="flex h-[280px] items-center justify-center text-[11px] text-slate-500">No settled-order trend recorded yet.</div>}
             </SectionCard>
-            <SectionCard title="Revenue trend" subtitle="Revenue collected from settled café orders across the last 30 days.">
+            <SectionCard dataTour="cafe-orders-dashboard-revenue-trend" title="Revenue trend" subtitle="Revenue collected from settled café orders across the last 30 days.">
               {(analytics?.daily || []).length ? <ReactApexChart type="area" height={320} options={revenueTrendOptions} series={[{ name: "Revenue", data: (analytics?.daily || []).map((item) => item.revenue) }]} /> : <div className="flex h-[280px] items-center justify-center text-[11px] text-slate-500">No café revenue trend recorded yet.</div>}
             </SectionCard>
           </div>
 
           <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <SectionCard title="Order status" subtitle="Current operational and historical order distribution.">
+            <SectionCard dataTour="cafe-orders-dashboard-status" title="Order status" subtitle="Current operational and historical order distribution.">
               {orderStatuses.length ? <DonutChart centerLabel="Orders" labels={orderStatuses.map((item) => item.label)} series={orderStatuses.map((item) => item.value)} colors={["#2563EB", "#F59E0B", "#7C3AED", "#10B981", "#0F766E", "#EF4444"]} tooltipValue={orderStatuses.map((item) => `${item.value} orders`)} wrapLabels /> : <div className="flex h-[280px] items-center justify-center text-[11px] text-slate-500">No order-status data yet.</div>}
             </SectionCard>
-            <SectionCard title="Payment methods" subtitle="How settled café bills were collected.">
+            <SectionCard dataTour="cafe-orders-dashboard-payments" title="Payment methods" subtitle="How settled café bills were collected.">
               {paymentMix.length ? <DonutChart centerLabel="Bills" labels={paymentMix.map((item) => item.label)} series={paymentMix.map((item) => item.value)} colors={["#2563EB", "#10B981", "#7C3AED", "#F59E0B", "#64748B"]} tooltipValue={paymentMix.map((item) => `${item.value} bills`)} wrapLabels /> : <div className="flex h-[280px] items-center justify-center text-[11px] text-slate-500">No payment-method data yet.</div>}
             </SectionCard>
           </div>
 
           <div className="mb-4 flex flex-col gap-4">
-            <SectionCard title="Peak order hours" subtitle="Settled bills grouped by the hour they were completed.">
+            <SectionCard dataTour="cafe-orders-dashboard-peak" title="Peak order hours" subtitle="Settled bills grouped by the hour they were completed.">
               {(analytics?.peakHours || []).length ? <ReactApexChart type="bar" height={320} options={peakOptions} series={[{ name: "Orders", data: (analytics?.peakHours || []).map((item) => item.orders) }]} /> : <div className="flex h-[280px] items-center justify-center text-[11px] text-slate-500">No hourly order demand recorded yet.</div>}
             </SectionCard>
-            <SectionCard title="Top-selling items" subtitle="Highest-volume menu items across settled bills.">
+            <SectionCard dataTour="cafe-orders-dashboard-top-items" title="Top-selling items" subtitle="Highest-volume menu items across settled bills.">
               {topItems.length ? <ReactApexChart type="bar" height={320} options={topItemsOptions} series={[{ name: "Quantity sold", data: topItems.map((item) => item.quantity) }]} /> : <div className="flex h-[280px] items-center justify-center text-[11px] text-slate-500">No item-sales data recorded yet.</div>}
             </SectionCard>
           </div>
 
-          <SectionCard title="Recent orders" subtitle="Latest live, settled, and cancelled café orders." bodyClassName="max-h-[390px] overflow-y-auto p-0">
+          <SectionCard dataTour="cafe-orders-dashboard-recent" title="Recent orders" subtitle="Latest live, settled, and cancelled café orders." bodyClassName="max-h-[390px] overflow-y-auto p-0">
             <table className="w-full table-fixed border-collapse text-left">
               <thead className="sticky top-0 z-10 bg-slate-50 text-[9px] uppercase tracking-[0.08em] text-slate-500"><tr><th className="w-[16%] px-5 py-3">Order</th><th className="w-[21%] px-5 py-3">Table / customer</th><th className="w-[18%] px-5 py-3">Waiter</th><th className="w-[17%] px-5 py-3">Created</th><th className="w-[14%] px-5 py-3">Total</th><th className="w-[14%] px-5 py-3">Status</th></tr></thead>
               <tbody className="divide-y divide-slate-100 text-[11px]">

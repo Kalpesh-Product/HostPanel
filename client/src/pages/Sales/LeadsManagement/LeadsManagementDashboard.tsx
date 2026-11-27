@@ -75,16 +75,21 @@ function Empty({ children }: { children: ReactNode }) {
 function ChartCard({
   title,
   subtitle,
+  dataTour,
   bodyClassName = "p-5",
   children,
 }: {
   title: string;
   subtitle?: string;
+  dataTour?: string;
   bodyClassName?: string;
   children: ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <div
+      data-tour={dataTour}
+      className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+    >
       <div className="border-b border-slate-100 px-5 py-4">
         <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">{title}</h2>
         {subtitle ? <p className="mt-1 text-[11px] text-slate-500">{subtitle}</p> : null}
@@ -304,7 +309,10 @@ export default function LeadsManagementDashboard() {
   return (
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
-        <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+        <div
+          data-tour="leads-dashboard-banner"
+          className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]"
+        >
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img
               src={leadsBannerImage}
@@ -362,7 +370,10 @@ export default function LeadsManagementDashboard() {
             ))}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3">
+          <div
+            data-tour="leads-dashboard-stats"
+            className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3"
+          >
             <StatTile icon={<Magnet size={20} />} label="Total leads" value={stats.total} sub="Website, Nomad, and unit-tour leads combined" tone="blue" />
             <StatTile icon={<Globe size={20} />} label="Website & Nomad" value={stats.websiteCount} sub="All website and Nomad enquiries" tone="violet" />
             <StatTile icon={<Users size={20} />} label="Unit tour leads" value={stats.unitTourCount} sub="Synced from Visitor Management" tone="orange" />
@@ -372,7 +383,7 @@ export default function LeadsManagementDashboard() {
           </div>
         )}
 
-        <div className="mb-6">
+        <div data-tour="leads-dashboard-modules" className="mb-6">
           <div className="mb-3">
             <p className="text-sm font-pmedium text-slate-900">Manage leads</p>
             <p className="mt-1 text-[10px] font-pmedium text-slate-500">Each lead pool opens on its own page — website/Nomad enquiries and visitor-desk tour leads.</p>
@@ -398,7 +409,7 @@ export default function LeadsManagementDashboard() {
         {!isLoading ? (
           <>
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-              <ChartCard title="Monthly Lead Trend" subtitle="Website/Nomad vs. unit-tour leads created in the last 12 calendar months.">
+              <ChartCard dataTour="leads-dashboard-trend" title="Monthly Lead Trend" subtitle="Website/Nomad vs. unit-tour leads created in the last 12 calendar months.">
                 <GroupedBarGraph
                   options={trendChartOptions}
                   series={[
@@ -407,7 +418,7 @@ export default function LeadsManagementDashboard() {
                   ]}
                 />
               </ChartCard>
-              <ChartCard title="Pipeline Stage Breakdown" subtitle="Unit-tour leads grouped by sales stage.">
+              <ChartCard dataTour="leads-dashboard-pipeline" title="Pipeline Stage Breakdown" subtitle="Unit-tour leads grouped by sales stage.">
                 {pipelineStages.length ? (
                   <DonutChart
                     centerLabel="Leads"
@@ -423,7 +434,7 @@ export default function LeadsManagementDashboard() {
             </div>
 
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
-              <ChartCard title="Lead Source Mix" subtitle="Every lead grouped by where it came from.">
+              <ChartCard dataTour="leads-dashboard-sources" title="Lead Source Mix" subtitle="Every lead grouped by where it came from.">
                 {sourceMix.length ? (
                   <DonutChart
                     centerLabel="Leads"
@@ -436,7 +447,7 @@ export default function LeadsManagementDashboard() {
                   <Empty>No lead-source data is available yet.</Empty>
                 )}
               </ChartCard>
-              <ChartCard title="Recent Leads" subtitle="The latest leads across every source." bodyClassName="">
+              <ChartCard dataTour="leads-dashboard-recent" title="Recent Leads" subtitle="The latest leads across every source." bodyClassName="">
                 {recentLeads.length ? (
                   <div className="max-h-[360px] overflow-auto">
                     <table className="w-full min-w-[640px] border-collapse text-left">
