@@ -1508,7 +1508,7 @@ export default function AccessGrantsPage() {
         <div className="flex flex-col gap-4">
 
           {/* 1. HEADER */}
-          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+          <div data-tour="access-grants-header" className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Access Grants
@@ -1687,7 +1687,7 @@ export default function AccessGrantsPage() {
                             {getStatusBadge(user.status)}
                           </td>
                           <td className="px-5 py-4">
-                            <div className="flex items-center justify-end gap-2">
+                            <div data-tour="access-grants-row-actions" className="flex items-center justify-end gap-2">
                               {user.roleGroup === 'Founder' ? (
                                 <span
                                   className="inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-2 text-[9px] font-pmedium uppercase leading-none tracking-wide text-emerald-700"

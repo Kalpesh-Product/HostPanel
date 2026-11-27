@@ -137,16 +137,21 @@ function StatTile({
 function SectionCard({
   title,
   subtitle,
+  dataTour,
   children,
   bodyClassName = "p-5",
 }: {
   title: string;
   subtitle: string;
+  dataTour?: string;
   children: ReactNode;
   bodyClassName?: string;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <section
+      data-tour={dataTour}
+      className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+    >
       <div className="border-b border-slate-100 px-5 py-4">
         <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">{title}</h2>
         <p className="mt-1 text-[11px] text-slate-500">{subtitle}</p>
@@ -330,7 +335,10 @@ export default function OrganizationWorkspaceDashboard() {
   return (
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
-        <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+        <div
+          data-tour="organization-dashboard-banner"
+          className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]"
+        >
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img
               src={organizationBannerImage}
@@ -386,7 +394,10 @@ export default function OrganizationWorkspaceDashboard() {
             ))}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div
+            data-tour="organization-dashboard-stats"
+            className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+          >
             <StatTile icon={<Users size={20} />} label="Total users" value={members.length} sub="All workspace user records" />
             <StatTile icon={<UserCheck size={20} />} label="Active users" value={activeCount} sub={userLimit ? `${activeCount}/${userLimit} account capacity used` : "Enabled workspace accounts"} tone="green" />
             <StatTile icon={<UserX size={20} />} label="Disabled users" value={disabledMembers.length} sub="Accounts without workspace access" tone="rose" />
@@ -398,7 +409,7 @@ export default function OrganizationWorkspaceDashboard() {
           </div>
         )}
 
-        <div className="mb-6">
+        <div data-tour="organization-dashboard-modules" className="mb-6">
           <p className="text-sm font-pmedium text-slate-900">Manage organization</p>
           <p className="mt-1 text-[10px] text-slate-500">Open the organization sections enabled for your plan and access.</p>
           <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-2">
@@ -425,21 +436,21 @@ export default function OrganizationWorkspaceDashboard() {
         {!loading ? (
           <>
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
-              <SectionCard title="Users by role" subtitle="Current workspace users grouped by access role.">
+              <SectionCard dataTour="organization-dashboard-roles" title="Users by role" subtitle="Current workspace users grouped by access role.">
                 {roleMix.length ? (
                   <DonutChart centerLabel="Users" labels={roleMix.map((item) => item.label)} series={roleMix.map((item) => item.value)} colors={ROLE_COLORS.slice(0, roleMix.length)} tooltipValue={roleMix.map((item) => `${item.value} users`)} wrapLabels />
                 ) : (
                   <div className="flex h-[280px] items-center justify-center text-[11px] text-slate-500">No users recorded yet.</div>
                 )}
               </SectionCard>
-              <SectionCard title="Account status" subtitle="Workspace users grouped by onboarding and access status.">
+              <SectionCard dataTour="organization-dashboard-status" title="Account status" subtitle="Workspace users grouped by onboarding and access status.">
                 {statusMix.length ? (
                   <DonutChart centerLabel="Users" labels={statusMix.map((item) => item.label)} series={statusMix.map((item) => item.value)} colors={["#22C55E", "#F59E0B", "#EF4444", "#2563EB"].slice(0, statusMix.length)} tooltipValue={statusMix.map((item) => `${item.value} users`)} wrapLabels />
                 ) : (
                   <div className="flex h-[280px] items-center justify-center text-[11px] text-slate-500">No account status data yet.</div>
                 )}
               </SectionCard>
-              <SectionCard title="Department size" subtitle="Top enabled departments by assigned member count.">
+              <SectionCard dataTour="organization-dashboard-departments" title="Department size" subtitle="Top enabled departments by assigned member count.">
                 {isModuleEnabled(ORGANIZATION_DASHBOARD_MODULES[1]) && departmentRows.length ? (
                   <GroupedBarGraph options={departmentChartOptions} series={[{ name: "Members", data: departmentRows.map((department) => department.members) }]} />
                 ) : (
@@ -450,7 +461,7 @@ export default function OrganizationWorkspaceDashboard() {
               </SectionCard>
             </div>
 
-            <SectionCard title="Recent platform users" subtitle="Latest user and invitation records from Organization Management." bodyClassName="">
+            <SectionCard dataTour="organization-dashboard-recent" title="Recent platform users" subtitle="Latest user and invitation records from Organization Management." bodyClassName="">
               {recentMembers.length ? (
                 <div className="max-h-[360px] min-h-[240px] overflow-y-auto overflow-x-hidden">
                   <table className="w-full table-fixed border-collapse text-left">

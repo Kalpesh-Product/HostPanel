@@ -154,14 +154,19 @@ function SectionCard({
   subtitle,
   children,
   bodyClassName = "p-5",
+  tourId,
 }: {
   title: string;
   subtitle: string;
   children: ReactNode;
   bodyClassName?: string;
+  tourId?: string;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <section
+      data-tour={tourId}
+      className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+    >
       <div className="border-b border-slate-100 px-5 py-4">
         <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">{title}</h2>
         <p className="mt-1 text-[11px] text-slate-500">{subtitle}</p>
@@ -459,7 +464,10 @@ export default function MeetingRoomBookingDashboard() {
   return (
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
-        <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+        <div
+          data-tour="meetings-dashboard-banner"
+          className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]"
+        >
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img
               src={meetingRoomBanner}
@@ -498,7 +506,10 @@ export default function MeetingRoomBookingDashboard() {
             {Array.from({ length: 8 }, (_, index) => <div key={index} className="h-[112px] animate-pulse rounded-xl bg-slate-100" />)}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div
+            data-tour="meetings-dashboard-stats"
+            className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+          >
             <StatTile icon={<CalendarCheck size={20} />} label="Total bookings" value={stats.total} sub="All recorded room bookings" />
             <StatTile icon={<Clock3 size={20} />} label="Today" value={stats.today} sub="Bookings scheduled today" tone="amber" />
             <StatTile icon={<DoorOpen size={20} />} label="Upcoming" value={stats.upcoming} sub="Current and future bookings" tone="violet" />
@@ -510,7 +521,7 @@ export default function MeetingRoomBookingDashboard() {
           </div>
         )}
 
-        <div className="mb-6">
+        <div data-tour="meetings-dashboard-modules" className="mb-6">
           <p className="text-sm font-pmedium text-slate-900">Manage booking operations</p>
           <p className="mt-1 text-[10px] text-slate-500">Open a booking module to access its tabs, summary cards, filters, and records.</p>
           <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -537,7 +548,7 @@ export default function MeetingRoomBookingDashboard() {
         {!isLoading ? (
           <>
             <div className="mb-4">
-              <SectionCard title="Booking activity" subtitle="Bookings created versus completed across the last 12 calendar months.">
+              <SectionCard tourId="meetings-dashboard-activity" title="Booking activity" subtitle="Bookings created versus completed across the last 12 calendar months.">
                 {bookings.length ? (
                   <GroupedBarGraph
                     options={chartOptions}
@@ -554,6 +565,7 @@ export default function MeetingRoomBookingDashboard() {
 
             <div className="mb-4">
               <SectionCard
+                tourId="meetings-dashboard-utilization"
                 title="Room utilization"
                 subtitle={`Booked hours by meeting room from active and completed bookings. ${bookingAnalytics.totalBookedHours} hours recorded.`}
               >
@@ -572,6 +584,7 @@ export default function MeetingRoomBookingDashboard() {
 
             <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
               <SectionCard
+                tourId="meetings-dashboard-busy-time"
                 title="Busy time during the week"
                 subtitle="Booking demand by weekday and time of day, helping teams identify peak room usage."
               >
@@ -589,6 +602,7 @@ export default function MeetingRoomBookingDashboard() {
               </SectionCard>
 
               <SectionCard
+                tourId="meetings-dashboard-duration"
                 title="Meeting duration breakdown"
                 subtitle="Distribution of bookings by reserved meeting length."
               >
@@ -610,7 +624,7 @@ export default function MeetingRoomBookingDashboard() {
             </div>
 
             <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <SectionCard title="Booking sources" subtitle="Current booking volume grouped by internal, external, and tenant activity.">
+              <SectionCard tourId="meetings-dashboard-sources" title="Booking sources" subtitle="Current booking volume grouped by internal, external, and tenant activity.">
                 {typeMix.length ? (
                   <DonutChart
                     centerLabel="Bookings"
@@ -624,7 +638,7 @@ export default function MeetingRoomBookingDashboard() {
                   <div className="flex h-[280px] items-center justify-center text-[11px] text-slate-500">No booking-source data yet.</div>
                 )}
               </SectionCard>
-              <SectionCard title="Operational status" subtitle="Bookings grouped by their latest recorded status.">
+              <SectionCard tourId="meetings-dashboard-status" title="Operational status" subtitle="Bookings grouped by their latest recorded status.">
                 {bookings.length ? (
                   <DonutChart
                     centerLabel="Bookings"
@@ -641,6 +655,7 @@ export default function MeetingRoomBookingDashboard() {
             </div>
 
             <SectionCard
+              tourId="meetings-dashboard-recent"
               title="Recent bookings"
               subtitle="Latest meeting-room bookings across the available booking modules."
               bodyClassName="max-h-[390px] overflow-y-auto p-0"

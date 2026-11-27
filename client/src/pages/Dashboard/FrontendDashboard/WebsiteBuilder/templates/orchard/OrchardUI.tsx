@@ -189,9 +189,9 @@ export const OrchardContactItems: React.FC = () => {
   );
 };
 
-export const OrchardReviews: React.FC<{ limit?: number }> = ({ limit }) => {
+export const OrchardReviews: React.FC<{ limit?: number; offset?: number }> = ({ limit = 4, offset = 0 }) => {
   const { t } = useTpl();
-  const reviews = (t.testimonials || []).slice(0, limit || 4) as any[];
+  const reviews = (t.testimonials || []).slice(offset, offset + limit) as any[];
   if (!reviews.length) return null;
   return (
     <div className="ol-review-grid">

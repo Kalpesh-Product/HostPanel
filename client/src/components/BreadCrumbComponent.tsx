@@ -479,6 +479,61 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/extra-common-modules/finance-management/approvals",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
+      {
+        label: "Finance Management",
+        path: "/extra-common-modules/finance-management",
+      },
+      { label: "Approval Center" },
+    ],
+  },
+  {
+    pattern: "/extra-common-modules/finance-management/overview",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
+      {
+        label: "Finance Management",
+        path: "/extra-common-modules/finance-management",
+      },
+      { label: "Budget Overview" },
+    ],
+  },
+  {
+    pattern: "/extra-common-modules/finance-management/projected",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
+      {
+        label: "Finance Management",
+        path: "/extra-common-modules/finance-management",
+      },
+      { label: "Projected Budget" },
+    ],
+  },
+  {
+    pattern: "/extra-common-modules/finance-management/extra",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
+      {
+        label: "Finance Management",
+        path: "/extra-common-modules/finance-management",
+      },
+      { label: "Extra Requested" },
+    ],
+  },
+  {
+    pattern: "/extra-common-modules/finance-management/history",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
+      {
+        label: "Finance Management",
+        path: "/extra-common-modules/finance-management",
+      },
+      { label: "Expense History" },
+    ],
+  },
+  {
     pattern: "/extra-common-modules/reports/manage",
     crumbs: [
       { label: SECTION_LABELS.extraCommon, path: "/extra-common-modules" },
@@ -587,6 +642,38 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
       { label: SECTION_LABELS.keyApps, path: "/key-apps" },
       { label: "Visitor Management", path: "/visitors/dashboard" },
       { label: "Daily Visitors" },
+    ],
+  },
+  {
+    pattern: "/visitors/visitor-management/daily",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Visitor Management", path: "/visitors/dashboard" },
+      { label: "Daily Visitors" },
+    ],
+  },
+  {
+    pattern: "/visitors/visitor-management/history",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Visitor Management", path: "/visitors/dashboard" },
+      { label: "Visitor History" },
+    ],
+  },
+  {
+    pattern: "/visitors/visitor-management/bookings",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Visitor Management", path: "/visitors/dashboard" },
+      { label: "Bookings" },
+    ],
+  },
+  {
+    pattern: "/visitors/visitor-management/clients",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/key-apps" },
+      { label: "Visitor Management", path: "/visitors/dashboard" },
+      { label: "Clients" },
     ],
   },
   {
@@ -1198,6 +1285,28 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
         path: "/core-modules/organization-management",
       },
       { label: "Workspace" },
+    ],
+  },
+  {
+    pattern: "/core-modules/organization-management/users",
+    crumbs: [
+      { label: SECTION_LABELS.founderCore, path: "/core-modules" },
+      {
+        label: "Organization Management",
+        path: "/core-modules/organization-management",
+      },
+      { label: "Platform Users" },
+    ],
+  },
+  {
+    pattern: "/core-modules/organization-management/departments",
+    crumbs: [
+      { label: SECTION_LABELS.founderCore, path: "/core-modules" },
+      {
+        label: "Organization Management",
+        path: "/core-modules/organization-management",
+      },
+      { label: "Departments" },
     ],
   },
   {
@@ -2018,6 +2127,54 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
         path: "/department-accesses/sales-department",
       },
       { label: "Sales Architecture" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/sales-department/sales-architecture/architecture",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Sales Dashboard", path: "/department-accesses/sales-department" },
+      {
+        label: "Sales Architecture",
+        path: "/department-accesses/sales-department/sales-architecture",
+      },
+      { label: "Architecture" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/sales-department/sales-architecture/tenants",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Sales Dashboard", path: "/department-accesses/sales-department" },
+      {
+        label: "Sales Architecture",
+        path: "/department-accesses/sales-department/sales-architecture",
+      },
+      { label: "Tenants" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/sales-department/sales-architecture/virtual-offices",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Sales Dashboard", path: "/department-accesses/sales-department" },
+      {
+        label: "Sales Architecture",
+        path: "/department-accesses/sales-department/sales-architecture",
+      },
+      { label: "Virtual Offices" },
+    ],
+  },
+  {
+    pattern: "/department-accesses/sales-department/sales-architecture/departments",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/department-accesses" },
+      { label: "Sales Dashboard", path: "/department-accesses/sales-department" },
+      {
+        label: "Sales Architecture",
+        path: "/department-accesses/sales-department/sales-architecture",
+      },
+      { label: "Departments" },
     ],
   },
   {

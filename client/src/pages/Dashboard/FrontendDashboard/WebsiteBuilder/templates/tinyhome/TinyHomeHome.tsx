@@ -2,11 +2,12 @@ import { getInclusionMeta } from "../inclusionIcons";
 import { priceWithUnit } from "../templateKit";
 import { getMediaSrc } from "../useWebsiteTemplateData";
 import { LeadFormPanel } from "../shared/TplLead";
+import { StarRow } from "../shared/TplUI";
 import { useTinyHome } from "./TinyHomeContext";
-import { TinyHomeImage } from "./TinyHomeUI";
+import { TinyHomeImage, TinyHomeMap } from "./TinyHomeUI";
 
 export function TinyHomeHome() {
-  const { t, draft, primary, services, openLead, goToItem, c, photo } = useTinyHome();
+  const { t, draft, primary, services, rating, openLead, goToItem, c, photo } = useTinyHome();
   const enabled = t.isSectionEnabled;
   const booking = primary?.leadEnabled ? primary : services.find((service) => service.leadEnabled);
   const showForm = booking && enabled("home_stay_request");
@@ -27,7 +28,7 @@ export function TinyHomeHome() {
     title: c("nearby." + index + ".title", nearbyDefaults[index - 1] || ""),
     image: photo("nearby." + index + ".image", nearbyDefaults.length ? photos[index + 3] || "" : ""),
   })).filter((activity) => activity.title || activity.image);
-  const firstReview = t.testimonials.find((review: any) => review.text || review.review || review.testimony);
+  const reviews: { key: string; text: string; name: string; rating: number }[] = t.testimonials.slice(0, 3);
   const title = c("hero.title", draft.title || "A little closer to nature");
   const featuredPrice = featured ? priceWithUnit(featured.price, featured.priceUnit) : "";
   const requestStay = () => {
@@ -90,14 +91,28 @@ export function TinyHomeHome() {
         </section>
       ) : null}
 
-      {enabled("home_testimonials") && firstReview ? (
+      {enabled("home_testimonials") && reviews.length > 0 ? (
         <section className="tinyhome-section tinyhome-quote">
-          <div className="tinyhome-shell tinyhome-narrow tinyhome-center">
-            <p className="tinyhome-kicker">{c("reviews.eyebrow", "From our guests")}</p>
-            <figure>
-              <blockquote>{firstReview.text || firstReview.review || firstReview.testimony}</blockquote>
-              <figcaption>{firstReview.name || firstReview.author}</figcaption>
-            </figure>
+          <div className="tinyhome-shell tinyhome-center">
+            <h2>{c("reviews.eyebrow", "From our guests")}</h2>
+            {rating.count > 0 ? (
+              <div className="tinyhome-review-summary">
+                <strong>{rating.avg.toFixed(1)} / 5</strong>
+                <span aria-hidden="true"><StarRow value={rating.avg} size={18} /></span>
+                <span>from {rating.count} {rating.count === 1 ? "rating" : "ratings"}</span>
+              </div>
+            ) : null}
+            <div className="tinyhome-guest-reviews">
+              {reviews.map((review) => (
+                <figure key={review.key}>
+                  <div className="tinyhome-review-stars">
+                    {review.rating > 0 ? <StarRow value={review.rating} size={16} /> : null}
+                  </div>
+                  <blockquote>{review.text}</blockquote>
+                  <figcaption>{review.name}</figcaption>
+                </figure>
+              ))}
+            </div>
             {t.showWriteReview ? <button type="button" className="tinyhome-button" onClick={t.openReviewModal}>Write a review</button> : null}
           </div>
         </section>
@@ -146,11 +161,16 @@ export function TinyHomeHome() {
         </section>
       ) : null}
 
-      {enabled("home_contact") && t.contactPageEnabled ? (
+      {enabled("home_contact") && (t.contactPageEnabled || draft.mapUrl || t.contactAddress) ? (
         <section className="tinyhome-section tinyhome-shell tinyhome-center tinyhome-home-contact">
           <h2>{c("contact.title", "Find your way here")}</h2>
           {t.contactAddress ? <p>{t.contactAddress}</p> : null}
-          <button type="button" className="tinyhome-button" onClick={() => t.goToSection("contact")}>{c("contact.cta", "Get directions")}</button>
+          {t.contactPageEnabled ? (
+            <button type="button" className="tinyhome-button" onClick={() => t.goToSection("contact")}>
+              {c("contact.cta", "Get directions")}
+            </button>
+          ) : null}
+          <TinyHomeMap />
         </section>
       ) : null}
     </>

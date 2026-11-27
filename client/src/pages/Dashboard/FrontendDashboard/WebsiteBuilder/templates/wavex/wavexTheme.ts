@@ -40,8 +40,8 @@ ${WAVEX_FONTS}
 .wx-shell { width: min(100% - 40px, 1200px); margin-inline: auto; }
 @media (min-width: 768px) { .wx-shell { width: min(100% - 64px, 1200px); } }
 
-.wx-section { padding: clamp(66px, 8vw, 112px) 0; }
-.wx-section-tight { padding: clamp(46px, 6vw, 76px) 0; }
+.wx-section { padding: clamp(42px, 5.5vw, 76px) 0; }
+.wx-section-tight { padding: clamp(30px, 4vw, 52px) 0; }
 
 .wx-kicker {
   display: inline-flex;
@@ -88,7 +88,7 @@ ${WAVEX_FONTS}
 
 /* ── shared primitives used by the shared forms, modals and review widgets ── */
 .wx .tp-wrap { width: min(100% - 40px, 1200px); margin-inline: auto; }
-.wx .tp-section { padding: 60px 0; }
+.wx .tp-section { padding: clamp(30px, 4vw, 48px) 0; }
 .wx .tp-muted { color: var(--wx-muted); }
 .wx .tp-soft { background: var(--wx-soft); border-radius: 16px; }
 .wx .tp-h3 { font-size: 22px; font-weight: 800; letter-spacing: -.035em; }
@@ -258,7 +258,7 @@ textarea.wx .tp-input, .wx textarea.tp-input { resize: vertical; min-height: 92p
   position: relative;
 }
 .wx-nav-link::after { content: ''; position: absolute; left: 0; right: 100%; bottom: 1px; height: 2px; background: var(--t-accent, var(--wx-coral)); transition: right .22s; }
-.wx-nav-link:hover::after { right: 0; }
+.wx-nav-link:is(:hover, :focus-visible, [aria-current="page"])::after { right: 0; }
 .wx-header-actions { display: flex; align-items: center; gap: 10px; }
 .wx-menu {
   display: grid;
@@ -311,6 +311,10 @@ textarea.wx .tp-input, .wx textarea.tp-input { resize: vertical; min-height: 92p
 }
 .wx-drawer-nav button span { color: var(--wx-muted); font-size: 11px; font-weight: 700; }
 .wx-drawer-nav button:hover { color: var(--t-accent-fg, var(--wx-coral)); }
+.wx-drawer-nav button[aria-current="page"] {
+  text-decoration: underline 2px var(--t-accent, var(--wx-coral));
+  text-underline-offset: 5px;
+}
 .wx-sticky-bar {
   position: fixed;
   left: 12px;
@@ -350,7 +354,7 @@ textarea.wx .tp-input, .wx textarea.tp-input { resize: vertical; min-height: 92p
 .wx-hero-content { max-width: 720px; }
 .wx-hero-eyebrow { display: block; margin-bottom: 18px; font-size: 13px; font-weight: 600; color: rgba(255,255,255,.86); }
 .wx-hero-title {
-  font-size: clamp(42px, 6.4vw, 78px);
+  font-size: clamp(34px, 5.2vw, 64px);
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: -.02em;
@@ -366,7 +370,7 @@ textarea.wx .tp-input, .wx textarea.tp-input { resize: vertical; min-height: 92p
   min-height: 52px;
   padding: 12px 36px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 999px;
   background: var(--t-accent, var(--wx-coral));
   color: #fff;
   font-size: 16px;
@@ -482,6 +486,19 @@ textarea.wx .tp-input, .wx textarea.tp-input { resize: vertical; min-height: 92p
 .wx-spaces-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 36px; }
 .wx-spaces-head .wx-title { max-width: 720px; }
 .wx-space-grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
+.wx-services-index-grid {
+  --wx-services-columns: 1;
+  --wx-services-gap: 20px;
+  grid-template-columns: repeat(var(--wx-services-columns), minmax(0, 1fr));
+  gap: var(--wx-services-gap);
+}
+.wx-services-index-grid > :only-child {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: calc((100% + var(--wx-services-gap)) / var(--wx-services-columns) - var(--wx-services-gap));
+}
+@media (min-width: 640px) { .wx-services-index-grid { --wx-services-columns: 2; } }
+@media (min-width: 900px) { .wx-services-index-grid { --wx-services-columns: 3; } }
 .wx-space-card { position: relative; display: flex; flex-direction: column; overflow: hidden; border-radius: 18px; background: var(--wx-dark); color: #fff; min-height: 420px; }
 .wx-space-photo { position: relative; display: block; padding: 0; border: 0; background: none; cursor: pointer; height: 240px; overflow: hidden; }
 .wx-space-photo img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s cubic-bezier(.22,1,.36,1); }
@@ -490,6 +507,8 @@ textarea.wx .tp-input, .wx textarea.tp-input { resize: vertical; min-height: 92p
 .wx-space-body { display: flex; flex: 1; flex-direction: column; padding: 22px; }
 .wx-space-cat { font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.55); }
 .wx-space-title { margin-top: 8px; font-size: 21px; font-weight: 800; letter-spacing: -.035em; line-height: 1.2; }
+.wx-services-index-grid .wx-space-title { color: #fff; }
+.wx-services-index-grid button.wx-space-card { text-align: left; }
 .wx-space-desc { margin-top: 9px; font-size: 13px; line-height: 1.65; color: rgba(255,255,255,.65); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .wx-space-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 22px; }
 .wx-space-price { font-size: 11px; color: rgba(255,255,255,.6); }
@@ -499,6 +518,9 @@ textarea.wx .tp-input, .wx textarea.tp-input { resize: vertical; min-height: 92p
 
 /* ── testimonials ── */
 .wx-testimonials { background: var(--wx-soft); }
+.wx-testimonial-rating { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 16px; }
+.wx-testimonial-stars { margin-top: 12px; }
+.wx-testimonial-action { margin-top: 24px; text-align: center; }
 .wx-testimonial-stage { margin-top: 28px; padding: clamp(24px, 4vw, 50px); border-radius: 22px; background: var(--t-bg, #fff); border: 1px solid var(--wx-line); }
 .wx-quote-mark { font-size: 70px; line-height: .6; font-weight: 800; color: var(--t-accent, var(--wx-coral)); }
 .wx-quote { margin-top: 16px; max-width: 900px; font-size: clamp(19px, 2.5vw, 30px); font-weight: 700; line-height: 1.45; letter-spacing: -.03em; color: var(--wx-ink); }
@@ -506,8 +528,9 @@ textarea.wx .tp-input, .wx textarea.tp-input { resize: vertical; min-height: 92p
 .wx-avatar { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; background: #e7e5e0; }
 .wx-person strong { display: block; font-size: 14px; }
 .wx-person span { display: block; margin-top: 3px; font-size: 12px; color: var(--wx-muted); }
-.wx-testimonial-controls { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 24px; }
-.wx-testimonial-dots { display: flex; gap: 7px; }
+.wx-testimonial-controls { display: flex; flex-direction: column; align-items: center; gap: 14px; margin-top: 24px; }
+.wx-testimonial-dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; }
+.wx-testimonial-arrows { display: flex; gap: 8px; }
 .wx-testimonial-dots button { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 50%; background: #d4d3cf; cursor: pointer; }
 .wx-testimonial-dots button.is-active { width: 22px; border-radius: 99px; background: var(--t-accent, var(--wx-coral)); }
 
@@ -526,20 +549,20 @@ textarea.wx .tp-input, .wx textarea.tp-input { resize: vertical; min-height: 92p
 .wx-contact-form > p { margin: 10px 0 24px; font-size: 13px; line-height: 1.7; color: var(--wx-muted); }
 
 /* ── footer ── */
-.wx-footer { padding-top: clamp(30px, 5vw, 60px); background: var(--wx-dark); color: #fff; }
-.wx-footer-panel { padding: clamp(30px, 5vw, 60px); border-radius: 24px 24px 0 0; background: color-mix(in srgb, var(--wx-ink) 86%, #000); }
-.wx-footer-cta { display: grid; gap: 28px; padding-bottom: 44px; border-bottom: 1px solid rgba(255,255,255,.14); }
+.wx-footer { padding-top: clamp(16px, 2.5vw, 32px); background: var(--wx-dark); color: #fff; }
+.wx-footer-panel { padding: clamp(22px, 3vw, 36px) clamp(30px, 5vw, 60px) clamp(18px, 2.5vw, 30px); border-radius: 24px 24px 0 0; background: color-mix(in srgb, var(--wx-ink) 86%, #000); }
+.wx-footer-cta { display: grid; gap: 24px; padding-bottom: 30px; border-bottom: 1px solid rgba(255,255,255,.14); }
 @media (min-width: 900px) { .wx-footer-cta { grid-template-columns: 1.3fr .7fr; align-items: end; } }
 .wx-footer-cta h2 { margin-top: 14px; font-size: clamp(30px, 4.4vw, 54px); font-weight: 800; letter-spacing: -.05em; line-height: 1.05; }
 .wx-footer-cta .wx-btn { justify-self: start; }
-.wx-footer-grid { display: grid; gap: 30px; padding: 42px 0; }
+.wx-footer-grid { display: grid; gap: 24px; padding: 28px 0; }
 @media (min-width: 720px) { .wx-footer-grid { grid-template-columns: 1.4fr repeat(3, 1fr); } }
 .wx-footer-brand { font-size: 22px; font-weight: 800; letter-spacing: -.05em; }
 .wx-footer-brand p { margin-top: 12px; max-width: 280px; font-size: 13px; line-height: 1.75; color: rgba(255,255,255,.58); }
 .wx-footer-col strong { display: block; margin-bottom: 16px; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.5); }
 .wx-footer-col button, .wx-footer-col a { display: block; padding: 5px 0; border: 0; background: none; color: rgba(255,255,255,.86); font-size: 13px; cursor: pointer; text-align: left; }
 .wx-footer-col button:hover, .wx-footer-col a:hover { color: var(--t-accent, var(--wx-coral)); }
-.wx-footer-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-top: 22px; border-top: 1px solid rgba(255,255,255,.14); color: rgba(255,255,255,.5); font-size: 11px; }
+.wx-footer-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.14); color: rgba(255,255,255,.5); font-size: 11px; }
 .wx-socials { display: flex; gap: 8px; }
 .wx-socials a { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid rgba(255,255,255,.22); border-radius: 50%; font-size: 11px; font-weight: 800; }
 .wx-socials a:hover { background: var(--t-accent, var(--wx-coral)); border-color: var(--t-accent, var(--wx-coral)); }
@@ -585,6 +608,10 @@ textarea.wx .tp-input, .wx textarea.tp-input { resize: vertical; min-height: 92p
 .wx-service-meta { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 20px; font-size: 12px; font-weight: 800; }
 .wx-service-meta b { color: var(--t-accent-fg, var(--wx-coral)); }
 .wx-room-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
+.wx-related-rooms { margin-top: 42px; }
+.wx-related-grid { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 640px) { .wx-related-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 900px) { .wx-related-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .wx-room { overflow: hidden; border: 1px solid var(--wx-line); border-radius: 18px; background: var(--t-bg, #fff); }
 .wx-room-photo { height: 210px; overflow: hidden; }
 .wx-room-photo img { width: 100%; height: 100%; object-fit: cover; }
@@ -598,6 +625,7 @@ textarea.wx .tp-input, .wx textarea.tp-input { resize: vertical; min-height: 92p
 .wx-room-body h3 { font-size: 20px; font-weight: 800; letter-spacing: -.03em; }
 .wx-room-body p { margin-top: 9px; font-size: 13px; line-height: 1.7; color: var(--wx-muted); }
 .wx-room-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.wx-related-grid .wx-room-actions { justify-content: center; }
 .wx-detail-grid { display: grid; gap: 40px; }
 @media (min-width: 900px) { .wx-detail-grid { grid-template-columns: 1.2fr .8fr; gap: 70px; } }
 .wx-facts { display: grid; gap: 0; margin-top: 26px; }
@@ -656,6 +684,69 @@ textarea.wx .tp-input, .wx textarea.tp-input { resize: vertical; min-height: 92p
 .wx-modal-form > .wx-kicker { margin-bottom: 10px; }
 .wx-modal-form > h2 { font-size: clamp(24px, 3vw, 34px); font-weight: 800; letter-spacing: -.04em; }
 .wx-modal-form > p { margin: 10px 0 22px; font-size: 13px; line-height: 1.65; color: var(--wx-muted); }
+
+@media (max-width: 640px) {
+  .wx-sticky-bar {
+    display: none;
+  }
+
+  .wx main,
+  .wx-footer,
+  .wx-modal-aside-copy,
+  .wx-modal-form {
+    text-align: center;
+  }
+
+  .wx form {
+    text-align: left;
+  }
+
+  .wx form .tp-btn {
+    justify-self: center;
+  }
+
+  .wx-hero-content,
+  .wx-hero-sub,
+  .wx-page-body,
+  .wx-vibe-copy .wx-copy,
+  .wx-footer-brand p,
+  .wx-footer-col :is(button, a) {
+    margin-inline: auto;
+  }
+
+  .wx-hero-actions,
+  .wx-spaces-head,
+  .wx-testimonial-rating,
+  .wx-person,
+  .wx-room-actions,
+  .wx-space-foot,
+  .wx-service-meta,
+  .wx-contact-lines :is(a, div),
+  .wx-footer-bottom,
+  .wx-socials,
+  .wx-crumbs {
+    justify-content: center;
+  }
+
+  .wx-spaces-head > div:first-child {
+    width: 100%;
+  }
+
+  .wx-services-index-grid button.wx-space-card,
+  .wx-service-row,
+  .wx-job,
+  .wx-footer-col :is(button, a) {
+    text-align: center;
+  }
+
+  .wx-job {
+    justify-content: center;
+  }
+
+  .wx-footer-cta .wx-btn {
+    justify-self: center;
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .wx *, .wx *::before, .wx *::after {

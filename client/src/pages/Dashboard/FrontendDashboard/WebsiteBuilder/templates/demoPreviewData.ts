@@ -10,6 +10,9 @@
 import type { ServiceKind } from "./verticalProfiles";
 import { serviceNameToKind } from "./serviceChoices";
 import { DEMO_BUSINESSES, withFaqs, type DemoBusiness } from "./demoContent";
+import { coPlaceDemoLogos } from "./coplace/coPlaceDemoLogos";
+import cafePhoto from "../../../../../assets/cafe-banner.jpg";
+import italianoBarista from "./italiano/head-barista.jpg";
 
 const TEMPLATE_KIND: Record<string, ServiceKind> = {
   savor: "menu",
@@ -1207,6 +1210,14 @@ const WORKHUB_DEMO_BUSINESS: DemoBusiness = (() => {
       },
     ],
     address: "18 Richmond Road, Bangalore 560025",
+    settings: {
+      ...base.settings,
+      logoCarousel: {
+        enabled: true,
+        title: "Trusted by Leading Companies",
+        logos: coPlaceDemoLogos,
+      },
+    },
     page: {
       ...base.page,
       heroHeading: "Work in Northline Rooms",
@@ -1830,6 +1841,21 @@ const ORCHARD_DEMO_BUSINESS: DemoBusiness = (() => {
       "The rooms are calm, comfortable and full of practical details—good light, proper storage and beds made for real rest.",
       "Downstairs, the lounge, garden kitchen and rooftop give you room to work, cook, meet people or simply take an afternoon for yourself.",
     ],
+    team: base.team.map((member) => {
+      if (member.title === "Kabir") return { ...member, image: faceCrop("photo-1758525589507-1d64a20415ac") };
+      if (member.title === "Anjali") return { ...member, image: faceCrop("photo-1573496799515-eebbb63814f2") };
+      return member;
+    }),
+    testimonials: [
+      ...base.testimonials,
+      {
+        name: "Meera K.",
+        jobPosition: "Guest",
+        rating: 4,
+        image: "",
+        testimony: "I had enough space to work during the day and usually ended up chatting with someone in the kitchen after dinner.",
+      },
+    ],
     founders: [
       {
         name: "Ananya Rao",
@@ -2051,7 +2077,6 @@ const RESTOBAR_DEMO_BUSINESS: DemoBusiness = (() => {
     "photo-1552566626-52f8b828add9",
     "photo-1514933651103-005eec06c04b",
     "photo-1515003197210-e0cd71810b5f",
-    "photo-1527761939622-911909463c76",
   ];
   const menu = [
     ["Starters", "Burrata & tomatoes", "$13", "Ripe tomatoes, basil oil and a slice of toasted sourdough.", "photo-1547592180-85f173990554"],
@@ -2072,7 +2097,7 @@ const RESTOBAR_DEMO_BUSINESS: DemoBusiness = (() => {
     subTitle: "An all-day café and bistro for plates worth passing around, a good drink, and time with friends.",
     cta: "See our menu",
     heroImages: hero.map((id) => photo(id, 1920)),
-    gallery: [...room, ...hero].map((id) => photo(id, 1300)),
+    gallery: [...room.map((id) => photo(id, 1300)), cafePhoto, ...hero.map((id) => photo(id, 1300))],
     aboutImages: [room[0], room[2]].map((id) => photo(id, 1200)),
     aboutTitle: "A neighborhood table",
     aboutPageStory: "Restobar began with a simple idea: a neighborhood café should make it easy to slow down and share a good meal.",
@@ -2129,12 +2154,17 @@ const italianoDemo: DemoBusiness = (() => {
     aboutPageMission: "We roll our pasta by hand and build our menu around what is in season.",
     aboutPageValues: "Come for a quick espresso or make an evening of it. There is always room at our table.",
     about: ["A neighborhood café and dining room serving the Italian dishes we grew up with."],
+    team: base.team.map((member) => member.title === "Rhea" ? { ...member, image: italianoBarista } : member),
     founders: [
       { name: "Elena Rossi", role: "Head chef", bio: "Elena brings the pasta and sauces she learned to make at home to the Italiano kitchen.", highlights: "", image: faceCrop("photo-1573497019236-17f8177b81e8") },
     ],
     testimonials: [
       { name: "Sofia M.", jobPosition: "Guest", rating: 5, image: "", testimony: "We shared the mushroom pasta and stayed for another coffee. It felt like an evening at a friend's table." },
       { name: "Daniel P.", jobPosition: "Guest", rating: 5, image: "", testimony: "The pizza came out crisp and hot, and the team made room for us on a busy evening." },
+      { name: "Maya R.", jobPosition: "Guest", rating: 4, image: "", testimony: "We stopped in for lunch and shared the burrata. The tomatoes were excellent, and the staff gave us time to enjoy the meal." },
+      { name: "Nina S.", jobPosition: "Guest", rating: 5, image: "", testimony: "The hand-cut tagliatelle was my favorite. I’d come back just for that and an espresso." },
+      { name: "Luca B.", jobPosition: "Guest", rating: 5, image: "", testimony: "We brought friends for dinner, and there was something for everyone. The panna cotta was the first plate we finished." },
+      { name: "Asha K.", jobPosition: "Guest", rating: 4, image: "", testimony: "It was lively on Saturday, but our server was attentive and the Margherita was worth the wait." },
     ],
     address: "12 Museum Road, Bengaluru 560001",
     page: {
@@ -2185,6 +2215,7 @@ const tinyHomeDemo: DemoBusiness = (() => {
     testimonials: [
       { name: "Maya Chen", jobPosition: "Weekend guest", rating: 5, image: "", testimony: "We spent most mornings on the porch and had everything we needed to cook dinner after a day outside." },
       { name: "Leo Martin", jobPosition: "Long-stay guest", rating: 5, image: "", testimony: "A quiet cabin with a comfortable bed and a good spot to work when I needed it." },
+      { name: "Sofia Patel", jobPosition: "Weekend guest", rating: 4, image: "", testimony: "The kitchen had everything we needed, and we could walk straight to the trails after breakfast." },
     ],
     address: "Main Street, Catskill, NY 12414",
     inclusions: ["fast-internet", "housekeeping"],
@@ -2218,15 +2249,30 @@ const tinyHomeDemo: DemoBusiness = (() => {
 const cabinDemo: DemoBusiness = (() => {
   const base = DEMO_BUSINESSES.coLiving;
   const cdn = "https://cdn.prod.website-files.com/66fef51bb2a32743f5bfff90/";
-  const exterior = cdn + "66fef51bb2a32743f5bfffe9_clay-banks-UEhjiKh63Ek-unsplash.jpg";
-  const living = photo("photo-1543806053-7f9ac02e6631", 1200);
-  const kitchen = photo("photo-1586753701871-07e025659129", 1200);
-  const bedroom = photo("photo-1628394029749-ea3dcce4caa6", 1200);
-  const porch = photo("photo-1510798831971-661eb04b3739", 1200);
+  const cmsCdn = "https://cdn.prod.website-files.com/66fef51bb2a32743f5bfff97/";
+  const ref = (file: string) => cdn + file;
+  const cmsRef = (file: string) => cmsCdn + file;
+  // Reference photographs — the Bg-Row/Bg-third/Work_bg/Blog_bg/Insta-bg assets
+  // are near-white layout masks and must not be used as card imagery.
+  const exterior = ref("66fef51bb2a32743f5bfffe9_clay-banks-UEhjiKh63Ek-unsplash.jpg");
+  const discovery1 = ref("66fef51bb2a32743f5c00045_clay-banks-Kdmx7BVKfBI-unsplash.jpg");
+  const discovery2 = ref("66fef51bb2a32743f5c00049_clay-banks-haJdK-oucKg-unsplash.jpg");
+  const discovery3 = ref("66fef51bb2a32743f5c00044_clay-banks-su9IJ9K_f2I-unsplash.jpg");
+  const amenity1 = ref("66fef51bb2a32743f5c0004c_clay-banks-D-KyoOIZtmM-unsplash.jpg");
+  const amenity2 = ref("66fef51bb2a32743f5c000d0_clay-banks-KjkZqlBayFc-unsplash.jpg");
+  const amenity3 = ref("66fef51bb2a32743f5c00096_clay-banks-6LSKem6Fkt4-unsplash.jpg");
+  const cabin1 = cmsRef("66fef51bb2a32743f5c00015_3d-rendering-wooden-house%20(1).jpg");
+  const cabin2 = cmsRef("66fef51bb2a32743f5c00014_3d-rendering-wooden-house%20(2).jpg");
+  const cabin3 = cmsRef("66fef51bb2a32743f5bfff9a_3d-rendering-wooden-house%20(3).jpg");
+  const slider1 = ref("66fef51bb2a32743f5c000d4_Slider_1.jpg");
+  const slider2 = ref("66fef51bb2a32743f5c000da_Slider_2.jpg");
+  const insta1 = ref("66fef51bb2a32743f5c000a6_Insta-1.jpg");
+  const insta2 = ref("66fef51bb2a32743f5c000a7_Insta-2.jpg");
+  const insta3 = ref("66fef51bb2a32743f5c000a5_Insta-3.jpg");
   const rooms = [
-    { title: "Woodland Studio", price: "$1,250", priceUnit: "per month", description: "A furnished studio for independent living, with a private kitchenette and a quiet view of the trees.", images: [bedroom, kitchen, exterior].map((url) => ({ url })), occupancy: "single", bathroom: "ensuite", furnished: true, featured: true, enabled: true, features: ["Private kitchenette", "Wi-Fi", "Ensuite bathroom", "Garden access"] },
-    { title: "Garden Room", price: "$950", priceUnit: "per month", description: "Your own peaceful room, with a shared kitchen, welcoming common spaces, and a garden to enjoy.", images: [living, bedroom].map((url) => ({ url })), occupancy: "single", bathroom: "shared", furnished: true, enabled: true, features: ["Furnished room", "Shared kitchen", "Housekeeping", "Wi-Fi"] },
-    { title: "Forest Cabin", price: "$1,650", priceUnit: "per month", description: "A home for two with a private kitchen, a covered porch, and access to our community spaces.", images: [porch, bedroom, kitchen].map((url) => ({ url })), occupancy: "double", bathroom: "ensuite", furnished: true, enabled: true, features: ["Private kitchen", "Covered porch", "Wi-Fi", "Community spaces"] },
+    { title: "Woodland Studio", price: "$1,250", priceUnit: "per month", description: "A furnished studio for independent living, with a private kitchenette and a quiet view of the trees.", images: [cabin1, discovery1, exterior].map((url) => ({ url })), occupancy: "single", bathroom: "ensuite", furnished: true, featured: true, enabled: true, features: ["Private kitchenette", "Wi-Fi", "Ensuite bathroom", "Garden access"] },
+    { title: "Garden Room", price: "$950", priceUnit: "per month", description: "Your own peaceful room, with a shared kitchen, welcoming common spaces, and a garden to enjoy.", images: [discovery2, discovery3, amenity2].map((url) => ({ url })), occupancy: "single", bathroom: "shared", furnished: true, enabled: true, features: ["Furnished room", "Shared kitchen", "Housekeeping", "Wi-Fi"] },
+    { title: "Forest Cabin", price: "$1,650", priceUnit: "per month", description: "A home for two with a private kitchen, a covered porch, and access to our community spaces.", images: [amenity1, amenity3, cabin2].map((url) => ({ url })), occupancy: "double", bathroom: "ensuite", furnished: true, enabled: true, features: ["Private kitchen", "Covered porch", "Wi-Fi", "Community spaces"] },
   ];
   return {
     ...base,
@@ -2234,9 +2280,9 @@ const cabinDemo: DemoBusiness = (() => {
     title: "Escape",
     subTitle: "Find your place among the trees. Furnished homes, shared moments, and space to breathe.",
     cta: "Book a stay",
-    heroImages: [exterior, porch, bedroom],
-    gallery: [living, kitchen, bedroom, porch, exterior, photo("photo-1543806053-7f9ac02e6631", 1200)],
-    aboutImages: [living, porch, bedroom],
+    heroImages: [exterior, slider1, slider2],
+    gallery: [discovery1, discovery2, discovery3, amenity1, cabin1, slider2, cabin3, insta1, insta2, insta3],
+    aboutImages: [discovery1, discovery3, amenity1],
     aboutTitle: "A place to slow down, settle in, and feel a little closer to nature.",
     about: ["Make room for slow mornings, new friendships, and a home that feels like yours from the first day.", "Our furnished homes bring private space and shared living together, with nature on your doorstep."],
     aboutPageStory: "Cabin grew from a simple idea. Create comfortable homes where people can live independently, find community, and enjoy more time outside.",
@@ -2248,6 +2294,10 @@ const cabinDemo: DemoBusiness = (() => {
     testimonials: [
       { name: "Maya Chen", jobPosition: "Resident", rating: 5, image: "", testimony: "Having my own space and a friendly community nearby made moving here feel easy. The quiet mornings are my favourite part." },
       { name: "Leo Martin", jobPosition: "Resident", rating: 5, image: "", testimony: "A comfortable home, a proper place to work, and a garden to switch off in. I settled in much faster than I expected." },
+      { name: "Sofia Patel", jobPosition: "Resident", rating: 4, image: "", testimony: "I could get a full day of work done and still make it out for an evening walk. The balance felt right from the first week." },
+      { name: "Noah Williams", jobPosition: "Resident", rating: 5, image: "", testimony: "Cooking with the other residents made the shared kitchen feel like home. I always had my own room to retreat to afterward." },
+      { name: "Priya Shah", jobPosition: "Resident", rating: 5, image: "", testimony: "Moving in was easy because the room was already furnished. I spent my first Saturday on the porch with coffee and a book." },
+      { name: "Elena García", jobPosition: "Resident", rating: 4, image: "", testimony: "The garden became my favourite spot after work, and the team was quick to answer my questions about settling in." },
     ],
     faqs: [
       { question: "What is included in my stay?", answer: "Each home is furnished. The room listing shows its amenities and shared facilities. Ask our team about utilities and services before confirming your stay." },
@@ -2255,7 +2305,7 @@ const cabinDemo: DemoBusiness = (() => {
       { question: "How long can I stay?", answer: "Tell us your planned move-in date and length of stay. We will share the available homes and current terms." },
       { question: "Where are you located?", answer: "Our homes are in Catskill, New York, close to woodland walks and local cafés. Contact us for directions." },
     ],
-    page: { ...base.page, homeCardHeading: "Cabin homes", homeCardSubText: "Thoughtfully furnished homes, close to nature.", heroHeading: "Find your home", heroSubHeading: "Private rooms, studios, and cabins with a community to come home to.", heroImage: exterior, cardImage: porch },
+    page: { ...base.page, homeCardHeading: "Cabin homes", homeCardSubText: "Thoughtfully furnished homes, close to nature.", heroHeading: "Find your home", heroSubHeading: "Private rooms, studios, and cabins with a community to come home to.", heroImage: exterior, cardImage: amenity1 },
     extra: { ...base.extra, coLivingRooms: rooms },
     settings: { ...base.settings, tourBooking: { enabled: false }, stayPolicy: { checkInTime: "15:00", checkOutTime: "11:00", houseRules: ["Quiet hours after 10 PM", "No smoking indoors", "Leave shared spaces ready for the next resident"] } },
   };
@@ -2280,7 +2330,20 @@ const coPlaceDemo: DemoBusiness = (() => {
     subTitle: "Flexible coworking for focused days and team sessions. Find a desk, private office, or meeting room that fits.",
     cta: "Book a tour",
     heroImages: [lounge, shared, office].map((id) => photo(id, 1600)),
-    gallery: [shared, meeting, office, team].map((id) => photo(id, 1250)),
+    gallery: [
+      shared,
+      meeting,
+      office,
+      team,
+      lounge,
+      "photo-1497215728101-856f4ea42174",
+      "photo-1531973576160-7125cd663d86",
+      "photo-1497366216548-37526070297c",
+      "photo-1504384308090-c894fdcc538d",
+      "photo-1542744173-8e7e53415bb0",
+      "photo-1497366858526-0766cadbe8fa",
+      "photo-1517245386807-bb43f82c33c4",
+    ].map((id) => photo(id, 1250)),
     aboutImages: [team, shared, office].map((id) => photo(id, 1200)),
     aboutTitle: "Designed for collaboration, built for focus",
     aboutPageStory: "CoPlace started with a shared table and the idea that good work needs room for both conversation and quiet.",

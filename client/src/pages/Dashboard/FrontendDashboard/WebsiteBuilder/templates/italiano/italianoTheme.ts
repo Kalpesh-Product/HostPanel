@@ -102,6 +102,15 @@ export const ITALIANO_CSS = String.raw`
 .italiano-gallery button:hover img { filter: brightness(.83); }
 .italiano-reviews figure { padding: 22px; border: 1px solid var(--it-line); }
 .italiano-reviews figcaption { margin-top: 12px; color: var(--it-accent); font-weight: 700; }
+.italiano-rating-summary { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 12px; margin-top: 16px; }
+.italiano-guest-notes .italiano-reviews { display: flex; justify-content: center; }
+.italiano-guest-notes figure { display: flex; flex: 1; flex-direction: column; gap: 6px; min-width: 0; max-width: 370px; }
+.italiano-guest-notes blockquote { flex: 1; overflow-wrap: anywhere; }
+.italiano-review-pages { display: flex; flex-wrap: wrap; justify-content: center; margin-top: 12px; }
+.italiano-review-pages button { display: grid; place-items: center; width: 44px; height: 44px; border: 0; background: transparent; color: var(--it-accent); }
+.italiano-review-pages button::before { content: ""; width: 10px; height: 10px; border: 1px solid currentColor; border-radius: 50%; }
+.italiano-review-pages button[aria-current]::before { background: currentColor; }
+.italiano-review-pages + .italiano-button { margin-top: 16px; }
 .italiano-reviews + .italiano-button { margin-top: 28px; }
 .italiano-home-contact { border-top: 1px solid var(--it-line); }
 .italiano-home-contact p, .italiano-home-contact .italiano-button { margin-top: 16px; }

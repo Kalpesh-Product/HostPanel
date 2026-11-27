@@ -119,6 +119,7 @@ export const WorkhubHeader: React.FC = () => {
                 <Brand />
                 <button
                   type="button"
+                  className="wh-drawer-close"
                   onClick={() => setOpen(false)}
                   aria-label="Close"
                 >
@@ -192,26 +193,6 @@ export const WorkhubFooter: React.FC = () => {
                 </div>
               ) : null}
             </div>
-            <form
-              className="wh-newsletter"
-              onSubmit={(event) => {
-                event.preventDefault();
-                t.goToSection("contact");
-              }}
-            >
-              <label className="wh-sr" htmlFor="wh-newsletter">
-                Email address
-              </label>
-              <input
-                id="wh-newsletter"
-                type="email"
-                placeholder="Subscribe to our Newsletter"
-                required
-              />
-              <button type="submit" aria-label="Continue to contact">
-                {WhIcon.arrow()}
-              </button>
-            </form>
           </div>
           <div className="wh-footer-links">
             <div>

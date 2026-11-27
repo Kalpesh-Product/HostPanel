@@ -76,7 +76,7 @@ export default function UnitDepartmentsPage() {
           <div className="bg-white/80 rounded-2xl border border-slate-100 shadow-sm min-h-[400px] animate-pulse" />
         ) : (
           <div className="flex flex-col gap-4 text-slate-700 font-sans">
-            <div className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+            <div data-tour="unit-departments-header" className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
               <div>
                 <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                   Departments
@@ -87,7 +87,7 @@ export default function UnitDepartmentsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div data-tour="unit-departments-stats" className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div className="flex min-h-[96px] items-center gap-4 rounded-2xl border border-slate-100 bg-white px-4 py-4 shadow-sm">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-l-2 border-l-emerald-500 bg-emerald-50 text-emerald-700">
                   <Briefcase size={18} />
@@ -100,7 +100,7 @@ export default function UnitDepartmentsPage() {
               </div>
             </div>
 
-            <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <section data-tour="unit-departments-grid" className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
               <div className="border-b border-slate-100 px-5 py-4">
                 <h3 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">Departments by unit</h3>
                 <p className="mt-1 text-[11px] text-slate-500">Compare department staffing and workload per unit.</p>

@@ -287,7 +287,7 @@ export default function CompanyReviews() {
           </div>
 
           {/* STAT CARDS */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-1 shrink-0">
+          <div data-tour="nomad-reviews-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-1 shrink-0">
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
               <div className="min-w-0">
                 <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">Total Reviews</p>
@@ -337,7 +337,7 @@ export default function CompanyReviews() {
                 </div>
               </div>
               <div />
-              <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+              <div data-tour="nomad-reviews-filters" className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
                 <select
                   value={ratingFilter}
                   onChange={(e) => setRatingFilter(e.target.value)}

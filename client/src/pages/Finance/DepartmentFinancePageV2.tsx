@@ -250,7 +250,11 @@ function getApiErrorMessage(error: any, fallback: string): string {
   return fallback;
 }
 
-export function DepartmentFinancePageV2() {
+export type DepartmentFinanceModulePage = 'projected' | 'extra' | 'history';
+
+export function DepartmentFinancePageV2({
+  modulePage,
+}: { modulePage?: DepartmentFinanceModulePage } = {}) {
   const currentUser = getStoredUser();
   const userRole = normalizeUserRole(currentUser?.workspaceMembership?.role || currentUser?.role || '');
   // A member can belong to more than one department (e.g. one manager
@@ -303,11 +307,20 @@ export function DepartmentFinancePageV2() {
 
   const [selectedFY, setSelectedFY] = useState(DEFAULT_FISCAL_YEAR);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('projected');
+  const [activeTab, setActiveTab] = useState<DepartmentFinanceModulePage>(modulePage || 'projected');
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // Module cards route straight to one area; reset local filters whenever the
+  // route-provided area changes while keeping the tabs available in-page.
+  useEffect(() => {
+    if (!modulePage) return;
+    setActiveTab(modulePage);
+    setStatusFilter('all');
+    setSearchQuery('');
+  }, [modulePage]);
 
   const [financeData, setFinanceData] = useState<DepartmentFinanceData | null>(null);
   const [monthlyExpenses, setMonthlyExpenses] = useState<MonthlyPlan[]>([]);
@@ -1128,12 +1141,11 @@ export function DepartmentFinancePageV2() {
 
   // ─── Render ─────────────────────────────────────────────────────────────
 
-  const tabs = [
+  const tabs: Array<{ key: DepartmentFinanceModulePage; label: string }> = [
     { key: 'projected', label: 'Projected Budget' },
     { key: 'extra', label: 'Extra Requested' },
-    { key: 'history', label: 'History' },
+    { key: 'history', label: 'Expense History' },
   ];
-
   const PROJECTED_STATUS_FILTERS = [
     { key: 'all', label: 'All' },
     { key: 'waiting for approval', label: 'Waiting for Approval' },
@@ -1215,11 +1227,15 @@ export function DepartmentFinancePageV2() {
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
         <div className="flex flex-col gap-4">
-          {/* HEADER */}
-          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+          {/* HEADER — same title block on the dashboard and curated module routes */}
+          <div
+            data-tour={modulePage ? 'dept-finance-tabs' : undefined}
+            data-active-tab={modulePage ? activeTab : undefined}
+            className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5"
+          >
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                {departmentLabel} Finance Management
+                {modulePage ? tabs.find((tab) => tab.key === modulePage)?.label : `${departmentLabel} Finance Management`}
               </h2>
               <p className="text-xs font-pmedium text-slate-500 mt-1">
                 Track projected budgets, extra requests, and expense history for your department for {selectedFY}.
@@ -1250,25 +1266,27 @@ export function DepartmentFinancePageV2() {
             </div>
           </div>
 
-          {/* MAIN TABS */}
-          <div data-tour="dept-finance-tabs" className="mb-3 flex w-full gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => { setActiveTab(tab.key); setStatusFilter('all'); }}
-                className={`flex-1 min-w-[160px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${
-                  activeTab === tab.key
-                    ? 'text-white'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                {activeTab === tab.key && (
-                  <motion.div layoutId="deptFinanceMainTabs" className="absolute inset-0 bg-[#2563EB] rounded-full shadow-sm z-[-1]" />
-                )}
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          {/* MAIN TABS — hidden when opened from a module card */}
+          {!modulePage && (
+            <div data-tour="dept-finance-tabs" data-active-tab={activeTab} className="mb-3 flex w-full gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => { setActiveTab(tab.key); setStatusFilter('all'); }}
+                  className={`flex-1 min-w-[160px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${
+                    activeTab === tab.key
+                      ? 'text-white'
+                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  {activeTab === tab.key && (
+                    <motion.div layoutId="deptFinanceMainTabs" className="absolute inset-0 bg-[#2563EB] rounded-full shadow-sm z-[-1]" />
+                  )}
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* STAT CARDS (tab-aware) */}
           <div data-tour="dept-finance-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">

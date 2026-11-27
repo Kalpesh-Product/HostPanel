@@ -416,6 +416,10 @@ export const COBOX_CSS = String.raw`
   place-items: center;
 }
 
+.cbx-drawer .cbx-btn {
+  justify-content: space-between;
+}
+
 /* ── hero ─────────────────────────────────────────────────── */
 
 .cbx-hero {
@@ -482,7 +486,7 @@ export const COBOX_CSS = String.raw`
   }
 }
 
-.cbx-hero-copy > p {
+.cbx .cbx-hero-subtitle {
   margin: 20px 0 0;
   max-width: 56ch;
   color: #fff;
@@ -1013,6 +1017,10 @@ export const COBOX_CSS = String.raw`
   font-size: 14px;
 }
 
+.cbx-services .cbx-sec-foot {
+  margin-top: 24px;
+}
+
 .cbx-sec-foot span {
   display: inline-block;
   background: var(--t-accent);
@@ -1083,10 +1091,10 @@ export const COBOX_CSS = String.raw`
   line-height: 1.5;
 }
 
-.cbx-check-list {
+.cbx .cbx-check-list {
   display: grid;
   gap: 12px;
-  margin: 26px 0 30px;
+  margin-bottom: 24px;
 }
 
 .cbx-check-list li {
@@ -1339,7 +1347,12 @@ export const COBOX_CSS = String.raw`
 .cbx-plan-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
   gap: 22px;
+}
+
+.cbx-plan-grid > * {
+  display: grid;
 }
 
 .cbx-plan {
@@ -1587,6 +1600,12 @@ export const COBOX_CSS = String.raw`
   object-fit: cover;
 }
 
+.cbx-value-card .cbx-value-innovation-photo {
+  height: auto;
+  aspect-ratio: 12 / 5;
+  border-radius: 14px;
+}
+
 .cbx-value-body {
   padding: 26px;
   display: flex;
@@ -1826,6 +1845,10 @@ export const COBOX_CSS = String.raw`
   display: flex;
   gap: 10px;
   margin-top: 22px;
+}
+
+.cbx-reviews .cbx-write-review {
+  margin-top: 24px;
 }
 
 .cbx-review-nav button {
@@ -2690,6 +2713,16 @@ export const COBOX_CSS = String.raw`
   align-items: start;
 }
 
+.cbx-page-hero .cbx-career-back {
+  margin-top: 20px;
+  border-bottom: 1px solid currentColor;
+  color: #fff;
+}
+
+.cbx-page-hero .cbx-career-back:hover {
+  color: var(--t-accent);
+}
+
 .cbx-career-detail--general {
   grid-template-columns: minmax(0, 760px);
   justify-content: center;
@@ -2710,6 +2743,12 @@ export const COBOX_CSS = String.raw`
 
 /* ── modal ────────────────────────────────────────────────── */
 
+:root:has(.cbx .cbx-modal),
+body:has(.cbx .cbx-modal) {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 .cbx-modal {
   position: fixed;
   inset: 0;
@@ -2723,6 +2762,7 @@ export const COBOX_CSS = String.raw`
 .cbx-modal-shade {
   position: absolute;
   inset: 0;
+  touch-action: none;
   background: rgba(8, 24, 28, 0.62);
   backdrop-filter: blur(5px);
 }
@@ -2730,12 +2770,14 @@ export const COBOX_CSS = String.raw`
 .cbx-modal-panel {
   position: relative;
   width: min(980px, 100%);
-  max-height: 90vh;
+  max-height: min(90vh, 100%);
+  max-height: min(90dvh, 100%);
   background: var(--t-bg);
   border-radius: 22px;
   overflow: hidden;
   display: grid;
   grid-template-columns: 0.85fr 1.15fr;
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .cbx-modal-aside {
@@ -2759,8 +2801,9 @@ export const COBOX_CSS = String.raw`
 
 .cbx-modal-form {
   padding: 40px;
+  min-height: 0;
   overflow-y: auto;
-  max-height: 90vh;
+  overscroll-behavior-y: contain;
 }
 
 .cbx-modal-close {
@@ -3274,16 +3317,18 @@ export const COBOX_CSS = String.raw`
 
   .cbx-modal-panel {
     grid-template-columns: 1fr;
-    max-height: 92vh;
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
   .cbx-modal-aside {
     padding: 26px;
+    max-height: 45dvh;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
   }
 
   .cbx-modal-form {
     padding: 26px;
-    max-height: none;
   }
 
   .cbx-detail-main {

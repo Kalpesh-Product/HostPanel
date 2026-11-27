@@ -57,11 +57,6 @@ export const OrchardAbout: React.FC = () => {
                 )}
             </p>
           </div>
-          <OrchardPhoto
-            src={photo("about.image2", photos[2] || t.galleryItems?.[2])}
-            alt="A shared space"
-            className="ol-about-photo ol-about-photo-offset"
-          />
         </div>
       </section>
 
@@ -311,6 +306,7 @@ export const OrchardCareers: React.FC = () => {
       <section className="ol-section">
         <div className="ol-shell">
           <OrchardHeading
+            className="ol-careers-roles-heading"
             eyebrow={c("careers.roles.eyebrow", "Open roles")}
             title={c("careers.roles.title", "Bring your energy. We will teach the rest.")}
             sub={c(

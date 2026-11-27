@@ -241,7 +241,7 @@ const PlanBillingTab = ({
 
   return (
     <div className="border-default border-borderGray rounded-xl bg-white p-4 flex flex-col gap-4 font-pmedium">
-      <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
+      <div data-tour="plan-billing-header" className="mb-1 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-title font-pmedium text-primary uppercase">
             {modulePage
@@ -254,7 +254,7 @@ const PlanBillingTab = ({
               : "Your current plan, included modules, and payment history."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div data-tour="plan-billing-actions" className="flex items-center gap-2">
           {summary?.hasBillingPortal ? (
             <button
               type="button"
@@ -279,7 +279,7 @@ const PlanBillingTab = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-1 shrink-0">
+      <div data-tour="plan-billing-summary" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-1 shrink-0">
         <div className="bg-white p-5 rounded-[2rem] border border-slate-100 border-l-4 border-l-blue-500 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
           <div className="min-w-0">
             <p className="text-[10px] font-pmedium text-blue-600 uppercase tracking-widest mb-1">Current Plan</p>
@@ -418,7 +418,7 @@ const PlanBillingTab = ({
       ) : null}
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[380px]">
-        <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-200 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+        <div data-tour="plan-billing-filters" className="p-3 sm:p-4 lg:p-5 border-b border-slate-200 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
           <div className="flex flex-1 items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {(activeTab === "modules"
               ? ["All", "Plan Modules", ...(planId === "custom" ? ["Custom Add-ons"] : [])]
@@ -464,6 +464,7 @@ const PlanBillingTab = ({
                 {filteredModuleGroups.map((group) => (
                   <section
                     key={group.section}
+                    data-tour="plan-billing-module-group"
                     className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
                   >
                     <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/70 px-4 py-3">
@@ -491,7 +492,7 @@ const PlanBillingTab = ({
           </div>
         ) : (
           <div className="overflow-x-auto flex-1">
-            <table className="w-full min-w-[680px] text-left border-collapse">
+            <table data-tour="plan-billing-payments-table" className="w-full min-w-[680px] text-left border-collapse">
               <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                 <tr>
                   <th className="px-5 py-3.5">Plan</th>

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Reveal } from "../motion";
 import { LeadFormPanel } from "../shared/TplLead";
 import { MessageForm } from "../shared/TplForms";
-import { Icon } from "../shared/TplUI";
+import { Icon, StarRow } from "../shared/TplUI";
 import { useWavex } from "./WavexContext";
 import { WxMedia, WxRoomCard, WxSectionHead } from "./WavexUI";
 
@@ -355,11 +355,12 @@ const Spaces: React.FC = () => {
 };
 
 const Testimonials: React.FC = () => {
-  const { t, c } = useWavex();
+  const { t, c, rating } = useWavex();
   const reviews: any[] = Array.isArray(t.testimonials) ? t.testimonials : [];
   const [index, setIndex] = useState(0);
   const active = reviews.length ? Math.min(index, reviews.length - 1) : 0;
   const review = reviews[active];
+  const reviewRating = Number(review?.rating);
   const quote =
     review?.quote || review?.review || review?.testimonial || review?.testimony || review?.text;
   const author = review?.author || review?.name || review?.person || "WaveX member";
@@ -371,9 +372,21 @@ const Testimonials: React.FC = () => {
           eyebrow={c("home.testimonials.eyebrow", "People Of WaveX")}
           title={c("home.testimonials.title", "Good spaces. Better people.")}
         />
+        {rating.count > 0 ? (
+          <div className="wx-testimonial-rating">
+            <strong>{rating.avg.toFixed(1)} / 5</strong>
+            <span aria-hidden="true"><StarRow value={rating.avg} size={18} /></span>
+            <span>from {rating.count} {rating.count === 1 ? "rating" : "ratings"}</span>
+          </div>
+        ) : null}
         {quote ? (
           <Reveal className="wx-testimonial-stage">
             <span className="wx-quote-mark" aria-hidden="true">“</span>
+            {reviewRating > 0 ? (
+              <div className="wx-testimonial-stars" role="img" aria-label={`${reviewRating} out of 5 stars`}>
+                <span aria-hidden="true"><StarRow value={reviewRating} size={18} /></span>
+              </div>
+            ) : null}
             <blockquote className="wx-quote">{quote}</blockquote>
             <div className="wx-person">
               {review?.image ? (
@@ -402,7 +415,7 @@ const Testimonials: React.FC = () => {
                     />
                   ))}
                 </div>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div className="wx-testimonial-arrows">
                   <button
                     type="button"
                     className="wx-arrow"
@@ -426,6 +439,13 @@ const Testimonials: React.FC = () => {
         ) : (
           <div className="wx-empty">Stories from our members are on their way.</div>
         )}
+        {t.showWriteReview ? (
+          <div className="wx-testimonial-action">
+            <button type="button" className="wx-btn" onClick={t.openReviewModal}>
+              Write a review
+            </button>
+          </div>
+        ) : null}
       </div>
     </section>
   );

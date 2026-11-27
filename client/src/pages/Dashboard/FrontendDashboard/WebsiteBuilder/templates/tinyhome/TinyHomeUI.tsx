@@ -5,6 +5,15 @@ export function TinyHomeImage({ src, alt = "", eager = false }: { src?: string; 
   return src ? <img src={src} alt={alt} loading={eager ? "eager" : "lazy"} decoding="async" /> : null;
 }
 
+export function TinyHomeMap() {
+  const { t, draft } = useTinyHome();
+  const query = encodeURIComponent(t.contactAddress || "");
+  const map = draft.mapUrl || (query ? `https://www.google.com/maps?q=${query}&output=embed` : "");
+  return map ? (
+    <iframe className="tinyhome-map" title="Property location" src={map} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+  ) : null;
+}
+
 export function TinyHomePageHero({ title, label, image, body }: {
   title: string; label?: string; image?: string; body?: string;
 }) {

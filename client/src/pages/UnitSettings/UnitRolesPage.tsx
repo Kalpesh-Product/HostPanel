@@ -78,7 +78,7 @@ export default function UnitRolesPage() {
           <div className="bg-white/80 rounded-2xl border border-slate-100 shadow-sm min-h-[400px] animate-pulse" />
         ) : (
           <div className="flex flex-col gap-4 text-slate-700 font-sans">
-            <div className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+            <div data-tour="unit-roles-header" className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
               <div>
                 <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                   Roles &amp; Access
@@ -89,7 +89,7 @@ export default function UnitRolesPage() {
               </div>
             </div>
 
-            <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <section data-tour="unit-roles-coverage" className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
               <div className="border-b border-slate-100 px-5 py-4 flex items-center gap-2">
                 <span className="rounded-2xl bg-blue-50 p-2 text-[#2563EB]">
                   <ShieldCheck className="h-5 w-5" />
@@ -114,7 +114,7 @@ export default function UnitRolesPage() {
               </div>
             </section>
 
-            <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <section data-tour="unit-roles-by-unit" className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
               <div className="border-b border-slate-100 px-5 py-4">
                 <h3 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">Roles by unit</h3>
                 <p className="mt-1 text-[11px] text-slate-500">Breakdown per linked unit.</p>

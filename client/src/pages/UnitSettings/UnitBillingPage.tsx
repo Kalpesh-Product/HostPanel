@@ -71,7 +71,7 @@ export default function UnitBillingPage() {
           <div className="bg-white/80 rounded-2xl border border-slate-100 shadow-sm min-h-[400px] animate-pulse" />
         ) : (
           <div className="flex flex-col gap-4 text-slate-700 font-sans">
-            <div className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+            <div data-tour="unit-billing-header" className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
               <div>
                 <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                   Billing & Payments
@@ -97,6 +97,7 @@ export default function UnitBillingPage() {
                 </div>
                 <button
                   type="button"
+                  data-tour="unit-billing-save"
                   onClick={savePreferences}
                   disabled={isSaving}
                   className="inline-flex items-center justify-center gap-1.5 rounded-2xl px-4 py-2.5 text-[10px] font-pmedium shadow-sm transition-all whitespace-nowrap bg-[#2563EB] text-white hover:bg-primary/95 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -106,7 +107,7 @@ export default function UnitBillingPage() {
                 </button>
               </div>
               <div className="p-3 sm:p-4 lg:p-5 space-y-5">
-                <div className="grid gap-4 md:grid-cols-2">
+                <div data-tour="unit-billing-tax" className="grid gap-4 md:grid-cols-2">
                   <label className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                     <span>
                       <span className="block text-xs font-pmedium uppercase tracking-widest text-slate-700">Apply tax</span>
@@ -161,7 +162,7 @@ export default function UnitBillingPage() {
                     <CreditCard size={14} className="text-[#2563EB]" />
                     <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Accepted payment methods</p>
                   </div>
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  <div data-tour="unit-billing-methods" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {Object.values(PAYMENT_METHOD_CATALOG).map((method) => {
                       const checked = billing.paymentMethods.some((entry) => entry.code === method.code);
                       return (

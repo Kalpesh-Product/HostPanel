@@ -285,9 +285,9 @@ const DONUT_PALETTE = ["#2563EB", "#7C3AED", "#F59E0B", "#10B981", "#EF4444", "#
 
 // Thin card chrome around each ApexCharts instance — same title/subtitle
 // header the module dashboards use, so a chart never renders "naked".
-function ChartCard({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+function ChartCard({ title, subtitle, children, dataTour }: { title: string; subtitle?: string; children: ReactNode; dataTour?: string }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <div data-tour={dataTour} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
       <div className="border-b border-slate-100 px-4 py-3">
         <h3 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">{title}</h3>
         {subtitle ? <p className="mt-0.5 text-[10px] text-slate-500">{subtitle}</p> : null}
@@ -423,7 +423,7 @@ const DeepDiveCard = ({ entry }: { entry: AnalyticsModuleEntry }) => {
 
   return (
     <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-      <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50 flex items-start justify-between gap-3 flex-wrap">
+      <div data-tour="analytics-module-detail" className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50 flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium block truncate">
             {entry.label}
@@ -453,6 +453,7 @@ const DeepDiveCard = ({ entry }: { entry: AnalyticsModuleEntry }) => {
           <button
             type="button"
             onClick={() => navigate(entry.route)}
+            data-tour="analytics-open-page"
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2563EB] text-white text-[10px] font-pmedium uppercase tracking-widest shadow-sm shadow-blue-200 transition-all hover:opacity-90 shrink-0"
           >
             Open Page <ArrowUpRight size={13} />
@@ -460,7 +461,7 @@ const DeepDiveCard = ({ entry }: { entry: AnalyticsModuleEntry }) => {
         ) : null}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-3 pb-1">
+      <div data-tour="analytics-module-tiles" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-3 pb-1">
         {moduleSummaryCards.map((card) => {
           const Icon = card.icon;
           return (
@@ -842,7 +843,7 @@ const AnalyticsPage = () => {
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
         {/* 1. Banner — same hero treatment as the other module dashboards. */}
-        <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+        <div data-tour="analytics-banner" className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img
               src={analyticsBannerImage}
@@ -888,7 +889,7 @@ const AnalyticsPage = () => {
               </div>
             </div>
             {canSwitchUnits ? (
-              <label className="absolute right-6 top-5 z-10 flex items-center gap-2 rounded-lg border border-white/25 bg-white/15 px-3 py-2 backdrop-blur-sm cursor-pointer">
+              <label data-tour="analytics-unit-switch" className="absolute right-6 top-5 z-10 flex items-center gap-2 rounded-lg border border-white/25 bg-white/15 px-3 py-2 backdrop-blur-sm cursor-pointer">
                 <Building2 size={13} className="text-white/80 shrink-0" />
                 <div className="flex flex-col">
                   <span className="text-[9px] font-pmedium uppercase tracking-[0.1em] text-white/75">Unit</span>
@@ -935,7 +936,7 @@ const AnalyticsPage = () => {
         ) : null}
 
         {/* 2. Stat tiles */}
-        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div data-tour="analytics-stats" className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <StatTile
             icon={<Layers3 size={20} />}
             label="Modules tracked"
@@ -978,6 +979,7 @@ const AnalyticsPage = () => {
           <div className="flex flex-col gap-3">
             <ChartCard
               title="Platform Activity Trend"
+              dataTour="analytics-trend"
               subtitle="How much new work your unit creates each month (last 6 months)."
             >
               <LineGraph options={trendChartOptions} data={trendSeries} />
@@ -1003,6 +1005,7 @@ const AnalyticsPage = () => {
           {activityBars.categories.length > 0 ? (
             <ChartCard
               title="Module Activity Scores"
+              dataTour="analytics-activity-scores"
               subtitle="Which modules your team actually uses — score out of 100 (top 10)."
             >
               <GroupedBarGraph options={activityChartOptions} series={activitySeries} />
@@ -1023,6 +1026,7 @@ const AnalyticsPage = () => {
             <ChartCard
               title={`${String(data?.plan || plan || "Your").replace(/^\w/, (c) => c.toUpperCase())} Plan Coverage`}
               subtitle="How many of the modules your plan unlocks are actually in use."
+              dataTour="analytics-plan-coverage"
             >
               <DonutChart
                 centerLabel="Modules"
@@ -1035,7 +1039,7 @@ const AnalyticsPage = () => {
             </ChartCard>
           ) : null}
 
-          <ChartCard title="Quick Links" subtitle="Jump straight into any module enabled on your plan.">
+          <ChartCard title="Quick Links" subtitle="Jump straight into any module enabled on your plan." dataTour="analytics-quick-links">
             {quickLinkModules.length > 0 ? (
               <div className="flex max-h-[280px] flex-col gap-1.5 overflow-y-auto pr-1">
                 {quickLinkModules.map((module) => (
@@ -1063,7 +1067,7 @@ const AnalyticsPage = () => {
             lenses beyond the plain activity-score leaderboard. */}
         <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
           {healthMix.length > 0 ? (
-            <ChartCard title="Module Health" subtitle="Enabled modules grouped by whether they're actually being used.">
+            <ChartCard title="Module Health" subtitle="Enabled modules grouped by whether they're actually being used." dataTour="analytics-health">
               <DonutChart
                 centerLabel="Modules"
                 labels={healthMix.map((item) => item.label)}
@@ -1077,7 +1081,7 @@ const AnalyticsPage = () => {
 
           {openItemsBars.categories.length > 0 ? (
             <div className="lg:col-span-2">
-              <ChartCard title="Biggest Backlogs" subtitle="Enabled modules with the most open or pending items right now.">
+              <ChartCard title="Biggest Backlogs" subtitle="Enabled modules with the most open or pending items right now." dataTour="analytics-backlogs">
                 <GroupedBarGraph
                   options={horizontalCountBarChartOptions(openItemsBars.categories)}
                   series={[{ name: "Open items", data: openItemsBars.values }]}
@@ -1091,6 +1095,7 @@ const AnalyticsPage = () => {
           <div className="mb-6">
             <ChartCard
               title="Module Momentum"
+              dataTour="analytics-momentum"
               subtitle="This month versus last month, per enabled module — where activity is growing or slowing down."
             >
               <GroupedBarGraph
@@ -1106,7 +1111,7 @@ const AnalyticsPage = () => {
 
         {/* 4. Module-wise deep dive — section dropdowns with module tabs inside. */}
         {moduleGroups.length > 0 ? (
-          <div className="mb-3">
+          <div data-tour="analytics-modules-intro" className="mb-3">
             <p className="text-sm font-pmedium text-slate-900">All module details</p>
             <p className="mt-1 text-[10px] font-pmedium text-slate-500">
               Open any section below for the full breakdown, trend, and peak-usage charts for that module.
@@ -1115,7 +1120,7 @@ const AnalyticsPage = () => {
         ) : null}
         {moduleGroups.length > 0 ? (
           <WidgetSection border normalCase layout={1}>
-          <div className="flex flex-col gap-3">
+          <div data-tour="analytics-modules" className="flex flex-col gap-3">
             {moduleGroups.map((group) => {
               const isOpen = expandedModuleSections.has(group.key);
               const activeModule =
@@ -1126,6 +1131,7 @@ const AnalyticsPage = () => {
                 <div key={group.key} className="rounded-2xl border border-slate-100 bg-white overflow-hidden">
                   <button
                     type="button"
+                    data-tour="analytics-module-group"
                     onClick={() => toggleModuleSection(group.key)}
                     className={`w-full flex items-center justify-between px-5 py-4 text-left transition-colors ${
                       isOpen ? "border-b border-slate-100 bg-slate-50/50" : "hover:bg-slate-50/50"
@@ -1154,7 +1160,7 @@ const AnalyticsPage = () => {
                   {isOpen ? (
                     <div className="p-4 flex flex-col gap-4">
                       {group.modules.length > 1 ? (
-                        <div className="flex gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                        <div data-tour="analytics-module-tabs" className="flex gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm overflow-x-auto [&::-webkit-scrollbar]:hidden">
                           {group.modules.map((entry) => {
                             const isActive = activeModule?.id === entry.id;
                             return (

@@ -75,16 +75,18 @@ function Empty({ children }: { children: ReactNode }) {
 function ChartCard({
   title,
   subtitle,
+  dataTour,
   bodyClassName = "p-5",
   children,
 }: {
   title: string;
   subtitle?: string;
+  dataTour?: string;
   bodyClassName?: string;
   children: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <section data-tour={dataTour} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
       <div className="border-b border-slate-100 px-5 py-4">
         <h2 className="text-[11px] font-pmedium uppercase tracking-[0.08em] text-[#1E3D73]">{title}</h2>
         {subtitle ? <p className="mt-1 text-[11px] text-slate-500">{subtitle}</p> : null}
@@ -230,7 +232,7 @@ const AccessGrantsDashboard = () => {
   return (
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
-        <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+        <div data-tour="access-grants-dashboard-banner" className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img
               src={organizationBannerImage}
@@ -291,7 +293,7 @@ const AccessGrantsDashboard = () => {
             ))}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div data-tour="access-grants-dashboard-stats" className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <StatTile icon={<Users size={20} />} label="Total members" value={stats.total} sub="All workspace member records" />
             <StatTile
               icon={<UserCog size={20} />}
@@ -342,7 +344,7 @@ const AccessGrantsDashboard = () => {
           </div>
         )}
 
-        <div className="mb-6">
+        <div data-tour="access-grants-dashboard-modules" className="mb-6">
           <div className="mb-3">
             <p className="text-sm font-pmedium text-slate-900">Manage access grants</p>
             <p className="mt-1 text-[10px] font-pmedium text-slate-500">
@@ -365,7 +367,7 @@ const AccessGrantsDashboard = () => {
         {!isLoading ? (
           <>
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
-              <ChartCard title="Members by role" subtitle="Current workspace members grouped by access role.">
+              <ChartCard dataTour="access-grants-dashboard-roles" title="Members by role" subtitle="Current workspace members grouped by access role.">
                 {roleMix.length ? (
                   <DonutChart
                     centerLabel="Members"
@@ -379,7 +381,7 @@ const AccessGrantsDashboard = () => {
                   <Empty>No members have been recorded yet.</Empty>
                 )}
               </ChartCard>
-              <ChartCard title="Account status" subtitle="Members grouped by onboarding and access status.">
+              <ChartCard dataTour="access-grants-dashboard-status" title="Account status" subtitle="Members grouped by onboarding and access status.">
                 {statusMix.length ? (
                   <DonutChart
                     centerLabel="Members"
@@ -397,6 +399,7 @@ const AccessGrantsDashboard = () => {
 
             <div className="grid grid-cols-1 gap-4">
               <ChartCard
+                dataTour="access-grants-dashboard-members"
                 title="Members with custom access"
                 subtitle="Members holding module, add-on, or cross-unit grants beyond their base role."
                 bodyClassName=""

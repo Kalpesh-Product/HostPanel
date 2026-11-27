@@ -3,8 +3,16 @@ import { groupByCategory, type Service } from "../serviceAdapter";
 import { groupOpeningHours, priceWithUnit } from "../templateKit";
 import { useRestobar } from "./RestobarContext";
 
-export function RestobarImage({ src, alt = "", eager = false }: { src?: string; alt?: string; eager?: boolean }) {
-  return src ? <img src={src} alt={alt} loading={eager ? "eager" : "lazy"} decoding="async" /> : null;
+export function RestobarImage({ src, alt = "", eager = false, fallbackSrc }: {
+  src?: string; alt?: string; eager?: boolean; fallbackSrc?: string;
+}) {
+  const imageSrc = src || fallbackSrc;
+  return imageSrc ? (
+    <img src={imageSrc} alt={alt} loading={eager ? "eager" : "lazy"} decoding="async"
+      onError={fallbackSrc ? ({ currentTarget }) => {
+        if (currentTarget.getAttribute("src") !== fallbackSrc) currentTarget.src = fallbackSrc;
+      } : undefined} />
+  ) : null;
 }
 
 export function RestobarPageHero({ title, label, image, body }: {

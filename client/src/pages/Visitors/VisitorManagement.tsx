@@ -90,6 +90,13 @@ const VISITOR_TYPE_LABELS = {
   tenant: 'Tenant Company Visitor',
 };
 
+const VISITOR_MODULE_PAGE_TITLES: Record<string, string> = {
+  daily: 'Daily Visitors',
+  history: 'Visitor History',
+  bookings: 'Bookings',
+  clients: 'Clients',
+};
+
 function getVisitorTypeLabel(visitor = {}) {
   return VISITOR_TYPE_LABELS[String(visitor?.visitorType || 'standard').trim().toLowerCase()] || 'Standard Visitor';
 }
@@ -1126,7 +1133,9 @@ function ValidationSummary({ errors = {} }) {
   );
 }
 
-export default function VisitorsManagementPage() {
+type VisitorManagementModulePage = 'daily' | 'history' | 'bookings' | 'clients';
+
+export default function VisitorsManagementPage({ modulePage }: { modulePage?: VisitorManagementModulePage } = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const { auth } = useAuth();
@@ -1308,6 +1317,7 @@ export default function VisitorsManagementPage() {
     [hasGrant],
   );
   const [activeTab, setActiveTab] = useState(() => {
+    if (modulePage) return modulePage;
     const requestedTab = String(
       new URLSearchParams(location.search).get('tab') || location.state?.tab || 'daily',
     );
@@ -1372,13 +1382,17 @@ export default function VisitorsManagementPage() {
     visitorAccess.standardTypes.tenant;
 
   useEffect(() => {
+    if (modulePage) {
+      setActiveTab(modulePage);
+      return;
+    }
     const requestedTab = String(
       new URLSearchParams(location.search).get('tab') || location.state?.tab || '',
     );
     if (['daily', 'history', 'bookings', 'clients'].includes(requestedTab)) {
       setActiveTab(requestedTab);
     }
-  }, [location.search, location.state?.tab]);
+  }, [location.search, location.state?.tab, modulePage]);
 
   useEffect(() => {
     if (!isFrontdeskPage) return;
@@ -4588,7 +4602,7 @@ export default function VisitorsManagementPage() {
         {isFrontdeskPage && (
           <div className="flex flex-col gap-4">
             {/* full-page header — mirrors tenant-company view header */}
-            <div className="flex items-center gap-3">
+            <div data-tour="frontdesk-header" className="flex items-center gap-3">
               <button type="button" onClick={navigateBackToManagement}
                 className="p-2 bg-white border border-slate-200 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-all shadow-sm"><ArrowLeft size={16} /></button>
               <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -4664,9 +4678,14 @@ export default function VisitorsManagementPage() {
         {!isFrontdeskPage && (<>
 
         {/* 1. HEADER */}
-        <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+        <div
+          data-tour="visitors-header"
+          className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5"
+        >
           <div>
-            <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">Visitor Management</h2>
+            <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
+              {modulePage ? VISITOR_MODULE_PAGE_TITLES[modulePage] : 'Visitor Management'}
+            </h2>
             <p className="text-xs font-pmedium text-slate-500 mt-1">Daily visitors, walk-in bookings, client conversion, payment proof, and invoice handoff in one front desk unit.</p>
           </div>
           {(activeTab === 'history' || activeTab === 'bookings' || activeTab === 'clients') && (
@@ -4674,8 +4693,12 @@ export default function VisitorsManagementPage() {
           )}
         </div>
 
-        {/* 2. MAIN PILL TABS */}
-        <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+        {/* 2. MAIN PILL TABS — hidden when opened from a module card */}
+        {!modulePage && (
+        <div
+          data-tour="visitors-tabs"
+          className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm"
+        >
           <button
             type="button"
             data-tour="visitors-tab-daily"
@@ -4729,9 +4752,10 @@ export default function VisitorsManagementPage() {
             {!visitorAccess.tabs.clients && <Lock size={12} />} CLIENTS
           </button>
         </div>
+        )}
 
         {/* 3. STATS OVERVIEW — changes with the active tab */}
-        <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div data-tour="visitors-stats" className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
           {(visitorTabStatCards[activeTab] || visitorTabStatCards.daily).map((card) => {
             const Icon = card.icon;
             const textColor = (card.iconBg.match(/text-\S+/) || [])[0] || 'text-slate-900';
@@ -4755,7 +4779,7 @@ export default function VisitorsManagementPage() {
 
           <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
 
-            <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+            <div data-tour="visitors-filters" className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
               {activeTab === 'daily' && (
                 <RecordSubTabs
                   activeKey={dailyStatusTab}
@@ -4810,10 +4834,11 @@ export default function VisitorsManagementPage() {
               {(activeTab === 'daily' || activeTab === 'history' || activeTab === 'bookings' || activeTab === 'clients') && (
                 <div className="relative flex-1 min-w-[160px]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                  <input type="text" placeholder="Search records..." className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500" onChange={(e) => setSearchQuery(e.target.value)} />
+                  <input data-tour="visitors-search" type="text" placeholder="Search records..." className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-500" onChange={(e) => setSearchQuery(e.target.value)} />
                 </div>
               )}
               <button
+                data-tour="visitors-new-action"
                 type="button"
                 disabled={!canOpenFrontdeskAction}
                 title={!canOpenFrontdeskAction ? 'You do not have permission for frontdesk action tabs.' : undefined}
@@ -4831,7 +4856,7 @@ export default function VisitorsManagementPage() {
 
           {/* --- TAB: DAILY VISITORS --- */}
           {activeTab === 'daily' && (
-            <div className="overflow-x-auto flex-1">
+            <div data-tour="visitors-table" className="overflow-x-auto flex-1">
               <table className="w-full text-left border-collapse">
                 <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
@@ -4964,7 +4989,7 @@ export default function VisitorsManagementPage() {
 
           {/* --- TAB: BOOKINGS --- */}
           {activeTab === 'bookings' && (
-            <div className="overflow-x-auto flex-1">
+            <div data-tour="visitors-table" className="overflow-x-auto flex-1">
               <table className="w-full min-w-[1080px] text-left border-collapse">
                 <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
@@ -5129,7 +5154,7 @@ export default function VisitorsManagementPage() {
 
           {/* --- TAB: CLIENTS --- */}
           {activeTab === 'clients' && (
-            <div className="overflow-x-auto flex-1">
+            <div data-tour="visitors-table" className="overflow-x-auto flex-1">
               <table className="w-full text-left border-collapse">
                 <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
@@ -5193,7 +5218,7 @@ export default function VisitorsManagementPage() {
 
           {/* --- TAB: HISTORY TABLE --- */}
           {activeTab === 'history' && (
-            <div className="overflow-x-auto flex-1">
+            <div data-tour="visitors-table" className="overflow-x-auto flex-1">
               <table className="w-full text-left border-collapse">
                 <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>

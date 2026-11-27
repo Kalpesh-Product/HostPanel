@@ -271,7 +271,10 @@ export default function CustomerSupportDashboard() {
   return (
     <div className="min-h-full bg-slate-50/40 p-2 font-pmedium text-[12px] text-slate-900 lg:p-2.5">
       <PageFrame>
-        <div className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]">
+        <div
+          data-tour="cs-dashboard-banner"
+          className="relative mb-6 overflow-hidden rounded-xl border border-blue-100 bg-white shadow-[0_12px_30px_rgba(37,99,235,0.1)]"
+        >
           <div className="relative h-44 w-full sm:h-[12rem]">
             <img
               src={supportBannerImage}
@@ -343,7 +346,10 @@ export default function CustomerSupportDashboard() {
             ))}
           </div>
         ) : (
-          <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3">
+          <div
+            data-tour="cs-dashboard-stats"
+            className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3"
+          >
             <StatTile
               icon={<Headphones size={20} />}
               label="Total tickets"
@@ -387,7 +393,7 @@ export default function CustomerSupportDashboard() {
           </div>
         )}
 
-        <div className="mb-6">
+        <div data-tour="cs-dashboard-modules" className="mb-6">
           <div className="mb-3">
             <p className="text-sm font-pmedium text-slate-900">
               Manage customer support
@@ -417,39 +423,43 @@ export default function CustomerSupportDashboard() {
         {!isLoading ? (
           <>
             <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-              <ChartCard
-                title="Monthly Ticket Activity"
-                subtitle="Raised versus resolved tickets over the last 12 calendar months."
-              >
-                <GroupedBarGraph
-                  options={trendOptions}
-                  series={[
-                    { name: "Raised", data: monthlyActivity.raised },
-                    { name: "Resolved", data: monthlyActivity.resolved },
-                  ]}
-                />
-              </ChartCard>
-              <ChartCard
-                title="Ticket Status Breakdown"
-                subtitle="Every support ticket grouped by its current status."
-              >
-                {statusBreakdown.length ? (
-                  <DonutChart
-                    centerLabel="Tickets"
-                    labels={statusBreakdown.map(([label]) => label)}
-                    series={statusBreakdown.map(([, value]) => value)}
-                    colors={DONUT_PALETTE.slice(0, statusBreakdown.length)}
-                    tooltipValue={statusBreakdown.map(
-                      ([, value]) => `${value} tickets`,
-                    )}
+              <div data-tour="cs-dashboard-activity" className="min-w-0">
+                <ChartCard
+                  title="Monthly Ticket Activity"
+                  subtitle="Raised versus resolved tickets over the last 12 calendar months."
+                >
+                  <GroupedBarGraph
+                    options={trendOptions}
+                    series={[
+                      { name: "Raised", data: monthlyActivity.raised },
+                      { name: "Resolved", data: monthlyActivity.resolved },
+                    ]}
                   />
-                ) : (
-                  <Empty>No ticket-status data is available yet.</Empty>
-                )}
-              </ChartCard>
+                </ChartCard>
+              </div>
+              <div data-tour="cs-dashboard-breakdown" className="min-w-0">
+                <ChartCard
+                  title="Ticket Status Breakdown"
+                  subtitle="Every support ticket grouped by its current status."
+                >
+                  {statusBreakdown.length ? (
+                    <DonutChart
+                      centerLabel="Tickets"
+                      labels={statusBreakdown.map(([label]) => label)}
+                      series={statusBreakdown.map(([, value]) => value)}
+                      colors={DONUT_PALETTE.slice(0, statusBreakdown.length)}
+                      tooltipValue={statusBreakdown.map(
+                        ([, value]) => `${value} tickets`,
+                      )}
+                    />
+                  ) : (
+                    <Empty>No ticket-status data is available yet.</Empty>
+                  )}
+                </ChartCard>
+              </div>
             </div>
 
-            <div className="mb-4">
+            <div data-tour="cs-dashboard-recent" className="mb-4">
               <ChartCard
                 title="Recent Support Tickets"
                 subtitle="The latest issues raised across the workspace."

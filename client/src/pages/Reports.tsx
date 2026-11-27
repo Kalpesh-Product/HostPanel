@@ -383,7 +383,7 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
       <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
         <div>
           <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-            Reports
+            Manage Reports
           </h2>
           <p className="text-xs font-pmedium text-slate-500 mt-1">
             View, preview and download structured department reports.

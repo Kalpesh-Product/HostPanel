@@ -23,6 +23,7 @@ const VisitorBulkUpload = () => {
           return (
             <div key={`${item}-${index}`}>
               <div
+                data-tour="visitor-bulk-upload"
                 className="space-y-2 border-default p-4  rounded-md"
               >
                 <div className="mb-2">{item}</div>
@@ -58,7 +59,7 @@ const VisitorBulkUpload = () => {
         })}
       </div>
 
-      <div>
+      <div data-tour="visitor-bulk-upload-history">
         <WidgetSection border title="Bulk Upload Data">
           <AgTable
             data={[]}

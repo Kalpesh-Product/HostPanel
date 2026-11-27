@@ -12,7 +12,6 @@ import { useTpl } from "../shared/TplContext";
 import { Icon, Placeholder } from "../shared/TplUI";
 import {
   DfPageHero,
-  DfReviewCard,
   DfSectionHead,
   DfTextLink,
 } from "./DestinflowUI";
@@ -56,9 +55,9 @@ export const DestinflowAbout: React.FC = () => {
             </div>
             {collage.length ? (
               <Reveal className="df-photo">
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
-                  {collage.slice(0, 4).map((src: string, index: number) => (
-                    <div key={`${src}-${index}`} className="df-photo" style={{ aspectRatio: index === 0 ? "3 / 4" : "4 / 3" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+                  {collage.slice(0, 3).map((src: string, index: number) => (
+                    <div key={`${src}-${index}`} className="df-photo" style={{ aspectRatio: "4 / 3" }}>
                       <img src={src} alt="" loading="lazy" />
                     </div>
                   ))}
@@ -70,13 +69,13 @@ export const DestinflowAbout: React.FC = () => {
       ) : null}
 
       {narrative.length ? (
-        <section className="df-facilities">
+        <section className="df-facilities df-about-values">
           <div className="df-shell">
             <DfSectionHead
               eyebrow={c("about.values.eyebrow", "What we stand for")}
               title={c("about.values.title", "The way we do things")}
             />
-            <Stagger className="df-feature-grid">
+            <Stagger className="df-feature-grid df-equal-cards">
               {narrative.map((block, index) => (
                 <article className="df-feature" key={block.title}>
                   <span className="df-feature-index">{String(index + 1).padStart(2, "0")}</span>
@@ -90,10 +89,10 @@ export const DestinflowAbout: React.FC = () => {
       ) : null}
 
       {showFounders ? (
-        <section className="df-section-tight">
+        <section className="df-section-tight df-about-founders">
           <div className="df-shell">
             <DfSectionHead eyebrow={c("about.founders.eyebrow", "Your hosts")} title={c("about.founders.title", "Meet the founders")} />
-            <Stagger className="df-grid-3">
+            <Stagger className="df-grid-3 df-founders-grid df-equal-cards">
               {founders.map((founder: any, index: number) => (
                 <article className="df-panel" key={index}>
                   <div className="df-photo" style={{ width: 104, height: 104, borderRadius: "50%", marginBottom: 20 }}>
@@ -121,7 +120,7 @@ export const DestinflowAbout: React.FC = () => {
               eyebrow={c("about.team.eyebrow", "The crew")}
               title={draft?.aboutPageTeamHeading || c("about.team.title", "The people who'll look after you")}
             />
-            <Stagger className="df-feature-grid">
+            <Stagger className="df-feature-grid df-crew-grid">
               {team.map((card: any, index: number) => (
                 <article key={index} style={{ textAlign: "center" }}>
                   <div className="df-photo" style={{ width: 128, height: 128, borderRadius: "50%", margin: "0 auto 14px" }}>
@@ -166,7 +165,7 @@ export const DestinflowGallery: React.FC = () => {
         title={draft?.galleryPageHeading || navLabel("gallery", "Gallery")}
         text={items.length ? `${items.length} ${items.length === 1 ? "photo" : "photos"}` : undefined}
       />
-      <section className="df-shell" style={{ paddingBottom: 120 }}>
+      <section className="df-shell" style={{ paddingBottom: 80 }}>
         {items.length ? (
           <div className="df-gallery-page">
             {items.map((src, index) => (
@@ -179,61 +178,6 @@ export const DestinflowGallery: React.FC = () => {
           </div>
         ) : (
           <div className="df-empty"><h3>{c("gallery.empty", "Photos are on their way.")}</h3></div>
-        )}
-      </section>
-    </>
-  );
-};
-
-/* ───────────────────────── reviews ───────────────────────── */
-
-export const DestinflowTestimonials: React.FC = () => {
-  const { t, draft, rating, navLabel, c } = useTpl();
-  const list: any[] = t.testimonials;
-  const counts = [5, 4, 3, 2, 1].map((star) => ({
-    star,
-    count: list.filter((item) => Math.round(Number(item.rating) || 0) === star).length,
-  }));
-  return (
-    <>
-      <DfPageHero
-        eyebrow={c("reviews.eyebrow", "Reviews")}
-        title={draft?.testimonialsPageHeading || navLabel("testimonials", "Guest reviews")}
-        text={draft?.testimonialsPageIntro}
-      />
-      <section className="df-shell" style={{ paddingBottom: 120 }}>
-        {!list.length ? (
-          <div className="df-empty"><h3>{c("reviews.empty", "Be the first to leave a review.")}</h3></div>
-        ) : (
-          <div className="df-service-layout">
-            {rating.count ? (
-              <aside className="df-panel df-sticky">
-                <p className="df-display" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 64, lineHeight: 1 }}>{rating.avg.toFixed(1)}</p>
-                <p>{rating.count} {rating.count === 1 ? "rating" : "ratings"}</p>
-                <ul style={{ listStyle: "none", padding: 0, marginTop: 24, display: "grid", gap: 10 }}>
-                  {counts.map(({ star, count }) => (
-                    <li key={star} style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 13 }}>
-                      <span>{star}</span>
-                      <span style={{ flex: 1, height: 6, background: "var(--df-line)" }}>
-                        <span style={{ display: "block", height: "100%", width: `${(count / rating.count) * 100}%`, background: "var(--df-blue)" }} />
-                      </span>
-                      <span>{count}</span>
-                    </li>
-                  ))}
-                </ul>
-                {t.showWriteReview ? (
-                  <button type="button" className="df-btn df-btn-block" style={{ marginTop: 24 }} onClick={t.openReviewModal}>
-                    {c("reviews.write", "Write a review")}
-                  </button>
-                ) : null}
-              </aside>
-            ) : null}
-            <Stagger className="df-grid-3">
-              {list.map((item, index) => (
-                <DfReviewCard key={item.key || index} item={{ ...item, role: item.jobPosition || item.role }} wide />
-              ))}
-            </Stagger>
-          </div>
         )}
       </section>
     </>
@@ -254,9 +198,9 @@ export const DestinflowContact: React.FC = () => {
         title={draft?.contactPageHeading || navLabel("contact", "Contact")}
         text={draft?.contactPageIntro}
       />
-      <section className="df-shell" style={{ paddingBottom: 80 }}>
+      <section className="df-shell" style={{ paddingBottom: 56 }}>
         {showForm ? (
-          <Reveal className="df-contact-form-centered">
+          <Reveal className="df-contact-form-centered df-form-outer-spacing">
             <div className="df-panel">
               <p className="df-eyebrow">{c("contact.form.eyebrow", "Send a message")}</p>
               <h2 className="df-h3">{usePrimary ? c("contact.form.title", "Book your stay") : c("contact.form.general", "Talk to our team")}</h2>
@@ -276,7 +220,7 @@ export const DestinflowContact: React.FC = () => {
         ) : null}
       </section>
       {draft?.mapUrl ? (
-        <div className="df-shell" style={{ paddingBottom: 80 }}>
+        <div className="df-shell" style={{ paddingBottom: 56 }}>
           <div className="df-map"><iframe title="Map" src={draft.mapUrl} loading="lazy" /></div>
         </div>
       ) : null}
@@ -299,14 +243,14 @@ export const DestinflowPartner: React.FC = () => {
         title={t.partnerPageHeading || c("partner.title", `Partner with ${draft?.companyName || "us"}`)}
         text={paragraphs[0]}
       />
-      <section className="df-shell df-split" style={{ paddingBottom: 120 }}>
+      <section className="df-shell df-split" style={{ paddingBottom: 80 }}>
         <div className="df-prose">
           {(paragraphs.length ? paragraphs.slice(1) : [c("partner.intro", "Travel agents, local businesses and creative partners — tell us how we could work together.")]).map((line, index) => (
             <p key={index}>{line}</p>
           ))}
           <DfTextLink onClick={() => t.goToSection("contact")}>{c("partner.contact", "Or email us directly")}</DfTextLink>
         </div>
-        <Reveal>
+        <Reveal className="df-form-outer-spacing">
           <div className="df-panel">
             <h2 className="df-h3">{t.partnerFormTitle || c("partner.form.title", "Start a conversation")}</h2>
             <div style={{ marginTop: 24 }}>
@@ -338,7 +282,12 @@ export const DestinflowCareers: React.FC = () => {
           title={applyOnly ? c("careers.general", "General application") : getCareersJobTitle(job)}
           text={applyOnly ? undefined : getCareersJobMeta(job)}
         />
-        <section className="df-shell df-service-layout" style={{ paddingBottom: 120 }}>
+        <section className="df-shell df-service-layout" style={{ paddingBottom: 80 }}>
+          <div className="df-career-back-row">
+            <button type="button" className="df-textlink" onClick={t.closeCareersJob}>
+              ← Back to careers
+            </button>
+          </div>
           {!applyOnly ? (
             <Reveal>
               <div className="df-panel df-prose">
@@ -350,10 +299,10 @@ export const DestinflowCareers: React.FC = () => {
               </div>
             </Reveal>
           ) : null}
-          <Reveal delay={0.06} className={applyOnly ? "df-career-apply-centered" : undefined}>
+          <Reveal delay={0.06} className={applyOnly ? "df-career-apply-centered df-form-outer-spacing" : "df-form-outer-spacing"}>
             <div className={`df-panel${applyOnly ? "" : " df-sticky"}`}>
               <h2 className="df-h3">{c("careers.apply.title", "Apply now")}</h2>
-              <div style={{ marginTop: 22 }}><ApplyForm /></div>
+              <div style={{ marginTop: 22 }}><ApplyForm centered /></div>
             </div>
           </Reveal>
         </section>
@@ -370,12 +319,7 @@ export const DestinflowCareers: React.FC = () => {
         title={draft?.careersPageHeading || c("careers.title", `Work with ${draft?.companyName || "us"}`)}
         text={lines[0]}
       />
-      <section className="df-shell" style={{ paddingBottom: 120 }}>
-        {lines.length > 1 ? (
-          <div className="df-feature-grid" style={{ marginBottom: 46 }}>
-            {lines.slice(1).map((line, index) => <p key={index}>{line}</p>)}
-          </div>
-        ) : null}
+      <section className="df-shell" style={{ paddingBottom: 80 }}>
         {t.careersJobsLoading ? (
           <p style={{ textAlign: "center", padding: 40 }}>{c("careers.loading", "Loading open roles…")}</p>
         ) : !t.careersJobs.length ? (

@@ -1,12 +1,14 @@
 import { getInclusionMeta } from "../inclusionIcons";
 import { priceWithUnit } from "../templateKit";
 import { FaqSection } from "../shared/TplParts";
+import { StarRow } from "../shared/TplUI";
 import { getMediaSrc } from "../useWebsiteTemplateData";
 import { useCoPlace } from "./CoPlaceContext";
-import { CoPlaceImage } from "./CoPlaceUI";
+import { CoPlaceImage, CoPlaceMap } from "./CoPlaceUI";
+import { coPlaceDemoLogos, findCoPlaceDemoLogo } from "./coPlaceDemoLogos";
 
 export function CoPlaceHome() {
-  const { t, draft, services, primary, goToItem, goToService, openLead, c, photo } = useCoPlace();
+  const { t, draft, services, primary, rating, goToItem, goToService, openLead, c, photo } = useCoPlace();
   const enabled = t.isSectionEnabled;
   const booking = primary?.leadEnabled ? primary : services.find((service) => service.leadEnabled);
   const canTour = booking?.kind === "workspace" && draft.tourBooking?.enabled !== false;
@@ -16,8 +18,15 @@ export function CoPlaceHome() {
   const benefitsImage = photo("benefits.image", getMediaSrc(draft.aboutPageImages?.[1]) || t.galleryItems[1] || storyImage);
   const title = c("hero.title", draft.title || "A better place to do your best work");
   const lastSpace = title.lastIndexOf(" ");
-  const logos = draft.logoCarousel?.enabled && Array.isArray(draft.logoCarousel.logos) ? draft.logoCarousel.logos : [];
+  const logoCarousel = draft.logoCarousel;
+  const logos = logoCarousel?.enabled && Array.isArray(logoCarousel.logos)
+    ? logoCarousel.logos.map((logo: { name?: string } | string) => {
+        const url = getMediaSrc(logo);
+        return findCoPlaceDemoLogo(url) || { url, name: typeof logo === "string" ? undefined : logo?.name };
+      }).filter(({ url }: { url: string }) => url)
+    : [];
   const isDemo = draft.searchKey === "demo-preview" && draft.companyId === "demo";
+  const trustLogos: { url: string; name?: string }[] = logos.length ? logos : isDemo ? coPlaceDemoLogos : [];
   const people = [
     ...(enabled("about_founders") ? t.founders : []),
     ...(enabled("about_team") ? t.aboutPageImageCards : []),
@@ -43,9 +52,14 @@ export function CoPlaceHome() {
               <h1>{lastSpace < 0 ? title : <>{title.slice(0, lastSpace + 1)}<mark>{title.slice(lastSpace + 1)}</mark></>}</h1>
               <p>{c("hero.body", draft.subTitle || "Find a desk, private office, or meeting room that fits your workday.")}</p>
               <div className="coplace-actions">
-                {booking ? <button className="coplace-button" type="button" onClick={() => openLead(booking)}>
+                {booking ? <button className="coplace-button coplace-hero-booking" type="button" onClick={() => openLead(booking)}>
                   {draft.CTAButtonText || (canTour ? c("booking.cta", "Book a tour") : c("booking.enquire", "Enquire now"))}
                 </button> : null}
+                {t.contactPageEnabled ? (
+                  <button className="coplace-button coplace-hero-mobile-contact" type="button" onClick={() => t.goToSection("contact")}>
+                    {c("hero.contact", "Get in touch")}
+                  </button>
+                ) : null}
                 {canBrowse ? <button className="coplace-button coplace-button-outline" type="button" onClick={browse}>
                   {c("hero.secondary", "Explore plans")}
                 </button> : null}
@@ -66,13 +80,13 @@ export function CoPlaceHome() {
         </section>
       ) : <h1 className="coplace-visually-hidden">{title}</h1>}
 
-      {enabled("home_logos") && (logos.length || isDemo) ? (
+      {enabled("home_logos") && trustLogos.length > 0 ? (
         <section className="coplace-shell coplace-trust coplace-center">
-          <h2>{draft.logoCarousel?.title || c("logos.title", "Trusted by forward-thinking teams")}</h2>
+          <h2>{logoCarousel?.title || c("logos.title", "Trusted by forward-thinking teams")}</h2>
           <div>
-            {logos.length ? logos.map((logo: any, index: number) => (
-              <CoPlaceImage key={index} src={getMediaSrc(logo)} alt={logo?.name || "Member company"} />
-            )) : ["Fieldwork", "Northline", "Form Studio", "Daymark", "Goodspace"].map((name) => <b key={name}>{name}</b>)}
+            {trustLogos.map(({ url, name }, index) => (
+              <CoPlaceImage key={`${url}-${index}`} src={url} alt={name || `Member company logo ${index + 1}`} />
+            ))}
           </div>
         </section>
       ) : null}
@@ -114,7 +128,7 @@ export function CoPlaceHome() {
       ) : null}
 
       {enabled("home_about") ? (
-        <section className="coplace-section coplace-surface">
+        <section className="coplace-section coplace-surface coplace-home-about">
           <div className="coplace-shell coplace-split">
             <CoPlaceImage src={storyImage} />
             <div>
@@ -177,14 +191,26 @@ export function CoPlaceHome() {
       ) : null}
 
       {enabled("home_testimonials") && t.testimonials.length ? (
-        <section className="coplace-section coplace-surface">
+        <section className="coplace-section coplace-surface coplace-home-reviews">
           <div className="coplace-shell coplace-center">
             <h2>{c("reviews.title", "What our members say")}</h2>
+            {rating.count > 0 ? (
+              <div className="coplace-review-summary">
+                <strong>{rating.avg.toFixed(1)} / 5</strong>
+                <span aria-hidden="true"><StarRow value={rating.avg} size={18} /></span>
+                <span>from {rating.count} {rating.count === 1 ? "rating" : "ratings"}</span>
+              </div>
+            ) : null}
             <div className="coplace-reviews">
-              {t.testimonials.slice(0, 3).map((review: any, index: number) => <figure key={review.key || index}>
-                <blockquote>{review.text || review.review || review.testimony}</blockquote>
-                <figcaption>{review.name || review.author}</figcaption>
-              </figure>)}
+              {t.testimonials.slice(0, 3).map((review: { key: string; text: string; name: string; rating: number }) => (
+                <figure key={review.key}>
+                  <div className="coplace-review-stars">
+                    {review.rating > 0 ? <StarRow value={review.rating} size={16} /> : null}
+                  </div>
+                  <blockquote>{review.text}</blockquote>
+                  <figcaption>~ {review.name}</figcaption>
+                </figure>
+              ))}
             </div>
             {t.showWriteReview ? <button className="coplace-button coplace-button-outline" type="button" onClick={t.openReviewModal}>Write a review</button> : null}
           </div>
@@ -197,6 +223,7 @@ export function CoPlaceHome() {
           <h2>{c("contact.title", "Come see the space")}</h2>
           {t.contactAddress ? <p>{t.contactAddress}</p> : null}
           <button type="button" className="coplace-button" onClick={() => t.goToSection("contact")}>{c("hero.contact", "Get in touch")}</button>
+          <CoPlaceMap />
         </section>
       ) : null}
     </>
