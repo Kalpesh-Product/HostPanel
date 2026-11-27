@@ -13,6 +13,7 @@ import { DEMO_BUSINESSES, withFaqs, type DemoBusiness } from "./demoContent";
 import { coPlaceDemoLogos } from "./coplace/coPlaceDemoLogos";
 import cafePhoto from "../../../../../assets/cafe-banner.jpg";
 import italianoBarista from "./italiano/head-barista.jpg";
+import destinflowHero from "./destinflow/destinflow-hero.jpg";
 
 const TEMPLATE_KIND: Record<string, ServiceKind> = {
   savor: "menu",
@@ -66,7 +67,7 @@ const faceCrop = (id: string) =>
 // template's transparent navigation and centered banner read the way they were designed.
 const DESTINFLOW_ASSETS = {
   logo: "https://cdn.prod.website-files.com/646c59363e244b8b05ff0d1c/64c8f0e8ad1c8a6f73e9a4fe_destinflow-logo.svg",
-  hero: "https://cdn.prod.website-files.com/646c59363e244b8b05ff0d1c/646dad4d11883642cfe0ec1f_home-banner-image.jpg",
+  hero: destinflowHero,
 };
 
 // Travigo intentionally has its own photo direction instead of inheriting Wayfarer's

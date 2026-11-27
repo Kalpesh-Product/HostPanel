@@ -115,7 +115,8 @@ const createImageLoader = () => {
 
   return async (source: any): Promise<File | null> => {
     const url = urlOf(source);
-    if (!/^https?:\/\//i.test(url)) return null;
+    // Vite serves bundled sample photos from same-origin root-relative URLs.
+    if (!/^https?:\/\//i.test(url) && !/^\/(?!\/)/.test(url)) return null;
     if (!blobs.has(url)) blobs.set(url, fetchBlob(url));
     const blob = await blobs.get(url)!;
     if (!blob) return null;
