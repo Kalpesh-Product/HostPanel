@@ -332,11 +332,9 @@ ${WAYFARER_CSS}
 .df-hero-media {
   position: absolute;
   inset: 0;
-  background-position: 50% 50%;
-  background-repeat: no-repeat;
-  background-size: cover;
-  opacity: 1;
-  transform: none;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .df-hero-inner {
   position: relative;

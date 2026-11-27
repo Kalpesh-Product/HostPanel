@@ -5,6 +5,8 @@ import { getInclusionMeta } from "../inclusionIcons";
 import { FaqSection } from "../shared/TplParts";
 import { useTpl } from "../shared/TplContext";
 import { Icon, Placeholder } from "../shared/TplUI";
+import { getMediaSrc } from "../useWebsiteTemplateData";
+import destinflowHero from "./destinflow-hero.jpg";
 import {
   DfReviewCard,
   DfRoomCard,
@@ -19,22 +21,25 @@ const imageOf = (value: any): string =>
 
 const Hero: React.FC = () => {
   const { t, photo, c } = useTpl();
-  const images: string[] = t.heroImages?.length
-    ? t.heroImages.map(imageOf)
-    : photo("home.hero.image", t.resolvedHomeHeroImage || "")
-      ? [photo("home.hero.image", t.resolvedHomeHeroImage || "")]
-      : [];
-  const image = images.length ? images[t.heroIndex % images.length] : "";
+  const images = (t.heroImages || []).map(getMediaSrc).filter(Boolean);
+  const image = images.length
+    ? images[t.heroIndex % images.length]
+    : photo("home.hero.image", t.mainHeroImage || getMediaSrc(t.resolvedHomeHeroImage) || destinflowHero);
 
   return (
     <section className="df-hero">
-      {image ? (
-        <div
-          key={image}
-          className="df-hero-media"
-          style={{ backgroundImage: `url("${image}")` }}
-        />
-      ) : null}
+      <img
+        key={image}
+        className="df-hero-media"
+        src={image}
+        alt=""
+        fetchPriority="high"
+        onError={({ currentTarget }) => {
+          if (currentTarget.getAttribute("src") !== destinflowHero) {
+            currentTarget.src = destinflowHero;
+          }
+        }}
+      />
       <div className="df-shell df-hero-inner">
         <div>
           <div className="df-hero-subtitle">
