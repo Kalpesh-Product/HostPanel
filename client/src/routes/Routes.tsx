@@ -92,6 +92,7 @@ import { BillingPaymentsPage } from "../pages/Finance/BillingPaymentsPage";
 import BillingPaymentsWorkspaceDashboard from "../pages/Finance/BillingPaymentsWorkspaceDashboard";
 import AccountingPage from "../pages/Finance/AccountingPage";
 import AccountingWorkspaceDashboard from "../pages/Finance/AccountingWorkspaceDashboard";
+import LandlordPayablesPage from "../pages/Finance/LandlordPayablesPage";
 import VendorTable from "../components/Pages/VendorTable";
 import AssetsHome from "../pages/Assets/AssetsHome";
 import ManageAssetsHome from "../pages/Assets/ManageAssetsHome";
@@ -2315,6 +2316,11 @@ export const routes = createBrowserRouter([
               {
                 path: "department-accesses/finance-department/accounting/:section",
                 element: <AccountingPage />,
+              },
+              {
+                // Rent PAYABLE to property owners (mirror of Tenant Rent).
+                path: "department-accesses/finance-department/landlord-payables",
+                element: <LandlordPayablesPage />,
               },
               {
                 path: "finance/*",

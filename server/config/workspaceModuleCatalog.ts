@@ -176,6 +176,11 @@ const MODULE_GROUPS = [
           { id: "finance-budget", label: "Expenses & Budget", implemented: false },
           { id: "billing-payments", label: "Billing & Payments", implemented: false },
           { id: "accounting", label: "Accounting", implemented: false },
+          // Rent payable to property owners. It rides on the Billing & Payments
+          // grant instead of being a separate module (see FINANCE_CHILD_MODULE_IDS
+          // in client/src/components/Sidebar.tsx), so enabling finance once does
+          // not require a second toggle from master panel.
+          { id: "landlord-payables", label: "Landlord Payables", route: "/department-accesses/finance-department/landlord-payables", implemented: true },
         ],
       },
       {
@@ -470,6 +475,7 @@ const resolveIsUnlocked = ({
   moduleId,
 }) => {
   if (workspaceEnabledIds.has(moduleId)) return true;
+  if (moduleId === "landlord-payables" && workspaceEnabledIds.has("billing-payments")) return true;
   return canPlanAccess(selectedPlan, moduleId);
 };
 
@@ -487,6 +493,7 @@ export const buildWorkspaceModuleCatalog = ({
   );
   const effectiveWorkspaceEnabledIds = new Set([
     ...workspaceEnabledIds,
+    ...(workspaceEnabledIds.has("billing-payments") ? ["landlord-payables"] : []),
     ...(normalizedPlan === "basic" ? [] : getVerticalModuleIds(verticalKeys)),
   ]);
 

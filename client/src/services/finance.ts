@@ -266,3 +266,63 @@ export const sendPayrollPayslip = async (payslipId: string) => {
   const response = await axiosPrivate.post("/api/finance/payroll/send-payslip", { payslipId });
   return unwrap(response);
 };
+
+// ── Landlord rent payables (rent we owe property owners) ────────────────────
+// Every endpoint is finance-privileged on the server: the workspace is taken
+// from the session, never from these params, so the UI cannot reach another
+// workspace's landlord ledger.
+
+export const getFinanceLandlords = async (params?: Record<string, any>) => {
+  const response = await axiosPrivate.get("/api/finance/landlords", { params });
+  return unwrap(response);
+};
+
+export const createFinanceLandlord = async (payload: Record<string, any>) => {
+  const response = await axiosPrivate.post("/api/finance/landlords", payload);
+  return unwrap(response);
+};
+
+export const updateFinanceLandlord = async (landlordId: string, payload: Record<string, any>) => {
+  const response = await axiosPrivate.patch(`/api/finance/landlords/${landlordId}`, payload);
+  return unwrap(response);
+};
+
+/** Soft archive — payables already raised keep resolving this landlord's name. */
+export const archiveFinanceLandlord = async (landlordId: string, archived = true) => {
+  const response = await axiosPrivate.patch(`/api/finance/landlords/${landlordId}/archive`, { archived });
+  return unwrap(response);
+};
+
+export const getLandlordRentRecords = async (params?: Record<string, any>) => {
+  const response = await axiosPrivate.get("/api/finance/landlord-rent", { params });
+  return unwrap(response);
+};
+
+export const createLandlordRentRecord = async (payload: Record<string, any>) => {
+  const response = await axiosPrivate.post("/api/finance/landlord-rent", payload);
+  return unwrap(response);
+};
+
+/** Idempotent: re-running for a month never double-charges a landlord. */
+export const generateLandlordRentMonth = async (periodKey: string) => {
+  const response = await axiosPrivate.post("/api/finance/landlord-rent/generate", { periodKey });
+  return unwrap(response);
+};
+
+export const updateLandlordRentRecord = async (rentId: string, payload: Record<string, any>) => {
+  const response = await axiosPrivate.patch(`/api/finance/landlord-rent/${rentId}`, payload);
+  return unwrap(response);
+};
+
+export const recordLandlordRentPayment = async (rentId: string, payload: Record<string, any>) => {
+  const response = await axiosPrivate.patch(`/api/finance/landlord-rent/${rentId}/payment`, payload);
+  return unwrap(response);
+};
+
+/** Append-only reversal: the payment stays in the ledger as voided. */
+export const voidLandlordRentPayment = async (rentId: string, paymentId: string, reason: string) => {
+  const response = await axiosPrivate.delete(`/api/finance/landlord-rent/${rentId}/payment/${paymentId}`, {
+    data: { reason },
+  });
+  return unwrap(response);
+};

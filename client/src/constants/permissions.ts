@@ -526,7 +526,7 @@ export const PERMISSIONS = {
     value: "finance_landlord_payments",
     type: "read",
     access: "page",
-    route: "/app/dashboard/finance-dashboard/finance/landlord-payments",
+    route: "/department-accesses/finance-department/landlord-payables",
   },
   FINANCE_MEETINGS_EXTERNAL: {
     value: "finance_meetings_external",

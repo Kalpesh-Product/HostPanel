@@ -39,6 +39,18 @@ import {
   confirmRevenueEntry,
   reverseRevenueEntry,
 } from "../controllers/financeController.js";
+import {
+  getLandlords,
+  createLandlord,
+  updateLandlord,
+  archiveLandlord,
+  getLandlordRent,
+  createLandlordRent,
+  generateLandlordRent,
+  updateLandlordRent,
+  recordLandlordRentPaymentHandler,
+  voidLandlordRentPaymentHandler,
+} from "../controllers/landlordController.js";
 
 const router = express.Router();
 
@@ -74,6 +86,21 @@ router.patch("/tenant-rent/:rentId/return-proof", returnTenantRentProof);
 // Virtual office rent — snapshot of each contract's current billing period.
 router.get("/virtual-office-rent", getVirtualOfficeRentRecords);
 router.patch("/virtual-office-rent/:recordId/mark-paid", upload.single("receipt"), markVirtualOfficeRentPaid);
+
+// Landlord rent PAYABLES — the mirror of tenant rent: what the workspace owes
+// the owners of the spaces it operates. Reads and writes are finance-privileged
+// only (segregation of duties) and always scoped to the caller's workspace.
+router.get("/landlords", getLandlords);
+router.post("/landlords", createLandlord);
+router.patch("/landlords/:landlordId", updateLandlord);
+router.patch("/landlords/:landlordId/archive", archiveLandlord);
+
+router.get("/landlord-rent", getLandlordRent);
+router.post("/landlord-rent", createLandlordRent);
+router.post("/landlord-rent/generate", generateLandlordRent);
+router.patch("/landlord-rent/:rentId", updateLandlordRent);
+router.patch("/landlord-rent/:rentId/payment", recordLandlordRentPaymentHandler);
+router.delete("/landlord-rent/:rentId/payment/:paymentId", voidLandlordRentPaymentHandler);
 
 // Income ledger — append-only revenue register read by Accounting/P&L & History.
 router.get("/income-ledger", getIncomeLedgerRecords);

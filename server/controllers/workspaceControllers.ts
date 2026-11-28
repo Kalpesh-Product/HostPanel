@@ -1649,6 +1649,12 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
         verticalKeys,
       }),
     ]));
+
+    // Landlord Payables is the payable mirror of Billing & Payments (tenant rent)
+    // and rides on the billing-payments grant.
+    if (enabledModuleIds.includes("billing-payments") && !enabledModuleIds.includes("landlord-payables")) {
+      enabledModuleIds.push("landlord-payables");
+    }
     const modules =
       Array.isArray(workspace.modules) && workspace.modules.length > 0
         ? workspace.modules
@@ -1675,6 +1681,9 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
 
     const roleBand = _getRoleBand(currentMember?.role);
     const explicitGrants: string[] = Array.isArray(currentMember?.grantedModules) ? currentMember.grantedModules.map((m) => String(m).trim()).filter(Boolean) : [];
+    if (explicitGrants.includes("billing-payments") && !explicitGrants.includes("landlord-payables")) {
+      explicitGrants.push("landlord-payables");
+    }
     // Modules granted specifically through the Add-ons catalogue. Kept
     // separate from grantedModules so the sidebar can render them only inside
     // the expandable Add-ons section instead of duplicating them in their

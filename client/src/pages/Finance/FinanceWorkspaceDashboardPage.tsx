@@ -80,6 +80,14 @@ const MODULES = [
     description: "Review ledgers, entries, and financial records",
     color: "#7C3AED",
   },
+  {
+    id: "landlord-payables",
+    label: "Landlord Payables",
+    icon: Landmark,
+    route: "/department-accesses/finance-department/landlord-payables",
+    description: "Manage property owners, lease agreements, and rent payables",
+    color: "#EA580C",
+  },
 ] as const;
 const PALETTE = [
   "#1E3D73",

@@ -305,6 +305,7 @@ const departmentModules: NavNode[] = [
       { id: "Expenses-budget", label: "Expenses & Budget", icon: PiggyBank, route: "/department-accesses/finance-department/expenses-budget", disabled: false },
       { id: "billing-payments", label: "Billing & Payments", icon: Receipt, route: "/department-accesses/finance-department/billing-payments", disabled: false },
       { id: "accounting", label: "Accounting", icon: Calculator, route: "/department-accesses/finance-department/accounting", disabled: false },
+      { id: "landlord-payables", label: "Landlord Payables", icon: Landmark, route: "/department-accesses/finance-department/landlord-payables", disabled: false },
     ],
   },
   {
@@ -418,6 +419,7 @@ export const ROUTE_BY_ID: Record<string, string> = {
   "finance-budget": "/department-accesses/finance-department/expenses-budget",
   "billing-payments": "/department-accesses/finance-department/billing-payments",
   accounting: "/department-accesses/finance-department/accounting",
+  "landlord-payables": "/department-accesses/finance-department/landlord-payables",
   reports: "/extra-common-modules/reports",
   tasks: "/common-modules/tasks",
   "leave-requests": "/common-modules/leave-requests",
@@ -518,6 +520,7 @@ const ICON_BY_ID: Record<string, ElementType> = {
   "finance-budget": PiggyBank,
   "billing-payments": Receipt,
   accounting: Calculator,
+  "landlord-payables": Landmark,
   "maintenance-repair-logs": ClipboardList,
   "amc-maintenance-scheduler": CalendarClock,
   "tech-website-builder": Code2,
@@ -1531,6 +1534,14 @@ useEffect(() => {
     return claimed;
   }, [dynamicDepartmentItems]);
 
+  // Some finance surfaces ship WITH an existing finance grant instead of
+  // requiring a second module toggle. Landlord Payables is the payable mirror
+  // of Billing & Payments (tenant rent), so anything that unlocks Billing &
+  // Payments unlocks it too. Keep in sync with workspaceModuleCatalog.ts.
+  const FINANCE_CHILD_MODULE_IDS: Record<string, string> = {
+    "landlord-payables": "billing-payments",
+  };
+
   const mappedSections: Array<{ key: string; title: string; items: NavNode[] }> = (
     workspaceAccessMap?.moduleMap?.sections || []
   ).map((section) => {
@@ -1557,8 +1568,13 @@ useEffect(() => {
           .map((tab) => {
             const tabId = String(tab?.id || "").trim();
             const tabRoute = resolveModuleRoute(tabId, tab?.route);
-            const workspaceUnlocked = workspaceEnabledCanonicalIds.has(tabId);
-            const roleUnlocked = roleAllowedModuleIds.has(tabId);
+            const parentModuleId = FINANCE_CHILD_MODULE_IDS[tabId];
+            const workspaceUnlocked =
+              workspaceEnabledCanonicalIds.has(tabId) ||
+              (parentModuleId ? workspaceEnabledCanonicalIds.has(parentModuleId) : false);
+            const roleUnlocked =
+              roleAllowedModuleIds.has(tabId) ||
+              (parentModuleId ? roleAllowedModuleIds.has(parentModuleId) : false);
             const unlocked = workspaceUnlocked && roleUnlocked;
             return {
               id: tabId,
@@ -1871,8 +1887,15 @@ useEffect(() => {
                   if (children.length > 0) {
                     kept.push({ ...node, children });
                   }
-                } else if (grantedIds.has(normalizeModuleToken(node.id))) {
-                  kept.push(node);
+                } else {
+                  const normalizedId = normalizeModuleToken(node.id);
+                  const parentModuleId = FINANCE_CHILD_MODULE_IDS[node.id] || FINANCE_CHILD_MODULE_IDS[normalizedId];
+                  const isGranted =
+                    grantedIds.has(normalizedId) ||
+                    (parentModuleId ? grantedIds.has(normalizeModuleToken(parentModuleId)) : false);
+                  if (isGranted) {
+                    kept.push(node);
+                  }
                 }
               }
 

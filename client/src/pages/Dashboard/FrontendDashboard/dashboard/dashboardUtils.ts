@@ -27,6 +27,11 @@ export const hasModuleUse = (
   enabledIds: Set<string>,
   moduleId: string,
 ): boolean => {
+  if (moduleId === "landlord-payables") {
+    if (enabledIds.has("landlord-payables") && grantedIds.has("landlord-payables")) return true;
+    if (enabledIds.has("billing-payments") && grantedIds.has("billing-payments")) return true;
+    return false;
+  }
   const candidates =
     moduleId === "visitor-management" || moduleId === "visitors-management"
       ? VISITOR_EQUIVALENT_MODULE_IDS
