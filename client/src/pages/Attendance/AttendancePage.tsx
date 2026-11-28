@@ -2101,7 +2101,7 @@ export function AttendancePage() {
                   >
                     Cancel
                   </button>
-                  <button
+                  <button data-readonly-write
                     type="submit"
                     disabled={
                       isSubmittingCorrection || !correctionForm.reason.trim()

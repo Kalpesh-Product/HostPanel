@@ -433,7 +433,7 @@ export default function TenantBuyCreditsPage() {
                                       <p className="text-[10px] font-pregular text-slate-500">{formatCurrency(request.totalAmount)} due for {Number(request.requestedCredits || 0)} CR.</p>
                                     </div>
                                   </div>
-                                  <button type="button" onClick={cancelPaying} disabled={isSubmitting} className="w-7 h-7 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors shrink-0"><X size={13} /></button>
+                                  <button data-readonly-write type="button" onClick={cancelPaying} disabled={isSubmitting} className="w-7 h-7 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors shrink-0"><X size={13} /></button>
                                 </div>
 
                                 <input ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden"
@@ -553,7 +553,7 @@ export default function TenantBuyCreditsPage() {
               <div className="p-5 sm:p-6 border-t border-slate-100 bg-white flex flex-col-reverse sm:flex-row justify-end gap-2">
                 <button type="button" onClick={() => setShowNewRequestForm(false)} disabled={isSubmitting}
                   className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase tracking-widest disabled:opacity-60">Cancel</button>
-                <button type="submit" disabled={isSubmitting}
+                <button data-readonly-write type="submit" disabled={isSubmitting}
                   className="w-full sm:w-auto px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] uppercase tracking-widest shadow-sm hover:bg-primary/95 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-70 flex items-center justify-center gap-1.5">
                   {isSubmitting ? 'Submitting...' : 'Submit Request'} {!isSubmitting && <Plus size={13} strokeWidth={3} />}
                 </button>

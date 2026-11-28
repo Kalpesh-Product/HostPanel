@@ -1167,7 +1167,7 @@ const EditNomadListing = () => {
               </button>
             ) : (
               <>
-                <button
+                <button data-readonly-write
                   type="submit"
                   data-tour="nomad-listing-submit"
                   disabled={isSaving}

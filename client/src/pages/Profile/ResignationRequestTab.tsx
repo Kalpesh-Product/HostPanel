@@ -243,7 +243,7 @@ export function ResignationRequestTab() {
               >
                 Cancel
               </button>
-              <button
+              <button data-readonly-write
                 type="submit"
                 disabled={isSaving || !reason.trim()}
                 className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#2563EB] px-5 text-sm font-pmedium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"

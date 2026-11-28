@@ -95,7 +95,7 @@ export default function UnitBillingPage() {
                     </p>
                   </div>
                 </div>
-                <button
+                <button data-readonly-write
                   type="button"
                   data-tour="unit-billing-save"
                   onClick={savePreferences}

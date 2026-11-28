@@ -1875,7 +1875,7 @@ function HousekeepingPageInner({ lockedTab }: { lockedTab?: string }) {
 
                 <div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-5 lg:px-8">
                   <button type="button" disabled={isSavingTask} onClick={() => { setIsTaskModalOpen(false); setEditingTask(null); setTaskForm(taskFormState()); setTaskFormError(''); }} className="rounded-xl px-4 py-2 text-xs font-pmedium text-slate-600 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
-                  <button type="submit" disabled={isSavingTask} className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-pmedium text-white shadow-sm transition-all hover:bg-[#2563EB]/90 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">
+                  <button data-readonly-write type="submit" disabled={isSavingTask} className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-pmedium text-white shadow-sm transition-all hover:bg-[#2563EB]/90 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">
                     {isSavingTask ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
                     {isSavingTask ? 'Saving...' : editingTask ? 'Update Task' : 'Save Task'}
                   </button>
@@ -2087,7 +2087,7 @@ function HousekeepingPageInner({ lockedTab }: { lockedTab?: string }) {
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <button type="button" onClick={() => setEditingEmployee(null)} className="rounded-xl px-4 py-2 text-xs font-pmedium text-slate-600 transition-all hover:bg-slate-100">Cancel</button>
-                  <button type="submit" disabled={isSavingEmployee} className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-pmedium text-white shadow-sm transition-all hover:bg-[#2563EB]/90 disabled:opacity-50">
+                  <button data-readonly-write type="submit" disabled={isSavingEmployee} className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-pmedium text-white shadow-sm transition-all hover:bg-[#2563EB]/90 disabled:opacity-50">
                     {isSavingEmployee ? 'Saving...' : 'Save Changes'}
                   </button>
                 </div>
@@ -2159,7 +2159,7 @@ function HousekeepingPageInner({ lockedTab }: { lockedTab?: string }) {
                     <WebsiteFormField required multiline minRows={2} label="Reason" value={leaveForm.reason} onChange={(e) => setLeaveForm({ ...leaveForm, reason: e.target.value })} />
                     <div className="flex justify-end gap-2">
                       <button type="button" onClick={() => setIsApplyLeaveModalOpen(false)} className="rounded-xl px-4 py-2 text-xs font-pmedium text-slate-600 transition-all hover:bg-slate-100">Cancel</button>
-                      <button type="submit" disabled={isSubmittingLeave} className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-2.5 text-xs font-pmedium uppercase tracking-widest text-white shadow-sm transition-all hover:bg-[#2563EB]/90 disabled:opacity-50">
+                      <button data-readonly-write type="submit" disabled={isSubmittingLeave} className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-2.5 text-xs font-pmedium uppercase tracking-widest text-white shadow-sm transition-all hover:bg-[#2563EB]/90 disabled:opacity-50">
                         <Plus size={14} /> {isSubmittingLeave ? 'Submitting...' : 'Submit Leave Request'}
                       </button>
                     </div>

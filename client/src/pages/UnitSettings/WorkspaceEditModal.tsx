@@ -498,7 +498,7 @@ export default function WorkspaceEditModal({
             >
               Cancel
             </button>
-            <button
+            <button data-readonly-write
               type="submit"
               disabled={isSaving}
               className="w-full sm:w-auto px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-blue-700 active:scale-95 transition-all uppercase flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-70"

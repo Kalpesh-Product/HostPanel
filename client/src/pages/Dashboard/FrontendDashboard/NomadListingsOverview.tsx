@@ -436,7 +436,7 @@ export default function NomadListingsOverview() {
                   <button
                     type="button"
                     disabled={isRequesting || !requestedTypes.length}
-                    onClick={() => requestCompaniesListing()}
+                    data-readonly-write onClick={() => requestCompaniesListing()}
                     className="bg-[#2563EB] text-white px-4 py-2 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all whitespace-nowrap"
                   >
                     {isRequesting ? "Sending..." : "Request to be listed"}
@@ -610,7 +610,7 @@ export default function NomadListingsOverview() {
                   <button
                     data-tour="nomad-verify-business"
                     type="button"
-                    onClick={handleVerifyBusinessClick}
+                    data-readonly-write onClick={handleVerifyBusinessClick}
                     disabled={!canVerifyBusiness}
                     title={
                       !canVerifyBusiness
@@ -783,7 +783,7 @@ export default function NomadListingsOverview() {
                                   <button
                                     type="button"
                                     disabled={isRequestingRecovery}
-                                    onClick={() => requestRecovery({ businessId: item.businessId })}
+                                    data-readonly-write onClick={() => requestRecovery({ businessId: item.businessId })}
                                     title="Ask our team to restore this listing"
                                     className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-pmedium uppercase tracking-wide bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap"
                                   >
@@ -822,7 +822,7 @@ export default function NomadListingsOverview() {
                                 </button>
                                 <button
                                   type="button"
-                                  disabled={!item.isActive || isTogglingVisibility}
+                                  data-readonly-write disabled={!item.isActive || isTogglingVisibility}
                                   onClick={() => {
                                     // Plan limit caps how many listings are enabled
                                     // at once — the server enforces it too.
@@ -853,7 +853,7 @@ export default function NomadListingsOverview() {
                                 <button
                                   type="button"
                                   disabled={isDeleting}
-                                  onClick={() => handleDeleteClick(item)}
+                                  data-readonly-write onClick={() => handleDeleteClick(item)}
                                   title={
                                     item.isPublic
                                       ? "Turn off visibility before deleting it"
@@ -965,7 +965,7 @@ export default function NomadListingsOverview() {
               </button>
               <button
                 type="button"
-                disabled={isTogglingVisibility}
+                data-readonly-write disabled={isTogglingVisibility}
                 onClick={() => {
                   toggleVisibility(
                     { businessId: blockedDeleteListing.businessId, isPublic: false },
@@ -1012,7 +1012,7 @@ export default function NomadListingsOverview() {
               </button>
               <button
                 type="button"
-                onClick={handleConfirmDeleteListing}
+                data-readonly-write onClick={handleConfirmDeleteListing}
                 disabled={isDeleting}
                 className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 text-[12px] font-pmedium text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
               >

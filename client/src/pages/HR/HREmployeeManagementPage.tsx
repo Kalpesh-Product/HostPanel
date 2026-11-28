@@ -3004,7 +3004,7 @@ export default function HREmployeeManagementPage({
                   >
                     Cancel
                   </button>
-                  <button
+                  <button data-readonly-write
                     type="submit"
                     disabled={addFormSubmitting}
                     className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
@@ -3185,7 +3185,7 @@ export default function HREmployeeManagementPage({
                                     <Edit3 size={14} strokeWidth={2.5} />
                                   </button>
                                   {!isTenantEmployee && ["pending", "invite_sent"].includes(emp.statusKey) && emp.email && (
-                                    <button
+                                    <button data-readonly-write
                                       onClick={() => handleResendInvite(emp)}
                                       disabled={resendingInviteId === emp.id}
                                       className="p-1.5 bg-slate-100 text-slate-600 hover:bg-orange-100 hover:text-orange-700 rounded-lg transition-all disabled:opacity-50"
@@ -3800,7 +3800,7 @@ export default function HREmployeeManagementPage({
                     {editingEmployee.statusKey === "invite_sent" ? "Save & Resend Invite" : "Save & Send Invite"}
                   </button>
                 )}
-                <button type="submit" disabled={editFormSubmitting} className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2">
+                <button data-readonly-write type="submit" disabled={editFormSubmitting} className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2">
                   {editFormSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                   {editFormSubmitting ? "Saving..." : "Save Changes"}
                 </button>

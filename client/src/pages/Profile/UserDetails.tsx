@@ -1043,7 +1043,7 @@ export default function UserDetails() {
                     </button>
                     <button
                       type="button"
-                      onClick={handleAvatarRemove}
+                      data-readonly-write onClick={handleAvatarRemove}
                       disabled={isAvatarRemoving}
                       className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-[12px] font-pmedium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -1077,7 +1077,7 @@ export default function UserDetails() {
                   </label>
                   <button
                     type="button"
-                    onClick={handleAvatarUpload}
+                    data-readonly-write onClick={handleAvatarUpload}
                     disabled={isAvatarUploading}
                     className="inline-flex items-center gap-2 rounded-full bg-[#2563EB] px-3 py-1.5 text-[11px] font-pmedium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                   >
@@ -1357,7 +1357,7 @@ export default function UserDetails() {
           </button>
           <button
             type="button"
-            onClick={handleSaveProfile}
+            data-readonly-write onClick={handleSaveProfile}
             disabled={isSavingProfile}
             className="flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-6 py-2.5 text-[11px] font-pmedium uppercase tracking-wider text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >

@@ -3477,7 +3477,7 @@ export default function PricingPackagesPage({ allowedCategories }: { allowedCate
                     {isViewingPackage || isViewingResource ? 'Close Details' : 'Cancel'}
                   </button>
                   {!isViewingPackage && !isViewingResource ? (
-                    <button type="submit" disabled={isSaving} className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5">
+                    <button data-readonly-write type="submit" disabled={isSaving} className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5">
                       {isSaving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                       {isSaving ? 'Saving...' : modalKind === 'resource' && modalMode === 'add' ? 'Create Resource' : isTenantPackageRateEdit ? 'Save Desk Prices' : 'Save Configuration'}
                     </button>

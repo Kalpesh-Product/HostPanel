@@ -892,7 +892,7 @@ export default function RepairLogsPage({
                   >
                     Cancel
                   </button>
-                  <button
+                  <button data-readonly-write
                     type="submit"
                     disabled={isLoadingOptions || isSaving}
                     className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-pmedium text-white shadow-sm transition-all hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"

@@ -3056,7 +3056,7 @@ export function LeaveRequestsPage() {
                         >
                           CANCEL
                         </button>
-                        <button
+                        <button data-readonly-write
                           type="submit"
                           disabled={isSubmittingLeave}
                           className="flex-1 py-3 bg-[#2563EB] text-white rounded-xl font-pmedium shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider"

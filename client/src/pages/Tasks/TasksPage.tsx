@@ -3523,7 +3523,7 @@ export function TasksPage() {
                                 >
                                   Progress-tracked
                                 </button>
-                                <button
+                                <button data-readonly-write
                                   type="button"
                                   onClick={() =>
                                     setNewTaskTypeWorkflowKind("approval")
@@ -3661,7 +3661,7 @@ export function TasksPage() {
                       >
                         CANCEL
                       </button>
-                      <button
+                      <button data-readonly-write
                         type="submit"
                         disabled={isSaving}
                         className="w-full sm:w-auto px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-primary/95 active:scale-95 transition-all uppercase flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-70"
@@ -4335,7 +4335,7 @@ export function TasksPage() {
                       >
                         CANCEL
                       </button>
-                      <button
+                      <button data-readonly-write
                         type="submit"
                         disabled={isSavingEdit}
                         className="w-full sm:w-auto px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-primary/95 active:scale-95 transition-all uppercase flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-70"

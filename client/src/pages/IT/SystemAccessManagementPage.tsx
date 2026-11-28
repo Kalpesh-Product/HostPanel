@@ -672,7 +672,7 @@ export default function SystemAccessManagementPage() {
                       className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-bold text-slate-700 shadow-sm">
                       Cancel
                     </button>
-                    <button type="submit" disabled={isSaving || !assignmentForm.assetId || !assignmentForm.targetDepartment || (assignmentForm.targetAudience === "employee" && !assignmentForm.targetEmployeeId) || (assignmentForm.targetAudience === "role" && !assignmentForm.targetRole)}
+                    <button data-readonly-write type="submit" disabled={isSaving || !assignmentForm.assetId || !assignmentForm.targetDepartment || (assignmentForm.targetAudience === "employee" && !assignmentForm.targetEmployeeId) || (assignmentForm.targetAudience === "role" && !assignmentForm.targetRole)}
                       className="inline-flex items-center justify-center gap-1.5 flex-1 rounded-2xl bg-blue-600 py-4 font-black text-white shadow-sm disabled:bg-slate-300">
                       {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                       {isSaving ? "Saving..." : "Confirm Access"}

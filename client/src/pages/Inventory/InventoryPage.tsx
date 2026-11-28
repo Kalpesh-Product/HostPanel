@@ -1434,7 +1434,7 @@ export function InventoryPage() {
 
                 <div className="pt-4 sm:pt-6 flex gap-3 border-t border-slate-200/60 flex-col-reverse sm:flex-row sm:justify-end">
                   <button type="button" onClick={() => setIsAddStockOpen(false)} className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase">CANCEL</button>
-                  <button
+                  <button data-readonly-write
                     type="submit"
                     disabled={isSaving || !addStockData.name || !addStockData.quantity || !addStockData.department}
                     className="w-full sm:w-auto px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-blue-700 active:scale-95 transition-all uppercase flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-70"
@@ -1515,7 +1515,7 @@ export function InventoryPage() {
 
                 <div className="pt-4 sm:pt-6 flex gap-3 border-t border-slate-200/60 flex-col-reverse sm:flex-row sm:justify-end">
                   <button type="button" onClick={() => setIsTransferStockOpen(false)} className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase">CANCEL</button>
-                  <button
+                  <button data-readonly-write
                     type="submit"
                     disabled={isSaving || !transferData.targetDepartment || !transferData.quantity || parseInt(transferData.quantity) > (activeInventoryItem.availableQuantity || 0) || parseInt(transferData.quantity) <= 0}
                     className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-indigo-700 active:scale-95 transition-all uppercase flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-70"

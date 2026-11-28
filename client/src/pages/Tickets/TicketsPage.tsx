@@ -2677,7 +2677,7 @@ export function TicketsPage() {
                               >
                                 <Pencil size={15} strokeWidth={2.5} aria-hidden="true" />
                               </button>
-                              <button
+                              <button data-readonly-write
                                 onClick={() => void removeDraft()}
                                 disabled={isRemovingDraft}
                                 className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 disabled:cursor-not-allowed disabled:opacity-50"
@@ -2752,7 +2752,7 @@ export function TicketsPage() {
                               >
                                 <Pencil size={15} strokeWidth={2.5} aria-hidden="true" />
                               </button>
-                              <button
+                              <button data-readonly-write
                                 onClick={() => void removeDraft()}
                                 disabled={isRemovingDraft}
                                 className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 disabled:cursor-not-allowed disabled:opacity-50"
@@ -3014,10 +3014,10 @@ export function TicketsPage() {
                 />
 
                 <div className="pt-4 sm:pt-6 flex gap-3 border-t border-slate-200/60 flex-col sm:flex-row">
-                  <button type="button" onClick={() => void saveDraft()} disabled={isSavingDraft} className="flex-1 px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-70">
+                  <button data-readonly-write type="button" onClick={() => void saveDraft()} disabled={isSavingDraft} className="flex-1 px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-70">
                     <Save size={13} /> {isSavingDraft ? 'SAVING...' : 'SAVE DRAFT'}
                   </button>
-                  <button
+                  <button data-readonly-write
                     type="submit"
                     disabled={isSaving}
                     className="flex-1 px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-primary/95 active:scale-95 transition-all uppercase flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-70"

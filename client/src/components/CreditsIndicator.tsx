@@ -435,7 +435,7 @@ const CreditsIndicator = ({ workspaceId, companyId }) => {
                     <div className="w-full">
                       <button
                         type="button"
-                        onClick={() => handlePlanCardAction(plan.key)}
+                        data-readonly-write onClick={() => handlePlanCardAction(plan.key)}
                         disabled={isUpgradeSubmitting}
                         className="w-full rounded-xl bg-[#2563EB] px-8 py-2.5 text-white font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                       >

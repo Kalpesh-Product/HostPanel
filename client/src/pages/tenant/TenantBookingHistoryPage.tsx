@@ -1246,7 +1246,7 @@ export default function TenantBookingHistoryPage() {
               <div className="p-5 sm:p-6 border-t border-slate-100 bg-white flex flex-col-reverse sm:flex-row justify-end gap-2">
                 <button type="button" onClick={closeRescheduleModal} disabled={isSaving}
                   className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase tracking-widest">Back</button>
-                <button disabled={isSaving || !rescheduleAvailability.available} type="submit"
+                <button data-readonly-write disabled={isSaving || !rescheduleAvailability.available} type="submit"
                   className="w-full sm:w-auto px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] uppercase tracking-widest shadow-sm hover:bg-primary/95 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-70">
                   {isSaving ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -1316,7 +1316,7 @@ export default function TenantBookingHistoryPage() {
               <div className="p-5 sm:p-6 border-t border-slate-100 bg-white flex flex-col-reverse sm:flex-row justify-end gap-2">
                 <button type="button" onClick={closeExtendModal} disabled={isSaving}
                   className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase tracking-widest">Back</button>
-                <button disabled={isSaving || !extendAvailability.available} type="submit"
+                <button data-readonly-write disabled={isSaving || !extendAvailability.available} type="submit"
                   className="w-full sm:w-auto px-4 py-2.5 bg-violet-600 text-white rounded-2xl font-pmedium text-[10px] uppercase tracking-widest shadow-sm hover:bg-violet-700 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-70">
                   {isSaving ? 'Extending...' : 'Extend Meeting'}
                 </button>

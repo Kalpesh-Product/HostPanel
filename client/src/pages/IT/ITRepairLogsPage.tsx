@@ -760,7 +760,7 @@ export default function ITRepairLogsPage({
 
                   <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
                     <button type="button" onClick={() => setShowCreate(false)} className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 font-pmedium text-slate-700 shadow-sm transition-all hover:bg-slate-50 text-xs uppercase tracking-wider">Cancel</button>
-                    <button type="submit" disabled={isSaving} className="inline-flex items-center gap-1.5 px-6 py-3 bg-blue-600 text-white rounded-2xl text-xs font-pmedium uppercase tracking-wider hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm transition-colors">
+                    <button data-readonly-write type="submit" disabled={isSaving} className="inline-flex items-center gap-1.5 px-6 py-3 bg-blue-600 text-white rounded-2xl text-xs font-pmedium uppercase tracking-wider hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm transition-colors">
                       {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                       {isSaving ? "Creating..." : "Create Log"}
                     </button>

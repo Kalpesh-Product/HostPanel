@@ -127,6 +127,44 @@ const MainLayoutContent = () => {
     };
   }, [auth?.impersonation]);
 
+  // The [data-readonly-write] CSS rule uses pointer-events, which only stops the
+  // mouse. Capture click/keydown/submit ahead of React's root listener so the
+  // keyboard hits the same wall and no write handler runs for an un-migrated
+  // button that is merely marked up rather than truly disabled.
+  useEffect(() => {
+    if (!auth?.impersonation) return;
+
+    const blockIfWriteTarget = (event: Event) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest?.("[data-readonly-write]")) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+
+    const onSubmit = (event: Event) => {
+      const submitter = (event as SubmitEvent).submitter as HTMLElement | null;
+      if (submitter?.closest?.("[data-readonly-write]")) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Enter" || event.key === " ") blockIfWriteTarget(event);
+    };
+
+    document.addEventListener("click", blockIfWriteTarget, true);
+    document.addEventListener("keydown", onKeyDown, true);
+    document.addEventListener("submit", onSubmit, true);
+
+    return () => {
+      document.removeEventListener("click", blockIfWriteTarget, true);
+      document.removeEventListener("keydown", onKeyDown, true);
+      document.removeEventListener("submit", onSubmit, true);
+    };
+  }, [auth?.impersonation]);
+
   return (
     <div
       className="w-full flex flex-col justify-between h-screen overflow-y-auto"

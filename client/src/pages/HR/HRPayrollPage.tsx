@@ -635,7 +635,7 @@ function PayrollTemplateModal({
                   className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
                   {confirming ? "Back" : "Cancel"}
                 </button>
-                <button type="button" onClick={confirming ? onConfirm : onContinue} disabled={saving}
+                <button data-readonly-write type="button" onClick={confirming ? onConfirm : onContinue} disabled={saving}
                   className={"inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-wider text-white shadow-sm transition disabled:cursor-not-allowed disabled:bg-slate-300 " + (confirming ? "bg-amber-600 hover:bg-amber-700" : "bg-[#2563EB] hover:bg-blue-700")}>
                   {confirming ? <Lock size={13} /> : <CheckCircle2 size={13} />}
                   {saving ? "Locking template..." : confirming ? "Confirm & Lock Permanently" : "Use This Template"}
@@ -913,7 +913,7 @@ function EmployeeDetailModal({
                           </button>
                         )}
                         {!ps.sentAt && (
-                          <button
+                          <button data-readonly-write
                             onClick={() => onSendPayslip?.(employee)}
                             disabled={isProcessingPayslip}
                             className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#2563EB] text-white text-[10px] font-pmedium uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:bg-slate-300 disabled:shadow-none"

@@ -95,7 +95,7 @@ export default function VirtualOfficeRenewModal({ open, record, onClose, onRenew
           <button onClick={onClose} disabled={isSaving} type="button" className="rounded-xl px-4 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-600 transition hover:bg-slate-100">
             Cancel
           </button>
-          <button onClick={handleRenew} disabled={isSaving} type="button" className="flex items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50">
+          <button data-readonly-write onClick={handleRenew} disabled={isSaving} type="button" className="flex items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-2.5 text-[10px] font-pmedium uppercase tracking-widest text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50">
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             {isSaving ? "Renewing..." : "Renew"}
           </button>

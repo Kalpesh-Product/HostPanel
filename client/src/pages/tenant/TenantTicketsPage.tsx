@@ -647,7 +647,7 @@ export default function TenantTicketsPage() {
               <div className="p-5 sm:p-6 border-t border-slate-100 bg-white flex flex-col-reverse sm:flex-row justify-end gap-2">
                 <button type="button" onClick={() => setShowCreateForm(false)} disabled={isSubmitting}
                   className="w-full sm:w-auto px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase tracking-widest disabled:opacity-60">Cancel</button>
-                <button type="submit" disabled={isSubmitting}
+                <button data-readonly-write type="submit" disabled={isSubmitting}
                   className="w-full sm:w-auto px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-primary/95 active:scale-95 transition-all uppercase tracking-widest flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-70">
                   {isSubmitting ? 'Creating...' : 'Create Ticket'} {!isSubmitting && <Plus size={13} strokeWidth={3} />}
                 </button>

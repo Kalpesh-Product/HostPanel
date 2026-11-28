@@ -146,7 +146,7 @@ const CustomPlanModuleSelectionModal: React.FC<Props> = ({
       <div className="px-5 sm:px-6 py-4 border-t border-[#dbe5f2] shrink-0 flex justify-end">
         <button
           type="button"
-          onClick={() => onSubmit(selectedModuleIds, billingCycle)}
+          data-readonly-write onClick={() => onSubmit(selectedModuleIds, billingCycle)}
           disabled={isSubmitting || !selectedModuleIds.length}
           className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-medium text-[13px] shadow-sm hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >

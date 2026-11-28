@@ -1011,7 +1011,7 @@ export default function WorkspaceSettingsPage() {
                 >
                   Cancel
                 </button>
-                <button
+                <button data-readonly-write
                   type="submit"
                   disabled={isSubmitting}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-5 text-sm font-pmedium text-white shadow-sm transition hover:bg-[#1e4fd1] disabled:cursor-not-allowed disabled:opacity-60"

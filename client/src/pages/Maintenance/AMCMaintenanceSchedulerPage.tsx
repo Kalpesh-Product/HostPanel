@@ -871,7 +871,7 @@ export default function AMCMaintenanceSchedulerPage({
                     >
                       Cancel
                     </button>
-                    <button
+                    <button data-readonly-write
                       type="submit"
                       disabled={isSaving}
                       className="inline-flex items-center gap-1.5 px-6 py-3 bg-blue-600 text-white rounded-2xl text-xs font-pmedium uppercase tracking-wider hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm transition-colors"

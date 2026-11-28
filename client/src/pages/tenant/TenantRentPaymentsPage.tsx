@@ -543,7 +543,7 @@ export default function TenantRentPaymentsPage() {
                 className="flex-1 px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[10px] uppercase tracking-widest disabled:opacity-60">
                 Cancel
               </button>
-              <button type="button" disabled={isSubmitting || !paymentProofFile} onClick={() => void handleSubmitRentPayment()}
+              <button type="button" disabled={isSubmitting || !paymentProofFile} data-readonly-write onClick={() => void handleSubmitRentPayment()}
                 className="flex-1 px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] uppercase tracking-widest shadow-sm hover:bg-primary/95 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-70 flex items-center justify-center gap-1.5">
                 {isSubmitting ? 'Submitting...' : 'Submit Proof'} {!isSubmitting && <CheckCircle2 size={13} />}
               </button>

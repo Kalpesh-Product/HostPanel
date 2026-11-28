@@ -1356,7 +1356,7 @@ function UnifiedCalendar() {
               >
                 Cancel
               </button>
-              <button
+              <button data-readonly-write
                 type="button"
                 onClick={submitCreateEvent}
                 disabled={isSavingEvent}

@@ -157,7 +157,7 @@ const PlanRenewModal = ({ planId, planLabel, companyId, planExpiryDate, onClose 
           </button>
           <button
             type="button"
-            onClick={handleSubmit}
+            data-readonly-write onClick={handleSubmit}
             disabled={isSubmitting}
             className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[11px] font-pmedium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
           >

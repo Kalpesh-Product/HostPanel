@@ -5076,7 +5076,7 @@ export function MeetingRoomsPage() {
                       <>
                         {(canViewCompanyBookings || isAssignedDeptProfile || isDepartmentManagerProfile) && (
                         <>
-                        <button
+                        <button data-readonly-write
                           data-tour="meetings-scope-dept"
                           onClick={() => {
                             const tab = canViewCompanyBookings
@@ -7074,7 +7074,7 @@ export function MeetingRoomsPage() {
                         {chartSlots.map((slot) => {
                           const selected = rescheduleData.startTime === slot.start && rescheduleData.endTime === slot.end;
                           return (
-                            <button
+                            <button data-readonly-write
                               key={slot.start}
                               type="button"
                               onClick={() => setRescheduleData({ ...rescheduleData, startTime: slot.start, endTime: slot.end })}

@@ -443,7 +443,7 @@ export function ResignationManagementSettingsPanel({
               >
                 Close
               </button>
-              <button
+              <button data-readonly-write
                 type="button"
                 onClick={saveSettings}
                 disabled={isLoading || isSaving}

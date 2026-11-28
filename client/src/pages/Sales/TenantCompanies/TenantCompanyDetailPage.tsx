@@ -715,7 +715,7 @@ export default function TenantCompanyDetailPage() {
                               <td className="px-5 py-4 text-right">
                                 <div className="flex items-center justify-end gap-1.5">
                                   {canSendInvite(emp) && (
-                                    <button onClick={() => hSendInvite(emp)} disabled={sendingInviteId === emp.id}
+                                    <button data-readonly-write onClick={() => hSendInvite(emp)} disabled={sendingInviteId === emp.id}
                                       className="p-1.5 bg-slate-100 text-slate-600 hover:bg-violet-100 hover:text-violet-700 rounded-lg transition-all disabled:opacity-50"
                                       title={meta.label === 'Invited' ? 'Resend Invite' : 'Send Invite'}>
                                       {sendingInviteId === emp.id ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} strokeWidth={2.5} />}
@@ -1142,7 +1142,7 @@ export default function TenantCompanyDetailPage() {
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => { setAddModal(false); setAddF({ name: '', email: '', phone: '', role: '', department: '', designation: '' }); }}
                   className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-pmedium text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
-                <button type="submit" disabled={isSaving || addManagerDepartmentTaken || addAdminTaken}
+                <button data-readonly-write type="submit" disabled={isSaving || addManagerDepartmentTaken || addAdminTaken}
                   className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl text-[10px] font-pmedium shadow-sm hover:bg-[#2563EB]/90 disabled:cursor-not-allowed disabled:opacity-60 transition-all">{isSaving && <Loader2 size={13} className="animate-spin" />}{isSaving ? 'Adding...' : 'Add Employee'}</button>
               </div>
             </form>
@@ -1274,7 +1274,7 @@ export default function TenantCompanyDetailPage() {
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => { setEditEmp(null); setEditF({ name: '', phone: '', role: 'Employee', department: '', designation: '' }); }}
                   className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-pmedium text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
-                <button type="submit" disabled={isSaving || editManagerDepartmentTaken || editAdminTaken}
+                <button data-readonly-write type="submit" disabled={isSaving || editManagerDepartmentTaken || editAdminTaken}
                   className="flex items-center gap-2 px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl text-[10px] font-pmedium shadow-sm hover:bg-[#2563EB]/90 disabled:cursor-not-allowed disabled:opacity-60 transition-all">{isSaving ? <><Loader2 size={13} className="animate-spin" /> Saving...</> : <><Save size={13} /> Save Employee</>}</button>
               </div>
             </form>

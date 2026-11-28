@@ -1597,7 +1597,7 @@ export default function AdministrationTenantCompaniesPage() {
                   <label className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Add More Credits</label>
                   <input type="number" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={renewForm.addCredits} onChange={(event) => setRenewForm({ ...renewForm, addCredits: event.target.value })} min="0" step="100" />
                 </div>
-                <button type="submit" className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#2563EB] py-2.5 text-xs font-pmedium text-white transition-all hover:bg-[#2563EB]/90"><Save size={14} /> Update Contract</button>
+                <button data-readonly-write type="submit" className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#2563EB] py-2.5 text-xs font-pmedium text-white transition-all hover:bg-[#2563EB]/90"><Save size={14} /> Update Contract</button>
               </form>
             </div>
           </div>
@@ -1899,7 +1899,7 @@ export default function AdministrationTenantCompaniesPage() {
 
                 <div className="mt-0 flex items-center justify-end gap-2 border-t border-slate-100 pt-3 sticky bottom-0 bg-slate-50/30">
                   <button type="button" onClick={closeEditModal} className="rounded-xl px-4 py-2 text-xs font-pmedium text-slate-600 transition-all hover:bg-slate-100">Cancel</button>
-                  <button type="submit" disabled={isSaving} className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-pmedium text-white transition-all hover:bg-[#2563EB]/90 disabled:cursor-not-allowed disabled:opacity-60">
+                  <button data-readonly-write type="submit" disabled={isSaving} className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-pmedium text-white transition-all hover:bg-[#2563EB]/90 disabled:cursor-not-allowed disabled:opacity-60">
                     <Save size={14} /> Save Changes
                   </button>
                 </div>

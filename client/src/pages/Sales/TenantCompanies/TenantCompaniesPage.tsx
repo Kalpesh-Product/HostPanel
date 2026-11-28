@@ -4464,7 +4464,7 @@ export default function TenantCompaniesPage() {
                     <button type="button" onClick={closeReactivateModal} disabled={isReactivating} className="px-4 py-2 rounded-xl text-[12px] font-pmedium text-slate-600 hover:bg-slate-100 transition-all disabled:opacity-50">
                       Cancel
                     </button>
-                    <button type="submit" disabled={isReactivating} className="px-4 py-2 rounded-xl text-[12px] font-pmedium bg-emerald-600 text-white hover:bg-emerald-700 transition-all disabled:opacity-50 flex items-center gap-1.5">
+                    <button data-readonly-write type="submit" disabled={isReactivating} className="px-4 py-2 rounded-xl text-[12px] font-pmedium bg-emerald-600 text-white hover:bg-emerald-700 transition-all disabled:opacity-50 flex items-center gap-1.5">
                       {isReactivating && <Loader2 size={13} className="animate-spin" />} Activate Tenant
                     </button>
                   </div>
@@ -5172,7 +5172,7 @@ export default function TenantCompaniesPage() {
 
                   <div className="order-9 sticky bottom-0 bg-white border-t border-slate-100 p-3 sm:p-4 flex gap-3">
                     <button type="button" onClick={() => { setActiveModal(null); setSelectedTenant(null); setCompanyForm(initialCompanyForm); setAgreementFiles([]); setFormError(''); }} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[11px] hover:bg-slate-50 transition-all shadow-sm">CANCEL</button>
-                    <button type="submit" disabled={isSaving} className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[11px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60">
+                    <button data-readonly-write type="submit" disabled={isSaving} className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[11px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60">
                       {isSaving ? <><Loader2 size={14} className="animate-spin" /> SAVING...</> : <>SUBMIT &amp; SEND TO FINANCE <Save size={14} /></>}
                     </button>
                   </div>
@@ -5667,7 +5667,7 @@ export default function TenantCompaniesPage() {
                       <div className="flex justify-end gap-2 pt-2">
                         <button type="button" onClick={() => { setEmployeeModalOpen(false); setEmployeeForm({ name: '', email: '', phone: '', designation: '', role: '' }); }}
                           className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-pmedium text-slate-600 transition-all hover:bg-slate-50">Cancel</button>
-                        <button type="submit" disabled={isSaving}
+                        <button data-readonly-write type="submit" disabled={isSaving}
                           className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
                           {isSaving && <Loader2 size={14} className="animate-spin" />}
                           {isSaving ? 'Adding...' : 'Add Employee'}
@@ -5741,7 +5741,7 @@ export default function TenantCompaniesPage() {
                           <option value="Manager">Manager</option>
                         </select>
                       </div>
-                      <button type="submit" disabled={isSaving} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-pmedium text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                      <button data-readonly-write type="submit" disabled={isSaving} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-pmedium text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
                         {isSaving ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : <><Save size={16} /> Save Employee</>}
                       </button>
                     </form>

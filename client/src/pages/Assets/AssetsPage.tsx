@@ -3483,7 +3483,7 @@ export function AssetsPage() {
                   >
                     CANCEL
                   </button>
-                  <button
+                  <button data-readonly-write
                     type="submit"
                     disabled={isSaving}
                     className="w-full sm:w-auto px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-pmedium text-[10px] shadow-sm hover:bg-blue-700 active:scale-95 transition-all uppercase flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-70"
@@ -3565,7 +3565,7 @@ export function AssetsPage() {
                 >
                   Cancel
                 </button>
-                <button
+                <button data-readonly-write
                   type="submit"
                   disabled={isSavingCategory || !selectedDepartmentRecord?.id}
                   className="px-4 py-2.5 rounded-xl bg-[#2563EB] text-white text-[10px] uppercase inline-flex items-center gap-1.5 disabled:opacity-60"
@@ -3626,7 +3626,7 @@ export function AssetsPage() {
                 >
                   Cancel
                 </button>
-                <button
+                <button data-readonly-write
                   type="submit"
                   disabled={isSavingCategory || !assetForm.categoryId}
                   className="px-4 py-2.5 rounded-xl bg-[#2563EB] text-white text-[10px] uppercase inline-flex items-center gap-1.5 disabled:opacity-60"
@@ -4084,7 +4084,7 @@ export function AssetsPage() {
                 >
                   Cancel
                 </button>
-                <button
+                <button data-readonly-write
                   type="submit"
                   disabled={isSubmittingIssue || Boolean(issueSuccess)}
                   className="px-4 py-2.5 rounded-xl bg-amber-600 text-white text-[10px] uppercase inline-flex items-center gap-1.5 disabled:opacity-60"

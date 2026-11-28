@@ -368,7 +368,7 @@ export default function ExistingCompanyClaimModal({ onClose }) {
             <button
               type="button"
               disabled={!canSubmit}
-              onClick={() => submitClaim()}
+              data-readonly-write onClick={() => submitClaim()}
               className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 text-[12px] font-pmedium text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}

@@ -1632,7 +1632,7 @@ function ResourceManagementPageInner() {
                   <button type="button" onClick={closeEditor} className="flex-1 px-6 py-2.5 rounded-xl font-pmedium text-[10px] uppercase tracking-wider bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">
                     Cancel
                   </button>
-                  <button type="submit" disabled={isSaving} className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5">
+                  <button data-readonly-write type="submit" disabled={isSaving} className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5">
                     {isSaving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                     {isSaving ? 'Saving...' : editingResource ? 'Update Resource' : 'Create Resource'}
                   </button>

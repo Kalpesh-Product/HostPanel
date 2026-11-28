@@ -1075,7 +1075,7 @@ export function DepartmentAssetsPage() {
               </div>
               <div className="flex gap-4 pt-4 border-t border-gray-100">
                 <button onClick={() => setIsAddModalOpen(false)} className="flex-1 py-4 bg-white border border-gray-200 rounded-2xl font-black text-gray-500 hover:text-gray-900 transition-all">CANCEL</button>
-                <button type="submit" disabled={!assetForm.name || isSaving} className="flex-1 py-4 bg-[#2563EB] text-white rounded-2xl font-pmedium shadow-lg shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-blue-700 transition-all">{isSaving ? 'SAVING...' : 'CREATE ASSET'}</button>
+                <button data-readonly-write type="submit" disabled={!assetForm.name || isSaving} className="flex-1 py-4 bg-[#2563EB] text-white rounded-2xl font-pmedium shadow-lg shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-blue-700 transition-all">{isSaving ? 'SAVING...' : 'CREATE ASSET'}</button>
               </div>
             </form>
           </div>

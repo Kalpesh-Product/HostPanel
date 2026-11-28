@@ -126,7 +126,7 @@ export default function UnitBusinessHoursPage() {
                     </p>
                   </div>
                 </div>
-                <button
+                <button data-readonly-write
                   type="button"
                   data-tour="unit-business-hours-save"
                   onClick={saveBusinessHours}

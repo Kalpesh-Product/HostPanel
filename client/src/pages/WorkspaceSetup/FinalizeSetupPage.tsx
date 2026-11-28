@@ -736,7 +736,7 @@ const FinalizeSetupPage: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={handleCompleteSetup}
+              data-readonly-write onClick={handleCompleteSetup}
               disabled={isSubmitting}
               className="h-10 w-full sm:w-auto px-7 rounded-xl bg-[#2d67f0] hover:bg-[#2558d5] transition-colors text-white text-[13px] font-pmedium inline-flex items-center justify-center gap-2"
             >

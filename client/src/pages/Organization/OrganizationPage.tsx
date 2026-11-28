@@ -2612,7 +2612,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
               >
                 Cancel
               </button>
-              <button
+              <button data-readonly-write
                 type="button"
                 onClick={() => handleAssignManagerToDepartment(assignManagerTargetId)}
                 disabled={isAssigningManager || !assignManagerTargetId}
@@ -2961,7 +2961,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
               >
                 Cancel
               </button>
-              <button
+              <button data-readonly-write
                 type="button"
                 onClick={submitRoleChange}
                 disabled={
@@ -3238,7 +3238,7 @@ const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
 
             <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 flex gap-2.5 shrink-0">
               <button onClick={() => setShowTeamMemberModal(false)} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[12px] hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
-              <button
+              <button data-readonly-write
                 onClick={handleSendInvite}
                 disabled={
                   isSendingInvite ||

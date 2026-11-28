@@ -95,7 +95,7 @@ export default function UnitFiscalYearPage() {
                     </p>
                   </div>
                 </div>
-                <button
+                <button data-readonly-write
                   type="button"
                   data-tour="unit-fiscal-year-save"
                   onClick={saveFiscalYear}

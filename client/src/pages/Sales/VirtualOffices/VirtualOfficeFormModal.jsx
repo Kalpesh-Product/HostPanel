@@ -427,7 +427,7 @@ export default function VirtualOfficeFormModal({ open, mode = "create", initialR
           <button onClick={onClose} type="button" disabled={isSaving} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[11px] hover:bg-slate-50 transition-all shadow-sm disabled:cursor-not-allowed disabled:opacity-60">
             CANCEL
           </button>
-          <button onClick={handleSave} disabled={isSaving} className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[11px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60">
+          <button data-readonly-write onClick={handleSave} disabled={isSaving} className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[11px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60">
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
             {isSaving ? "SAVING..." : mode === "edit" ? "SAVE CHANGES" : "ONBOARD COMPANY"}
           </button>

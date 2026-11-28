@@ -870,7 +870,7 @@ export function ResignationRequestWorkflowTab() {
               >
                 Cancel
               </button>
-              <button
+              <button data-readonly-write
                 type="submit"
                 disabled={isSaving || reason.trim().length < 10 || !effectiveDate || !acknowledged}
                 className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-5 text-xs font-pmedium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
