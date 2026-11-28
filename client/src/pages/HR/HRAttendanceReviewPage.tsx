@@ -1472,7 +1472,7 @@ export default function HRAttendanceReviewPage({
                       <th className="min-w-[130px] px-6 py-4 text-left">Check Out</th>
                       <th className="min-w-[140px] px-6 py-4 text-left">Status</th>
                       <th className="min-w-[120px] px-6 py-4 text-left">Hours</th>
-                      <th className="min-w-[90px] px-6 py-4 text-center">Action</th>
+                      <th className="sticky right-0 z-10 min-w-[90px] border-l border-slate-100/60 bg-slate-50 px-6 py-4 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
@@ -1521,7 +1521,7 @@ export default function HRAttendanceReviewPage({
                           <td className="min-w-[120px] whitespace-nowrap px-6 py-4 text-[12px] font-pmedium text-slate-700">
                             {formatDuration(record.totalHours ?? record.workingHours)}
                           </td>
-                          <td className="min-w-[90px] whitespace-nowrap px-6 py-4 text-center">
+                          <td className="sticky right-0 z-10 min-w-[90px] whitespace-nowrap border-l border-slate-100/60 bg-white px-6 py-4 text-center group-hover:bg-slate-50">
                             <button
                               onClick={() => openDetail(record)}
                               className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"

@@ -2299,6 +2299,38 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern:
+      "/department-accesses/hr-department/attendance-review/attendance-master",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      {
+        label: "Attendance Review",
+        path: "/department-accesses/hr-department/attendance-review",
+      },
+      { label: "Attendance Master" },
+    ],
+  },
+  {
+    pattern:
+      "/department-accesses/hr-department/attendance-review/correction-requests",
+    crumbs: [
+      {
+        label: SECTION_LABELS.departmentAccesses,
+        path: "/department-accesses",
+      },
+      { label: "HR Department", path: "/department-accesses/hr-department" },
+      {
+        label: "Attendance Review",
+        path: "/department-accesses/hr-department/attendance-review",
+      },
+      { label: "Correction Requests" },
+    ],
+  },
+  {
     pattern: "/department-accesses/hr-department/attendance-review/:userId",
     crumbs: [
       {
