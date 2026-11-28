@@ -177,7 +177,7 @@ app.use("/api/verify-business", verifyJwt, blockWriteIfImpersonating, verifyBusi
 app.use("/api/profile", verifyJwt, blockWriteIfImpersonating, hostUserRoutes);
 app.use("/api/review", verifyJwt, blockWriteIfImpersonating, reviewRoutes);
 app.use("/api/workspaces", verifyJwt, blockWriteIfImpersonating, workspaceRoutes);
-app.use("/api/plan-billing", verifyJwt, planBillingRoutes);
+app.use("/api/plan-billing", verifyJwt, blockWriteIfImpersonating, planBillingRoutes);
 app.use("/api/organization", verifyJwt, blockWriteIfImpersonating, organizationRoutes);
 app.use("/api/subscription", verifyJwt, blockWriteIfImpersonating, subscriptionRoutes);
 app.use("/api/website-credits", verifyJwt, blockWriteIfImpersonating, websiteCreditsRoutes);

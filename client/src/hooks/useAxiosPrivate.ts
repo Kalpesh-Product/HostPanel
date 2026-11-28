@@ -51,9 +51,21 @@ export default function useAxiosPrivate() {
           // session still ends naturally when its own short-lived access
           // token actually expires (next page load's auth check catches
           // that, since there's no refresh path to keep it alive anyway).
-          // No toast here by design — write buttons are already disabled
-          // preemptively (PrimaryButton + the [data-readonly-session] CSS
-          // rule), so reaching this branch at all should be rare/edge-case.
+          //
+          // A blocked write (READ_ONLY_SESSION, from
+          // blockWriteIfImpersonating) is explained to the viewer. Mutating
+          // buttons are disabled where they can be, but that is not yet
+          // everywhere, and a click that silently does nothing reads as a
+          // broken panel. A stable toast id keeps repeat attempts to one
+          // message instead of stacking. Ordinary permission 403s stay quiet
+          // so they don't get mislabelled as read-only.
+          if (errorCode === "READ_ONLY_SESSION") {
+            toast.error(
+              errorMessage ||
+                "This is a read-only staff view session and cannot make changes.",
+              { id: "readonly-staff-view" }
+            );
+          }
           return Promise.reject(error);
         }
 

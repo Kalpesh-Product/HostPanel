@@ -112,6 +112,21 @@ const MainLayoutContent = () => {
     };
   }, []);
 
+  // Staff "View As" sessions are read-only. The attribute is mirrored onto
+  // <body> (not only this wrapper) because MUI dialogs and createPortal()
+  // modals render outside this subtree, so the [data-readonly-session] CSS
+  // guards would otherwise never match their submit buttons.
+  useEffect(() => {
+    if (auth?.impersonation) {
+      document.body.setAttribute("data-readonly-session", "true");
+    } else {
+      document.body.removeAttribute("data-readonly-session");
+    }
+    return () => {
+      document.body.removeAttribute("data-readonly-session");
+    };
+  }, [auth?.impersonation]);
+
   return (
     <div
       className="w-full flex flex-col justify-between h-screen overflow-y-auto"

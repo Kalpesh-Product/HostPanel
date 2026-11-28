@@ -10,6 +10,7 @@ import {
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { createReport } from '@/services/reports';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
+import useReadOnlySession from '@/hooks/useReadOnlySession';
 import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
 import {
   getPayrollSnapshot,
@@ -724,6 +725,7 @@ function buildTransactionHistoryFeed(
 
 export function BillingPaymentsPage() {
   const workspacePreferences = useWorkspacePreferences();
+  const { isReadOnly, readOnlyTooltip } = useReadOnlySession();
   const formatCurrency = useCallback(
     (value: number) => formatWorkspaceCurrency(Number(value || 0), workspacePreferences.currency, { maximumFractionDigits: 0 }),
     [workspacePreferences.currency],
@@ -3179,7 +3181,8 @@ export function BillingPaymentsPage() {
                   <button
                     type="button"
                     onClick={() => handleCreditFinanceAction(viewingExtraCredit, 'COMPLETED')}
-                    disabled={isProcessingAction}
+                    disabled={isReadOnly || isProcessingAction}
+                    title={readOnlyTooltip}
                     className="px-5 py-2.5 bg-green-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-green-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                   >
                     <CheckCircle2 size={12} /> {isProcessingAction ? 'Processing...' : 'Mark Completed'}
@@ -3187,7 +3190,8 @@ export function BillingPaymentsPage() {
                   <button
                     type="button"
                     onClick={() => handleCreditFinanceAction(viewingExtraCredit, 'REJECTED')}
-                    disabled={isProcessingAction}
+                    disabled={isReadOnly || isProcessingAction}
+                    title={readOnlyTooltip}
                     className="px-5 py-2.5 bg-white border border-red-200 text-red-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-red-50 transition-all disabled:opacity-60 flex items-center gap-1.5"
                   >
                     <XCircle size={12} /> Reject

@@ -16,6 +16,7 @@ import { statusPillClass } from '../../lib/status-pill';
 import { ApprovalFlowBadges, hasApprovalProgress } from '../../components/finance/ApprovalFlowBadges';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
 import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
+import useReadOnlySession from '@/hooks/useReadOnlySession';
 
 // Axios errors carry the API's real message inside response.data.message.
 function getApiErrorMessage(error: any, fallback: string): string {
@@ -30,6 +31,7 @@ export type FinanceModulePage = "approvals" | "overview";
 
 export function FinancePage({ modulePage }: { modulePage?: FinanceModulePage } = {}) {
   const navigate = useNavigate();
+  const { isReadOnly, readOnlyTooltip } = useReadOnlySession();
   const location = useLocation();
   const currentUser = getStoredUser();
   const profile = {
@@ -642,10 +644,10 @@ export function FinancePage({ modulePage }: { modulePage?: FinanceModulePage } =
                                   <button onClick={() => { setDecisionComment(''); setDecisionPrompt({ action: 'Discuss', request: { ...req, type: 'annual' } }); }} className="p-2 bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 rounded-lg transition-all shadow-sm" title="Discuss">
                                     <MessageSquare size={14} />
                                   </button>
-                                  <button onClick={() => { setDecisionComment(''); setDecisionPrompt({ action: 'Rejected', request: { ...req, type: 'annual' } }); }} className="p-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm" title="Reject">
+                                  <button onClick={() => { setDecisionComment(''); setDecisionPrompt({ action: 'Rejected', request: { ...req, type: 'annual' } }); }} disabled={isReadOnly} className="p-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm" title="Reject">
                                     <XCircle size={14} />
                                   </button>
-                                  <button onClick={() => setShowApproveConfirm({ ...req, type: 'annual' })} className="p-2 bg-green-600 border border-green-600 text-white hover:bg-green-700 rounded-lg transition-all shadow-sm" title="Approve">
+                                  <button onClick={() => setShowApproveConfirm({ ...req, type: 'annual' })} disabled={isReadOnly} className="p-2 bg-green-600 border border-green-600 text-white hover:bg-green-700 rounded-lg transition-all shadow-sm" title="Approve">
                                     <CheckCircle2 size={14} />
                                   </button>
                                 </>
@@ -681,10 +683,10 @@ export function FinancePage({ modulePage }: { modulePage?: FinanceModulePage } =
                                   <button onClick={() => { setDecisionComment(''); setDecisionPrompt({ action: 'Discuss', request: { ...req, type: 'extra' } }); }} className="p-2 bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 rounded-lg transition-all shadow-sm" title="Discuss">
                                     <MessageSquare size={14} />
                                   </button>
-                                  <button onClick={() => { setDecisionComment(''); setDecisionPrompt({ action: 'Rejected', request: { ...req, type: 'extra' } }); }} className="p-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm" title="Reject">
+                                  <button onClick={() => { setDecisionComment(''); setDecisionPrompt({ action: 'Rejected', request: { ...req, type: 'extra' } }); }} disabled={isReadOnly} className="p-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm" title="Reject">
                                     <XCircle size={14} />
                                   </button>
-                                  <button onClick={() => setShowApproveConfirm({ ...req, type: 'extra' })} className="p-2 bg-green-600 border border-green-600 text-white hover:bg-green-700 rounded-lg transition-all shadow-sm" title="Approve">
+                                  <button onClick={() => setShowApproveConfirm({ ...req, type: 'extra' })} disabled={isReadOnly} className="p-2 bg-green-600 border border-green-600 text-white hover:bg-green-700 rounded-lg transition-all shadow-sm" title="Approve">
                                     <CheckCircle2 size={14} />
                                   </button>
                                 </>
@@ -912,7 +914,8 @@ export function FinancePage({ modulePage }: { modulePage?: FinanceModulePage } =
                 </button>
                 <button
                   type="button"
-                  disabled={isSavingDecision}
+                  disabled={isReadOnly || isSavingDecision}
+                  title={readOnlyTooltip}
                   onClick={() => { const req = showApproveConfirm; setShowApproveConfirm(null); handleAction(req.type, req.id, 'Approved'); }}
                   className="flex-1 rounded-xl bg-green-600 py-3 text-xs font-pmedium text-white shadow-sm hover:bg-green-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >

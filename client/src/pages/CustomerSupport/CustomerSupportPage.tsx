@@ -30,6 +30,7 @@ import ExportReportModal, {
 import ReportExportButton from "@/components/ReportExportButton";
 import { isDateInExportPeriod } from "@/utils/export-period";
 import { downloadReportFile } from "../../utils/report-download";
+import useReadOnlySession from "../../hooks/useReadOnlySession";
 import { CustomerSupportSkeleton } from "../../components/ui/Skeleton";
 import { getStoredUser } from "../../lib/auth-session";
 import {
@@ -183,6 +184,7 @@ export default function CustomerSupportPage({
   const axios = useAxiosPrivate();
   const location = useLocation();
   const { plan } = useDashboardAccess();
+  const { isReadOnly, readOnlyTooltip } = useReadOnlySession();
   const showReportExports = canExportReports(plan);
   const [activeTab, setActiveTab] = useState<"raised" | "resolved">(
     () => modulePage || (location.state?.tab === "resolved" ? "resolved" : "raised"),
@@ -1194,7 +1196,8 @@ export default function CustomerSupportPage({
             <div className="p-3 sm:p-4 bg-white border-t border-slate-100 shrink-0 flex gap-3">
               <button
                 type="button"
-                disabled={isSavingDraft || isSubmitting}
+                disabled={isReadOnly || isSavingDraft || isSubmitting}
+                title={readOnlyTooltip}
                 onClick={() => void saveDraft()}
                 className="flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
@@ -1203,11 +1206,13 @@ export default function CustomerSupportPage({
               <button
                 type="submit"
                 disabled={
+                  isReadOnly ||
                   isSubmitting ||
                   isSavingDraft ||
                   !title.trim() ||
                   !description.trim()
                 }
+                title={readOnlyTooltip}
                 onClick={(e) => submitTicket(e)}
                 className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
@@ -1411,7 +1416,8 @@ export default function CustomerSupportPage({
                   </button>
                   <button
                     type="button"
-                    disabled={isSubmitting}
+                    disabled={isReadOnly || isSubmitting}
+                    title={readOnlyTooltip}
                     onClick={() => void closeTicket(selectedTicket)}
                     className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all"
                   >
@@ -1505,7 +1511,8 @@ export default function CustomerSupportPage({
             <div className="p-5 sm:p-6 md:p-8 bg-white border-t border-slate-100 shrink-0">
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isReadOnly || isSubmitting}
+                title={readOnlyTooltip}
                 onClick={(e) => submitFollowUp(e)}
                 className="w-full py-3 bg-[#2563EB] text-white rounded-xl font-pmedium text-[12px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/25 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
               >
@@ -1687,8 +1694,12 @@ export default function CustomerSupportPage({
               <button
                 type="submit"
                 disabled={
-                  isSubmitting || !editTitle.trim() || !editDescription.trim()
+                  isReadOnly ||
+                  isSubmitting ||
+                  !editTitle.trim() ||
+                  !editDescription.trim()
                 }
+                title={readOnlyTooltip}
                 onClick={(e) => submitEditTicket(e)}
                 className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >

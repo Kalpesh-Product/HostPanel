@@ -27,6 +27,7 @@ import {
   updateAssetRequestStatus,
 } from "@/services/assets";
 import PageFrame from "../../components/Pages/PageFrame";
+import useReadOnlySession from "../../hooks/useReadOnlySession";
 
 interface DepartmentOption {
   id: string;
@@ -164,6 +165,7 @@ export function AssetRequestsPanel({
   onShowAssets: () => void;
   showModuleTabs?: boolean;
 }) {
+  const { isReadOnly, readOnlyTooltip } = useReadOnlySession();
   const user = getStoredUser();
   const band = roleBandFn(user?.workspaceMembership?.role || user?.role || "");
   const isTopManagement = band === "owner" || band === "super_admin";
@@ -906,14 +908,16 @@ export function AssetRequestsPanel({
                     />
                     <div className="flex gap-2">
                       <button
-                        disabled={isSaving}
+                        disabled={isReadOnly || isSaving}
+                        title={readOnlyTooltip}
                         onClick={() => updateStatus(viewingRequest, "Approved")}
                         className="flex-1 rounded-xl bg-blue-600 px-3 py-2.5 text-[10px] font-pmedium uppercase text-white hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 disabled:opacity-60"
                       >
                         <Check size={13} /> Approve
                       </button>
                       <button
-                        disabled={isSaving}
+                        disabled={isReadOnly || isSaving}
+                        title={readOnlyTooltip}
                         onClick={() => updateStatus(viewingRequest, "Rejected")}
                         className="flex-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-[10px] font-pmedium uppercase text-red-700 hover:bg-red-100 transition-all flex items-center justify-center gap-1.5 disabled:opacity-60"
                       >

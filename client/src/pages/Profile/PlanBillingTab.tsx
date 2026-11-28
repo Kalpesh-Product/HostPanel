@@ -259,6 +259,7 @@ const PlanBillingTab = ({
             <button
               type="button"
               onClick={handleManageSubscription}
+              data-readonly-write
               disabled={isOpeningBillingPortal}
               className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[11px] font-pmedium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
             >
@@ -270,6 +271,7 @@ const PlanBillingTab = ({
             <button
               type="button"
               onClick={() => setIsRenewModalOpen(true)}
+              data-readonly-write
               className="inline-flex items-center gap-2 rounded-full bg-[#2563EB] px-4 py-2 text-[11px] font-pmedium text-white transition hover:bg-blue-700"
             >
               <RefreshCw size={13} />

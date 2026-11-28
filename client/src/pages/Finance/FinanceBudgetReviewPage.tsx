@@ -22,6 +22,7 @@ import PageFrame from '@/components/Pages/PageFrame';
 import { ApprovalFlowBadges, hasApprovalProgress } from '@/components/finance/ApprovalFlowBadges';
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
+import useReadOnlySession from '@/hooks/useReadOnlySession';
 import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
 import {
   enrichAnnualRequestWithDepartmentPlan,
@@ -91,6 +92,7 @@ export function FinanceBudgetReviewPage() {
   const [monthSearchQuery, setMonthSearchQuery] = useState('');
 
   const workspacePreferences = useWorkspacePreferences();
+  const { isReadOnly, readOnlyTooltip } = useReadOnlySession();
   const formatCurrency = useCallback(
     (val: number) => formatWorkspaceCurrency(Number(val || 0), workspacePreferences.currency, { maximumFractionDigits: 0 }),
     [workspacePreferences.currency],
@@ -621,7 +623,8 @@ export function FinanceBudgetReviewPage() {
                 </button>
                 <button
                   type="button"
-                  disabled={isSavingDecision}
+                  disabled={isReadOnly || isSavingDecision}
+                  title={readOnlyTooltip}
                   onClick={() => { setShowApproveConfirm(false); submitDecision('Approved'); }}
                   className="flex-1 rounded-xl bg-green-600 py-3 text-xs font-pmedium text-white shadow-sm hover:bg-green-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >

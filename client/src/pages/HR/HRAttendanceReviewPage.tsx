@@ -29,6 +29,7 @@ import { formatTime12h } from "@/utils/time";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
+import useReadOnlySession from "../../hooks/useReadOnlySession";
 
 /* ───────────────────────────── Types ───────────────────────────── */
 
@@ -392,6 +393,7 @@ interface CorrectionModalProps {
 }
 
 function CorrectionDetailModal({ record, open, onClose, onAction, acting }: CorrectionModalProps) {
+  const { isReadOnly, readOnlyTooltip } = useReadOnlySession();
   const [rejectionReason, setRejectionReason] = useState("");
 
   useEffect(() => {
@@ -501,7 +503,8 @@ function CorrectionDetailModal({ record, open, onClose, onAction, acting }: Corr
                   <div className="flex gap-2">
                     <button
                       onClick={() => onAction(record.correctionId || record.id || "", "approved")}
-                      disabled={acting}
+                      disabled={isReadOnly || acting}
+                      title={readOnlyTooltip}
                       className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-500 text-white px-4 py-2.5 rounded-2xl text-[11px] font-pmedium uppercase tracking-wider hover:bg-emerald-600 active:scale-95 transition-all disabled:opacity-50"
                     >
                       {acting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
@@ -515,7 +518,8 @@ function CorrectionDetailModal({ record, open, onClose, onAction, acting }: Corr
                         }
                         onAction(record.correctionId || record.id || "", "rejected", rejectionReason.trim());
                       }}
-                      disabled={acting}
+                      disabled={isReadOnly || acting}
+                      title={readOnlyTooltip}
                       className="flex-1 flex items-center justify-center gap-1.5 bg-rose-500 text-white px-4 py-2.5 rounded-2xl text-[11px] font-pmedium uppercase tracking-wider hover:bg-rose-600 active:scale-95 transition-all disabled:opacity-50"
                     >
                       {acting ? <Loader2 size={14} className="animate-spin" /> : <Ban size={14} />}

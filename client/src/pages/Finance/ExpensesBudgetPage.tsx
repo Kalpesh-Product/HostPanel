@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
+import useReadOnlySession from '@/hooks/useReadOnlySession';
 import { formatWorkspaceCurrency } from '@/lib/workspaceLocalization';
 import {
   Wallet,
@@ -1009,6 +1010,7 @@ export function ExpensesBudgetPage() {
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
 
   const workspacePreferences = useWorkspacePreferences();
+  const { isReadOnly } = useReadOnlySession();
   const formatCurrency = useCallback(
     (val: number) => formatWorkspaceCurrency(Number(val || 0), workspacePreferences.currency, { maximumFractionDigits: 0 }),
     [workspacePreferences.currency],
@@ -1704,21 +1706,21 @@ export function ExpensesBudgetPage() {
                                   <>
                                     <button
                                       onClick={() => { setTemporaryFounderOverride(false); setRejectReason(''); setRejectingRequest({ ...budget, modalType: 'estimated', decisionAction: 'Discuss' }); }}
-                                      className="p-2 bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 rounded-lg transition-all shadow-sm"
+                                      disabled={isReadOnly} className="p-2 bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 rounded-lg transition-all shadow-sm"
                                       title="Discuss"
                                     >
                                       <MessageSquare size={14} />
                                     </button>
                                     <button
                                       onClick={() => { setTemporaryFounderOverride(false); setRejectReason(''); setRejectingRequest({ ...budget, modalType: 'estimated' }); }}
-                                      className="p-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm"
+                                      disabled={isReadOnly} className="p-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm"
                                       title="Reject"
                                     >
                                       <XCircle size={14} />
                                     </button>
                                     <button
                                       onClick={() => { setTemporaryFounderOverride(false); setShowApproveConfirm({ ...budget, modalType: 'estimated' }); }}
-                                      className="p-2 bg-green-600 border border-green-600 text-white hover:bg-green-700 rounded-lg transition-all shadow-sm"
+                                      disabled={isReadOnly} className="p-2 bg-green-600 border border-green-600 text-white hover:bg-green-700 rounded-lg transition-all shadow-sm"
                                       title="Approve"
                                     >
                                       <CheckCircle2 size={14} />
@@ -1786,21 +1788,21 @@ export function ExpensesBudgetPage() {
                                 <>
                                   <button
                                     onClick={() => { setTemporaryFounderOverride(false); setRejectReason(''); setRejectingRequest({ ...extra, modalType: 'extra', decisionAction: 'Discuss' }); }}
-                                    className="p-2 bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 rounded-lg transition-all shadow-sm"
+                                    disabled={isReadOnly} className="p-2 bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 rounded-lg transition-all shadow-sm"
                                     title="Discuss"
                                   >
                                     <MessageSquare size={14} />
                                   </button>
                                   <button
                                     onClick={() => { setTemporaryFounderOverride(false); setRejectReason(''); setRejectingRequest({ ...extra, modalType: 'extra' }); }}
-                                    className="p-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm"
+                                    disabled={isReadOnly} className="p-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm"
                                     title="Reject"
                                   >
                                     <XCircle size={14} />
                                   </button>
                                   <button
                                     onClick={() => { setTemporaryFounderOverride(false); setShowApproveConfirm({ ...extra, modalType: 'extra' }); }}
-                                    className="p-2 bg-green-600 border border-green-600 text-white hover:bg-green-700 rounded-lg transition-all shadow-sm"
+                                    disabled={isReadOnly} className="p-2 bg-green-600 border border-green-600 text-white hover:bg-green-700 rounded-lg transition-all shadow-sm"
                                     title="Approve"
                                   >
                                     <CheckCircle2 size={14} />
@@ -2241,9 +2243,9 @@ export function ExpensesBudgetPage() {
                       </label>
                     )}
                     <div className="flex gap-3 sm:gap-4">
-                      <button onClick={() => { setTemporaryFounderOverride(false); setRejectReason(''); setRejectingRequest({ ...viewingBudget, modalType: 'estimated', decisionAction: 'Discuss' }); setViewingExpense(null); setViewingBudget(null); }} className="flex-1 py-3.5 bg-white border-2 border-blue-200 text-blue-600 rounded-xl font-pmedium hover:bg-blue-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2"><MessageSquare size={14} /> REQUEST CHANGES</button>
-                      <button onClick={() => { setTemporaryFounderOverride(false); setRejectingRequest({ ...viewingBudget, modalType: 'estimated' }); setViewingExpense(null); setViewingBudget(null); }} className="flex-1 py-3.5 bg-white border-2 border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2"><XCircle size={14} /> REJECT REQUEST</button>
-                      <button onClick={() => handleApproveEstimated(viewingBudget)} className="flex-[2] py-3.5 bg-green-600 text-white rounded-xl font-pmedium shadow-lg shadow-green-200 hover:bg-green-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">APPROVE BUDGET <CheckCircle2 size={14} /></button>
+                      <button onClick={() => { setTemporaryFounderOverride(false); setRejectReason(''); setRejectingRequest({ ...viewingBudget, modalType: 'estimated', decisionAction: 'Discuss' }); setViewingExpense(null); setViewingBudget(null); }} disabled={isReadOnly} className="flex-1 py-3.5 bg-white border-2 border-blue-200 text-blue-600 rounded-xl font-pmedium hover:bg-blue-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2"><MessageSquare size={14} /> REQUEST CHANGES</button>
+                      <button onClick={() => { setTemporaryFounderOverride(false); setRejectingRequest({ ...viewingBudget, modalType: 'estimated' }); setViewingExpense(null); setViewingBudget(null); }} disabled={isReadOnly} className="flex-1 py-3.5 bg-white border-2 border-red-200 text-red-600 rounded-xl font-pmedium hover:bg-red-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2"><XCircle size={14} /> REJECT REQUEST</button>
+                      <button onClick={() => handleApproveEstimated(viewingBudget)} disabled={isReadOnly} className="flex-[2] py-3.5 bg-green-600 text-white rounded-xl font-pmedium shadow-lg shadow-green-200 hover:bg-green-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">APPROVE BUDGET <CheckCircle2 size={14} /></button>
                     </div>
                   </div>
                 );

@@ -61,6 +61,14 @@ const FreeTrialOfferNotice = ({
   if (offer?.bonusTrialActive && !isExpiredDowngrade) return null;
 
   const handleStartTrial = async () => {
+    // Starting a trial opens a Stripe checkout and flips the plan — a write.
+    if (document.body.dataset.readonlySession === "true") {
+      toast.error(
+        "This is a read-only staff view session and cannot make changes.",
+        { id: "readonly-staff-view" },
+      );
+      return;
+    }
     try {
       setIsStarting(true);
       // Card-backed trial: redirect to Stripe's own hosted page (card +

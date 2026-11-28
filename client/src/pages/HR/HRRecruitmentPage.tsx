@@ -18,6 +18,7 @@ import { downloadReportFile } from "@/utils/report-download";
 import ExportReportModal, { type ExportParams } from "@/components/ExportReportModal";
 import ReportExportButton from "@/components/ReportExportButton";
 import BulkUploadModal from "@/components/BulkUploadModal";
+import useReadOnlySession from "../../hooks/useReadOnlySession";
 import {
   createRecruitmentCandidate,
   bulkUploadRecruitmentJobOpenings,
@@ -270,6 +271,7 @@ interface CandidateDetailModalProps {
 function CandidateDetailModal({
   candidate, onClose, onReject, onAccept, onSendEmail, onConvert, busyId,
 }: CandidateDetailModalProps) {
+  const { isReadOnly, readOnlyTooltip } = useReadOnlySession();
   const fd = candidate.formData || {};
   const resumeUrl = candidate.resumeUrl || candidate.resumeMeta?.url || "";
   const customFieldEntries = parseCustomFields(fd.customFields || "");
@@ -394,7 +396,8 @@ function CandidateDetailModal({
             <>
               <button
                 onClick={() => candidate.id && onReject(candidate.id)}
-                disabled={busyId === candidate.id}
+                disabled={isReadOnly || busyId === candidate.id}
+                title={readOnlyTooltip}
                 className="flex-1 py-2.5 bg-white border border-red-200 text-red-600 rounded-xl font-pmedium text-[12px] hover:bg-red-50 transition-colors shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-60"
               >
                 <XCircle size={14} /> Reject

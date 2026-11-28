@@ -41,6 +41,16 @@ const BonusTrialOfferNotice = ({
   const days = offer.durationDays;
 
   const handleClaim = async () => {
+    // Claiming a bonus trial is a plan-billing write; a staff "View As"
+    // session can never complete it, so fail here instead of firing the
+    // request and showing a raw server error.
+    if (document.body.dataset.readonlySession === "true") {
+      toast.error(
+        "This is a read-only staff view session and cannot make changes.",
+        { id: "readonly-staff-view" },
+      );
+      return;
+    }
     try {
       setIsClaiming(true);
       await axiosPrivate.post("/api/plan-billing/claim-bonus-trial");
@@ -60,6 +70,7 @@ const BonusTrialOfferNotice = ({
         data-tour="dashboard-bonus-trial-notice"
         role="button"
         tabIndex={0}
+        data-readonly-write
         onClick={() => setIsConfirmOpen(true)}
         onKeyDown={(event) => {
           if (event.key === "Enter") setIsConfirmOpen(true);

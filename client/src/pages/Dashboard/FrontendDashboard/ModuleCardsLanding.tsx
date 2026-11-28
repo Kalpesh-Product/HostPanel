@@ -718,6 +718,14 @@ export const UpgradePlanModal = ({
   }, [axiosPrivate]);
 
   const handleStartTrial = async () => {
+    // Starting a trial opens a Stripe checkout and flips the plan — a write.
+    if (document.body.dataset.readonlySession === "true") {
+      toast.error(
+        "This is a read-only staff view session and cannot make changes.",
+        { id: "readonly-staff-view" },
+      );
+      return;
+    }
     try {
       setIsStartingTrial(true);
       // Card-backed trial: Stripe collects the card and an optional promo

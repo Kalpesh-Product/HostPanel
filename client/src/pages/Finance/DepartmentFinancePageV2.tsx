@@ -36,6 +36,7 @@ import ExportReportModal, { type ExportParams } from '@/components/ExportReportM
 import ReportExportButton from '@/components/ReportExportButton';
 import { isMonthInExportPeriod } from '@/utils/export-period';
 import useWorkspacePreferences from '@/hooks/useWorkspacePreferences';
+import useReadOnlySession from '@/hooks/useReadOnlySession';
 import { formatWorkspaceCurrency, getWorkspaceCurrencySymbol } from '@/lib/workspaceLocalization';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -290,6 +291,7 @@ export function DepartmentFinancePageV2({
   const { confirm } = useAppConfirm();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const workspacePreferences = useWorkspacePreferences();
+  const { isReadOnly, readOnlyTooltip } = useReadOnlySession();
   const currency = workspacePreferences.currency;
   const currencySymbol = getWorkspaceCurrencySymbol(currency);
   const formatCurrency = (amount: number) =>
@@ -1402,7 +1404,8 @@ export function DepartmentFinancePageV2({
               </div>
               <button
                 onClick={handleResetRejectedBudget}
-                disabled={isResettingBudget}
+                disabled={isReadOnly || isResettingBudget}
+                title={readOnlyTooltip}
                 className="px-3 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-700 text-[10px] font-pmedium uppercase tracking-wider hover:bg-rose-50 transition-all shrink-0"
               >
                 {isResettingBudget ? 'Creating...' : 'Create Revision'}
@@ -1419,7 +1422,8 @@ export function DepartmentFinancePageV2({
               </div>
               <button
                 onClick={handleResetRejectedBudget}
-                disabled={isResettingBudget}
+                disabled={isReadOnly || isResettingBudget}
+                title={readOnlyTooltip}
                 className="px-3 py-1.5 rounded-lg bg-white border border-blue-200 text-blue-700 text-[10px] font-pmedium uppercase tracking-wider hover:bg-blue-50 transition-all shrink-0"
               >
                 {isResettingBudget ? 'Creating...' : 'Create Revision'}

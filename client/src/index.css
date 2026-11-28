@@ -36,6 +36,16 @@ body {
 /* Staff "View As" read-only sessions (see MainLayout.tsx / PrimaryButton.tsx):
    PrimaryButton disables itself in JS, but plenty of forms use a plain
    native submit button. Belt-and-braces so those can't fire a write either. */
+/* Opt-in guard for mutating controls that are not React-disabled (long tail of
+   inline onClick buttons): add data-readonly-write to the element. Matches on
+   <body> too, so createPortal modals are covered. */
+[data-readonly-session="true"] [data-readonly-write] {
+  pointer-events: none;
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+}
+
 [data-readonly-session="true"] button[type="submit"],
 [data-readonly-session="true"] input[type="submit"] {
   pointer-events: none;

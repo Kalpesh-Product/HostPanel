@@ -28,6 +28,7 @@ import {
 import { formatTime12h } from "../../../../utils/time";
 import useWorkspacePreferences from "../../../../hooks/useWorkspacePreferences";
 import useDashboardAccess from "../../../../hooks/useDashboardAccess";
+import useReadOnlySession from "../../../../hooks/useReadOnlySession";
 import {
   formatSeconds,
   useLiveTimes,
@@ -88,6 +89,7 @@ const TodayAttendanceCard = ({
   onChanged,
 }: TodayAttendanceCardProps) => {
   const workspacePreferences = useWorkspacePreferences();
+  const { isReadOnly, readOnlyTooltip } = useReadOnlySession();
   const access = useDashboardAccess();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -515,7 +517,8 @@ const TodayAttendanceCard = ({
             <button
               type="button"
               onClick={() => void openClockModal("in")}
-              disabled={isActionLoading || disableClockIn}
+              disabled={isReadOnly || isActionLoading || disableClockIn}
+              title={readOnlyTooltip}
               className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-3 text-xs font-pmedium uppercase tracking-wider text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md disabled:opacity-50"
             >
               <LogIn size={15} /> Clock In
@@ -533,7 +536,8 @@ const TodayAttendanceCard = ({
           <button
             type="button"
             onClick={() => void runBreakAction()}
-            disabled={isActionLoading}
+            disabled={isReadOnly || isActionLoading}
+            title={readOnlyTooltip}
             className="inline-flex items-center gap-2 rounded-xl bg-amber-100 px-4 py-3 text-xs font-pmedium uppercase tracking-wider text-amber-700 transition hover:bg-amber-200 disabled:opacity-50"
           >
             {isActionLoading ? (
@@ -546,7 +550,8 @@ const TodayAttendanceCard = ({
           <button
             type="button"
             onClick={() => void openClockModal("out")}
-            disabled={isActionLoading}
+            disabled={isReadOnly || isActionLoading}
+            title={readOnlyTooltip}
             className="inline-flex items-center gap-2 rounded-xl bg-rose-100 px-4 py-3 text-xs font-pmedium uppercase tracking-wider text-rose-700 transition hover:bg-rose-200 disabled:opacity-50"
           >
             <LogOut size={14} /> Clock Out
@@ -557,7 +562,8 @@ const TodayAttendanceCard = ({
         <button
           type="button"
           onClick={() => void runBreakAction()}
-          disabled={isActionLoading}
+          disabled={isReadOnly || isActionLoading}
+          title={readOnlyTooltip}
           className="inline-flex items-center gap-2 rounded-xl bg-emerald-100 px-4 py-3 text-xs font-pmedium uppercase tracking-wider text-emerald-700 transition hover:bg-emerald-200 disabled:opacity-50"
         >
           {isActionLoading ? (

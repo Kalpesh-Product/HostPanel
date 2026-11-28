@@ -39,6 +39,7 @@ import { downloadReportFile } from "@/utils/report-download";
 import PageFrame from "@/components/Pages/PageFrame";
 import ResignationManagementSettingsPanel from "./ResignationManagementSettingsPanel";
 import { statusPillClass } from "@/lib/status-pill";
+import useReadOnlySession from "../../hooks/useReadOnlySession";
 
 /* ───────────────────────────── Types ───────────────────────────── */
 
@@ -310,6 +311,7 @@ export function HRResignationManagementPage({
     role: normalizeUserRole(currentUser?.workspaceMembership?.role || currentUser?.role || "hr-manager"),
   };
   const navigate = useNavigate();
+  const { isReadOnly, readOnlyTooltip } = useReadOnlySession();
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -799,6 +801,8 @@ export function HRResignationManagementPage({
                             <button
                               type="button"
                               onClick={() => handleApproveRequest(request)}
+                              disabled={isReadOnly}
+                              title={readOnlyTooltip}
                               className="p-1.5 bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-700 rounded-lg transition-all"
                             >
                               <Check size={15} strokeWidth={2.5} />
@@ -806,6 +810,8 @@ export function HRResignationManagementPage({
                             <button
                               type="button"
                               onClick={() => setRejectingRequest(request)}
+                              disabled={isReadOnly}
+                              title={readOnlyTooltip}
                               className="p-1.5 bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-600 rounded-lg transition-all"
                             >
                               <X size={15} strokeWidth={2.5} />
@@ -1080,10 +1086,10 @@ export function HRResignationManagementPage({
               <div className="p-4 sm:p-6 bg-slate-50/80 border-t border-slate-100/80 shrink-0">
                 {viewingRequest.status === "pending" ? (
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                    <button onClick={() => { setRejectingRequest(viewingRequest); setViewingRequest(null); }} disabled={isSavingDecision} className="w-full sm:flex-1 flex items-center justify-center gap-1.5 bg-rose-500 text-white px-4 py-2.5 rounded-2xl text-[11px] font-pmedium uppercase tracking-wider hover:bg-rose-600 active:scale-95 transition-all disabled:opacity-50">
+                    <button onClick={() => { setRejectingRequest(viewingRequest); setViewingRequest(null); }} disabled={isReadOnly || isSavingDecision} title={readOnlyTooltip} className="w-full sm:flex-1 flex items-center justify-center gap-1.5 bg-rose-500 text-white px-4 py-2.5 rounded-2xl text-[11px] font-pmedium uppercase tracking-wider hover:bg-rose-600 active:scale-95 transition-all disabled:opacity-50">
                       <X size={14} /> Reject
                     </button>
-                    <button onClick={() => handleApproveRequest(viewingRequest)} disabled={isSavingDecision} className="w-full sm:flex-1 flex items-center justify-center gap-1.5 bg-emerald-500 text-white px-4 py-2.5 rounded-2xl text-[11px] font-pmedium uppercase tracking-wider hover:bg-emerald-600 active:scale-95 transition-all disabled:opacity-50">
+                    <button onClick={() => handleApproveRequest(viewingRequest)} disabled={isReadOnly || isSavingDecision} title={readOnlyTooltip} className="w-full sm:flex-1 flex items-center justify-center gap-1.5 bg-emerald-500 text-white px-4 py-2.5 rounded-2xl text-[11px] font-pmedium uppercase tracking-wider hover:bg-emerald-600 active:scale-95 transition-all disabled:opacity-50">
                       {isSavingDecision ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                       {isSavingDecision ? "SAVING..." : "APPROVE & START NOTICE"}
                     </button>
@@ -1274,7 +1280,7 @@ export function HRResignationManagementPage({
                   <button type="button" onClick={() => { setRejectingRequest(null); setRejectReason(""); }} className="w-full sm:flex-1 py-2.5 bg-white border border-slate-200/60 shadow-sm text-slate-700 rounded-2xl font-pmedium hover:bg-slate-50 transition-all text-[11px] uppercase tracking-wider">
                     Cancel
                   </button>
-                  <button type="button" disabled={!rejectReason.trim() || isSavingDecision} onClick={handleRejectSubmit} className="w-full sm:flex-[2] flex items-center justify-center gap-1.5 bg-rose-500 text-white px-4 py-2.5 rounded-2xl text-[11px] font-pmedium uppercase tracking-wider hover:bg-rose-600 active:scale-95 transition-all disabled:opacity-50">
+                  <button type="button" disabled={isReadOnly || !rejectReason.trim() || isSavingDecision} title={readOnlyTooltip} onClick={handleRejectSubmit} className="w-full sm:flex-[2] flex items-center justify-center gap-1.5 bg-rose-500 text-white px-4 py-2.5 rounded-2xl text-[11px] font-pmedium uppercase tracking-wider hover:bg-rose-600 active:scale-95 transition-all disabled:opacity-50">
                     {isSavingDecision ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
                     Confirm Rejection
                   </button>
