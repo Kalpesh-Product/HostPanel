@@ -92,7 +92,7 @@ const startServer = async () => {
       connectTimeoutMS: 15000,
     });
 
-    console.log("Connected to MongoDB");
+    console.log(`Connected to MongoDB: ${mongoose.connection.name}`);
 
     migrateHolidayEntryIndexes().catch((error) => {
       console.error("Holiday index migration error:", error?.message || error);
